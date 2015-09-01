@@ -222,6 +222,7 @@ void hyscan_gtk_area_set_central( HyScanGtkArea *area, GtkWidget *child )
   gtk_widget_set_valign( child, GTK_ALIGN_FILL );
   gtk_widget_set_halign( child, GTK_ALIGN_FILL );
   gtk_grid_attach( GTK_GRID( area ), child, 2, 2, 1, 1 );
+  priv->central_area = child;
 
 }
 
