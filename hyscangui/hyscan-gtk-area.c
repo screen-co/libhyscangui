@@ -50,7 +50,7 @@ static void hyscan_gtk_area_class_init( HyScanGtkAreaClass *klass )
 
   GObjectClass *this_class = G_OBJECT_CLASS( klass );
 
-  this_class->constructor = (gpointer)hyscan_gtk_area_object_constructor;
+  this_class->constructor = hyscan_gtk_area_object_constructor;
 
   g_type_class_add_private( klass, sizeof( HyScanGtkAreaPriv ) );
 
@@ -210,11 +210,11 @@ void hyscan_gtk_area_set_central( HyScanGtkArea *area, GtkWidget *child )
   HyScanGtkAreaPriv *priv = HYSCAN_GTK_AREA_GET_PRIVATE( area );
 
   // Удаляем виджет из рабочей области по центру, если он установлен.
-  if( priv->central_area != NULL )
+  if( priv->central_area )
     gtk_container_remove( GTK_CONTAINER( area ), priv->central_area );
 
   // Если дочерний виджет равен NULL, устанавливаем заглушку.
-  if( child == NULL ) child = gtk_drawing_area_new();
+  if( !child ) child = gtk_drawing_area_new();
 
   // Виджет рабочей области по центру.
   gtk_widget_set_vexpand( child, TRUE );
@@ -234,14 +234,14 @@ void hyscan_gtk_area_set_left( HyScanGtkArea *area, GtkWidget *child )
   HyScanGtkAreaPriv *priv = HYSCAN_GTK_AREA_GET_PRIVATE( area );
 
   // Удаляем виджет из рабочей области слева, если он установлен.
-  if( priv->left_area != NULL )
+  if( priv->left_area )
     {
     gtk_container_remove( GTK_CONTAINER( area ), priv->left_area );
     gtk_container_remove( GTK_CONTAINER( area ), priv->left_expander );
     }
 
   // Если дочерний виджет равен NULL, выходим.
-  if( child == NULL ) return;
+  if( !child ) return;
 
   // Кнопка скрытия / показа рабочей области слева.
   priv->left_expander = gtk_event_box_new();
@@ -270,14 +270,14 @@ void hyscan_gtk_area_set_right( HyScanGtkArea *area, GtkWidget *child )
   HyScanGtkAreaPriv *priv = HYSCAN_GTK_AREA_GET_PRIVATE( area );
 
   // Удаляем виджет из рабочей области справа, если он установлен.
-  if( priv->right_area != NULL )
+  if( priv->right_area )
     {
     gtk_container_remove( GTK_CONTAINER( area ), priv->right_area );
     gtk_container_remove( GTK_CONTAINER( area ), priv->right_expander );
     }
 
   // Если дочерний виджет равен NULL, выходим.
-  if( child == NULL ) return;
+  if( !child ) return;
 
   // Кнопка скрытия / показа рабочей области справа.
   priv->right_expander = gtk_event_box_new();
@@ -306,14 +306,14 @@ void hyscan_gtk_area_set_top( HyScanGtkArea *area, GtkWidget *child )
   HyScanGtkAreaPriv *priv = HYSCAN_GTK_AREA_GET_PRIVATE( area );
 
   // Удаляем виджет из рабочей области сверху, если он установлен.
-  if( priv->top_area != NULL )
+  if( priv->top_area )
     {
     gtk_container_remove( GTK_CONTAINER( area ), priv->top_area );
     gtk_container_remove( GTK_CONTAINER( area ), priv->top_expander );
     }
 
   // Если дочерний виджет равен NULL, выходим.
-  if( child == NULL ) return;
+  if( !child ) return;
 
   // Кнопка скрытия / показа рабочей области сверху.
   priv->top_expander = gtk_event_box_new();
@@ -342,14 +342,14 @@ void hyscan_gtk_area_set_bottom( HyScanGtkArea *area, GtkWidget *child )
   HyScanGtkAreaPriv *priv = HYSCAN_GTK_AREA_GET_PRIVATE( area );
 
   // Удаляем виджет из рабочей области снизу, если он установлен.
-  if( priv->bottom_area != NULL )
+  if( priv->bottom_area )
     {
     gtk_container_remove( GTK_CONTAINER( area ), priv->bottom_area );
     gtk_container_remove( GTK_CONTAINER( area ), priv->bottom_expander );
     }
 
   // Если дочерний виджет равен NULL, выходим.
-  if( child == NULL ) return;
+  if( !child ) return;
 
   // Кнопка скрытия / показа рабочей области снизу.
   priv->bottom_expander = gtk_event_box_new();
@@ -378,7 +378,7 @@ void hyscan_gtk_area_set_left_visible( HyScanGtkArea *area, gboolean visible )
   HyScanGtkAreaPriv *priv = HYSCAN_GTK_AREA_GET_PRIVATE( area );
 
   // Если виджет рабочей области слева не установлен, выходим.
-  if( priv->left_area == NULL ) return;
+  if( !priv->left_area ) return;
 
   // Проверяем совпадает состояние отображения рабочей области слева или нет.
   if( gtk_revealer_get_reveal_child( GTK_REVEALER( priv->left_area ) ) == visible ) return;
@@ -396,7 +396,7 @@ gboolean hyscan_gtk_area_is_left_visible( HyScanGtkArea *area )
   HyScanGtkAreaPriv *priv = HYSCAN_GTK_AREA_GET_PRIVATE( area );
 
   // Если виджет рабочей области слева не установлен, выходим.
-  if( priv->left_area == NULL ) return FALSE;
+  if( !priv->left_area ) return FALSE;
 
   return gtk_revealer_get_reveal_child( GTK_REVEALER( priv->left_area ) );
 
@@ -410,7 +410,7 @@ void hyscan_gtk_area_set_right_visible( HyScanGtkArea *area, gboolean visible )
   HyScanGtkAreaPriv *priv = HYSCAN_GTK_AREA_GET_PRIVATE( area );
 
   // Если виджет рабочей области справа не установлен, выходим.
-  if( priv->right_area == NULL ) return;
+  if( !priv->right_area ) return;
 
   // Проверяем совпадает состояние отображения рабочей области справа или нет.
   if( gtk_revealer_get_reveal_child( GTK_REVEALER( priv->right_area ) ) == visible ) return;
@@ -428,7 +428,7 @@ gboolean hyscan_gtk_area_is_right_visible( HyScanGtkArea *area )
   HyScanGtkAreaPriv *priv = HYSCAN_GTK_AREA_GET_PRIVATE( area );
 
   // Если виджет рабочей области справа не установлен, выходим.
-  if( priv->right_area == NULL ) return FALSE;
+  if( !priv->right_area ) return FALSE;
 
   return gtk_revealer_get_reveal_child( GTK_REVEALER( priv->right_area ) );
 
@@ -442,7 +442,7 @@ void hyscan_gtk_area_set_top_visible( HyScanGtkArea *area, gboolean visible )
   HyScanGtkAreaPriv *priv = HYSCAN_GTK_AREA_GET_PRIVATE( area );
 
   // Если виджет рабочей области сверху не установлен, выходим.
-  if( priv->top_area == NULL ) return;
+  if( !priv->top_area ) return;
 
   // Проверяем совпадает состояние отображения рабочей области сверху или нет.
   if( gtk_revealer_get_reveal_child( GTK_REVEALER( priv->top_area ) ) == visible ) return;
@@ -460,7 +460,7 @@ gboolean hyscan_gtk_area_is_top_visible( HyScanGtkArea *area )
   HyScanGtkAreaPriv *priv = HYSCAN_GTK_AREA_GET_PRIVATE( area );
 
   // Если виджет рабочей области сверху не установлен, выходим.
-  if( priv->top_area == NULL ) return FALSE;
+  if( !priv->top_area ) return FALSE;
 
   return gtk_revealer_get_reveal_child( GTK_REVEALER( priv->top_area ) );
 
@@ -474,7 +474,7 @@ void hyscan_gtk_area_set_bottom_visible( HyScanGtkArea *area, gboolean visible )
   HyScanGtkAreaPriv *priv = HYSCAN_GTK_AREA_GET_PRIVATE( area );
 
   // Если виджет рабочей области снизу не установлен, выходим.
-  if( priv->bottom_area == NULL ) return;
+  if( !priv->bottom_area ) return;
 
   // Проверяем совпадает состояние отображения рабочей области снизу или нет.
   if( gtk_revealer_get_reveal_child( GTK_REVEALER( priv->bottom_area ) ) == visible ) return;
@@ -492,7 +492,7 @@ gboolean hyscan_gtk_area_is_bottom_visible( HyScanGtkArea *area )
   HyScanGtkAreaPriv *priv = HYSCAN_GTK_AREA_GET_PRIVATE( area );
 
   // Если виджет рабочей области снизу не установлен, выходим.
-  if( priv->bottom_area == NULL ) return FALSE;
+  if( !priv->bottom_area ) return FALSE;
 
   return gtk_revealer_get_reveal_child( GTK_REVEALER( priv->bottom_area ) );
 
