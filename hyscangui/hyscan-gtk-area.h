@@ -1,4 +1,4 @@
-/*!
+/**
  * \file hyscan-gtk-area.h
  *
  * \brief Заголовочный файл виджета рабочей области
@@ -26,28 +26,29 @@
  *
 */
 
-#ifndef _hyscan_gtk_area_h
-#define _hyscan_gtk_area_h
+#ifndef __HYSCAN_GTK_AREA_H__
+#define __HYSCAN_GTK_AREA_H__
 
 #include <gtk/gtk.h>
 
 G_BEGIN_DECLS
 
+#define HYSCAN_TYPE_GTK_AREA             (hyscan_gtk_area_get_type ())
+#define HYSCAN_GTK_AREA(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_AREA, HyScanGtkArea))
+#define HYSCAN_IS_GTK_AREA(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_AREA))
+#define HYSCAN_GTK_AREA_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_AREA, HyScanGtkAreaClass))
+#define HYSCAN_IS_GTK_AREA_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_AREA))
+#define HYSCAN_GTK_AREA_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_AREA, HyScanGtkAreaClass))
 
-#define HYSCAN_TYPE_GTK_AREA                      ( hyscan_gtk_area_get_type() )
-#define HYSCAN_GTK_AREA( obj )                    ( G_TYPE_CHECK_INSTANCE_CAST( ( obj ), HYSCAN_TYPE_GTK_AREA, HyScanGtkArea ) )
-#define HYSCAN_IS_GTK_AREA( obj )                 ( G_TYPE_CHECK_INSTANCE_TYPE( ( obj ), HYSCAN_TYPE_GTK_AREA ) )
-#define HYSCAN_GTK_AREA_CLASS( klass )            ( G_TYPE_CHECK_CLASS_CAST( ( klass ), HYSCAN_TYPE_GTK_AREA, HyScanGtkAreaClass ) )
-#define HYSCAN_IS_GTK_AREA_CLASS( klass )         ( G_TYPE_CHECK_CLASS_TYPE( ( klass ), HYSCAN_TYPE_GTK_AREA ) )
-#define HYSCAN_GTK_AREA_GET_CLASS( obj )          ( G_TYPE_INSTANCE_GET_CLASS( ( obj ), HYSCAN_TYPE_GTK_AREA, HyScanGtkAreaClass ) )
+typedef struct _HyScanGtkArea HyScanGtkArea;
+typedef struct _HyScanGtkAreaClass HyScanGtkAreaClass;
 
+struct _HyScanGtkAreaClass
+{
+  GtkGridClass parent_class;
+};
 
-typedef GtkGrid HyScanGtkArea;
-typedef GtkGridClass HyScanGtkAreaClass;
-
-
-GType hyscan_gtk_area_get_type( void );
-
+GType hyscan_gtk_area_get_type (void);
 
 /*!
  *
@@ -56,8 +57,7 @@ GType hyscan_gtk_area_get_type( void );
  * \return Указатель на новый виджет \link HyScanGtkArea \endlink.
  *
 */
-GtkWidget *hyscan_gtk_area_new( void );
-
+GtkWidget     *hyscan_gtk_area_new                     (void);
 
 /*!
  *
@@ -69,8 +69,8 @@ GtkWidget *hyscan_gtk_area_new( void );
  * \return Нет.
  *
 */
-void hyscan_gtk_area_set_central( HyScanGtkArea *area, GtkWidget *child );
-
+void           hyscan_gtk_area_set_central             (HyScanGtkArea         *area,
+                                                        GtkWidget             *child);
 
 /*!
  *
@@ -82,8 +82,8 @@ void hyscan_gtk_area_set_central( HyScanGtkArea *area, GtkWidget *child );
  * \return Нет.
  *
 */
-void hyscan_gtk_area_set_left( HyScanGtkArea *area, GtkWidget *child );
-
+void           hyscan_gtk_area_set_left                (HyScanGtkArea         *area,
+                                                        GtkWidget             *child);
 
 /*!
  *
@@ -95,8 +95,8 @@ void hyscan_gtk_area_set_left( HyScanGtkArea *area, GtkWidget *child );
  * \return Нет.
  *
 */
-void hyscan_gtk_area_set_right( HyScanGtkArea *area, GtkWidget *child );
-
+void           hyscan_gtk_area_set_right               (HyScanGtkArea         *area,
+                                                        GtkWidget             *child);
 
 /*!
  *
@@ -108,8 +108,8 @@ void hyscan_gtk_area_set_right( HyScanGtkArea *area, GtkWidget *child );
  * \return Нет.
  *
 */
-void hyscan_gtk_area_set_top( HyScanGtkArea *area, GtkWidget *child );
-
+void           hyscan_gtk_area_set_top                 (HyScanGtkArea         *area,
+                                                        GtkWidget             *child);
 
 /*!
  *
@@ -121,8 +121,8 @@ void hyscan_gtk_area_set_top( HyScanGtkArea *area, GtkWidget *child );
  * \return Нет.
  *
 */
-void hyscan_gtk_area_set_bottom( HyScanGtkArea *area, GtkWidget *child );
-
+void           hyscan_gtk_area_set_bottom              (HyScanGtkArea         *area,
+                                                        GtkWidget             *child);
 
 /*!
  *
@@ -134,8 +134,8 @@ void hyscan_gtk_area_set_bottom( HyScanGtkArea *area, GtkWidget *child );
  * \return Нет.
  *
 */
-void hyscan_gtk_area_set_left_visible( HyScanGtkArea *area, gboolean visible );
-
+void           hyscan_gtk_area_set_left_visible        (HyScanGtkArea         *area,
+                                                        gboolean               visible);
 
 /*!
  *
@@ -146,8 +146,7 @@ void hyscan_gtk_area_set_left_visible( HyScanGtkArea *area, gboolean visible );
  * \return Состояние видимости рабочей области слева.
  *
 */
-gboolean hyscan_gtk_area_is_left_visible( HyScanGtkArea *area );
-
+gboolean       hyscan_gtk_area_is_left_visible         (HyScanGtkArea         *area);
 
 /*!
  *
@@ -159,8 +158,8 @@ gboolean hyscan_gtk_area_is_left_visible( HyScanGtkArea *area );
  * \return Нет.
  *
 */
-void hyscan_gtk_area_set_right_visible( HyScanGtkArea *area, gboolean visible );
-
+void           hyscan_gtk_area_set_right_visible       (HyScanGtkArea         *area,
+                                                        gboolean               visible);
 
 /*!
  *
@@ -171,8 +170,7 @@ void hyscan_gtk_area_set_right_visible( HyScanGtkArea *area, gboolean visible );
  * \return Состояние видимости рабочей области справа.
  *
 */
-gboolean hyscan_gtk_area_is_right_visible( HyScanGtkArea *area );
-
+gboolean       hyscan_gtk_area_is_right_visible        (HyScanGtkArea         *area);
 
 /*!
  *
@@ -184,8 +182,8 @@ gboolean hyscan_gtk_area_is_right_visible( HyScanGtkArea *area );
  * \return Нет.
  *
 */
-void hyscan_gtk_area_set_top_visible( HyScanGtkArea *area, gboolean visible );
-
+void           hyscan_gtk_area_set_top_visible         (HyScanGtkArea         *area,
+                                                        gboolean               visible);
 
 /*!
  *
@@ -196,8 +194,7 @@ void hyscan_gtk_area_set_top_visible( HyScanGtkArea *area, gboolean visible );
  * \return Состояние видимости рабочей области сверху.
  *
 */
-gboolean hyscan_gtk_area_is_top_visible( HyScanGtkArea *area );
-
+gboolean       hyscan_gtk_area_is_top_visible          (HyScanGtkArea         *area);
 
 /*!
  *
@@ -209,8 +206,8 @@ gboolean hyscan_gtk_area_is_top_visible( HyScanGtkArea *area );
  * \return Нет.
  *
 */
-void hyscan_gtk_area_set_bottom_visible( HyScanGtkArea *area, gboolean visible );
-
+void           hyscan_gtk_area_set_bottom_visible      (HyScanGtkArea         *area,
+                                                        gboolean               visible);
 
 /*!
  *
@@ -221,8 +218,7 @@ void hyscan_gtk_area_set_bottom_visible( HyScanGtkArea *area, gboolean visible )
  * \return Состояние видимости рабочей области снизу.
  *
 */
-gboolean hyscan_gtk_area_is_bottom_visible( HyScanGtkArea *area );
-
+gboolean       hyscan_gtk_area_is_bottom_visible       (HyScanGtkArea         *area);
 
 /*!
  *
@@ -234,9 +230,9 @@ gboolean hyscan_gtk_area_is_bottom_visible( HyScanGtkArea *area );
  * \return Нет.
  *
 */
-void hyscan_gtk_area_set_all_visible( HyScanGtkArea *area, gboolean visible );
-
+void           hyscan_gtk_area_set_all_visible         (HyScanGtkArea         *area,
+                                                        gboolean               visible);
 
 G_END_DECLS
 
-#endif // _hyscan_gtk_area_h
+#endif /* __HYSCAN_GTK_AREA_H__ */
