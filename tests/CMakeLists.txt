@@ -5,8 +5,10 @@ set (TEST_LIBRARIES ${GTK3_LIBRARIES}
                     ${HYSCAN_GUI_LIBRARY})
 
 add_executable (gtk-area-test gtk-area-test.c)
+add_executable (gtk-waterfall-test gtk-waterfall-test.c)
 
 target_link_libraries (gtk-area-test ${TEST_LIBRARIES})
+target_link_libraries (gtk-waterfall-test ${TEST_LIBRARIES})
 
 install (TARGETS gtk-area-test
          COMPONENT test
