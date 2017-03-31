@@ -74,7 +74,7 @@ set (ADDON_LIBRARIES ${ADDON_LIBRARIES} hyscantypes hyscancache hyscancore hysca
 
 include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../gtkcifroarea/gtkcifroarea")
 link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../gtkcifroarea/bin")
-set (GTKCIFROAREA_LIBRARIES gtkcifroarea-3.0)
+set (GTKCIFROAREA_LIBRARIES gtkcifroarea-3.1)
 
 add_definitions (-DG_LOG_DOMAIN="HyScanGUI")
 add_subdirectory (hyscangui)

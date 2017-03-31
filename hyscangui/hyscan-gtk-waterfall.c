@@ -1,133 +1,63 @@
-/*
- * \file hyscan-gtk-waterfall.c
- *
- * \brief Исходный файл виджета водопад.
- * \author Dmitriev Alexander (m1n7@yandex.ru)
- * \date 2017
- * \license Проприетарная лицензия ООО "Экран"
- *
- */
 #include "hyscan-gtk-waterfall.h"
-#include <hyscan-gui-marshallers.h>
-#include <hyscan-tile-queue.h>
-#include <hyscan-tile-color.h>
-//#include <hyscan-trackrect.h>
-#include <math.h>
-
-#define ZOOM_LEVELS 15
-#define EPS 2
-
-enum
-{
-  SHOW                  = 100,
-  RECOLOR_AND_SHOW      = 200,
-  SHOW_DUMMY            = 500
-};
-enum
-{
-  SIGNAL_AUTOMOVE_STATE,
-  SIGNAL_ZOOM,
-  SIGNAL_LAST
-};
-
-static const gint tile_sizes[ZOOM_LEVELS] =    {500e3,  200e3,  100e3,  80e3,  50e3,  40e3,  20e3,  10e3,  5e3,  2e3,  1e3,  500, 400, 200, 100};   /**< в миллиметрах*/
-static const gdouble zooms_gost[ZOOM_LEVELS] = {5000.0, 2000.0, 1000.0, 800.0, 500.0, 400.0, 200.0, 100.0, 50.0, 20.0, 10.0, 5.0, 4.0, 2.0, 1.0};
+#include "hyscan-gtk-waterfall-private.h"
+#include <hyscan-depth-acoustic.h>
+#include <string.h>
 
 struct _HyScanGtkWaterfallPrivate
 {
-  gfloat                ppi;                /**< PPI. */
-  gint                  need_to_redraw;     /**< Флаг необходимости перерисовки. */
-  cairo_surface_t      *surface;            /**< Поверхность тайла. */
-  cairo_surface_t      *dummy;              /**< Поверхность заглушки. */
+  /* Переменные, используемые наследниками. */
+  HyScanCache         *cache;
+  HyScanCache         *cache2;
+  gchar               *cache_prefix;
 
-  HyScanTileQueue      *queue;
-  HyScanTileColor      *color;
-  // HyScanTrackRect      *rect;
+  HyScanTileType       tile_type;
 
-  gboolean             cache_set;
-  gboolean             open;
-  guint64              view_id;
+  gfloat               ship_speed;
+  GArray              *sound_velocity;
 
-  gdouble              *zooms;              /**< Масштабы с учетом PPI. */
-  gboolean              opened;             /**< Флаг "галс открыт". */
+  HyScanSourceType     depth_source;
+  guint                depth_channel;
+  guint                depth_filter_size;
+  gulong               depth_usecs;
 
-  gdouble               ship_speed;         /**< Скорость судна. */
-  gint64                prev_time;          /**< Предыдущее время вызова функции сдвижки. */
+  HyScanDB            *db;
+  gchar               *project;
+  gchar               *track;
+  gboolean             raw;
 
-  guint                 refresh_time;       /**< Период опроса новых тайлов. */
-  guint                 refresh_tag;        /**< Идентификатор функции перерисовки. */
+  HyScanGtkWaterfallType widget_type;
+  HyScanSourceType       left_source;
+  HyScanSourceType       right_source;
 
-  HyScanTileType        trackrect_type;     /**< Тип тайла. */
-  gboolean              trackrect_type_set; /**< Тип тайла задан пользователем. */
+  /* Переменные, используемые объектом. */
+  gboolean               move_area;            /* Признак перемещения при нажатой клавише мыши. */
+  gint                   move_from_x;          /* Начальная координата x перемещения. */
+  gint                   move_from_y;          /* Начальная координата y перемещения. */
+  gdouble                start_from_x;         /* Начальная граница отображения по оси X. */
+  gdouble                start_to_x;           /* Начальная граница отображения по оси X. */
+  gdouble                start_from_y;         /* Начальная граница отображения по оси Y. */
+  gdouble                start_to_y;           /* Начальная граница отображения по оси Y. */
 
-  gdouble               length;             /**< Длина галса. */
-  gdouble               lwidth;             /**< Ширина по левому борту. */
-  gdouble               rwidth;             /**< Ширина по правому борту. */
-
-  gint                  view_finalised;     /**< "Все тайлы для этого вью найдены и показаны". */
-
-  guint32               dummy_color;        /**< Цвет, которым будут рисоваться заглушки. */
+  gint                   mouse_x;              /* Начальная координата x перемещения. */
+  gint                   mouse_y;              /* Начальная координата y перемещения. */
 };
 
-/* Внутренние методы класса. */
-static void     hyscan_gtk_waterfall_object_constructed      (GObject               *object);
-static void     hyscan_gtk_waterfall_object_finalize         (GObject               *object);
+static void      hyscan_gtk_waterfall_object_constructed     (GObject               *object);
+static void      hyscan_gtk_waterfall_object_finalize        (GObject               *object);
 
-// static gboolean hyscan_gtk_waterfall_scroll_before           (GtkWidget             *widget,
-//                                                               GdkEventScroll        *event,
-//                                                               gpointer               data);
-// static gboolean hyscan_gtk_waterfall_scroll_after            (GtkWidget             *widget,
-//                                                               GdkEventScroll        *event,
-//                                                               gpointer               data);
-// static gboolean hyscan_gtk_waterfall_key_press_before        (GtkWidget             *widget,
-//                                                               GdkEventKey           *event,
-//                                                               gpointer               data);
-// static gboolean hyscan_gtk_waterfall_key_press_after         (GtkWidget             *widget,
-//                                                               GdkEventKey           *event,
-//                                                               gpointer               data);
-// static gboolean hyscan_gtk_waterfall_button_press            (GtkWidget             *widget,
-//                                                               GdkEventButton        *event,
-//                                                               gpointer               data);
-// static gboolean hyscan_gtk_waterfall_motion                  (GtkWidget             *widget,
-//                                                               GdkEventMotion        *event,
-//                                                               gpointer               data);
+static gboolean  hyscan_gtk_waterfall_keyboard               (GtkWidget             *widget,
+                                                              GdkEventKey           *event);
 
-static void     hyscan_gtk_waterfall_tile_ready              (HyScanTileQueue     *queue,
-                                                              gpointer               data);
-static gboolean hyscan_gtk_waterfall_refresh                 (gpointer               data);
-static void     hyscan_gtk_waterfall_visible_draw            (GtkWidget             *widget,
-                                                              cairo_t               *cairo);
-// static gboolean hyscan_gtk_waterfall_update_limits           (HyScanGtkWaterfall    *waterfall,
-//                                                               gdouble               *left,
-//                                                               gdouble               *right,
-//                                                               gdouble               *bottom,
-//                                                               gdouble               *top);
-//static void     hyscan_gtk_waterfall_set_view_once           (HyScanGtkWaterfall    *waterfall);
-// static gboolean hyscan_gtk_waterfall_automover               (gpointer               data);
+static gboolean  hyscan_gtk_waterfall_mouse_buttons          (GtkWidget             *widget,
+                                                              GdkEventButton        *event);
 
-static gboolean hyscan_gtk_waterfall_configure               (GtkWidget             *widget,
-                                                              GdkEventConfigure     *event);
-static gint32   hyscan_gtk_waterfall_aligner                 (gdouble                in,
-                                                              gint                   size);
+static gboolean  hyscan_gtk_waterfall_motion                 (GtkWidget             *widget,
+                                                              GdkEventMotion        *event);
+static gboolean  hyscan_gtk_waterfall_leave                  (GtkWidget             *widget,
+                                                              GdkEventCrossing      *event);
 
-static gboolean hyscan_gtk_waterfall_view_start              (HyScanGtkWaterfall      *waterfall);
-static gboolean hyscan_gtk_waterfall_get_tile                (HyScanGtkWaterfall      *waterfall,
-                                                              HyScanTile             *tile,
-                                                              cairo_surface_t       **tile_surface);
-static gboolean hyscan_gtk_waterfall_view_end                (HyScanGtkWaterfall     *waterfall);
-// static gboolean hyscan_gtk_waterfall_track_params            (HyScanGtkWaterfall     *waterfall,
-//                                                               gdouble                *lwidth,
-//                                                               gdouble                *rwidth,
-//                                                               gdouble                *length);
-static void    hyscan_gtk_waterfall_prepare_csurface         (cairo_surface_t      **surface,
-                                                              gint                   required_width,
-                                                              gint                   required_height,
-                                                              HyScanTileSurface     *tile_surface);
-
-
-
-
-static guint    hyscan_gtk_waterfall_signals[SIGNAL_LAST] = {0};
+static gboolean  hyscan_gtk_waterfall_scroll                 (GtkWidget             *widget,
+                                                              GdkEventScroll        *event);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkWaterfall, hyscan_gtk_waterfall, GTK_TYPE_CIFRO_AREA);
 
@@ -135,1066 +65,541 @@ static void
 hyscan_gtk_waterfall_class_init (HyScanGtkWaterfallClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
+  GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
   object_class->constructed = hyscan_gtk_waterfall_object_constructed;
   object_class->finalize = hyscan_gtk_waterfall_object_finalize;
 
-  hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE] =
-    g_signal_new ("automove-state", HYSCAN_TYPE_GTK_WATERFALL,
-                  G_SIGNAL_RUN_LAST, 0,
-                  NULL, NULL,
-                  g_cclosure_marshal_VOID__POINTER,
-                  G_TYPE_NONE,
-                  1, G_TYPE_BOOLEAN);
+  /* Инициализируем виртуальные функции. */
+  klass->open = NULL;
+  klass->close = NULL;
 
-  hyscan_gtk_waterfall_signals[SIGNAL_ZOOM] =
-    g_signal_new ("waterfall-zoom", HYSCAN_TYPE_GTK_WATERFALL,
-                  G_SIGNAL_RUN_LAST, 0,
-                  NULL, NULL,
-                  g_cclosure_user_marshal_VOID__INT_DOUBLE,
-                  G_TYPE_NONE,
-                  2, G_TYPE_INT, G_TYPE_INT);
+  widget_class->key_press_event = hyscan_gtk_waterfall_keyboard;
+  widget_class->button_press_event = hyscan_gtk_waterfall_mouse_buttons;
+  widget_class->button_release_event = hyscan_gtk_waterfall_mouse_buttons;
+  widget_class->motion_notify_event = hyscan_gtk_waterfall_motion;
+  widget_class->leave_notify_event = hyscan_gtk_waterfall_leave;
+  widget_class->scroll_event = hyscan_gtk_waterfall_scroll;
 }
 
 static void
-hyscan_gtk_waterfall_init (HyScanGtkWaterfall *gtk_waterfall)
+hyscan_gtk_waterfall_init (HyScanGtkWaterfall *waterfall)
 {
-  gtk_waterfall->priv = hyscan_gtk_waterfall_get_instance_private (gtk_waterfall);
+  waterfall->priv = hyscan_gtk_waterfall_get_instance_private (waterfall);
+
+  gtk_widget_set_can_focus (GTK_WIDGET (waterfall), TRUE);
 }
 
 static void
 hyscan_gtk_waterfall_object_constructed (GObject *object)
 {
-  HyScanGtkWaterfall *gtk_waterfall = HYSCAN_GTK_WATERFALL (object);
-  HyScanGtkWaterfallPrivate *priv;
-  guint n_threads = g_get_num_processors ();
-
+  HyScanGtkWaterfall *waterfall = HYSCAN_GTK_WATERFALL (object);
+  HyScanGtkWaterfallPrivate *priv = waterfall->priv;
+  HyScanSoundVelocity *link;
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_parent_class)->constructed (object);
-  priv = gtk_waterfall->priv;
 
-  priv->queue = hyscan_tile_queue_new (n_threads);
-  priv->color = hyscan_tile_color_new ();
-  // priv->rect  = hyscan_trackrect_new ();
+  priv->sound_velocity = g_array_sized_new (FALSE, FALSE, sizeof (HyScanSoundVelocity), 1);
+  link = &g_array_index (priv->sound_velocity, HyScanSoundVelocity, 0);
+  link->depth = 0.0;
+  link->velocity = 1500.0;
 
-  /* Параметры GtkCifroArea по умолчанию. */
-  gtk_cifro_area_set_scale_on_resize (GTK_CIFRO_AREA (gtk_waterfall), FALSE);
-  gtk_cifro_area_set_zoom_on_center (GTK_CIFRO_AREA (gtk_waterfall), FALSE);
-  gtk_cifro_area_set_rotation (GTK_CIFRO_AREA (gtk_waterfall), FALSE);
-  gtk_cifro_area_set_view_limits (GTK_CIFRO_AREA (gtk_waterfall), -G_MAXDOUBLE, G_MAXDOUBLE, -G_MAXDOUBLE, G_MAXDOUBLE);
+  priv->widget_type = HYSCAN_GTK_WATERFALL_SIDESCAN;
+  priv->left_source = HYSCAN_SOURCE_SIDE_SCAN_PORT;
+  priv->right_source = HYSCAN_SOURCE_SIDE_SCAN_STARBOARD;
 
-  gtk_cifro_area_set_view (GTK_CIFRO_AREA (gtk_waterfall), -50, 50, 0, 1000 );
-
-  g_signal_connect (priv->queue, "tile-queue-ready", G_CALLBACK (hyscan_gtk_waterfall_tile_ready), gtk_waterfall);
-
-  g_signal_connect (gtk_waterfall, "visible-draw", G_CALLBACK (hyscan_gtk_waterfall_visible_draw), NULL);
-
-  g_signal_connect (gtk_waterfall, "configure-event", G_CALLBACK (hyscan_gtk_waterfall_configure), NULL);
-  // g_signal_connect (gtk_waterfall, "button-press-event", G_CALLBACK (hyscan_gtk_waterfall_button_press), gtk_waterfall);
-  // g_signal_connect (gtk_waterfall, "motion-notify-event", G_CALLBACK (hyscan_gtk_waterfall_motion), gtk_waterfall);
-  //
-  // g_signal_connect_after (gtk_waterfall, "scroll-event", G_CALLBACK (hyscan_gtk_waterfall_scroll_after), NULL);
-  // g_signal_connect (gtk_waterfall, "scroll-event", G_CALLBACK (hyscan_gtk_waterfall_scroll_before), NULL);
-  // g_signal_connect_after (gtk_waterfall, "key-press-event", G_CALLBACK (hyscan_gtk_waterfall_key_press_after), NULL);
-  // g_signal_connect (gtk_waterfall, "key-press-event", G_CALLBACK (hyscan_gtk_waterfall_key_press_before), NULL);
-
-  priv->length = 0;
-  priv->lwidth = 0;
-  priv->rwidth = 0;
-
-  // priv->auto_tag = 0;
-  priv->refresh_tag = 0;
-  priv->refresh_time = 40;
-  // priv->automove_time = 40;
-
-  priv->view_finalised = 0;
-
-  priv->trackrect_type_set = FALSE;
-
-  priv->cache_set = FALSE;
-  priv->opened = FALSE;
-
-  priv->zooms = NULL;
+  priv->tile_type = HYSCAN_TILE_SLANT;
+  priv->ship_speed = 1.0;
+  priv->depth_source = HYSCAN_SOURCE_ECHOSOUNDER;
+  priv->depth_channel = 1;
 }
 
 static void
 hyscan_gtk_waterfall_object_finalize (GObject *object)
 {
-  HyScanGtkWaterfall *gtk_waterfall = HYSCAN_GTK_WATERFALL (object);
-  HyScanGtkWaterfallPrivate *priv = gtk_waterfall->priv;
+  HyScanGtkWaterfall *waterfall = HYSCAN_GTK_WATERFALL (object);
+  HyScanGtkWaterfallPrivate *priv = waterfall->priv;
 
-  // if (priv->auto_tag > 0)
-  //   g_source_remove (priv->auto_tag);
-  if (priv->refresh_tag > 0)
-    g_source_remove (priv->refresh_tag);
-  cairo_surface_destroy (priv->surface);
+  g_clear_object (&priv->cache);
+  g_clear_object (&priv->cache2);
+  g_free (priv->cache_prefix);
 
-  g_free (priv->zooms);
+  g_array_unref (priv->sound_velocity);
 
-  g_clear_object (&priv->queue);
-  g_clear_object (&priv->color);
+  g_clear_object (&priv->db);
+  g_free (priv->project);
+  g_free (priv->track);
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_parent_class)->finalize (object);
 }
 
-// /* Обработчик сигнала прокрутки мыши. Выполняется до обработчика cifroarea. */
-// static gboolean
-// hyscan_gtk_waterfall_scroll_before (GtkWidget      *widget,
-//                                     GdkEventScroll *event,
-//                                     gpointer        data)
-// {
-//   if ((event->state & GDK_SHIFT_MASK) ||
-//       (event->state & GDK_MOD1_MASK) ||
-//       (event->state & GDK_CONTROL_MASK))
-//     {
-//       gtk_cifro_area_set_view_limits (GTK_CIFRO_AREA (widget), -999999, 999999, -999999, 999999);
-//     }
-//   return FALSE;
-// }
-//
-// /* Обработчик сигнала прокрутки мыши. Выполняется после обработчика cifroarea.*/
-// static gboolean
-// hyscan_gtk_waterfall_scroll_after (GtkWidget      *widget,
-//                                    GdkEventScroll *event,
-//                                    gpointer        data)
-// {
-//   gdouble left, right, bottom, top;
-//   hyscan_gtk_waterfall_update_limits (HYSCAN_GTK_WATERFALL (widget), &left, &right, &bottom, &top);
-//   gtk_cifro_area_set_view_limits (GTK_CIFRO_AREA (widget), left, right, bottom, top);
-//
-//   if (HYSCAN_GTK_WATERFALL (widget)->priv->automove)
-//     gtk_cifro_area_move (GTK_CIFRO_AREA (widget), 0, G_MAXDOUBLE);
-//   return FALSE;
-// }
-//
-// /* Обработчик сигнала нажатия кнопки. Выполняется до обработчика cifroarea. */
-// static gboolean
-// hyscan_gtk_waterfall_key_press_before (GtkWidget   *widget,
-//                                        GdkEventKey *event,
-//                                        gpointer     data)
-// {
-//   if ((event->keyval == GDK_KEY_KP_Add) ||
-//       (event->keyval == GDK_KEY_KP_Subtract) ||
-//       (event->keyval == GDK_KEY_plus) ||
-//       (event->keyval == GDK_KEY_minus))
-//     {
-//       gtk_cifro_area_set_view_limits (GTK_CIFRO_AREA (widget), -999999, 999999, -999999, 999999);
-//     }
-//   return FALSE;
-// }
-//
-// /* Обработчик сигнала нажатия кнопки. Выполняется после обработчика cifroarea.*/
-// static gboolean
-// hyscan_gtk_waterfall_key_press_after (GtkWidget   *widget,
-//                                       GdkEventKey *event,
-//                                       gpointer     data)
-// {
-//   gdouble left, right, bottom, top;
-//
-//   if ((event->keyval == GDK_KEY_KP_Add) ||
-//       (event->keyval == GDK_KEY_KP_Subtract) ||
-//       (event->keyval == GDK_KEY_plus) ||
-//       (event->keyval == GDK_KEY_minus))
-//     {
-//       hyscan_gtk_waterfall_update_limits (HYSCAN_GTK_WATERFALL (widget), &left, &right, &bottom, &top);
-//       gtk_cifro_area_set_view_limits (GTK_CIFRO_AREA (widget), left, right, bottom, top);
-//
-//
-//       if (HYSCAN_GTK_WATERFALL (widget)->priv->automove)
-//         gtk_cifro_area_move (GTK_CIFRO_AREA (widget), 0, G_MAXDOUBLE);
-//     }
-//   return FALSE;
-// }
-//
-// /* Обработчик нажатия кнопок мышки. */
-// static gboolean
-// hyscan_gtk_waterfall_button_press (GtkWidget      *widget,
-//                                    GdkEventButton *event,
-//                                    gpointer        data)
-// {
-//   HyScanGtkWaterfall *waterfall = data;
-//   HyScanGtkWaterfallPrivate *priv = waterfall->priv;
-//
-//   if (event->type == GDK_BUTTON_PRESS && (event->button == 1))
-//     priv->mouse_y = event->y;
-//
-//   return FALSE;
-// }
-//
-// static gboolean
-// hyscan_gtk_waterfall_motion (GtkWidget             *widget,
-//                              GdkEventMotion        *event,
-//                              gpointer               data)
-// {
-//   HyScanGtkWaterfall *waterfall = data;
-//   HyScanGtkWaterfallPrivate *priv = waterfall->priv;
-//
-//   if (event->state & GDK_BUTTON1_MASK)
-//     {
-//       if (event->y < priv->mouse_y && priv->automove)
-//         {
-//           priv->automove = FALSE;
-//           g_signal_emit (waterfall, hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE], 0, priv->automove);
-//         }
-//     }
-//   return FALSE;
-// }
-
-/* Обработчик сигнала готовности тайла*/
-static void
-hyscan_gtk_waterfall_tile_ready (HyScanTileQueue   *queue,
-                                 gpointer           data)
-{
-  HyScanGtkWaterfall *waterfall = data;
-
-  /* Когда тайл готов, устанавливается флаг need_to_redraw. */
-  g_atomic_int_inc (&waterfall->priv->need_to_redraw);
-}
-
-/* Функция, запрашивающая перерисовку виджета. Вызывается из mainloop. */
 static gboolean
-hyscan_gtk_waterfall_refresh (gpointer data)
+hyscan_gtk_waterfall_keyboard (GtkWidget   *widget,
+                               GdkEventKey *event)
 {
-  HyScanGtkWaterfall *waterfall = data;
+  GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
 
-  if (g_atomic_int_get (&(waterfall->priv->need_to_redraw)) > 0)
+  gboolean arrow_keys = FALSE;
+  gboolean plus_minus_keys = FALSE;
+  gboolean pg_home_end_keys = FALSE;
+
+  /* Стрелки (движение). */
+  arrow_keys       = (event->keyval == GDK_KEY_Left        ||
+                      event->keyval == GDK_KEY_Right       ||
+                      event->keyval == GDK_KEY_Up          ||
+                      event->keyval == GDK_KEY_Down);
+  /* Плюс/минус (зум). */
+  plus_minus_keys  = (event->keyval == GDK_KEY_minus       ||
+                      event->keyval == GDK_KEY_equal       ||
+                      event->keyval == GDK_KEY_KP_Add      ||
+                      event->keyval == GDK_KEY_KP_Subtract ||
+                      event->keyval == GDK_KEY_underscore  ||
+                      event->keyval == GDK_KEY_plus);
+  /* PgUp, PgDn, home, end (движение). */
+  pg_home_end_keys = (event->keyval == GDK_KEY_Page_Down   ||
+                      event->keyval == GDK_KEY_Page_Up     ||
+                      event->keyval == GDK_KEY_End         ||
+                      event->keyval == GDK_KEY_Home);
+  if (arrow_keys)
     {
-      g_atomic_int_set (&waterfall->priv->need_to_redraw, 0);
-      gtk_widget_queue_draw (GTK_WIDGET(waterfall));
-    }
+      gint step_x = -1 * (event->keyval == GDK_KEY_Left) + 1 * (event->keyval == GDK_KEY_Right);
+      gint step_y = -1 * (event->keyval == GDK_KEY_Down) + 1 * (event->keyval == GDK_KEY_Up);
 
-  return G_SOURCE_CONTINUE;
-}
-
-/* Обработчик сигнала visible-draw. */
-static void
-hyscan_gtk_waterfall_visible_draw (GtkWidget *widget,
-                                   cairo_t   *cairo)
-{
-  HyScanGtkWaterfall *waterfall = HYSCAN_GTK_WATERFALL (widget);
-  HyScanGtkWaterfallPrivate *priv = waterfall->priv;
-
-  HyScanTile tile;
-  gint32 tile_size      = 0,
-         start_tile_x0  = 0,
-         start_tile_y0  = 0,
-         end_tile_x0    = 0,
-         end_tile_y0    = 0;
-  gint num_of_tiles_x = 0,
-       num_of_tiles_y = 0,
-       i, j,
-       zoom_num;
-  gdouble from_x, from_y, to_x, to_y,
-          x_coord, y_coord, x_coord0, y_coord0,
-          scale;
-  gboolean view_finalised = TRUE;
-
-  if (!priv->opened)
-    return;
-
-  gtk_cifro_area_get_view	(GTK_CIFRO_AREA (widget), &from_x, &to_x, &from_y, &to_y);
-  zoom_num = gtk_cifro_area_get_scale (GTK_CIFRO_AREA (widget), &scale, NULL);
-
-  from_x *= 1000.0;
-  to_x   *= 1000.0;
-  from_y *= 1000.0;
-  to_y   *= 1000.0;
-  scale  *= 1000.0 / (25.4 / priv->ppi);
-
-  /* Определяем размер тайла. */
-  tile_size = tile_sizes[zoom_num];
-
-  /* Определяем параметры искомых тайлов. */
-  start_tile_x0 = hyscan_gtk_waterfall_aligner (from_x, tile_size);
-  start_tile_y0 = hyscan_gtk_waterfall_aligner (from_y, tile_size);
-  end_tile_x0   = hyscan_gtk_waterfall_aligner (to_x,   tile_size);
-  end_tile_y0   = hyscan_gtk_waterfall_aligner (to_y,   tile_size);
-
-  num_of_tiles_x = (end_tile_x0 - start_tile_x0) / tile_size + 1;
-  num_of_tiles_y = (end_tile_y0 - start_tile_y0) / tile_size + 1;
-
-  /* Необходимо сообщить тайл-менеджеру, что начался новый view. */
-  hyscan_gtk_waterfall_view_start (waterfall);
-
-  gtk_cifro_area_visible_value_to_point	(GTK_CIFRO_AREA (widget), &x_coord0, &y_coord0,
-                                        (gdouble)(start_tile_x0 / 1000.0),
-                                        (gdouble)((start_tile_y0 + tile_size) / 1000.0));
-  x_coord0 = round(x_coord0);
-  y_coord0 = round(y_coord0);
-
-  /* Ищем тайлы .*/
-  for (i = num_of_tiles_y - 1; i >= 0; i--)
-    {
-      for (j = 0; j < num_of_tiles_x; j++)
+      if (event->state & GDK_CONTROL_MASK)
         {
-          /* Виджет знает только о том, какие размеры тайла, масштаб и ppi.
-           * У него нет информации ни о цветовой схеме, ни о фильтре. */
-          tile.across_start = start_tile_x0 + j * tile_size;
-          tile.along_start   = start_tile_y0 + i * tile_size;
-          tile.across_end   = start_tile_x0 + (j + 1) * tile_size;
-          tile.along_end     = start_tile_y0 + (i + 1) * tile_size;
-          tile.scale            = scale;
-          tile.ppi              = priv->ppi;
-
-          /* Делаем запрос тайл-менеджеру. */
-          if (hyscan_gtk_waterfall_get_tile (waterfall, &tile, &(priv->surface)))
-            {
-              /* Отрисовываем тайл */
-              x_coord = x_coord0 + j * tile.w;
-              y_coord = y_coord0 - i * tile.h;
-
-              cairo_surface_mark_dirty (priv->surface);
-              cairo_save (cairo);
-              cairo_translate (cairo, x_coord, y_coord);
-              cairo_set_source_surface (cairo, priv->surface, 0, 0);
-              cairo_paint (cairo);
-              cairo_restore (cairo);
-            }
-          else
-            {
-              view_finalised = FALSE;
-              /* Заглушечка-тудушечка */
-            }
-        }
-    }
-      i = num_of_tiles_y;
-      for (j = 0; j < num_of_tiles_x; j++)
-        {
-          tile.across_start = start_tile_x0 + j * tile_size;
-          tile.along_start   = start_tile_y0 + i * tile_size;
-          tile.across_end   = start_tile_x0 + (j + 1) * tile_size;
-          tile.along_end     = start_tile_y0 + (i + 1) * tile_size;
-          hyscan_gtk_waterfall_get_tile (waterfall, &tile, NULL);
+          step_x *= 10.0;
+          step_y *= 10.0;
         }
 
-  priv->view_finalised = (view_finalised) ? 1 : 0;
+      gtk_cifro_area_move (carea, step_x, step_y);
+    }
+  else if (pg_home_end_keys)
+    {
+      gint step_echo = 0;
+      gint step_ss = 0;
+      guint width, height = 0;
+      HyScanGtkWaterfallPrivate *priv = HYSCAN_GTK_WATERFALL (widget)->priv;
 
-  /* Необходимо сообщить тайл-менеджеру, что view закончился. */
-  hyscan_gtk_waterfall_view_end (waterfall);
-}
+      /* В режимах ГБО и эхолот эти кнопки по-разному реагируют. */
+      gtk_cifro_area_get_size (carea, &width, &height);
 
-// static gboolean
-// hyscan_gtk_waterfall_update_limits (HyScanGtkWaterfall *waterfall,
-//                                     gdouble            *left,
-//                                     gdouble            *right,
-//                                     gdouble            *bottom,
-//                                     gdouble            *top)
-// {
-//   HyScanGtkWaterfallPrivate *priv = waterfall->priv;
-//
-//   gdouble lwidth = 0.0;
-//   gdouble rwidth = 0.0;
-//   gdouble length = 0.0;
-//   gboolean writeable;
-//   gint visible_w, visible_h,
-//        lborder, rborder, tborder, bborder,
-//        zoom_num;
-//   gdouble req_width = 0.0,
-//           req_length = 0.0,
-//           min_length = 0.0,
-//           max_length = 0.0;
-//   gdouble bottom_limit = 0.0,
-//           bottom_view = 0.0;
-//
-//   /* К этому моменту времени я уверен, что у меня есть хоть какие-то
-//    * геометрические параметры галса. */
-//   if (priv->opened)
-//     {
-//       writeable = hyscan_gtk_waterfall_track_params (waterfall, &lwidth, &rwidth, &length);
-//     }
-//   else
-//     {
-//       writeable = TRUE;
-//       length = lwidth = rwidth = 0.0;
-//     }
-//
-//   priv->length = length;
-//   priv->lwidth = lwidth;
-//   priv->rwidth = rwidth;
-//
-//   /* Получаем параметры цифроарии. */
-//   gtk_cifro_area_get_size	(GTK_CIFRO_AREA (waterfall), &visible_w, &visible_h);
-//   gtk_cifro_area_get_border (GTK_CIFRO_AREA (waterfall), &lborder, &rborder, &tborder, &bborder);
-//   zoom_num = gtk_cifro_area_get_scale (GTK_CIFRO_AREA (waterfall), NULL, NULL);
-//
-//   visible_w -= (lborder + rborder);
-//   visible_h -= (tborder + bborder);
-//
-//   /* Для текущего масштаба рассчиываем необходимую длину и ширину по каждому борту. */
-//   req_length = visible_h * priv->zooms[zoom_num];
-//   req_width = visible_w * priv->zooms[zoom_num];
-//
-//   /* Горизонтальные размеры области рассчитываются независимо от вертикальных и режима работы. */
-//   req_width = MAX (req_width, (lwidth + rwidth));
-//
-//   if (lwidth <= 0.0 && rwidth <= 0.0)
-//     {
-//       lwidth = req_width / 2.0;
-//       rwidth = req_width / 2.0;
-//     }
-//   else
-//     {
-//       gdouble lratio = lwidth / (rwidth + lwidth);
-//       lwidth = req_width * lratio;
-//       rwidth = req_width - lwidth;
-//     }
-//
-//   /* Вертикальные размеры области. */
-//   if (!writeable) /*< Режим чтения. */
-//     {
-//       priv->automove = FALSE;
-//       g_signal_emit (waterfall, hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE], 0, waterfall);
-//
-//       req_length = MAX (length, req_length);
-//       if (length >= req_length)
-//         {
-//           min_length = 0;
-//           max_length = length;
-//         }
-//       else
-//         {
-//           min_length = (req_length - length) / 2.0;
-//           max_length = req_length - min_length;
-//         }
-//     }
-//   else if (length < req_length) /*< Режим дозаписи, длина галса меньше виджета на текущем масштабе. */
-//     {
-//       max_length = length;
-//       min_length = (req_length - max_length);
-//     }
-//   else /*< Режим дозаписи, длина галса больше виджета на самом мелком масштабе. */
-//     {
-//       min_length = 0;
-//       max_length = length;
-//     }
-//
-//   if (!priv->automove && writeable)
-//     {
-//       gtk_cifro_area_get_view_limits (GTK_CIFRO_AREA (waterfall), NULL, NULL, &bottom_limit, NULL);
-//       gtk_cifro_area_get_view (GTK_CIFRO_AREA (waterfall), NULL, NULL, &bottom_view, NULL);
-//       bottom_limit = MAX (bottom_view, bottom_limit);
-//       bottom_limit = MIN (-min_length, bottom_limit);
-//     }
-//   else
-//     {
-//       bottom_limit = -min_length;
-//     }
-//
-//   if (left != NULL)
-//     *left = -lwidth;
-//   if (right != NULL)
-//     *right = rwidth;
-//   if (bottom != NULL)
-//     *bottom = bottom_limit;
-//   if (top != NULL)
-//     *top = max_length;
-//
-//   return writeable;
-// }
+      if (event->keyval == GDK_KEY_Page_Up)
+        {
+          step_echo = -0.75 * width;
+          step_ss = 0.75 * height;
+        }
+      else if (event->keyval == GDK_KEY_Page_Down)
+        {
+          step_echo = 0.75 * width;
+          step_ss = -0.75 * height;
+        }
+      else if (event->keyval == GDK_KEY_End)
+        {
+          step_echo = step_ss = G_MAXINT;
+        }
+      else if (event->keyval == GDK_KEY_Home)
+        {
+          step_echo = step_ss = G_MININT;
+        }
 
+      if (priv->widget_type == HYSCAN_GTK_WATERFALL_ECHOSOUNDER)
+        gtk_cifro_area_move (carea, step_echo, 0);
+      else if (priv->widget_type == HYSCAN_GTK_WATERFALL_SIDESCAN)
+        gtk_cifro_area_move (carea, 0, step_ss);
+    }
+  else if (plus_minus_keys)
+    {
+      GtkCifroAreaZoomType direction;
+      gdouble from_x, to_x, from_y, to_y;
 
+      if (event->keyval == GDK_KEY_KP_Add ||
+          event->keyval == GDK_KEY_equal ||
+          event->keyval == GDK_KEY_plus)
+        {
+          direction = GTK_CIFRO_AREA_ZOOM_IN;
+        }
+      else
+        {
+          direction = GTK_CIFRO_AREA_ZOOM_OUT;
+        }
 
-// static gboolean
-// hyscan_gtk_waterfall_automover (gpointer data)
-// {
-//   HyScanGtkWaterfall *waterfall = HYSCAN_GTK_WATERFALL (data);
-//   HyScanGtkWaterfallPrivate *priv;
-//   gdouble distance;
-//   gint64 time;
-//   gint zoom_num;
-//   priv = waterfall->priv;
-//   gdouble left, right;
-//   gdouble old_bottom, old_top;
-//   gdouble required_bottom, required_top;
-//   gdouble bottom, top;
-//   gboolean writeable;
-//
-//   if (!priv->opened)
-//     return G_SOURCE_CONTINUE;
-//
-//   /* Актуальные данные по пределам видимой области. */
-//   gtk_cifro_area_get_view_limits (GTK_CIFRO_AREA (waterfall), NULL, NULL, &old_bottom, NULL);
-//   writeable = hyscan_gtk_waterfall_update_limits (HYSCAN_GTK_WATERFALL (waterfall), &left, &right, &required_bottom, &required_top);
-//
-//   /* Наращиваем пределы видимой области. */
-//   gtk_cifro_area_set_view_limits (GTK_CIFRO_AREA (waterfall), left, right, old_bottom, required_top);
-//
-//   /* Теперь при необходимости сдвигаемся и сжимаем видимую область. */
-//   if (priv->view_finalised && priv->automove)
-//     {
-//       time = g_get_monotonic_time ();
-//       distance = (time - priv->prev_time) / 1e6;
-//       distance *= priv->ship_speed;
-//
-//       /* Сдвигаем видимую область. */
-//       gtk_cifro_area_get_view (GTK_CIFRO_AREA (waterfall), &left, &right, &bottom, &old_top);
-//       zoom_num = gtk_cifro_area_get_scale (GTK_CIFRO_AREA (waterfall), NULL, NULL);
-//       if (old_top + distance < required_top - 1.0 * priv->ship_speed)
-//         {
-//           distance = required_top - 0.5 * priv->ship_speed - old_top;
-//           distance /= priv->zooms[zoom_num];
-//           gtk_cifro_area_move (GTK_CIFRO_AREA (waterfall), 0, distance);
-//         }
-//       else if (old_top + distance < required_top - 0.5 * priv->ship_speed)
-//         {
-//           distance /= priv->zooms[zoom_num];
-//           gtk_cifro_area_move (GTK_CIFRO_AREA (waterfall), 0, distance);
-//         }
-//       priv->prev_time = time;
-//     }
-//
-//   /* Когда данных недостаточно, нужно сжимать видимую область. */
-//   gtk_cifro_area_get_view (GTK_CIFRO_AREA (waterfall), NULL, NULL, &bottom, &top);
-//   gtk_cifro_area_get_view_limits (GTK_CIFRO_AREA (waterfall), NULL, NULL, &old_bottom, &old_top);
-//   if (required_bottom < 0.0)
-//     {
-//       gtk_cifro_area_set_view_limits (GTK_CIFRO_AREA (waterfall), left, right, bottom, old_top);
-//     }
-//
-//   if (writeable)
-//     return G_SOURCE_CONTINUE;
-//
-//   hyscan_gtk_waterfall_update_limits (HYSCAN_GTK_WATERFALL (waterfall), &left, &right, &bottom, &top);
-//   gtk_cifro_area_set_view_limits (GTK_CIFRO_AREA (waterfall), left, right, bottom, top);
-//
-//   priv->automove = FALSE;
-//   g_signal_emit (waterfall, hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE], 0, priv->automove);
-//   priv->auto_tag = 0;
-//   return G_SOURCE_REMOVE;
-// }
-
-/* Функция обработки сигнала изменения параметров дисплея. */
-static gboolean
-hyscan_gtk_waterfall_configure (GtkWidget            *widget,
-                                GdkEventConfigure    *event)
-{
-  HyScanGtkWaterfall *waterfall = HYSCAN_GTK_WATERFALL (widget);
-
-  HyScanGtkWaterfallPrivate *priv = waterfall->priv;
-  GdkScreen *screen;
-  GdkRectangle rect;
-  gint monitor_num = 0,
-       monitor_h = 0,
-       monitor_w = 0,
-       square_pixels = 0,
-       i = 0;
-  gfloat ppi, diagonal;
-  //gdouble left, right, bottom, top;
-
-  screen = gdk_window_get_screen (event->window);
-  monitor_num = gdk_screen_get_monitor_at_window (screen, event->window);
-
-  gdk_screen_get_monitor_geometry (screen, monitor_num, &rect);
-  monitor_h = gdk_screen_get_monitor_height_mm (screen, monitor_num);
-  monitor_w = gdk_screen_get_monitor_width_mm (screen, monitor_num);
-
-  square_pixels = sqrt (rect.width * rect.width + rect.height * rect.height);
-  diagonal = sqrt (monitor_w * monitor_w + monitor_h * monitor_h) / 25.4;
-  ppi = square_pixels / diagonal;
-  if (isnan (ppi) || isinf(ppi) || ppi <= 0.0 || monitor_h <= 0 || monitor_w <= 0)
-    ppi = 96.0;
-  priv->ppi = ppi;
-
-  /* Обновляем масштабы. */
-  if (priv->zooms == NULL)
-    priv->zooms = g_malloc0 (ZOOM_LEVELS * sizeof (gdouble));
-
-  for (i = 0; i < ZOOM_LEVELS; i++)
-    priv->zooms[i] = zooms_gost[i] / (1000.0 / (25.4 / priv->ppi));
-  gtk_cifro_area_set_fixed_zoom_scales (GTK_CIFRO_AREA (waterfall), priv->zooms, priv->zooms, ZOOM_LEVELS);
-
-  /* Пересоздаем заглушку. */
-  // TODO: priv->dummy = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, width, height);
-
-  // TODO: hyscan_gtk_waterfall_update_limits (waterfall, &left, &right, &bottom, &top);
-  //gtk_cifro_area_set_view_limits (GTK_CIFRO_AREA (waterfall), left, right, bottom, top);
-
-  g_atomic_int_set (&(priv->need_to_redraw), 1);
+      gtk_cifro_area_get_view (carea, &from_x, &to_x, &from_y, &to_y);
+      gtk_cifro_area_zoom (carea, direction, direction, (to_x + from_x) / 2.0, (to_y+from_y)/2.0);
+    }
 
   return FALSE;
 }
 
-/* Функция проверяет параметры cairo_surface_t и пересоздает в случае необходимости. */
-static void
-hyscan_gtk_waterfall_prepare_csurface (cairo_surface_t **surface,
-                                     gint               required_width,
-                                     gint               required_height,
-                                     HyScanTileSurface *tile_surface)
+static gboolean
+hyscan_gtk_waterfall_mouse_buttons (GtkWidget      *widget,
+                                    GdkEventButton *event)
 {
-  gint w, h;
+  GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
+  HyScanGtkWaterfall *waterfall = HYSCAN_GTK_WATERFALL (widget);
+  HyScanGtkWaterfallPrivate *priv = waterfall->priv;
 
-  g_return_if_fail (tile_surface != NULL);
-
-  if (surface == NULL)
-    return;
-
-  if (*surface != NULL)
+  if ((event->type == GDK_BUTTON_PRESS) && (event->button == 1))
     {
-      w = cairo_image_surface_get_width (*surface);
-      h = cairo_image_surface_get_height (*surface);
-      if (w != required_width || h != required_height)
+      guint widget_width, widget_height;
+      guint border_top, border_bottom;
+      guint border_left, border_right;
+
+      gtk_cifro_area_get_size (carea, &widget_width, &widget_height);
+      gtk_cifro_area_get_border (carea, &border_top, &border_bottom, &border_left, &border_right);
+
+      if (event->x > border_left && event->x < widget_width - border_right &&
+          event->y > border_top && event->y < widget_height - border_bottom)
         {
-          cairo_surface_destroy (*surface);
-          *surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, required_width, required_height);
+          priv->move_from_x = event->x;
+          priv->move_from_y = event->y;
+          priv->move_area = TRUE;
+          gtk_cifro_area_get_view (carea, &priv->start_from_x, &priv->start_to_x,
+                                          &priv->start_from_y, &priv->start_to_y);
         }
     }
+
+  if (event->type == GDK_BUTTON_RELEASE && event->button == 1)
+    priv->move_area = FALSE;
+
+  return FALSE;
+}
+
+static gboolean
+hyscan_gtk_waterfall_motion (GtkWidget      *widget,
+                             GdkEventMotion *event)
+{
+  GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
+  HyScanGtkWaterfall *waterfall = HYSCAN_GTK_WATERFALL (widget);
+  HyScanGtkWaterfallPrivate *priv = waterfall->priv;
+
+  /* Режим перемещения - сдвигаем область. */
+  if (priv->move_area)
+    {
+      gdouble x0, y0;
+      gdouble xd, yd;
+      gdouble dx, dy;
+
+      gtk_cifro_area_point_to_value (carea, priv->move_from_x, priv->move_from_y, &x0, &y0);
+      gtk_cifro_area_point_to_value (carea, event->x, event->y, &xd, &yd);
+      dx = x0 - xd;
+      dy = y0 - yd;
+
+      gtk_cifro_area_set_view (carea, priv->start_from_x + dx, priv->start_to_x + dx,
+                                      priv->start_from_y + dy, priv->start_to_y + dy);
+
+      gdk_event_request_motions (event);
+    }
+
+  priv->mouse_x = event->x;
+  priv->mouse_y = event->y;
+
+  return FALSE;
+}
+
+static gboolean
+hyscan_gtk_waterfall_leave (GtkWidget        *widget,
+                            GdkEventCrossing *event)
+{
+  HyScanGtkWaterfall *waterfall = HYSCAN_GTK_WATERFALL (widget);
+
+  waterfall->priv->mouse_x = -1;
+  waterfall->priv->mouse_y = -1;
+
+  return FALSE;
+}
+
+static gboolean
+hyscan_gtk_waterfall_scroll (GtkWidget      *widget,
+                             GdkEventScroll *event)
+{
+  GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
+  HyScanGtkWaterfall *waterfall = HYSCAN_GTK_WATERFALL (widget);
+  guint width, height;
+
+  gtk_cifro_area_get_size (carea, &width, &height);
+
+  /* Зуммирование. */
+  if (event->state & GDK_CONTROL_MASK)
+    {
+      gdouble from_x, to_x, from_y, to_y;
+      gdouble zoom_x, zoom_y;
+      GtkCifroAreaZoomType direction;
+      HyScanGtkWaterfallPrivate *priv = waterfall->priv;
+
+      gtk_cifro_area_get_view (carea, &from_x, &to_x, &from_y, &to_y);
+
+      direction = (event->direction == GDK_SCROLL_UP) ? GTK_CIFRO_AREA_ZOOM_IN : GTK_CIFRO_AREA_ZOOM_OUT;
+
+      zoom_x = from_x + (to_x - from_x) * ((gdouble)priv->mouse_x / (gdouble)width);
+      zoom_y = from_y + (to_y - from_y) * (1.0 - (gdouble)priv->mouse_y / height);
+
+      gtk_cifro_area_zoom (carea, direction, direction, zoom_x, zoom_y);
+    }
+  /* Скролл. */
   else
     {
-      *surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, required_width, required_height);
+      gint step = height / 10;
+      step *= (event->direction == GDK_SCROLL_UP) ? 1 : -1;
+
+      if (waterfall->priv->widget_type == HYSCAN_GTK_WATERFALL_SIDESCAN)
+        gtk_cifro_area_move (carea, 0, step);
+      else if (waterfall->priv->widget_type == HYSCAN_GTK_WATERFALL_ECHOSOUNDER)
+        gtk_cifro_area_move (carea, -step, 0);
     }
 
-    tile_surface->width = cairo_image_surface_get_width (*surface);
-    tile_surface->height = cairo_image_surface_get_height (*surface);
-    tile_surface->stride = cairo_image_surface_get_stride (*surface);
-    tile_surface->data = cairo_image_surface_get_data (*surface);
+  return FALSE;
 }
 
-
-/* Округление координат тайла. */
-static gint32
-hyscan_gtk_waterfall_aligner (gdouble in,
-                              gint    size)
+void
+hyscan_gtk_waterfall_echosounder (HyScanGtkWaterfall *waterfall,
+                                  HyScanSourceType    source)
 {
-  gint32 out = 0;
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall));
 
-  if (in > 0)
-    {
-      out = floor(in) / size;
-      out *= size;
-    }
+  if (!hyscan_source_is_acoustic (source))
+    return;
 
-  if (in < 0)
-    {
-      out = ceil(in) / size;
-      out = (out - 1) * size;
-    }
+  waterfall->priv->widget_type = HYSCAN_GTK_WATERFALL_ECHOSOUNDER;
 
-  return out;
+  waterfall->priv->left_source = source;
+  waterfall->priv->right_source = source;
 }
 
-/* Функция создает новый виджет водопада. */
-GtkWidget*
-hyscan_gtk_waterfall_new (void)
+void
+hyscan_gtk_waterfall_sidescan (HyScanGtkWaterfall *waterfall,
+                               HyScanSourceType    left,
+                               HyScanSourceType    right)
 {
-  return g_object_new (HYSCAN_TYPE_GTK_WATERFALL, NULL);
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall));
+
+  if (!hyscan_source_is_acoustic (left) || !hyscan_source_is_acoustic (right))
+    return;
+
+  waterfall->priv->widget_type = HYSCAN_GTK_WATERFALL_SIDESCAN;
+
+  waterfall->priv->left_source = left;
+  waterfall->priv->right_source = right;
 }
 
 void
 hyscan_gtk_waterfall_set_cache (HyScanGtkWaterfall *waterfall,
                                 HyScanCache        *cache,
                                 HyScanCache        *cache2,
-                                const gchar        *cache_prefix)
+                                const gchar        *prefix)
 {
   HyScanGtkWaterfallPrivate *priv;
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall));
   priv = waterfall->priv;
 
-  /* Запрещаем менять систему кэширования на лету. */
-  if (priv->open)
+  if (cache == NULL)
     return;
 
-  /* Запрещаем NULL вместо кэша. */
-  if (cache == NULL || cache2 == NULL)
-    return;
+  if (cache2 == NULL)
+    cache2 = cache;
 
-  hyscan_tile_color_set_cache (priv->color, cache2, cache_prefix);
-  hyscan_tile_queue_set_cache (priv->queue, cache, cache_prefix);
-  //hyscan_trackrect_set_cache (priv->rect, cache, cache_prefix);
+  g_clear_object (&priv->cache);
+  g_clear_object (&priv->cache2);
+  g_free (priv->cache_prefix);
 
-  /* Поднимаем флаг. */
-  priv->cache_set = TRUE;
+  priv->cache  = g_object_ref (cache);
+  priv->cache2 = g_object_ref (cache2);
+  priv->cache_prefix = g_strdup (prefix);
 }
 
-/* Функция установки скорости. */
+const gchar*
+hyscan_gtk_waterfall_get_cache_prefix (HyScanGtkWaterfall *waterfall)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), NULL);
+
+  return waterfall->priv->cache_prefix;
+}
+
 void
-hyscan_gtk_waterfall_set_speeds (HyScanGtkWaterfall *waterfall,
-                                 gfloat              ship_speed,
-                                 GArray             *sound_speed)
+hyscan_gtk_waterfall_set_tile_type (HyScanGtkWaterfall *waterfall,
+                                    HyScanTileType      type)
+{
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall));
+
+  waterfall->priv->tile_type = type;
+}
+
+void
+hyscan_gtk_waterfall_set_ship_speed (HyScanGtkWaterfall  *waterfall,
+                                     gfloat               ship_speed)
+{
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall));
+
+  waterfall->priv->ship_speed = ship_speed;
+}
+
+void
+hyscan_gtk_waterfall_set_sound_velocity (HyScanGtkWaterfall  *waterfall,
+                                         GArray              *velocity)
 {
   HyScanGtkWaterfallPrivate *priv;
-
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall));
   priv = waterfall->priv;
 
-  /* Запрещаем менять на лету. */
-  if (priv->open)
-    return;
+  if (priv->sound_velocity != NULL)
+    g_clear_pointer (&priv->sound_velocity, g_array_unref);
 
-  hyscan_tile_queue_set_speed (priv->queue, ship_speed, sound_speed);
-  //hyscan_trackrect_set_speeds (priv->rect, ship_speed, sound_speed);
+  if (velocity != NULL)
+    waterfall->priv->sound_velocity = g_array_ref (velocity);
+
 }
-
 void
-hyscan_gtk_waterfall_setup_depth (HyScanGtkWaterfall *waterfall,
-                                  HyScanDepthSource       source,
-                                  gint                    size,
-                                  gulong                  microseconds)
+hyscan_gtk_waterfall_set_depth_source (HyScanGtkWaterfall  *waterfall,
+                                       HyScanSourceType     source,
+                                       guint                channel)
 {
-  HyScanGtkWaterfallPrivate *priv;
-
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall));
-  priv = waterfall->priv;
 
-  /* Запрещаем менять на лету. */
-  if (priv->open)
-    return;
-
-  hyscan_tile_queue_set_depth (priv->queue, source, size, microseconds);
-  //hyscan_trackrect_set_depth (priv->rect, source, size, microseconds);
+  waterfall->priv->depth_source = source;
+  waterfall->priv->depth_channel = channel;
 }
-
-/* Функция обновляет параметры HyScanTileQueue и HyScanTrackRect. */
 void
-hyscan_gtk_waterfall_update_tile_param (HyScanGtkWaterfall *waterfall,
-                                        HyScanTileType      type,
-                                        gint                upsample)
+hyscan_gtk_waterfall_set_depth_filter_size (HyScanGtkWaterfall *waterfall,
+                                            guint               size)
 {
-  HyScanGtkWaterfallPrivate *priv;
-  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), FALSE);
-  priv = waterfall->priv;
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall));
 
-  /* Настраивать HyScanTileQueue можно только когда галс не открыт. */
-  if (priv->open)
-    return;
-
-  hyscan_tile_queue_set_params (priv->queue, type, upsample);
-  //hyscan_trackrect_set_type (priv->rect, type);
-  // TODO: redraw hyscan_gtk_waterfall_redraw_sender (NULL, waterfall);
+  waterfall->priv->depth_filter_size = size;
 }
 
-gboolean
-hyscan_gtk_waterfall_set_colormap (HyScanGtkWaterfall *waterfall,
-                                   guint32            *colormap,
-                                   gint                length,
-                                   guint32             background)
+void
+hyscan_gtk_waterfall_set_depth_time (HyScanGtkWaterfall  *waterfall,
+                                     gulong               usecs)
 {
-  gboolean status = FALSE;
-  HyScanGtkWaterfallPrivate *priv;
-  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), FALSE);
-  priv = waterfall->priv;
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall));
 
-  status = hyscan_tile_color_set_colormap (priv->color, colormap, length, background);
-  // TODO: redraw hyscan_gtk_waterfall_redraw_sender (NULL, waterfall);
-
-  return status;
+  waterfall->priv->depth_usecs = usecs;
 }
 
-/* Функция устанавливает уровни. */
-gboolean
-hyscan_gtk_waterfall_set_levels (HyScanGtkWaterfall *waterfall,
-                                 gdouble             black,
-                                 gdouble             gamma,
-                                 gdouble             white)
-{
-  gboolean status = FALSE;
-  HyScanGtkWaterfallPrivate *priv;
-  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), FALSE);
-  priv = waterfall->priv;
-
-  status = hyscan_tile_color_set_levels (priv->color, black, gamma, white);
-  // TODO: redraw hyscan_gtk_waterfall_redraw_sender (NULL, waterfall);
-
-  return status;
-}
-
-/* Функция открывает БД, проект, галс... */
 void
 hyscan_gtk_waterfall_open (HyScanGtkWaterfall *waterfall,
                            HyScanDB           *db,
                            const gchar        *project,
                            const gchar        *track,
-                           HyScanTileSource    source,
                            gboolean            raw)
 {
-  HyScanGtkWaterfallPrivate *priv;
-  gchar *db_uri;
-
+  HyScanGtkWaterfallClass *class;
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall));
-  priv = waterfall->priv;
 
-  /* Запрещаем вызывать эту функцию, если не установлен кэш. */
-  if (!priv->cache_set)
-    return;
+  class = HYSCAN_GTK_WATERFALL_GET_CLASS (waterfall);
 
-  //if (priv->auto_tag != 0)
-    //g_source_remove (priv->auto_tag);
-  if (priv->refresh_tag != 0)
-    g_source_remove (priv->refresh_tag);
 
-  db_uri = hyscan_db_get_uri (db);
-
-  hyscan_tile_color_open (priv->color, db_uri, project, track);
-  hyscan_tile_queue_open (priv->queue, db, project, track, source, raw);
-  //hyscan_trackrect_open (priv->rect, db, project, track, raw);
-
-  priv->open = TRUE;
-
-  g_free (db_uri);
-
-  priv->length = 0;
-  priv->lwidth = 0;
-  priv->rwidth = 0;
-  priv->opened = TRUE;
-  //priv->automove = FALSE;
-  //TODO:
-  //TODO: hyscan_gtk_waterfall_set_view_once (waterfall);
-  priv->prev_time = g_get_monotonic_time ();
-
-  //priv->auto_tag = g_timeout_add (priv->automove_time, hyscan_gtk_waterfall_automover, waterfall);
-  priv->refresh_tag = g_timeout_add (priv->refresh_time, hyscan_gtk_waterfall_refresh, waterfall);
+  class->close (waterfall); // TODO: подумать, нужно ли это.
+  class->open (waterfall, db, project, track, raw);
 }
 
-/* Функция закрывает БД, проект, галс... */
 void
 hyscan_gtk_waterfall_close (HyScanGtkWaterfall *waterfall)
 {
-  HyScanGtkWaterfallPrivate *priv;
+  HyScanGtkWaterfallClass *class;
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall));
-  priv = waterfall->priv;
 
-  hyscan_tile_color_close (priv->color);
-  hyscan_tile_queue_close (priv->queue);
-  //hyscan_trackrect_close (priv->rect);
+  class = HYSCAN_GTK_WATERFALL_GET_CLASS (waterfall);
 
-  priv->open = FALSE;}
-
-void
-hyscan_gtk_waterfall_set_refresh_time (HyScanGtkWaterfall *waterfall,
-                                       guint               interval)
-{
-  HyScanGtkWaterfallPrivate *priv;
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall));
-  priv = waterfall->priv;
-
-  if (priv->refresh_time != interval)
-    {
-      priv->refresh_time = interval;
-      if (priv->refresh_tag != 0)
-        g_source_remove (priv->refresh_tag);
-
-      priv->refresh_tag = g_timeout_add (priv->refresh_time, hyscan_gtk_waterfall_refresh, waterfall);
-    }
+  class->close (waterfall);
 }
 
-// /* Функция устанавливает частоту кадров. */
-// void
-// hyscan_gtk_waterfall_set_fps (HyScanGtkWaterfall *waterfall,
-//                               guint               fps)
-// {
-//   HyScanGtkWaterfallPrivate *priv;
-//   guint interval;
-//   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall));
-//   priv = waterfall->priv;
-//
-//   interval = 1000 / fps;
-//
-//   if (priv->automove_time != interval)
-//     {
-//       priv->automove_time = interval;
-//       if (priv->auto_tag != 0)
-//         g_source_remove (priv->auto_tag);
-//       priv->auto_tag = g_timeout_add (priv->automove_time, hyscan_gtk_waterfall_automover, waterfall);
-//     }
-// }
+void
+hyscan_gtk_waterfall_zoom (HyScanGtkWaterfall *waterfall,
+                           gboolean            zoom_in)
+{
+  GtkCifroArea *carea;
+  GtkCifroAreaZoomType direction;
+  gdouble from_x, to_x, from_y, to_y;
 
-// /* Функция сдвижки изображения. */
-// void
-// hyscan_gtk_waterfall_automove (HyScanGtkWaterfall *waterfall,
-//                                gboolean            on)
-// {
-//   HyScanGtkWaterfallPrivate *priv;
-//   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall));
-//   priv = waterfall->priv;
-//
-//   priv->automove = on;
-//
-//   if (on)
-//     {
-//       gtk_cifro_area_move (GTK_CIFRO_AREA (waterfall), 0, G_MAXDOUBLE);
-//       /* Если функции нет, создаем её. */
-//       if (priv->auto_tag == 0)
-//         priv->auto_tag = g_timeout_add (priv->automove_time, hyscan_gtk_waterfall_automover, waterfall);
-//     }
-// }
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall));
+  carea = GTK_CIFRO_AREA (waterfall);
 
-/* Функция возвращает текущий масштаб. */
-gint
-hyscan_gtk_waterfall_get_scale (HyScanGtkWaterfall *waterfall,
-                                const gdouble     **zooms,
-                                gint               *num)
+  direction = zoom_in ? GTK_CIFRO_AREA_ZOOM_IN : GTK_CIFRO_AREA_ZOOM_OUT;
+
+  gtk_cifro_area_get_view (carea, &from_x, &to_x, &from_y, &to_y);
+
+  gtk_cifro_area_zoom (carea, direction, direction, (from_x + to_x) / 2.0, (from_y + to_y) / 2.0);
+}
+
+HyScanGtkWaterfallType
+hyscan_gtk_waterfall_get_sources (HyScanGtkWaterfall *waterfall,
+                                  HyScanSourceType   *left,
+                                  HyScanSourceType   *right)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), 0);
+
+  if (left != NULL)
+    *left = waterfall->priv->left_source;
+  if (right != NULL)
+    *right = waterfall->priv->right_source;
+
+  return waterfall->priv->widget_type;
+}
+
+HyScanCache*
+hyscan_gtk_waterfall_get_cache (HyScanGtkWaterfall *waterfall)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), NULL);
+
+  return waterfall->priv->cache;
+}
+
+HyScanCache*
+hyscan_gtk_waterfall_get_cache2 (HyScanGtkWaterfall *waterfall)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), NULL);
+
+  return waterfall->priv->cache2;
+}
+
+HyScanTileType
+hyscan_gtk_waterfall_get_tile_type (HyScanGtkWaterfall *waterfall)
 {
   g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), -1);
 
-  if (zooms != NULL)
-    *zooms = zooms_gost;
-  if (num != NULL)
-    *num = ZOOM_LEVELS;
-
-  return gtk_cifro_area_get_scale (GTK_CIFRO_AREA (waterfall), NULL, NULL);
+  return waterfall->priv->tile_type;
 }
 
-// /* Функция зуммирует изображение. */
-// gint
-// hyscan_gtk_waterfall_zoom (HyScanGtkWaterfall *waterfall,
-//                            gboolean            zoom_in)
-// {
-//   gint zoom_num;
-//   gdouble min_x, max_x, min_y, max_y;
-//   gdouble left, right, bottom, top;
-//
-//   g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), -1);
-//
-//   if (!waterfall->priv->opened)
-//     return -1;
-//
-//   gtk_cifro_area_get_view	(GTK_CIFRO_AREA (waterfall), &min_x, &max_x, &min_y, &max_y);
-//   gtk_cifro_area_set_view_limits (GTK_CIFRO_AREA (waterfall), -999999, 999999, -999999, 999999);
-//
-//   gtk_cifro_area_fixed_zoom	(GTK_CIFRO_AREA (waterfall), (max_x + min_x) / 2.0, (max_y + min_y) / 2.0, zoom_in);
-//
-//   hyscan_gtk_waterfall_update_limits (waterfall, &left, &right, &bottom, &top);
-//   gtk_cifro_area_set_view_limits (GTK_CIFRO_AREA (waterfall), left, right, bottom, top);
-//
-//   if (waterfall->priv->automove)
-//     gtk_cifro_area_move (GTK_CIFRO_AREA (waterfall), 0, G_MAXDOUBLE);
-//
-//   zoom_num = gtk_cifro_area_get_scale (GTK_CIFRO_AREA (waterfall), NULL, NULL);
-//
-//   if (zoom_num >= 0 && zoom_num < ZOOM_LEVELS)
-//     g_signal_emit (waterfall, hyscan_gtk_waterfall_signals[SIGNAL_ZOOM], 0, zoom_num, zooms_gost[zoom_num]);
-//
-//   return zoom_num;
-// }
-
-/* Функция, начинающая view. */
-gboolean
-hyscan_gtk_waterfall_view_start (HyScanGtkWaterfall *waterfall)
+gfloat
+hyscan_gtk_waterfall_get_ship_speed (HyScanGtkWaterfall  *waterfall)
 {
-  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), FALSE);
-  waterfall->priv->view_id++;
-  return TRUE;
+  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), -1.0);
+
+  return waterfall->priv->ship_speed;
 }
 
-/* Функция получения тайла. */
-gboolean
-hyscan_gtk_waterfall_get_tile (HyScanGtkWaterfall *waterfall,
-                              HyScanTile        *tile,
-                              cairo_surface_t  **surface)
+GArray*
+hyscan_gtk_waterfall_get_sound_velocity (HyScanGtkWaterfall  *waterfall)
 {
-  HyScanGtkWaterfallPrivate *priv;
+  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), NULL);
 
-  HyScanTile requested_tile = *tile,
-             queue_tile,
-             color_tile;
-  gboolean   queue_found   = FALSE,
-             color_found   = FALSE,
-             regenerate    = FALSE,
-             mod_count_ok  = FALSE,
-             queue_equal   = FALSE,
-             color_equal   = FALSE;
-  gint       show_strategy = 0;
-  gfloat    *buffer        = NULL;
-  guint32    buffer_size   = 0;
-  HyScanTileSurface tile_surface;
-
-  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), FALSE);
-  priv = waterfall->priv;
-
-  if (tile == NULL)
-    return FALSE;
-
-  /* Запрещаем работу, если кэш не установлен и не открыты БД/проект/галс. */
-  g_return_val_if_fail (priv->open, FALSE);
-
-  /* Дописываем в структуру с тайлом всю необходимую информацию (из очереди). */
-  hyscan_tile_queue_prepare_tile (priv->queue, &requested_tile);
-
-  /* Собираем информацию об имеющихся тайлах и их тождественности. */
-  queue_found = hyscan_tile_queue_check (priv->queue, &requested_tile, &queue_tile, &queue_equal, &regenerate);
-  color_found = hyscan_tile_color_check (priv->color, &requested_tile, &color_tile, &mod_count_ok, &color_equal);
-
-  /* На основании этого определяем, как поступить. */
-  if (color_found && color_equal && mod_count_ok &&
-      queue_tile.finalized == color_tile.finalized)  /* Кэш2: правильный и неустаревший тайл. */
-    {
-      show_strategy = SHOW;
-      hyscan_gtk_waterfall_prepare_csurface (surface, color_tile.w, color_tile.h, &tile_surface);
-    }
-  else if (queue_found && queue_equal)             /* Кэш2: неправильный тайл; кэш1: правильный. */
-    {
-      show_strategy = RECOLOR_AND_SHOW;
-      hyscan_gtk_waterfall_prepare_csurface (surface, queue_tile.w, queue_tile.h, &tile_surface);
-    }
-  else if (color_found)                            /* Кэш2: неправильный тайл; кэш1: неправильный. */
-    {
-      show_strategy = SHOW;
-      regenerate = TRUE;
-      hyscan_gtk_waterfall_prepare_csurface (surface, color_tile.w, color_tile.h, &tile_surface);
-    }
-  else if (queue_found)                            /* Кэш2: ничего нет; кэш1: неправильный. */
-    {
-      show_strategy = RECOLOR_AND_SHOW;
-      regenerate = TRUE;
-      hyscan_gtk_waterfall_prepare_csurface (surface, queue_tile.w, queue_tile.h, &tile_surface);
-    }
-  else                                             /* Кэш2: ничего; кэш1: ничего. Заглушка. */
-    {
-      show_strategy = SHOW_DUMMY;
-      regenerate = TRUE;
-    }
-
-  /* Теперь можно запросить тайл откуда следует и отправить его куда следует. */
-  if (regenerate)
-    hyscan_tile_queue_add (priv->queue, &requested_tile);
-
-  if (surface == NULL)
-    return FALSE;
-
-  switch (show_strategy)
-    {
-    case SHOW:
-      /* Просто отображаем тайл. */
-      *tile = color_tile;
-      return hyscan_tile_color_get (priv->color, &requested_tile, &color_tile, &tile_surface);
-
-    case RECOLOR_AND_SHOW:
-      /* Перекрашиваем и отображаем. */
-      queue_found = hyscan_tile_queue_get (priv->queue, &requested_tile, &queue_tile, &buffer, &buffer_size);
-      *tile = queue_tile;
-      hyscan_tile_color_add (priv->color, &queue_tile, buffer, buffer_size, &tile_surface);
-      g_free (buffer);
-      break;
-
-    case SHOW_DUMMY:
-    default:
-      return FALSE;
-    }
-
-  return TRUE;
+  return waterfall->priv->sound_velocity;
 }
 
-/* Функция, завершающая view. */
-gboolean
-hyscan_gtk_waterfall_view_end (HyScanGtkWaterfall *waterfall)
+HyScanSourceType
+hyscan_gtk_waterfall_get_depth_source (HyScanGtkWaterfall  *waterfall,
+                                       guint               *channel)
 {
-  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), FALSE);
+  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), -1);
 
-  /* Запрещаем работу, если кэш не установлен и не открыты БД/проект/галс. */
-  if (!waterfall->priv->open)
-    return FALSE;
+  if (channel != NULL)
+    *channel = waterfall->priv->depth_channel;
 
-  hyscan_tile_queue_add_finished (waterfall->priv->queue, waterfall->priv->view_id);
-
-  return TRUE;
+  return waterfall->priv->depth_source;
 }
 
-// gboolean
-// hyscan_gtk_waterfall_track_params (HyScanGtkWaterfall *waterfall,
-//                                    gdouble           *lwidth,
-//                                    gdouble           *rwidth,
-//                                    gdouble           *length)
-// {
-//   g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), TRUE);
-//
-//   return hyscan_trackrect_get (waterfall->priv->rect, lwidth, rwidth, length);
-// }
+guint
+hyscan_gtk_waterfall_get_depth_filter_size (HyScanGtkWaterfall *waterfall)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), 0);
+
+  return waterfall->priv->depth_filter_size;
+}
+
+gulong
+hyscan_gtk_waterfall_get_depth_time (HyScanGtkWaterfall  *waterfall)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), 0);
+
+  return waterfall->priv->depth_usecs;
+}

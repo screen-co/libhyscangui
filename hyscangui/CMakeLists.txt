@@ -20,7 +20,6 @@ add_custom_command (OUTPUT ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshaller
 add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-area.c
              hyscan-gtk-area.c
-             hyscan-tile-manager.c
              hyscan-gtk-waterfall.c
              hyscan-gtk-waterfallgrid.c)
 

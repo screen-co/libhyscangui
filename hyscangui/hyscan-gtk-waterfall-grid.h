@@ -1,6 +1,6 @@
 /**
  *
- * \file hyscan-gtk-waterfallgrid.h
+ * \file hyscan-gtk-waterfall-grid.h
  *
  * \brief Виджет "водопад с координатной сеткой".
  *
@@ -9,7 +9,7 @@
  * \license Проприетарная лицензия ООО "Экран"
  * \defgroup HyScanGtkWaterfallGrid HyScanGtkWaterfallGrid - виджет "водопад".
  *
- * Виджет создается методом #hyscan_gtk_waterfallgrid_new. Виджет не будет работать до
+ * Виджет создается методом #hyscan_gtk_waterfall_grid_new. Виджет не будет работать до
  * тех пор, пока не будет вызывана функция #hyscan_gtk_waterfall_open. Такая логика
  * нужна для того, чтобы не пересоздавать виджет при любых изменениях.
  *
@@ -18,19 +18,20 @@
  *
  */
 
-#ifndef __HYSCAN_GTK_WATERFALLGRID_H__
-#define __HYSCAN_GTK_WATERFALLGRID_H__
+#ifndef __HYSCAN_GTK_WATERFALL_GRID_H__
+#define __HYSCAN_GTK_WATERFALL_GRID_H__
 
-#include <hyscan-gtk-waterfall.h>
+#include <hyscan-gtk-waterfall-drawer.h>
+#include <hyscan-gtk-waterfall-private.h>
 
 G_BEGIN_DECLS
 
-#define HYSCAN_TYPE_GTK_WATERFALLGRID             (hyscan_gtk_waterfallgrid_get_type ())
-#define HYSCAN_GTK_WATERFALLGRID(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_WATERFALLGRID, HyScanGtkWaterfallGrid))
-#define HYSCAN_IS_GTK_WATERFALLGRID(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_WATERFALLGRID))
-#define HYSCAN_GTK_WATERFALLGRID_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_WATERFALLGRID, HyScanGtkWaterfallGridClass))
-#define HYSCAN_IS_GTK_WATERFALLGRID_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_WATERFALLGRID))
-#define HYSCAN_GTK_WATERFALLGRID_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_WATERFALLGRID, HyScanGtkWaterfallGridClass))
+#define HYSCAN_TYPE_GTK_WATERFALL_GRID             (hyscan_gtk_waterfall_grid_get_type ())
+#define HYSCAN_GTK_WATERFALL_GRID(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_WATERFALL_GRID, HyScanGtkWaterfallGrid))
+#define HYSCAN_IS_GTK_WATERFALL_GRID(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_WATERFALL_GRID))
+#define HYSCAN_GTK_WATERFALL_GRID_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_WATERFALL_GRID, HyScanGtkWaterfallGridClass))
+#define HYSCAN_IS_GTK_WATERFALL_GRID_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_WATERFALL_GRID))
+#define HYSCAN_GTK_WATERFALL_GRID_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_WATERFALL_GRID, HyScanGtkWaterfallGridClass))
 
 typedef struct _HyScanGtkWaterfallGrid HyScanGtkWaterfallGrid;
 typedef struct _HyScanGtkWaterfallGridPrivate HyScanGtkWaterfallGridPrivate;
@@ -38,18 +39,18 @@ typedef struct _HyScanGtkWaterfallGridClass HyScanGtkWaterfallGridClass;
 
 struct _HyScanGtkWaterfallGrid
 {
-  HyScanGtkWaterfall parent_instance;
+  HyScanGtkWaterfallDrawer parent_instance;
 
   HyScanGtkWaterfallGridPrivate *priv;
 };
 
 struct _HyScanGtkWaterfallGridClass
 {
-  HyScanGtkWaterfallClass parent_class;
+  HyScanGtkWaterfallDrawerClass parent_class;
 };
 
 HYSCAN_API
-GType                   hyscan_gtk_waterfallgrid_get_type         (void);
+GType                   hyscan_gtk_waterfall_grid_get_type         (void);
 
 /**
  *
@@ -57,7 +58,7 @@ GType                   hyscan_gtk_waterfallgrid_get_type         (void);
  *
  */
 HYSCAN_API
-GtkWidget              *hyscan_gtk_waterfallgrid_new              (void);
+GtkWidget              *hyscan_gtk_waterfall_grid_new              (void);
 
 /**
  *
@@ -69,7 +70,7 @@ GtkWidget              *hyscan_gtk_waterfallgrid_new              (void);
  *
  */
 HYSCAN_API
-void                    hyscan_gtk_waterfallgrid_show_grid        (GtkWidget              *widget,
+void                    hyscan_gtk_waterfall_grid_show_grid        (GtkWidget              *widget,
                                                                    gboolean                draw_horisontal,
                                                                    gboolean                draw_vertical);
 /**
@@ -81,7 +82,7 @@ void                    hyscan_gtk_waterfallgrid_show_grid        (GtkWidget    
  *
  */
 HYSCAN_API
-void                    hyscan_gtk_waterfallgrid_show_info        (GtkWidget              *widget,
+void                    hyscan_gtk_waterfall_grid_show_info        (GtkWidget              *widget,
                                                                    gboolean                show_info);
 
 /**
@@ -92,7 +93,7 @@ void                    hyscan_gtk_waterfallgrid_show_info        (GtkWidget    
  *
  */
 HYSCAN_API
-void                    hyscan_gtk_waterfallgrid_info_position_auto (GtkWidget              *widget);
+void                    hyscan_gtk_waterfall_grid_info_position_auto (GtkWidget              *widget);
 
 /**
  *
@@ -105,7 +106,7 @@ void                    hyscan_gtk_waterfallgrid_info_position_auto (GtkWidget  
  *
  */
 HYSCAN_API
-void                    hyscan_gtk_waterfallgrid_info_position_abs (GtkWidget              *widget,
+void                    hyscan_gtk_waterfall_grid_info_position_abs (GtkWidget              *widget,
                                                                     gint                    x_position,
                                                                     gint                    y_position);
 
@@ -120,7 +121,7 @@ void                    hyscan_gtk_waterfallgrid_info_position_abs (GtkWidget   
  *
  */
 HYSCAN_API
-void                    hyscan_gtk_waterfallgrid_info_position_perc (GtkWidget              *widget,
+void                    hyscan_gtk_waterfall_grid_info_position_perc (GtkWidget              *widget,
                                                                      gint                     x_position,
                                                                      gint                     y_position);
 
@@ -136,7 +137,7 @@ void                    hyscan_gtk_waterfallgrid_info_position_perc (GtkWidget  
  * \return FALSE, если шаг отрицательный. Иначе TRUE.
  */
 HYSCAN_API
-gboolean                hyscan_gtk_waterfallgrid_set_grid_step    (GtkWidget              *widget,
+gboolean                hyscan_gtk_waterfall_grid_set_grid_step    (GtkWidget              *widget,
                                                                    gdouble                 step_horisontal,
                                                                    gdouble                 step_vertical);
 
@@ -149,7 +150,7 @@ gboolean                hyscan_gtk_waterfallgrid_set_grid_step    (GtkWidget    
  *
  */
 HYSCAN_API
-void                    hyscan_gtk_waterfallgrid_set_grid_color    (GtkWidget              *widget,
+void                    hyscan_gtk_waterfall_grid_set_grid_color    (GtkWidget              *widget,
                                                                     guint32                 color);
 /**
  *
@@ -160,9 +161,9 @@ void                    hyscan_gtk_waterfallgrid_set_grid_color    (GtkWidget   
  *
  */
 HYSCAN_API
-void                    hyscan_gtk_waterfallgrid_set_label_color   (GtkWidget              *widget,
+void                    hyscan_gtk_waterfall_grid_set_label_color   (GtkWidget              *widget,
                                                                     guint32                 color);
 
 G_END_DECLS
 
-#endif /* __HYSCAN_GTK_WATERFALLGRID_H__ */
+#endif /* __HYSCAN_GTK_WATERFALL_GRID_H__ */
