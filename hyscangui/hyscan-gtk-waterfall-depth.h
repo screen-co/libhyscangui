@@ -28,19 +28,23 @@ struct _HyScanGtkWaterfallDepthClass
   HyScanGtkWaterfallGridClass parent_class;
 };
 
+HYSCAN_API
 GType                    hyscan_gtk_waterfall_depth_get_type         (void);
 
+HYSCAN_API
 GtkWidget               *hyscan_gtk_waterfall_depth_new              (void);
 
+HYSCAN_API
 void                     hyscan_gtk_waterfall_depth_show             (HyScanGtkWaterfallDepth *wfdepth,
                                                                       gboolean                 show);
 
+HYSCAN_API
 void                     hyscan_gtk_waterfall_depth_set_color        (HyScanGtkWaterfallDepth *wfdepth,
                                                                       guint32                  color);
 
+HYSCAN_API
 void                     hyscan_gtk_waterfall_depth_set_width        (HyScanGtkWaterfallDepth *wfdepth,
                                                                       gdouble                  width);
-
 G_END_DECLS
 
 #endif /* __HYSCAN_GTK_WATERFALL_DEPTH_H__ */

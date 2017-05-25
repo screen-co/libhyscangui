@@ -1,35 +1,52 @@
+/*
+ * \file hyscan-gtk-waterfall.c
+ *
+ * \brief Исходный файл базового виджета водопада.
+ * \author Dmitriev Alexander (m1n7@yandex.ru)
+ * \date 2017
+ * \license Проприетарная лицензия ООО "Экран"
+ *
+ */
+
 #include "hyscan-gtk-waterfall.h"
 #include "hyscan-gtk-waterfall-private.h"
-#include <hyscan-depth-acoustic.h>
-#include <string.h>
+#include <hyscan-gui-marshallers.h>
+
+enum
+{
+  SIGNAL_MOVE,
+  SIGNAL_ZOOM,
+  SIGNAL_LAST
+};
 
 struct _HyScanGtkWaterfallPrivate
 {
   /* Переменные, используемые наследниками. */
-  HyScanCache         *cache;
-  HyScanCache         *cache2;
-  gchar               *cache_prefix;
+  HyScanCache         *cache;                  /* Кэш. */
+  HyScanCache         *cache2;                 /* Второй кэш. */
+  gchar               *cache_prefix;           /* Префикс кэша. */
 
-  HyScanTileType       tile_type;
+  HyScanTileType       tile_type;              /* Тип тайла (НД/ГД). */
 
-  gfloat               ship_speed;
-  GArray              *sound_velocity;
+  gfloat               ship_speed;             /* Скорость судна. */
+  GArray              *sound_velocity;         /* Профиль скорости звука. */
 
-  HyScanSourceType     depth_source;
-  guint                depth_channel;
-  guint                depth_filter_size;
-  gulong               depth_usecs;
+  HyScanSourceType     depth_source;           /* Тип КД для глубины. */
+  guint                depth_channel;          /* Номер канала для глубины. */
+  guint                depth_filter_size;      /* Размер фильтра. */
+  gulong               depth_usecs;            /* Окно валидности. */
 
-  HyScanDB            *db;
-  gchar               *project;
-  gchar               *track;
-  gboolean             raw;
+  HyScanDB            *db;                     /* БД. */
+  gchar               *project;                /* Проект. */
+  gchar               *track;                  /* Галс. */
+  gboolean             raw;                    /* Сырые данные. */
 
-  HyScanGtkWaterfallType widget_type;
-  HyScanSourceType       left_source;
-  HyScanSourceType       right_source;
+  HyScanGtkWaterfallType widget_type;          /* Тип виджета. */
+  HyScanSourceType       left_source;          /* КД левого борта. */
+  HyScanSourceType       right_source;         /* КД правого борта (или для режима эхолот). */
 
   /* Переменные, используемые объектом. */
+  gboolean               scroll_on_ctrl_wheel; /* Поведение колеса с зажатым CTRL. (FALSE - прокрутка)*/
   gboolean               move_area;            /* Признак перемещения при нажатой клавише мыши. */
   gint                   move_from_x;          /* Начальная координата x перемещения. */
   gint                   move_from_y;          /* Начальная координата y перемещения. */
@@ -45,6 +62,14 @@ struct _HyScanGtkWaterfallPrivate
 static void      hyscan_gtk_waterfall_object_constructed     (GObject               *object);
 static void      hyscan_gtk_waterfall_object_finalize        (GObject               *object);
 
+static void      hyscan_gtk_waterfall_zoom_internal          (HyScanGtkWaterfall    *waterfall,
+                                                              GtkCifroAreaZoomType   direction,
+                                                              gdouble                x,
+                                                              gdouble                y);
+static void      hyscan_gtk_waterfall_move_internal          (HyScanGtkWaterfall    *waterfall,
+                                                              gdouble                dx,
+                                                              gdouble                dy);
+
 static gboolean  hyscan_gtk_waterfall_keyboard               (GtkWidget             *widget,
                                                               GdkEventKey           *event);
 
@@ -58,6 +83,8 @@ static gboolean  hyscan_gtk_waterfall_leave                  (GtkWidget         
 
 static gboolean  hyscan_gtk_waterfall_scroll                 (GtkWidget             *widget,
                                                               GdkEventScroll        *event);
+
+static guint     hyscan_gtk_waterfall_signals[SIGNAL_LAST] = {0};
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkWaterfall, hyscan_gtk_waterfall, GTK_TYPE_CIFRO_AREA);
 
@@ -80,6 +107,18 @@ hyscan_gtk_waterfall_class_init (HyScanGtkWaterfallClass *klass)
   widget_class->motion_notify_event = hyscan_gtk_waterfall_motion;
   widget_class->leave_notify_event = hyscan_gtk_waterfall_leave;
   widget_class->scroll_event = hyscan_gtk_waterfall_scroll;
+
+  hyscan_gtk_waterfall_signals[SIGNAL_ZOOM] =
+    g_signal_new ("waterfall-user-zoom", HYSCAN_TYPE_GTK_WATERFALL,
+                  G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+                  g_cclosure_marshal_VOID__INT,
+                  G_TYPE_NONE, 1, G_TYPE_INT);
+
+  hyscan_gtk_waterfall_signals[SIGNAL_MOVE] =
+    g_signal_new ("waterfall-user-move", HYSCAN_TYPE_GTK_WATERFALL,
+                  G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+                  g_cclosure_user_marshal_VOID__DOUBLE_DOUBLE,
+                  G_TYPE_NONE, 2, G_TYPE_DOUBLE, G_TYPE_DOUBLE);
 }
 
 static void
@@ -99,11 +138,16 @@ hyscan_gtk_waterfall_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_parent_class)->constructed (object);
 
+  gtk_widget_set_can_focus (GTK_WIDGET (waterfall), TRUE);
+
+  /* Настраиваем умолчания. */
+  /* Скорость звука. */
   priv->sound_velocity = g_array_sized_new (FALSE, FALSE, sizeof (HyScanSoundVelocity), 1);
   link = &g_array_index (priv->sound_velocity, HyScanSoundVelocity, 0);
   link->depth = 0.0;
   link->velocity = 1500.0;
 
+  /* Виджет будет отображать ГБО, левый и правый борт. */
   priv->widget_type = HYSCAN_GTK_WATERFALL_SIDESCAN;
   priv->left_source = HYSCAN_SOURCE_SIDE_SCAN_PORT;
   priv->right_source = HYSCAN_SOURCE_SIDE_SCAN_STARBOARD;
@@ -133,6 +177,7 @@ hyscan_gtk_waterfall_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_waterfall_parent_class)->finalize (object);
 }
 
+/* Обработчик клавиш клавиатуры. */
 static gboolean
 hyscan_gtk_waterfall_keyboard (GtkWidget   *widget,
                                GdkEventKey *event)
@@ -183,28 +228,27 @@ hyscan_gtk_waterfall_keyboard (GtkWidget   *widget,
       /* В режимах ГБО и эхолот эти кнопки по-разному реагируют. */
       gtk_cifro_area_get_size (carea, &width, &height);
 
-      if (event->keyval == GDK_KEY_Page_Up)
+      switch (event->keyval)
         {
+        case GDK_KEY_Page_Up:
           step_echo = -0.75 * width;
           step_ss = 0.75 * height;
-        }
-      else if (event->keyval == GDK_KEY_Page_Down)
-        {
+          break;
+        case GDK_KEY_Page_Down:
           step_echo = 0.75 * width;
           step_ss = -0.75 * height;
-        }
-      else if (event->keyval == GDK_KEY_End)
-        {
+          break;
+        case GDK_KEY_End:
           step_echo = step_ss = G_MAXINT;
-        }
-      else if (event->keyval == GDK_KEY_Home)
-        {
+          break;
+        case GDK_KEY_Home:
           step_echo = step_ss = G_MININT;
+          break;
         }
 
       if (priv->widget_type == HYSCAN_GTK_WATERFALL_ECHOSOUNDER)
         gtk_cifro_area_move (carea, step_echo, 0);
-      else if (priv->widget_type == HYSCAN_GTK_WATERFALL_SIDESCAN)
+      else /* if (priv->widget_type == HYSCAN_GTK_WATERFALL_SIDESCAN) */
         gtk_cifro_area_move (carea, 0, step_ss);
     }
   else if (plus_minus_keys)
@@ -224,12 +268,13 @@ hyscan_gtk_waterfall_keyboard (GtkWidget   *widget,
         }
 
       gtk_cifro_area_get_view (carea, &from_x, &to_x, &from_y, &to_y);
-      gtk_cifro_area_zoom (carea, direction, direction, (to_x + from_x) / 2.0, (to_y+from_y)/2.0);
+      gtk_cifro_area_zoom (carea, direction, direction, (to_x + from_x) / 2.0, (to_y + from_y) / 2.0);
     }
 
   return FALSE;
 }
 
+/* Обработчик мыши. */
 static gboolean
 hyscan_gtk_waterfall_mouse_buttons (GtkWidget      *widget,
                                     GdkEventButton *event)
@@ -264,6 +309,7 @@ hyscan_gtk_waterfall_mouse_buttons (GtkWidget      *widget,
   return FALSE;
 }
 
+/* Обработчик движения мыши. */
 static gboolean
 hyscan_gtk_waterfall_motion (GtkWidget      *widget,
                              GdkEventMotion *event)
@@ -296,6 +342,7 @@ hyscan_gtk_waterfall_motion (GtkWidget      *widget,
   return FALSE;
 }
 
+/* Указатель покидает область виджета. */
 static gboolean
 hyscan_gtk_waterfall_leave (GtkWidget        *widget,
                             GdkEventCrossing *event)
@@ -308,6 +355,7 @@ hyscan_gtk_waterfall_leave (GtkWidget        *widget,
   return FALSE;
 }
 
+/* Прокрутка колеса мыши. */
 static gboolean
 hyscan_gtk_waterfall_scroll (GtkWidget      *widget,
                              GdkEventScroll *event)
@@ -315,11 +363,15 @@ hyscan_gtk_waterfall_scroll (GtkWidget      *widget,
   GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
   HyScanGtkWaterfall *waterfall = HYSCAN_GTK_WATERFALL (widget);
   guint width, height;
+  gboolean do_scroll;
 
   gtk_cifro_area_get_size (carea, &width, &height);
 
+  /* Поведение определяется зажатой кнопкой и поведением при зажатой кнопке. */
+  do_scroll = !!(event->state & GDK_CONTROL_MASK) == waterfall->priv->scroll_on_ctrl_wheel;
+
   /* Зуммирование. */
-  if (event->state & GDK_CONTROL_MASK)
+  if (!do_scroll)
     {
       gdouble from_x, to_x, from_y, to_y;
       gdouble zoom_x, zoom_y;
@@ -350,6 +402,7 @@ hyscan_gtk_waterfall_scroll (GtkWidget      *widget,
   return FALSE;
 }
 
+/* Функция устанавливает тип виджета "эхолот". */
 void
 hyscan_gtk_waterfall_echosounder (HyScanGtkWaterfall *waterfall,
                                   HyScanSourceType    source)
@@ -365,6 +418,7 @@ hyscan_gtk_waterfall_echosounder (HyScanGtkWaterfall *waterfall,
   waterfall->priv->right_source = source;
 }
 
+/* Функция устанавливает тип виджета "ГБО". */
 void
 hyscan_gtk_waterfall_sidescan (HyScanGtkWaterfall *waterfall,
                                HyScanSourceType    left,
@@ -381,6 +435,7 @@ hyscan_gtk_waterfall_sidescan (HyScanGtkWaterfall *waterfall,
   waterfall->priv->right_source = right;
 }
 
+/* Функция устанавливает кэш. */
 void
 hyscan_gtk_waterfall_set_cache (HyScanGtkWaterfall *waterfall,
                                 HyScanCache        *cache,
@@ -406,14 +461,7 @@ hyscan_gtk_waterfall_set_cache (HyScanGtkWaterfall *waterfall,
   priv->cache_prefix = g_strdup (prefix);
 }
 
-const gchar*
-hyscan_gtk_waterfall_get_cache_prefix (HyScanGtkWaterfall *waterfall)
-{
-  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), NULL);
-
-  return waterfall->priv->cache_prefix;
-}
-
+/* Функция устанавливает тип тайла. */
 void
 hyscan_gtk_waterfall_set_tile_type (HyScanGtkWaterfall *waterfall,
                                     HyScanTileType      type)
@@ -423,6 +471,7 @@ hyscan_gtk_waterfall_set_tile_type (HyScanGtkWaterfall *waterfall,
   waterfall->priv->tile_type = type;
 }
 
+/* Функция устанавливает скорость судна. */
 void
 hyscan_gtk_waterfall_set_ship_speed (HyScanGtkWaterfall  *waterfall,
                                      gfloat               ship_speed)
@@ -432,6 +481,7 @@ hyscan_gtk_waterfall_set_ship_speed (HyScanGtkWaterfall  *waterfall,
   waterfall->priv->ship_speed = ship_speed;
 }
 
+/* Функция устанавливает профиль скорости звука. */
 void
 hyscan_gtk_waterfall_set_sound_velocity (HyScanGtkWaterfall  *waterfall,
                                          GArray              *velocity)
@@ -447,6 +497,8 @@ hyscan_gtk_waterfall_set_sound_velocity (HyScanGtkWaterfall  *waterfall,
     waterfall->priv->sound_velocity = g_array_ref (velocity);
 
 }
+
+/* Функция устанавливает КД глубины. */
 void
 hyscan_gtk_waterfall_set_depth_source (HyScanGtkWaterfall  *waterfall,
                                        HyScanSourceType     source,
@@ -457,6 +509,8 @@ hyscan_gtk_waterfall_set_depth_source (HyScanGtkWaterfall  *waterfall,
   waterfall->priv->depth_source = source;
   waterfall->priv->depth_channel = channel;
 }
+
+/* Функция устанавливает размер фильтра глубины. */
 void
 hyscan_gtk_waterfall_set_depth_filter_size (HyScanGtkWaterfall *waterfall,
                                             guint               size)
@@ -466,6 +520,7 @@ hyscan_gtk_waterfall_set_depth_filter_size (HyScanGtkWaterfall *waterfall,
   waterfall->priv->depth_filter_size = size;
 }
 
+/* Функция устанавливает окно валидности. */
 void
 hyscan_gtk_waterfall_set_depth_time (HyScanGtkWaterfall  *waterfall,
                                      gulong               usecs)
@@ -475,6 +530,7 @@ hyscan_gtk_waterfall_set_depth_time (HyScanGtkWaterfall  *waterfall,
   waterfall->priv->depth_usecs = usecs;
 }
 
+/* Функция открывает БД, проект и галс. */
 void
 hyscan_gtk_waterfall_open (HyScanGtkWaterfall *waterfall,
                            HyScanDB           *db,
@@ -487,11 +543,11 @@ hyscan_gtk_waterfall_open (HyScanGtkWaterfall *waterfall,
 
   class = HYSCAN_GTK_WATERFALL_GET_CLASS (waterfall);
 
-
-  class->close (waterfall); // TODO: подумать, нужно ли это.
+  class->close (waterfall);
   class->open (waterfall, db, project, track, raw);
 }
 
+/* Функция закрывает БД, проект и галс. */
 void
 hyscan_gtk_waterfall_close (HyScanGtkWaterfall *waterfall)
 {
@@ -503,6 +559,7 @@ hyscan_gtk_waterfall_close (HyScanGtkWaterfall *waterfall)
   class->close (waterfall);
 }
 
+/* Функция зуммирует изображение. */
 void
 hyscan_gtk_waterfall_zoom (HyScanGtkWaterfall *waterfall,
                            gboolean            zoom_in)
@@ -521,6 +578,16 @@ hyscan_gtk_waterfall_zoom (HyScanGtkWaterfall *waterfall,
   gtk_cifro_area_zoom (carea, direction, direction, (from_x + to_x) / 2.0, (from_y + to_y) / 2.0);
 }
 
+void
+hyscan_gtk_waterfall_wheel_behaviour (HyScanGtkWaterfall *waterfall,
+                                      gboolean            scroll_only)
+{
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall));
+
+  waterfall->priv->scroll_on_ctrl_wheel = !scroll_only;
+}
+
+/* Функция возвращает типы КД. */
 HyScanGtkWaterfallType
 hyscan_gtk_waterfall_get_sources (HyScanGtkWaterfall *waterfall,
                                   HyScanSourceType   *left,
@@ -536,6 +603,7 @@ hyscan_gtk_waterfall_get_sources (HyScanGtkWaterfall *waterfall,
   return waterfall->priv->widget_type;
 }
 
+/* Функция возвращает кэш. */
 HyScanCache*
 hyscan_gtk_waterfall_get_cache (HyScanGtkWaterfall *waterfall)
 {
@@ -544,6 +612,7 @@ hyscan_gtk_waterfall_get_cache (HyScanGtkWaterfall *waterfall)
   return waterfall->priv->cache;
 }
 
+/* Функция возвращает второй кэш. */
 HyScanCache*
 hyscan_gtk_waterfall_get_cache2 (HyScanGtkWaterfall *waterfall)
 {
@@ -552,6 +621,16 @@ hyscan_gtk_waterfall_get_cache2 (HyScanGtkWaterfall *waterfall)
   return waterfall->priv->cache2;
 }
 
+/* Функция возвращает префикс кэшей. */
+const gchar*
+hyscan_gtk_waterfall_get_cache_prefix (HyScanGtkWaterfall *waterfall)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), NULL);
+
+  return waterfall->priv->cache_prefix;
+}
+
+/* Функция возвращает тип тайлов. */
 HyScanTileType
 hyscan_gtk_waterfall_get_tile_type (HyScanGtkWaterfall *waterfall)
 {
@@ -560,6 +639,7 @@ hyscan_gtk_waterfall_get_tile_type (HyScanGtkWaterfall *waterfall)
   return waterfall->priv->tile_type;
 }
 
+/* Функция возвращает скорость судна. */
 gfloat
 hyscan_gtk_waterfall_get_ship_speed (HyScanGtkWaterfall  *waterfall)
 {
@@ -568,6 +648,7 @@ hyscan_gtk_waterfall_get_ship_speed (HyScanGtkWaterfall  *waterfall)
   return waterfall->priv->ship_speed;
 }
 
+/* Функция возвращает профиль скорости звука. */
 GArray*
 hyscan_gtk_waterfall_get_sound_velocity (HyScanGtkWaterfall  *waterfall)
 {
@@ -576,6 +657,7 @@ hyscan_gtk_waterfall_get_sound_velocity (HyScanGtkWaterfall  *waterfall)
   return waterfall->priv->sound_velocity;
 }
 
+/* Функция возвращает номер канала и тип КД для глубины. */
 HyScanSourceType
 hyscan_gtk_waterfall_get_depth_source (HyScanGtkWaterfall  *waterfall,
                                        guint               *channel)
@@ -588,6 +670,7 @@ hyscan_gtk_waterfall_get_depth_source (HyScanGtkWaterfall  *waterfall,
   return waterfall->priv->depth_source;
 }
 
+/* Функция возвращает размер фильтра для глубины. */
 guint
 hyscan_gtk_waterfall_get_depth_filter_size (HyScanGtkWaterfall *waterfall)
 {
@@ -596,10 +679,19 @@ hyscan_gtk_waterfall_get_depth_filter_size (HyScanGtkWaterfall *waterfall)
   return waterfall->priv->depth_filter_size;
 }
 
+/* Функция возвращает окно валидности для глубины. */
 gulong
 hyscan_gtk_waterfall_get_depth_time (HyScanGtkWaterfall  *waterfall)
 {
   g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), 0);
 
   return waterfall->priv->depth_usecs;
+}
+
+gboolean
+hyscan_gtk_waterfall_get_wheel_behaviour (HyScanGtkWaterfall *waterfall)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (waterfall), FALSE);
+
+  return !waterfall->priv->scroll_on_ctrl_wheel;
 }

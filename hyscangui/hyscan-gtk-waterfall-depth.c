@@ -1,5 +1,5 @@
 #include "hyscan-gtk-waterfall-depth.h"
-#include <hyscan-gtk-waterfall-private.h>
+#include "hyscan-gtk-waterfall-private.h"
 #include <hyscan-depth-acoustic.h>
 #include <hyscan-depth-nmea.h>
 #include <hyscan-depthometer.h>
@@ -23,7 +23,7 @@ struct _HyScanGtkWaterfallDepthPrivate
   gfloat                 ship_speed;
   GArray                *sound_velocity;
   HyScanSourceType       depth_source;
-  guint      depth_channel;
+  guint                  depth_channel;
   guint                  depth_size;
   gulong                 depth_time;
 
@@ -49,6 +49,7 @@ struct _HyScanGtkWaterfallDepthPrivate
   gint                   widget_width;
 
   GArray                *tasks;
+  GMutex                 task_lock;
 };
 
 static void               hyscan_gtk_waterfall_depth_object_constructed   (GObject                 *object);
@@ -122,6 +123,7 @@ hyscan_gtk_waterfall_depth_object_constructed (GObject *object)
   priv->width = 10;
 
   priv->tasks = g_array_new (FALSE, TRUE, sizeof (gint64));
+  g_mutex_init (&priv->task_lock);
 
   /* Waterfall.*/
   g_signal_connect (wfdepth, "visible-draw", G_CALLBACK (hyscan_gtk_waterfall_depth_visible_draw), NULL);
@@ -138,6 +140,7 @@ hyscan_gtk_waterfall_depth_object_finalize (GObject *object)
   hyscan_gtk_waterfall_depth_close (waterfall);
 
   g_array_free (priv->tasks, TRUE);
+  g_mutex_clear (&priv->task_lock);
 
   g_clear_object (&priv->cache);
   g_free (priv->prefix);
@@ -172,11 +175,13 @@ hyscan_gtk_waterfall_depth_visible_draw (GtkWidget *widget,
   gint64 time, ltime;
   gfloat speed;
 
+  // g_message ("0");
   if (!priv->open || priv->depthometer == NULL || !priv->show || priv->width == 0.0)
     return;
-
+    // g_message ("1");
   if (g_atomic_int_get (&priv->ltime_set) == 0)
     return;
+    // g_message ("2");
 
   ltime = priv->ltime;
   speed = priv->ship_speed;
@@ -204,12 +209,15 @@ hyscan_gtk_waterfall_depth_visible_draw (GtkWidget *widget,
         time = (echo_m / speed) * 1000000 + ltime;
 
       depth = hyscan_depthometer_check (priv->depthometer, time);
+      // g_message ("%f depth %p", depth, priv->cache);
 
       /* Если вернулось -1, отправляем задание. */
       if (depth == -1.0)
         {
           g_atomic_int_set (&priv->cond_flag, 1);
+          g_mutex_lock (&priv->task_lock);
           g_array_append_val (priv->tasks, time);
+          g_mutex_unlock (&priv->task_lock);
           continue;
         }
 
@@ -285,10 +293,10 @@ hyscan_gtk_waterfall_depth_open_idepth (HyScanGtkWaterfallDepthPrivate *priv)
       idepth = HYSCAN_DEPTH (dacoustic);
     }
 
-  else if (hyscan_source_is_sensor (priv->depth_source))
+  else if (priv->depth_source == HYSCAN_SOURCE_NMEA_DPT)
     {
       HyScanDepthNMEA *dnmea;
-      dnmea = hyscan_depth_nmea_new (priv->db, priv->project, priv->track, priv->depth_source, priv->depth_channel);
+      dnmea = hyscan_depth_nmea_new (priv->db, priv->project, priv->track, priv->depth_channel);
       idepth = HYSCAN_DEPTH (dnmea);
     }
 
@@ -370,7 +378,9 @@ hyscan_gtk_waterfall_depth_processing (gpointer data)
          {
            time = g_array_index (priv->tasks, gint64, 0);
            hyscan_depthometer_get (depthometer, time);
+           g_mutex_lock (&priv->task_lock);
            g_array_remove_index_fast (priv->tasks, 0);
+           g_mutex_unlock (&priv->task_lock);
            //TODO: gtk_widget_queue_draw ()
          }
 
@@ -460,6 +470,7 @@ hyscan_gtk_waterfall_depth_close_internal (HyScanGtkWaterfall *waterfall)
   g_atomic_int_set (&priv->stop, 1);
   g_clear_pointer (&priv->processing, g_thread_join);
   g_array_set_size (priv->tasks, 0);
+  g_atomic_int_set (&priv->ltime_set, 0);
 
   g_clear_object (&priv->db);
   g_clear_pointer (&priv->project, g_free);

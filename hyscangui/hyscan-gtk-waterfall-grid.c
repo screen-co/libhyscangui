@@ -9,6 +9,7 @@
  */
 
 #include "hyscan-gtk-waterfall-grid.h"
+#include "hyscan-gtk-waterfall-private.h"
 #include <hyscan-tile-color.h>
 #include <math.h>
 #include <glib/gi18n.h>
@@ -60,23 +61,23 @@ struct _HyScanGtkWaterfallGridPrivate
 
 };
 
-static void    hyscan_gtk_waterfall_grid_object_constructed       (GObject               *object);
-static void    hyscan_gtk_waterfall_grid_object_finalize          (GObject               *object);
+static void    hyscan_gtk_waterfall_grid_object_constructed      (GObject               *object);
+static void    hyscan_gtk_waterfall_grid_object_finalize         (GObject               *object);
 
-static gboolean hyscan_gtk_waterfall_grid_configure               (GtkWidget             *widget,
+static gboolean hyscan_gtk_waterfall_grid_configure              (GtkWidget             *widget,
                                                                   GdkEventConfigure     *event);
-static gboolean hyscan_gtk_waterfall_grid_motion_notify           (GtkWidget             *widget,
+static gboolean hyscan_gtk_waterfall_grid_motion_notify          (GtkWidget             *widget,
                                                                   GdkEventMotion        *event);
-static gboolean hyscan_gtk_waterfall_grid_leave_notify            (GtkWidget             *widget,
+static gboolean hyscan_gtk_waterfall_grid_leave_notify           (GtkWidget             *widget,
                                                                   GdkEventCrossing      *event);
-static void    hyscan_gtk_waterfall_grid_area_draw                (GtkWidget             *widget,
+static void    hyscan_gtk_waterfall_grid_draw                    (GtkWidget             *widget,
                                                                   cairo_t               *cairo);
 
-static void    hyscan_gtk_waterfall_grid_hruler            (GtkWidget             *widget,
+static void    hyscan_gtk_waterfall_grid_vertical                (GtkWidget             *widget,
                                                                   cairo_t               *cairo);
-static void    hyscan_gtk_waterfall_grid_vruler            (GtkWidget             *widget,
+static void    hyscan_gtk_waterfall_grid_horisontal              (GtkWidget             *widget,
                                                                   cairo_t               *cairo);
-static void    hyscan_gtk_waterfall_grid_info              (GtkWidget             *widget,
+static void    hyscan_gtk_waterfall_grid_info                    (GtkWidget             *widget,
                                                                   cairo_t               *cairo);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkWaterfallGrid, hyscan_gtk_waterfall_grid, HYSCAN_TYPE_GTK_WATERFALL_DRAWER);
@@ -113,8 +114,7 @@ hyscan_gtk_waterfall_grid_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_grid_parent_class)->constructed (object);
 
-  //g_signal_connect (wfgrid, "area-draw", G_CALLBACK (hyscan_gtk_waterfall_grid_area_draw), NULL);
-  g_signal_connect (wfgrid, "visible-draw", G_CALLBACK (hyscan_gtk_waterfall_grid_area_draw), NULL);
+  g_signal_connect (wfgrid, "visible-draw", G_CALLBACK (hyscan_gtk_waterfall_grid_draw), NULL);
   g_signal_connect (wfgrid, "configure-event", G_CALLBACK (hyscan_gtk_waterfall_grid_configure), NULL);
   g_signal_connect (wfgrid, "motion-notify-event", G_CALLBACK (hyscan_gtk_waterfall_grid_motion_notify), NULL);
   g_signal_connect (wfgrid, "leave-notify-event", G_CALLBACK (hyscan_gtk_waterfall_grid_leave_notify), NULL);
@@ -136,6 +136,7 @@ hyscan_gtk_waterfall_grid_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_waterfall_grid_parent_class)->finalize (object);
 }
 
+/* Функция создает новый виджет HyScanGtkWaterfallGrid. */
 GtkWidget*
 hyscan_gtk_waterfall_grid_new (void)
 {
@@ -201,10 +202,10 @@ hyscan_gtk_waterfall_grid_leave_notify (GtkWidget            *widget,
   return FALSE;
 }
 
-/* Обработчик сигнала area-draw. */
+/* Обработчик сигнала visible-draw. */
 static void
-hyscan_gtk_waterfall_grid_area_draw (GtkWidget *widget,
-                                     cairo_t   *cairo)
+hyscan_gtk_waterfall_grid_draw (GtkWidget *widget,
+                                cairo_t   *cairo)
 {
   HyScanGtkWaterfallGrid *wfgrid = HYSCAN_GTK_WATERFALL_GRID (widget);
   HyScanGtkWaterfallGridPrivate *priv = wfgrid->priv;
@@ -212,17 +213,17 @@ hyscan_gtk_waterfall_grid_area_draw (GtkWidget *widget,
   priv->widget_type = hyscan_gtk_waterfall_get_sources (HYSCAN_GTK_WATERFALL (widget), NULL, NULL);
 
   if (priv->draw_x_grid)
-    hyscan_gtk_waterfall_grid_hruler (widget, cairo);
+    hyscan_gtk_waterfall_grid_vertical (widget, cairo);
   if (priv->draw_y_grid)
-    hyscan_gtk_waterfall_grid_vruler (widget, cairo);
+    hyscan_gtk_waterfall_grid_horisontal (widget, cairo);
   if (priv->show_info)
     hyscan_gtk_waterfall_grid_info (widget, cairo);
 }
 
 /* Функция рисует сетку по горизонтальной оси. */
 static void
-hyscan_gtk_waterfall_grid_hruler (GtkWidget *widget,
-                                        cairo_t   *cairo)
+hyscan_gtk_waterfall_grid_vertical (GtkWidget *widget,
+                                    cairo_t   *cairo)
 {
   GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
   HyScanGtkWaterfallGrid *wfgrid = HYSCAN_GTK_WATERFALL_GRID (widget);
@@ -334,8 +335,8 @@ hyscan_gtk_waterfall_grid_hruler (GtkWidget *widget,
 
 /* Функция рисует сетку по вертикальной оси. */
 static void
-hyscan_gtk_waterfall_grid_vruler (GtkWidget *widget,
-                                        cairo_t   *cairo)
+hyscan_gtk_waterfall_grid_horisontal (GtkWidget *widget,
+                                      cairo_t   *cairo)
 {
   GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
   HyScanGtkWaterfallGrid *wfgrid = HYSCAN_GTK_WATERFALL_GRID (widget);
@@ -428,7 +429,7 @@ hyscan_gtk_waterfall_grid_vruler (GtkWidget *widget,
       if (axis_pos - text_height <= priv->virtual_border)
         cairo_move_to (cairo, text_height * 0.1, priv->virtual_border);
       else
-        cairo_move_to (cairo, text_height * 0.1, axis_pos - text_height);
+        cairo_move_to (cairo, text_height * 0.1, (gint)axis_pos + 0.5 - text_height);
 
       pango_cairo_show_layout (cairo, font);
       cairo_restore (cairo);
@@ -447,7 +448,7 @@ hyscan_gtk_waterfall_grid_vruler (GtkWidget *widget,
 /* Функция рисует информационное окошко. */
 static void
 hyscan_gtk_waterfall_grid_info (GtkWidget *widget,
-                                      cairo_t   *cairo)
+                                cairo_t   *cairo)
 {
   GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
   HyScanGtkWaterfallGrid *wfgrid = HYSCAN_GTK_WATERFALL_GRID (widget);
@@ -500,7 +501,6 @@ hyscan_gtk_waterfall_grid_info (GtkWidget *widget,
   g_snprintf (text_str[UNITS_Y], sizeof(text_str[UNITS_Y]), " %s", _(priv->y_axis_name));
 
   /* Вычисляем максимальную ширину и высоту строки с текстом. */
-
   pango_layout_set_text (font, text_str[VALUE_X], -1);
   pango_layout_get_size (font, &text_width, &text_height);
   value_width = text_width;
@@ -530,13 +530,6 @@ hyscan_gtk_waterfall_grid_info (GtkWidget *widget,
   info_width = value_width + units_width + 2 * text_spacing;
   info_height = 2 * font_height + text_spacing * 3;
 
-  /* Прыгающее окошко. */
-  /*if (priv->mouse_x > area_width - 8 * text_spacing - info_width && priv->mouse_y < 8 * text_spacing + info_height)
-    x = 6 * text_spacing;
-  else
-    x = area_width - 6 * text_spacing - info_width;
-  y = 6 * text_spacing;
-  */
   /* Правый верхний угол окошка. Либо надо рассчитать, либо координаты уже есть. */
   switch (priv->info_coordinates)
     {
@@ -615,120 +608,112 @@ hyscan_gtk_waterfall_grid_info (GtkWidget *widget,
 
 /* Функция указывает, какие линии рисовать. */
 void
-hyscan_gtk_waterfall_grid_show_grid (GtkWidget              *widget,
-                                    gboolean                draw_horisontal,
-                                    gboolean                draw_vertical)
+hyscan_gtk_waterfall_grid_show_grid (HyScanGtkWaterfallGrid *grid,
+                                     gboolean                draw_horisontal,
+                                     gboolean                draw_vertical)
 {
-  HyScanGtkWaterfallGrid *wfgrid = HYSCAN_GTK_WATERFALL_GRID (widget);
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (wfgrid));
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (grid));
 
-  wfgrid->priv->draw_x_grid = draw_horisontal;
-  wfgrid->priv->draw_y_grid = draw_vertical;
+  grid->priv->draw_x_grid = draw_horisontal;
+  grid->priv->draw_y_grid = draw_vertical;
 
-  gtk_widget_queue_draw (GTK_WIDGET (wfgrid));
+  gtk_widget_queue_draw (GTK_WIDGET (grid));
 }
 
 /* Функция позволяет включить и выключить отображение окошка с координатой. */
 void
-hyscan_gtk_waterfall_grid_show_info (GtkWidget              *widget,
-                                    gboolean                show_info)
+hyscan_gtk_waterfall_grid_show_info (HyScanGtkWaterfallGrid *grid,
+                                     gboolean                show_info)
 {
-  HyScanGtkWaterfallGrid *wfgrid = HYSCAN_GTK_WATERFALL_GRID (widget);
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (wfgrid));
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (grid));
 
-  wfgrid->priv->show_info = show_info;
+  grid->priv->show_info = show_info;
 
-  gtk_widget_queue_draw (GTK_WIDGET (wfgrid));
+  gtk_widget_queue_draw (GTK_WIDGET (grid));
 }
 
 /* Функция задает координаты информационного окна по умолчанию. */
 void
-hyscan_gtk_waterfall_grid_info_position_auto (GtkWidget              *widget)
+hyscan_gtk_waterfall_grid_info_position_auto (HyScanGtkWaterfallGrid *grid)
 {
-  HyScanGtkWaterfallGrid *wfgrid = HYSCAN_GTK_WATERFALL_GRID (widget);
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (wfgrid));
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (grid));
 
-  wfgrid->priv->info_coordinates = INFOBOX_AUTO;
+  grid->priv->info_coordinates = INFOBOX_AUTO;
 
-  gtk_widget_queue_draw (GTK_WIDGET (wfgrid));
+  gtk_widget_queue_draw (GTK_WIDGET (grid));
 }
 
 /* Функция задает координаты информационного окна в пикселях. */
 void
-hyscan_gtk_waterfall_grid_info_position_abs (GtkWidget              *widget,
-                                            gint                    x_position,
-                                            gint                    y_position)
+hyscan_gtk_waterfall_grid_info_position_abs (HyScanGtkWaterfallGrid *grid,
+                                             gint                    x_position,
+                                             gint                    y_position)
 {
-  HyScanGtkWaterfallGrid *wfgrid = HYSCAN_GTK_WATERFALL_GRID (widget);
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (wfgrid));
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (grid));
 
-  wfgrid->priv->info_coordinates = INFOBOX_ABSOLUTE;
-  wfgrid->priv->info_x = x_position;
-  wfgrid->priv->info_y = y_position;
+  grid->priv->info_coordinates = INFOBOX_ABSOLUTE;
+  grid->priv->info_x = x_position;
+  grid->priv->info_y = y_position;
 
-  gtk_widget_queue_draw (GTK_WIDGET (wfgrid));
+  gtk_widget_queue_draw (GTK_WIDGET (grid));
 }
 
 /* Функция задает координаты информационного окна в процентах. */
 void
-hyscan_gtk_waterfall_grid_info_position_perc (GtkWidget              *widget,
-                                             gint                    x_position,
-                                             gint                    y_position)
+hyscan_gtk_waterfall_grid_info_position_perc (HyScanGtkWaterfallGrid *grid,
+                                              gint                    x_position,
+                                              gint                    y_position)
 {
-  HyScanGtkWaterfallGrid *wfgrid = HYSCAN_GTK_WATERFALL_GRID (widget);
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (wfgrid));
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (grid));
 
-  wfgrid->priv->info_coordinates = INFOBOX_PERCENT;
-  wfgrid->priv->info_x_perc = x_position;
-  wfgrid->priv->info_y_perc = y_position;
+  grid->priv->info_coordinates = INFOBOX_PERCENT;
+  grid->priv->info_x_perc = x_position;
+  grid->priv->info_y_perc = y_position;
 
-  gtk_widget_queue_draw (GTK_WIDGET (wfgrid));
+  gtk_widget_queue_draw (GTK_WIDGET (grid));
 }
 
 /* Функция устанавливает шаг координатной сетки. */
 gboolean
-hyscan_gtk_waterfall_grid_set_grid_step (GtkWidget              *widget,
-                                        gdouble                 step_horisontal,
-                                        gdouble                 step_vertical)
+hyscan_gtk_waterfall_grid_set_grid_step (HyScanGtkWaterfallGrid *grid,
+                                         gdouble    step_horisontal,
+                                         gdouble    step_vertical)
 {
-  HyScanGtkWaterfallGrid *wfgrid = HYSCAN_GTK_WATERFALL_GRID (widget);
-  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (wfgrid), FALSE);
+  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (grid), FALSE);
   g_return_val_if_fail (step_horisontal >= 0.0, FALSE);
   g_return_val_if_fail (step_vertical >= 0.0, FALSE);
 
-  wfgrid->priv->x_grid_step = step_horisontal;
-  wfgrid->priv->y_grid_step = step_vertical;
+  grid->priv->x_grid_step = step_horisontal;
+  grid->priv->y_grid_step = step_vertical;
 
-  gtk_widget_queue_draw (GTK_WIDGET (wfgrid));
+  gtk_widget_queue_draw (GTK_WIDGET (grid));
   return TRUE;
 }
 
 /* Функция устанавливает цвет координатной сетки. */
 void
-hyscan_gtk_waterfall_grid_set_grid_color (GtkWidget              *widget,
-                                         guint32                 color)
+hyscan_gtk_waterfall_grid_set_grid_color (HyScanGtkWaterfallGrid *grid,
+                                          guint32                 color)
 {
-  HyScanGtkWaterfallGrid *wfgrid = HYSCAN_GTK_WATERFALL_GRID (widget);
   GdkRGBA rgba = {0};
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (wfgrid));
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (grid));
 
   hyscan_tile_color_converter_i2d (color, &rgba.red, &rgba.green, &rgba.blue, &rgba.alpha);
-  wfgrid->priv->grid_color = rgba;
+  grid->priv->grid_color = rgba;
 
-  gtk_widget_queue_draw (GTK_WIDGET (wfgrid));
+  gtk_widget_queue_draw (GTK_WIDGET (grid));
 }
 
 /* Функция устанавливает цвет подписей. */
 void
-hyscan_gtk_waterfall_grid_set_label_color (GtkWidget              *widget,
-                                          guint32                 color)
+hyscan_gtk_waterfall_grid_set_label_color (HyScanGtkWaterfallGrid *grid,
+                                           guint32                 color)
 {
-  HyScanGtkWaterfallGrid *wfgrid = HYSCAN_GTK_WATERFALL_GRID (widget);
   GdkRGBA rgba = {0};
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (wfgrid));
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (grid));
 
   hyscan_tile_color_converter_i2d (color, &rgba.red, &rgba.green, &rgba.blue, &rgba.alpha);
-  wfgrid->priv->text_color = rgba;
+  grid->priv->text_color = rgba;
 
-  gtk_widget_queue_draw (GTK_WIDGET (wfgrid));
+  gtk_widget_queue_draw (GTK_WIDGET (grid));
 }

@@ -1,3 +1,13 @@
+/*
+ * \file hyscan-gtk-waterfall-private.c
+ *
+ * \brief Заголовочный файл неэкспертируемых функций базового виджета водопада.
+ * \author Dmitriev Alexander (m1n7@yandex.ru)
+ * \date 2017
+ * \license Проприетарная лицензия ООО "Экран"
+ *
+ */
+
 #ifndef __HYSCAN_GTK_WATERFALL_PRIVATE_H__
 #define __HYSCAN_GTK_WATERFALL_PRIVATE_H__
 
@@ -18,9 +28,11 @@ GArray                 *hyscan_gtk_waterfall_get_sound_velocity    (HyScanGtkWat
 
 HyScanSourceType        hyscan_gtk_waterfall_get_depth_source      (HyScanGtkWaterfall *waterfall,
                                                                     guint              *channel);
-                                                                    
+
 guint                   hyscan_gtk_waterfall_get_depth_filter_size (HyScanGtkWaterfall *waterfall);
 gulong                  hyscan_gtk_waterfall_get_depth_time        (HyScanGtkWaterfall *waterfall);
+
+gboolean                hyscan_gtk_waterfall_get_wheel_behaviour   (HyScanGtkWaterfall *waterfall);
 
 G_END_DECLS
 

@@ -4,4 +4,10 @@
  *
  * - \link HyScanGtkArea \endlink - виджет рабочей области.
  *
+ * - \link HyScanGtkWaterfall \endlink - базовый виджет водопада, реализующий хранение параметров.
+ * - \link HyScanGtkWaterfallDrawer \endlink - виджет, реализующий отображение данные.
+ * - \link HyScanGtkWaterfallGrid \endlink - виджет, рисующий координатную сетку.
+ * - \link HyScanGtkWaterfallDepth \endlink - виджет, отображающий линию глубины.
+ * - \link HyScanGtkWaterfallLast \endlink - макрос для создания актуального водопада.
+ *
  */
