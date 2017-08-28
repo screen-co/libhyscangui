@@ -359,7 +359,7 @@ hyscan_gtk_waterfall_depth_processing (gpointer data)
           guint32 lindex;
           if (hyscan_depth_get_range (idepth, &lindex, NULL))
             {
-              priv->ltime = hyscan_depth_get_time (idepth, lindex);
+              hyscan_depth_get (idepth, lindex, &priv->ltime);
               g_atomic_int_set (&priv->ltime_set, 1);
             }
         }

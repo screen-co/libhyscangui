@@ -1048,7 +1048,7 @@ hyscan_gtk_waterfall_drawer_automover (gpointer data)
       lwidth = 0.0;
     }
 
-  priv->init = l_init || r_init;
+  priv->init = l_init && r_init;
   writeable = l_writeable || r_writeable;
 
   /* Если данных ещё нет, выходим. */

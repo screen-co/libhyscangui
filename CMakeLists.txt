@@ -59,18 +59,31 @@ else ()
   set (HYSCAN_LIBRARIES "hyscantypes-${HYSCAN_MAJOR_VERSION}")
 endif ()
 
-include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/hyscangui")
-include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscantypes/hyscantypes")
-include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancache/hyscancache")
-include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscandb/hyscandb")
-include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancore/hyscancore")
-include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancontrol/hyscancontrol")
-link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscantypes/bin")
-link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancache/bin")
-link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancore/bin")
-link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscandb/bin")
-link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancontrol/bin")
-set (ADDON_LIBRARIES ${ADDON_LIBRARIES} hyscantypes hyscancache hyscancore hyscandb hyscancontrol)
+if (HYSCAN_USE_SYS_LIBS)
+  pkg_check_modules (HYSCAN REQUIRED "hyscantypes-${HYSCAN_MAJOR_VERSION}"
+                                     "hyscancache-${HYSCAN_MAJOR_VERSION}"
+                                     "hyscanmath-${HYSCAN_MAJOR_VERSION}"
+                                     "hyscandb-${HYSCAN_MAJOR_VERSION}")
+
+  link_directories (${HYSCAN_LIBRARY_DIRS})
+  add_definitions (${HYSCAN_CFLAGS})
+else ()
+  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/hyscangui")
+  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscantypes/hyscantypes")
+  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancache/hyscancache")
+  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscandb/hyscandb")
+  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancore/hyscancore")
+
+  link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscantypes/bin")
+  link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancache/bin")
+  link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancore/bin")
+  link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscandb/bin")
+
+  set (HYSCAN_LIBRARIES "hyscantypes-${HYSCAN_MAJOR_VERSION}"
+                        "hyscancache-${HYSCAN_MAJOR_VERSION}"
+                        "hyscandb-${HYSCAN_MAJOR_VERSION}"
+                        "hyscancore-${HYSCAN_MAJOR_VERSION}")
+endif ()
 
 include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../gtkcifroarea/gtkcifroarea")
 link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../gtkcifroarea/bin")
