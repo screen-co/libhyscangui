@@ -381,7 +381,7 @@ hyscan_gtk_waterfall_depth_processing (gpointer data)
            g_mutex_lock (&priv->task_lock);
            g_array_remove_index_fast (priv->tasks, 0);
            g_mutex_unlock (&priv->task_lock);
-           hyscan_gtk_waterfall_queue_draw (priv->wfall);
+           hyscan_gtk_waterfall_queue_draw (self->wfall);
          }
 
 

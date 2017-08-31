@@ -1,99 +1,80 @@
 /**
- * \file hyscan-gtk-waterfall.h
+ * \file hyscan-gtk-waterfall-wfall.h
  *
  * \brief Виджет "водопад".
  *
  * \author Dmitriev Alexander (m1n7@yandex.ru)
  * \date 2017
  * \license Проприетарная лицензия ООО "Экран"
- * \defgroup HyScanGtkWaterfall HyScanGtkWaterfall - виджет "водопад".
+ * \defgroup HyScanGtkWaterfall HyScanGtkWaterfall - отображение гидролокационных данных в режиме водопад.
  *
- * Данный виджет является родительским для всех виджетов, которые требуются для
- * отображения данных в режиме "водопад".
- * В нём реализуется логика установки пользователем и хранения параметров водопада,
- * а также управление прокруткой и зуммированием с помощью клавиатуры и мыши.
+ * Данный виджет занимается всем, что связано с отрисовкой тайлов.
+ * Он содержит объекты HyScanTileQueue и HyScanTileColor, которые занимаются
+ * генерацией и раскрашиванием тайлов.
  *
- * Метод _new отсутствует, так как сам по себе этот виджет ничего не отрисовывает,
- * а потому не представляет пользы для пользователя.
- *
- * Все методы делятся на четыре категории:
- *
- * 1. Управление типом отображения:
- * - #hyscan_gtk_waterfall_echosounder - отображение данных эхолота;
- * - #hyscan_gtk_waterfall_sidescan - отображение данных ГБО;
- *
- * 2. Установка параметров обработки, системы кэширования:
- * - #hyscan_gtk_waterfall_set_cache - установка системы кэширования;
- * - #hyscan_gtk_waterfall_set_tile_type - установка типа тайла;
- * - #hyscan_gtk_waterfall_set_ship_speed - установка скорости судна;
- * - #hyscan_gtk_waterfall_set_sound_velocity - установка скорости звука;
- * - #hyscan_gtk_waterfall_set_depth_source - настройка \link HyScanDepthometer \endlink;
- * - #hyscan_gtk_waterfall_set_depth_filter_size - настройка \link HyScanDepthometer \endlink;
- * - #hyscan_gtk_waterfall_set_depth_time - настройка \link HyScanDepthometer \endlink;
- *
- * 3. API для зуммирования и настройки поведения колеса мыши (прокрутка/зум):
- * - #hyscan_gtk_waterfall_zoom - программное зуммирование;
- * - #hyscan_gtk_waterfall_wheel_behaviour - настройка поведения колеса мыши;
- *
- * 4. Открытие и закрытие галса:
- * - #hyscan_gtk_waterfall_open - открывает БД, проект и галс;
- * - #hyscan_gtk_waterfall_close - закрывает БД, проект и галс;
- *
- * Помимо этого есть две виртуальные функции (open и close), вызывающиеся, соответственно,
- * в методах hyscan_gtk_waterfall_open и hyscan_gtk_waterfall_close.
- *
- * Класс не является потокобезопасным. Однако дочерние классы организованы таким образом, что
- * считывание установленных параметров происходит только во внутренних переопределенных
- * методах _open и _close. Таким образом, установка параметров после вызова метода _open
- * приведет к изменениям только после повторного вызова метода _open.
- *
- * Функция hyscan_gtk_waterfall_open помимо вызова виртуальной функции open вызывает и close,
- * поэтому во-первых, в дочерних классах не обязательно вызывать close в обработчике open,
- * а во-вторых, при необходимости открыть галс без смены параметров отображения можно
- * не вызывать метод hyscan_gtk_waterfall_close.
- *
- * На уровне этого класса режимы ГБО и эхолот отличаются только направлением сдвижки
- * при нажатии на клавиатуру или прокрутке мышью.
- *
- * В классе определено два сигнала. Они являются чисто внутренними и не представляют
- * интереса для пользователя, однако могут быть полезны для программиста.
- * Важно понимать, что эти сигналы отражают только намерения пользователя совершить какие-то
- * действия. Видимая область может сдвигаться или зуммироваться из нижележащих классов,
- * тогда сигналы эмиттированы не будут.
- * - Сигнал "waterfall-user-zoom" эмиттируется, когда класс собирается вызвать функцию gtk_cifro_area_zoom ().
- *   При этом передается направление зуммирования.
- * - Сигнал "waterfall-user-move" эмиттируется, когда класс собирается сдвинуть видимую область.
- *   Передается величина сдвижки по вертикальной и горизонтальной оси.
- *
+ * Помимо этого он берет на себя ещё две задачи: организация масштабов и автосдвижка.
+ * Метод #hyscan_gtk_waterfall_get_scale позволяет получить
+ * список масштабов и номер текущего масштаба.
+ * При смене масштаба отсылается сигнал "waterfall-zoom".
  * \code
- * void waterfall_zoom_cb (HyScanGtkWaterfall   *wfall,
- *                         GtkCifroAreaZoomType  zoom);
- *
- * void waterfall_move_cb (HyScanGtkWaterfall   *wfall,
- *                         gdouble               vertical,
- *                         gdouble               horisontal);
+ * void
+ * waterfall_zoom_cb (HyScanGtkWaterfall *wfall,
+ *                    gint                      index,      // Индекс текущего зума.
+ *                    gdouble                   zoom,       // Текущий зум в виде 1:[zoom]
+ *                    gpointer                  user_data);
  * \endcode
  *
+ * Метод #hyscan_gtk_waterfall_set_upsample позволяет задать
+ * величину передискретизации. Это единственная публичная настройка
+ * генератора тайлов. Остальные параметры (тип отображения, источники)
+ * берутся из родителя.
+ *
+ * Настройка раскрашивания тайлов выполняется следующими функциями:
+ * - #hyscan_gtk_waterfall_set_colormap для установки цветовой
+ *    схемы для конкретного источника данных;
+ * - #hyscan_gtk_waterfall_set_colormap_for_all для установки
+ *    резервной цветовой схемы;
+ * - #hyscan_gtk_waterfall_set_levels для установки уровней
+ *    черной и белой точки и гамма-коррекции для конкретного источника
+ *    данных;
+ * - #hyscan_gtk_waterfall_set_levels_for_all для установки
+ *    резервных уровней.
+ *
+ * Автосдвижка:
+ * - #hyscan_gtk_waterfall_automove включает и выключает автосдвижку;
+ * - #hyscan_gtk_waterfall_set_automove_period задает период
+ *    автосдвижки.
+ *
+ * Помимо этого автосдвижка будет отключена, если пользователь переместит
+ * указатель мыши на 10% от высоты окна с зажатой левой кнопкой.
+ * Учитываются только перемещения к началу галса. Всякий раз при изменении
+ * состояния автосдвижки эмиттируется сигнал "automove-state"
+ * \code
+ * void
+ * automove_state_cb (HyScanGtkWaterfall *wfall,
+ *                    gboolean                  is_on,      // TRUE, если автосдвижка включена
+ *                    gpointer                  user_data);
+ * \endcode
+ *
+ * Для снижения нагрузки на систему можно использовать метод
+ * #hyscan_gtk_waterfall_set_regeneration_period. Все тайлы,
+ * которые не были обнаружены в кэше, будут в любом случае отправлены
+ * на генерацию. Те тайлы, которые в кэше есть, но помечены как требующие
+ * перегенерации, будут отправлены не раньше, чем закончится указанное
+ * время. При этом дистанция на изображении будет отличаться от реальной
+ * на величину, соответствующую скорости судна умноженной на период
+ * перегенерации.
+ *
+ * #hyscan_gtk_waterfall_new создает новый виджет HyScanGtkWaterfall.
  */
 
 #ifndef __HYSCAN_GTK_WATERFALL_H__
 #define __HYSCAN_GTK_WATERFALL_H__
 
-#include <gtk-cifro-area.h>
-#include <hyscan-db.h>
-#include <hyscan-cache.h>
-#include <hyscan-tile-common.h>
-#include <hyscan-depth.h>
-#include <hyscan-api.h>
+
+#include <hyscan-gtk-waterfall-state.h>
 
 G_BEGIN_DECLS
-
-/** \brief Типы тайлов по источнику данных. */
-typedef enum
-{
-  HYSCAN_GTK_WATERFALL_SIDESCAN      = 100,   /**< ГБО. */
-  HYSCAN_GTK_WATERFALL_ECHOSOUNDER   = 101,   /**< Эхолот. */
-} HyScanGtkWaterfallType;
 
 #define HYSCAN_TYPE_GTK_WATERFALL             (hyscan_gtk_waterfall_get_type ())
 #define HYSCAN_GTK_WATERFALL(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_WATERFALL, HyScanGtkWaterfall))
@@ -108,195 +89,197 @@ typedef struct _HyScanGtkWaterfallClass HyScanGtkWaterfallClass;
 
 struct _HyScanGtkWaterfall
 {
-  GtkCifroArea parent_instance;
+  HyScanGtkWaterfallState parent_instance;
 
   HyScanGtkWaterfallPrivate *priv;
 };
 
 struct _HyScanGtkWaterfallClass
 {
-  GtkCifroAreaClass parent_class;
-
-  void (*open)   (HyScanGtkWaterfall *waterfall,
-                  HyScanDB           *db,
-                  const gchar        *project,
-                  const gchar        *track,
-                  gboolean            raw);
-  void (*close)  (HyScanGtkWaterfall *waterfall);
-
+  HyScanGtkWaterfallStateClass parent_class;
 };
 
 HYSCAN_API
-GType                   hyscan_gtk_waterfall_get_type          (void);
+GType                   hyscan_gtk_waterfall_get_type                   (void);
 
 /**
  *
- * Функция устанавливает режим отображения "эхолот" (один борт, акустические строки
- * направлены вниз, свежие данные справа).
- *
- * \param waterfall указатель на объект \link HyScanGtkWaterfall \endlink
- * \param source тип КД.
+ * Функция создает новый виджет \link HyScanGtkWaterfall \endlink
  *
  */
 HYSCAN_API
-void                    hyscan_gtk_waterfall_echosounder       (HyScanGtkWaterfall *waterfall,
-                                                                HyScanSourceType    source);
-/**
- *
- * Функция устанавливает режим отображения "ГБО" (два борта, ак. строки направлены
- * вправо и влево, свежие данные сверху).
- *
- * \param waterfall указатель на объект \link HyScanGtkWaterfall \endlink
- * \param left тип КД левого борта
- * \param right тип КД правого борта
- *
- */
-HYSCAN_API
-void                    hyscan_gtk_waterfall_sidescan          (HyScanGtkWaterfall *waterfall,
-                                                                HyScanSourceType    left,
-                                                                HyScanSourceType    right);
-/**
- *
- * Функция устанавливает систему кэширования.
- * Поддерживается две системы кэширования. Во вторую складываются только разукрашенные
- * тайлы, в первую всё остальное.
- *
- * \param waterfall указатель на объект \link HyScanGtkWaterfall \endlink
- * \param cache указатель на интерфейс \link HyScanCache \endlink
- * \param cache2 указатель на интерфейс \link HyScanCache \endlink (NULL или cache для
- * использования одного кэша)
- * \param prefix префикс систем кэширования
- *
- */
-HYSCAN_API
-void                    hyscan_gtk_waterfall_set_cache         (HyScanGtkWaterfall *waterfall,
-                                                                HyScanCache        *cache,
-                                                                HyScanCache        *cache2,
-                                                                const gchar        *prefix);
-/**
- *
- * Функция устанавливает тип отображения: наклонная или горизонтальная дальность.
- * Эта настройка работает только для отображения ГБО (#hyscan_gtk_waterfall_sidescan).
- *
- * \param waterfall указатель на объект \link HyScanGtkWaterfall \endlink
- * \param type
- *
- */
-HYSCAN_API
-void                    hyscan_gtk_waterfall_set_tile_type     (HyScanGtkWaterfall *waterfall,
-                                                                HyScanTileType      type);
-/**
- *
- * Функция устанавливает скорость движения судна.
- *
- * \param waterfall указатель на объект \link HyScanGtkWaterfall \endlink
- * \param ship_speed скорость судна в м/с
- *
- */
-HYSCAN_API
-void                    hyscan_gtk_waterfall_set_ship_speed    (HyScanGtkWaterfall  *waterfall,
-                                                                gfloat               ship_speed);
-/**
- *
- * Функция устанавливает профиль скорости звука.
- *
- * \param waterfall указатель на объект \link HyScanGtkWaterfall \endlink
- * \param velocity профиль скорости звука, см \link HyScanSoundVelocity \endlink
- *
- */
-HYSCAN_API
-void                    hyscan_gtk_waterfall_set_sound_velocity(HyScanGtkWaterfall  *waterfall,
-                                                                GArray              *velocity);
-/**
- *
- * Функция устанавливает тип и номер канала для определения глубины.
- *
- * \param waterfall указатель на объект \link HyScanGtkWaterfall \endlink
- * \param source тип КД
- * \param channel номер канала
- *
- */
-HYSCAN_API
-void                    hyscan_gtk_waterfall_set_depth_source  (HyScanGtkWaterfall  *waterfall,
-                                                                HyScanSourceType     source,
-                                                                guint                channel);
-/**
- *
- * Функция устанавливает размер фильтра для определения глубины.
- *
- * \param waterfall указатель на объект \link HyScanGtkWaterfall \endlink
- * \param size размер фильтра
- *
- */
-HYSCAN_API
-void                    hyscan_gtk_waterfall_set_depth_filter_size (HyScanGtkWaterfall *waterfall,
-                                                                    guint               size);
-/**
- *
- * Функция устанавливает окно валидности данных для глубины.
- *
- * \param waterfall указатель на объект \link HyScanGtkWaterfall \endlink
- * \param usecs окно валидности в микросекундах
- *
- */
-HYSCAN_API
-void                    hyscan_gtk_waterfall_set_depth_time    (HyScanGtkWaterfall  *waterfall,
-                                                                gulong               usecs);
-/**
- *
- * Функция отрывает БД, проект и галс.
- *
- * \param waterfall указатель на объект \link HyScanGtkWaterfall \endlink
- * \param db указатель на интерфейс \link HyScanDB \endlink
- * \param project название проекта
- * \param track название галса
- * \param raw использовать ли сырые данные
- *
- */
-HYSCAN_API
-void                    hyscan_gtk_waterfall_open              (HyScanGtkWaterfall *waterfall,
-                                                                HyScanDB           *db,
-                                                                const gchar        *project,
-                                                                const gchar        *track,
-                                                                gboolean            raw);
-/**
- *
- * Функция закрывает БД, проект и галс
- *
- * \param waterfall указатель на объект \link HyScanGtkWaterfall \endlink
- *
- */
-HYSCAN_API
-void                    hyscan_gtk_waterfall_close             (HyScanGtkWaterfall *waterfall);
+GtkWidget              *hyscan_gtk_waterfall_new                        (void);
 
 /**
  *
- * Функция зуммирует изображение
+ * Функция потокобезопасно инициирует перерисовку виджета.
  *
- * \param waterfall указатель на объект \link HyScanGtkWaterfall \endlink
- * \param zoom_in TRUE для приближения, FALSE для отдаления
+ * \param wfall - указатель на объект \link HyScanGtkWaterfall \endlink;
+ * \param upsample - величина передискретизации.
  *
  */
 HYSCAN_API
-void                    hyscan_gtk_waterfall_zoom              (HyScanGtkWaterfall *waterfall,
-                                                                gboolean            zoom_in);
+void                    hyscan_gtk_waterfall_queue_draw                 (HyScanGtkWaterfall *wfall);
+
 /**
  *
- * По многочисленным просьбам трудящихся функция настраивает поведения колесика мыши.
+ * Функция позволяет слою захватить ввод.
  *
- * Действие        |Scroll = TRUE |Scroll = FALSE
- * :--------------:|:------------:|:------------:
- * Прокрутка       | Прокрутка    | Зум
- * CTRL+прокрутка  | Зум          | Прокрутка
+ * Идентификатор может быть абсолютно любым, кроме NULL.
+ * Рекомедуется использовать адрес вызывающего эту функцию слоя.
  *
- * \param waterfall указатель на объект \link HyScanGtkWaterfall \endlink
- * \param scroll поведение колесика мыши
+ * \param wfall - указатель на объект \link HyScanGtkWaterfall \endlink;
+ * \param owner - идентификатор объекта, желающего захватить ввод.
  *
  */
 HYSCAN_API
-void                    hyscan_gtk_waterfall_wheel_behaviour   (HyScanGtkWaterfall *waterfall,
-                                                                gboolean            scroll);
+void                    hyscan_gtk_waterfall_grab_input                 (HyScanGtkWaterfall *wfall,
+                                                                         gconstpointer       instance);
+/**
+ *
+ * Функция возвращает владельца ввода.
+ *
+ * \param wfall - указатель на объект \link HyScanGtkWaterfall \endlink;
+ *
+ * \return идентификатор владельца ввода или NULL, если владелец не установлен.
+ *
+ */
+HYSCAN_API
+gboolean                hyscan_gtk_waterfall_has_input                  (HyScanGtkWaterfall *wfall,
+                                                                         gconstpointer       instance);
+/**
+ *
+ * Функция устанавливает величину передискретизации.
+ *
+ * \param wfall - указатель на объект \link HyScanGtkWaterfall \endlink;
+ * \param upsample - величина передискретизации.
+ *
+ */
+HYSCAN_API
+void                    hyscan_gtk_waterfall_set_upsample               (HyScanGtkWaterfall *wfall,
+                                                                         gint                upsample);
+/**
+ *
+ * Функция обновляет цветовую схему объекта \link HyScanTileColor \endlink.
+ *
+ * \param wfall - указатель на объект \link HyScanGtkWaterfall \endlink;
+ * \param source - тип источника, для которого будет применена цветовая схема;
+ * \param colormap - цветовая схема;
+ * \param length - количество элементов в цветовой схеме;
+ * \param background - цвет фона.
+ *
+ * \return TRUE, если параметры успешно скопированы.
+ */
+HYSCAN_API
+gboolean                hyscan_gtk_waterfall_set_colormap               (HyScanGtkWaterfall *wfall,
+                                                                         HyScanSourceType    source,
+                                                                         guint32            *colormap,
+                                                                         guint               length,
+                                                                         guint32             background);
+/**
+ *
+ * Функция обновляет цветовую схему объекта \link HyScanTileColor \endlink.
+ *
+ * \param wfall - указатель на объект \link HyScanGtkWaterfall \endlink;
+ * \param colormap - цветовая схема;
+ * \param length - количество элементов в цветовой схеме;
+ * \param background - цвет фона.
+ *
+ * \return TRUE, если параметры успешно скопированы.
+ */
+HYSCAN_API
+gboolean                hyscan_gtk_waterfall_set_colormap_for_all       (HyScanGtkWaterfall *wfall,
+                                                                         guint32            *colormap,
+                                                                         guint               length,
+                                                                         guint32             background);
 
+/**
+ *
+ * Функция обновляет параметры объекта \link HyScanTileColor \endlink.
+ *
+ * \param wfall - указатель на объект \link HyScanGtkWaterfall \endlink;
+ * \param source - тип источника, для которого будет применена цветовая схема;
+ * \param black - уровень черной точки;
+ * \param gamma - гамма;
+ * \param white - уровень белой точки.
+ *
+ * \return TRUE, если параметры успешно скопированы.
+ */
+HYSCAN_API
+gboolean                hyscan_gtk_waterfall_set_levels                 (HyScanGtkWaterfall *wfall,
+                                                                         HyScanSourceType    source,
+                                                                         gdouble             black,
+                                                                         gdouble             gamma,
+                                                                         gdouble             white);
+/**
+ *
+ * Функция обновляет параметры объекта \link HyScanTileColor \endlink.
+ *
+ * \param wfall - указатель на объект \link HyScanGtkWaterfall \endlink;
+ * \param black - уровень черной точки;
+ * \param gamma - гамма;
+ * \param white - уровень белой точки.
+ *
+ * \return TRUE, если параметры успешно скопированы.
+ */
+HYSCAN_API
+gboolean                hyscan_gtk_waterfall_set_levels_for_all         (HyScanGtkWaterfall *wfall,
+                                                                         gdouble             black,
+                                                                         gdouble             gamma,
+                                                                         gdouble             white);
+/**
+ *
+ * Функция возвращает масштабы и индекс текущего масштаба.
+ *
+ * \param wfall - указатель на объект \link HyScanGtkWaterfall \endlink;
+ * \param zooms - указатель на массив масштабов;
+ * \param num - число масштабов.
+ *
+ * \return номер масштаба; -1 в случае ошибки.
+ */
+HYSCAN_API
+gint                    hyscan_gtk_waterfall_get_scale                  (HyScanGtkWaterfall *wfall,
+                                                                         const gdouble     **zooms,
+                                                                         gint               *num);
+/**
+ *
+ * Функция включает и выключает автосдвижку изображения.
+ *
+ * \param wfall - указатель на объект \link HyScanGtkWaterfall \endlink;
+ * \param automove - TRUE для включения и FALSE для отключения автосдвижки.
+ */
+HYSCAN_API
+void                    hyscan_gtk_waterfall_automove                   (HyScanGtkWaterfall *wfall,
+                                                                         gboolean            automove);
+/**
+ * Функция устанавливает период автосдвижки.
+ *
+ * \param wfall - указатель на объект \link HyScanGtkWaterfall \endlink;
+ * \param usecs - время в микросекундах между сдвижками.
+ */
+
+HYSCAN_API
+void                    hyscan_gtk_waterfall_set_automove_period        (HyScanGtkWaterfall *wfall,
+                                                                         gint64              usecs);
+/**
+ * Функция устанавливает период перегенерации тайлов.
+ *
+ * \param wfall - указатель на объект \link HyScanGtkWaterfall \endlink;
+ * \param usecs - время в микросекундах между перегенерацией.
+ */
+HYSCAN_API
+void                    hyscan_gtk_waterfall_set_regeneration_period    (HyScanGtkWaterfall *wfall,
+                                                                         gint64              usecs);
+
+/**
+ * Функция устанавливает цвет подложки.
+ *
+ * \param wfall - указатель на объект \link HyScanGtkWaterfall \endlink;
+ * \param substrate - цвет подложки.
+ */
+HYSCAN_API
+void                    hyscan_gtk_waterfall_set_substrate              (HyScanGtkWaterfall *wfall,
+                                                                         guint32             substrate);
 G_END_DECLS
 
 #endif /* __HYSCAN_GTK_WATERFALL_H__ */

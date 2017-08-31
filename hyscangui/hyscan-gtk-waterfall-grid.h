@@ -29,7 +29,8 @@
 #ifndef __HYSCAN_GTK_WATERFALL_GRID_H__
 #define __HYSCAN_GTK_WATERFALL_GRID_H__
 
-#include <hyscan-gtk-waterfall-drawer.h>
+#include <hyscan-gtk-waterfall-layer.h>
+#include <hyscan-gtk-waterfall.h>
 
 G_BEGIN_DECLS
 
@@ -46,14 +47,14 @@ typedef struct _HyScanGtkWaterfallGridClass HyScanGtkWaterfallGridClass;
 
 struct _HyScanGtkWaterfallGrid
 {
-  HyScanGtkWaterfallDrawer parent_instance;
+  GObject parent_instance;
 
   HyScanGtkWaterfallGridPrivate *priv;
 };
 
 struct _HyScanGtkWaterfallGridClass
 {
-  HyScanGtkWaterfallDrawerClass parent_class;
+  GObjectClass parent_class;
 };
 
 HYSCAN_API
@@ -65,7 +66,7 @@ GType                   hyscan_gtk_waterfall_grid_get_type         (void);
  *
  */
 HYSCAN_API
-GtkWidget              *hyscan_gtk_waterfall_grid_new                   (void);
+HyScanGtkWaterfallGrid *hyscan_gtk_waterfall_grid_new                   (HyScanGtkWaterfall   *waterfall);
 
 /**
  *

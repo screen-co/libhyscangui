@@ -19,11 +19,15 @@ add_custom_command (OUTPUT ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshaller
 
 add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-area.c
-             hyscan-gtk-area.c
+             hyscan-gtk-waterfall-state.c
              hyscan-gtk-waterfall.c
-             hyscan-gtk-waterfallgrid.c)
+             hyscan-gtk-waterfall-layer.c
+             hyscan-gtk-waterfall-control.c
+             hyscan-gtk-waterfall-grid.c
+             hyscan-gtk-waterfall-mark.c
+             ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c)
 
-target_link_libraries (${HYSCAN_GUI_LIBRARY} ${GTK3_LIBRARIES} ${HYSCAN_LIBRARIES})
+target_link_libraries (${HYSCAN_GUI_LIBRARY} ${GTK3_LIBRARIES} ${HYSCAN_LIBRARIES} ${GTKCIFROAREA_LIBRARIES})
 
 set_target_properties (${HYSCAN_GUI_LIBRARY} PROPERTIES DEFINE_SYMBOL "HYSCAN_API_EXPORTS")
 set_target_properties (${HYSCAN_GUI_LIBRARY} PROPERTIES SOVERSION ${HYSCAN_GUI_VERSION})
@@ -45,6 +49,12 @@ install (FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/hyscangui-${HYSCAN_MAJOR_VERSI
          PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
 
 install (FILES hyscan-gtk-area.h
+               hyscan-gtk-waterfall-state.h
+               hyscan-gtk-waterfall.h
+               hyscan-gtk-waterfall-layer.h
+               hyscan-gtk-waterfall-control.h
+               hyscan-gtk-waterfall-grid.h
+               hyscan-gtk-waterfall-mark.h
          COMPONENT development
          DESTINATION "include/hyscan-${HYSCAN_MAJOR_VERSION}/hyscangui"
          PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)

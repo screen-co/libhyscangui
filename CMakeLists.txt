@@ -62,7 +62,7 @@ endif ()
 if (HYSCAN_USE_SYS_LIBS)
   pkg_check_modules (HYSCAN REQUIRED "hyscantypes-${HYSCAN_MAJOR_VERSION}"
                                      "hyscancache-${HYSCAN_MAJOR_VERSION}"
-                                     "hyscanmath-${HYSCAN_MAJOR_VERSION}"
+                                     "hyscancore-${HYSCAN_MAJOR_VERSION}"
                                      "hyscandb-${HYSCAN_MAJOR_VERSION}")
 
   link_directories (${HYSCAN_LIBRARY_DIRS})
