@@ -1,0 +1,11 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+libdir=${prefix}/lib
+includedir=${prefix}/include/hyscan-@HYSCAN_MAJOR_VERSION@/hyscangui
+
+Name: HyScanGUI
+Version: @HYSCAN_MAJOR_VERSION@.@HYSCAN_GUI_VERSION@
+Description: HyScan gui library
+
+Requires: gtk+-3.0 hyscantypes-@HYSCAN_MAJOR_VERSION@
+Libs: -L${libdir} -lhyscangui-@HYSCAN_MAJOR_VERSION@
+Cflags: -I${includedir}
