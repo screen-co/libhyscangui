@@ -38,6 +38,15 @@ HyScanGtkWaterfallControl  *hyscan_gtk_waterfall_control_new      (HyScanGtkWate
 HYSCAN_API
 void                        hyscan_gtk_waterfall_control_set_wheel_behaviour (HyScanGtkWaterfallControl *control,
                                                                               gboolean                   scroll_without_ctrl);
+/**
+ * Функция устанавливает цвет подложки.
+ *
+ * \param wfall - указатель на объект \link HyScanGtkWaterfall \endlink;
+ * \param substrate - цвет подложки.
+ */
+HYSCAN_API
+void                        hyscan_gtk_waterfall_control_zoom     (HyScanGtkWaterfallControl *wfall,
+                                                                   gboolean                   zoom_in);
 
 G_END_DECLS
 

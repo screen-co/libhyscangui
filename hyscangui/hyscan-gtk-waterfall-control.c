@@ -430,6 +430,23 @@ hyscan_gtk_waterfall_control_set_wheel_behaviour (HyScanGtkWaterfallControl *sel
   self->priv->scroll_without_ctrl = scroll_without_ctrl;
 }
 
+void
+hyscan_gtk_waterfall_control_zoom (HyScanGtkWaterfallControl *self,
+                                   gboolean            zoom_in)
+{
+  GtkCifroArea *carea;
+  GtkCifroAreaZoomType dir;
+  gdouble x0, x1, y0, y1;
+
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_CONTROL (self));
+  carea = GTK_CIFRO_AREA (self->priv->wfall);
+
+  dir = zoom_in ? GTK_CIFRO_AREA_ZOOM_IN : GTK_CIFRO_AREA_ZOOM_OUT;
+
+  gtk_cifro_area_get_view (carea, &x0, &x1, &y0, &y1);
+  gtk_cifro_area_zoom (carea, dir, dir, (x0 + x1) / 2.0, (y0 + y1) / 2.0);
+}
+
 static void
 hyscan_gtk_waterfall_control_interface_init (HyScanGtkWaterfallLayerInterface *iface)
 {

@@ -280,6 +280,7 @@ void                    hyscan_gtk_waterfall_set_regeneration_period    (HyScanG
 HYSCAN_API
 void                    hyscan_gtk_waterfall_set_substrate              (HyScanGtkWaterfall *wfall,
                                                                          guint32             substrate);
+
 G_END_DECLS
 
 #endif /* __HYSCAN_GTK_WATERFALL_H__ */

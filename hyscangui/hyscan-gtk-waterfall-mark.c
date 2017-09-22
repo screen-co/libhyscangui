@@ -68,9 +68,6 @@ struct _HyScanGtkWaterfallMarkPrivate
 {
   HyScanGtkWaterfall         *wfall;
 
-  HyScanProjector            *lproj;
-  HyScanProjector            *rproj;
-
   HyScanGtkWaterfallMarkState new_state;
   HyScanGtkWaterfallMarkState state;
   gboolean                    state_changed;
@@ -79,9 +76,10 @@ struct _HyScanGtkWaterfallMarkPrivate
   GThread                    *processing;
   gint                        stop;
 
-  GSList                     *drawable; /* Список меток, которые нужно показать. */
-  GSList                     *tasks;    /* Список меток, которые нужно отправить в БД. */
-  GMutex                      task_lock;     /* */
+  GSList                     *drawable;       /* Список меток, которые нужно показать. */
+  GMutex                      drawable_lock;  /* */
+  GSList                     *tasks;          /* Список меток, которые нужно отправить в БД. */
+  GMutex                      task_lock;      /* */
 
   gboolean                    in_progress;
   struct Coord                mouse0;
@@ -98,6 +96,7 @@ static void    hyscan_gtk_waterfall_mark_set_property             (GObject      
 static void    hyscan_gtk_waterfall_mark_object_constructed       (GObject                 *object);
 static void    hyscan_gtk_waterfall_mark_object_finalize          (GObject                 *object);
 
+static void    hyscan_gtk_waterfall_mark_free_task                (gpointer                 data);
 static void     hyscan_gtk_waterfall_mark_sync_states             (HyScanGtkWaterfallMark  *self);
 static gpointer hyscan_gtk_waterfall_mark_processing              (gpointer                 data);
 
@@ -184,7 +183,10 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
   HyScanGtkWaterfallMark *self = HYSCAN_GTK_WATERFALL_MARK (object);
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
 
+  G_OBJECT_CLASS (hyscan_gtk_waterfall_mark_parent_class)->constructed (object);
+
   g_mutex_init (&priv->task_lock);
+  g_mutex_init (&priv->drawable_lock);
   g_mutex_init (&priv->state_lock);
 
   /* Сигналы Gtk. */
@@ -202,7 +204,7 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
   g_signal_connect (priv->wfall, "changed::tile-type",    G_CALLBACK (hyscan_gtk_waterfall_mark_tile_type_changed), self);
   g_signal_connect (priv->wfall, "changed::profile",      G_CALLBACK (hyscan_gtk_waterfall_mark_profile_changed), self);
   g_signal_connect (priv->wfall, "changed::track",        G_CALLBACK (hyscan_gtk_waterfall_mark_track_changed), self);
-  g_signal_connect (priv->wfall, "changed::ship_speed",   G_CALLBACK (hyscan_gtk_waterfall_mark_ship_speed_changed), self);
+  g_signal_connect (priv->wfall, "changed::speed",        G_CALLBACK (hyscan_gtk_waterfall_mark_ship_speed_changed), self);
   g_signal_connect (priv->wfall, "changed::velocity",     G_CALLBACK (hyscan_gtk_waterfall_mark_sound_velocity_changed), self);
   g_signal_connect (priv->wfall, "changed::depth-source", G_CALLBACK (hyscan_gtk_waterfall_mark_depth_source_changed), self);
   g_signal_connect (priv->wfall, "changed::depth-params", G_CALLBACK (hyscan_gtk_waterfall_mark_depth_params_changed), self);
@@ -210,7 +212,16 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
  /* Сигналы модели меток. */
   //g_signal_connect (priv->mark_model, "changed",                G_CALLBACK (hyscan_gtk_waterfall_mark_changed), self);
 
-  G_OBJECT_CLASS (hyscan_gtk_waterfall_mark_parent_class)->constructed (object);
+  hyscan_gtk_waterfall_mark_sources_changed (HYSCAN_GTK_WATERFALL_STATE (priv->wfall), self);
+  hyscan_gtk_waterfall_mark_tile_type_changed (HYSCAN_GTK_WATERFALL_STATE (priv->wfall), self);
+  hyscan_gtk_waterfall_mark_profile_changed (HYSCAN_GTK_WATERFALL_STATE (priv->wfall), self);
+  hyscan_gtk_waterfall_mark_cache_changed (HYSCAN_GTK_WATERFALL_STATE (priv->wfall), self);
+  hyscan_gtk_waterfall_mark_track_changed (HYSCAN_GTK_WATERFALL_STATE (priv->wfall), self);
+  hyscan_gtk_waterfall_mark_ship_speed_changed (HYSCAN_GTK_WATERFALL_STATE (priv->wfall), self);
+  hyscan_gtk_waterfall_mark_sound_velocity_changed (HYSCAN_GTK_WATERFALL_STATE (priv->wfall), self);
+  hyscan_gtk_waterfall_mark_depth_source_changed (HYSCAN_GTK_WATERFALL_STATE (priv->wfall), self);
+  hyscan_gtk_waterfall_mark_depth_params_changed (HYSCAN_GTK_WATERFALL_STATE (priv->wfall), self);
+  priv->processing = g_thread_new ("gtk-wfall-mark", hyscan_gtk_waterfall_mark_processing, self);
 }
 
 static void
@@ -219,12 +230,16 @@ hyscan_gtk_waterfall_mark_object_finalize (GObject *object)
   HyScanGtkWaterfallMark *self = HYSCAN_GTK_WATERFALL_MARK (object);
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
 
+  g_atomic_int_set (&priv->stop, TRUE);
+  g_thread_join (priv->processing);
   /* Отключаемся от всех сигналов. */
   g_signal_handlers_disconnect_by_data (priv->wfall, self);
+
 
   g_clear_object (&priv->wfall);
 
   g_mutex_clear (&priv->task_lock);
+  g_mutex_clear (&priv->drawable_lock);
   g_mutex_clear (&priv->state_lock);
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_mark_parent_class)->finalize (object);
@@ -242,6 +257,99 @@ static const gchar*
 hyscan_gtk_waterfall_mark_get_mnemonic (HyScanGtkWaterfallLayer *iface)
 {
   return "waterfall-mark";
+}
+
+static HyScanDepth*
+hyscan_gtk_waterfall_mark_open_depth (HyScanGtkWaterfallMark *self)
+{
+  HyScanGtkWaterfallMarkPrivate *priv = self->priv;
+  HyScanGtkWaterfallMarkState *state = &priv->state;
+  HyScanDepth *idepth = NULL;
+
+  if (state->db == NULL || state->project == NULL || state->track == NULL)
+    return NULL;
+
+  if (hyscan_source_is_acoustic (state->depth_source))
+    {
+      HyScanDepthAcoustic *dacoustic;
+      dacoustic = hyscan_depth_acoustic_new (state->db,
+                                             state->project,
+                                             state->track,
+                                             state->depth_source,
+                                             state->raw);
+
+      if (dacoustic != NULL)
+        hyscan_depth_acoustic_set_sound_velocity (dacoustic, state->velocity);
+
+      idepth = HYSCAN_DEPTH (dacoustic);
+    }
+
+  else if (HYSCAN_SOURCE_NMEA_DPT == state->depth_source)
+    {
+      HyScanDepthNMEA *dnmea;
+      dnmea = hyscan_depth_nmea_new (state->db,
+                                     state->project,
+                                     state->track,
+                                     state->depth_channel);
+      idepth = HYSCAN_DEPTH (dnmea);
+    }
+
+  hyscan_depth_set_cache (idepth, state->cache, state->prefix);
+  return idepth;
+}
+
+static HyScanDepthometer*
+hyscan_gtk_waterfall_mark_open_depthometer (HyScanGtkWaterfallMark *self,
+                                             HyScanDepth            *idepth)
+{
+  HyScanGtkWaterfallMarkPrivate *priv = self->priv;
+  HyScanDepthometer *depth = NULL;
+
+  if (idepth == NULL)
+    return NULL;
+
+  depth = hyscan_depthometer_new (idepth);
+  if (depth == NULL)
+    return NULL;
+
+  hyscan_depthometer_set_cache (depth, priv->state.cache, priv->state.prefix);
+  hyscan_depthometer_set_filter_size (depth, priv->state.depth_size);
+  hyscan_depthometer_set_time_precision (depth, priv->state.depth_time);
+
+  return depth;
+}
+
+static HyScanProjector*
+hyscan_gtk_waterfall_mark_open_projector (HyScanGtkWaterfallMark *self,
+                                          HyScanSourceType        source)
+{
+  HyScanGtkWaterfallMarkPrivate *priv = self->priv;
+  HyScanGtkWaterfallMarkState *state = &priv->state;
+  HyScanProjector *projector;
+
+  if (state->db == NULL || state->project == NULL || state->track == NULL)
+    return NULL;
+
+  projector = hyscan_projector_new (state->db, state->project, state->track, source, state->raw);
+
+  if (projector == NULL)
+    return NULL;
+
+  hyscan_projector_set_cache (projector, state->cache, state->prefix);
+  hyscan_projector_set_ship_speed (projector, state->ship_speed);
+  hyscan_projector_set_sound_velocity (projector, state->velocity);
+
+  return projector;
+}
+
+/* Функция освобождает память, занятую структурой HyScanGtkWaterfallMarkTask. */
+static void
+hyscan_gtk_waterfall_mark_free_task (gpointer data)
+{
+  HyScanGtkWaterfallMarkTask *task = data;
+
+  hyscan_waterfall_mark_deep_free (task->mark);
+  g_free (task);
 }
 
 /* Функция синхронизирует состояния. */
@@ -329,7 +437,6 @@ hyscan_gtk_waterfall_mark_sync_states (HyScanGtkWaterfallMark *self)
       cur->depth_params_changed = TRUE;
     }
 
-
   if (new->speed_changed)
     {
       cur->ship_speed = new->ship_speed;
@@ -359,17 +466,28 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
 
   HyScanProjector         *lproj = NULL;
   HyScanProjector         *rproj = NULL;
+  HyScanProjector         *_proj = NULL;
   HyScanDepth             *idepth = NULL;
   HyScanDepthometer       *depth = NULL;
   HyScanWaterfallMarkData *mdata = NULL;
+
+  GSList *list, *link;
+  HyScanGtkWaterfallMarkTask *task;
+  HyScanSourceType source;
+  guint32 index, count;
+  gboolean status;
+
+  guint32 mc = 0, oldmc = 0;
+  gchar **ids;
+  guint nids, i;
+  gboolean restart = FALSE;
+  HyScanGtkWaterfallMarkState *state = &priv->state;
 
   while (!g_atomic_int_get (&priv->stop))
     {
       /* Проверяем, поменялось ли что-то. */
       if (g_atomic_int_get (&priv->state_changed))
         {
-          HyScanGtkWaterfallMarkState *state = &priv->state;
-
           /* Синхронизация. */
           g_mutex_lock (&priv->state_lock);
           hyscan_gtk_waterfall_mark_sync_states (self);
@@ -380,43 +498,202 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
             {
               g_clear_object (&lproj);
               g_clear_object (&rproj);
+              state->sources_changed = FALSE;
             }
           if (state->track_changed)
             {
-
+              g_clear_object (&lproj);
+              g_clear_object (&rproj);
+              g_clear_object (&idepth);
+              g_clear_object (&depth);
+              g_clear_object (&mdata);
+              state->track_changed = FALSE;
             }
           if (state->profile_changed)
             {
-
-            }
-          if (state->cache_changed)
-            {
-
+              g_clear_object (&mdata);
+              state->profile_changed = FALSE;
             }
           if (state->depth_source_changed)
             {
-
+              g_clear_object (&idepth);
+              g_clear_object (&depth);
+              state->depth_source_changed = FALSE;
             }
           if (state->depth_params_changed)
             {
-
+              if (depth != NULL)
+                {
+                  hyscan_depthometer_set_filter_size (depth, state->depth_size);
+                  hyscan_depthometer_set_time_precision (depth, state->depth_time);
+                }
+              state->depth_params_changed = FALSE;
             }
           if (state->speed_changed)
             {
-
+              if (lproj != NULL)
+                hyscan_projector_set_ship_speed (lproj, state->ship_speed);
+              if (rproj != NULL)
+                hyscan_projector_set_ship_speed (rproj, state->ship_speed);
+              state->speed_changed = FALSE;
             }
           if (state->velocity_changed)
             {
-
+              if (lproj != NULL)
+                hyscan_projector_set_sound_velocity (lproj, state->velocity);
+              if (rproj != NULL)
+                hyscan_projector_set_sound_velocity (rproj, state->velocity);
+              if (HYSCAN_IS_DEPTH_ACOUSTIC (idepth))
+                hyscan_depth_acoustic_set_sound_velocity (HYSCAN_DEPTH_ACOUSTIC (idepth), state->velocity);
+              state->velocity_changed = FALSE;
+            }
+          if (state->cache_changed)
+            {
+              if (idepth != NULL)
+                hyscan_depth_set_cache (idepth, state->cache, state->prefix);
+              if (depth != NULL)
+                hyscan_depthometer_set_cache (depth, state->cache, state->prefix);
+              if (lproj != NULL)
+                hyscan_projector_set_cache (lproj, state->cache, state->prefix);
+              if (rproj != NULL)
+                hyscan_projector_set_cache (rproj, state->cache, state->prefix);
+              state->cache_changed = FALSE;
             }
 
+          if (lproj == NULL)
+            {
+              lproj = hyscan_gtk_waterfall_mark_open_projector (self, state->lsource);
+              // TEST PERFORMANCE PLS hyscan_projector_set_precalc_points (lproj, 10000);
+            }
+          if (rproj == NULL)
+            {
+              rproj = hyscan_gtk_waterfall_mark_open_projector (self, state->rsource);
+              // TEST PERFORMANCE PLS hyscan_projector_set_precalc_points (rproj, 10000);
+            }
+          if (mdata == NULL)
+            {
+              if (state->db != NULL || state->project != NULL || state->track != NULL)
+                mdata = hyscan_waterfall_mark_data_new (state->db, state->project, state->track, state->profile);
+              if (mdata != NULL)
+                oldmc = ~hyscan_waterfall_mark_data_get_mod_count (mdata);
+            }
+          if (depth == NULL)
+            {
+              if (idepth == NULL)
+                idepth = hyscan_gtk_waterfall_mark_open_depth (self);
+              depth = hyscan_gtk_waterfall_mark_open_depthometer (self, idepth);
+            }
+
+          restart = TRUE;
         }
+
+      if (mdata == NULL || rproj == NULL || lproj ==NULL)
+        continue;
+
+      /* Нормальная работа. */
+      /* Пересчитываем текущие задачи и отправляем в БД.
+       * Чтобы как можно меньше задерживать mainloop, копируем
+       * список задач. */
+      g_mutex_lock (&priv->task_lock);
+      list = priv->tasks;
+      priv->tasks = NULL;
+      g_mutex_unlock (&priv->task_lock);
+
+      for (link = list; link != NULL; link = link->next)
+        {
+          task = link->data;
+          if (task->x >= 0)
+            {
+              source = state->rsource;
+              _proj = rproj;
+            }
+          else
+            {
+              source = state->lsource;
+              _proj = lproj;
+            }
+
+          status  = hyscan_projector_coord_to_index (_proj, task->y, &index);
+          status &= hyscan_projector_coord_to_count (_proj, ABS (task->x), &count, 0.0);
+
+          if (!status)
+            continue;
+
+          hyscan_waterfall_mark_data_add_full (mdata, "name", "description", "operator_name",
+                                               128, g_get_real_time (), g_get_real_time (),
+                                               source, index, count, task->r * 1000);
+        }
+
+      /* Очищаем весь список заданий. */
+      g_slist_free_full (list, hyscan_gtk_waterfall_mark_free_task);
+      list = NULL;
+
+      /* Проверяем счётчик изменений и при необходимости
+       * забираем из БД обновленный список меток. */
+      mc = hyscan_waterfall_mark_data_get_mod_count (mdata);
+      if (mc == oldmc && !restart)
+        {
+          continue;
+        }
+      else
+        {
+          oldmc = mc;
+          restart = FALSE;
+        }
+
+      /* Получаем список идентификаторов. */
+      ids = hyscan_waterfall_mark_data_get_ids (mdata, &nids);
+      if (ids == NULL)
+        continue;
+
+      /* Каждую метку переводим в наши координаты. */
+      for (i = 0; i < nids; i++)
+        {
+          HyScanWaterfallMark *mark;
+
+          mark = hyscan_waterfall_mark_data_get (mdata, ids[i]);
+
+          if (mark->source == state->lsource)
+            {
+              _proj = lproj;
+            }
+          else if (mark->source == state->rsource)
+            {
+              _proj = rproj;
+            }
+          else
+            {
+              hyscan_waterfall_mark_deep_free (mark);
+              continue;
+            }
+
+          task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
+          task->mark = mark;
+          hyscan_projector_index_to_coord (_proj, mark->index, &task->y);
+          hyscan_projector_count_to_coord (_proj, mark->count, &task->x, 0.0);
+
+          if (mark->source == state->lsource)
+            task->x *= -1;
+          task->r = mark->radius / 1000.0;
+
+          list = g_slist_prepend (list, task);
+        }
+
+      g_strfreev (ids);
+
+      g_mutex_lock (&priv->drawable_lock);
+      g_slist_free_full (priv->drawable, hyscan_gtk_waterfall_mark_free_task);
+      priv->drawable = list;
+      list = NULL;
+      g_mutex_unlock (&priv->drawable_lock);
+      hyscan_gtk_waterfall_queue_draw (priv->wfall);
     }
 
   g_clear_object (&lproj);
   g_clear_object (&rproj);
   g_clear_object (&idepth);
   g_clear_object (&depth);
+  g_clear_object (&mdata);
 
   return NULL;
 }
@@ -484,7 +761,7 @@ hyscan_gtk_waterfall_mark_mouse_button_release (GtkWidget              *widget,
 
   /* Проверяем, на сколько сдвинут указатель.
    * Если слишком мало, считаем, что это случайность. */
-  if (hyscan_gtk_waterfall_mark_radius (&priv->mouse0, &mouse) < 5)
+  if (hyscan_gtk_waterfall_mark_radius (&priv->mouse0, &mouse) < 9)
     goto reset;
 
   /* Создаем метку. */
@@ -499,8 +776,11 @@ hyscan_gtk_waterfall_mark_mouse_button_release (GtkWidget              *widget,
   to_task->y = to_draw->y = mark0.y;
   to_task->r = to_draw->r = radius;
 
-  g_mutex_lock (&priv->task_lock);
+  g_mutex_lock (&priv->drawable_lock);
   priv->drawable = g_slist_prepend (priv->drawable, to_draw);
+  g_mutex_unlock (&priv->drawable_lock);
+
+  g_mutex_lock (&priv->task_lock);
   priv->tasks = g_slist_prepend (priv->tasks, to_task);
   g_mutex_unlock (&priv->task_lock);
 
@@ -549,7 +829,6 @@ hyscan_gtk_waterfall_mark_draw_task (HyScanGtkWaterfallMark     *self,
   gtk_cifro_area_visible_value_to_point (carea, NULL, &r0, 0, 0);
 
   r1 = ABS (r1 - r0);
-  // r1 = 10;
 
   cairo_set_source_rgba (cairo, 1.0, 0.0, 0.0, 1.0);
   cairo_move_to (cairo, center.x + r1, center.y);
@@ -569,12 +848,13 @@ hyscan_gtk_waterfall_mark_draw (GtkWidget              *widget,
 
   cairo_save (cairo);
 
-  g_mutex_lock (&priv->task_lock);
-
   /* Отрисовываем drawable метки. */
+  g_mutex_lock (&priv->drawable_lock);
+
   for (task = priv->drawable; task != NULL; task = task->next)
     hyscan_gtk_waterfall_mark_draw_task (self, cairo, task->data);
-  g_mutex_unlock (&priv->task_lock);
+
+  g_mutex_unlock (&priv->drawable_lock);
 
   /* Отрисовываем создаваемую метку. */
   if (priv->in_progress)
@@ -609,6 +889,7 @@ hyscan_gtk_waterfall_mark_sources_changed (HyScanGtkWaterfallState *model,
                                       &priv->new_state.rsource);
   priv->new_state.sources_changed = TRUE;
 
+  g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
 }
 
@@ -622,6 +903,7 @@ hyscan_gtk_waterfall_mark_tile_type_changed (HyScanGtkWaterfallState *model,
   hyscan_gtk_waterfall_state_get_tile_type (model, &priv->new_state.tile_type);
   priv->new_state.tile_type_changed = TRUE;
 
+  g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
 }
 
@@ -635,6 +917,7 @@ hyscan_gtk_waterfall_mark_profile_changed (HyScanGtkWaterfallState *model,
   g_clear_pointer (&priv->new_state.profile, g_free);
   hyscan_gtk_waterfall_state_get_profile (model, &priv->new_state.profile);
 
+  g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
 }
 
@@ -653,6 +936,7 @@ hyscan_gtk_waterfall_mark_cache_changed (HyScanGtkWaterfallState *model,
                                     &priv->new_state.prefix);
   priv->new_state.cache_changed = TRUE;
 
+  g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
 }
 
@@ -673,6 +957,7 @@ hyscan_gtk_waterfall_mark_track_changed (HyScanGtkWaterfallState *model,
                                     &priv->new_state.raw);
   priv->new_state.track_changed = TRUE;
 
+  g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
 }
 
@@ -687,8 +972,10 @@ hyscan_gtk_waterfall_mark_ship_speed_changed (HyScanGtkWaterfallState *model,
   hyscan_gtk_waterfall_state_get_ship_speed (model, &priv->new_state.ship_speed);
   priv->new_state.speed_changed = TRUE;
 
+  g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
 }
+
 static void
 hyscan_gtk_waterfall_mark_sound_velocity_changed (HyScanGtkWaterfallState *model,
                                                   HyScanGtkWaterfallMark *self)
@@ -699,6 +986,7 @@ hyscan_gtk_waterfall_mark_sound_velocity_changed (HyScanGtkWaterfallState *model
   hyscan_gtk_waterfall_state_get_sound_velocity (model, &priv->new_state.velocity);
   priv->new_state.velocity_changed = TRUE;
 
+  g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
 }
 
@@ -714,8 +1002,10 @@ hyscan_gtk_waterfall_mark_depth_source_changed (HyScanGtkWaterfallState *model,
                                            &priv->new_state.depth_channel);
   priv->new_state.depth_source_changed = TRUE;
 
+  g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
 }
+
 static void
 hyscan_gtk_waterfall_mark_depth_params_changed (HyScanGtkWaterfallState *model,
                                                 HyScanGtkWaterfallMark *self)
@@ -727,6 +1017,7 @@ hyscan_gtk_waterfall_mark_depth_params_changed (HyScanGtkWaterfallState *model,
   hyscan_gtk_waterfall_state_get_depth_filter_size (model, &priv->new_state.depth_size);
   priv->new_state.depth_params_changed = TRUE;
 
+  g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
 }
 

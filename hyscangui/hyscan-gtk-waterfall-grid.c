@@ -757,7 +757,7 @@ void
 hyscan_gtk_waterfall_grid_set_grid_color (HyScanGtkWaterfallGrid *self,
                                           guint32                 color)
 {
-  GdkRGBA rgba = {0};
+  GdkRGBA rgba;
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (self));
 
   hyscan_tile_color_converter_i2d (color, &rgba.red, &rgba.green, &rgba.blue, &rgba.alpha);
@@ -771,7 +771,7 @@ void
 hyscan_gtk_waterfall_grid_set_label_color (HyScanGtkWaterfallGrid *self,
                                            guint32                 color)
 {
-  GdkRGBA rgba = {0};
+  GdkRGBA rgba;
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (self));
 
   hyscan_tile_color_converter_i2d (color, &rgba.red, &rgba.green, &rgba.blue, &rgba.alpha);

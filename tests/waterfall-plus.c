@@ -1,4 +1,7 @@
-#include <hyscan-gtk-waterfall-last.h>
+#include <hyscan-gtk-waterfall.h>
+#include <hyscan-gtk-waterfall-control.h>
+#include <hyscan-gtk-waterfall-grid.h>
+#include <hyscan-gtk-waterfall-mark.h>
 #include <hyscan-tile-color.h>
 #include <hyscan-cached.h>
 #include <gtk/gtk.h>
@@ -31,11 +34,15 @@ void       open_db          (HyScanDB **db,
                              gchar     *new_uri);
 
 
-static HyScanGtkWaterfall  *wf;
-static HyScanDB            *db;
-static gchar               *db_uri;
-static gchar               *project_dir;
-static GtkWidget           *window;
+static HyScanGtkWaterfallState *wf_state;
+static HyScanGtkWaterfall      *wf;
+static HyScanGtkWaterfallGrid     *wf_grid;
+static HyScanGtkWaterfallControl  *wf_ctrl;
+static HyScanGtkWaterfallMark  *wf_mark;
+static HyScanDB                *db;
+static gchar                   *db_uri;
+static gchar                   *project_dir;
+static GtkWidget               *window;
 
 int
 main (int    argc,
@@ -43,8 +50,6 @@ main (int    argc,
 {
   GtkWidget *overlay;
   GtkWidget *wf_widget;
-
-  HyScanGtkWaterfallDrawer *wfd;
 
   gchar *project_name = NULL;
   gchar *track_name = NULL;
@@ -56,9 +61,6 @@ main (int    argc,
   gdouble gamma = 1.0;
   HyScanCache *cache = HYSCAN_CACHE (hyscan_cached_new (512));
   HyScanCache *cache2 = HYSCAN_CACHE (hyscan_cached_new (512));
-
-  guint32 background, colors[2], *colormap;
-  guint cmap_len;
 
   gtk_init (&argc, &argv);
 
@@ -114,29 +116,27 @@ main (int    argc,
 
   /* Водопад. */
   wf_widget = hyscan_gtk_waterfall_new ();
-
   /* Для удобства приведем типы. */
-  wfd = HYSCAN_GTK_WATERFALL_DRAWER (wf_widget);
   wf  = HYSCAN_GTK_WATERFALL (wf_widget);
+  wf_state  = HYSCAN_GTK_WATERFALL_STATE (wf_widget);
+
+  wf_ctrl = hyscan_gtk_waterfall_control_new (wf);
+  wf_grid = hyscan_gtk_waterfall_grid_new (wf);
+  wf_mark = hyscan_gtk_waterfall_mark_new (wf);
+
   //hyscan_gtk_waterfall_echosounder (wf, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD);
 
-  hyscan_gtk_waterfall_set_cache (wf, cache, cache2, cache_prefix);
+  hyscan_gtk_waterfall_state_set_cache (wf_state, cache, cache2, cache_prefix);
 
-  hyscan_gtk_waterfall_set_depth_source (wf, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, 1);
-  hyscan_gtk_waterfall_set_depth_filter_size (wf, 2);
-  hyscan_gtk_waterfall_set_depth_time (wf, 100000);
+  hyscan_gtk_waterfall_state_set_depth_source (wf_state, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, 1);
+  hyscan_gtk_waterfall_state_set_depth_filter_size (wf_state, 2);
+  hyscan_gtk_waterfall_state_set_depth_time (wf_state, 100000);
 
-  hyscan_gtk_waterfall_drawer_set_upsample (wfd, 2);
-
-  background = hyscan_tile_color_converter_d2i (0.15, 0.15, 0.15, 1.0);
-  colors[0]  = hyscan_tile_color_converter_d2i (0.0, 0.0, 0.0, 1.0);
-  colors[1]  = hyscan_tile_color_converter_d2i (0.0, 1.0, 1.0, 1.0);
-  colormap   = hyscan_tile_color_compose_colormap (colors, 2, &cmap_len);
+  hyscan_gtk_waterfall_set_upsample (wf, 2);
 
   /* Устанавливаем цветовую схему и подложку. */
-  hyscan_gtk_waterfall_drawer_set_colormap_for_all (wfd, colormap, cmap_len, background);
-  hyscan_gtk_waterfall_drawer_set_levels_for_all (wfd, 0.0, gamma, white);
-  hyscan_gtk_waterfall_drawer_set_substrate (wfd, background);
+  hyscan_gtk_waterfall_set_levels_for_all (wf, 0.0, gamma, white);
+  hyscan_gtk_waterfall_set_substrate (wf, hyscan_tile_color_converter_d2i (0.15, 0.15, 0.15, 1.0));
 
   /* Кладем виджет в основное окно. */
   overlay = make_overlay (wf, white, gamma);
@@ -144,7 +144,7 @@ main (int    argc,
   gtk_widget_show_all (window);
 
   if (db != NULL && project_name != NULL && track_name != NULL)
-    hyscan_gtk_waterfall_open (wf, db, project_name, track_name, TRUE);
+    hyscan_gtk_waterfall_state_set_track (wf_state, db, project_name, track_name, TRUE);
 
   /* Начинаем работу. */
   gtk_main ();
@@ -156,7 +156,6 @@ main (int    argc,
   g_free (project_name);
   g_free (track_name);
   g_free (db_uri);
-  g_free (colormap);
 
   xmlCleanupParser ();
 
@@ -175,6 +174,10 @@ make_overlay (HyScanGtkWaterfall *wf,
   GtkWidget *btn_reopen = gtk_button_new_from_icon_name ("folder-open", GTK_ICON_SIZE_BUTTON);
   GtkWidget *scale_white = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.001, 1.0, 0.005);
   GtkWidget *scale_gamma = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.5, 2.0, 0.005);
+  GtkWidget *lay_ctrl = gtk_button_new_with_label ("ctrl");
+  GtkWidget *lay_mark = gtk_button_new_with_label ("mark");
+  g_signal_connect_swapped (lay_ctrl, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_ctrl));
+  g_signal_connect_swapped (lay_mark, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_mark));
   GdkRGBA    rgba;
   GtkWidget *color_chooser = gtk_color_button_new ();
 
@@ -194,9 +197,12 @@ make_overlay (HyScanGtkWaterfall *wf,
   gtk_box_pack_start (GTK_BOX (box), btn_zoom_in,  FALSE, FALSE, 2);
   gtk_box_pack_start (GTK_BOX (box), btn_zoom_out, FALSE, FALSE, 2);
   gtk_box_pack_start (GTK_BOX (box), btn_reopen,   FALSE, FALSE, 2);
+  gtk_box_pack_start (GTK_BOX (box), gtk_separator_new (GTK_ORIENTATION_VERTICAL), FALSE, FALSE, 2);
   gtk_box_pack_start (GTK_BOX (box), color_chooser,FALSE, FALSE, 2);
   gtk_box_pack_start (GTK_BOX (box), scale_white,  FALSE, FALSE, 2);
   gtk_box_pack_start (GTK_BOX (box), scale_gamma,  FALSE, FALSE, 2);
+  gtk_box_pack_start (GTK_BOX (box), lay_ctrl,     FALSE, FALSE, 2);
+  gtk_box_pack_start (GTK_BOX (box), lay_mark,     FALSE, FALSE, 2);
 
   gtk_container_add (GTK_CONTAINER (overlay), GTK_WIDGET (wf));
   gtk_overlay_add_overlay (GTK_OVERLAY (overlay), box);
@@ -212,7 +218,7 @@ make_overlay (HyScanGtkWaterfall *wf,
   g_signal_connect (scale_gamma, "value-changed", G_CALLBACK (gamma_changed), scale_white);
   g_signal_connect (color_chooser, "color-set", G_CALLBACK (color_changed), NULL);
 
-  gtk_widget_set_size_request (GTK_WIDGET (wf), 1024, 768);
+  gtk_widget_set_size_request (GTK_WIDGET (wf), 800, 600);
   return overlay;
 }
 
@@ -261,7 +267,7 @@ reopen_clicked (GtkButton *button,
   project = split[len - 2];
   track = split[len - 1];
 
-  hyscan_gtk_waterfall_open (wf, db, project, track, TRUE);
+  hyscan_gtk_waterfall_state_set_track (wf_state, db, project, track, TRUE);
 
 cleanup:
 
@@ -276,7 +282,7 @@ zoom_clicked (GtkButton *button,
 {
   gint direction = GPOINTER_TO_INT (user_data);
   gboolean in = (direction == 1) ? TRUE : FALSE;
-  hyscan_gtk_waterfall_zoom (wf, in);
+  hyscan_gtk_waterfall_control_zoom (wf_ctrl, in);
 }
 
 void
@@ -287,8 +293,7 @@ white_changed (GtkScale  *scale,
   gdouble white = gtk_range_get_value (GTK_RANGE (scale)),
           gamma = gtk_range_get_value (GTK_RANGE (other));
 
-  hyscan_gtk_waterfall_drawer_set_levels_for_all (HYSCAN_GTK_WATERFALL_DRAWER (wf),
-                                                  0.0, gamma, white);
+  hyscan_gtk_waterfall_set_levels_for_all (wf, 0.0, gamma, white);
 }
 void
 gamma_changed (GtkScale  *scale,
@@ -298,8 +303,7 @@ gamma_changed (GtkScale  *scale,
   gdouble white = gtk_range_get_value (GTK_RANGE (other)),
           gamma = gtk_range_get_value (GTK_RANGE (scale));
 
-  hyscan_gtk_waterfall_drawer_set_levels_for_all (HYSCAN_GTK_WATERFALL_DRAWER (wf),
-                                                  0.0, gamma, white);
+  hyscan_gtk_waterfall_set_levels_for_all (wf, 0.0, gamma, white);
 }
 
 void
@@ -310,7 +314,10 @@ color_changed (GtkColorButton *chooser,
   guint cmap_len;
   GdkRGBA rgba;
 
-  gtk_color_chooser_get_rgba (GTK_COLOR_CHOOSER (chooser), &rgba);
+  if (chooser != NULL)
+    gtk_color_chooser_get_rgba (GTK_COLOR_CHOOSER (chooser), &rgba);
+  else
+    rgba = *(GdkRGBA*)user_data;
 
   background = hyscan_tile_color_converter_d2i (0.15, 0.15, 0.15, 1.0);
   colors[0]  = hyscan_tile_color_converter_d2i (0.0, 0.0, 0.0, 1.0);
@@ -318,7 +325,7 @@ color_changed (GtkColorButton *chooser,
 
   colormap   = hyscan_tile_color_compose_colormap (colors, 2, &cmap_len);
 
-  hyscan_gtk_waterfall_drawer_set_colormap_for_all (HYSCAN_GTK_WATERFALL_DRAWER (wf), colormap, cmap_len, background);
+  hyscan_gtk_waterfall_set_colormap_for_all (wf, colormap, cmap_len, background);
 
   g_free (colormap);
 }

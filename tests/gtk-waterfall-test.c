@@ -111,7 +111,7 @@ main (int    argc,
   hyscan_gtk_waterfall_layer_grab_input (HYSCAN_GTK_WATERFALL_LAYER (mark));
 
   hyscan_gtk_waterfall_state_sidescan (wf_state, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD,
-                                          HYSCAN_SOURCE_SIDE_SCAN_PORT);
+                                                 HYSCAN_SOURCE_SIDE_SCAN_PORT);
   hyscan_gtk_waterfall_state_set_cache (wf_state, cache, cache2, cache_prefix);
   hyscan_gtk_waterfall_state_set_ship_speed (wf_state, speed);
   hyscan_gtk_waterfall_state_set_depth_source (wf_state, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, 1);
@@ -151,12 +151,12 @@ main (int    argc,
     bbox = gtk_button_box_new (GTK_ORIENTATION_HORIZONTAL);
     gtk_button_box_set_layout (GTK_BUTTON_BOX (bbox), GTK_BUTTONBOX_CENTER);
 
-    gtk_box_pack_start (GTK_BOX (bbox), l_control, TRUE, FALSE, 2);
-    gtk_box_pack_end (GTK_BOX (bbox), l_marks, TRUE, FALSE, 2);
+    gtk_box_pack_start (GTK_BOX (bbox), l_marks, TRUE, FALSE, 0);
+    gtk_box_pack_start (GTK_BOX (bbox), l_control, TRUE, FALSE, 0);
 
-    GtkWidget *spd = gtk_button_new_with_label ("speed switch");
+    GtkWidget *spd = gtk_button_new_with_label ("speed * 0.9");
     g_signal_connect_swapped (spd, "clicked", G_CALLBACK (spdch), wf_state);
-    gtk_box_pack_end (GTK_BOX (bbox), spd, TRUE, FALSE, 2);
+    gtk_box_pack_end (GTK_BOX (bbox), spd, TRUE, FALSE, 0);
 
     gtk_widget_set_size_request (wf_widget, 800, 600);
 

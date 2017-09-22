@@ -114,16 +114,17 @@ hyscan_gtk_waterfall_state_object_finalize (GObject *object)
   HyScanGtkWaterfallState *self = HYSCAN_GTK_WATERFALL_STATE (object);
   HyScanGtkWaterfallStatePrivate *priv = self->priv;
 
-  g_object_unref (priv->db);
+  g_clear_object (&priv->db);
 
   g_free (priv->profile);
 
   g_free (priv->project);
   g_free (priv->track);
-  g_array_unref (priv->velocity);
+  if (priv->velocity != NULL)
+    g_array_unref (priv->velocity);
 
-  g_object_unref (priv->cache);
-  g_object_unref (priv->cache2);
+  g_clear_object (&priv->cache);
+  g_clear_object (&priv->cache2);
   g_free (priv->prefix);
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_state_parent_class)->finalize (object);
