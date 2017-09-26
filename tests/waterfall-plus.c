@@ -169,17 +169,18 @@ make_overlay (HyScanGtkWaterfall *wf,
 {
   GtkWidget *overlay = gtk_overlay_new ();
   GtkWidget *box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-  GtkWidget *btn_zoom_in = gtk_button_new_from_icon_name ("gtk-zoom-in", GTK_ICON_SIZE_BUTTON);
-  GtkWidget *btn_zoom_out = gtk_button_new_from_icon_name ("gtk-zoom-out", GTK_ICON_SIZE_BUTTON);
+  GtkWidget *zoom_btn_in = gtk_button_new_from_icon_name ("gtk-zoom-in", GTK_ICON_SIZE_BUTTON);
+  GtkWidget *zoom_btn_out = gtk_button_new_from_icon_name ("gtk-zoom-out", GTK_ICON_SIZE_BUTTON);
   GtkWidget *btn_reopen = gtk_button_new_from_icon_name ("folder-open", GTK_ICON_SIZE_BUTTON);
   GtkWidget *scale_white = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.001, 1.0, 0.005);
   GtkWidget *scale_gamma = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.5, 2.0, 0.005);
+
   GtkWidget *lay_ctrl = gtk_button_new_with_label ("ctrl");
   GtkWidget *lay_mark = gtk_button_new_with_label ("mark");
-  g_signal_connect_swapped (lay_ctrl, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_ctrl));
-  g_signal_connect_swapped (lay_mark, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_mark));
-  GdkRGBA    rgba;
+  GtkWidget *lay_box = gtk_button_box_new (GTK_ORIENTATION_HORIZONTAL);
+
   GtkWidget *color_chooser = gtk_color_button_new ();
+  GdkRGBA    rgba;
 
   gdk_rgba_parse (&rgba, "#00FFFF");
   gtk_color_chooser_set_rgba (GTK_COLOR_CHOOSER (color_chooser), &rgba);
@@ -193,30 +194,36 @@ make_overlay (HyScanGtkWaterfall *wf,
   gtk_range_set_value (GTK_RANGE (scale_white), white);
   gtk_range_set_value (GTK_RANGE (scale_gamma), gamma);
 
+  /* Layer control. */
+  gtk_button_box_set_layout (GTK_BUTTON_BOX (lay_box), GTK_BUTTONBOX_EXPAND);
+  gtk_box_pack_start (GTK_BOX (lay_box), lay_ctrl, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (lay_box), lay_mark, TRUE, TRUE, 0);
+
   /* Кладём в коробку. */
-  gtk_box_pack_start (GTK_BOX (box), btn_zoom_in,  FALSE, FALSE, 2);
-  gtk_box_pack_start (GTK_BOX (box), btn_zoom_out, FALSE, FALSE, 2);
+  gtk_box_pack_start (GTK_BOX (box), zoom_btn_in,  FALSE, FALSE, 2);
+  gtk_box_pack_start (GTK_BOX (box), zoom_btn_out, FALSE, FALSE, 2);
   gtk_box_pack_start (GTK_BOX (box), btn_reopen,   FALSE, FALSE, 2);
-  gtk_box_pack_start (GTK_BOX (box), gtk_separator_new (GTK_ORIENTATION_VERTICAL), FALSE, FALSE, 2);
   gtk_box_pack_start (GTK_BOX (box), color_chooser,FALSE, FALSE, 2);
   gtk_box_pack_start (GTK_BOX (box), scale_white,  FALSE, FALSE, 2);
   gtk_box_pack_start (GTK_BOX (box), scale_gamma,  FALSE, FALSE, 2);
-  gtk_box_pack_start (GTK_BOX (box), lay_ctrl,     FALSE, FALSE, 2);
-  gtk_box_pack_start (GTK_BOX (box), lay_mark,     FALSE, FALSE, 2);
+  gtk_box_pack_start (GTK_BOX (box), lay_box,      FALSE, FALSE, 2);
 
   gtk_container_add (GTK_CONTAINER (overlay), GTK_WIDGET (wf));
   gtk_overlay_add_overlay (GTK_OVERLAY (overlay), box);
-  gtk_widget_set_halign (box, GTK_ALIGN_START);
+  gtk_widget_set_halign (box, GTK_ALIGN_CENTER);
   gtk_widget_set_valign (box, GTK_ALIGN_END);
-  gtk_widget_set_margin_start (box, 5);
-  gtk_widget_set_margin_bottom (box, 5);
+  // gtk_widget_set_margin_start (box, 5);
+  // gtk_widget_set_margin_bottom (box, 5);
 
   g_signal_connect (btn_reopen, "clicked", G_CALLBACK (reopen_clicked), NULL);
-  g_signal_connect (btn_zoom_in, "clicked", G_CALLBACK (zoom_clicked), GINT_TO_POINTER (1));
-  g_signal_connect (btn_zoom_out, "clicked", G_CALLBACK (zoom_clicked), GINT_TO_POINTER (0));
+  g_signal_connect (zoom_btn_in, "clicked", G_CALLBACK (zoom_clicked), GINT_TO_POINTER (1));
+  g_signal_connect (zoom_btn_out, "clicked", G_CALLBACK (zoom_clicked), GINT_TO_POINTER (0));
   g_signal_connect (scale_white, "value-changed", G_CALLBACK (white_changed), scale_gamma);
   g_signal_connect (scale_gamma, "value-changed", G_CALLBACK (gamma_changed), scale_white);
   g_signal_connect (color_chooser, "color-set", G_CALLBACK (color_changed), NULL);
+  g_signal_connect_swapped (lay_ctrl, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_ctrl));
+  g_signal_connect_swapped (lay_mark, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_mark));
+
 
   gtk_widget_set_size_request (GTK_WIDGET (wf), 800, 600);
   return overlay;

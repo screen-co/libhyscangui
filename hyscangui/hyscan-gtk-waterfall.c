@@ -234,7 +234,7 @@ hyscan_gtk_waterfall_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_waterfall_parent_class)->constructed (object);
   priv = self->priv;
 
-   n_threads = 1;
+  // n_threads = 1;
   priv->queue = hyscan_tile_queue_new (n_threads);
   priv->color = hyscan_tile_color_new ();
   priv->lrect = hyscan_track_rect_new ();

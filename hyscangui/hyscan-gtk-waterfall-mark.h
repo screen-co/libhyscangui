@@ -7,6 +7,8 @@
 
 G_BEGIN_DECLS
 
+#define HYSCAN_GTK_WATERFALL_MARKS_ALL             0xffffffffffffffff
+
 #define HYSCAN_TYPE_GTK_WATERFALL_MARK             (hyscan_gtk_waterfall_mark_get_type ())
 #define HYSCAN_GTK_WATERFALL_MARK(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_WATERFALL_MARK, HyScanGtkWaterfallMark))
 #define HYSCAN_IS_GTK_WATERFALL_MARK(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_WATERFALL_MARK))
@@ -18,7 +20,6 @@ typedef struct _HyScanGtkWaterfallMark HyScanGtkWaterfallMark;
 typedef struct _HyScanGtkWaterfallMarkPrivate HyScanGtkWaterfallMarkPrivate;
 typedef struct _HyScanGtkWaterfallMarkClass HyScanGtkWaterfallMarkClass;
 
-/* !!! Change GObject to type of the base class. !!! */
 struct _HyScanGtkWaterfallMark
 {
   GObject parent_instance;
@@ -26,17 +27,40 @@ struct _HyScanGtkWaterfallMark
   HyScanGtkWaterfallMarkPrivate *priv;
 };
 
-/* !!! Change GObjectClass to type of the base class. !!! */
 struct _HyScanGtkWaterfallMarkClass
 {
   GObjectClass parent_class;
 };
 
-HYSCAN_API
-GType                     hyscan_gtk_waterfall_mark_get_type  (void);
+typedef enum
+{
+  HYSCAN_GTK_WATERFALL_MARKS_DRAW_DOTS,
+  HYSCAN_GTK_WATERFALL_MARKS_DRAW_BORDER
+} HyScanGtkWaterfallMarksDraw;
 
 HYSCAN_API
-HyScanGtkWaterfallMark  *hyscan_gtk_waterfall_mark_new        (HyScanGtkWaterfall   *waterfall);
+GType                    hyscan_gtk_waterfall_mark_get_type   (void);
+
+HYSCAN_API
+HyScanGtkWaterfallMark  *hyscan_gtk_waterfall_mark_new        (HyScanGtkWaterfall         *waterfall);
+
+HYSCAN_API
+void                     hyscan_gtk_waterfall_mark_enter_create_mode   (HyScanGtkWaterfallMark     *mark);
+HYSCAN_API
+void                     hyscan_gtk_waterfall_mark_enter_edit_mode     (HyScanGtkWaterfallMark     *mark); // ?
+
+HYSCAN_API
+void                     hyscan_gtk_waterfall_mark_set_mark_filter     (HyScanGtkWaterfallMark     *mark,
+                                                                        guint64                     filter);
+HYSCAN_API
+void                     hyscan_gtk_waterfall_mark_set_draw_type       (HyScanGtkWaterfallMark     *mark,
+                                                                        HyScanGtkWaterfallMarksDraw type);
+HYSCAN_API
+void                     hyscan_gtk_waterfall_mark_set_shadow_color    (HyScanGtkWaterfallMark     *mark,
+                                                                        guint32                     color);
+HYSCAN_API
+void                     hyscan_gtk_waterfall_mark_set_mark_color      (HyScanGtkWaterfallMark     *mark,
+                                                                        guint32                     color);
 
 //HYSCAN_API
 //void                      hyscan_gtk_waterfall_mark_set_model (HyScanGtkWaterfallMark *mark,

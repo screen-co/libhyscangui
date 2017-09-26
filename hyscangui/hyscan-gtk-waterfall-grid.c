@@ -68,10 +68,10 @@ struct _HyScanGtkWaterfallGridPrivate
 };
 
 static void     hyscan_gtk_waterfall_grid_interface_init         (HyScanGtkWaterfallLayerInterface *iface);
-static void     hyscan_gtk_waterfall_grid_set_property (GObject      *object,
-                             guint         prop_id,
-                             const GValue *value,
-                             GParamSpec   *pspec);
+static void     hyscan_gtk_waterfall_grid_set_property           (GObject               *object,
+                                                                  guint                  prop_id,
+                                                                  const GValue          *value,
+                                                                  GParamSpec            *pspec);
 static void     hyscan_gtk_waterfall_grid_object_constructed     (GObject               *object);
 static void     hyscan_gtk_waterfall_grid_object_finalize        (GObject               *object);
 static const gchar* hyscan_gtk_waterfall_grid_get_mnemonic       (HyScanGtkWaterfallLayer *layer);

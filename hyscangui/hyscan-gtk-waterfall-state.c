@@ -55,7 +55,7 @@ static void     hyscan_gtk_waterfall_state_object_finalize    (GObject       *ob
 static gint        hyscan_gtk_waterfall_state_signals[SIGNAL_LAST] = {0};
 static GQuark      hyscan_gtk_waterfall_state_details[DETAIL_LAST] = {0};
 
-G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkWaterfallState, hyscan_gtk_waterfall_state, GTK_TYPE_CIFRO_AREA);
+G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE (HyScanGtkWaterfallState, hyscan_gtk_waterfall_state, GTK_TYPE_CIFRO_AREA);
 
 static void
 hyscan_gtk_waterfall_state_class_init (HyScanGtkWaterfallStateClass *klass)
