@@ -44,10 +44,10 @@ GType                    hyscan_gtk_waterfall_mark_get_type   (void);
 HYSCAN_API
 HyScanGtkWaterfallMark  *hyscan_gtk_waterfall_mark_new        (HyScanGtkWaterfall         *waterfall);
 
-/* не работает */
+/* включает режим создания меток (рекомендуется перед вызовом сделать grab_input */
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_enter_create_mode   (HyScanGtkWaterfallMark     *mark);
-/* не работает */
+/* включает режим удаления меток (рекомендуется перед вызовом сделать grab_input */
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_enter_select_mode     (HyScanGtkWaterfallMark     *mark); // ?
 
