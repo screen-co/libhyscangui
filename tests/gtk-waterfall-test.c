@@ -12,10 +12,29 @@
 
 gdouble speed = 1.0;
 
-gboolean spdch (HyScanGtkWaterfallState *state)
+gboolean
+spdch (HyScanGtkWaterfallState *state)
 {
   speed *= 0.9;
   hyscan_gtk_waterfall_state_set_ship_speed (state, speed);
+  return FALSE;
+}
+
+gboolean
+mark_edit (HyScanGtkWaterfallMark *markl)
+{
+  g_message ("mark_edit");
+  hyscan_gtk_waterfall_layer_grab_input (HYSCAN_GTK_WATERFALL_LAYER (markl));
+  hyscan_gtk_waterfall_mark_enter_select_mode (markl);
+  return FALSE;
+}
+
+gboolean
+mark_creat (HyScanGtkWaterfallMark *markl)
+{
+  g_message ("mark_creat");
+  hyscan_gtk_waterfall_layer_grab_input (HYSCAN_GTK_WATERFALL_LAYER (markl));
+  hyscan_gtk_waterfall_mark_enter_create_mode (markl);
   return FALSE;
 }
 
@@ -106,6 +125,8 @@ main (int    argc,
   control = hyscan_gtk_waterfall_control_new (wf);
   grid = hyscan_gtk_waterfall_grid_new (wf);
   mark = hyscan_gtk_waterfall_mark_new (wf);
+  //hyscan_gtk_waterfall_mark_enter_create_mode (mark);
+  hyscan_gtk_waterfall_mark_enter_select_mode (mark);
 
   hyscan_gtk_waterfall_layer_grab_input (HYSCAN_GTK_WATERFALL_LAYER (control));
   hyscan_gtk_waterfall_layer_grab_input (HYSCAN_GTK_WATERFALL_LAYER (mark));
@@ -141,17 +162,18 @@ main (int    argc,
   {
     GtkWidget *bbox;
     GtkWidget *l_control = gtk_button_new_with_label (MNEMONIC (control));
-    GtkWidget *l_marks = gtk_button_new_with_label (MNEMONIC (mark));
-    g_signal_connect_swapped (l_control, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input),
-                              HYSCAN_GTK_WATERFALL_LAYER (control));
-    g_signal_connect_swapped (l_marks, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input),
-                              HYSCAN_GTK_WATERFALL_LAYER (mark));
+    GtkWidget *l_mark_e = gtk_button_new_with_label ("delete marks");
+    GtkWidget *l_mark_c = gtk_button_new_with_label ("create marks");
+    g_signal_connect_swapped (l_control, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (control));
+    g_signal_connect_swapped (l_mark_e, "clicked", G_CALLBACK (mark_edit), mark);
+    g_signal_connect_swapped (l_mark_c, "clicked", G_CALLBACK (mark_creat), mark);
 
     gtkgrid = gtk_box_new (GTK_ORIENTATION_VERTICAL, 2);
     bbox = gtk_button_box_new (GTK_ORIENTATION_HORIZONTAL);
     gtk_button_box_set_layout (GTK_BUTTON_BOX (bbox), GTK_BUTTONBOX_CENTER);
 
-    gtk_box_pack_start (GTK_BOX (bbox), l_marks, TRUE, FALSE, 0);
+    gtk_box_pack_start (GTK_BOX (bbox), l_mark_e, TRUE, FALSE, 0);
+    gtk_box_pack_start (GTK_BOX (bbox), l_mark_c, TRUE, FALSE, 0);
     gtk_box_pack_start (GTK_BOX (bbox), l_control, TRUE, FALSE, 0);
 
     GtkWidget *spd = gtk_button_new_with_label ("speed * 0.9");

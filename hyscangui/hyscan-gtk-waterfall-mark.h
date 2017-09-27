@@ -44,20 +44,26 @@ GType                    hyscan_gtk_waterfall_mark_get_type   (void);
 HYSCAN_API
 HyScanGtkWaterfallMark  *hyscan_gtk_waterfall_mark_new        (HyScanGtkWaterfall         *waterfall);
 
+/* не работает */
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_enter_create_mode   (HyScanGtkWaterfallMark     *mark);
+/* не работает */
 HYSCAN_API
-void                     hyscan_gtk_waterfall_mark_enter_edit_mode     (HyScanGtkWaterfallMark     *mark); // ?
+void                     hyscan_gtk_waterfall_mark_enter_select_mode     (HyScanGtkWaterfallMark     *mark); // ?
 
+/* фильтр лейблов */
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_set_mark_filter     (HyScanGtkWaterfallMark     *mark,
                                                                         guint64                     filter);
+/* не работает */
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_set_draw_type       (HyScanGtkWaterfallMark     *mark,
                                                                         HyScanGtkWaterfallMarksDraw type);
+/* цвет затемнения, через hyscan_tile_color_converter_d2i */
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_set_shadow_color    (HyScanGtkWaterfallMark     *mark,
                                                                         guint32                     color);
+/* цвет рамки и текста, через hyscan_tile_color_converter_d2i */
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_set_mark_color      (HyScanGtkWaterfallMark     *mark,
                                                                         guint32                     color);

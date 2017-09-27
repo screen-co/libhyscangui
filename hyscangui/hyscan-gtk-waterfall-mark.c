@@ -16,15 +16,23 @@ struct Coord
 typedef struct
 {
   HyScanWaterfallMark *mark;
+  gchar               *id;
   gdouble              x0;
   gdouble              y0;
   gdouble              x1;
   gdouble              y1;
+  gint                 action;
 } HyScanGtkWaterfallMarkTask;
 
 enum
 {
   PROP_WATERFALL = 1
+};
+
+enum
+{
+  MODE_CREATE,
+  MODE_DELETE
 };
 
 typedef struct
@@ -81,42 +89,69 @@ struct _HyScanGtkWaterfallMarkPrivate
   GThread                    *processing;
   gint                        stop;
 
-  GSList                     *drawable;       /* Список меток, которые нужно показать. */
-  GMutex                      drawable_lock;  /* */
-  GSList                     *tasks;          /* Список меток, которые нужно отправить в БД. */
-  GMutex                      task_lock;      /* */
-  GSList                     *visible;        /* Список меток, которые реально есть на экране. */
+  GList                     *tasks;          /* Список меток, которые нужно отправить в БД. */
+  GMutex                      task_lock;      /* Блокировка списка. */
 
+  GList                     *drawable;       /* Все метки галса (с учетом используемых источников данных). */
+  GMutex                      drawable_lock;  /* Блокировка списка. */
+
+  GList                     *visible;        /* Список меток, которые реально есть на экране. */
+  GList                     *highlighted;    /* Список выделенных меток. */
+  GList                     *selected;       /* Список выделенных меток. */
+
+  /* Заметки самому себе:
+     Надеюсь, ты хорошо отдохнул:)
+
+     в режиме криэйт:
+       отрисовываются метки из drawable, из координат мыши создается и отрисовывается метка с тенью
+     в режиме селект:
+       отрисовываются метки из drawable, отрисовывается selected жирненьким
+       // TODO: придумать, как переходить в режим удаления и правки меток
+
+     в visible кладутся метки путем полного копирования
+       при этом в х0, у0 лежат ЭКРАННЫЕ координты, в х1,у1 - ширина/высота
+       (или координаты конца, смотри ниже. эта документация пишется, пока реализации нет)
+     в selected кладутся метки путем полного копирования
+
+   */
   struct
   {
-    gdouble x0;
-    gdouble y0;
-    gdouble x1;
-    gdouble y1;
+    gdouble                   x0;
+    gdouble                   y0;
+    gdouble                   x1;
+    gdouble                   y1;
   } view;
 
   gboolean                    in_progress;
-  struct Coord                mouse0;
-  struct Coord                mouse1;
-  struct Coord                mark0;
-  struct Coord                mark1;
+  struct Coord                mouse_nul;
+  struct Coord                mouse_cur;
+  // struct Coord                mark0;
+  // struct Coord                mark1;
 
   gint                        width;
   gint                        height;
 
-  GdkRGBA                     shadow_color;
-  GdkRGBA                     mark_color;
+  struct
+  {
+    GdkRGBA                   shadow;
+    GdkRGBA                   mark;
+  } color;
+
+  gint              mode; // edit or create
+
+  PangoLayout      *font;              /* Раскладка шрифта. */
+  gint              text_height;
 };
 
-static void    hyscan_gtk_waterfall_mark_interface_init           (HyScanGtkWaterfallLayerInterface *iface);
-static void    hyscan_gtk_waterfall_mark_set_property             (GObject                 *object,
+static void     hyscan_gtk_waterfall_mark_interface_init          (HyScanGtkWaterfallLayerInterface *iface);
+static void     hyscan_gtk_waterfall_mark_set_property            (GObject                 *object,
                                                                    guint                    prop_id,
                                                                    const GValue            *value,
                                                                    GParamSpec              *pspec);
-static void    hyscan_gtk_waterfall_mark_object_constructed       (GObject                 *object);
-static void    hyscan_gtk_waterfall_mark_object_finalize          (GObject                 *object);
+static void     hyscan_gtk_waterfall_mark_object_constructed      (GObject                 *object);
+static void     hyscan_gtk_waterfall_mark_object_finalize         (GObject                 *object);
 
-static void    hyscan_gtk_waterfall_mark_free_task                (gpointer                 data);
+static void     hyscan_gtk_waterfall_mark_free_task               (gpointer                 data);
 static void     hyscan_gtk_waterfall_mark_sync_states             (HyScanGtkWaterfallMark  *self);
 static gpointer hyscan_gtk_waterfall_mark_processing              (gpointer                 data);
 
@@ -133,13 +168,21 @@ static gboolean hyscan_gtk_waterfall_mark_mouse_motion            (GtkWidget    
 static gdouble  hyscan_gtk_waterfall_mark_radius                  (struct Coord            *start,
                                                                    struct Coord            *end);
 
+static HyScanGtkWaterfallMarkTask   *hyscan_gtk_waterfall_mark_closest                 (HyScanGtkWaterfallMark     *self);
+static gboolean hyscan_gtk_waterfall_mark_intersection            (HyScanGtkWaterfallMark     *self,
+                                                                   HyScanGtkWaterfallMarkTask *task);
 static void     hyscan_gtk_waterfall_mark_draw_task               (HyScanGtkWaterfallMark  *self,
                                                                    cairo_t                 *cairo,
                                                                    HyScanGtkWaterfallMarkTask *task,
-                                                                   gboolean                 shadow);
+                                                                   gboolean                 shadow,
+                                                                   gboolean                 selectable);
 static void     hyscan_gtk_waterfall_mark_draw                    (GtkWidget               *widget,
                                                                    cairo_t                 *cairo,
                                                                    HyScanGtkWaterfallMark  *self);
+
+static gboolean hyscan_gtk_waterfall_mark_configure               (GtkWidget               *widget,
+                                                                  GdkEventConfigure       *event,
+                                                                  HyScanGtkWaterfallMark  *self);
 
 static void     hyscan_gtk_waterfall_mark_sources_changed         (HyScanGtkWaterfallState *model,
                                                                    HyScanGtkWaterfallMark  *self);
@@ -212,7 +255,7 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
 
   /* Сигналы Gtk. */
   g_signal_connect (priv->wfall, "visible-draw",             G_CALLBACK (hyscan_gtk_waterfall_mark_draw), self);
-  //g_signal_connect_after (priv->wfall, "configure-event",    G_CALLBACK (hyscan_gtk_waterfall_mark_configure), self);
+  g_signal_connect (priv->wfall, "configure-event",          G_CALLBACK (hyscan_gtk_waterfall_mark_configure), self);
   g_signal_connect (priv->wfall, "button-press-event",       G_CALLBACK (hyscan_gtk_waterfall_mark_mouse_button_press), self);
   g_signal_connect (priv->wfall, "button-release-event",     G_CALLBACK (hyscan_gtk_waterfall_mark_mouse_button_release), self);
   g_signal_connect (priv->wfall, "motion-notify-event",      G_CALLBACK (hyscan_gtk_waterfall_mark_mouse_motion), self);
@@ -242,11 +285,11 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
   hyscan_gtk_waterfall_mark_sound_velocity_changed (HYSCAN_GTK_WATERFALL_STATE (priv->wfall), self);
   hyscan_gtk_waterfall_mark_depth_source_changed (HYSCAN_GTK_WATERFALL_STATE (priv->wfall), self);
   hyscan_gtk_waterfall_mark_depth_params_changed (HYSCAN_GTK_WATERFALL_STATE (priv->wfall), self);
+
   hyscan_gtk_waterfall_mark_set_mark_filter (self, HYSCAN_GTK_WATERFALL_MARKS_ALL);
   hyscan_gtk_waterfall_mark_set_shadow_color (self, hyscan_tile_color_converter_d2i (0.0, 0.0, 0.0, 0.5));
   hyscan_gtk_waterfall_mark_set_mark_color (self, hyscan_tile_color_converter_d2i (1.0, 1.0, 1.0, 1.0));
-
-  // priv->filter = HYSCAN_GTK_WATERFALL_MARKS_ALL;
+  hyscan_gtk_waterfall_mark_enter_create_mode (self);
 
   priv->stop = FALSE;
   priv->processing = g_thread_new ("gtk-wfall-mark", hyscan_gtk_waterfall_mark_processing, self);
@@ -377,6 +420,7 @@ hyscan_gtk_waterfall_mark_free_task (gpointer data)
   HyScanGtkWaterfallMarkTask *task = data;
 
   hyscan_waterfall_mark_deep_free (task->mark);
+  g_free (task->id);
   g_free (task);
 }
 
@@ -507,7 +551,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
   HyScanDepthometer       *depth = NULL;
   HyScanWaterfallMarkData *mdata = NULL;
 
-  GSList *list, *link;
+  GList *list, *link;
   HyScanGtkWaterfallMarkTask *task;
   HyScanSourceType source0, source1;
   guint32 index0, count0, index1, count1;
@@ -642,6 +686,13 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
           refresh = TRUE;
 
           task = link->data;
+
+          if (task->action == MODE_DELETE)
+            {
+              hyscan_waterfall_mark_data_remove (mdata, task->id);
+              continue;
+            }
+
           if (task->x0 >= 0)
             {
               source0 = state->rsource;
@@ -679,7 +730,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
         }
 
       /* Очищаем весь список заданий. */
-      g_slist_free_full (list, hyscan_gtk_waterfall_mark_free_task);
+      g_list_free_full (list, hyscan_gtk_waterfall_mark_free_task);
       list = NULL;
 
       /* Проверяем счётчик изменений и при необходимости
@@ -698,7 +749,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
       /* Получаем список идентификаторов. */
       ids = hyscan_waterfall_mark_data_get_ids (mdata, &nids);
       if (ids == NULL)
-        continue;
+        goto next;
 
       /* Каждую метку переводим в наши координаты. */
       for (i = 0; i < nids; i++)
@@ -746,6 +797,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
 
           task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
           task->mark = mark;
+          task->id = ids[i];
           hyscan_projector_index_to_coord (_proj0, mark->index0, &task->y0);
           hyscan_projector_count_to_coord (_proj0, mark->count0, &task->x0, 0.0);
           hyscan_projector_index_to_coord (_proj1, mark->index1, &task->y1);
@@ -756,13 +808,14 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
           if (mark->source1 == state->lsource)
             task->x1 *= -1;
 
-          list = g_slist_prepend (list, task);
+          list = g_list_prepend (list, task);
         }
 
-      g_strfreev (ids);
+      g_free (ids);
 
+next:
       g_mutex_lock (&priv->drawable_lock);
-      g_slist_free_full (priv->drawable, hyscan_gtk_waterfall_mark_free_task);
+      g_list_free_full (priv->drawable, hyscan_gtk_waterfall_mark_free_task);
       priv->drawable = list;
       list = NULL;
       g_mutex_unlock (&priv->drawable_lock);
@@ -800,13 +853,20 @@ hyscan_gtk_waterfall_mark_mouse_button_press (GtkWidget              *widget,
   gtk_cifro_area_get_size (carea, &width, &height);
   gtk_cifro_area_get_border (carea, &b_top, &b_bottom, &b_left, &b_right);
 
-  if (x > b_left && x < width - b_right && y > b_top && y < height - b_bottom)
+  if (priv->mode == MODE_CREATE)
     {
-      priv->mouse1.x = priv->mouse0.x = x;
-      priv->mouse1.y = priv->mouse0.y = y;
+      if (x > b_left && x < width - b_right && y > b_top && y < height - b_bottom)
+        {
+          priv->mouse_cur.x = priv->mouse_nul.x = x;
+          priv->mouse_cur.y = priv->mouse_nul.y = y;
 
-      priv->in_progress = TRUE;
-      hyscan_gtk_waterfall_queue_draw (priv->wfall);
+          priv->in_progress = TRUE;
+          hyscan_gtk_waterfall_queue_draw (priv->wfall);
+        }
+    }
+  else if (priv->mode == MODE_DELETE)
+    {
+
     }
 
   return FALSE;
@@ -828,38 +888,60 @@ hyscan_gtk_waterfall_mark_mouse_button_release (GtkWidget              *widget,
   if (!hyscan_gtk_waterfall_has_input (HYSCAN_GTK_WATERFALL (widget), self))
     goto reset;
 
-  if (event->button != 1)
-    return FALSE;
+  if (priv->mode == MODE_CREATE)
+    {
+      if (event->button != 1)
+        return FALSE;
 
-  /* Проверяем, создается ли сейчас метка. */
-  if (!priv->in_progress)
-    return FALSE;
+      /* Проверяем, создается ли сейчас метка. */
+      if (!priv->in_progress)
+        return FALSE;
 
-  /* Проверяем, на сколько сдвинут указатель.
-   * Если слишком мало, считаем, что это случайность. */
-  if (hyscan_gtk_waterfall_mark_radius (&priv->mouse0, &priv->mouse1) < 9)
-    goto reset;
+      /* Проверяем, на сколько сдвинут указатель.
+       * Если слишком мало, считаем, что это случайность. */
+      if (hyscan_gtk_waterfall_mark_radius (&priv->mouse_nul, &priv->mouse_cur) < 9)
+        goto reset;
 
-  /* Создаем метку. */
-  gtk_cifro_area_visible_point_to_value (GTK_CIFRO_AREA (widget), priv->mouse0.x, priv->mouse0.y, &mark0.x, &mark0.y);
-  gtk_cifro_area_visible_point_to_value (GTK_CIFRO_AREA (widget), priv->mouse1.x, priv->mouse1.y, &mark1.x, &mark1.y);
+      /* Создаем метку. */
+      gtk_cifro_area_visible_point_to_value (GTK_CIFRO_AREA (widget), priv->mouse_nul.x, priv->mouse_nul.y, &mark0.x, &mark0.y);
+      gtk_cifro_area_visible_point_to_value (GTK_CIFRO_AREA (widget), priv->mouse_cur.x, priv->mouse_cur.y, &mark1.x, &mark1.y);
 
-  to_draw = g_new0 (HyScanGtkWaterfallMarkTask, 1);
-  to_task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
-  to_task->x0 = to_draw->x0 = mark0.x;
-  to_task->y0 = to_draw->y0 = mark0.y;
-  to_task->x1 = to_draw->x1 = mark1.x;
-  to_task->y1 = to_draw->y1 = mark1.y;
+      to_draw = g_new0 (HyScanGtkWaterfallMarkTask, 1);
+      to_task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
+      to_task->x0 = to_draw->x0 = mark0.x;
+      to_task->y0 = to_draw->y0 = mark0.y;
+      to_task->x1 = to_draw->x1 = mark1.x;
+      to_task->y1 = to_draw->y1 = mark1.y;
+      to_task->action = to_draw->action = MODE_CREATE;
 
-  g_mutex_lock (&priv->drawable_lock);
-  priv->drawable = g_slist_prepend (priv->drawable, to_draw);
-  g_mutex_unlock (&priv->drawable_lock);
+      g_mutex_lock (&priv->drawable_lock);
+      priv->drawable = g_list_prepend (priv->drawable, to_draw);
+      g_mutex_unlock (&priv->drawable_lock);
 
-  g_mutex_lock (&priv->task_lock);
-  priv->tasks = g_slist_prepend (priv->tasks, to_task);
-  g_mutex_unlock (&priv->task_lock);
+      g_mutex_lock (&priv->task_lock);
+      priv->tasks = g_list_prepend (priv->tasks, to_task);
+      g_mutex_unlock (&priv->task_lock);
+    }
+  else if (priv->mode == MODE_DELETE)
+    {
+      if (priv->highlighted == NULL)
+        goto reset;
+
+      to_draw = priv->highlighted->data;
+      to_task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
+      to_task->id = g_strdup (to_draw->id);
+      to_task->action = MODE_DELETE;
+
+      g_list_free_full (priv->highlighted, hyscan_gtk_waterfall_mark_free_task);
+      priv->highlighted = NULL;
+
+      g_mutex_lock (&priv->task_lock);
+      priv->tasks = g_list_prepend (priv->tasks, to_task);
+      g_mutex_unlock (&priv->task_lock);
+    }
 
 reset:
+  hyscan_gtk_waterfall_queue_draw (priv->wfall);
   priv->in_progress = FALSE;
   return FALSE;
 }
@@ -870,11 +952,24 @@ hyscan_gtk_waterfall_mark_mouse_motion (GtkWidget              *widget,
                                         GdkEventMotion         *event,
                                         HyScanGtkWaterfallMark *self)
 {
-  if (!self->priv->in_progress)
+  HyScanGtkWaterfallMarkPrivate *priv = self->priv;
+
+  priv->mouse_cur.x = event->x;
+  priv->mouse_cur.y = event->y;
+
+  if (!hyscan_gtk_waterfall_has_input (HYSCAN_GTK_WATERFALL (widget), self))
     return FALSE;
 
-  self->priv->mouse1.x = event->x;
-  self->priv->mouse1.y = event->y;
+  if (priv->mode == MODE_DELETE)
+    {
+      HyScanGtkWaterfallMarkTask *closest;
+      closest = hyscan_gtk_waterfall_mark_closest (self);
+
+      g_list_free_full (priv->highlighted, hyscan_gtk_waterfall_mark_free_task);
+      priv->highlighted = NULL;
+      if (closest != NULL)
+        priv->highlighted = g_list_append (priv->highlighted, closest);
+    }
 
   return FALSE;
 }
@@ -887,14 +982,104 @@ hyscan_gtk_waterfall_mark_radius (struct Coord *start,
   return sqrt (pow (ABS(end->x - start->x), 2) + pow (ABS(end->y - start->y), 2));
 }
 
+/* Функция ищет ближайшую метку. */
+static HyScanGtkWaterfallMarkTask*
+hyscan_gtk_waterfall_mark_closest (HyScanGtkWaterfallMark *self)
+{
+  HyScanGtkWaterfallMarkPrivate *priv = self->priv;
+  HyScanGtkWaterfallMarkTask *task = NULL, *ret = NULL;
+  GList *link, *found = NULL;
+  struct Coord coord;
+  struct Coord mouse;
+  gdouble dx, dy;
+  gdouble r, rmin = G_MAXDOUBLE;
+
+  for (link = priv->visible; link != NULL; link = link->next)
+    {
+      task = link->data;
+
+      dx = ABS (task->x1 - task->x0);
+      dy = ABS (task->y1 - task->y0);
+
+      gtk_cifro_area_visible_point_to_value (GTK_CIFRO_AREA (priv->wfall), priv->mouse_cur.x, priv->mouse_cur.y, &mouse.x, &mouse.y);
+      /* Проверяем, находится ли указатель внутри метки. */
+      if (mouse.x < task->x0 - dx ||
+          mouse.y < task->y0 - dy ||
+          mouse.x > task->x0 + dx ||
+          mouse.y > task->y0 + dy)
+        {
+          continue;
+        }
+
+      coord.x = task->x0;
+      coord.y = task->y0;
+      r = hyscan_gtk_waterfall_mark_radius (&mouse, &coord);
+
+      if (r > rmin)
+        continue;
+
+      rmin = r;
+      found = link;
+    }
+
+  if (found != NULL)
+    {
+      task = found->data;
+      ret = g_new0 (HyScanGtkWaterfallMarkTask, 1);
+      ret->mark = hyscan_waterfall_mark_copy (task->mark);
+      ret->id = g_strdup (task->id);
+      ret->x0 = task->x0;
+      ret->y0 = task->y0;
+      ret->x1 = task->x1;
+      ret->y1 = task->y1;
+    }
+
+  return ret;
+}
+
+static gboolean
+hyscan_gtk_waterfall_mark_intersection (HyScanGtkWaterfallMark     *self,
+                                        HyScanGtkWaterfallMarkTask *task)
+{
+  HyScanGtkWaterfallMarkPrivate *priv = self->priv;
+
+  gdouble mx0, my0, mw, mh, dx, dy;
+  gdouble vx0, vy0, vw, vh;
+
+  dx = ABS (task->x0 - task->x1);
+  dy = ABS (task->y0 - task->y1);
+
+  mx0 = task->x0 - dx;
+  my0 = task->y0 - dy;
+  mw  = 2 * dx;
+  mh  = 2 * dy;
+
+  vx0 = priv->view.x0;
+  vy0 = priv->view.y0;
+  vw  = priv->view.x1 - priv->view.x0;
+  vh  = priv->view.y1 - priv->view.y0;
+
+  if (mx0 + mw < vx0 || my0 + mh < vy0 ||
+      vx0 + vw < mx0 || vy0 + vh < my0)
+    {
+      return FALSE;
+    }
+
+  return TRUE;
+}
+
 /* Функция отрисовки одной метки.*/
 static void
 hyscan_gtk_waterfall_mark_draw_task (HyScanGtkWaterfallMark     *self,
                                      cairo_t                    *cairo,
                                      HyScanGtkWaterfallMarkTask *task,
-                                     gboolean                    shadow)
+                                     gboolean                    shadow,
+                                     gboolean                    selectable)
 {
-  GtkCifroArea *carea = GTK_CIFRO_AREA (self->priv->wfall);
+  HyScanGtkWaterfallMarkPrivate *priv = self->priv;
+  HyScanGtkWaterfallMarkTask *to_visible;
+  GtkCifroArea *carea = GTK_CIFRO_AREA (priv->wfall);
+  PangoLayout *font = priv->font;
 
   struct Coord center;
   struct Coord corner;
@@ -904,42 +1089,58 @@ hyscan_gtk_waterfall_mark_draw_task (HyScanGtkWaterfallMark     *self,
   dx = task->x0 - task->x1;
   dy = task->y0 - task->y1;
 
-  // if () // TODO: detect intersection
+  gtk_cifro_area_get_size (carea, &w, &h);
 
+  /* Если метка не попадет на экран, игнорируем её. */
+  if (!hyscan_gtk_waterfall_mark_intersection (self, task))
+    return;
+
+  /* Иначе показываем на экране и добавляем в список видимых меток. */
   gtk_cifro_area_visible_value_to_point (carea, &center.x, &center.y, task->x0, task->y0);
   gtk_cifro_area_visible_value_to_point (carea, &corner.x, &corner.y, task->x1, task->y1);
-  g_message ("CORNER: xy %f %f", corner.x, corner.y);
 
-  dx = center.x - corner.x;
-  dy = center.y - corner.y;
+  dx = ABS (center.x - corner.x); // TODO ABS
+  dy = ABS (center.y - corner.y);
 
-  cairo_set_source_rgba (cairo,
-                         self->priv->mark_color.red,
-                         self->priv->mark_color.green,
-                         self->priv->mark_color.blue,
-                         self->priv->mark_color.alpha);
+  cairo_set_source_rgba (cairo, priv->color.mark.red, priv->color.mark.green,
+                         priv->color.mark.blue, priv->color.mark.alpha);
 
   cairo_rectangle (cairo, center.x - dx, center.y - dy, 2 * dx, 2 * dy);
 
+  if (task->mark != NULL && task->mark->name != NULL)
+    {
+      gint text_width;
+
+      cairo_set_source_rgba (cairo, priv->color.mark.red, priv->color.mark.green, priv->color.mark.blue, priv->color.mark.alpha);
+      pango_layout_set_text (font, task->mark->name, -1);
+      pango_layout_get_size (font, &text_width, NULL);
+      text_width /= PANGO_SCALE;
+      cairo_move_to (cairo, center.x - text_width / 2.0, center.y + ABS (dy) /*+ priv->text_height*/);
+      pango_cairo_show_layout (cairo, font);
+    }
   if (shadow)
     {
-      gtk_cifro_area_get_size (carea, &w, &h);
-      cairo_set_source_rgba (cairo,
-                             self->priv->shadow_color.red,
-                             self->priv->shadow_color.green,
-                             self->priv->shadow_color.blue,
-                             self->priv->shadow_color.alpha);
+      cairo_set_source_rgba (cairo, priv->color.shadow.red, priv->color.shadow.green,
+                             priv->color.shadow.blue, priv->color.shadow.alpha);
       cairo_rectangle (cairo, 0, 0, w, h);
       cairo_set_fill_rule (cairo, CAIRO_FILL_RULE_EVEN_ODD);
       cairo_fill (cairo);
 
-      cairo_set_source_rgba (cairo,
-                             self->priv->mark_color.red,
-                             self->priv->mark_color.green,
-                             self->priv->mark_color.blue,
-                             self->priv->mark_color.alpha);
+      cairo_set_source_rgba (cairo, priv->color.mark.red, priv->color.mark.green,
+                             priv->color.mark.blue, priv->color.mark.alpha);
 
       cairo_rectangle (cairo, center.x - dx, center.y - dy, 2 * dx, 2 * dy);
+    }
+  if (selectable)
+    {
+      to_visible = g_new0 (HyScanGtkWaterfallMarkTask, 1);
+      to_visible->mark = hyscan_waterfall_mark_copy (task->mark);
+      to_visible->id = g_strdup (task->id);
+      to_visible->x0 = task->x0;
+      to_visible->y0 = task->y0;
+      to_visible->x1 = task->x1;
+      to_visible->y1 = task->y1;
+      priv->visible = g_list_prepend (priv->visible, to_visible);
     }
 
   cairo_stroke (cairo);
@@ -951,42 +1152,71 @@ hyscan_gtk_waterfall_mark_draw (GtkWidget              *widget,
                                 cairo_t                *cairo,
                                 HyScanGtkWaterfallMark *self)
 {
-  GSList *task;
+  GList *task;
   GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
 
+  /* Актуализируем пределы видимой области. */
   gtk_cifro_area_get_view (carea, &priv->view.x0, &priv->view.x1,
                            &priv->view.y0, &priv->view.y1);
 
   cairo_save (cairo);
 
-  /* Отрисовываем drawable метки. */
+  /* Очищаем visible. */
+  g_list_free_full (priv->visible, hyscan_gtk_waterfall_mark_free_task);
+  priv->visible = NULL;
+
+  /* Отрисовываем drawable. */
   g_mutex_lock (&priv->drawable_lock);
-
   for (task = priv->drawable; task != NULL; task = task->next)
-    hyscan_gtk_waterfall_mark_draw_task (self, cairo, task->data, FALSE);
-
+    hyscan_gtk_waterfall_mark_draw_task (self, cairo, task->data, FALSE, TRUE);
   g_mutex_unlock (&priv->drawable_lock);
 
   /* Отрисовываем создаваемую метку. */
-  if (priv->in_progress)
+  if (priv->mode == MODE_CREATE && priv->in_progress)
     {
       struct Coord start;
       struct Coord end;
-      HyScanGtkWaterfallMarkTask to_draw;
+      HyScanGtkWaterfallMarkTask to_draw = {.mark = NULL};
 
-      gtk_cifro_area_visible_point_to_value (carea, priv->mouse0.x, priv->mouse0.y, &start.x, &start.y);
-      gtk_cifro_area_visible_point_to_value (carea, priv->mouse1.x, priv->mouse1.y, &end.x, &end.y);
+      gtk_cifro_area_visible_point_to_value (carea, priv->mouse_nul.x, priv->mouse_nul.y, &start.x, &start.y);
+      gtk_cifro_area_visible_point_to_value (carea, priv->mouse_cur.x, priv->mouse_cur.y, &end.x, &end.y);
 
       to_draw.x0 = start.x;
       to_draw.y0 = start.y;
       to_draw.x1 = end.x;
       to_draw.y1 = end.y;
-
-      hyscan_gtk_waterfall_mark_draw_task (self, cairo, &to_draw, TRUE);
+      hyscan_gtk_waterfall_mark_draw_task (self, cairo, &to_draw, TRUE, FALSE);
+    }
+  else if (priv->mode == MODE_DELETE && priv->highlighted != NULL) // TODO
+    {
+      HyScanGtkWaterfallMarkTask *selected = priv->highlighted->data;
+      cairo_set_line_width (cairo, 2);
+      hyscan_gtk_waterfall_mark_draw_task (self, cairo, selected, TRUE, FALSE);
     }
 
   cairo_restore (cairo);
+}
+
+static gboolean
+hyscan_gtk_waterfall_mark_configure (GtkWidget              *widget,
+                                     GdkEventConfigure      *event,
+                                     HyScanGtkWaterfallMark *self)
+{
+  HyScanGtkWaterfallMarkPrivate *priv = self->priv;
+
+  gint text_height;
+
+  /* Текущий шрифт приложения. */
+  g_clear_pointer (&priv->font, g_object_unref);
+  priv->font = gtk_widget_create_pango_layout (widget, NULL);
+
+  pango_layout_set_text (priv->font, "0123456789qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM.,?!", -1);
+  pango_layout_get_size (priv->font, NULL, &text_height);
+
+  priv->text_height = text_height / PANGO_SCALE;
+
+  return FALSE;
 }
 
 static void
@@ -1145,11 +1375,15 @@ hyscan_gtk_waterfall_mark_new (HyScanGtkWaterfall   *waterfall)
 void
 hyscan_gtk_waterfall_mark_enter_create_mode (HyScanGtkWaterfallMark *self)
 {
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_MARK (self));
+  self->priv->mode = MODE_CREATE;
 }
 
 void
-hyscan_gtk_waterfall_mark_enter_edit_mode (HyScanGtkWaterfallMark *self)
+hyscan_gtk_waterfall_mark_enter_select_mode (HyScanGtkWaterfallMark *self)
 {
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_MARK (self));
+  self->priv->mode = MODE_DELETE;
 }
 
 // void
@@ -1183,6 +1417,7 @@ hyscan_gtk_waterfall_mark_set_draw_type (HyScanGtkWaterfallMark     *self,
                                          HyScanGtkWaterfallMarksDraw type)
 {
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_MARK (self));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 void
@@ -1192,10 +1427,11 @@ hyscan_gtk_waterfall_mark_set_shadow_color (HyScanGtkWaterfallMark *self,
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_MARK (self));
 
   hyscan_tile_color_converter_i2d (color,
-                                   &self->priv->shadow_color.red,
-                                   &self->priv->shadow_color.green,
-                                   &self->priv->shadow_color.blue,
-                                   &self->priv->shadow_color.alpha);
+                                   &self->priv->color.shadow.red,
+                                   &self->priv->color.shadow.green,
+                                   &self->priv->color.shadow.blue,
+                                   &self->priv->color.shadow.alpha);
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 
 }
 
@@ -1206,13 +1442,11 @@ hyscan_gtk_waterfall_mark_set_mark_color (HyScanGtkWaterfallMark *self,
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_MARK (self));
 
   hyscan_tile_color_converter_i2d (color,
-                                   &self->priv->mark_color.red,
-                                   &self->priv->mark_color.green,
-                                   &self->priv->mark_color.blue,
-                                   &self->priv->mark_color.alpha);
-
-
-
+                                   &self->priv->color.mark.red,
+                                   &self->priv->color.mark.green,
+                                   &self->priv->color.mark.blue,
+                                   &self->priv->color.mark.alpha);
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 static void
