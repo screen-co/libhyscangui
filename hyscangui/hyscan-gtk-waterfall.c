@@ -971,7 +971,7 @@ hyscan_gtk_waterfall_automover (gpointer data)
   if (!priv->init)
     return G_SOURCE_CONTINUE;
 
-  length = MIN (l_length, r_length);
+  length = writeable ? MIN (l_length, r_length) : MAX (l_length, r_length);
   priv->lwidth = lwidth;
   priv->rwidth = rwidth;
   priv->writeable = writeable;
