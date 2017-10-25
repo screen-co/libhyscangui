@@ -36,7 +36,7 @@ enum
 
 struct _HyScanGtkWaterfallGridPrivate
 {
-  HyScanGtkWaterfall   *wfall;
+  HyScanGtkWaterfallState *wfall;
 
   PangoLayout      *font;              /* Раскладка шрифта. */
   gint              text_height;       /* Максимальная высота текста. */
@@ -116,7 +116,7 @@ hyscan_gtk_waterfall_grid_class_init (HyScanGtkWaterfallGridClass *klass)
   object_class->finalize = hyscan_gtk_waterfall_grid_object_finalize;
 
   g_object_class_install_property (object_class, PROP_WATERFALL,
-    g_param_spec_object ("waterfall", "Waterfall", "GtkWaterfall object", HYSCAN_TYPE_GTK_WATERFALL,
+    g_param_spec_object ("waterfall", "Waterfall", "GtkWaterfall object", HYSCAN_TYPE_GTK_WATERFALL_STATE,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -194,7 +194,7 @@ hyscan_gtk_waterfall_grid_get_mnemonic (HyScanGtkWaterfallLayer *iface)
 
 /* Функция создает новый виджет HyScanGtkWaterfallGrid. */
 HyScanGtkWaterfallGrid*
-hyscan_gtk_waterfall_grid_new (HyScanGtkWaterfall   *waterfall)
+hyscan_gtk_waterfall_grid_new (HyScanGtkWaterfallState *waterfall)
 {
   return g_object_new (HYSCAN_TYPE_GTK_WATERFALL_GRID,
                        "waterfall", waterfall,

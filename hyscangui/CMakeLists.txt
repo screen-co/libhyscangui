@@ -24,7 +24,9 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-waterfall-layer.c
              hyscan-gtk-waterfall-control.c
              hyscan-gtk-waterfall-grid.c
+             hyscan-gtk-waterfall-tools.c
              hyscan-gtk-waterfall-mark.c
+             hyscan-gtk-waterfall-meter.c
              ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c)
 
 target_link_libraries (${HYSCAN_GUI_LIBRARY} ${GTK3_LIBRARIES} ${HYSCAN_LIBRARIES} ${GTKCIFROAREA_LIBRARIES})
@@ -54,7 +56,9 @@ install (FILES hyscan-gtk-area.h
                hyscan-gtk-waterfall-layer.h
                hyscan-gtk-waterfall-control.h
                hyscan-gtk-waterfall-grid.h
+               hyscan-gtk-waterfall-tools.h
                hyscan-gtk-waterfall-mark.h
+               hyscan-gtk-waterfall-meter.h
          COMPONENT development
          DESTINATION "include/hyscan-${HYSCAN_MAJOR_VERSION}/hyscangui"
          PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)

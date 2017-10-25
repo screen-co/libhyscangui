@@ -1,5 +1,7 @@
 #include "hyscan-gtk-waterfall-control.h"
 
+#define GTK_WATERFALL_CONTROL_INPUT_ID ((gpointer)NULL)
+
 #define IS_ARROW(key) (key == GDK_KEY_Left || key == GDK_KEY_Right ||\
                        key == GDK_KEY_Up || key == GDK_KEY_Down)
 #define IS_PGHE_KEYS(key) (key == GDK_KEY_Page_Down || key == GDK_KEY_Page_Up ||\
@@ -33,12 +35,12 @@ struct _HyScanGtkWaterfallControlPrivate
   guint                  height;
 
   gboolean               move_area;          /* Признак перемещения при нажатой клавише мыши. */
-  gdouble                move_from_y;        /*< Y-координата мыши в момент нажатия кнопки. */
-  gdouble                move_from_x;        /*< X-координата мыши в момент нажатия кнопки. */
-  gdouble                start_from_x;       /* Начальная граница отображения по оси X. */
-  gdouble                start_to_x;         /* Начальная граница отображения по оси X. */
-  gdouble                start_from_y;       /* Начальная граница отображения по оси Y. */
-  gdouble                start_to_y;         /* Начальная граница отображения по оси Y. */
+  gdouble                move_from_y;        /* Y-координата мыши в момент нажатия кнопки.    */
+  gdouble                move_from_x;        /* X-координата мыши в момент нажатия кнопки.    */
+  gdouble                start_from_x;       /* Начальная граница отображения по оси X.       */
+  gdouble                start_to_x;         /* Начальная граница отображения по оси X.       */
+  gdouble                start_from_y;       /* Начальная граница отображения по оси Y.       */
+  gdouble                start_to_y;         /* Начальная граница отображения по оси Y.       */
   gboolean               scroll_without_ctrl;
 
 };
@@ -88,7 +90,7 @@ hyscan_gtk_waterfall_control_class_init (HyScanGtkWaterfallControlClass *klass)
   object_class->finalize = hyscan_gtk_waterfall_control_object_finalize;
 
   g_object_class_install_property (object_class, PROP_WATERFALL,
-    g_param_spec_object ("waterfall", "Waterfall", "GtkWaterfall object", HYSCAN_TYPE_GTK_WATERFALL,
+    g_param_spec_object ("waterfall", "Waterfall", "GtkWaterfall object", HYSCAN_TYPE_GTK_WATERFALL_STATE,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -98,11 +100,12 @@ hyscan_gtk_waterfall_control_init (HyScanGtkWaterfallControl *self)
   self->priv = hyscan_gtk_waterfall_control_get_instance_private (self);
 }
 
+
 static void
 hyscan_gtk_waterfall_control_set_property (GObject      *object,
-                             guint         prop_id,
-                             const GValue *value,
-                             GParamSpec   *pspec)
+                                           guint         prop_id,
+                                           const GValue *value,
+                                           GParamSpec   *pspec)
 {
   HyScanGtkWaterfallControl *self = HYSCAN_GTK_WATERFALL_CONTROL (object);
 
@@ -121,7 +124,8 @@ hyscan_gtk_waterfall_control_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_waterfall_control_parent_class)->constructed (object);
 
   /* Сигналы Gtk. */
-  g_signal_connect_after (priv->wfall, "configure-event", G_CALLBACK (hyscan_gtk_waterfall_control_configure), self);
+  g_signal_connect_after (priv->wfall, "configure-event",
+                          G_CALLBACK (hyscan_gtk_waterfall_control_configure), self);
   g_signal_connect (priv->wfall, "button-press-event", G_CALLBACK (hyscan_gtk_waterfall_control_mouse_button), self);
   g_signal_connect (priv->wfall, "button-release-event", G_CALLBACK (hyscan_gtk_waterfall_control_mouse_button), self);
   g_signal_connect (priv->wfall, "motion-notify-event", G_CALLBACK (hyscan_gtk_waterfall_control_mouse_motion), self);
@@ -154,7 +158,8 @@ hyscan_gtk_waterfall_control_grab_input (HyScanGtkWaterfallLayer *iface)
 {
   HyScanGtkWaterfallControl *self = HYSCAN_GTK_WATERFALL_CONTROL (iface);
 
-  hyscan_gtk_waterfall_grab_input (HYSCAN_GTK_WATERFALL (self->priv->wfall), self);
+  hyscan_gtk_waterfall_state_set_input_owner (HYSCAN_GTK_WATERFALL_STATE (self->priv->wfall), GTK_WATERFALL_CONTROL_INPUT_ID);
+  hyscan_gtk_waterfall_state_set_changes_allowed (HYSCAN_GTK_WATERFALL_STATE (self->priv->wfall), FALSE);
 }
 
 static const gchar*
@@ -186,8 +191,8 @@ hyscan_gtk_waterfall_control_keyboard (GtkWidget   *widget,
   guint key = event->keyval;
 
   /* Проверяем, есть ли у нас право обработки ввода. */
-  if (!hyscan_gtk_waterfall_has_input (HYSCAN_GTK_WATERFALL (widget), self))
-    return FALSE;
+  // if (GTK_WATERFALL_CONTROL_INPUT_ID != hyscan_gtk_waterfall_get_input_owner (HYSCAN_GTK_WATERFALL (widget)))
+    // return FALSE;
 
   gboolean arrow_keys = FALSE;
   gboolean plus_minus_keys = FALSE;
@@ -273,8 +278,8 @@ hyscan_gtk_waterfall_control_mouse_button (GtkWidget      *widget,
   HyScanGtkWaterfallControlPrivate *priv = self->priv;
 
   /* Проверяем, есть ли у нас право обработки ввода. */
-  if (!hyscan_gtk_waterfall_has_input (HYSCAN_GTK_WATERFALL (widget), self))
-    return FALSE;
+  // if (GTK_WATERFALL_CONTROL_INPUT_ID != hyscan_gtk_waterfall_get_input_owner (HYSCAN_GTK_WATERFALL (widget)))
+    // return FALSE;
 
   if (event->button != 1)
     return FALSE;
@@ -320,8 +325,8 @@ hyscan_gtk_waterfall_control_mouse_motion (GtkWidget      *widget,
   guint widget_size;
 
   /* Проверяем, есть ли у нас право обработки ввода. */
-  if (!hyscan_gtk_waterfall_has_input (HYSCAN_GTK_WATERFALL (widget), self))
-    return FALSE;
+  // if (GTK_WATERFALL_CONTROL_INPUT_ID != hyscan_gtk_waterfall_get_input_owner (HYSCAN_GTK_WATERFALL (widget)))
+    // return FALSE;
 
   /* Режим перемещения - сдвигаем область. */
   if (!priv->move_area)
@@ -367,8 +372,8 @@ hyscan_gtk_waterfall_control_mouse_wheel (GtkWidget                 *widget,
   gboolean do_scroll;
 
   /* Проверяем, есть ли у нас право обработки ввода. */
-  if (!hyscan_gtk_waterfall_has_input (HYSCAN_GTK_WATERFALL (widget), self))
-    return FALSE;
+  // if (GTK_WATERFALL_CONTROL_INPUT_ID != hyscan_gtk_waterfall_get_input_owner (HYSCAN_GTK_WATERFALL (widget)))
+    // return FALSE;
 
   gtk_cifro_area_get_size (carea, &width, &height);
   do_scroll = priv->scroll_without_ctrl == !(event->state & GDK_CONTROL_MASK);
@@ -415,7 +420,7 @@ hyscan_gtk_waterfall_control_sources_changed (HyScanGtkWaterfallState      *mode
 }
 
 HyScanGtkWaterfallControl*
-hyscan_gtk_waterfall_control_new (HyScanGtkWaterfall *waterfall)
+hyscan_gtk_waterfall_control_new (HyScanGtkWaterfallState *waterfall)
 {
   return g_object_new (HYSCAN_TYPE_GTK_WATERFALL_CONTROL,
                        "waterfall", waterfall,

@@ -66,7 +66,7 @@ GType                   hyscan_gtk_waterfall_grid_get_type         (void);
  *
  */
 HYSCAN_API
-HyScanGtkWaterfallGrid *hyscan_gtk_waterfall_grid_new                   (HyScanGtkWaterfall   *waterfall);
+HyScanGtkWaterfallGrid *hyscan_gtk_waterfall_grid_new                   (HyScanGtkWaterfallState *waterfall);
 
 /**
  *

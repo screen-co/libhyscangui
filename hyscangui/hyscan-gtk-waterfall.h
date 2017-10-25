@@ -1,5 +1,5 @@
 /**
- * \file hyscan-gtk-waterfall-wfall.h
+ * \file hyscan-gtk-waterfall.h
  *
  * \brief Виджет "водопад".
  *
@@ -19,9 +19,9 @@
  * \code
  * void
  * waterfall_zoom_cb (HyScanGtkWaterfall *wfall,
- *                    gint                      index,      // Индекс текущего зума.
- *                    gdouble                   zoom,       // Текущий зум в виде 1:[zoom]
- *                    gpointer                  user_data);
+ *                    gint                index,      // Индекс текущего зума.
+ *                    gdouble             zoom,       // Текущий зум в виде 1:[zoom]
+ *                    gpointer            user_data);
  * \endcode
  *
  * Метод #hyscan_gtk_waterfall_set_upsample позволяет задать
@@ -52,8 +52,8 @@
  * \code
  * void
  * automove_state_cb (HyScanGtkWaterfall *wfall,
- *                    gboolean                  is_on,      // TRUE, если автосдвижка включена
- *                    gpointer                  user_data);
+ *                    gboolean            is_on,      // TRUE, если автосдвижка включена
+ *                    gpointer            user_data);
  * \endcode
  *
  * Для снижения нагрузки на систему можно использовать метод
@@ -121,32 +121,7 @@ GtkWidget              *hyscan_gtk_waterfall_new                        (void);
 HYSCAN_API
 void                    hyscan_gtk_waterfall_queue_draw                 (HyScanGtkWaterfall *wfall);
 
-/**
- *
- * Функция позволяет слою захватить ввод.
- *
- * Идентификатор может быть абсолютно любым, кроме NULL.
- * Рекомедуется использовать адрес вызывающего эту функцию слоя.
- *
- * \param wfall - указатель на объект \link HyScanGtkWaterfall \endlink;
- * \param owner - идентификатор объекта, желающего захватить ввод.
- *
- */
-HYSCAN_API
-void                    hyscan_gtk_waterfall_grab_input                 (HyScanGtkWaterfall *wfall,
-                                                                         gconstpointer       instance);
-/**
- *
- * Функция возвращает владельца ввода.
- *
- * \param wfall - указатель на объект \link HyScanGtkWaterfall \endlink;
- *
- * \return идентификатор владельца ввода или NULL, если владелец не установлен.
- *
- */
-HYSCAN_API
-gboolean                hyscan_gtk_waterfall_has_input                  (HyScanGtkWaterfall *wfall,
-                                                                         gconstpointer       instance);
+
 /**
  *
  * Функция устанавливает величину передискретизации.

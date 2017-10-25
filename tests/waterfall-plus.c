@@ -2,12 +2,28 @@
 #include <hyscan-gtk-waterfall-control.h>
 #include <hyscan-gtk-waterfall-grid.h>
 #include <hyscan-gtk-waterfall-mark.h>
+#include <hyscan-gtk-waterfall-meter.h>
 #include <hyscan-tile-color.h>
 #include <hyscan-cached.h>
 #include <gtk/gtk.h>
 #include <libxml/parser.h>
 #include <glib.h>
 #include <string.h>
+
+#ifdef G_OS_WIN32
+  #define PARSE_SEPARATOR "\\"
+  #define COMPOSE_FORMAT "%s\\"
+#else
+  #define PARSE_SEPARATOR "/"
+  #define COMPOSE_FORMAT "/%s"
+#endif
+
+enum
+{
+  DIALOG_CANCEL,
+  DIALOG_OPEN_RAW,
+  DIALOG_OPEN_COMPUTED
+};
 
 void       reopen_clicked   (GtkButton *button,
                              gpointer   user_data);
@@ -25,24 +41,25 @@ gchar     *uri_composer     (gchar    **path,
                              gchar     *prefix,
                              guint      cut);
 
-GtkWidget *make_overlay (HyScanGtkWaterfall *wf,
-                         gdouble             white,
-                         gdouble             gamma);
+GtkWidget *make_overlay     (HyScanGtkWaterfall *wf,
+                             gdouble             white,
+                             gdouble             gamma);
 
 void       open_db          (HyScanDB **db,
                              gchar    **old_uri,
                              gchar     *new_uri);
 
 
-static HyScanGtkWaterfallState *wf_state;
-static HyScanGtkWaterfall      *wf;
-static HyScanGtkWaterfallGrid     *wf_grid;
-static HyScanGtkWaterfallControl  *wf_ctrl;
-static HyScanGtkWaterfallMark  *wf_mark;
-static HyScanDB                *db;
-static gchar                   *db_uri;
-static gchar                   *project_dir;
-static GtkWidget               *window;
+static HyScanGtkWaterfallState   *wf_state;
+static HyScanGtkWaterfall        *wf;
+static HyScanGtkWaterfallGrid    *wf_grid;
+static HyScanGtkWaterfallControl *wf_ctrl;
+static HyScanGtkWaterfallMark    *wf_mark;
+static HyScanGtkWaterfallMeter   *wf_metr;
+static HyScanDB                  *db;
+static gchar                     *db_uri;
+static gchar                     *project_dir;
+static GtkWidget                 *window;
 
 int
 main (int    argc,
@@ -53,8 +70,6 @@ main (int    argc,
 
   gchar *project_name = NULL;
   gchar *track_name = NULL;
-
-  gchar *cache_prefix = "wf-test";
 
   gdouble speed = 1.0;
   gdouble white = 0.2;
@@ -95,12 +110,9 @@ main (int    argc,
       }
 
     if (g_strv_length (args) == 2)
-      {
-        db_uri = g_strdup (args[1]);
-      }
+      db_uri = g_strdup (args[1]);
 
     g_option_context_free (context);
-
 
     g_strfreev (args);
   }
@@ -120,13 +132,14 @@ main (int    argc,
   wf  = HYSCAN_GTK_WATERFALL (wf_widget);
   wf_state  = HYSCAN_GTK_WATERFALL_STATE (wf_widget);
 
-  wf_ctrl = hyscan_gtk_waterfall_control_new (wf);
-  wf_grid = hyscan_gtk_waterfall_grid_new (wf);
-  wf_mark = hyscan_gtk_waterfall_mark_new (wf);
+  wf_ctrl = hyscan_gtk_waterfall_control_new (wf_state);
+  wf_grid = hyscan_gtk_waterfall_grid_new (wf_state);
+  wf_metr = hyscan_gtk_waterfall_meter_new (wf_state);
+  wf_mark = hyscan_gtk_waterfall_mark_new (wf_state);
 
   //hyscan_gtk_waterfall_echosounder (wf, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD);
 
-  hyscan_gtk_waterfall_state_set_cache (wf_state, cache, cache2, cache_prefix);
+  hyscan_gtk_waterfall_state_set_cache (wf_state, cache, cache2, "prefix");
 
   hyscan_gtk_waterfall_state_set_depth_source (wf_state, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, 1);
   hyscan_gtk_waterfall_state_set_depth_filter_size (wf_state, 2);
@@ -169,14 +182,15 @@ make_overlay (HyScanGtkWaterfall *wf,
 {
   GtkWidget *overlay = gtk_overlay_new ();
   GtkWidget *box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-  GtkWidget *zoom_btn_in = gtk_button_new_from_icon_name ("gtk-zoom-in", GTK_ICON_SIZE_BUTTON);
-  GtkWidget *zoom_btn_out = gtk_button_new_from_icon_name ("gtk-zoom-out", GTK_ICON_SIZE_BUTTON);
-  GtkWidget *btn_reopen = gtk_button_new_from_icon_name ("folder-open", GTK_ICON_SIZE_BUTTON);
-  GtkWidget *scale_white = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.001, 1.0, 0.005);
+  GtkWidget *zoom_btn_in = gtk_button_new_from_icon_name ("zoom-in-symbolic", GTK_ICON_SIZE_BUTTON);
+  GtkWidget *zoom_btn_out = gtk_button_new_from_icon_name ("zoom-out-symbolic", GTK_ICON_SIZE_BUTTON);
+  GtkWidget *btn_reopen = gtk_button_new_from_icon_name ("folder-symbolic", GTK_ICON_SIZE_BUTTON);
+  GtkWidget *scale_white = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.000, 1.0, 0.001);
   GtkWidget *scale_gamma = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.5, 2.0, 0.005);
 
-  GtkWidget *lay_ctrl = gtk_button_new_with_label ("ctrl");
-  GtkWidget *lay_mark = gtk_button_new_with_label ("mark");
+  GtkWidget *lay_ctrl = gtk_button_new_from_icon_name ("find-location-symbolic", GTK_ICON_SIZE_BUTTON);
+  GtkWidget *lay_mark = gtk_button_new_from_icon_name ("user-bookmarks-symbolic", GTK_ICON_SIZE_BUTTON);
+  GtkWidget *lay_metr = gtk_button_new_from_icon_name ("preferences-desktop-display-symbolic", GTK_ICON_SIZE_BUTTON);
   GtkWidget *lay_box = gtk_button_box_new (GTK_ORIENTATION_HORIZONTAL);
 
   GtkWidget *color_chooser = gtk_color_button_new ();
@@ -196,8 +210,9 @@ make_overlay (HyScanGtkWaterfall *wf,
 
   /* Layer control. */
   gtk_button_box_set_layout (GTK_BUTTON_BOX (lay_box), GTK_BUTTONBOX_EXPAND);
-  gtk_box_pack_start (GTK_BOX (lay_box), lay_ctrl, TRUE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (lay_box), lay_mark, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (lay_box), lay_ctrl, FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (lay_box), lay_mark, FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (lay_box), lay_metr, FALSE, TRUE, 0);
 
   /* Кладём в коробку. */
   gtk_box_pack_start (GTK_BOX (box), zoom_btn_in,  FALSE, FALSE, 2);
@@ -212,8 +227,7 @@ make_overlay (HyScanGtkWaterfall *wf,
   gtk_overlay_add_overlay (GTK_OVERLAY (overlay), box);
   gtk_widget_set_halign (box, GTK_ALIGN_CENTER);
   gtk_widget_set_valign (box, GTK_ALIGN_END);
-  // gtk_widget_set_margin_start (box, 5);
-  // gtk_widget_set_margin_bottom (box, 5);
+  gtk_widget_set_margin_bottom (box, 5);
 
   g_signal_connect (btn_reopen, "clicked", G_CALLBACK (reopen_clicked), NULL);
   g_signal_connect (zoom_btn_in, "clicked", G_CALLBACK (zoom_clicked), GINT_TO_POINTER (1));
@@ -223,8 +237,9 @@ make_overlay (HyScanGtkWaterfall *wf,
   g_signal_connect (color_chooser, "color-set", G_CALLBACK (color_changed), NULL);
   g_signal_connect_swapped (lay_ctrl, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_ctrl));
   g_signal_connect_swapped (lay_mark, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_mark));
+  g_signal_connect_swapped (lay_metr, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_metr));
 
-
+  hyscan_gtk_waterfall_layer_grab_input (HYSCAN_GTK_WATERFALL_LAYER (wf_ctrl));
   gtk_widget_set_size_request (GTK_WIDGET (wf), 800, 600);
   return overlay;
 }
@@ -234,34 +249,34 @@ reopen_clicked (GtkButton *button,
                 gpointer   user_data)
 {
   GtkWidget *dialog;
-  GtkFileChooserAction act = GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER;
-  gint result;
   gchar *path = NULL;
   gchar *track = NULL;
   gchar *project = NULL;
   gchar **split = NULL;
+  gboolean rawness;
   guint len;
+  gint res;
 
-  dialog = gtk_file_chooser_dialog_new ("Select track", GTK_WINDOW (window), act,
-                                        "Cancel", GTK_RESPONSE_CANCEL,
-                                        "Open",   GTK_RESPONSE_ACCEPT,
+  dialog = gtk_file_chooser_dialog_new ("Select track", GTK_WINDOW (window),
+                                        GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
+                                        "Cancel",   DIALOG_CANCEL,
+                                        "Raw",      DIALOG_OPEN_RAW,
+                                        "Computed", DIALOG_OPEN_COMPUTED,
                                         NULL);
-
   if (project_dir != NULL)
     gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), project_dir);
 
-  result = gtk_dialog_run (GTK_DIALOG (dialog));
-  if (result != GTK_RESPONSE_ACCEPT)
+  res = gtk_dialog_run (GTK_DIALOG (dialog));
+
+  if (res == DIALOG_OPEN_RAW)
+    rawness = TRUE;
+  else if (res == DIALOG_OPEN_COMPUTED)
+    rawness = FALSE;
+  else
     goto cleanup;
 
   path = gtk_file_chooser_get_current_folder (GTK_FILE_CHOOSER (dialog));
-
-  #ifdef G_OS_WIN32
-    split = g_strsplit (path, "\\", -1);
-  #else
-    split = g_strsplit (path, "/", -1);
-  #endif
-
+  split = g_strsplit (path, PARSE_SEPARATOR, -1);
   len = g_strv_length (split);
   if (len < 2)
     goto cleanup;
@@ -274,7 +289,8 @@ reopen_clicked (GtkButton *button,
   project = split[len - 2];
   track = split[len - 1];
 
-  hyscan_gtk_waterfall_state_set_track (wf_state, db, project, track, TRUE);
+
+  hyscan_gtk_waterfall_state_set_track (wf_state, db, project, track, rawness);
 
 cleanup:
 
@@ -300,7 +316,7 @@ white_changed (GtkScale  *scale,
   gdouble white = gtk_range_get_value (GTK_RANGE (scale)),
           gamma = gtk_range_get_value (GTK_RANGE (other));
 
-  hyscan_gtk_waterfall_set_levels_for_all (wf, 0.0, gamma, white);
+  hyscan_gtk_waterfall_set_levels_for_all (wf, 0.0, gamma, (white > 0.0) ? white : 0.001);
 }
 void
 gamma_changed (GtkScale  *scale,
@@ -310,7 +326,7 @@ gamma_changed (GtkScale  *scale,
   gdouble white = gtk_range_get_value (GTK_RANGE (other)),
           gamma = gtk_range_get_value (GTK_RANGE (scale));
 
-  hyscan_gtk_waterfall_set_levels_for_all (wf, 0.0, gamma, white);
+  hyscan_gtk_waterfall_set_levels_for_all (wf, 0.0, gamma, (white > 0.0) ? white : 0.001);
 }
 
 void
@@ -361,11 +377,7 @@ uri_composer (gchar **path,
       if (**path == '\0')
         continue;
 
-        #ifdef G_OS_WIN32
-          written = g_snprintf (puri, 2048 - index, "%s\\", *path);
-        #else
-          written = g_snprintf (puri, 2048 - index, "/%s", *path);
-        #endif
+      written = g_snprintf (puri, 2048 - index, COMPOSE_FORMAT, *path);
       index += written;
       puri += written;
     }
@@ -378,9 +390,7 @@ open_db (HyScanDB **db,
          gchar    **old_uri,
          gchar     *new_uri)
 {
-  if (new_uri == NULL)
-    return;
-  if (old_uri == NULL)
+  if (new_uri == NULL || old_uri == NULL)
     return;
 
   if (g_strcmp0 (new_uri, *old_uri) == 0 && *db != NULL)

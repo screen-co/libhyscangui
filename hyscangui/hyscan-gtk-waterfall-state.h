@@ -58,6 +58,81 @@ GType                  hyscan_gtk_waterfall_state_get_type                  (voi
 HYSCAN_API
 HyScanGtkWaterfallState  *hyscan_gtk_waterfall_state_new                       (void);
 
+/**
+ *
+ * Функция позволяет слою захватить ввод.
+ *
+ * Идентификатор может быть абсолютно любым, кроме NULL.
+ * Рекомедуется использовать адрес вызывающего эту функцию слоя.
+ *
+ * \param state - указатель на объект \link HyScanGtkWaterfall \endlink;
+ * \param owner - идентификатор объекта, желающего захватить ввод.
+ *
+ */
+HYSCAN_API
+void                    hyscan_gtk_waterfall_state_set_input_owner                 (HyScanGtkWaterfallState *state,
+                                                                              gconstpointer       instance);
+/**
+ *
+ * Функция возвращает владельца ввода.
+ *
+ * \param state - указатель на объект \link HyScanGtkWaterfallState \endlink;
+ *
+ * \return идентификатор владельца ввода или NULL, если владелец не установлен.
+ *
+ */
+HYSCAN_API
+gconstpointer           hyscan_gtk_waterfall_state_get_input_owner                  (HyScanGtkWaterfallState *state);
+/**
+ *
+ * Функция позволяет слою захватить ввод.
+ *
+ * Идентификатор может быть абсолютно любым, кроме NULL.
+ * Рекомедуется использовать адрес вызывающего эту функцию слоя.
+ *
+ * \param state - указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param owner - идентификатор объекта, желающего захватить ввод.
+ *
+ */
+HYSCAN_API
+void                    hyscan_gtk_waterfall_state_set_handle_grabbed                  (HyScanGtkWaterfallState *state,
+                                                                                  gconstpointer       instance);
+/**
+ *
+ * Функция возвращает владельца ввода.
+ *
+ * \param state - указатель на объект \link HyScanGtkWaterfallState \endlink;
+ *
+ * \return идентификатор владельца ввода или NULL, если владелец не установлен.
+ *
+ */
+HYSCAN_API
+gconstpointer           hyscan_gtk_waterfall_state_get_handle_grabbed                   (HyScanGtkWaterfallState *state);
+
+/**
+ *
+ * Функция возвращает владельца ввода.
+ *
+ * \param state - указатель на объект \link HyScanGtkWaterfallState \endlink;
+ *
+ * \return идентификатор владельца ввода или NULL, если владелец не установлен.
+ *
+ */
+HYSCAN_API
+void                    hyscan_gtk_waterfall_state_set_changes_allowed                  (HyScanGtkWaterfallState *state,
+                                                                                   gboolean            allowed);
+/**
+ *
+ * Функция возвращает владельца ввода.
+ *
+ * \param state - указатель на объект \link HyScanGtkWaterfallState \endlink;
+ *
+ * \return идентификатор владельца ввода или NULL, если владелец не установлен.
+ *
+ */
+HYSCAN_API
+gboolean                hyscan_gtk_waterfall_state_get_changes_allowed                  (HyScanGtkWaterfallState *state);
+
 HYSCAN_API
 void                   hyscan_gtk_waterfall_state_echosounder               (HyScanGtkWaterfallState *state,
                                                                          HyScanSourceType      source);

@@ -324,7 +324,7 @@ hyscan_gtk_waterfall_depth_open_depth (HyScanGtkWaterfallDepthPrivate *priv,
 
   hyscan_depthometer_set_cache (meter, priv->cache, priv->prefix);
   hyscan_depthometer_set_filter_size (meter, priv->depth_size);
-  hyscan_depthometer_set_time_precision (meter, priv->depth_time);
+  hyscan_depthometer_set_validity_time (meter, priv->depth_time);
 
   return meter;
 }

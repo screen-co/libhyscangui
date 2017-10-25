@@ -33,7 +33,7 @@ HYSCAN_API
 GType                       hyscan_gtk_waterfall_control_get_type (void);
 
 HYSCAN_API
-HyScanGtkWaterfallControl  *hyscan_gtk_waterfall_control_new      (HyScanGtkWaterfall   *waterfall);
+HyScanGtkWaterfallControl  *hyscan_gtk_waterfall_control_new      (HyScanGtkWaterfallState   *waterfall);
 
 HYSCAN_API
 void                        hyscan_gtk_waterfall_control_set_wheel_behaviour (HyScanGtkWaterfallControl *control,

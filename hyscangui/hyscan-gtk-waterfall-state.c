@@ -1,9 +1,11 @@
 #include "hyscan-gtk-waterfall-state.h"
+#include <hyscan-gui-marshallers.h>
 #include <string.h>
 
 enum
 {
   SIGNAL_CHANGED,
+  SIGNAL_HANDLE,
   SIGNAL_LAST
 };
 
@@ -47,10 +49,22 @@ struct _HyScanGtkWaterfallStatePrivate
   HyScanCache                *cache;
   HyScanCache                *cache2;
   gchar                      *prefix;
+
+  gconstpointer               input_owner;
+  gconstpointer               handle_processor;
+  gboolean                    changes_allowed;
 };
 
-static void     hyscan_gtk_waterfall_state_object_constructed (GObject       *object);
-static void     hyscan_gtk_waterfall_state_object_finalize    (GObject       *object);
+static void     hyscan_gtk_waterfall_state_object_constructed    (GObject                 *object);
+static void     hyscan_gtk_waterfall_state_object_finalize       (GObject                 *object);
+static gboolean hyscan_gtk_waterfall_state_handle_accumulator    (GSignalInvocationHint   *ihint,
+                                                                  GValue                  *return_accu,
+                                                                  const GValue            *handler_return,
+                                                                  gpointer                 data);
+static gboolean hyscan_gtk_waterfall_state_mouse_button_release  (GtkWidget               *widget,
+                                                                  GdkEventButton          *event,
+                                                                  HyScanGtkWaterfallState *self);
+
 
 static gint        hyscan_gtk_waterfall_state_signals[SIGNAL_LAST] = {0};
 static GQuark      hyscan_gtk_waterfall_state_details[DETAIL_LAST] = {0};
@@ -71,6 +85,14 @@ hyscan_gtk_waterfall_state_class_init (HyScanGtkWaterfallStateClass *klass)
                   0, NULL, NULL,
                   g_cclosure_marshal_VOID__VOID,
                   G_TYPE_NONE, 0);
+
+  hyscan_gtk_waterfall_state_signals[SIGNAL_HANDLE] =
+    g_signal_new ("handle", HYSCAN_TYPE_GTK_WATERFALL_STATE,
+                  G_SIGNAL_RUN_LAST,
+                  0, hyscan_gtk_waterfall_state_handle_accumulator, NULL,
+                  g_cclosure_user_marshal_POINTER__POINTER,
+                  G_TYPE_POINTER,
+                  1, G_TYPE_POINTER);
 
   hyscan_gtk_waterfall_state_details[DETAIL_SOURCES]      = g_quark_from_static_string ("sources");
   hyscan_gtk_waterfall_state_details[DETAIL_TILE_TYPE]    = g_quark_from_static_string ("tile-type");
@@ -96,6 +118,8 @@ hyscan_gtk_waterfall_state_object_constructed (GObject *object)
   HyScanGtkWaterfallStatePrivate *priv = self->priv;
   G_OBJECT_CLASS (hyscan_gtk_waterfall_state_parent_class)->constructed (object);
 
+  g_signal_connect (self, "button-release-event",
+                    G_CALLBACK (hyscan_gtk_waterfall_state_mouse_button_release), self);
   /* Задаем умолчания. */
   priv->disp_type     = HYSCAN_WATERFALL_DISPLAY_SIDESCAN;
   priv->lsource       = HYSCAN_SOURCE_SIDE_SCAN_PORT;
@@ -106,6 +130,50 @@ hyscan_gtk_waterfall_state_object_constructed (GObject *object)
   priv->depth_channel = 1;
   priv->depth_usecs   = 1000000;
   priv->depth_size    = 4;
+}
+
+
+static gboolean
+hyscan_gtk_waterfall_state_handle_accumulator (GSignalInvocationHint *ihint,
+                                               GValue                *return_accu,
+                                               const GValue          *handler_return,
+                                               gpointer               data)
+{
+  gpointer instance;
+
+  instance = g_value_get_pointer (handler_return);
+  g_value_set_pointer (return_accu, instance);
+
+  /* Для остановки эмиссии надо вернуть FALSE.
+   * Эмиссия останавливается, если нашелся хэндл. */
+  return (instance == NULL);
+}
+
+static gboolean
+hyscan_gtk_waterfall_state_mouse_button_release (GtkWidget               *widget,
+                                                 GdkEventButton          *event,
+                                                 HyScanGtkWaterfallState *self)
+{
+  gconstpointer instance = NULL;
+
+ /* Нам нужно выяснить, кто имеет право отреагировать на это воздействие.
+   * Возможны следующие ситуации:
+   * - handle_owner != NULL - значит, этот слой уже обрабатывает взаимодействия,
+   *   нельзя ему мешать
+   * - handle_owner == NULL - значит, никто не обрабатывает взаимодействие.
+   */
+  if (!hyscan_gtk_waterfall_state_get_changes_allowed (self))
+    return FALSE;
+    
+  instance = hyscan_gtk_waterfall_state_get_handle_grabbed (self);
+
+  if (instance != NULL)
+    return FALSE;
+
+  g_signal_emit (self, hyscan_gtk_waterfall_state_signals[SIGNAL_HANDLE], 0, event, &instance);
+  hyscan_gtk_waterfall_state_set_handle_grabbed (self, instance);
+
+  return FALSE;
 }
 
 static void
@@ -137,8 +205,64 @@ hyscan_gtk_waterfall_state_new (void)
 }
 
 void
+hyscan_gtk_waterfall_state_set_input_owner (HyScanGtkWaterfallState *self,
+                                            gconstpointer            instance)
+{
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_STATE (self));
+
+  /* Ничего не делаем, если владелец не изменился. */
+  if (self->priv->input_owner == instance)
+    return;
+
+  self->priv->input_owner = instance;
+}
+
+gconstpointer
+hyscan_gtk_waterfall_state_get_input_owner (HyScanGtkWaterfallState *self)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL_STATE (self), NULL);
+
+  return self->priv->input_owner;
+}
+
+void
+hyscan_gtk_waterfall_state_set_handle_grabbed (HyScanGtkWaterfallState *self,
+                                               gconstpointer            instance)
+{
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_STATE (self));
+
+  self->priv->handle_processor = instance;
+}
+
+gconstpointer
+hyscan_gtk_waterfall_state_get_handle_grabbed (HyScanGtkWaterfallState *self)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL_STATE (self), NULL);
+
+  return self->priv->handle_processor;
+}
+
+void
+hyscan_gtk_waterfall_state_set_changes_allowed (HyScanGtkWaterfallState *self,
+                                                gboolean                 allowed)
+{
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_STATE (self));
+
+  /* Ничего не делаем, если владелец не изменился. */
+  self->priv->changes_allowed = allowed;
+}
+
+gboolean
+hyscan_gtk_waterfall_state_get_changes_allowed (HyScanGtkWaterfallState *self)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL_STATE (self), TRUE);
+
+  return self->priv->changes_allowed;
+}
+
+void
 hyscan_gtk_waterfall_state_echosounder (HyScanGtkWaterfallState *self,
-                                    HyScanSourceType      source)
+                                        HyScanSourceType         source)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -154,8 +278,8 @@ hyscan_gtk_waterfall_state_echosounder (HyScanGtkWaterfallState *self,
 
 void
 hyscan_gtk_waterfall_state_sidescan (HyScanGtkWaterfallState *self,
-                                 HyScanSourceType      lsource,
-                                 HyScanSourceType      rsource)
+                                     HyScanSourceType         lsource,
+                                     HyScanSourceType         rsource)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -172,7 +296,7 @@ hyscan_gtk_waterfall_state_sidescan (HyScanGtkWaterfallState *self,
 
 void
 hyscan_gtk_waterfall_set_tile_type (HyScanGtkWaterfallState *self,
-                                    HyScanTileType        type)
+                                    HyScanTileType           type)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -187,7 +311,7 @@ hyscan_gtk_waterfall_set_tile_type (HyScanGtkWaterfallState *self,
 
 void
 hyscan_gtk_waterfall_state_set_profile (HyScanGtkWaterfallState *self,
-                                    const gchar          *profile)
+                                        const gchar             *profile)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -205,9 +329,9 @@ hyscan_gtk_waterfall_state_set_profile (HyScanGtkWaterfallState *self,
 
 void
 hyscan_gtk_waterfall_state_set_cache (HyScanGtkWaterfallState *self,
-                                  HyScanCache          *cache,
-                                  HyScanCache          *cache2,
-                                  const gchar          *prefix)
+                                      HyScanCache             *cache,
+                                      HyScanCache             *cache2,
+                                      const gchar             *prefix)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -236,10 +360,10 @@ hyscan_gtk_waterfall_state_set_cache (HyScanGtkWaterfallState *self,
 
 void
 hyscan_gtk_waterfall_state_set_track (HyScanGtkWaterfallState *self,
-                                  HyScanDB             *db,
-                                  const gchar          *project,
-                                  const gchar          *track,
-                                  gboolean              raw)
+                                      HyScanDB                *db,
+                                      const gchar             *project,
+                                      const gchar             *track,
+                                      gboolean                 raw)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -263,7 +387,7 @@ hyscan_gtk_waterfall_state_set_track (HyScanGtkWaterfallState *self,
 
 void
 hyscan_gtk_waterfall_state_set_ship_speed (HyScanGtkWaterfallState *self,
-                                       gfloat                speed)
+                                           gfloat                   speed)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -277,7 +401,7 @@ hyscan_gtk_waterfall_state_set_ship_speed (HyScanGtkWaterfallState *self,
 
 void
 hyscan_gtk_waterfall_state_set_sound_velocity (HyScanGtkWaterfallState *self,
-                                           GArray               *velocity)
+                                               GArray                  *velocity)
 {
   GArray *copy = NULL;
   HyScanGtkWaterfallStatePrivate *priv;
@@ -301,8 +425,8 @@ hyscan_gtk_waterfall_state_set_sound_velocity (HyScanGtkWaterfallState *self,
 
 void
 hyscan_gtk_waterfall_state_set_depth_source (HyScanGtkWaterfallState *self,
-                                         HyScanSourceType      source,
-                                         guint                 channel)
+                                             HyScanSourceType         source,
+                                             guint                    channel)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -317,7 +441,7 @@ hyscan_gtk_waterfall_state_set_depth_source (HyScanGtkWaterfallState *self,
 
 void
 hyscan_gtk_waterfall_state_set_depth_time (HyScanGtkWaterfallState *self,
-                                       gulong                usecs)
+                                           gulong                   usecs)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -331,7 +455,7 @@ hyscan_gtk_waterfall_state_set_depth_time (HyScanGtkWaterfallState *self,
 
 void
 hyscan_gtk_waterfall_state_set_depth_filter_size (HyScanGtkWaterfallState *self,
-                                              guint                 size)
+                                                  guint                    size)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -345,9 +469,9 @@ hyscan_gtk_waterfall_state_set_depth_filter_size (HyScanGtkWaterfallState *self,
 
 void
 hyscan_gtk_waterfall_state_get_sources (HyScanGtkWaterfallState       *self,
-                                    HyScanWaterfallDisplayType *type,
-                                    HyScanSourceType           *lsource,
-                                    HyScanSourceType           *rsource)
+                                        HyScanWaterfallDisplayType    *type,
+                                        HyScanSourceType              *lsource,
+                                        HyScanSourceType              *rsource)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -364,7 +488,7 @@ hyscan_gtk_waterfall_state_get_sources (HyScanGtkWaterfallState       *self,
 
 void
 hyscan_gtk_waterfall_state_get_tile_type (HyScanGtkWaterfallState *self,
-                                      HyScanTileType       *type)
+                                          HyScanTileType          *type)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -377,7 +501,7 @@ hyscan_gtk_waterfall_state_get_tile_type (HyScanGtkWaterfallState *self,
 
 void
 hyscan_gtk_waterfall_state_get_profile (HyScanGtkWaterfallState *self,
-                                    gchar               **profile)
+                                        gchar                  **profile)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -390,9 +514,9 @@ hyscan_gtk_waterfall_state_get_profile (HyScanGtkWaterfallState *self,
 
 void
 hyscan_gtk_waterfall_state_get_cache (HyScanGtkWaterfallState *self,
-                                  HyScanCache         **cache,
-                                  HyScanCache         **cache2,
-                                  gchar               **prefix)
+                                      HyScanCache            **cache,
+                                      HyScanCache            **cache2,
+                                      gchar                  **prefix)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -409,10 +533,10 @@ hyscan_gtk_waterfall_state_get_cache (HyScanGtkWaterfallState *self,
 
 void
 hyscan_gtk_waterfall_state_get_track (HyScanGtkWaterfallState *self,
-                                  HyScanDB            **db,
-                                  gchar               **project,
-                                  gchar               **track,
-                                  gboolean             *raw)
+                                      HyScanDB               **db,
+                                      gchar                  **project,
+                                      gchar                  **track,
+                                      gboolean                *raw)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -431,7 +555,7 @@ hyscan_gtk_waterfall_state_get_track (HyScanGtkWaterfallState *self,
 
 void
 hyscan_gtk_waterfall_state_get_ship_speed (HyScanGtkWaterfallState *self,
-                                       gfloat               *speed)
+                                           gfloat                  *speed)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -444,7 +568,7 @@ hyscan_gtk_waterfall_state_get_ship_speed (HyScanGtkWaterfallState *self,
 
 void
 hyscan_gtk_waterfall_state_get_sound_velocity (HyScanGtkWaterfallState *self,
-                                           GArray              **velocity)
+                                               GArray                 **velocity)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -457,8 +581,8 @@ hyscan_gtk_waterfall_state_get_sound_velocity (HyScanGtkWaterfallState *self,
 
 void
 hyscan_gtk_waterfall_state_get_depth_source (HyScanGtkWaterfallState *self,
-                                         HyScanSourceType     *source,
-                                         guint                *channel)
+                                             HyScanSourceType        *source,
+                                             guint                   *channel)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -473,7 +597,7 @@ hyscan_gtk_waterfall_state_get_depth_source (HyScanGtkWaterfallState *self,
 
 void
 hyscan_gtk_waterfall_state_get_depth_time (HyScanGtkWaterfallState *self,
-                                       gulong               *usecs)
+                                           gulong                  *usecs)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -486,7 +610,7 @@ hyscan_gtk_waterfall_state_get_depth_time (HyScanGtkWaterfallState *self,
 
 void
 hyscan_gtk_waterfall_state_get_depth_filter_size (HyScanGtkWaterfallState *self,
-                                              guint                *size)
+                                                  guint                   *size)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 

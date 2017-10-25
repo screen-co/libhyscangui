@@ -38,12 +38,12 @@ enum
   SHOW_DUMMY  = 500
 };
 
-static const gint tile_sizes[ZOOM_LEVELS] =    {500e3,  200e3,  100e3,  80e3,  50e3,  40e3,  20e3,  10e3,  5e3,  2e3,  1e3,  500, 400, 200, 100};   /**< в миллиметрах*/
+static const gint    tile_sizes[ZOOM_LEVELS] = {500e3,  200e3,  100e3,  80e3,  50e3,  40e3,  20e3,  10e3,  5e3,  2e3,  1e3,  500, 400, 200, 100}; /* В миллиметрах. */
 static const gdouble zooms_gost[ZOOM_LEVELS] = {5000.0, 2000.0, 1000.0, 800.0, 500.0, 400.0, 200.0, 100.0, 50.0, 20.0, 10.0, 5.0, 4.0, 2.0, 1.0};
 
 struct _HyScanGtkWaterfallPrivate
 {
-  gconstpointer          input_owner;
+
 
   gfloat                 ppi;                /**< PPI. */
   cairo_surface_t       *surface;            /**< Поверхность тайла. */
@@ -440,6 +440,8 @@ hyscan_gtk_waterfall_get_tile (HyScanGtkWaterfall *self,
   /* На основании этого определяем, как поступить. */
   if (color_found)
     {
+      if (!color_tile.finalized)
+        g_message ("CTNF || QF %i", queue_found);
       show_strategy = SHOW;
       hyscan_gtk_waterfall_prepare_csurface (surface, color_tile.w, color_tile.h, &tile_surface);
     }
@@ -879,7 +881,6 @@ hyscan_gtk_waterfall_cifroarea_get_limits (GtkCifroArea *carea,
 {
   HyScanGtkWaterfall *self = HYSCAN_GTK_WATERFALL (carea);
   HyScanGtkWaterfallPrivate *priv = self->priv;
-
   if (G_LIKELY (priv->init))
     {
       if (priv->widget_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN)
@@ -991,7 +992,7 @@ hyscan_gtk_waterfall_automover (gpointer data)
       priv->auto_tag = 0;
       gtk_widget_queue_draw (GTK_WIDGET(data));
 
-      return G_SOURCE_CONTINUE;
+      return G_SOURCE_REMOVE;
     }
 
   if (/*priv->view_finalised &&*/ priv->automove)
@@ -1078,6 +1079,7 @@ hyscan_gtk_waterfall_track_changed (HyScanGtkWaterfallState *model,
       g_source_remove (self->priv->auto_tag);
       self->priv->auto_tag = 0;
     }
+
   self->priv->open = FALSE;
 
   hyscan_gtk_waterfall_state_get_track (model, &db, &project, &track, &raw);
@@ -1215,29 +1217,6 @@ hyscan_gtk_waterfall_queue_draw (HyScanGtkWaterfall *self)
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (self));
 
   g_atomic_int_set (&self->priv->request_redraw, TRUE);
-}
-
-void
-hyscan_gtk_waterfall_grab_input (HyScanGtkWaterfall *self,
-                                 gconstpointer       instance)
-{
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (self));
-
-  /* Ничего не делаем, если владелец не изменился. */
-  if (self->priv->input_owner == instance)
-    return;
-
-  self->priv->input_owner = instance;
-  g_signal_emit (self, hyscan_gtk_waterfall_signals[SIGNAL_INPUT_GRABBED], 0, instance);
-}
-
-gboolean
-hyscan_gtk_waterfall_has_input (HyScanGtkWaterfall *self,
-                                gconstpointer       instance)
-{
-  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (self), NULL);
-
-  return self->priv->input_owner == instance;
 }
 
 /* Функция обновляет параметры HyScanTileQueue. */

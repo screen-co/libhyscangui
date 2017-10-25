@@ -7,7 +7,7 @@
 
 G_BEGIN_DECLS
 
-#define HYSCAN_GTK_WATERFALL_MARKS_ALL             0xffffffffffffffff
+#define HYSCAN_GTK_WATERFALL_MARKS_ALL             G_MAXUINT64
 
 #define HYSCAN_TYPE_GTK_WATERFALL_MARK             (hyscan_gtk_waterfall_mark_get_type ())
 #define HYSCAN_GTK_WATERFALL_MARK(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_WATERFALL_MARK, HyScanGtkWaterfallMark))
@@ -42,14 +42,7 @@ HYSCAN_API
 GType                    hyscan_gtk_waterfall_mark_get_type   (void);
 
 HYSCAN_API
-HyScanGtkWaterfallMark  *hyscan_gtk_waterfall_mark_new        (HyScanGtkWaterfall         *waterfall);
-
-/* включает режим создания меток (рекомендуется перед вызовом сделать grab_input */
-HYSCAN_API
-void                     hyscan_gtk_waterfall_mark_enter_create_mode   (HyScanGtkWaterfallMark     *mark);
-/* включает режим удаления меток (рекомендуется перед вызовом сделать grab_input */
-HYSCAN_API
-void                     hyscan_gtk_waterfall_mark_enter_select_mode     (HyScanGtkWaterfallMark     *mark); // ?
+HyScanGtkWaterfallMark  *hyscan_gtk_waterfall_mark_new                 (HyScanGtkWaterfallState    *waterfall);
 
 /* фильтр лейблов */
 HYSCAN_API
@@ -59,14 +52,24 @@ void                     hyscan_gtk_waterfall_mark_set_mark_filter     (HyScanGt
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_set_draw_type       (HyScanGtkWaterfallMark     *mark,
                                                                         HyScanGtkWaterfallMarksDraw type);
-/* цвет затемнения, через hyscan_tile_color_converter_d2i */
-HYSCAN_API
-void                     hyscan_gtk_waterfall_mark_set_shadow_color    (HyScanGtkWaterfallMark     *mark,
-                                                                        guint32                     color);
+
 /* цвет рамки и текста, через hyscan_tile_color_converter_d2i */
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_set_mark_color      (HyScanGtkWaterfallMark     *mark,
-                                                                        guint32                     color);
+                                                                        GdkRGBA                     color);
+HYSCAN_API
+void                     hyscan_gtk_waterfall_mark_set_mark_width      (HyScanGtkWaterfallMark     *mark,
+                                                                        gdouble                     width);
+/* цвет затемнения, через hyscan_tile_color_converter_d2i */
+HYSCAN_API
+void                     hyscan_gtk_waterfall_mark_set_shadow_color    (HyScanGtkWaterfallMark     *mark,
+                                                                        GdkRGBA                     color);
+HYSCAN_API
+void                     hyscan_gtk_waterfall_mark_set_shadow_width    (HyScanGtkWaterfallMark     *mark,
+                                                                        gdouble                     width);
+HYSCAN_API
+void                     hyscan_gtk_waterfall_mark_set_blackout_color  (HyScanGtkWaterfallMark     *mark,
+                                                                        GdkRGBA                     color);
 
 //HYSCAN_API
 //void                      hyscan_gtk_waterfall_mark_set_model (HyScanGtkWaterfallMark *mark,
