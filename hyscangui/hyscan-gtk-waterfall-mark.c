@@ -165,9 +165,6 @@ static gboolean hyscan_gtk_waterfall_mark_mouse_motion            (GtkWidget    
                                                                    GdkEventMotion          *event,
                                                                    HyScanGtkWaterfallMark  *self);
 
-static gdouble  hyscan_gtk_waterfall_mark_radius                  (HyScanCoordinates       *start,
-                                                                   HyScanCoordinates       *end);
-
 static gboolean hyscan_gtk_waterfall_mark_intersection            (HyScanGtkWaterfallMark     *self,
                                                                    HyScanGtkWaterfallMarkTask *task);
 static gboolean hyscan_gtk_waterfall_mark_draw_task               (HyScanGtkWaterfallMark  *self,
@@ -816,8 +813,6 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
           else
             goto ignore;
 
-
-
           task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
           task->mark = mark;
           task->id = ids[i];
@@ -1012,6 +1007,7 @@ hyscan_gtk_waterfall_mark_mouse_button_processor (GtkWidget              *widget
       priv->mouse_mode = priv->mode = EMPTY;
     }
 
+  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (priv->wfall));
   return FALSE;
 }
 
@@ -1030,7 +1026,7 @@ hyscan_gtk_waterfall_mark_mouse_button_release (GtkWidget              *widget,
   /* Слишком большое перемещение говорит о том, что пользователь двигает область.  */
   priv->release.x = event->x;
   priv->release.y = event->y;
-  if (hyscan_gtk_waterfall_mark_radius (&priv->press, &priv->release) > 2)
+  if (hyscan_gtk_waterfall_tools_radius (&priv->press, &priv->release) > 2)
     return FALSE;
 
   /* Проверяем режим (просмотр/редактирование). */
@@ -1077,14 +1073,6 @@ hyscan_gtk_waterfall_mark_mouse_motion (GtkWidget              *widget,
     }
 
   return FALSE;
-}
-
-/* Функция вычисляет расстояние между точками. */
-static gdouble
-hyscan_gtk_waterfall_mark_radius (HyScanCoordinates *start,
-                                  HyScanCoordinates *end)
-{
-  return sqrt (pow (ABS(end->x - start->x), 2) + pow (ABS(end->y - start->y), 2));
 }
 
 static gboolean
@@ -1175,7 +1163,7 @@ hyscan_gtk_waterfall_mark_draw_task (HyScanGtkWaterfallMark     *self,
   gtk_cifro_area_visible_value_to_point (carea, &center.x, &center.y, task->center.x, task->center.y);
   gtk_cifro_area_visible_value_to_point (carea, &corner.x, &corner.y, task->center.x - task->dx, task->center.y - task->dy);
 
-  dx = ABS (center.x - corner.x); // TODO ABS
+  dx = ABS (center.x - corner.x);
   dy = ABS (center.y - corner.y);
 
   task->px_center = center;
@@ -1192,15 +1180,21 @@ hyscan_gtk_waterfall_mark_draw_task (HyScanGtkWaterfallMark     *self,
   /* Подпись. */
   if (task->mark != NULL && task->mark->name != NULL)
     {
-      gint text_width;
+      gint w, h;
+
+      pango_layout_set_text (font, task->mark->name, -1);
+      pango_layout_get_size (font, &w, &h);
+
+      w /= PANGO_SCALE;
+      h /= PANGO_SCALE;
+
+      cairo_set_source_rgba (cairo, priv->color.shadow.red, priv->color.shadow.green, priv->color.shadow.blue, priv->color.shadow.alpha);
+      cairo_rectangle (cairo, center.x - w / 2.0, center.y + dy + priv->color.shadow_width, w, h);
+      cairo_fill (cairo);
+
+      cairo_move_to (cairo, center.x - w / 2.0, center.y + dy + priv->color.shadow_width /*+ priv->text_height*/);
 
       cairo_set_source_rgba (cairo, priv->color.mark.red, priv->color.mark.green, priv->color.mark.blue, priv->color.mark.alpha);
-      pango_layout_set_text (font, task->mark->name, -1);
-
-
-      pango_layout_get_size (font, &text_width, NULL);
-      text_width /= PANGO_SCALE;
-      cairo_move_to (cairo, center.x - text_width / 2.0, center.y + ABS (dy) /*+ priv->text_height*/);
       pango_cairo_show_layout (cairo, font);
     }
 

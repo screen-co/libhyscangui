@@ -29,18 +29,17 @@ void       reopen_clicked   (GtkButton *button,
                              gpointer   user_data);
 void       zoom_clicked     (GtkButton *button,
                              gpointer   user_data);
-void       white_changed    (GtkScale  *scale,
-                             gpointer   user_data);
-void       gamma_changed    (GtkScale  *scale,
-                             gpointer   user_data);
+void       level_changed    (GtkScale  *white,
+                             GtkScale  *gamma);
 
-void       color_changed    (GtkColorButton  *chooser,
-                             gpointer         user_data);
+void       color_changed    (GtkColorButton  *chooser);
 
 gchar     *uri_composer     (gchar    **path,
                              gchar     *prefix,
                              guint      cut);
 
+GtkWidget *make_layer_btn   (const gchar        *icon,
+                             GtkWidget          *from);
 GtkWidget *make_overlay     (HyScanGtkWaterfall *wf,
                              gdouble             white,
                              gdouble             gamma);
@@ -48,7 +47,6 @@ GtkWidget *make_overlay     (HyScanGtkWaterfall *wf,
 void       open_db          (HyScanDB **db,
                              gchar    **old_uri,
                              gchar     *new_uri);
-
 
 static HyScanGtkWaterfallState   *wf_state;
 static HyScanGtkWaterfall        *wf;
@@ -176,6 +174,19 @@ main (int    argc,
 }
 
 GtkWidget*
+make_layer_btn (const gchar *icon,
+                GtkWidget   *from)
+{
+  GtkWidget *new;
+
+  new = gtk_radio_button_new_from_widget (GTK_RADIO_BUTTON (from));
+  gtk_toggle_button_set_mode (GTK_TOGGLE_BUTTON (new), FALSE);
+  gtk_button_set_image (GTK_BUTTON (new), gtk_image_new_from_icon_name (icon, GTK_ICON_SIZE_BUTTON));
+
+  return new;
+}
+
+GtkWidget*
 make_overlay (HyScanGtkWaterfall *wf,
               gdouble             white,
               gdouble             gamma)
@@ -188,17 +199,22 @@ make_overlay (HyScanGtkWaterfall *wf,
   GtkWidget *scale_white = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.000, 1.0, 0.001);
   GtkWidget *scale_gamma = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.5, 2.0, 0.005);
 
-  GtkWidget *lay_ctrl = gtk_button_new_from_icon_name ("find-location-symbolic", GTK_ICON_SIZE_BUTTON);
-  GtkWidget *lay_mark = gtk_button_new_from_icon_name ("user-bookmarks-symbolic", GTK_ICON_SIZE_BUTTON);
-  GtkWidget *lay_metr = gtk_button_new_from_icon_name ("preferences-desktop-display-symbolic", GTK_ICON_SIZE_BUTTON);
-  GtkWidget *lay_box = gtk_button_box_new (GTK_ORIENTATION_HORIZONTAL);
+  GtkWidget *lay_ctrl = make_layer_btn ("find-location-symbolic", NULL);
+  GtkWidget *lay_mark = make_layer_btn ("user-bookmarks-symbolic", lay_ctrl);
+  GtkWidget *lay_metr = make_layer_btn ("preferences-desktop-display-symbolic", lay_mark);
+
+  GtkWidget *lay_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+  GtkWidget *track_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+
+  /* Делаем симпатичные кнопки. */
+  gtk_style_context_add_class (gtk_widget_get_style_context (lay_box), "linked");
+  gtk_style_context_add_class (gtk_widget_get_style_context (track_box), "linked");
 
   GtkWidget *color_chooser = gtk_color_button_new ();
   GdkRGBA    rgba;
 
   gdk_rgba_parse (&rgba, "#00FFFF");
   gtk_color_chooser_set_rgba (GTK_COLOR_CHOOSER (color_chooser), &rgba);
-  g_object_set (color_chooser, "width-request", 2, NULL);
 
   /* Настраиваем прокрутки. */
   gtk_scale_set_value_pos (GTK_SCALE (scale_white), GTK_POS_LEFT);
@@ -209,15 +225,16 @@ make_overlay (HyScanGtkWaterfall *wf,
   gtk_range_set_value (GTK_RANGE (scale_gamma), gamma);
 
   /* Layer control. */
-  gtk_button_box_set_layout (GTK_BUTTON_BOX (lay_box), GTK_BUTTONBOX_EXPAND);
   gtk_box_pack_start (GTK_BOX (lay_box), lay_ctrl, FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (lay_box), lay_mark, FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (lay_box), lay_metr, FALSE, TRUE, 0);
 
   /* Кладём в коробку. */
-  gtk_box_pack_start (GTK_BOX (box), zoom_btn_in,  FALSE, FALSE, 2);
-  gtk_box_pack_start (GTK_BOX (box), zoom_btn_out, FALSE, FALSE, 2);
-  gtk_box_pack_start (GTK_BOX (box), btn_reopen,   FALSE, FALSE, 2);
+  gtk_box_pack_start (GTK_BOX (track_box), zoom_btn_in,  FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (track_box), zoom_btn_out, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (track_box), btn_reopen,   FALSE, FALSE, 2);
+
+  gtk_box_pack_start (GTK_BOX (box), track_box,   FALSE, FALSE, 2);
   gtk_box_pack_start (GTK_BOX (box), color_chooser,FALSE, FALSE, 2);
   gtk_box_pack_start (GTK_BOX (box), scale_white,  FALSE, FALSE, 2);
   gtk_box_pack_start (GTK_BOX (box), scale_gamma,  FALSE, FALSE, 2);
@@ -232,8 +249,8 @@ make_overlay (HyScanGtkWaterfall *wf,
   g_signal_connect (btn_reopen, "clicked", G_CALLBACK (reopen_clicked), NULL);
   g_signal_connect (zoom_btn_in, "clicked", G_CALLBACK (zoom_clicked), GINT_TO_POINTER (1));
   g_signal_connect (zoom_btn_out, "clicked", G_CALLBACK (zoom_clicked), GINT_TO_POINTER (0));
-  g_signal_connect (scale_white, "value-changed", G_CALLBACK (white_changed), scale_gamma);
-  g_signal_connect (scale_gamma, "value-changed", G_CALLBACK (gamma_changed), scale_white);
+  g_signal_connect (scale_white, "value-changed", G_CALLBACK (level_changed), scale_gamma);
+  g_signal_connect_swapped (scale_gamma, "value-changed", G_CALLBACK (level_changed), scale_white);
   g_signal_connect (color_chooser, "color-set", G_CALLBACK (color_changed), NULL);
   g_signal_connect_swapped (lay_ctrl, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_ctrl));
   g_signal_connect_swapped (lay_mark, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_mark));
@@ -309,29 +326,18 @@ zoom_clicked (GtkButton *button,
 }
 
 void
-white_changed (GtkScale  *scale,
-               gpointer   user_data)
+level_changed (GtkScale  *white_scale,
+               GtkScale  *gamma_scale)
 {
-  GtkWidget *other = user_data;
-  gdouble white = gtk_range_get_value (GTK_RANGE (scale)),
-          gamma = gtk_range_get_value (GTK_RANGE (other));
-
-  hyscan_gtk_waterfall_set_levels_for_all (wf, 0.0, gamma, (white > 0.0) ? white : 0.001);
-}
-void
-gamma_changed (GtkScale  *scale,
-               gpointer   user_data)
-{
-  GtkWidget *other = user_data;
-  gdouble white = gtk_range_get_value (GTK_RANGE (other)),
-          gamma = gtk_range_get_value (GTK_RANGE (scale));
+  gdouble white = gtk_range_get_value (GTK_RANGE (white_scale));
+  gdouble gamma = gtk_range_get_value (GTK_RANGE (gamma_scale));
 
   hyscan_gtk_waterfall_set_levels_for_all (wf, 0.0, gamma, (white > 0.0) ? white : 0.001);
 }
 
+
 void
-color_changed (GtkColorButton *chooser,
-               gpointer        user_data)
+color_changed (GtkColorButton *chooser)
 {
   guint32 background, colors[2], *colormap;
   guint cmap_len;
@@ -339,8 +345,6 @@ color_changed (GtkColorButton *chooser,
 
   if (chooser != NULL)
     gtk_color_chooser_get_rgba (GTK_COLOR_CHOOSER (chooser), &rgba);
-  else
-    rgba = *(GdkRGBA*)user_data;
 
   background = hyscan_tile_color_converter_d2i (0.15, 0.15, 0.15, 1.0);
   colors[0]  = hyscan_tile_color_converter_d2i (0.0, 0.0, 0.0, 1.0);

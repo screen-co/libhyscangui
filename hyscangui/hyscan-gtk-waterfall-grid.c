@@ -13,6 +13,8 @@
 #include <math.h>
 #include <glib/gi18n.h>
 
+#define SUB_COLOR 0.0, 0.0, 0.0, 0.75
+
 enum
 {
   PROP_WATERFALL = 1
@@ -209,6 +211,7 @@ hyscan_gtk_waterfall_grid_configure (GtkWidget            *widget,
 {
   HyScanGtkWaterfallGridPrivate *priv = self->priv;
 
+  gdouble i;
   gint text_height, text_width;
 
   /* Текущий шрифт приложения. */
@@ -350,8 +353,6 @@ hyscan_gtk_waterfall_grid_vertical (GtkWidget *widget,
 
   /* Рисуем подписи на оси. */
   {
-    cairo_set_source_rgba (cairo, priv->text_color.red, priv->text_color.green, priv->text_color.blue, priv->text_color.alpha);
-
     if (axis_power > 0)
       axis_power = 0;
     g_snprintf (text_format, sizeof(text_format), "%%.%df", (gint) fabs (axis_power));
@@ -359,6 +360,7 @@ hyscan_gtk_waterfall_grid_vertical (GtkWidget *widget,
     axis = axis_from;
     while (axis <= axis_to)
       {
+        gdouble x, y;
         g_ascii_formatd (text_str, sizeof(text_str), text_format, axis);
         pango_layout_set_text (font, text_str, -1);
         pango_layout_get_size (font, &text_width, NULL);
@@ -370,17 +372,32 @@ hyscan_gtk_waterfall_grid_vertical (GtkWidget *widget,
         if (axis_pos <= priv->virtual_border)
           continue;
 
-        cairo_save (cairo);
-
         axis_pos -= text_width / 2;
 
         if (axis_pos <= priv->virtual_border)
-          cairo_move_to (cairo, priv->virtual_border, text_height * 0.1);
+          {
+            x = priv->virtual_border;
+            y = text_height * 0.1;
+          }
         else
-          cairo_move_to (cairo, axis_pos, text_height * 0.1);
+          {
+            x = axis_pos;
+            y = text_height * 0.1;
+          }
 
+          /* Подложка под осью. */
+          {
+            cairo_rectangle (cairo, x - text_width * 0.1, y, text_width * 1.2, text_height);
+            cairo_set_source_rgba (cairo, SUB_COLOR);
+            cairo_fill (cairo);
+            cairo_set_source_rgba (cairo, priv->grid_color.red, priv->grid_color.green, priv->grid_color.blue, priv->grid_color.alpha);
+            cairo_rectangle (cairo, x - text_width * 0.1, y, text_width * 1.2, text_height);
+            cairo_stroke (cairo);
+          }
+
+        cairo_set_source_rgba (cairo, priv->text_color.red, priv->text_color.green, priv->text_color.blue, priv->text_color.alpha);
+        cairo_move_to (cairo, x, y);
         pango_cairo_show_layout (cairo, font);
-        cairo_restore (cairo);
       }
   }
 
@@ -461,8 +478,6 @@ hyscan_gtk_waterfall_grid_horisontal (GtkWidget *widget,
   cairo_stroke (cairo);
 
   /* Рисуем подписи на оси. */
-  cairo_set_source_rgba (cairo, priv->text_color.red, priv->text_color.green, priv->text_color.blue, priv->text_color.alpha);
-
   if (axis_power > 0)
     axis_power = 0;
   g_snprintf (text_format, sizeof(text_format), "%%.%df", (gint) fabs (axis_power));
@@ -470,6 +485,8 @@ hyscan_gtk_waterfall_grid_horisontal (GtkWidget *widget,
   axis = axis_from;
   while (axis <= axis_to)
     {
+      gdouble x, y;
+
       if (priv->display_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN)
         g_ascii_formatd (text_str, sizeof(text_str), text_format, axis);
       else
@@ -477,6 +494,7 @@ hyscan_gtk_waterfall_grid_horisontal (GtkWidget *widget,
 
       pango_layout_set_text (font, text_str, -1);
       pango_layout_get_size (font, &text_width, &text_height);
+
       text_width /= PANGO_SCALE;
       text_height /= PANGO_SCALE;
 
@@ -486,15 +504,33 @@ hyscan_gtk_waterfall_grid_horisontal (GtkWidget *widget,
       if (axis_pos <= priv->virtual_border)
         continue;
 
-      cairo_save (cairo);
 
       if (axis_pos - text_height <= priv->virtual_border)
-        cairo_move_to (cairo, text_height * 0.1, priv->virtual_border);
+        {
+          x = text_height * 0.1;
+          y = priv->virtual_border;
+        }
       else
-        cairo_move_to (cairo, text_height * 0.1, (gint)axis_pos + 0.5 - text_height);
+        {
+          x = text_height * 0.1;
+          y = (gint)axis_pos + 0.5 - text_height;
+        }
 
+      /* Подложка под осью. */
+      {
+        cairo_rectangle (cairo, x - text_width * 0.1, y, text_width * 1.2, text_height);
+        cairo_set_source_rgba (cairo, SUB_COLOR);
+        cairo_fill (cairo);
+
+        cairo_rectangle (cairo, x - text_width * 0.1, y, text_width * 1.2, text_height);
+        cairo_set_source_rgba (cairo, priv->grid_color.red, priv->grid_color.green, priv->grid_color.blue, priv->grid_color.alpha);
+        cairo_stroke (cairo);
+      }
+
+      cairo_move_to (cairo, x, y);
+
+      cairo_set_source_rgba (cairo, priv->text_color.red, priv->text_color.green, priv->text_color.blue, priv->text_color.alpha);
       pango_cairo_show_layout (cairo, font);
-      cairo_restore (cairo);
     }
 
   /* Рисуем название оси. */
@@ -615,7 +651,7 @@ hyscan_gtk_waterfall_grid_info (GtkWidget *widget,
   /* Рисуем подложку окна. */
   cairo_set_line_width (cairo, 1.0);
 
-  cairo_set_source_rgba (cairo, 0.0, 0.0, 0.0, 0.25);
+  cairo_set_source_rgba (cairo, SUB_COLOR);
   cairo_rectangle (cairo, x + 0.5, y + 0.5, -info_width, info_height);
   cairo_fill (cairo);
 

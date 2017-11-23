@@ -1,5 +1,6 @@
 #include "hyscan-gtk-waterfall-meter.h"
 #include "hyscan-gtk-waterfall-tools.h"
+#include <math.h>
 
 enum
 {
@@ -277,9 +278,9 @@ hyscan_gtk_waterfall_meter_mouse_button_processor (GtkWidget               *widg
       new = g_new (HyScanGtkWaterfallMeterItem, 1);
       *new = priv->current;
       priv->drawable = g_list_append (priv->drawable, new);
-      hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (priv->wfall));
     }
 
+  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (priv->wfall));
   return FALSE;
 }
 
@@ -383,7 +384,10 @@ hyscan_gtk_waterfall_meter_draw_task (HyScanGtkWaterfallMeter     *self,
   HyScanCoordinates start, end, mid;
   gboolean visible;
   gdouble angle, dist;
+  gint w, h;
   gchar *text;
+
+  gdouble x,y;
 
   HyScanGtkWaterfallMeterPrivate *priv = self->priv;
   GtkCifroArea *carea = GTK_CIFRO_AREA (self->priv->wfall);
@@ -412,13 +416,29 @@ hyscan_gtk_waterfall_meter_draw_task (HyScanGtkWaterfallMeter     *self,
   dist = hyscan_gtk_waterfall_tools_radius (&task->start, &task->end);
   mid = hyscan_gtk_waterfall_tools_middle (&start, &end);
 
-  cairo_move_to (cairo, mid.x, mid.y);
-  cairo_rotate (cairo, angle);
 
   text = g_strdup_printf ("%3.2f m.", dist);
   pango_layout_set_text (priv->font, text, -1);
   g_free (text);
 
+  pango_layout_get_size (priv->font, &w, &h);
+
+  w /= PANGO_SCALE;
+  h /= PANGO_SCALE;
+
+
+  cairo_move_to (cairo, mid.x, mid.y + priv->color.shadow_width);
+  cairo_rotate (cairo, angle);
+  cairo_get_current_point (cairo, &x, &y);
+
+
+  cairo_set_source_rgba (cairo, priv->color.shadow.red, priv->color.shadow.green, priv->color.shadow.blue, priv->color.shadow.alpha);
+  cairo_rectangle (cairo, x, y, w, h);
+  cairo_fill (cairo);
+
+  cairo_set_source_rgba (cairo, priv->color.meter.red, priv->color.meter.green, priv->color.meter.blue, priv->color.meter.alpha);
+
+  cairo_move_to (cairo, x, y);
   pango_cairo_show_layout (cairo, priv->font);
   cairo_restore (cairo);
 
