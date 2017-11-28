@@ -60,6 +60,11 @@ void                     hyscan_gtk_waterfall_mark_set_mark_color      (HyScanGt
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_set_mark_width      (HyScanGtkWaterfallMark     *mark,
                                                                         gdouble                     width);
+/**/
+HYSCAN_API
+void                     hyscan_gtk_waterfall_mark_set_frame_color     (HyScanGtkWaterfallMark     *mark,
+                                                                        GdkRGBA                     color);
+
 /* цвет затемнения, через hyscan_tile_color_converter_d2i */
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_set_shadow_color    (HyScanGtkWaterfallMark     *mark,

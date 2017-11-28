@@ -4,8 +4,8 @@
 
 /* Функция вычисляет расстояние между точками. */
 gdouble
-hyscan_gtk_waterfall_tools_radius (HyScanCoordinates *start,
-                                   HyScanCoordinates *end)
+hyscan_gtk_waterfall_tools_distance(HyScanCoordinates *start,
+                                    HyScanCoordinates *end)
 {
   return sqrt (pow (ABS(end->x - start->x), 2) + pow (ABS(end->y - start->y), 2));
 }
@@ -115,4 +115,34 @@ hyscan_gtk_waterfall_tools_point_in_square_w (HyScanCoordinates *point,
 {
   g_message ("not implemented, lol");
   return FALSE;
+}
+
+cairo_pattern_t*
+hyscan_gtk_waterfall_tools_make_handle_pattern (gdouble radius,
+                                                GdkRGBA inner,
+                                                GdkRGBA outer)
+{
+  cairo_pattern_t *pattern;
+
+  gdouble r0  = 0.0 * radius;
+  gdouble r1  = 1.0 * radius;
+  gdouble st0 = 0.60;
+  gdouble st1 = 0.80;
+  gdouble st2 = 1.00;
+
+  pattern = cairo_pattern_create_radial (0, 0, r0, 0, 0, r1);
+
+  cairo_pattern_add_color_stop_rgba (pattern, st0, inner.red, inner.green, inner.blue, inner.alpha);
+  cairo_pattern_add_color_stop_rgba (pattern, st1, outer.red, outer.green, outer.blue, outer.alpha);
+  cairo_pattern_add_color_stop_rgba (pattern, st2, outer.red, outer.green, outer.blue, 0.0);
+
+  return pattern;
+}
+
+
+inline void
+hyscan_cairo_set_source_gdk_rgba (cairo_t *cr,
+                                  GdkRGBA *rgba)
+{
+  cairo_set_source_rgba (cr, rgba->red, rgba->green, rgba->blue, rgba->alpha);
 }

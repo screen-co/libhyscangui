@@ -164,7 +164,7 @@ hyscan_gtk_waterfall_state_mouse_button_release (GtkWidget               *widget
    */
   if (!hyscan_gtk_waterfall_state_get_changes_allowed (self))
     return FALSE;
-    
+
   instance = hyscan_gtk_waterfall_state_get_handle_grabbed (self);
 
   if (instance != NULL)

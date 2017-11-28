@@ -151,6 +151,7 @@ main (int    argc,
 
   /* Кладем виджет в основное окно. */
   overlay = make_overlay (wf, white, gamma);
+
   gtk_container_add (GTK_CONTAINER (window), overlay);
   gtk_widget_show_all (window);
 
@@ -240,12 +241,6 @@ make_overlay (HyScanGtkWaterfall *wf,
   gtk_box_pack_start (GTK_BOX (box), scale_gamma,  FALSE, FALSE, 2);
   gtk_box_pack_start (GTK_BOX (box), lay_box,      FALSE, FALSE, 2);
 
-  gtk_container_add (GTK_CONTAINER (overlay), GTK_WIDGET (wf));
-  gtk_overlay_add_overlay (GTK_OVERLAY (overlay), box);
-  gtk_widget_set_halign (box, GTK_ALIGN_CENTER);
-  gtk_widget_set_valign (box, GTK_ALIGN_END);
-  gtk_widget_set_margin_bottom (box, 5);
-
   g_signal_connect (btn_reopen, "clicked", G_CALLBACK (reopen_clicked), NULL);
   g_signal_connect (zoom_btn_in, "clicked", G_CALLBACK (zoom_clicked), GINT_TO_POINTER (1));
   g_signal_connect (zoom_btn_out, "clicked", G_CALLBACK (zoom_clicked), GINT_TO_POINTER (0));
@@ -258,6 +253,14 @@ make_overlay (HyScanGtkWaterfall *wf,
 
   hyscan_gtk_waterfall_layer_grab_input (HYSCAN_GTK_WATERFALL_LAYER (wf_ctrl));
   gtk_widget_set_size_request (GTK_WIDGET (wf), 800, 600);
+
+  gtk_container_add (GTK_CONTAINER (overlay), GTK_WIDGET (wf));
+
+  gtk_overlay_add_overlay (GTK_OVERLAY (overlay), box);
+  gtk_widget_set_halign (box, GTK_ALIGN_CENTER);
+  gtk_widget_set_valign (box, GTK_ALIGN_END);
+  gtk_widget_set_margin_bottom (box, 5);
+
   return overlay;
 }
 

@@ -3,8 +3,13 @@
 
 #include <hyscan-api.h>
 #include <glib-object.h>
+#include <gtk/gtk.h>
 
 G_BEGIN_DECLS
+
+#define SHADOW_DEFAULT "rgba (0, 0, 0, 0.75)"
+#define FRAME_DEFAULT "rgba (255, 255, 255, 0.25)"
+
 
 typedef struct
 {
@@ -14,8 +19,8 @@ typedef struct
 
 HYSCAN_API
 gdouble
-hyscan_gtk_waterfall_tools_radius (HyScanCoordinates *start,
-                                   HyScanCoordinates *end);
+hyscan_gtk_waterfall_tools_distance (HyScanCoordinates *start,
+                                     HyScanCoordinates *end);
 
 HYSCAN_API
 gdouble
@@ -50,6 +55,16 @@ hyscan_gtk_waterfall_tools_point_in_square_w (HyScanCoordinates *point,
                                               HyScanCoordinates *square_start,
                                               gdouble            dx,
                                               gdouble            dy);
+HYSCAN_API
+cairo_pattern_t*
+hyscan_gtk_waterfall_tools_make_handle_pattern (gdouble          radius,
+                                                GdkRGBA          inner,
+                                                GdkRGBA          outer);
+
+HYSCAN_API
+inline void
+hyscan_cairo_set_source_gdk_rgba             (cairo_t           *cr,
+                                              GdkRGBA           *rgba);
 
 G_END_DECLS
 

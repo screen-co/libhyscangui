@@ -9,11 +9,10 @@
  */
 
 #include "hyscan-gtk-waterfall-grid.h"
+#include <hyscan-gtk-waterfall-tools.h>
 #include <hyscan-tile-color.h>
 #include <math.h>
 #include <glib/gi18n.h>
-
-#define SUB_COLOR 0.0, 0.0, 0.0, 0.75
 
 enum
 {
@@ -46,6 +45,7 @@ struct _HyScanGtkWaterfallGridPrivate
 
   GdkRGBA           grid_color;        /* Цвет осей. */
   GdkRGBA           text_color;        /* Цвет подписей. */
+  GdkRGBA           shad_color;        /* Цвет подложки. */
 
   gchar            *x_axis_name;       /* Подпись горизонтальной оси. */
   gchar            *y_axis_name;       /* Подпись вертикальной оси. */
@@ -147,8 +147,8 @@ hyscan_gtk_waterfall_grid_object_constructed (GObject *object)
 {
   HyScanGtkWaterfallGrid *self = HYSCAN_GTK_WATERFALL_GRID (object);
   HyScanGtkWaterfallGridPrivate *priv = self->priv;
-  GdkRGBA text_tile_color_default = {0.33, 0.85, 0.95, 1.0},
-          grid_tile_color_default = {1.0, 1.0, 1.0, 0.25};
+  GdkRGBA text_color = {0.33, 0.85, 0.95, 1.0},
+          grid_color, shad_color;
 
   priv->x_axis_name = g_strdup ("↔");
   priv->y_axis_name = g_strdup ("↕");
@@ -167,8 +167,12 @@ hyscan_gtk_waterfall_grid_object_constructed (GObject *object)
   /* Сигналы модели. */
   g_signal_connect (priv->wfall, "changed::sources", G_CALLBACK (hyscan_gtk_waterfall_grid_sources_changed), self);
 
-  priv->text_color = text_tile_color_default;
-  priv->grid_color = grid_tile_color_default;
+  gdk_rgba_parse (&grid_color, FRAME_DEFAULT);
+  gdk_rgba_parse (&shad_color, SHADOW_DEFAULT);
+
+  priv->text_color = text_color;
+  priv->grid_color = grid_color;
+  priv->shad_color = shad_color;
 }
 
 static void
@@ -210,8 +214,6 @@ hyscan_gtk_waterfall_grid_configure (GtkWidget            *widget,
                                     HyScanGtkWaterfallGrid *self)
 {
   HyScanGtkWaterfallGridPrivate *priv = self->priv;
-
-  gdouble i;
   gint text_height, text_width;
 
   /* Текущий шрифт приложения. */
@@ -245,7 +247,7 @@ hyscan_gtk_waterfall_grid_motion_notify (GtkWidget             *widget,
   self->priv->mouse_x = x;
   self->priv->mouse_y = y;
 
-  gtk_widget_queue_draw (widget);
+  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (widget));
   return FALSE;
 }
 
@@ -258,7 +260,7 @@ hyscan_gtk_waterfall_grid_leave_notify (GtkWidget            *widget,
   self->priv->mouse_x = -1;
   self->priv->mouse_y = -1;
 
-  gtk_widget_queue_draw (widget);
+  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (widget));
   return FALSE;
 }
 
@@ -331,7 +333,7 @@ hyscan_gtk_waterfall_grid_vertical (GtkWidget *widget,
 
   /* Линии. */
   {
-    cairo_set_source_rgba (cairo, priv->grid_color.red, priv->grid_color.green, priv->grid_color.blue, priv->grid_color.alpha);
+    hyscan_cairo_set_source_gdk_rgba (cairo, &priv->grid_color);
     cairo_set_line_width (cairo, 1.0);
 
     axis = axis_from - axis_step;
@@ -388,14 +390,15 @@ hyscan_gtk_waterfall_grid_vertical (GtkWidget *widget,
           /* Подложка под осью. */
           {
             cairo_rectangle (cairo, x - text_width * 0.1, y, text_width * 1.2, text_height);
-            cairo_set_source_rgba (cairo, SUB_COLOR);
+            hyscan_cairo_set_source_gdk_rgba (cairo, &priv->shad_color);
             cairo_fill (cairo);
-            cairo_set_source_rgba (cairo, priv->grid_color.red, priv->grid_color.green, priv->grid_color.blue, priv->grid_color.alpha);
+            hyscan_cairo_set_source_gdk_rgba (cairo, &priv->grid_color);
+            // hyscan_cairo_set_source_gdk_rgba (cairo, priv->grid_color.red, priv->grid_color.green, priv->grid_color.blue, priv->grid_color.alpha);
             cairo_rectangle (cairo, x - text_width * 0.1, y, text_width * 1.2, text_height);
             cairo_stroke (cairo);
           }
 
-        cairo_set_source_rgba (cairo, priv->text_color.red, priv->text_color.green, priv->text_color.blue, priv->text_color.alpha);
+        hyscan_cairo_set_source_gdk_rgba (cairo, &priv->text_color);
         cairo_move_to (cairo, x, y);
         pango_cairo_show_layout (cairo, font);
       }
@@ -457,7 +460,7 @@ hyscan_gtk_waterfall_grid_horisontal (GtkWidget *widget,
   gtk_cifro_area_get_axis_step (axis_scale, step, &axis_from, &axis_step, &axis_range, &axis_power);
 
   /* Рисуем линии сетки. */
-  cairo_set_source_rgba (cairo, priv->grid_color.red, priv->grid_color.green, priv->grid_color.blue, priv->grid_color.alpha);
+  hyscan_cairo_set_source_gdk_rgba (cairo, &priv->grid_color);
   cairo_set_line_width (cairo, 1.0);
 
   axis = axis_from - axis_step;
@@ -519,17 +522,17 @@ hyscan_gtk_waterfall_grid_horisontal (GtkWidget *widget,
       /* Подложка под осью. */
       {
         cairo_rectangle (cairo, x - text_width * 0.1, y, text_width * 1.2, text_height);
-        cairo_set_source_rgba (cairo, SUB_COLOR);
+        hyscan_cairo_set_source_gdk_rgba (cairo, &priv->shad_color);
         cairo_fill (cairo);
 
         cairo_rectangle (cairo, x - text_width * 0.1, y, text_width * 1.2, text_height);
-        cairo_set_source_rgba (cairo, priv->grid_color.red, priv->grid_color.green, priv->grid_color.blue, priv->grid_color.alpha);
+        hyscan_cairo_set_source_gdk_rgba (cairo, &priv->grid_color);
         cairo_stroke (cairo);
       }
 
       cairo_move_to (cairo, x, y);
 
-      cairo_set_source_rgba (cairo, priv->text_color.red, priv->text_color.green, priv->text_color.blue, priv->text_color.alpha);
+      hyscan_cairo_set_source_gdk_rgba (cairo, &priv->text_color);
       pango_cairo_show_layout (cairo, font);
     }
 
@@ -646,16 +649,17 @@ hyscan_gtk_waterfall_grid_info (GtkWidget *widget,
     }
 
   /* Проверяем размеры области отображения. */
-  if (x - info_width < 0 || y + info_height > area_height)
+  if (x - info_width < 0 || y + info_height > (gint)area_height)
     return;
+
   /* Рисуем подложку окна. */
   cairo_set_line_width (cairo, 1.0);
 
-  cairo_set_source_rgba (cairo, SUB_COLOR);
+  hyscan_cairo_set_source_gdk_rgba (cairo, &priv->shad_color);
   cairo_rectangle (cairo, x + 0.5, y + 0.5, -info_width, info_height);
   cairo_fill (cairo);
 
-  cairo_set_source_rgba (cairo, priv->grid_color.red, priv->grid_color.green, priv->grid_color.blue, priv->grid_color.alpha);
+  hyscan_cairo_set_source_gdk_rgba (cairo, &priv->grid_color);
   cairo_rectangle (cairo, x + 0.5, y + 0.5, -info_width, info_height);
   cairo_stroke (cairo);
 
@@ -673,7 +677,7 @@ hyscan_gtk_waterfall_grid_info (GtkWidget *widget,
   g_ascii_formatd (text_str[VALUE_Y], sizeof(text_str[VALUE_Y]), text_format, value_y);
 
   /* Всё. Теперь можно рисовать само окошко. */
-  cairo_set_source_rgba (cairo, priv->text_color.red, priv->text_color.green, priv->text_color.blue, priv->text_color.alpha);
+  hyscan_cairo_set_source_gdk_rgba (cairo, &priv->text_color);
 
   /* Пишем единицу измерения Х. */
   current_y = y + text_spacing;
@@ -715,7 +719,7 @@ hyscan_gtk_waterfall_grid_show_grid (HyScanGtkWaterfallGrid *self,
   self->priv->draw_x_grid = draw_horisontal;
   self->priv->draw_y_grid = draw_vertical;
 
-  gtk_widget_queue_draw (GTK_WIDGET (self));
+  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
 }
 
 /* Функция позволяет включить и выключить отображение окошка с координатой. */
@@ -727,7 +731,7 @@ hyscan_gtk_waterfall_grid_show_info (HyScanGtkWaterfallGrid *self,
 
   self->priv->show_info = show_info;
 
-  gtk_widget_queue_draw (GTK_WIDGET (self));
+  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
 }
 
 /* Функция задает координаты информационного окна по умолчанию. */
@@ -738,7 +742,7 @@ hyscan_gtk_waterfall_grid_info_position_auto (HyScanGtkWaterfallGrid *self)
 
   self->priv->info_coordinates = INFOBOX_AUTO;
 
-  gtk_widget_queue_draw (GTK_WIDGET (self));
+  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
 }
 
 /* Функция задает координаты информационного окна в пикселях. */
@@ -753,7 +757,7 @@ hyscan_gtk_waterfall_grid_info_position_abs (HyScanGtkWaterfallGrid *self,
   self->priv->info_x = x_position;
   self->priv->info_y = y_position;
 
-  gtk_widget_queue_draw (GTK_WIDGET (self));
+  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
 }
 
 /* Функция задает координаты информационного окна в процентах. */
@@ -768,7 +772,7 @@ hyscan_gtk_waterfall_grid_info_position_perc (HyScanGtkWaterfallGrid *self,
   self->priv->info_x_perc = x_position;
   self->priv->info_y_perc = y_position;
 
-  gtk_widget_queue_draw (GTK_WIDGET (self));
+  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
 }
 
 /* Функция устанавливает шаг координатной сетки. */
@@ -784,7 +788,7 @@ hyscan_gtk_waterfall_grid_set_grid_step (HyScanGtkWaterfallGrid *self,
   self->priv->x_grid_step = step_horisontal;
   self->priv->y_grid_step = step_vertical;
 
-  gtk_widget_queue_draw (GTK_WIDGET (self));
+  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
   return TRUE;
 }
 
@@ -799,7 +803,7 @@ hyscan_gtk_waterfall_grid_set_grid_color (HyScanGtkWaterfallGrid *self,
   hyscan_tile_color_converter_i2d (color, &rgba.red, &rgba.green, &rgba.blue, &rgba.alpha);
   self->priv->grid_color = rgba;
 
-  gtk_widget_queue_draw (GTK_WIDGET (self));
+  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
 }
 
 /* Функция устанавливает цвет подписей. */
@@ -813,8 +817,23 @@ hyscan_gtk_waterfall_grid_set_label_color (HyScanGtkWaterfallGrid *self,
   hyscan_tile_color_converter_i2d (color, &rgba.red, &rgba.green, &rgba.blue, &rgba.alpha);
   self->priv->text_color = rgba;
 
-  gtk_widget_queue_draw (GTK_WIDGET (self));
+  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
 }
+
+/* Функция устанавливает цвет подписей. */
+void
+hyscan_gtk_waterfall_grid_set_shadow_color (HyScanGtkWaterfallGrid *self,
+                                            guint32                 color)
+{
+  GdkRGBA rgba;
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (self));
+
+  hyscan_tile_color_converter_i2d (color, &rgba.red, &rgba.green, &rgba.blue, &rgba.alpha);
+  self->priv->shad_color = rgba;
+
+  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+}
+
 
 static void
 hyscan_gtk_waterfall_grid_interface_init (HyScanGtkWaterfallLayerInterface *iface)

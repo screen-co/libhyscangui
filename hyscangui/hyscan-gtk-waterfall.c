@@ -855,6 +855,7 @@ hyscan_gtk_waterfall_cifroarea_check_scale (GtkCifroArea *carea,
   gdouble *zooms = priv->zooms;
   gdouble requested, current;
 
+
   /* Сначала проверим, а не равны ли заправшиваемый и текущий масштаб. */
   current = zooms[priv->zoom_index];
   if (fabs (*scale_x - current) < EPS2 && fabs (*scale_y - current) < EPS2)

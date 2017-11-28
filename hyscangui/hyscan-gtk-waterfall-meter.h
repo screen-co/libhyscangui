@@ -41,6 +41,9 @@ HYSCAN_API
 void                            hyscan_gtk_waterfall_meter_set_shadow_color (HyScanGtkWaterfallMeter *meter,
                                                                              GdkRGBA                  color);
 HYSCAN_API
+void                            hyscan_gtk_waterfall_meter_set_frame_color  (HyScanGtkWaterfallMeter *meter,
+                                                                             GdkRGBA                  color);
+HYSCAN_API
 void                            hyscan_gtk_waterfall_meter_set_meter_width  (HyScanGtkWaterfallMeter *meter,
                                                                              gdouble                  width);
 HYSCAN_API

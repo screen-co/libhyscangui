@@ -171,6 +171,17 @@ void                    hyscan_gtk_waterfall_grid_set_grid_color        (HyScanG
 HYSCAN_API
 void                    hyscan_gtk_waterfall_grid_set_label_color       (HyScanGtkWaterfallGrid *grid,
                                                                          guint32                 color);
+/**
+ *
+ * Функция позволяет задать цвет подложки под подписями.
+ *
+ * \param grid - указатель на объект \link HyScanGtkWaterfallGrid \endlink;
+ * \param color - цвет.
+ *
+ */
+HYSCAN_API
+void                    hyscan_gtk_waterfall_grid_set_shadow_color      (HyScanGtkWaterfallGrid *grid,
+                                                                         guint32                 color);
 
 G_END_DECLS
 

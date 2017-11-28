@@ -12,6 +12,9 @@ target_link_libraries (gtk-area-test ${TEST_LIBRARIES})
 target_link_libraries (gtk-waterfall-test ${TEST_LIBRARIES})
 target_link_libraries (waterfall-plus ${TEST_LIBRARIES})
 
+add_executable (gradient gradient.c)
+target_link_libraries (gradient ${TEST_LIBRARIES})
+
 install (TARGETS gtk-area-test
          COMPONENT test
          RUNTIME DESTINATION bin
