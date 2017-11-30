@@ -134,6 +134,8 @@ hyscan_gtk_waterfall_control_object_constructed (GObject *object)
 
   /* Сигналы модели. */
   g_signal_connect (priv->wfall, "changed::sources", G_CALLBACK (hyscan_gtk_waterfall_control_sources_changed), self);
+
+  hyscan_gtk_waterfall_control_sources_changed (priv->wfall, self);
 }
 
 
@@ -400,7 +402,7 @@ hyscan_gtk_waterfall_control_mouse_wheel (GtkWidget                 *widget,
       gint step = height / 10;
       step *= (event->direction == GDK_SCROLL_UP) ? 1 : -1;
 
-     if (priv->display_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN)
+      if (priv->display_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN)
         gtk_cifro_area_move (carea, 0, step);
       else /*if (priv->display_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER)*/
         gtk_cifro_area_move (carea, -step, 0);
@@ -413,7 +415,7 @@ hyscan_gtk_waterfall_control_mouse_wheel (GtkWidget                 *widget,
 }
 
 static void
-hyscan_gtk_waterfall_control_sources_changed (HyScanGtkWaterfallState      *model,
+hyscan_gtk_waterfall_control_sources_changed (HyScanGtkWaterfallState   *model,
                                               HyScanGtkWaterfallControl *self)
 {
   hyscan_gtk_waterfall_state_get_sources (model, &self->priv->display_type, NULL, NULL);

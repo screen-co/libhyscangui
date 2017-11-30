@@ -292,6 +292,7 @@ hyscan_gtk_waterfall_object_finalize (GObject *object)
   HyScanGtkWaterfallPrivate *priv = self->priv;
 
   cairo_surface_destroy (priv->surface);
+  cairo_surface_destroy (priv->dummy);
 
   g_free (priv->zooms);
 

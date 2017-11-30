@@ -100,6 +100,8 @@ struct _HyScanGtkWaterfallMarkPrivate
 
   GThread                    *processing;
   gint                        stop;
+  gint                        cond_flag;
+  GCond                       cond;
 
   GList                      *tasks;          /* Список меток, которые нужно отправить в БД. */
   GMutex                      task_lock;      /* Блокировка списка. */
@@ -115,6 +117,7 @@ struct _HyScanGtkWaterfallMarkPrivate
 
   HyScanCoordinates           press;
   HyScanCoordinates           release;
+  HyScanCoordinates           pointer;
 
   HyScanGtkWaterfallMarkTask  current;
 
@@ -150,6 +153,8 @@ static void     hyscan_gtk_waterfall_mark_object_constructed      (GObject      
 static void     hyscan_gtk_waterfall_mark_object_finalize         (GObject                 *object);
 
 static void     hyscan_gtk_waterfall_mark_free_task               (gpointer                 data);
+static void     hyscan_gtk_waterfall_mark_clear_state             (HyScanGtkWaterfallMarkState  *state);
+static void     hyscan_gtk_waterfall_mark_clear_task              (gpointer                 data);
 static void     hyscan_gtk_waterfall_mark_sync_states             (HyScanGtkWaterfallMark  *self);
 static gpointer hyscan_gtk_waterfall_mark_processing              (gpointer                 data);
 
@@ -159,10 +164,10 @@ static gpointer hyscan_gtk_waterfall_mark_handle                  (HyScanGtkWate
                                                                    GdkEventButton          *event,
                                                                    HyScanGtkWaterfallMark  *self);
 static gboolean hyscan_gtk_waterfall_mark_key                     (GtkWidget               *widget,
-                                                                   GdkEventAny             *event,
+                                                                   GdkEventKey             *event,
                                                                    HyScanGtkWaterfallMark  *self);
 static gboolean hyscan_gtk_waterfall_mark_button                  (GtkWidget               *widget,
-                                                                   GdkEventAny             *event,
+                                                                   GdkEventButton          *event,
                                                                    HyScanGtkWaterfallMark  *self);
 static gboolean hyscan_gtk_waterfall_mark_motion                  (GtkWidget               *widget,
                                                                    GdkEventMotion          *event,
@@ -258,6 +263,8 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
   g_mutex_init (&priv->drawable_lock);
   g_mutex_init (&priv->state_lock);
 
+  g_cond_init (&priv->cond);
+
   /* Сигналы Gtk. */
   g_signal_connect (priv->wfall, "visible-draw",          G_CALLBACK (hyscan_gtk_waterfall_mark_draw), self);
   g_signal_connect (priv->wfall, "configure-event",       G_CALLBACK (hyscan_gtk_waterfall_mark_configure), self);
@@ -318,17 +325,31 @@ hyscan_gtk_waterfall_mark_object_finalize (GObject *object)
   HyScanGtkWaterfallMark *self = HYSCAN_GTK_WATERFALL_MARK (object);
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
 
+  g_atomic_int_inc (&priv->cond_flag);
+  g_cond_signal (&priv->cond);
   g_atomic_int_set (&priv->stop, TRUE);
   g_thread_join (priv->processing);
+
   /* Отключаемся от всех сигналов. */
   g_signal_handlers_disconnect_by_data (priv->wfall, self);
-
 
   g_clear_object (&priv->wfall);
 
   g_mutex_clear (&priv->task_lock);
   g_mutex_clear (&priv->drawable_lock);
   g_mutex_clear (&priv->state_lock);
+
+  g_cond_clear (&priv->cond);
+
+  g_list_free_full (priv->tasks, hyscan_gtk_waterfall_mark_free_task);
+  g_list_free_full (priv->drawable, hyscan_gtk_waterfall_mark_free_task);
+  g_list_free_full (priv->visible, hyscan_gtk_waterfall_mark_free_task);
+  g_list_free_full (priv->cancellable, hyscan_gtk_waterfall_mark_free_task);
+  hyscan_gtk_waterfall_mark_clear_task (&priv->current);
+
+  g_object_unref (priv->font);
+
+
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_mark_parent_class)->finalize (object);
 }
@@ -442,14 +463,29 @@ hyscan_gtk_waterfall_mark_free_task (gpointer data)
   g_free (task);
 }
 
+static void
+hyscan_gtk_waterfall_mark_clear_state (HyScanGtkWaterfallMarkState *state)
+{
+  g_clear_pointer (&state->profile, g_free);
+  g_clear_object (&state->cache);
+  g_clear_pointer (&state->prefix, g_free);
+  g_clear_object (&state->db);
+  g_clear_pointer (&state->project, g_free);
+  g_clear_pointer (&state->track, g_free);
+  g_clear_pointer (&state->velocity, g_array_unref);
+}
+
 /* Функция очищает структуру HyScanGtkWaterfallMarkTask. Без освобождения! */
 static void
 hyscan_gtk_waterfall_mark_clear_task (gpointer data)
 {
   HyScanGtkWaterfallMarkTask *task = data;
 
-  g_clear_pointer (&task->mark, hyscan_waterfall_mark_deep_free);
-  g_clear_pointer (&task->id, g_free);
+  hyscan_waterfall_mark_deep_free (task->mark);
+  g_free (task->id);
+
+  task->mark = NULL;
+  task->id = NULL;
 }
 
 /* Функция очищает структуру HyScanGtkWaterfallMarkTask. Без освобождения! */
@@ -588,6 +624,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
   HyScanDepthometer       *depth = NULL;
   HyScanWaterfallMarkData *mdata = NULL;
 
+  GMutex cond_mutex;
   GList *list, *link;
   HyScanGtkWaterfallMarkTask *task;
   HyScanSourceType source;
@@ -600,8 +637,27 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
   gboolean refresh = FALSE;
   HyScanGtkWaterfallMarkState *state = &priv->state;
 
+  g_mutex_init (&cond_mutex);
+
   while (!g_atomic_int_get (&priv->stop))
     {
+      /* Ждем сигнализации об изменениях. */
+      if (g_atomic_int_get (&priv->cond_flag) == 0)
+        {
+          gint64 end = g_get_monotonic_time () + G_TIME_SPAN_MILLISECOND * 250;
+          gboolean triggered;
+
+          g_mutex_lock (&cond_mutex);
+          triggered = g_cond_wait_until (&priv->cond, &cond_mutex, end);
+          g_mutex_unlock (&cond_mutex);
+
+          /* Если наступил таймаут, повторяем заново. */
+          if (!triggered)
+            continue;
+        }
+
+      g_atomic_int_set (&priv->cond_flag, 0);
+
       /* Проверяем, поменялось ли что-то. */
       if (g_atomic_int_get (&priv->state_changed))
         {
@@ -749,58 +805,62 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
 
           if (task->action == TASK_CREATE)
             {
-              gchar *name = g_strdup_printf ("Mark #%u", ++priv->count);
-              hyscan_waterfall_mark_data_add_full (mdata, name, "description", "operator",
-                                                   HYSCAN_GTK_WATERFALL_MARKS_ALL,
-                                                   g_get_real_time (), g_get_real_time (),
-                                                   source, index0, count0, task->dx * 1000, task->dy * 1000);
-              g_free (name);
+              HyScanWaterfallMark mark = {0};
+
+              mark.name              = g_strdup_printf ("Mark #%u", ++priv->count);
+              mark.description       = g_strdup_printf ("description");
+              mark.operator_name     = g_strdup_printf ("operator");
+              mark.labels            = HYSCAN_GTK_WATERFALL_MARKS_ALL;
+              mark.creation_time     = g_get_real_time ();
+              mark.modification_time = g_get_real_time ();
+              mark.source0           = source;
+              mark.index0            = index0;
+              mark.count0            = count0;
+              mark.width             = task->dx * 1000;
+              mark.height            = task->dy * 1000;
+
+              hyscan_waterfall_mark_data_add (mdata, &mark);
+              hyscan_waterfall_mark_free (&mark);
+
             }
           else if (task->action == TASK_MODIFY)
             {
-              hyscan_waterfall_mark_data_modify_full (mdata,
-                                                      task->id,
-                                                      task->mark->name,
-                                                      task->mark->description,
-                                                      task->mark->operator_name,
-                                                      task->mark->labels,
-                                                      task->mark->creation_time,
-                                                      g_get_real_time (),
-                                                      source, index0, count0,
-                                                      task->dx * 1000, task->dy * 1000);
+              HyScanWaterfallMark mark = {0};
+
+              mark.name              = g_strdup (task->mark->name);
+              mark.description       = g_strdup (task->mark->description);
+              mark.operator_name     = g_strdup (task->mark->operator_name);
+              mark.labels            = task->mark->labels;
+              mark.creation_time     = task->mark->creation_time;
+              mark.modification_time = g_get_real_time ();
+              mark.source0           = source;
+              mark.index0            = index0;
+              mark.count0            = count0;
+              mark.width             = task->dx * 1000;
+              mark.height            = task->dy * 1000;
+
+              hyscan_waterfall_mark_data_modify (mdata, task->id, &mark);
+              hyscan_waterfall_mark_free (&mark);
             }
         }
 
-      /* Очищаем весь список заданий. */
+      /* Очищаем список задач (напомню, что он предварительно скопирован). */
       g_list_free_full (list, hyscan_gtk_waterfall_mark_free_task);
       list = NULL;
 
-      /* Проверяем счётчик изменений и при необходимости
-       * забираем из БД обновленный список меток. */
+      /* Проверяем счётчик изменений. */
       mc = hyscan_waterfall_mark_data_get_mod_count (mdata);
 
-      /* Кстати, это можно переписать в две строки вместо девяти.
-       * Корректно, но абсолютно нечитаемо.
-       * if (!((mc == oldmc ? 0 : (oldmc = mc, 1)) + (!refresh ? 0 : (refresh = TRUE, 1))))
-       *   continue;
-       */
+      /* Если он не изменился и не стоит флаг принудительного обновления... */
       if (mc == oldmc && !refresh)
-        {
-          continue;
-        }
-      else
-        {
-          oldmc = mc;
-          refresh = FALSE;
-        }
+        continue;
+
+      oldmc = mc;
+      refresh = FALSE;
 
       /* Получаем список идентификаторов. */
       ids = hyscan_waterfall_mark_data_get_ids (mdata, &nids);
-
       priv->count = nids;
-
-      if (ids == NULL)
-        goto next;
 
       /* Каждую метку переводим в наши координаты. */
       for (i = 0; i < nids; i++)
@@ -845,7 +905,6 @@ ignore:
 
       g_free (ids);
 
-next:
       g_mutex_lock (&priv->drawable_lock);
       g_list_free_full (priv->drawable, hyscan_gtk_waterfall_mark_free_task);
       priv->drawable = list;
@@ -854,6 +913,8 @@ next:
       hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (priv->wfall));
     }
 
+  hyscan_gtk_waterfall_mark_clear_state (&priv->state);
+  hyscan_gtk_waterfall_mark_clear_state (&priv->new_state);
   g_clear_object (&lproj);
   g_clear_object (&rproj);
   g_clear_object (&idepth);
@@ -874,6 +935,82 @@ hyscan_gtk_waterfall_mark_find_by_id (gconstpointer _a,
     g_message ("Null id also occures!");
 
   return g_strcmp0 (a->id, b->id);
+}
+
+static GList*
+hyscan_gtk_waterfall_mark_find_closest (HyScanGtkWaterfallMark *self,
+                                        HyScanCoordinates      *pointer,
+                                        HyScanCoordinates      *point)
+{
+  HyScanCoordinates returnable;
+  HyScanGtkWaterfallMarkPrivate *priv = self->priv;
+  gdouble thres = HANDLE_RADIUS;
+  GList *link, *mlink = NULL;
+  gdouble rmin = G_MAXDOUBLE;
+
+  for (link = priv->visible; link != NULL; link = link->next)
+    {
+      gdouble r;
+      HyScanGtkWaterfallMarkTask *task = link->data;
+      HyScanCoordinates corner;
+
+      r = hyscan_gtk_waterfall_tools_distance (&task->px_center, pointer);
+      if (r < rmin)
+        {
+          rmin = r;
+          returnable = task->px_center;
+          mlink = link;
+        }
+
+      corner.x = task->px_center.x - task->px_dx;
+      corner.y = task->px_center.y - task->px_dy;
+      r = hyscan_gtk_waterfall_tools_distance (&corner, pointer);
+      if (r < rmin)
+        {
+          rmin = r;
+          returnable = corner;
+          mlink = link;
+        }
+
+      corner.x = task->px_center.x + task->px_dx;
+      corner.y = task->px_center.y - task->px_dy;
+      r = hyscan_gtk_waterfall_tools_distance (&corner, pointer);
+      if (r < rmin)
+        {
+          rmin = r;
+          returnable = corner;
+          mlink = link;
+        }
+
+      corner.x = task->px_center.x - task->px_dx;
+      corner.y = task->px_center.y + task->px_dy;
+      r = hyscan_gtk_waterfall_tools_distance (&corner, pointer);
+      if (r < rmin)
+        {
+          rmin = r;
+          returnable = corner;
+          mlink = link;
+        }
+
+      corner.x = task->px_center.x + task->px_dx;
+      corner.y = task->px_center.y + task->px_dy;
+      r = hyscan_gtk_waterfall_tools_distance (&corner, pointer);
+      if (r < rmin)
+        {
+          rmin = r;
+          returnable = corner;
+          mlink = link;
+        }
+
+    }
+
+  if (point != NULL)
+    *point = returnable;
+
+  if (rmin > thres)
+    return NULL;
+
+  return mlink;
 }
 
 static gpointer
@@ -898,58 +1035,55 @@ hyscan_gtk_waterfall_mark_handle (HyScanGtkWaterfallState *state,
 
   /* Предполагается, что редактировать можно только метки в БД.
    * Ещё не отправленные редактировать нельзя. */
-  for (link = priv->visible; link != NULL; link = link->next)
-    {
-      gdouble rc, rtl, rtr, rbl, rbr;
-      task = link->data;
+  link = hyscan_gtk_waterfall_mark_find_closest (self, &mouse, NULL);
 
-      rc = hyscan_gtk_waterfall_tools_distance(&task->px_center, &mouse);
+  if (link == NULL)
+    return NULL;
 
-      corner.x = task->px_center.x - task->px_dx;
-      corner.y = task->px_center.y - task->px_dy;
-      rtl = hyscan_gtk_waterfall_tools_distance(&corner, &mouse);
+  gdouble rc, rtl, rtr, rbl, rbr;
+  task = link->data;
 
-      corner.x = task->px_center.x + task->px_dx;
-      corner.y = task->px_center.y - task->px_dy;
-      rtr = hyscan_gtk_waterfall_tools_distance(&corner, &mouse);
+  rc = hyscan_gtk_waterfall_tools_distance(&task->px_center, &mouse);
 
-      corner.x = task->px_center.x - task->px_dx;
-      corner.y = task->px_center.y + task->px_dy;
-      rbl = hyscan_gtk_waterfall_tools_distance(&corner, &mouse);
+  corner.x = task->px_center.x - task->px_dx;
+  corner.y = task->px_center.y - task->px_dy;
+  rtl = hyscan_gtk_waterfall_tools_distance(&corner, &mouse);
 
-      corner.x = task->px_center.x + task->px_dx;
-      corner.y = task->px_center.y + task->px_dy;
-      rbr = hyscan_gtk_waterfall_tools_distance(&corner, &mouse);
+  corner.x = task->px_center.x + task->px_dx;
+  corner.y = task->px_center.y - task->px_dy;
+  rtr = hyscan_gtk_waterfall_tools_distance(&corner, &mouse);
 
-      if (rc < thres)
-        mode = LOCAL_EDIT_CENTER;
-      else if (rtl < thres || rtr < thres || rbl < thres || rbr < thres)
-        mode = LOCAL_EDIT_BORDER;
-      else
-        continue;
+  corner.x = task->px_center.x - task->px_dx;
+  corner.y = task->px_center.y + task->px_dy;
+  rbl = hyscan_gtk_waterfall_tools_distance(&corner, &mouse);
 
-      /* Очищаем current, чтобы ничего не текло. */
-      hyscan_gtk_waterfall_mark_clear_task (&priv->current);
+  corner.x = task->px_center.x + task->px_dx;
+  corner.y = task->px_center.y + task->px_dy;
+  rbr = hyscan_gtk_waterfall_tools_distance(&corner, &mouse);
 
-      /* Переписываем редактируемую метку из общего списка в current. */
-      hyscan_gtk_waterfall_mark_copy_task (task, &priv->current);
-      priv->current.action = TASK_MODIFY;
-      priv->mode = mode;
-      priv->mouse_mode = mode;
 
-      return self;
-    }
+  if (rc < MIN (MIN(rtl, rtr), MIN(rbl, rbr)))
+    mode = LOCAL_EDIT_CENTER;
+  else
+    mode = LOCAL_EDIT_BORDER;
 
-  return NULL;
+  /* Очищаем current, чтобы ничего не текло. */
+  hyscan_gtk_waterfall_mark_clear_task (&priv->current);
+
+  /* Переписываем редактируемую метку из общего списка в current. */
+  hyscan_gtk_waterfall_mark_copy_task (task, &priv->current);
+  priv->current.action = TASK_MODIFY;
+  priv->mode = mode;
+  priv->mouse_mode = mode;
+
+  return self;
 }
 
 static gboolean
 hyscan_gtk_waterfall_mark_key (GtkWidget              *widget,
-                               GdkEventAny            *_event,
+                               GdkEventKey            *event,
                                HyScanGtkWaterfallMark *self)
 {
-  GdkEventKey *event = (GdkEventKey*)_event;
-
   if (self->priv->mode == LOCAL_EMPTY)
     return FALSE;
 
@@ -965,10 +1099,9 @@ hyscan_gtk_waterfall_mark_key (GtkWidget              *widget,
 
 static gboolean
 hyscan_gtk_waterfall_mark_button (GtkWidget              *widget,
-                                  GdkEventAny            *_event,
+                                  GdkEventButton         *event,
                                   HyScanGtkWaterfallMark *self)
 {
-  GdkEventButton *event = (GdkEventButton*)_event;
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
 
   /* Игнорируем нажатия всех кнопок, кроме левой. */
@@ -1037,8 +1170,10 @@ hyscan_gtk_waterfall_mark_mouse_interaction_processor (GtkWidget              *w
       GList *link;
 
       /* Удаляем метку из общего списка. */
+      g_mutex_lock (&priv->drawable_lock);
       link = g_list_find_custom (priv->drawable, &priv->current, hyscan_gtk_waterfall_mark_find_by_id);
       priv->drawable = g_list_remove_link (priv->drawable, link);
+      g_mutex_unlock (&priv->drawable_lock);
 
       priv->cancellable = link;
 
@@ -1047,15 +1182,17 @@ hyscan_gtk_waterfall_mark_mouse_interaction_processor (GtkWidget              *w
     }
   else if (priv->mode == LOCAL_EDIT || priv->mode == LOCAL_CREATE)
     {
-      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wfall, NULL);
 
       new = g_new0 (HyScanGtkWaterfallMarkTask, 1);
-      *new = priv->current;
-      new->id = g_strdup (priv->current.id);
-      new->mark = hyscan_waterfall_mark_copy (priv->current.mark);
+      hyscan_gtk_waterfall_mark_copy_task (&priv->current, new);
 
       priv->mouse_mode = priv->mode = LOCAL_EMPTY;
+      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wfall, NULL);
+
+      g_list_free_full (priv->cancellable, hyscan_gtk_waterfall_mark_free_task);
+      priv->cancellable = NULL;
     }
+
   else if (priv->mode == LOCAL_CANCEL || priv->mode == LOCAL_REMOVE)
     {
       if (priv->cancellable == NULL)
@@ -1063,7 +1200,9 @@ hyscan_gtk_waterfall_mark_mouse_interaction_processor (GtkWidget              *w
 
       if (priv->mode == LOCAL_CANCEL)
         {
+          g_mutex_lock (&priv->drawable_lock);
           priv->drawable = g_list_append (priv->drawable, priv->cancellable->data);
+          g_mutex_unlock (&priv->drawable_lock);
           priv->cancellable = g_list_delete_link (priv->cancellable, priv->cancellable);
         }
 
@@ -1078,8 +1217,8 @@ hyscan_gtk_waterfall_mark_mouse_interaction_processor (GtkWidget              *w
         }
 
 reset:
-      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wfall, NULL);
       priv->mouse_mode = priv->mode = LOCAL_EMPTY;
+      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wfall, NULL);
     }
 
   if (new != NULL)
@@ -1087,6 +1226,9 @@ reset:
       g_mutex_lock (&priv->task_lock);
       priv->tasks = g_list_prepend (priv->tasks, new);
       g_mutex_unlock (&priv->task_lock);
+
+      g_atomic_int_inc (&priv->cond_flag);
+      g_cond_signal (&priv->cond);
     }
 
   hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (priv->wfall));
@@ -1095,8 +1237,8 @@ reset:
 
 static gboolean
 hyscan_gtk_waterfall_mark_interaction_resolver (GtkWidget               *widget,
-                                       GdkEventAny             *event,
-                                       HyScanGtkWaterfallMark  *self)
+                                                GdkEventAny             *event,
+                                                HyScanGtkWaterfallMark  *self)
 {
   HyScanGtkWaterfallState *state = self->priv->wfall;
   gconstpointer howner, iowner;
@@ -1119,9 +1261,9 @@ hyscan_gtk_waterfall_mark_interaction_resolver (GtkWidget               *widget,
 
   /* Обработка кнопок мыши. */
   if (event->type == GDK_BUTTON_RELEASE)
-    hyscan_gtk_waterfall_mark_button (widget, event, self);
+    hyscan_gtk_waterfall_mark_button (widget, (GdkEventButton*)event, self);
   else if (event->type == GDK_KEY_PRESS)
-    hyscan_gtk_waterfall_mark_key (widget, event, self);
+    hyscan_gtk_waterfall_mark_key (widget, (GdkEventKey*)event, self);
 
   return TRUE;
 }
@@ -1129,8 +1271,8 @@ hyscan_gtk_waterfall_mark_interaction_resolver (GtkWidget               *widget,
 /* Обработчик движения мыши. */
 static gboolean
 hyscan_gtk_waterfall_mark_motion (GtkWidget              *widget,
-                                        GdkEventMotion         *event,
-                                        HyScanGtkWaterfallMark *self)
+                                  GdkEventMotion         *event,
+                                  HyScanGtkWaterfallMark *self)
 {
   HyScanCoordinates coord;
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
@@ -1153,6 +1295,8 @@ hyscan_gtk_waterfall_mark_motion (GtkWidget              *widget,
       break;
     }
 
+  priv->pointer.x = event->x;
+  priv->pointer.y = event->y;
   return FALSE;
 }
 
@@ -1182,6 +1326,28 @@ hyscan_gtk_waterfall_mark_intersection (HyScanGtkWaterfallMark     *self,
     return FALSE;
 
   return TRUE;
+}
+
+void
+hyscan_gtk_waterfall_mark_draw_handle  (cairo_t          *cairo,
+                                        GdkRGBA           inner,
+                                        GdkRGBA           outer,
+                                        HyScanCoordinates center,
+                                        gdouble           radius)
+{
+  cairo_pattern_t *pttrn;
+  cairo_matrix_t matrix;
+
+  pttrn = hyscan_gtk_waterfall_tools_make_handle_pattern (radius, inner, outer);
+
+  cairo_matrix_init_translate (&matrix, -center.x, -center.y);
+  cairo_pattern_set_matrix (pttrn, &matrix);
+
+  cairo_set_source (cairo, pttrn);
+  cairo_arc (cairo, center.x, center.y, radius, 0, G_PI * 2);
+  cairo_fill (cairo);
+
+  cairo_pattern_destroy (pttrn);
 }
 
 static void
@@ -1352,12 +1518,23 @@ hyscan_gtk_waterfall_mark_draw (GtkWidget              *widget,
   g_mutex_unlock (&priv->task_lock);
 
   /* Отрисовываем current метку. */
-  if (priv->mode != LOCAL_EMPTY)
+  if (priv->mode == LOCAL_EMPTY)
+    {
+      HyScanCoordinates handle;
+      link = hyscan_gtk_waterfall_mark_find_closest (self, &priv->pointer, &handle);
+      if (link != NULL)
+        {
+          hyscan_gtk_waterfall_mark_draw_handle (cairo, priv->color.mark, priv->color.shadow,
+                                                 handle, HANDLE_RADIUS);
+        }
+    }
+  else /*if (priv->mode == LOCAL_EMPTY)*/
     {
       HyScanGtkWaterfallMarkTask new = {.mark = NULL};
 
       new = priv->current;
       hyscan_gtk_waterfall_mark_draw_task (self, cairo, &new, TRUE, FALSE);
+
     }
 
   cairo_restore (cairo);
@@ -1403,6 +1580,9 @@ hyscan_gtk_waterfall_mark_sources_changed (HyScanGtkWaterfallState *model,
 
   g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
+
+  g_atomic_int_inc (&priv->cond_flag);
+  g_cond_signal (&priv->cond);
 }
 
 static void
@@ -1417,6 +1597,9 @@ hyscan_gtk_waterfall_mark_tile_type_changed (HyScanGtkWaterfallState *model,
 
   g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
+
+  g_atomic_int_inc (&priv->cond_flag);
+  g_cond_signal (&priv->cond);
 }
 
 static void
@@ -1431,6 +1614,9 @@ hyscan_gtk_waterfall_mark_profile_changed (HyScanGtkWaterfallState *model,
 
   g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
+
+  g_atomic_int_inc (&priv->cond_flag);
+  g_cond_signal (&priv->cond);
 }
 
 static void
@@ -1450,6 +1636,9 @@ hyscan_gtk_waterfall_mark_cache_changed (HyScanGtkWaterfallState *model,
 
   g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
+
+  g_atomic_int_inc (&priv->cond_flag);
+  g_cond_signal (&priv->cond);
 }
 
 static void
@@ -1471,6 +1660,9 @@ hyscan_gtk_waterfall_mark_track_changed (HyScanGtkWaterfallState *model,
 
   g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
+
+  g_atomic_int_inc (&priv->cond_flag);
+  g_cond_signal (&priv->cond);
 }
 
 static void
@@ -1486,6 +1678,9 @@ hyscan_gtk_waterfall_mark_ship_speed_changed (HyScanGtkWaterfallState *model,
 
   g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
+
+  g_atomic_int_inc (&priv->cond_flag);
+  g_cond_signal (&priv->cond);
 }
 
 static void
@@ -1500,6 +1695,9 @@ hyscan_gtk_waterfall_mark_sound_velocity_changed (HyScanGtkWaterfallState *model
 
   g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
+
+  g_atomic_int_inc (&priv->cond_flag);
+  g_cond_signal (&priv->cond);
 }
 
 static void
@@ -1516,6 +1714,9 @@ hyscan_gtk_waterfall_mark_depth_source_changed (HyScanGtkWaterfallState *model,
 
   g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
+
+  g_atomic_int_inc (&priv->cond_flag);
+  g_cond_signal (&priv->cond);
 }
 
 static void
@@ -1531,6 +1732,9 @@ hyscan_gtk_waterfall_mark_depth_params_changed (HyScanGtkWaterfallState *model,
 
   g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
+
+  g_atomic_int_inc (&priv->cond_flag);
+  g_cond_signal (&priv->cond);
 }
 
 HyScanGtkWaterfallMark*

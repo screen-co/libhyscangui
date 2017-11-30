@@ -169,6 +169,12 @@ main (int    argc,
   g_free (track_name);
   g_free (db_uri);
 
+  g_clear_object (&wf_state);
+  g_clear_object (&wf_grid);
+  g_clear_object (&wf_ctrl);
+  g_clear_object (&wf_mark);
+  g_clear_object (&wf_metr);
+
   xmlCleanupParser ();
 
   return 0;
