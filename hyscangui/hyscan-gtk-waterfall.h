@@ -1,12 +1,12 @@
 /**
  * \file hyscan-gtk-waterfall.h
  *
- * \brief Виджет "водопад".
+ * \brief Виджет "водопад"
  *
  * \author Dmitriev Alexander (m1n7@yandex.ru)
  * \date 2017
  * \license Проприетарная лицензия ООО "Экран"
- * \defgroup HyScanGtkWaterfall HyScanGtkWaterfall - отображение гидролокационных данных в режиме водопад.
+ * \defgroup HyScanGtkWaterfall HyScanGtkWaterfall - отображение гидролокационных данных в режиме водопад
  *
  * Данный виджет занимается всем, что связано с отрисовкой тайлов.
  * Он содержит объекты HyScanTileQueue и HyScanTileColor, которые занимаются
@@ -33,12 +33,12 @@
  * - #hyscan_gtk_waterfall_set_colormap для установки цветовой
  *    схемы для конкретного источника данных;
  * - #hyscan_gtk_waterfall_set_colormap_for_all для установки
- *    резервной цветовой схемы;
+ *    цветовой схемы для всех источников сразу;
  * - #hyscan_gtk_waterfall_set_levels для установки уровней
  *    черной и белой точки и гамма-коррекции для конкретного источника
  *    данных;
  * - #hyscan_gtk_waterfall_set_levels_for_all для установки
- *    резервных уровней.
+ *    уровней для всех источников сразу.
  *
  * Автосдвижка:
  * - #hyscan_gtk_waterfall_automove включает и выключает автосдвижку;
@@ -66,6 +66,7 @@
  * перегенерации.
  *
  * #hyscan_gtk_waterfall_new создает новый виджет HyScanGtkWaterfall.
+ *
  */
 
 #ifndef __HYSCAN_GTK_WATERFALL_H__

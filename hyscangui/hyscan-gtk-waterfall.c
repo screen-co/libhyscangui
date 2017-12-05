@@ -1,12 +1,13 @@
 /*
- * \file hyscan-gtk-self.c
+ * \file hyscan-gtk-waterfall.c
  *
- * \brief Исходный файл виджета водопад.
+ * \brief Исходный файл виджета водопад
  * \author Dmitriev Alexander (m1n7@yandex.ru)
  * \date 2017
  * \license Проприетарная лицензия ООО "Экран"
  *
  */
+
 #include "hyscan-gtk-waterfall.h"
 #include <hyscan-gui-marshallers.h>
 #include <hyscan-tile-queue.h>
@@ -43,8 +44,6 @@ static const gdouble zooms_gost[ZOOM_LEVELS] = {5000.0, 2000.0, 1000.0, 800.0, 5
 
 struct _HyScanGtkWaterfallPrivate
 {
-
-
   gfloat                 ppi;                /**< PPI. */
   cairo_surface_t       *surface;            /**< Поверхность тайла. */
 
@@ -439,10 +438,8 @@ hyscan_gtk_waterfall_get_tile (HyScanGtkWaterfall *self,
   color_found = hyscan_tile_color_check (priv->color, &requested_tile, &color_tile);
 
   /* На основании этого определяем, как поступить. */
-  if (color_found)
+  if (color_found && (color_tile.finalized || !queue_found))
     {
-      if (!color_tile.finalized)
-        g_message ("CTNF || QF %i", queue_found);
       show_strategy = SHOW;
       hyscan_gtk_waterfall_prepare_csurface (surface, color_tile.w, color_tile.h, &tile_surface);
     }
@@ -764,7 +761,7 @@ hyscan_gtk_waterfall_configure (GtkWidget         *widget,
   HyScanGtkWaterfall *self = HYSCAN_GTK_WATERFALL (widget);
   HyScanGtkWaterfallPrivate *priv = self->priv;
   GdkScreen *gdkscreen;
-  GdkRectangle monitor;
+  GdkRectangle mon_geom;
 
   gint i = 0;
   gint monitor_num, monitor_h, monitor_w;
@@ -775,8 +772,8 @@ hyscan_gtk_waterfall_configure (GtkWidget         *widget,
   monitor_num = gdk_screen_get_monitor_at_window (gdkscreen, event->window);
 
   /* Диагональ в пикселях. */
-  gdk_screen_get_monitor_geometry (gdkscreen, monitor_num, &monitor);
-  diagonal_pix = sqrt (monitor.width * monitor.width + monitor.height * monitor.height);
+  gdk_screen_get_monitor_geometry (gdkscreen, monitor_num, &mon_geom);
+  diagonal_pix = sqrt (mon_geom.width * mon_geom.width + mon_geom.height * mon_geom.height);
 
   /* Диагональ в миллиметрах. */
   monitor_h = gdk_screen_get_monitor_height_mm (gdkscreen, monitor_num);

@@ -1,3 +1,13 @@
+/*
+ * \file hyscan-gtk-waterfall-control.c
+ *
+ * \brief Исходный файл класса управления виджетом водопада.
+ * \author Dmitriev Alexander (m1n7@yandex.ru)
+ * \date 2017
+ * \license Проприетарная лицензия ООО "Экран"
+ *
+ */
+
 #include "hyscan-gtk-waterfall-control.h"
 
 #define GTK_WATERFALL_CONTROL_INPUT_ID ((gpointer)NULL)
@@ -27,7 +37,8 @@ enum
 
 struct _HyScanGtkWaterfallControlPrivate
 {
-  HyScanGtkWaterfall   *wfall;
+  HyScanGtkWaterfallState   *wf_state;
+  HyScanGtkWaterfall        *wfall;
 
   HyScanWaterfallDisplayType display_type;
 
@@ -90,7 +101,8 @@ hyscan_gtk_waterfall_control_class_init (HyScanGtkWaterfallControlClass *klass)
   object_class->finalize = hyscan_gtk_waterfall_control_object_finalize;
 
   g_object_class_install_property (object_class, PROP_WATERFALL,
-    g_param_spec_object ("waterfall", "Waterfall", "GtkWaterfall object", HYSCAN_TYPE_GTK_WATERFALL_STATE,
+    g_param_spec_object ("waterfall", "Waterfall", "GtkWaterfall object",
+                         HYSCAN_TYPE_GTK_WATERFALL,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -110,9 +122,14 @@ hyscan_gtk_waterfall_control_set_property (GObject      *object,
   HyScanGtkWaterfallControl *self = HYSCAN_GTK_WATERFALL_CONTROL (object);
 
   if (prop_id == PROP_WATERFALL)
-    self->priv->wfall = g_value_dup_object (value);
+    {
+      self->priv->wfall = g_value_dup_object (value);
+      self->priv->wf_state = HYSCAN_GTK_WATERFALL_STATE (self->priv->wfall);
+    }
   else
-    G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    {
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    }
 }
 
 static void
@@ -135,7 +152,7 @@ hyscan_gtk_waterfall_control_object_constructed (GObject *object)
   /* Сигналы модели. */
   g_signal_connect (priv->wfall, "changed::sources", G_CALLBACK (hyscan_gtk_waterfall_control_sources_changed), self);
 
-  hyscan_gtk_waterfall_control_sources_changed (priv->wfall, self);
+  hyscan_gtk_waterfall_control_sources_changed (priv->wf_state, self);
 }
 
 
@@ -167,7 +184,7 @@ hyscan_gtk_waterfall_control_grab_input (HyScanGtkWaterfallLayer *iface)
 static const gchar*
 hyscan_gtk_waterfall_control_get_mnemonic (HyScanGtkWaterfallLayer *iface)
 {
-  return "waterfall-control";
+  return "find-location-symbolic";
 }
 
 static gboolean
@@ -422,7 +439,7 @@ hyscan_gtk_waterfall_control_sources_changed (HyScanGtkWaterfallState   *model,
 }
 
 HyScanGtkWaterfallControl*
-hyscan_gtk_waterfall_control_new (HyScanGtkWaterfallState *waterfall)
+hyscan_gtk_waterfall_control_new (HyScanGtkWaterfall *waterfall)
 {
   return g_object_new (HYSCAN_TYPE_GTK_WATERFALL_CONTROL,
                        "waterfall", waterfall,

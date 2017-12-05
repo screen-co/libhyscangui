@@ -58,7 +58,7 @@ cairo_pattern_t*        hyscan_gtk_waterfall_tools_make_handle_pattern (gdouble 
                                                                         GdkRGBA            outer);
 
 HYSCAN_API
-inline void             hyscan_cairo_set_source_gdk_rgba               (cairo_t           *cr,
+void             hyscan_cairo_set_source_gdk_rgba                      (cairo_t           *cr,
                                                                         GdkRGBA           *rgba);
 
 G_END_DECLS

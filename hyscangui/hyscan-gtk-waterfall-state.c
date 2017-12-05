@@ -1,3 +1,13 @@
+/*
+ * \file hyscan-gtk-waterfall-state.c
+ *
+ * \brief Исходный файл класса хранения параметров водопада.
+ * \author Dmitriev Alexander (m1n7@yandex.ru)
+ * \date 2017
+ * \license Проприетарная лицензия ООО "Экран"
+ *
+ */
+
 #include "hyscan-gtk-waterfall-state.h"
 #include <hyscan-gui-marshallers.h>
 #include <string.h>
@@ -295,7 +305,7 @@ hyscan_gtk_waterfall_state_sidescan (HyScanGtkWaterfallState *self,
 }
 
 void
-hyscan_gtk_waterfall_set_tile_type (HyScanGtkWaterfallState *self,
+hyscan_gtk_waterfall_state_set_tile_type (HyScanGtkWaterfallState *self,
                                     HyScanTileType           type)
 {
   HyScanGtkWaterfallStatePrivate *priv;

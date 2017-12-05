@@ -27,7 +27,8 @@ typedef struct
 
 struct _HyScanGtkWaterfallMeterPrivate
 {
-  HyScanGtkWaterfallState      *wfall;
+  HyScanGtkWaterfallState      *wf_state;
+  HyScanGtkWaterfall           *wfall;
   PangoLayout                  *font;              /* Раскладка шрифта. */
 
   HyScanCoordinates             press;
@@ -120,7 +121,8 @@ hyscan_gtk_waterfall_meter_class_init (HyScanGtkWaterfallMeterClass *klass)
   object_class->finalize = hyscan_gtk_waterfall_meter_object_finalize;
 
   g_object_class_install_property (object_class, PROP_WATERFALL,
-    g_param_spec_object ("waterfall", "Waterfall", "GtkWaterfall object", HYSCAN_TYPE_GTK_WATERFALL_STATE,
+    g_param_spec_object ("waterfall", "Waterfall", "GtkWaterfall object",
+                         HYSCAN_TYPE_GTK_WATERFALL,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -139,9 +141,14 @@ hyscan_gtk_waterfall_meter_set_property (GObject      *object,
   HyScanGtkWaterfallMeter *self = HYSCAN_GTK_WATERFALL_METER (object);
 
   if (prop_id == PROP_WATERFALL)
-    self->priv->wfall = g_value_dup_object (value);
+    {
+      self->priv->wfall = g_value_dup_object (value);
+      self->priv->wf_state = HYSCAN_GTK_WATERFALL_STATE (self->priv->wfall);
+    }
   else
-    G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    {
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    }
 }
 
 static void
@@ -151,20 +158,20 @@ hyscan_gtk_waterfall_meter_object_constructed (GObject *object)
   HyScanGtkWaterfallMeter *self = HYSCAN_GTK_WATERFALL_METER (object);
   HyScanGtkWaterfallMeterPrivate *priv = self->priv;
 
-  g_signal_connect (priv->wfall, "visible-draw",         G_CALLBACK (hyscan_gtk_waterfall_meter_draw), self);
-  g_signal_connect (priv->wfall, "configure-event",      G_CALLBACK (hyscan_gtk_waterfall_meter_configure), self);
-  g_signal_connect (priv->wfall, "key-press-event",      G_CALLBACK (hyscan_gtk_waterfall_meter_interaction_resolver), self);
-  g_signal_connect (priv->wfall, "button-release-event", G_CALLBACK (hyscan_gtk_waterfall_meter_interaction_resolver), self);
-  g_signal_connect (priv->wfall, "button-press-event",   G_CALLBACK (hyscan_gtk_waterfall_meter_button), self);
-  g_signal_connect (priv->wfall, "motion-notify-event",  G_CALLBACK (hyscan_gtk_waterfall_meter_motion), self);
+  g_signal_connect (priv->wf_state, "visible-draw",         G_CALLBACK (hyscan_gtk_waterfall_meter_draw), self);
+  g_signal_connect (priv->wf_state, "configure-event",      G_CALLBACK (hyscan_gtk_waterfall_meter_configure), self);
+  g_signal_connect (priv->wf_state, "key-press-event",      G_CALLBACK (hyscan_gtk_waterfall_meter_interaction_resolver), self);
+  g_signal_connect (priv->wf_state, "button-release-event", G_CALLBACK (hyscan_gtk_waterfall_meter_interaction_resolver), self);
+  g_signal_connect (priv->wf_state, "button-press-event",   G_CALLBACK (hyscan_gtk_waterfall_meter_button), self);
+  g_signal_connect (priv->wf_state, "motion-notify-event",  G_CALLBACK (hyscan_gtk_waterfall_meter_motion), self);
 
-  g_signal_connect (HYSCAN_GTK_WATERFALL_STATE (priv->wfall), "handle",  G_CALLBACK (hyscan_gtk_waterfall_meter_handle), self);
+  g_signal_connect (HYSCAN_GTK_WATERFALL_STATE (priv->wf_state), "handle",  G_CALLBACK (hyscan_gtk_waterfall_meter_handle), self);
 
   gdk_rgba_parse (&color_meter, "#fff44f");
   gdk_rgba_parse (&color_shadow, SHADOW_DEFAULT);
   gdk_rgba_parse (&color_frame, FRAME_DEFAULT);
 
-  hyscan_gtk_waterfall_meter_set_meter_color  (self, color_meter);
+  hyscan_gtk_waterfall_meter_set_main_color   (self, color_meter);
   hyscan_gtk_waterfall_meter_set_shadow_color (self, color_shadow);
   hyscan_gtk_waterfall_meter_set_frame_color  (self, color_frame);
   hyscan_gtk_waterfall_meter_set_meter_width  (self, 1);
@@ -178,9 +185,9 @@ hyscan_gtk_waterfall_meter_object_finalize (GObject *object)
   HyScanGtkWaterfallMeterPrivate *priv = self->priv;
 
   /* Отключаемся от всех сигналов. */
-  g_signal_handlers_disconnect_by_data (priv->wfall, self);
+  g_signal_handlers_disconnect_by_data (priv->wf_state, self);
 
-  g_clear_object (&priv->wfall);
+  g_clear_object (&priv->wf_state);
   g_clear_pointer (&priv->font, g_object_unref);
 
   g_list_free_full (priv->drawable, g_free);
@@ -195,14 +202,14 @@ hyscan_gtk_waterfall_meter_grab_input (HyScanGtkWaterfallLayer *iface)
 {
   HyScanGtkWaterfallMeter *self = HYSCAN_GTK_WATERFALL_METER (iface);
 
-  hyscan_gtk_waterfall_state_set_input_owner (HYSCAN_GTK_WATERFALL_STATE (self->priv->wfall), self);
-  hyscan_gtk_waterfall_state_set_changes_allowed (HYSCAN_GTK_WATERFALL_STATE (self->priv->wfall), TRUE);
+  hyscan_gtk_waterfall_state_set_input_owner (HYSCAN_GTK_WATERFALL_STATE (self->priv->wf_state), self);
+  hyscan_gtk_waterfall_state_set_changes_allowed (HYSCAN_GTK_WATERFALL_STATE (self->priv->wf_state), TRUE);
 }
 
 static const gchar*
 hyscan_gtk_waterfall_meter_get_mnemonic (HyScanGtkWaterfallLayer *iface)
 {
-  return "waterfall-meter";
+  return "preferences-desktop-display-symbolic";
 }
 
 static gint
@@ -353,7 +360,7 @@ hyscan_gtk_waterfall_meter_interaction_processor (GtkWidget               *widge
     {
       /* Устанавливаем режим. */
       priv->mode = LOCAL_CREATE;
-      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wfall, self);
+      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wf_state, self);
 
       /* Запоминаем координаты начала. */
       gtk_cifro_area_visible_point_to_value (GTK_CIFRO_AREA (widget), priv->release.x, priv->release.y,
@@ -374,7 +381,7 @@ hyscan_gtk_waterfall_meter_interaction_processor (GtkWidget               *widge
 
       /* Устанавливаем режим. */
       priv->mode = LOCAL_CREATE;
-      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wfall, self);
+      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wf_state, self);
     }
   else if (priv->mode == LOCAL_CREATE)
     {
@@ -387,7 +394,7 @@ hyscan_gtk_waterfall_meter_interaction_processor (GtkWidget               *widge
 
       /* Сбрасываем режим. */
       priv->mode = LOCAL_EMPTY;
-      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wfall, NULL);
+      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wf_state, NULL);
     }
   else if (priv->mode == LOCAL_CANCEL || priv->mode == LOCAL_REMOVE)
     {
@@ -398,10 +405,10 @@ hyscan_gtk_waterfall_meter_interaction_processor (GtkWidget               *widge
       priv->cancellable = NULL;
 
       priv->mode = LOCAL_EMPTY;
-      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wfall, NULL);
+      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wf_state, NULL);
     }
 
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (priv->wf_state));
   return TRUE;
 }
 
@@ -410,7 +417,7 @@ hyscan_gtk_waterfall_meter_interaction_resolver (GtkWidget               *widget
                                                  GdkEventAny             *event,
                                                  HyScanGtkWaterfallMeter *self)
 {
-  HyScanGtkWaterfallState *state = self->priv->wfall;
+  HyScanGtkWaterfallState *state = self->priv->wf_state;
   gconstpointer howner, iowner;
 
   /* Проверяем режим (просмотр/редактирование). */
@@ -496,7 +503,7 @@ hyscan_gtk_waterfall_meter_draw_task (HyScanGtkWaterfallMeter     *self,
   gdouble x,y;
 
   HyScanGtkWaterfallMeterPrivate *priv = self->priv;
-  GtkCifroArea *carea = GTK_CIFRO_AREA (self->priv->wfall);
+  GtkCifroArea *carea = GTK_CIFRO_AREA (self->priv->wf_state);
 
   /* Определяем, видна ли эта линейка на экране. */
   visible = hyscan_gtk_waterfall_tools_line_in_square (&task->start, &task->end,
@@ -662,7 +669,7 @@ hyscan_gtk_waterfall_meter_configure (GtkWidget               *widget,
 }
 
 HyScanGtkWaterfallMeter*
-hyscan_gtk_waterfall_meter_new (HyScanGtkWaterfallState *waterfall)
+hyscan_gtk_waterfall_meter_new (HyScanGtkWaterfall *waterfall)
 {
   return g_object_new (HYSCAN_TYPE_GTK_WATERFALL_METER,
                        "waterfall", waterfall,
@@ -670,13 +677,13 @@ hyscan_gtk_waterfall_meter_new (HyScanGtkWaterfallState *waterfall)
 }
 
 void
-hyscan_gtk_waterfall_meter_set_meter_color (HyScanGtkWaterfallMeter *self,
-                                            GdkRGBA                  color)
+hyscan_gtk_waterfall_meter_set_main_color (HyScanGtkWaterfallMeter *self,
+                                           GdkRGBA                  color)
 {
    g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_METER (self));
 
    self->priv->color.meter = color;
-   hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+   hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 void
@@ -686,7 +693,7 @@ hyscan_gtk_waterfall_meter_set_shadow_color (HyScanGtkWaterfallMeter *self,
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_METER (self));
 
   self->priv->color.shadow = color;
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 void
@@ -696,7 +703,7 @@ hyscan_gtk_waterfall_meter_set_frame_color (HyScanGtkWaterfallMeter *self,
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_METER (self));
 
   self->priv->color.frame = color;
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 void
@@ -706,7 +713,7 @@ hyscan_gtk_waterfall_meter_set_meter_width (HyScanGtkWaterfallMeter *self,
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_METER (self));
 
   self->priv->color.meter_width = width;
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 void
@@ -716,7 +723,7 @@ hyscan_gtk_waterfall_meter_set_shadow_width (HyScanGtkWaterfallMeter *self,
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_METER (self));
 
   self->priv->color.shadow_width = width;
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 static void

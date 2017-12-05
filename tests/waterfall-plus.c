@@ -38,7 +38,7 @@ gchar     *uri_composer     (gchar    **path,
                              gchar     *prefix,
                              guint      cut);
 
-GtkWidget *make_layer_btn   (const gchar        *icon,
+GtkWidget *make_layer_btn   (HyScanGtkWaterfallLayer *layer,
                              GtkWidget          *from);
 GtkWidget *make_overlay     (HyScanGtkWaterfall *wf,
                              gdouble             white,
@@ -130,10 +130,10 @@ main (int    argc,
   wf  = HYSCAN_GTK_WATERFALL (wf_widget);
   wf_state  = HYSCAN_GTK_WATERFALL_STATE (wf_widget);
 
-  wf_ctrl = hyscan_gtk_waterfall_control_new (wf_state);
-  wf_grid = hyscan_gtk_waterfall_grid_new (wf_state);
-  wf_metr = hyscan_gtk_waterfall_meter_new (wf_state);
-  wf_mark = hyscan_gtk_waterfall_mark_new (wf_state);
+  wf_ctrl = hyscan_gtk_waterfall_control_new (wf);
+  wf_grid = hyscan_gtk_waterfall_grid_new (wf);
+  wf_metr = hyscan_gtk_waterfall_meter_new (wf);
+  wf_mark = hyscan_gtk_waterfall_mark_new (wf);
 
   //hyscan_gtk_waterfall_echosounder (wf, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD);
 
@@ -181,11 +181,13 @@ main (int    argc,
 }
 
 GtkWidget*
-make_layer_btn (const gchar *icon,
-                GtkWidget   *from)
+make_layer_btn (HyScanGtkWaterfallLayer *layer,
+                GtkWidget               *from)
 {
   GtkWidget *new;
+  const gchar *icon;
 
+  icon = hyscan_gtk_waterfall_layer_get_mnemonic (layer);
   new = gtk_radio_button_new_from_widget (GTK_RADIO_BUTTON (from));
   gtk_toggle_button_set_mode (GTK_TOGGLE_BUTTON (new), FALSE);
   gtk_button_set_image (GTK_BUTTON (new), gtk_image_new_from_icon_name (icon, GTK_ICON_SIZE_BUTTON));
@@ -206,9 +208,9 @@ make_overlay (HyScanGtkWaterfall *wf,
   GtkWidget *scale_white = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.000, 1.0, 0.001);
   GtkWidget *scale_gamma = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.5, 2.0, 0.005);
 
-  GtkWidget *lay_ctrl = make_layer_btn ("find-location-symbolic", NULL);
-  GtkWidget *lay_mark = make_layer_btn ("user-bookmarks-symbolic", lay_ctrl);
-  GtkWidget *lay_metr = make_layer_btn ("preferences-desktop-display-symbolic", lay_mark);
+  GtkWidget *lay_ctrl = make_layer_btn (HYSCAN_GTK_WATERFALL_LAYER (wf_ctrl), NULL);
+  GtkWidget *lay_mark = make_layer_btn (HYSCAN_GTK_WATERFALL_LAYER (wf_mark), lay_ctrl);
+  GtkWidget *lay_metr = make_layer_btn (HYSCAN_GTK_WATERFALL_LAYER (wf_metr), lay_mark);
 
   GtkWidget *lay_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
   GtkWidget *track_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);

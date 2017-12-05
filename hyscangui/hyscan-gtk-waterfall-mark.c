@@ -91,7 +91,8 @@ typedef struct
 
 struct _HyScanGtkWaterfallMarkPrivate
 {
-  HyScanGtkWaterfallState    *wfall;
+  HyScanGtkWaterfallState    *wf_state;
+  HyScanGtkWaterfall         *wfall;
 
   HyScanGtkWaterfallMarkState new_state;
   HyScanGtkWaterfallMarkState state;
@@ -226,7 +227,8 @@ hyscan_gtk_waterfall_mark_class_init (HyScanGtkWaterfallMarkClass *klass)
   object_class->finalize = hyscan_gtk_waterfall_mark_object_finalize;
 
   g_object_class_install_property (object_class, PROP_WATERFALL,
-    g_param_spec_object ("waterfall", "Waterfall", "Waterfall widget", HYSCAN_TYPE_GTK_WATERFALL_STATE,
+    g_param_spec_object ("waterfall", "Waterfall", "Waterfall widget",
+                         HYSCAN_TYPE_GTK_WATERFALL_STATE,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -245,9 +247,14 @@ hyscan_gtk_waterfall_mark_set_property (GObject      *object,
   HyScanGtkWaterfallMark *self = HYSCAN_GTK_WATERFALL_MARK (object);
 
   if (prop_id == PROP_WATERFALL)
-    self->priv->wfall = g_value_dup_object (value);
+    {
+      self->priv->wfall = g_value_dup_object (value);
+      self->priv->wf_state = HYSCAN_GTK_WATERFALL_STATE (self->priv->wfall);
+    }
   else
-    G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    {
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    }
 }
 
 static void
@@ -266,35 +273,35 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
   g_cond_init (&priv->cond);
 
   /* Сигналы Gtk. */
-  g_signal_connect (priv->wfall, "visible-draw",          G_CALLBACK (hyscan_gtk_waterfall_mark_draw), self);
-  g_signal_connect (priv->wfall, "configure-event",       G_CALLBACK (hyscan_gtk_waterfall_mark_configure), self);
-  g_signal_connect (priv->wfall, "motion-notify-event",   G_CALLBACK (hyscan_gtk_waterfall_mark_motion), self);
-  g_signal_connect (priv->wfall, "key-press-event",       G_CALLBACK (hyscan_gtk_waterfall_mark_interaction_resolver), self);
-  g_signal_connect (priv->wfall, "button-release-event",  G_CALLBACK (hyscan_gtk_waterfall_mark_interaction_resolver), self);
-  g_signal_connect (priv->wfall, "button-press-event",    G_CALLBACK (hyscan_gtk_waterfall_mark_button), self);
+  g_signal_connect (priv->wf_state, "visible-draw",          G_CALLBACK (hyscan_gtk_waterfall_mark_draw), self);
+  g_signal_connect (priv->wf_state, "configure-event",       G_CALLBACK (hyscan_gtk_waterfall_mark_configure), self);
+  g_signal_connect (priv->wf_state, "motion-notify-event",   G_CALLBACK (hyscan_gtk_waterfall_mark_motion), self);
+  g_signal_connect (priv->wf_state, "key-press-event",       G_CALLBACK (hyscan_gtk_waterfall_mark_interaction_resolver), self);
+  g_signal_connect (priv->wf_state, "button-release-event",  G_CALLBACK (hyscan_gtk_waterfall_mark_interaction_resolver), self);
+  g_signal_connect (priv->wf_state, "button-press-event",    G_CALLBACK (hyscan_gtk_waterfall_mark_button), self);
 
-  g_signal_connect (priv->wfall, "handle", G_CALLBACK (hyscan_gtk_waterfall_mark_handle), self);
+  g_signal_connect (priv->wf_state, "handle", G_CALLBACK (hyscan_gtk_waterfall_mark_handle), self);
 
   /* Сигналы модели водопада. */
-  g_signal_connect (priv->wfall, "changed::sources",      G_CALLBACK (hyscan_gtk_waterfall_mark_sources_changed), self);
-  g_signal_connect (priv->wfall, "changed::tile-type",    G_CALLBACK (hyscan_gtk_waterfall_mark_tile_type_changed), self);
-  g_signal_connect (priv->wfall, "changed::profile",      G_CALLBACK (hyscan_gtk_waterfall_mark_profile_changed), self);
-  g_signal_connect (priv->wfall, "changed::track",        G_CALLBACK (hyscan_gtk_waterfall_mark_track_changed), self);
-  g_signal_connect (priv->wfall, "changed::speed",        G_CALLBACK (hyscan_gtk_waterfall_mark_ship_speed_changed), self);
-  g_signal_connect (priv->wfall, "changed::velocity",     G_CALLBACK (hyscan_gtk_waterfall_mark_sound_velocity_changed), self);
-  g_signal_connect (priv->wfall, "changed::depth-source", G_CALLBACK (hyscan_gtk_waterfall_mark_depth_source_changed), self);
-  g_signal_connect (priv->wfall, "changed::depth-params", G_CALLBACK (hyscan_gtk_waterfall_mark_depth_params_changed), self);
-  g_signal_connect (priv->wfall, "changed::cache",        G_CALLBACK (hyscan_gtk_waterfall_mark_cache_changed), self);
+  g_signal_connect (priv->wf_state, "changed::sources",      G_CALLBACK (hyscan_gtk_waterfall_mark_sources_changed), self);
+  g_signal_connect (priv->wf_state, "changed::tile-type",    G_CALLBACK (hyscan_gtk_waterfall_mark_tile_type_changed), self);
+  g_signal_connect (priv->wf_state, "changed::profile",      G_CALLBACK (hyscan_gtk_waterfall_mark_profile_changed), self);
+  g_signal_connect (priv->wf_state, "changed::track",        G_CALLBACK (hyscan_gtk_waterfall_mark_track_changed), self);
+  g_signal_connect (priv->wf_state, "changed::speed",        G_CALLBACK (hyscan_gtk_waterfall_mark_ship_speed_changed), self);
+  g_signal_connect (priv->wf_state, "changed::velocity",     G_CALLBACK (hyscan_gtk_waterfall_mark_sound_velocity_changed), self);
+  g_signal_connect (priv->wf_state, "changed::depth-source", G_CALLBACK (hyscan_gtk_waterfall_mark_depth_source_changed), self);
+  g_signal_connect (priv->wf_state, "changed::depth-params", G_CALLBACK (hyscan_gtk_waterfall_mark_depth_params_changed), self);
+  g_signal_connect (priv->wf_state, "changed::cache",        G_CALLBACK (hyscan_gtk_waterfall_mark_cache_changed), self);
 
-  hyscan_gtk_waterfall_mark_sources_changed (priv->wfall, self);
-  hyscan_gtk_waterfall_mark_tile_type_changed (priv->wfall, self);
-  hyscan_gtk_waterfall_mark_profile_changed (priv->wfall, self);
-  hyscan_gtk_waterfall_mark_cache_changed (priv->wfall, self);
-  hyscan_gtk_waterfall_mark_track_changed (priv->wfall, self);
-  hyscan_gtk_waterfall_mark_ship_speed_changed (priv->wfall, self);
-  hyscan_gtk_waterfall_mark_sound_velocity_changed (priv->wfall, self);
-  hyscan_gtk_waterfall_mark_depth_source_changed (priv->wfall, self);
-  hyscan_gtk_waterfall_mark_depth_params_changed (priv->wfall, self);
+  hyscan_gtk_waterfall_mark_sources_changed (priv->wf_state, self);
+  hyscan_gtk_waterfall_mark_tile_type_changed (priv->wf_state, self);
+  hyscan_gtk_waterfall_mark_profile_changed (priv->wf_state, self);
+  hyscan_gtk_waterfall_mark_cache_changed (priv->wf_state, self);
+  hyscan_gtk_waterfall_mark_track_changed (priv->wf_state, self);
+  hyscan_gtk_waterfall_mark_ship_speed_changed (priv->wf_state, self);
+  hyscan_gtk_waterfall_mark_sound_velocity_changed (priv->wf_state, self);
+  hyscan_gtk_waterfall_mark_depth_source_changed (priv->wf_state, self);
+  hyscan_gtk_waterfall_mark_depth_params_changed (priv->wf_state, self);
 
   hyscan_gtk_waterfall_mark_set_mark_filter (self, HYSCAN_GTK_WATERFALL_MARKS_ALL);
 
@@ -306,7 +313,7 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
   gdk_rgba_parse (&priv->color.pend, SHADOW_DEFAULT);
   blackout.alpha = 0.5;
 
-  hyscan_gtk_waterfall_mark_set_mark_color (self, mark);
+  hyscan_gtk_waterfall_mark_set_main_color (self, mark);
   hyscan_gtk_waterfall_mark_set_mark_width (self, 1);
   hyscan_gtk_waterfall_mark_set_frame_color (self, frame);
   hyscan_gtk_waterfall_mark_set_shadow_color (self, shadow);
@@ -316,7 +323,7 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
   priv->mode = LOCAL_EMPTY;
 
   priv->stop = FALSE;
-  priv->processing = g_thread_new ("gtk-wfall-mark", hyscan_gtk_waterfall_mark_processing, self);
+  priv->processing = g_thread_new ("gtk-wf_state-mark", hyscan_gtk_waterfall_mark_processing, self);
 }
 
 static void
@@ -331,9 +338,9 @@ hyscan_gtk_waterfall_mark_object_finalize (GObject *object)
   g_thread_join (priv->processing);
 
   /* Отключаемся от всех сигналов. */
-  g_signal_handlers_disconnect_by_data (priv->wfall, self);
+  g_signal_handlers_disconnect_by_data (priv->wf_state, self);
 
-  g_clear_object (&priv->wfall);
+  g_clear_object (&priv->wf_state);
 
   g_mutex_clear (&priv->task_lock);
   g_mutex_clear (&priv->drawable_lock);
@@ -359,14 +366,14 @@ hyscan_gtk_waterfall_mark_grab_input (HyScanGtkWaterfallLayer *iface)
 {
   HyScanGtkWaterfallMark *self = HYSCAN_GTK_WATERFALL_MARK (iface);
 
-  hyscan_gtk_waterfall_state_set_input_owner (self->priv->wfall, self);
-  hyscan_gtk_waterfall_state_set_changes_allowed (self->priv->wfall, TRUE);
+  hyscan_gtk_waterfall_state_set_input_owner (self->priv->wf_state, self);
+  hyscan_gtk_waterfall_state_set_changes_allowed (self->priv->wf_state, TRUE);
 }
 
 static const gchar*
 hyscan_gtk_waterfall_mark_get_mnemonic (HyScanGtkWaterfallLayer *iface)
 {
-  return "waterfall-mark";
+  return "user-bookmarks-symbolic";
 }
 
 static HyScanDepth*
@@ -910,7 +917,7 @@ ignore:
       priv->drawable = list;
       list = NULL;
       g_mutex_unlock (&priv->drawable_lock);
-      hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (priv->wfall));
+      hyscan_gtk_waterfall_queue_draw (priv->wfall);
     }
 
   hyscan_gtk_waterfall_mark_clear_state (&priv->state);
@@ -1151,7 +1158,7 @@ hyscan_gtk_waterfall_mark_mouse_interaction_processor (GtkWidget              *w
 
   if (priv->mode == LOCAL_EMPTY)
     {
-      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wfall, self);
+      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wf_state, self);
       priv->mouse_mode = priv->mode = LOCAL_CREATE;
 
       /* Очищаем current. */
@@ -1178,7 +1185,7 @@ hyscan_gtk_waterfall_mark_mouse_interaction_processor (GtkWidget              *w
       priv->cancellable = link;
 
       priv->mode = LOCAL_EDIT;
-      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wfall, self);
+      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wf_state, self);
     }
   else if (priv->mode == LOCAL_EDIT || priv->mode == LOCAL_CREATE)
     {
@@ -1187,7 +1194,7 @@ hyscan_gtk_waterfall_mark_mouse_interaction_processor (GtkWidget              *w
       hyscan_gtk_waterfall_mark_copy_task (&priv->current, new);
 
       priv->mouse_mode = priv->mode = LOCAL_EMPTY;
-      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wfall, NULL);
+      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wf_state, NULL);
 
       g_list_free_full (priv->cancellable, hyscan_gtk_waterfall_mark_free_task);
       priv->cancellable = NULL;
@@ -1218,7 +1225,7 @@ hyscan_gtk_waterfall_mark_mouse_interaction_processor (GtkWidget              *w
 
 reset:
       priv->mouse_mode = priv->mode = LOCAL_EMPTY;
-      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wfall, NULL);
+      hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wf_state, NULL);
     }
 
   if (new != NULL)
@@ -1231,7 +1238,7 @@ reset:
       g_cond_signal (&priv->cond);
     }
 
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (priv->wfall);
   return FALSE;
 }
 
@@ -1240,7 +1247,7 @@ hyscan_gtk_waterfall_mark_interaction_resolver (GtkWidget               *widget,
                                                 GdkEventAny             *event,
                                                 HyScanGtkWaterfallMark  *self)
 {
-  HyScanGtkWaterfallState *state = self->priv->wfall;
+  HyScanGtkWaterfallState *state = self->priv->wf_state;
   gconstpointer howner, iowner;
 
   /* Проверяем режим (просмотр/редактирование). */
@@ -1393,7 +1400,7 @@ hyscan_gtk_waterfall_mark_draw_task (HyScanGtkWaterfallMark     *self,
                                      gboolean                    pending)
 {
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
-  GtkCifroArea *carea = GTK_CIFRO_AREA (priv->wfall);
+  GtkCifroArea *carea = GTK_CIFRO_AREA (priv->wf_state);
   PangoLayout *font = priv->font;
 
   HyScanCoordinates center;
@@ -1738,7 +1745,7 @@ hyscan_gtk_waterfall_mark_depth_params_changed (HyScanGtkWaterfallState *model,
 }
 
 HyScanGtkWaterfallMark*
-hyscan_gtk_waterfall_mark_new (HyScanGtkWaterfallState *waterfall)
+hyscan_gtk_waterfall_mark_new (HyScanGtkWaterfall *waterfall)
 {
   return g_object_new (HYSCAN_TYPE_GTK_WATERFALL_MARK,
                        "waterfall", waterfall,
@@ -1768,17 +1775,17 @@ hyscan_gtk_waterfall_mark_set_draw_type (HyScanGtkWaterfallMark     *self,
                                          HyScanGtkWaterfallMarksDraw type)
 {
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_MARK (self));
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 void
-hyscan_gtk_waterfall_mark_set_mark_color (HyScanGtkWaterfallMark *self,
+hyscan_gtk_waterfall_mark_set_main_color (HyScanGtkWaterfallMark *self,
                                           GdkRGBA                 color)
 {
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_MARK (self));
 
   self->priv->color.mark = color;
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 void
@@ -1788,7 +1795,7 @@ hyscan_gtk_waterfall_mark_set_mark_width (HyScanGtkWaterfallMark *self,
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_MARK (self));
 
   self->priv->color.mark_width = width;
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 void
@@ -1798,7 +1805,7 @@ hyscan_gtk_waterfall_mark_set_frame_color (HyScanGtkWaterfallMark *self,
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_MARK (self));
 
   self->priv->color.frame = color;
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 
@@ -1809,7 +1816,7 @@ hyscan_gtk_waterfall_mark_set_shadow_color (HyScanGtkWaterfallMark *self,
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_MARK (self));
 
   self->priv->color.shadow = color;
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 void
 hyscan_gtk_waterfall_mark_set_shadow_width (HyScanGtkWaterfallMark *self,
@@ -1818,7 +1825,7 @@ hyscan_gtk_waterfall_mark_set_shadow_width (HyScanGtkWaterfallMark *self,
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_MARK (self));
 
   self->priv->color.shadow_width = width;
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 void
@@ -1828,7 +1835,7 @@ hyscan_gtk_waterfall_mark_set_blackout_color (HyScanGtkWaterfallMark     *self,
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_MARK (self));
 
   self->priv->color.blackout = color;
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 static void

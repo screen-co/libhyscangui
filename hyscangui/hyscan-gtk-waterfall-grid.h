@@ -1,13 +1,12 @@
 /**
- *
  * \file hyscan-gtk-waterfall-grid.h
  *
- * \brief Координатная сетка для виджета водопад.
+ * \brief Координатная сетка для виджета водопад
  *
  * \author Dmitriev Alexander (m1n7@yandex.ru)
  * \date 2017
  * \license Проприетарная лицензия ООО "Экран"
- * \defgroup HyScanGtkWaterfallGrid HyScanGtkWaterfallGrid - координатная сетка для водопада.
+ * \defgroup HyScanGtkWaterfallGrid HyScanGtkWaterfallGrid - координатная сетка для водопада
  *
  * Виджет создается методом #hyscan_gtk_waterfall_grid_new.
  *
@@ -23,7 +22,8 @@
  * - #hyscan_gtk_waterfall_grid_info_position_perc - процентное позиционирование информационного окна;
  * - #hyscan_gtk_waterfall_grid_set_grid_step - шаг сетки;
  * - #hyscan_gtk_waterfall_grid_set_grid_color - цвет сетки;
- * - #hyscan_gtk_waterfall_grid_set_label_color - цвет подписей.
+ * - #hyscan_gtk_waterfall_grid_set_main_color - цвет подписей.
+ *
  */
 
 #ifndef __HYSCAN_GTK_WATERFALL_GRID_H__
@@ -66,7 +66,7 @@ GType                   hyscan_gtk_waterfall_grid_get_type         (void);
  *
  */
 HYSCAN_API
-HyScanGtkWaterfallGrid *hyscan_gtk_waterfall_grid_new                   (HyScanGtkWaterfallState *waterfall);
+HyScanGtkWaterfallGrid *hyscan_gtk_waterfall_grid_new                   (HyScanGtkWaterfall     *waterfall);
 
 /**
  *
@@ -169,7 +169,7 @@ void                    hyscan_gtk_waterfall_grid_set_grid_color        (HyScanG
  *
  */
 HYSCAN_API
-void                    hyscan_gtk_waterfall_grid_set_label_color       (HyScanGtkWaterfallGrid *grid,
+void                    hyscan_gtk_waterfall_grid_set_main_color       (HyScanGtkWaterfallGrid *grid,
                                                                          guint32                 color);
 /**
  *

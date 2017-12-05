@@ -42,7 +42,7 @@ HYSCAN_API
 GType                    hyscan_gtk_waterfall_mark_get_type   (void);
 
 HYSCAN_API
-HyScanGtkWaterfallMark  *hyscan_gtk_waterfall_mark_new                 (HyScanGtkWaterfallState    *waterfall);
+HyScanGtkWaterfallMark  *hyscan_gtk_waterfall_mark_new                 (HyScanGtkWaterfall         *waterfall);
 
 /* фильтр лейблов */
 HYSCAN_API
@@ -55,7 +55,7 @@ void                     hyscan_gtk_waterfall_mark_set_draw_type       (HyScanGt
 
 /* цвет рамки и текста, через hyscan_tile_color_converter_d2i */
 HYSCAN_API
-void                     hyscan_gtk_waterfall_mark_set_mark_color      (HyScanGtkWaterfallMark     *mark,
+void                     hyscan_gtk_waterfall_mark_set_main_color      (HyScanGtkWaterfallMark     *mark,
                                                                         GdkRGBA                     color);
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_set_mark_width      (HyScanGtkWaterfallMark     *mark,

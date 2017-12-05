@@ -140,7 +140,7 @@ hyscan_gtk_waterfall_tools_make_handle_pattern (gdouble radius,
 }
 
 
-inline void
+void
 hyscan_cairo_set_source_gdk_rgba (cairo_t *cr,
                                   GdkRGBA *rgba)
 {

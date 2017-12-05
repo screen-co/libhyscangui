@@ -1,15 +1,96 @@
 /**
+ * \file hyscan-gtk-waterfall-state.h
  *
- * Сигналы:
- * - changed::sources
- * - changed::tile-type
- * - changed::profile
- * - changed::track
- * - changed::speed
- * - changed::velocity
- * - changed::depth-source
- * - changed::depth-params
- * - changed::cache
+ * \brief Виджет "водопад"
+ *
+ * \author Dmitriev Alexander (m1n7@yandex.ru)
+ * \date 2017
+ * \license Проприетарная лицензия ООО "Экран"
+ * \defgroup HyScanGtkWaterfallState HyScanGtkWaterfallState - хранение параметров водопада
+ *
+ * Данный класс решает две задачи. Первая - хранение основных параметров водопада.
+ * Вторая - хранения прав доступа к пользовательским воздействиям.
+ *
+ * Хранение параметров водопада.
+ * С помощью функций-сеттеров устанавливаются параметры и в этот же момент
+ * эмиттируется детализированный сигнал "changed".
+ * \code
+ * void
+ * changed_cb (HyScanGtkWaterfallState *state,
+ *             gpointer                 userdata);
+ *
+ * \endcode
+ *
+ * Сигнал "handle" интересен только разработчикам новых слоёв и более подробно
+ * описан в документации к интерфейсу \link HyScanGtkWaterfallLayer \endlink
+ * \code
+ * gconstpointer
+ * handle_cb (HyScanGtkWaterfallState *state,
+ *            GdkEventButton          *event,
+ *            gpointer                *userdata)
+ * \endcode
+ *
+ * - Тип тайла (наклонная / горизонтальная дальность):
+ *     \link hyscan_gtk_waterfall_state_set_tile_type сеттер, \endlink
+ *     \link hyscan_gtk_waterfall_state_get_tile_type геттер, \endlink
+ *     сигнал "changed::tile-type"
+ * - Система кэширования:
+ *     \link hyscan_gtk_waterfall_state_set_cache сеттер, \endlink
+ *     \link hyscan_gtk_waterfall_state_get_cache геттер, \endlink
+ *     сигнал "changed::profile"
+ * - Текущие БД, проект и галс:
+ *     \link hyscan_gtk_waterfall_state_set_track сеттер, \endlink
+ *     \link hyscan_gtk_waterfall_state_get_track геттер, \endlink
+ *     сигнал "changed::track"
+ * - Скорость судна:
+ *     \link hyscan_gtk_waterfall_state_set_ship_speed сеттер, \endlink
+ *     \link hyscan_gtk_waterfall_state_get_ship_speed геттер, \endlink
+ *     сигнал "changed::speed"
+ * - Профиль скорости звука:
+ *     \link hyscan_gtk_waterfall_state_set_sound_velocity сеттер, \endlink
+ *     \link hyscan_gtk_waterfall_state_get_sound_velocity геттер, \endlink
+ *     сигнал "changed::velocity"
+ * - Источник данных глубины:
+ *     \link hyscan_gtk_waterfall_state_set_depth_source сеттер, \endlink
+ *     \link hyscan_gtk_waterfall_state_get_depth_source геттер, \endlink
+ *     сигнал "changed::depth-source"
+ * - Окно валидности данных глубины:
+ *     \link hyscan_gtk_waterfall_state_set_depth_time сеттер, \endlink
+ *     \link hyscan_gtk_waterfall_state_get_depth_time геттер, \endlink
+ *     сигнал "changed::depth-params"
+ * - Размер фильтра для глубины:
+ *     \link hyscan_gtk_waterfall_state_set_depth_filter_size сеттер, \endlink
+ *     \link hyscan_gtk_waterfall_state_get_depth_filter_size геттер, \endlink
+ *     сигнал "changed::cache"
+ *
+ * Отдельно стоит функция задания типа отображения (водопад и эхолот):
+ * - #hyscan_gtk_waterfall_state_echosounder задает режим отображения "эхолот"
+ *   (один борт, более поздние данные справа)
+ * - #hyscan_gtk_waterfall_state_sidescan задает режим отображения "ГБО"
+ *   (два борта, более поздние данные сверху)
+ * - #hyscan_gtk_waterfall_state_get_sources возвращает режим отображения и
+ *   выбранные источники.
+ * Сигнал - "changed::sources"
+ *
+ * Разграничение доступа.
+ *
+ * Некоторые слои (см. HyScanGtkWaterfallLayer) могут уметь взаимодействовать
+ * с пользователем. Поскольку пользовательский опыт унифицирован, на одно и то же
+ * воздействие (щелчок кнопкой мыши, нажатие кнопки) могут отреагировать несколько
+ * слоёв сразу. А потому введены понятия "владелец ввода" и "держатель хэндла (ручки)".
+ * Программисту, встраивающему водопад в свою программу, эти методы не интересны.
+ * Для разработки новых слоев надо обратиться к документации HyScanGtkWaterfallLayer,
+ * где и описано разграничение доступа.
+ *
+ * - #hyscan_gtk_waterfall_state_set_input_owner
+ * - #hyscan_gtk_waterfall_state_get_input_owner
+ * - #hyscan_gtk_waterfall_state_set_handle_grabbed
+ * - #hyscan_gtk_waterfall_state_get_handle_grabbed
+ * - #hyscan_gtk_waterfall_state_set_changes_allowed
+ * - #hyscan_gtk_waterfall_state_get_changes_allowed
+ *
+ * Класс не является потокобезопасным.
+ *
  */
 #ifndef __HYSCAN_GTK_WATERFALL_STATE_H__
 #define __HYSCAN_GTK_WATERFALL_STATE_H__
@@ -22,7 +103,7 @@
 
 G_BEGIN_DECLS
 
-/** \brief Типы отображения. */
+/** \brief Типы отображения */
 typedef enum
 {
   HYSCAN_WATERFALL_DISPLAY_SIDESCAN      = 100,   /**< ГБО. */
@@ -53,10 +134,10 @@ struct _HyScanGtkWaterfallStateClass
 };
 
 HYSCAN_API
-GType                  hyscan_gtk_waterfall_state_get_type                  (void);
+GType                   hyscan_gtk_waterfall_state_get_type                    (void);
 
 HYSCAN_API
-HyScanGtkWaterfallState  *hyscan_gtk_waterfall_state_new                       (void);
+HyScanGtkWaterfallState *hyscan_gtk_waterfall_state_new                        (void);
 
 /**
  *
@@ -70,8 +151,8 @@ HyScanGtkWaterfallState  *hyscan_gtk_waterfall_state_new                       (
  *
  */
 HYSCAN_API
-void                    hyscan_gtk_waterfall_state_set_input_owner                 (HyScanGtkWaterfallState *state,
-                                                                              gconstpointer       instance);
+void                    hyscan_gtk_waterfall_state_set_input_owner             (HyScanGtkWaterfallState *state,
+                                                                                gconstpointer       instance);
 /**
  *
  * Функция возвращает владельца ввода.
@@ -82,7 +163,7 @@ void                    hyscan_gtk_waterfall_state_set_input_owner              
  *
  */
 HYSCAN_API
-gconstpointer           hyscan_gtk_waterfall_state_get_input_owner                  (HyScanGtkWaterfallState *state);
+gconstpointer           hyscan_gtk_waterfall_state_get_input_owner             (HyScanGtkWaterfallState *state);
 /**
  *
  * Функция позволяет слою захватить ввод.
@@ -95,8 +176,8 @@ gconstpointer           hyscan_gtk_waterfall_state_get_input_owner              
  *
  */
 HYSCAN_API
-void                    hyscan_gtk_waterfall_state_set_handle_grabbed                  (HyScanGtkWaterfallState *state,
-                                                                                  gconstpointer       instance);
+void                    hyscan_gtk_waterfall_state_set_handle_grabbed          (HyScanGtkWaterfallState *state,
+                                                                                gconstpointer            instance);
 /**
  *
  * Функция возвращает владельца ввода.
@@ -107,7 +188,7 @@ void                    hyscan_gtk_waterfall_state_set_handle_grabbed           
  *
  */
 HYSCAN_API
-gconstpointer           hyscan_gtk_waterfall_state_get_handle_grabbed                   (HyScanGtkWaterfallState *state);
+gconstpointer           hyscan_gtk_waterfall_state_get_handle_grabbed          (HyScanGtkWaterfallState *state);
 
 /**
  *
@@ -119,8 +200,8 @@ gconstpointer           hyscan_gtk_waterfall_state_get_handle_grabbed           
  *
  */
 HYSCAN_API
-void                    hyscan_gtk_waterfall_state_set_changes_allowed                  (HyScanGtkWaterfallState *state,
-                                                                                   gboolean            allowed);
+void                    hyscan_gtk_waterfall_state_set_changes_allowed         (HyScanGtkWaterfallState *state,
+                                                                                gboolean                 allowed);
 /**
  *
  * Функция возвращает владельца ввода.
@@ -131,95 +212,95 @@ void                    hyscan_gtk_waterfall_state_set_changes_allowed          
  *
  */
 HYSCAN_API
-gboolean                hyscan_gtk_waterfall_state_get_changes_allowed                  (HyScanGtkWaterfallState *state);
+gboolean                hyscan_gtk_waterfall_state_get_changes_allowed         (HyScanGtkWaterfallState *state);
 
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_echosounder               (HyScanGtkWaterfallState *state,
-                                                                         HyScanSourceType      source);
+void                    hyscan_gtk_waterfall_state_echosounder                 (HyScanGtkWaterfallState *state,
+                                                                                HyScanSourceType         source);
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_sidescan                  (HyScanGtkWaterfallState *state,
-                                                                         HyScanSourceType      lsource,
-                                                                         HyScanSourceType      rsource);
-void                   hyscan_gtk_waterfall_set_tile_type                   (HyScanGtkWaterfallState *state,
-                                                                         HyScanTileType        type);
+void                    hyscan_gtk_waterfall_state_sidescan                    (HyScanGtkWaterfallState *state,
+                                                                                HyScanSourceType         lsource,
+                                                                                HyScanSourceType         rsource);
+void                    hyscan_gtk_waterfall_state_set_tile_type               (HyScanGtkWaterfallState *state,
+                                                                                HyScanTileType           type);
 
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_set_profile               (HyScanGtkWaterfallState *state,
-                                                                         const gchar          *profile);
+void                    hyscan_gtk_waterfall_state_set_profile                 (HyScanGtkWaterfallState *state,
+                                                                                const gchar             *profile);
 
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_set_cache                 (HyScanGtkWaterfallState *state,
-                                                                         HyScanCache          *cache,
-                                                                         HyScanCache          *cache2,
-                                                                         const gchar          *prefix);
+void                    hyscan_gtk_waterfall_state_set_cache                   (HyScanGtkWaterfallState *state,
+                                                                                HyScanCache             *cache,
+                                                                                HyScanCache             *cache2,
+                                                                                const gchar             *prefix);
 
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_set_track                 (HyScanGtkWaterfallState *state,
-                                                                         HyScanDB             *db,
-                                                                         const gchar          *project,
-                                                                         const gchar          *track,
-                                                                         gboolean              raw);
+void                    hyscan_gtk_waterfall_state_set_track                   (HyScanGtkWaterfallState *state,
+                                                                                HyScanDB                *db,
+                                                                                const gchar             *project,
+                                                                                const gchar             *track,
+                                                                                gboolean                 raw);
 
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_set_ship_speed            (HyScanGtkWaterfallState *state,
-                                                                         gfloat                speed);
+void                    hyscan_gtk_waterfall_state_set_ship_speed              (HyScanGtkWaterfallState *state,
+                                                                                gfloat                   speed);
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_set_sound_velocity        (HyScanGtkWaterfallState *state,
-                                                                         GArray               *velocity);
+void                    hyscan_gtk_waterfall_state_set_sound_velocity          (HyScanGtkWaterfallState *state,
+                                                                                GArray                  *velocity);
 
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_set_depth_source          (HyScanGtkWaterfallState *state,
-                                                                         HyScanSourceType      source,
-                                                                         guint                 channel);
+void                    hyscan_gtk_waterfall_state_set_depth_source            (HyScanGtkWaterfallState *state,
+                                                                                HyScanSourceType         source,
+                                                                                guint                    channel);
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_set_depth_time            (HyScanGtkWaterfallState *state,
-                                                                         gulong                usecs);
+void                    hyscan_gtk_waterfall_state_set_depth_time              (HyScanGtkWaterfallState *state,
+                                                                                gulong                   usecs);
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_set_depth_filter_size     (HyScanGtkWaterfallState *state,
-                                                                         guint                 size);
+void                    hyscan_gtk_waterfall_state_set_depth_filter_size       (HyScanGtkWaterfallState *state,
+                                                                                guint                    size);
 
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_get_sources               (HyScanGtkWaterfallState       *state,
-                                                                         HyScanWaterfallDisplayType *type,
-                                                                         HyScanSourceType           *lsource,
-                                                                         HyScanSourceType           *rsource);
+void                    hyscan_gtk_waterfall_state_get_sources                 (HyScanGtkWaterfallState *state,
+                                                                                HyScanWaterfallDisplayType *type,
+                                                                                HyScanSourceType        *lsource,
+                                                                                HyScanSourceType        *rsource);
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_get_tile_type             (HyScanGtkWaterfallState *state,
-                                                                         HyScanTileType       *type);
+void                    hyscan_gtk_waterfall_state_get_tile_type               (HyScanGtkWaterfallState *state,
+                                                                                HyScanTileType          *type);
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_get_profile               (HyScanGtkWaterfallState *state,
-                                                                         gchar               **profile);
+void                    hyscan_gtk_waterfall_state_get_profile                 (HyScanGtkWaterfallState *state,
+                                                                                gchar                  **profile);
 
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_get_cache                 (HyScanGtkWaterfallState *state,
-                                                                         HyScanCache         **cache,
-                                                                         HyScanCache         **cache2,
-                                                                         gchar               **prefix);
+void                    hyscan_gtk_waterfall_state_get_cache                   (HyScanGtkWaterfallState *state,
+                                                                                HyScanCache            **cache,
+                                                                                HyScanCache            **cache2,
+                                                                                gchar                  **prefix);
 
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_get_track                 (HyScanGtkWaterfallState *state,
-                                                                         HyScanDB            **db,
-                                                                         gchar               **project,
-                                                                         gchar               **track,
-                                                                         gboolean             *raw);
+void                    hyscan_gtk_waterfall_state_get_track                   (HyScanGtkWaterfallState *state,
+                                                                                HyScanDB               **db,
+                                                                                gchar                  **project,
+                                                                                gchar                  **track,
+                                                                                gboolean                *raw);
 
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_get_ship_speed            (HyScanGtkWaterfallState *state,
-                                                                         gfloat               *speed);
+void                    hyscan_gtk_waterfall_state_get_ship_speed              (HyScanGtkWaterfallState *state,
+                                                                                gfloat                  *speed);
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_get_sound_velocity        (HyScanGtkWaterfallState *state,
-                                                                         GArray              **velocity);
+void                    hyscan_gtk_waterfall_state_get_sound_velocity          (HyScanGtkWaterfallState *state,
+                                                                                GArray                 **velocity);
 
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_get_depth_source          (HyScanGtkWaterfallState *state,
-                                                                         HyScanSourceType     *source,
-                                                                         guint                *channel);
+void                    hyscan_gtk_waterfall_state_get_depth_source            (HyScanGtkWaterfallState *state,
+                                                                                HyScanSourceType        *source,
+                                                                                guint                   *channel);
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_get_depth_time            (HyScanGtkWaterfallState *state,
-                                                                         gulong               *usecs);
+void                    hyscan_gtk_waterfall_state_get_depth_time              (HyScanGtkWaterfallState *state,
+                                                                                gulong                  *usecs);
 HYSCAN_API
-void                   hyscan_gtk_waterfall_state_get_depth_filter_size     (HyScanGtkWaterfallState *state,
-                                                                         guint                *size);
+void                    hyscan_gtk_waterfall_state_get_depth_filter_size       (HyScanGtkWaterfallState *state,
+                                                                                guint                   *size);
 
 G_END_DECLS
 

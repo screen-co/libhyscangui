@@ -1,3 +1,16 @@
+/**
+ * \file hyscan-gtk-waterfall-meter.h
+ *
+ * \brief Измерения для водопада
+ *
+ * \author Dmitriev Alexander (m1n7@yandex.ru)
+ * \date 2017
+ * \license Проприетарная лицензия ООО "Экран"
+ * \defgroup HyScanGtkWaterfallMeter HyScanGtkWaterfallMeter - слой измерений
+ *
+ *
+ */
+
 #ifndef __HYSCAN_GTK_WATERFALL_METER_H__
 #define __HYSCAN_GTK_WATERFALL_METER_H__
 
@@ -29,26 +42,26 @@ struct _HyScanGtkWaterfallMeterClass
 };
 
 HYSCAN_API
-GType hyscan_gtk_waterfall_meter_get_type (void);
+GType                           hyscan_gtk_waterfall_meter_get_type            (void);
 
 HYSCAN_API
-HyScanGtkWaterfallMeter        *hyscan_gtk_waterfall_meter_new              (HyScanGtkWaterfallState *waterfall);
+HyScanGtkWaterfallMeter        *hyscan_gtk_waterfall_meter_new                 (HyScanGtkWaterfall      *waterfall);
 
 HYSCAN_API
-void                            hyscan_gtk_waterfall_meter_set_meter_color  (HyScanGtkWaterfallMeter *meter,
-                                                                             GdkRGBA                  color);
+void                            hyscan_gtk_waterfall_meter_set_main_color      (HyScanGtkWaterfallMeter *meter,
+                                                                                GdkRGBA                  color);
 HYSCAN_API
-void                            hyscan_gtk_waterfall_meter_set_shadow_color (HyScanGtkWaterfallMeter *meter,
-                                                                             GdkRGBA                  color);
+void                            hyscan_gtk_waterfall_meter_set_shadow_color    (HyScanGtkWaterfallMeter *meter,
+                                                                                GdkRGBA                  color);
 HYSCAN_API
-void                            hyscan_gtk_waterfall_meter_set_frame_color  (HyScanGtkWaterfallMeter *meter,
-                                                                             GdkRGBA                  color);
+void                            hyscan_gtk_waterfall_meter_set_frame_color     (HyScanGtkWaterfallMeter *meter,
+                                                                                GdkRGBA                  color);
 HYSCAN_API
-void                            hyscan_gtk_waterfall_meter_set_meter_width  (HyScanGtkWaterfallMeter *meter,
-                                                                             gdouble                  width);
+void                            hyscan_gtk_waterfall_meter_set_meter_width     (HyScanGtkWaterfallMeter *meter,
+                                                                                gdouble                  width);
 HYSCAN_API
-void                            hyscan_gtk_waterfall_meter_set_shadow_width (HyScanGtkWaterfallMeter *meter,
-                                                                             gdouble                  width);
+void                            hyscan_gtk_waterfall_meter_set_shadow_width    (HyScanGtkWaterfallMeter *meter,
+                                                                                gdouble                  width);
 
 
 G_END_DECLS

@@ -1,7 +1,7 @@
 /*
- * \file hyscan-gtk-waterfall-self.c
+ * \file hyscan-gtk-waterfall-grid.c
  *
- * \brief Исходный файл сетки для виджета водопад.
+ * \brief Исходный файл сетки для виджета водопад
  * \author Dmitriev Alexander (m1n7@yandex.ru)
  * \date 2017
  * \license Проприетарная лицензия ООО "Экран"
@@ -37,7 +37,8 @@ enum
 
 struct _HyScanGtkWaterfallGridPrivate
 {
-  HyScanGtkWaterfallState *wfall;
+  HyScanGtkWaterfallState *wf_state;
+  HyScanGtkWaterfall      *wfall;
 
   PangoLayout      *font;              /* Раскладка шрифта. */
   gint              text_height;       /* Максимальная высота текста. */
@@ -118,7 +119,8 @@ hyscan_gtk_waterfall_grid_class_init (HyScanGtkWaterfallGridClass *klass)
   object_class->finalize = hyscan_gtk_waterfall_grid_object_finalize;
 
   g_object_class_install_property (object_class, PROP_WATERFALL,
-    g_param_spec_object ("waterfall", "Waterfall", "GtkWaterfall object", HYSCAN_TYPE_GTK_WATERFALL_STATE,
+    g_param_spec_object ("waterfall", "Waterfall", "GtkWaterfall object",
+                         HYSCAN_TYPE_GTK_WATERFALL,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -137,9 +139,14 @@ hyscan_gtk_waterfall_grid_set_property (GObject      *object,
   HyScanGtkWaterfallGrid *self = HYSCAN_GTK_WATERFALL_GRID (object);
 
   if (prop_id == PROP_WATERFALL)
-    self->priv->wfall = g_value_dup_object (value);
+    {
+      self->priv->wfall = g_value_dup_object (value);
+      self->priv->wf_state = HYSCAN_GTK_WATERFALL_STATE (self->priv->wfall);
+    }
   else
-    G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    {
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    }
 }
 
 static void
@@ -159,13 +166,13 @@ hyscan_gtk_waterfall_grid_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_grid_parent_class)->constructed (object);
 
-  g_signal_connect (priv->wfall, "visible-draw", G_CALLBACK (hyscan_gtk_waterfall_grid_draw), self);
-  g_signal_connect (priv->wfall, "configure-event", G_CALLBACK (hyscan_gtk_waterfall_grid_configure), self);
-  g_signal_connect (priv->wfall, "motion-notify-event", G_CALLBACK (hyscan_gtk_waterfall_grid_motion_notify), self);
-  g_signal_connect (priv->wfall, "leave-notify-event", G_CALLBACK (hyscan_gtk_waterfall_grid_leave_notify), self);
+  g_signal_connect (priv->wf_state, "visible-draw", G_CALLBACK (hyscan_gtk_waterfall_grid_draw), self);
+  g_signal_connect (priv->wf_state, "configure-event", G_CALLBACK (hyscan_gtk_waterfall_grid_configure), self);
+  g_signal_connect (priv->wf_state, "motion-notify-event", G_CALLBACK (hyscan_gtk_waterfall_grid_motion_notify), self);
+  g_signal_connect (priv->wf_state, "leave-notify-event", G_CALLBACK (hyscan_gtk_waterfall_grid_leave_notify), self);
 
   /* Сигналы модели. */
-  g_signal_connect (priv->wfall, "changed::sources", G_CALLBACK (hyscan_gtk_waterfall_grid_sources_changed), self);
+  g_signal_connect (priv->wf_state, "changed::sources", G_CALLBACK (hyscan_gtk_waterfall_grid_sources_changed), self);
 
   gdk_rgba_parse (&grid_color, FRAME_DEFAULT);
   gdk_rgba_parse (&shad_color, SHADOW_DEFAULT);
@@ -182,7 +189,7 @@ hyscan_gtk_waterfall_grid_object_finalize (GObject *object)
   HyScanGtkWaterfallGridPrivate *priv = self->priv;
 
   /* Отключаемся от всех сигналов. */
-  g_signal_handlers_disconnect_by_data (priv->wfall, self);
+  g_signal_handlers_disconnect_by_data (priv->wf_state, self);
 
   g_clear_pointer (&priv->font, g_object_unref);
   g_free (priv->x_axis_name);
@@ -200,7 +207,7 @@ hyscan_gtk_waterfall_grid_get_mnemonic (HyScanGtkWaterfallLayer *iface)
 
 /* Функция создает новый виджет HyScanGtkWaterfallGrid. */
 HyScanGtkWaterfallGrid*
-hyscan_gtk_waterfall_grid_new (HyScanGtkWaterfallState *waterfall)
+hyscan_gtk_waterfall_grid_new (HyScanGtkWaterfall *waterfall)
 {
   return g_object_new (HYSCAN_TYPE_GTK_WATERFALL_GRID,
                        "waterfall", waterfall,
@@ -233,9 +240,9 @@ hyscan_gtk_waterfall_grid_configure (GtkWidget            *widget,
 
 /* Функция ловит сигнал на движение мыши. */
 static gboolean
-hyscan_gtk_waterfall_grid_motion_notify (GtkWidget             *widget,
-                                        GdkEventMotion        *event,
-                                        HyScanGtkWaterfallGrid *self)
+hyscan_gtk_waterfall_grid_motion_notify (GtkWidget              *widget,
+                                         GdkEventMotion         *event,
+                                         HyScanGtkWaterfallGrid *self)
 {
   guint area_width, area_height;
   gint x = event->x;
@@ -719,7 +726,7 @@ hyscan_gtk_waterfall_grid_show_grid (HyScanGtkWaterfallGrid *self,
   self->priv->draw_x_grid = draw_horisontal;
   self->priv->draw_y_grid = draw_vertical;
 
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 /* Функция позволяет включить и выключить отображение окошка с координатой. */
@@ -731,7 +738,7 @@ hyscan_gtk_waterfall_grid_show_info (HyScanGtkWaterfallGrid *self,
 
   self->priv->show_info = show_info;
 
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 /* Функция задает координаты информационного окна по умолчанию. */
@@ -742,7 +749,7 @@ hyscan_gtk_waterfall_grid_info_position_auto (HyScanGtkWaterfallGrid *self)
 
   self->priv->info_coordinates = INFOBOX_AUTO;
 
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 /* Функция задает координаты информационного окна в пикселях. */
@@ -757,7 +764,7 @@ hyscan_gtk_waterfall_grid_info_position_abs (HyScanGtkWaterfallGrid *self,
   self->priv->info_x = x_position;
   self->priv->info_y = y_position;
 
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 /* Функция задает координаты информационного окна в процентах. */
@@ -772,7 +779,7 @@ hyscan_gtk_waterfall_grid_info_position_perc (HyScanGtkWaterfallGrid *self,
   self->priv->info_x_perc = x_position;
   self->priv->info_y_perc = y_position;
 
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 /* Функция устанавливает шаг координатной сетки. */
@@ -788,7 +795,7 @@ hyscan_gtk_waterfall_grid_set_grid_step (HyScanGtkWaterfallGrid *self,
   self->priv->x_grid_step = step_horisontal;
   self->priv->y_grid_step = step_vertical;
 
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
   return TRUE;
 }
 
@@ -803,12 +810,12 @@ hyscan_gtk_waterfall_grid_set_grid_color (HyScanGtkWaterfallGrid *self,
   hyscan_tile_color_converter_i2d (color, &rgba.red, &rgba.green, &rgba.blue, &rgba.alpha);
   self->priv->grid_color = rgba;
 
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 /* Функция устанавливает цвет подписей. */
 void
-hyscan_gtk_waterfall_grid_set_label_color (HyScanGtkWaterfallGrid *self,
+hyscan_gtk_waterfall_grid_set_main_color (HyScanGtkWaterfallGrid *self,
                                            guint32                 color)
 {
   GdkRGBA rgba;
@@ -817,7 +824,7 @@ hyscan_gtk_waterfall_grid_set_label_color (HyScanGtkWaterfallGrid *self,
   hyscan_tile_color_converter_i2d (color, &rgba.red, &rgba.green, &rgba.blue, &rgba.alpha);
   self->priv->text_color = rgba;
 
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 /* Функция устанавливает цвет подписей. */
@@ -831,7 +838,7 @@ hyscan_gtk_waterfall_grid_set_shadow_color (HyScanGtkWaterfallGrid *self,
   hyscan_tile_color_converter_i2d (color, &rgba.red, &rgba.green, &rgba.blue, &rgba.alpha);
   self->priv->shad_color = rgba;
 
-  hyscan_gtk_waterfall_queue_draw (HYSCAN_GTK_WATERFALL (self->priv->wfall));
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 

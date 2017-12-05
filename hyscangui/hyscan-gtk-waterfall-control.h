@@ -1,3 +1,24 @@
+/**
+ * \file hyscan-gtk-waterfall-control.h
+ *
+ * \brief Управление видимой областью водопада
+ *
+ * \author Dmitriev Alexander (m1n7@yandex.ru)
+ * \date 2017
+ * \license Проприетарная лицензия ООО "Экран"
+ * \defgroup HyScanGtkWaterfallControl HyScanGtkWaterfallControl - управление видимой областью
+ *
+ * Слой HyScanGtkWaterfallControl предназначен для управления видимой областью.
+ * Это включает в себя зуммирование и перемещение.
+ *
+ * Класс умеет обрабатывать движения мыши, прокрутку колеса и нажатия кнопок
+ * клавиатуры: стрелки, +/-, PgUp, PgDown, Home, End.
+ *
+ * - #hyscan_gtk_waterfall_control_new создание объекта;
+ * - #hyscan_gtk_waterfall_control_set_wheel_behaviour настройка колесика мыши;
+ * - #hyscan_gtk_waterfall_control_zoom масштабирование изображения.
+ *
+ */
 #ifndef __HYSCAN_GTK_WATERFALL_CONTROL_H__
 #define __HYSCAN_GTK_WATERFALL_CONTROL_H__
 
@@ -30,23 +51,43 @@ struct _HyScanGtkWaterfallControlClass
 };
 
 HYSCAN_API
-GType                       hyscan_gtk_waterfall_control_get_type (void);
+GType                       hyscan_gtk_waterfall_control_get_type              (void);
 
-HYSCAN_API
-HyScanGtkWaterfallControl  *hyscan_gtk_waterfall_control_new      (HyScanGtkWaterfallState   *waterfall);
-
-HYSCAN_API
-void                        hyscan_gtk_waterfall_control_set_wheel_behaviour (HyScanGtkWaterfallControl *control,
-                                                                              gboolean                   scroll_without_ctrl);
 /**
- * Функция устанавливает цвет подложки.
+ * Функция создает новый объект.
  *
- * \param wfall - указатель на объект \link HyScanGtkWaterfall \endlink;
- * \param substrate - цвет подложки.
+ * \param waterfall родительский виджет.
+ *
+ * \return указатель на объект HyScanGtkWaterfallControl.
+ *
  */
 HYSCAN_API
-void                        hyscan_gtk_waterfall_control_zoom     (HyScanGtkWaterfallControl *wfall,
-                                                                   gboolean                   zoom_in);
+HyScanGtkWaterfallControl  *hyscan_gtk_waterfall_control_new                   (HyScanGtkWaterfall        *waterfall);
+
+/**
+ * Функция задает поведение колесика мыши.
+ *
+ * Колесико мыши может быть настроено на прокрутку или зуммирование.
+ * Альтернативное действие будет выполняться с нажатой клавишей Ctrl.
+ *
+ * \param control указатель на объект HyScanGtkWaterfallControl;
+ * \param scroll_without_ctrl TRUE, чтобы колесо мыши отвечало за прокрутку, FALSE,
+ * чтобы колесо мыши отвечало за зуммирование.
+ *
+ */
+HYSCAN_API
+void                        hyscan_gtk_waterfall_control_set_wheel_behaviour   (HyScanGtkWaterfallControl *control,
+                                                                                gboolean                   scroll_without_ctrl);
+/**
+ * Функция масштабирует изображение относительно центра.
+ *
+ * \param wfall указатель на объект \link HyScanGtkWaterfall \endlink;
+ * \param zoom_in направление масштабирования (TRUE - увеличение, FALSE - уменьшение).
+ *
+ */
+HYSCAN_API
+void                        hyscan_gtk_waterfall_control_zoom                  (HyScanGtkWaterfallControl *wfall,
+                                                                                gboolean                   zoom_in);
 
 G_END_DECLS
 

@@ -1,3 +1,13 @@
+/*
+ * \file hyscan-gtk-waterfall-layer.c
+ *
+ * \brief Исходный файл интерфейса слоев водопада
+ * \author Dmitriev Alexander (m1n7@yandex.ru)
+ * \date 2017
+ * \license Проприетарная лицензия ООО "Экран"
+ *
+ */
+
 #include "hyscan-gtk-waterfall-layer.h"
 
 G_DEFINE_INTERFACE (HyScanGtkWaterfallLayer, hyscan_gtk_waterfall_layer, G_TYPE_OBJECT);
