@@ -296,9 +296,7 @@ hyscan_gtk_waterfall_control_mouse_button (GtkWidget      *widget,
   GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
   HyScanGtkWaterfallControlPrivate *priv = self->priv;
 
-  /* Проверяем, есть ли у нас право обработки ввода. */
-  // if (GTK_WATERFALL_CONTROL_INPUT_ID != hyscan_gtk_waterfall_get_input_owner (HYSCAN_GTK_WATERFALL (widget)))
-    // return FALSE;
+  gtk_widget_grab_focus (widget);
 
   if (event->button != 1)
     return FALSE;
@@ -325,7 +323,6 @@ hyscan_gtk_waterfall_control_mouse_button (GtkWidget      *widget,
   else if (event->type == GDK_BUTTON_RELEASE)
     {
       priv->move_area = FALSE;
-      gtk_widget_grab_focus (widget);
     }
 
   return FALSE;
@@ -342,10 +339,6 @@ hyscan_gtk_waterfall_control_mouse_motion (GtkWidget      *widget,
   gdouble x0, y0, x1, y1, dx, dy;
   gdouble stored, received;
   guint widget_size;
-
-  /* Проверяем, есть ли у нас право обработки ввода. */
-  // if (GTK_WATERFALL_CONTROL_INPUT_ID != hyscan_gtk_waterfall_get_input_owner (HYSCAN_GTK_WATERFALL (widget)))
-    // return FALSE;
 
   /* Режим перемещения - сдвигаем область. */
   if (!priv->move_area)

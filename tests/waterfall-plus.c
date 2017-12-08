@@ -130,10 +130,10 @@ main (int    argc,
   wf  = HYSCAN_GTK_WATERFALL (wf_widget);
   wf_state  = HYSCAN_GTK_WATERFALL_STATE (wf_widget);
 
-  wf_ctrl = hyscan_gtk_waterfall_control_new (wf);
   wf_grid = hyscan_gtk_waterfall_grid_new (wf);
   wf_metr = hyscan_gtk_waterfall_meter_new (wf);
   wf_mark = hyscan_gtk_waterfall_mark_new (wf);
+  wf_ctrl = hyscan_gtk_waterfall_control_new (wf);
 
   //hyscan_gtk_waterfall_echosounder (wf, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD);
 

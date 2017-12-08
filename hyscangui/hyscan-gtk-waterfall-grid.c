@@ -364,7 +364,7 @@ hyscan_gtk_waterfall_grid_vertical (GtkWidget *widget,
   {
     if (axis_power > 0)
       axis_power = 0;
-    g_snprintf (text_format, sizeof(text_format), "%%.%df", (gint) fabs (axis_power));
+    g_snprintf (text_format, sizeof(text_format), "%%.%df", (gint) ABS (axis_power));
 
     axis = axis_from;
     while (axis <= axis_to)
@@ -490,7 +490,7 @@ hyscan_gtk_waterfall_grid_horisontal (GtkWidget *widget,
   /* Рисуем подписи на оси. */
   if (axis_power > 0)
     axis_power = 0;
-  g_snprintf (text_format, sizeof(text_format), "%%.%df", (gint) fabs (axis_power));
+  g_snprintf (text_format, sizeof(text_format), "%%.%df", (gint) ABS (axis_power));
 
   axis = axis_from;
   while (axis <= axis_to)
@@ -595,7 +595,7 @@ hyscan_gtk_waterfall_grid_info (GtkWidget *widget,
   gtk_cifro_area_get_axis_step (scale, 1, &value, NULL, NULL, &value_power);
   value_power = (value_power > 0) ? 0 : value_power;
 
-  g_snprintf (text_format, sizeof(text_format), "-%%.%df", (gint) fabs (value_power));
+  g_snprintf (text_format, sizeof(text_format), "-%%.%df", (gint) ABS (value_power));
   g_snprintf (text_str[VALUE_X], sizeof(text_str[VALUE_X]), text_format, MAX( ABS( from_x ), ABS( to_x ) ));
 
   /* Для координаты У. */
@@ -674,13 +674,13 @@ hyscan_gtk_waterfall_grid_info (GtkWidget *widget,
   value = value_x;
   gtk_cifro_area_get_axis_step (scale, 1, &value, NULL, NULL, &value_power);
   value_power = (value_power > 0) ? 0 : value_power;
-  g_snprintf (text_format, sizeof(text_format), "%%.%df", (gint) fabs (value_power));
+  g_snprintf (text_format, sizeof(text_format), "%%.%df", (gint) ABS (value_power));
   g_ascii_formatd (text_str[VALUE_X], sizeof(text_str[VALUE_X]), text_format, value_x);
 
   value = value_y;
   gtk_cifro_area_get_axis_step (scale, 1, &value, NULL, NULL, &value_power);
   value_power = (value_power > 0) ? 0 : value_power;
-  g_snprintf (text_format, sizeof(text_format), "%%.%df", (gint) fabs (value_power));
+  g_snprintf (text_format, sizeof(text_format), "%%.%df", (gint) ABS (value_power));
   g_ascii_formatd (text_str[VALUE_Y], sizeof(text_str[VALUE_Y]), text_format, value_y);
 
   /* Всё. Теперь можно рисовать само окошко. */

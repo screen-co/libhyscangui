@@ -160,10 +160,10 @@ hyscan_gtk_waterfall_meter_object_constructed (GObject *object)
 
   g_signal_connect (priv->wf_state, "visible-draw",         G_CALLBACK (hyscan_gtk_waterfall_meter_draw), self);
   g_signal_connect (priv->wf_state, "configure-event",      G_CALLBACK (hyscan_gtk_waterfall_meter_configure), self);
-  g_signal_connect (priv->wf_state, "key-press-event",      G_CALLBACK (hyscan_gtk_waterfall_meter_interaction_resolver), self);
-  g_signal_connect (priv->wf_state, "button-release-event", G_CALLBACK (hyscan_gtk_waterfall_meter_interaction_resolver), self);
-  g_signal_connect (priv->wf_state, "button-press-event",   G_CALLBACK (hyscan_gtk_waterfall_meter_button), self);
-  g_signal_connect (priv->wf_state, "motion-notify-event",  G_CALLBACK (hyscan_gtk_waterfall_meter_motion), self);
+  g_signal_connect_after (priv->wf_state, "key-press-event",      G_CALLBACK (hyscan_gtk_waterfall_meter_interaction_resolver), self);
+  g_signal_connect_after (priv->wf_state, "button-release-event", G_CALLBACK (hyscan_gtk_waterfall_meter_interaction_resolver), self);
+  g_signal_connect_after (priv->wf_state, "button-press-event",   G_CALLBACK (hyscan_gtk_waterfall_meter_button), self);
+  g_signal_connect_after (priv->wf_state, "motion-notify-event",  G_CALLBACK (hyscan_gtk_waterfall_meter_motion), self);
 
   g_signal_connect (HYSCAN_GTK_WATERFALL_STATE (priv->wf_state), "handle",  G_CALLBACK (hyscan_gtk_waterfall_meter_handle), self);
 
@@ -399,9 +399,8 @@ hyscan_gtk_waterfall_meter_interaction_processor (GtkWidget               *widge
   else if (priv->mode == LOCAL_CANCEL || priv->mode == LOCAL_REMOVE)
     {
       if (priv->mode == LOCAL_CANCEL && priv->cancellable != NULL)
-        priv->drawable = g_list_append (priv->drawable, priv->cancellable->data);
+        priv->drawable = g_list_concat (priv->drawable, priv->cancellable);
 
-      g_list_free_full (priv->cancellable, g_free);
       priv->cancellable = NULL;
 
       priv->mode = LOCAL_EMPTY;

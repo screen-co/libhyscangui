@@ -275,10 +275,10 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
   /* Сигналы Gtk. */
   g_signal_connect (priv->wf_state, "visible-draw",          G_CALLBACK (hyscan_gtk_waterfall_mark_draw), self);
   g_signal_connect (priv->wf_state, "configure-event",       G_CALLBACK (hyscan_gtk_waterfall_mark_configure), self);
-  g_signal_connect (priv->wf_state, "motion-notify-event",   G_CALLBACK (hyscan_gtk_waterfall_mark_motion), self);
-  g_signal_connect (priv->wf_state, "key-press-event",       G_CALLBACK (hyscan_gtk_waterfall_mark_interaction_resolver), self);
-  g_signal_connect (priv->wf_state, "button-release-event",  G_CALLBACK (hyscan_gtk_waterfall_mark_interaction_resolver), self);
-  g_signal_connect (priv->wf_state, "button-press-event",    G_CALLBACK (hyscan_gtk_waterfall_mark_button), self);
+  g_signal_connect_after (priv->wf_state, "motion-notify-event",   G_CALLBACK (hyscan_gtk_waterfall_mark_motion), self);
+  g_signal_connect_after (priv->wf_state, "key-press-event",       G_CALLBACK (hyscan_gtk_waterfall_mark_interaction_resolver), self);
+  g_signal_connect_after (priv->wf_state, "button-release-event",  G_CALLBACK (hyscan_gtk_waterfall_mark_interaction_resolver), self);
+  g_signal_connect_after (priv->wf_state, "button-press-event",    G_CALLBACK (hyscan_gtk_waterfall_mark_button), self);
 
   g_signal_connect (priv->wf_state, "handle", G_CALLBACK (hyscan_gtk_waterfall_mark_handle), self);
 
