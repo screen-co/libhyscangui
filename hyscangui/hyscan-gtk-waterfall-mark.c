@@ -7,6 +7,7 @@
 #include "hyscan-gtk-waterfall-mark.h"
 #include "hyscan-gtk-waterfall-tools.h"
 #include <math.h>
+#include <hyscan-waterfall-mark.h>
 
 enum
 {
@@ -156,6 +157,9 @@ static void     hyscan_gtk_waterfall_mark_object_finalize         (GObject      
 static void     hyscan_gtk_waterfall_mark_free_task               (gpointer                 data);
 static void     hyscan_gtk_waterfall_mark_clear_state             (HyScanGtkWaterfallMarkState  *state);
 static void     hyscan_gtk_waterfall_mark_clear_task              (gpointer                 data);
+static gchar*   hyscan_gtk_waterfall_mark_get_track_id            (HyScanDB                *db,
+                                                                   const gchar             *project,
+                                                                   const gchar             *track);
 static void     hyscan_gtk_waterfall_mark_sync_states             (HyScanGtkWaterfallMark  *self);
 static gpointer hyscan_gtk_waterfall_mark_processing              (gpointer                 data);
 
@@ -511,6 +515,50 @@ hyscan_gtk_waterfall_mark_copy_task (HyScanGtkWaterfallMarkTask *src,
   dst->id = g_strdup (src->id);
 }
 
+/* Функция определяет идентификатор галса. */
+static gchar*
+hyscan_gtk_waterfall_mark_get_track_id (HyScanDB    *db,
+                                        const gchar *project,
+                                        const gchar *track)
+{
+  gchar* track_id_str = NULL;
+  gint32 project_id = 0;      /* Идентификатор проекта. */
+  gint32 track_id = 0;      /* Идентификатор проекта. */
+  gint32 track_param_id = 0;      /* Идентификатор проекта. */
+
+  project_id = hyscan_db_project_open (db, project);
+  if (project_id <= 0)
+    {
+      g_warning ("HyScanGtkWaterfallMark: can't open project %s", project);
+      goto exit;
+    }
+
+  track_id = hyscan_db_track_open (db, project_id, track);
+  if (track_id <= 0)
+    {
+      g_warning ("HyScanGtkWaterfallMark: can't open track %s (project %s)", track, project);
+      goto exit;
+    }
+
+  track_param_id = hyscan_db_track_param_open (db, track_id);
+  if (track_param_id <= 0)
+    {
+      g_warning ("HyScanGtkWaterfallMark: can't open track %s parameters (project %s)", track, project);
+      goto exit;
+    }
+
+  track_id_str = hyscan_db_param_get_string (db, track_param_id, NULL, "/id");
+
+exit:
+  if (track_param_id > 0)
+    hyscan_db_close (db, track_param_id);
+  if (track_id > 0)
+    hyscan_db_close (db, track_id);
+  if (project_id> 0)
+    hyscan_db_close (db, project_id);
+
+  return track_id_str;
+}
 /* Функция синхронизирует состояния. */
 static void
 hyscan_gtk_waterfall_mark_sync_states (HyScanGtkWaterfallMark *self)
@@ -638,6 +686,8 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
   HyScanDepthometer       *depth = NULL;
   HyScanWaterfallMarkData *mdata = NULL;
 
+  gchar* track_id = NULL;
+
   GMutex cond_mutex;
   GList *list, *link;
   HyScanGtkWaterfallMarkTask *task;
@@ -762,9 +812,15 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
           if (mdata == NULL)
             {
               if (state->db != NULL || state->project != NULL || state->track != NULL)
-                mdata = hyscan_waterfall_mark_data_new (state->db, state->project, state->track, state->profile);
+                mdata = hyscan_waterfall_mark_data_new (state->db, state->project);
+
               if (mdata != NULL)
-                oldmc = ~hyscan_waterfall_mark_data_get_mod_count (mdata);
+                {
+                  oldmc = ~hyscan_waterfall_mark_data_get_mod_count (mdata);
+                  track_id = hyscan_gtk_waterfall_mark_get_track_id (state->db, state->project, state->track);
+                  if (track_id == NULL)
+                    g_clear_object (&mdata);
+                }
             }
           if (depth == NULL)
             {
@@ -821,6 +877,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
             {
               HyScanWaterfallMark mark = {0};
 
+              mark.track             = g_strdup (track_id);
               mark.name              = g_strdup_printf ("Mark #%u", ++priv->count);
               mark.description       = g_strdup_printf ("description");
               mark.operator_name     = g_strdup_printf ("operator");
@@ -833,6 +890,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               mark.width             = task->dx * 1000;
               mark.height            = task->dy * 1000;
 
+              g_message ("ADD: %s ", mark.track);
               hyscan_waterfall_mark_data_add (mdata, &mark);
               hyscan_waterfall_mark_free (&mark);
 
@@ -841,6 +899,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
             {
               HyScanWaterfallMark mark = {0};
 
+              mark.track             = g_strdup (task->mark->track);
               mark.name              = g_strdup (task->mark->name);
               mark.description       = g_strdup (task->mark->description);
               mark.operator_name     = g_strdup (task->mark->operator_name);
@@ -884,6 +943,10 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
           mark = hyscan_waterfall_mark_data_get (mdata, ids[i]);
 
           if (mark == NULL)
+            goto ignore;
+
+          /* Фильтруем по галсу. */
+          if (g_strcmp0 (mark->track, track_id) != 0)
             goto ignore;
 
           /* Фильтруем по лейблу. */
@@ -934,6 +997,8 @@ ignore:
   g_clear_object (&idepth);
   g_clear_object (&depth);
   g_clear_object (&mdata);
+
+  g_free (track_id);
 
   return NULL;
 }
