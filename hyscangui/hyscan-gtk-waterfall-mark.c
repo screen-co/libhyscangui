@@ -273,12 +273,12 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
   g_cond_init (&priv->cond);
 
   /* Сигналы Gtk. */
-  g_signal_connect (priv->wf_state, "visible-draw",          G_CALLBACK (hyscan_gtk_waterfall_mark_draw), self);
-  g_signal_connect (priv->wf_state, "configure-event",       G_CALLBACK (hyscan_gtk_waterfall_mark_configure), self);
-  g_signal_connect_after (priv->wf_state, "motion-notify-event",   G_CALLBACK (hyscan_gtk_waterfall_mark_motion), self);
-  g_signal_connect_after (priv->wf_state, "key-press-event",       G_CALLBACK (hyscan_gtk_waterfall_mark_interaction_resolver), self);
-  g_signal_connect_after (priv->wf_state, "button-release-event",  G_CALLBACK (hyscan_gtk_waterfall_mark_interaction_resolver), self);
-  g_signal_connect_after (priv->wf_state, "button-press-event",    G_CALLBACK (hyscan_gtk_waterfall_mark_button), self);
+  g_signal_connect (priv->wf_state, "visible-draw",               G_CALLBACK (hyscan_gtk_waterfall_mark_draw), self);
+  g_signal_connect (priv->wf_state, "configure-event",            G_CALLBACK (hyscan_gtk_waterfall_mark_configure), self);
+  g_signal_connect_after (priv->wf_state, "motion-notify-event",  G_CALLBACK (hyscan_gtk_waterfall_mark_motion), self);
+  g_signal_connect_after (priv->wf_state, "key-press-event",      G_CALLBACK (hyscan_gtk_waterfall_mark_interaction_resolver), self);
+  g_signal_connect_after (priv->wf_state, "button-release-event", G_CALLBACK (hyscan_gtk_waterfall_mark_interaction_resolver), self);
+  g_signal_connect_after (priv->wf_state, "button-press-event",   G_CALLBACK (hyscan_gtk_waterfall_mark_button), self);
 
   g_signal_connect (priv->wf_state, "handle", G_CALLBACK (hyscan_gtk_waterfall_mark_handle), self);
 
@@ -361,6 +361,7 @@ hyscan_gtk_waterfall_mark_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_waterfall_mark_parent_class)->finalize (object);
 }
 
+/* Функция захватывает ввод. */
 static void
 hyscan_gtk_waterfall_mark_grab_input (HyScanGtkWaterfallLayer *iface)
 {
@@ -370,12 +371,14 @@ hyscan_gtk_waterfall_mark_grab_input (HyScanGtkWaterfallLayer *iface)
   hyscan_gtk_waterfall_state_set_changes_allowed (self->priv->wf_state, TRUE);
 }
 
+/* Функуция возвращает название иконки. */
 static const gchar*
 hyscan_gtk_waterfall_mark_get_mnemonic (HyScanGtkWaterfallLayer *iface)
 {
   return "user-bookmarks-symbolic";
 }
 
+/* Функция создает новый HyScanDepth. */
 static HyScanDepth*
 hyscan_gtk_waterfall_mark_open_depth (HyScanGtkWaterfallMark *self)
 {
@@ -415,6 +418,7 @@ hyscan_gtk_waterfall_mark_open_depth (HyScanGtkWaterfallMark *self)
   return idepth;
 }
 
+/* Функция создает новый HyScanDepthometer. */
 static HyScanDepthometer*
 hyscan_gtk_waterfall_mark_open_depthometer (HyScanGtkWaterfallMark *self,
                                              HyScanDepth            *idepth)
@@ -436,6 +440,7 @@ hyscan_gtk_waterfall_mark_open_depthometer (HyScanGtkWaterfallMark *self,
   return depth;
 }
 
+/* Функция создает новый HyScanProjector. */
 static HyScanProjector*
 hyscan_gtk_waterfall_mark_open_projector (HyScanGtkWaterfallMark *self,
                                           HyScanSourceType        source)
@@ -470,6 +475,7 @@ hyscan_gtk_waterfall_mark_free_task (gpointer data)
   g_free (task);
 }
 
+/* Функция очищает HyScanGtkWaterfallMarkState. */
 static void
 hyscan_gtk_waterfall_mark_clear_state (HyScanGtkWaterfallMarkState *state)
 {
@@ -618,6 +624,7 @@ hyscan_gtk_waterfall_mark_sync_states (HyScanGtkWaterfallMark *self)
     }
 }
 
+/* Поток получения и отправки меток. */
 static gpointer
 hyscan_gtk_waterfall_mark_processing (gpointer data)
 {
@@ -635,7 +642,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
   GList *list, *link;
   HyScanGtkWaterfallMarkTask *task;
   HyScanSourceType source;
-  guint32 index0, count0;//, width, height;
+  guint32 index0, count0;
   gboolean status;
 
   guint32 mc = 0, oldmc = 0;
@@ -931,6 +938,7 @@ ignore:
   return NULL;
 }
 
+/* Функция ищет метку по идентификатору. */
 static gint
 hyscan_gtk_waterfall_mark_find_by_id (gconstpointer _a,
                                       gconstpointer _b)
@@ -944,6 +952,7 @@ hyscan_gtk_waterfall_mark_find_by_id (gconstpointer _a,
   return g_strcmp0 (a->id, b->id);
 }
 
+/* Функция ищет ближайшую к указателю метку. */
 static GList*
 hyscan_gtk_waterfall_mark_find_closest (HyScanGtkWaterfallMark *self,
                                         HyScanCoordinates      *pointer,
@@ -1020,6 +1029,7 @@ hyscan_gtk_waterfall_mark_find_closest (HyScanGtkWaterfallMark *self,
   return mlink;
 }
 
+/* Функция определяет, есть ли хэндл под указателем. */
 static gpointer
 hyscan_gtk_waterfall_mark_handle (HyScanGtkWaterfallState *state,
                                   GdkEventButton          *event,
@@ -1086,6 +1096,7 @@ hyscan_gtk_waterfall_mark_handle (HyScanGtkWaterfallState *state,
   return self;
 }
 
+/* Функция обрабатывает нажатия клавиш. */
 static gboolean
 hyscan_gtk_waterfall_mark_key (GtkWidget              *widget,
                                GdkEventKey            *event,
@@ -1104,6 +1115,7 @@ hyscan_gtk_waterfall_mark_key (GtkWidget              *widget,
   return hyscan_gtk_waterfall_mark_mouse_interaction_processor (widget, self);
 }
 
+/* Функция обрабатывает нажатия кнопок мыши. */
 static gboolean
 hyscan_gtk_waterfall_mark_button (GtkWidget              *widget,
                                   GdkEventButton         *event,
@@ -1242,6 +1254,7 @@ reset:
   return FALSE;
 }
 
+/* Функция определяет возможность обработки нажатия. */
 static gboolean
 hyscan_gtk_waterfall_mark_interaction_resolver (GtkWidget               *widget,
                                                 GdkEventAny             *event,
@@ -1307,6 +1320,7 @@ hyscan_gtk_waterfall_mark_motion (GtkWidget              *widget,
   return FALSE;
 }
 
+/* Функция определяет, видна ли задача на экране. */
 static gboolean
 hyscan_gtk_waterfall_mark_intersection (HyScanGtkWaterfallMark     *self,
                                         HyScanGtkWaterfallMarkTask *task)
@@ -1335,6 +1349,7 @@ hyscan_gtk_waterfall_mark_intersection (HyScanGtkWaterfallMark     *self,
   return TRUE;
 }
 
+/* Функция отрисовки хэндла. */
 void
 hyscan_gtk_waterfall_mark_draw_handle  (cairo_t          *cairo,
                                         GdkRGBA           inner,
@@ -1357,6 +1372,7 @@ hyscan_gtk_waterfall_mark_draw_handle  (cairo_t          *cairo,
   cairo_pattern_destroy (pttrn);
 }
 
+/* Вспомогательная функция отрисовки. */
 static void
 hyscan_gtk_waterfall_mark_draw_helper (cairo_t                    *cairo,
                                        HyScanCoordinates          *center,
@@ -1547,6 +1563,7 @@ hyscan_gtk_waterfall_mark_draw (GtkWidget              *widget,
   cairo_restore (cairo);
 }
 
+/* Функция обрабатывает смену параметров виджета. */
 static gboolean
 hyscan_gtk_waterfall_mark_configure (GtkWidget              *widget,
                                      GdkEventConfigure      *event,
@@ -1572,6 +1589,7 @@ hyscan_gtk_waterfall_mark_configure (GtkWidget              *widget,
   return FALSE;
 }
 
+/* Функция обрабатывает смену типа отображения и источников. */
 static void
 hyscan_gtk_waterfall_mark_sources_changed (HyScanGtkWaterfallState *model,
                                            HyScanGtkWaterfallMark  *self)
@@ -1592,6 +1610,7 @@ hyscan_gtk_waterfall_mark_sources_changed (HyScanGtkWaterfallState *model,
   g_cond_signal (&priv->cond);
 }
 
+/* Функция обрабатывает смену типа тайлов. */
 static void
 hyscan_gtk_waterfall_mark_tile_type_changed (HyScanGtkWaterfallState *model,
                                              HyScanGtkWaterfallMark  *self)
@@ -1609,6 +1628,7 @@ hyscan_gtk_waterfall_mark_tile_type_changed (HyScanGtkWaterfallState *model,
   g_cond_signal (&priv->cond);
 }
 
+/* Функция обрабатывает смену профиля. */
 static void
 hyscan_gtk_waterfall_mark_profile_changed (HyScanGtkWaterfallState *model,
                                            HyScanGtkWaterfallMark  *self)
@@ -1626,6 +1646,7 @@ hyscan_gtk_waterfall_mark_profile_changed (HyScanGtkWaterfallState *model,
   g_cond_signal (&priv->cond);
 }
 
+/* Функция обрабатывает смену системы кэширования. */
 static void
 hyscan_gtk_waterfall_mark_cache_changed (HyScanGtkWaterfallState *model,
                                          HyScanGtkWaterfallMark  *self)
@@ -1648,6 +1669,7 @@ hyscan_gtk_waterfall_mark_cache_changed (HyScanGtkWaterfallState *model,
   g_cond_signal (&priv->cond);
 }
 
+/* Функция обрабатывает смену БД, проекта, галса. */
 static void
 hyscan_gtk_waterfall_mark_track_changed (HyScanGtkWaterfallState *model,
                                          HyScanGtkWaterfallMark  *self)
@@ -1672,6 +1694,7 @@ hyscan_gtk_waterfall_mark_track_changed (HyScanGtkWaterfallState *model,
   g_cond_signal (&priv->cond);
 }
 
+/* Функция обрабатывает смену скорости судна. */
 static void
 hyscan_gtk_waterfall_mark_ship_speed_changed (HyScanGtkWaterfallState *model,
                                               HyScanGtkWaterfallMark  *self)
@@ -1690,6 +1713,7 @@ hyscan_gtk_waterfall_mark_ship_speed_changed (HyScanGtkWaterfallState *model,
   g_cond_signal (&priv->cond);
 }
 
+/* Функция обрабатывает смену профиля скорости звука. */
 static void
 hyscan_gtk_waterfall_mark_sound_velocity_changed (HyScanGtkWaterfallState *model,
                                                   HyScanGtkWaterfallMark  *self)
@@ -1707,6 +1731,7 @@ hyscan_gtk_waterfall_mark_sound_velocity_changed (HyScanGtkWaterfallState *model
   g_cond_signal (&priv->cond);
 }
 
+/* Функция обрабатывает смену источников данных глубины. */
 static void
 hyscan_gtk_waterfall_mark_depth_source_changed (HyScanGtkWaterfallState *model,
                                                 HyScanGtkWaterfallMark  *self)
@@ -1726,6 +1751,7 @@ hyscan_gtk_waterfall_mark_depth_source_changed (HyScanGtkWaterfallState *model,
   g_cond_signal (&priv->cond);
 }
 
+/* Функция обрабатывает смену параметров определения глубины. */
 static void
 hyscan_gtk_waterfall_mark_depth_params_changed (HyScanGtkWaterfallState *model,
                                                 HyScanGtkWaterfallMark  *self)
@@ -1744,6 +1770,7 @@ hyscan_gtk_waterfall_mark_depth_params_changed (HyScanGtkWaterfallState *model,
   g_cond_signal (&priv->cond);
 }
 
+/* Функция создает новый объект HyScanGtkWaterfallMark. */
 HyScanGtkWaterfallMark*
 hyscan_gtk_waterfall_mark_new (HyScanGtkWaterfall *waterfall)
 {
@@ -1752,9 +1779,10 @@ hyscan_gtk_waterfall_mark_new (HyScanGtkWaterfall *waterfall)
                        NULL);
 }
 
+/* Функция задает фильтр меток. */
 void
 hyscan_gtk_waterfall_mark_set_mark_filter (HyScanGtkWaterfallMark *self,
-                                      guint64                 filter)
+                                           guint64                 filter)
 {
   HyScanGtkWaterfallMarkPrivate *priv;
 
@@ -1770,6 +1798,7 @@ hyscan_gtk_waterfall_mark_set_mark_filter (HyScanGtkWaterfallMark *self,
   g_mutex_unlock (&priv->state_lock);
 }
 
+/* Функция задает тип отображения и пока что не работает. */
 void
 hyscan_gtk_waterfall_mark_set_draw_type (HyScanGtkWaterfallMark     *self,
                                          HyScanGtkWaterfallMarksDraw type)
@@ -1778,6 +1807,7 @@ hyscan_gtk_waterfall_mark_set_draw_type (HyScanGtkWaterfallMark     *self,
   hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
+/* Функция задает основной цвет. */
 void
 hyscan_gtk_waterfall_mark_set_main_color (HyScanGtkWaterfallMark *self,
                                           GdkRGBA                 color)
@@ -1788,6 +1818,7 @@ hyscan_gtk_waterfall_mark_set_main_color (HyScanGtkWaterfallMark *self,
   hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
+/* Функция задает толщину основных линий. */
 void
 hyscan_gtk_waterfall_mark_set_mark_width (HyScanGtkWaterfallMark *self,
                                           gdouble                 width)
@@ -1798,6 +1829,7 @@ hyscan_gtk_waterfall_mark_set_mark_width (HyScanGtkWaterfallMark *self,
   hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
+/* Функция задает цвет рамки вокруг текста. */
 void
 hyscan_gtk_waterfall_mark_set_frame_color (HyScanGtkWaterfallMark *self,
                                            GdkRGBA                 color)
@@ -1808,7 +1840,7 @@ hyscan_gtk_waterfall_mark_set_frame_color (HyScanGtkWaterfallMark *self,
   hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-
+/* Функция задает цвет подложки. */
 void
 hyscan_gtk_waterfall_mark_set_shadow_color (HyScanGtkWaterfallMark *self,
                                             GdkRGBA                 color)
@@ -1818,6 +1850,7 @@ hyscan_gtk_waterfall_mark_set_shadow_color (HyScanGtkWaterfallMark *self,
   self->priv->color.shadow = color;
   hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
+/* Функция задает ширину линий подложки. */
 void
 hyscan_gtk_waterfall_mark_set_shadow_width (HyScanGtkWaterfallMark *self,
                                             gdouble                 width)
@@ -1828,6 +1861,7 @@ hyscan_gtk_waterfall_mark_set_shadow_width (HyScanGtkWaterfallMark *self,
   hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
+/* Функция задает цвет затемнения. */
 void
 hyscan_gtk_waterfall_mark_set_blackout_color (HyScanGtkWaterfallMark     *self,
                                               GdkRGBA                     color)

@@ -135,7 +135,7 @@ static void     hyscan_gtk_waterfall_create_dummy            (HyScanGtkWaterfall
 static gboolean hyscan_gtk_waterfall_configure               (GtkWidget                     *widget,
                                                               GdkEventConfigure             *event);
 
-static void     hyscan_gtk_waterfall_zoom_internal           (GtkCifroArea                  *carea,
+static void     hyscan_gtk_waterfall_cifroarea_zoom          (GtkCifroArea                  *carea,
                                                               GtkCifroAreaZoomType           direction_x,
                                                               GtkCifroAreaZoomType           direction_y,
                                                               gdouble                        center_x,
@@ -191,7 +191,7 @@ hyscan_gtk_waterfall_class_init (HyScanGtkWaterfallClass *klass)
   carea->check_scale = hyscan_gtk_waterfall_cifroarea_check_scale;
   carea->get_limits = hyscan_gtk_waterfall_cifroarea_get_limits;
   carea->get_stick = hyscan_gtk_waterfall_cifroarea_get_stick;
-  carea->zoom = hyscan_gtk_waterfall_zoom_internal;
+  carea->zoom = hyscan_gtk_waterfall_cifroarea_zoom;
 
   hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE] =
     g_signal_new ("automove-state", HYSCAN_TYPE_GTK_WATERFALL,
@@ -386,6 +386,7 @@ hyscan_gtk_waterfall_prepare_csurface (cairo_surface_t  **surface,
     }
 }
 
+/* Функция подготавливает структуру HyScanTile. */
 static void
 hyscan_gtk_waterfall_prepare_tile (HyScanGtkWaterfallPrivate *priv,
                                    HyScanTile                *tile)
@@ -492,6 +493,7 @@ hyscan_gtk_waterfall_get_tile (HyScanGtkWaterfall *self,
   return TRUE;
 }
 
+/* Функция отлавливает сигнал "tile-queue-hash". */
 static void
 hyscan_gtk_waterfall_hash_changed (HyScanGtkWaterfall *self,
                                    guint32             hash)
@@ -711,6 +713,7 @@ hyscan_gtk_waterfall_dummy_draw (GtkWidget *widget,
       }
 }
 
+/* Вспомогательная функция отрисовки. */
 static void
 hyscan_gtk_waterfall_draw_surface (cairo_surface_t *src,
                                    cairo_t         *dst,
@@ -725,6 +728,7 @@ hyscan_gtk_waterfall_draw_surface (cairo_surface_t *src,
   cairo_restore (dst);
 }
 
+/* Функция создает заглушку. */
 static void
 hyscan_gtk_waterfall_create_dummy (HyScanGtkWaterfall *self)
 {
@@ -811,12 +815,13 @@ exit:
   return FALSE;
 }
 
+/* Функция зуммирует изображение. */
 static void
-hyscan_gtk_waterfall_zoom_internal (GtkCifroArea          *carea,
-                                    GtkCifroAreaZoomType   direction_x,
-                                    GtkCifroAreaZoomType   direction_y,
-                                    gdouble                center_x,
-                                    gdouble                center_y)
+hyscan_gtk_waterfall_cifroarea_zoom (GtkCifroArea *carea,
+                                     GtkCifroAreaZoomType direction_x,
+                                     GtkCifroAreaZoomType direction_y,
+                                     gdouble center_x,
+                                     gdouble center_y)
 {
   HyScanGtkWaterfall *self = HYSCAN_GTK_WATERFALL (carea);
   HyScanGtkWaterfallPrivate *priv = self->priv;
@@ -842,6 +847,7 @@ hyscan_gtk_waterfall_zoom_internal (GtkCifroArea          *carea,
     gtk_cifro_area_move (carea, 0, G_MAXINT);
 }
 
+/* Функция проверки масштаба. */
 static void
 hyscan_gtk_waterfall_cifroarea_check_scale (GtkCifroArea *carea,
                                             gdouble      *scale_x,
@@ -871,6 +877,7 @@ hyscan_gtk_waterfall_cifroarea_check_scale (GtkCifroArea *carea,
   g_signal_emit (self, hyscan_gtk_waterfall_signals[SIGNAL_ZOOM], 0, priv->zoom_index, zooms_gost[priv->zoom_index]);
 }
 
+/* Функция проверки границ. */
 static void
 hyscan_gtk_waterfall_cifroarea_get_limits (GtkCifroArea *carea,
                                            gdouble      *min_x,
@@ -903,6 +910,7 @@ hyscan_gtk_waterfall_cifroarea_get_limits (GtkCifroArea *carea,
     }
 }
 
+/* Функция определяет, к какой границе прилипает изображение. */
 static void
 hyscan_gtk_waterfall_cifroarea_get_stick (GtkCifroArea          *carea,
                                           GtkCifroAreaStickType *stick_x,
@@ -933,6 +941,7 @@ hyscan_gtk_waterfall_cifroarea_get_stick (GtkCifroArea          *carea,
     }
 }
 
+/* Функция автосдвижки. */
 static gboolean
 hyscan_gtk_waterfall_automover (gpointer data)
 {
@@ -1040,6 +1049,7 @@ hyscan_gtk_waterfall_automover (gpointer data)
   return G_SOURCE_CONTINUE;
 }
 
+/* Функция обрабатывает смену типа отображения и источников. */
 static void
 hyscan_gtk_waterfall_sources_changed (HyScanGtkWaterfallState *model,
                                       HyScanGtkWaterfall   *self)
@@ -1050,6 +1060,7 @@ hyscan_gtk_waterfall_sources_changed (HyScanGtkWaterfallState *model,
                                       &self->priv->right_source);
 }
 
+/* Функция обрабатывает смену типа тайлов. */
 static void
 hyscan_gtk_waterfall_tile_type_changed (HyScanGtkWaterfallState *model,
                                         HyScanGtkWaterfall   *self)
@@ -1057,12 +1068,14 @@ hyscan_gtk_waterfall_tile_type_changed (HyScanGtkWaterfallState *model,
   hyscan_gtk_waterfall_state_get_tile_type (model, &self->priv->tile_type);
 }
 
+/* Функция обрабатывает смену профиля. */
 static void
 hyscan_gtk_waterfall_profile_changed (HyScanGtkWaterfallState *model,
                                       HyScanGtkWaterfall   *self)
 {
 }
 
+/* Функция обрабатывает смену БД, проекта, галса. */
 static void
 hyscan_gtk_waterfall_track_changed (HyScanGtkWaterfallState *model,
                                     HyScanGtkWaterfall   *self)
@@ -1113,6 +1126,7 @@ hyscan_gtk_waterfall_track_changed (HyScanGtkWaterfallState *model,
 
 }
 
+/* Функция обрабатывает смену скорости судна. */
 static void
 hyscan_gtk_waterfall_speed_changed (HyScanGtkWaterfallState *model,
                                     HyScanGtkWaterfall   *self)
@@ -1128,6 +1142,7 @@ hyscan_gtk_waterfall_speed_changed (HyScanGtkWaterfallState *model,
   self->priv->ship_speed = speed;
 }
 
+/* Функция обрабатывает смену профиля скорости звука. */
 static void
 hyscan_gtk_waterfall_velocity_changed (HyScanGtkWaterfallState *model,
                                        HyScanGtkWaterfall   *self)
@@ -1144,6 +1159,7 @@ hyscan_gtk_waterfall_velocity_changed (HyScanGtkWaterfallState *model,
     g_array_unref (velocity);
 }
 
+/* Функция обрабатывает смену источников данных глубины. */
 static void
 hyscan_gtk_waterfall_depth_source_changed (HyScanGtkWaterfallState *model,
                                            HyScanGtkWaterfall   *self)
@@ -1158,6 +1174,7 @@ hyscan_gtk_waterfall_depth_source_changed (HyScanGtkWaterfallState *model,
   hyscan_track_rect_set_depth_source (self->priv->rrect, source, channel);
 }
 
+/* Функция обрабатывает смену параметров определения глубины. */
 static void
 hyscan_gtk_waterfall_depth_params_changed (HyScanGtkWaterfallState *model,
                                            HyScanGtkWaterfall   *self)
@@ -1176,6 +1193,7 @@ hyscan_gtk_waterfall_depth_params_changed (HyScanGtkWaterfallState *model,
   hyscan_track_rect_set_depth_time (self->priv->rrect, time);
 }
 
+/* Функция обрабатывает смену системы кэширования. */
 static void
 hyscan_gtk_waterfall_cache_changed (HyScanGtkWaterfallState *model,
                                     HyScanGtkWaterfall   *self)
@@ -1210,6 +1228,7 @@ hyscan_gtk_waterfall_new (void)
   return g_object_new (HYSCAN_TYPE_GTK_WATERFALL, NULL);
 }
 
+/* Функция запрашивает перерисовку виджета. */
 void
 hyscan_gtk_waterfall_queue_draw (HyScanGtkWaterfall *self)
 {
@@ -1243,7 +1262,7 @@ hyscan_gtk_waterfall_set_colormap (HyScanGtkWaterfall *self,
   return hyscan_tile_color_set_colormap (self->priv->color, source, colormap, length, background);
 }
 
-/* Функция устанавливает резервную цветовую схему. */
+/* Функция устанавливает цветовую схему для всех источников. */
 gboolean
 hyscan_gtk_waterfall_set_colormap_for_all (HyScanGtkWaterfall *self,
                                            guint32            *colormap,
@@ -1272,7 +1291,7 @@ hyscan_gtk_waterfall_set_levels (HyScanGtkWaterfall *self,
   return hyscan_tile_color_set_levels (self->priv->color, source, black, gamma, white);
 }
 
-/* Функция устанавливает резезрвные уровни. */
+/* Функция устанавливает уровни для всех источников. */
 gboolean
 hyscan_gtk_waterfall_set_levels_for_all (HyScanGtkWaterfall *self,
                                          gdouble             black,
@@ -1302,6 +1321,7 @@ hyscan_gtk_waterfall_get_scale (HyScanGtkWaterfall *self,
   return self->priv->zoom_index;
 }
 
+/* Функция включает и выключает автосдвижку. */
 void
 hyscan_gtk_waterfall_automove (HyScanGtkWaterfall *self,
                                gboolean            automove)
@@ -1322,6 +1342,7 @@ hyscan_gtk_waterfall_automove (HyScanGtkWaterfall *self,
     gtk_cifro_area_move (GTK_CIFRO_AREA (self), G_MAXINT, 0);
 }
 
+/* Функция задает период автосдвижки. */
 void
 hyscan_gtk_waterfall_set_automove_period (HyScanGtkWaterfall *self,
                                           gint64              usecs)
@@ -1347,6 +1368,7 @@ hyscan_gtk_waterfall_set_automove_period (HyScanGtkWaterfall *self,
                                   self);
 }
 
+/* Функция задает период перегенерации данных. */
 void
 hyscan_gtk_waterfall_set_regeneration_period (HyScanGtkWaterfall *self,
                                               gint64              usecs)
@@ -1356,6 +1378,7 @@ hyscan_gtk_waterfall_set_regeneration_period (HyScanGtkWaterfall *self,
   self->priv->regen_period = usecs;
 }
 
+/* Функция задает цвет подложки. */
 void
 hyscan_gtk_waterfall_set_substrate (HyScanGtkWaterfall *self,
                                     guint32             substrate)

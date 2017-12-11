@@ -54,6 +54,7 @@ HYSCAN_API
 GType                       hyscan_gtk_waterfall_control_get_type              (void);
 
 /**
+ *
  * Функция создает новый объект.
  *
  * \param waterfall родительский виджет.
@@ -65,6 +66,7 @@ HYSCAN_API
 HyScanGtkWaterfallControl  *hyscan_gtk_waterfall_control_new                   (HyScanGtkWaterfall        *waterfall);
 
 /**
+ *
  * Функция задает поведение колесика мыши.
  *
  * Колесико мыши может быть настроено на прокрутку или зуммирование.
@@ -79,6 +81,7 @@ HYSCAN_API
 void                        hyscan_gtk_waterfall_control_set_wheel_behaviour   (HyScanGtkWaterfallControl *control,
                                                                                 gboolean                   scroll_without_ctrl);
 /**
+ *
  * Функция масштабирует изображение относительно центра.
  *
  * \param wfall указатель на объект \link HyScanGtkWaterfall \endlink;

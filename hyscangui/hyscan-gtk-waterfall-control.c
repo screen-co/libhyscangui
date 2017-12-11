@@ -141,20 +141,18 @@ hyscan_gtk_waterfall_control_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_waterfall_control_parent_class)->constructed (object);
 
   /* Сигналы Gtk. */
-  g_signal_connect_after (priv->wfall, "configure-event",
-                          G_CALLBACK (hyscan_gtk_waterfall_control_configure), self);
-  g_signal_connect (priv->wfall, "button-press-event", G_CALLBACK (hyscan_gtk_waterfall_control_mouse_button), self);
-  g_signal_connect (priv->wfall, "button-release-event", G_CALLBACK (hyscan_gtk_waterfall_control_mouse_button), self);
-  g_signal_connect (priv->wfall, "motion-notify-event", G_CALLBACK (hyscan_gtk_waterfall_control_mouse_motion), self);
-  g_signal_connect (priv->wfall, "scroll-event", G_CALLBACK (hyscan_gtk_waterfall_control_mouse_wheel), self);
-  g_signal_connect (priv->wfall, "key-press-event", G_CALLBACK (hyscan_gtk_waterfall_control_keyboard), self);
+  g_signal_connect_after (priv->wfall, "configure-event", G_CALLBACK (hyscan_gtk_waterfall_control_configure), self);
+  g_signal_connect (priv->wfall, "button-press-event",    G_CALLBACK (hyscan_gtk_waterfall_control_mouse_button), self);
+  g_signal_connect (priv->wfall, "button-release-event",  G_CALLBACK (hyscan_gtk_waterfall_control_mouse_button), self);
+  g_signal_connect (priv->wfall, "motion-notify-event",   G_CALLBACK (hyscan_gtk_waterfall_control_mouse_motion), self);
+  g_signal_connect (priv->wfall, "scroll-event",          G_CALLBACK (hyscan_gtk_waterfall_control_mouse_wheel), self);
+  g_signal_connect (priv->wfall, "key-press-event",       G_CALLBACK (hyscan_gtk_waterfall_control_keyboard), self);
 
   /* Сигналы модели. */
   g_signal_connect (priv->wfall, "changed::sources", G_CALLBACK (hyscan_gtk_waterfall_control_sources_changed), self);
 
   hyscan_gtk_waterfall_control_sources_changed (priv->wf_state, self);
 }
-
 
 static void
 hyscan_gtk_waterfall_control_object_finalize (GObject *object)
@@ -172,6 +170,7 @@ hyscan_gtk_waterfall_control_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_waterfall_control_parent_class)->finalize (object);
 }
 
+/* Функция захыватывает ввод. */
 static void
 hyscan_gtk_waterfall_control_grab_input (HyScanGtkWaterfallLayer *iface)
 {
@@ -181,6 +180,7 @@ hyscan_gtk_waterfall_control_grab_input (HyScanGtkWaterfallLayer *iface)
   hyscan_gtk_waterfall_state_set_changes_allowed (HYSCAN_GTK_WATERFALL_STATE (self->priv->wfall), FALSE);
 }
 
+/* Функция возвращает название иконки. */
 static const gchar*
 hyscan_gtk_waterfall_control_get_mnemonic (HyScanGtkWaterfallLayer *iface)
 {
@@ -373,6 +373,7 @@ hyscan_gtk_waterfall_control_mouse_motion (GtkWidget      *widget,
   return FALSE;
 }
 
+/* Обработчик колесика мыши. */
 static gboolean
 hyscan_gtk_waterfall_control_mouse_wheel (GtkWidget                 *widget,
                                           GdkEventScroll            *event,
@@ -424,6 +425,7 @@ hyscan_gtk_waterfall_control_mouse_wheel (GtkWidget                 *widget,
   return FALSE;
 }
 
+/* Функция обрабатывает сигнал смены типа отображения. */
 static void
 hyscan_gtk_waterfall_control_sources_changed (HyScanGtkWaterfallState   *model,
                                               HyScanGtkWaterfallControl *self)
@@ -431,6 +433,7 @@ hyscan_gtk_waterfall_control_sources_changed (HyScanGtkWaterfallState   *model,
   hyscan_gtk_waterfall_state_get_sources (model, &self->priv->display_type, NULL, NULL);
 }
 
+/* Функция создает новый объект. */
 HyScanGtkWaterfallControl*
 hyscan_gtk_waterfall_control_new (HyScanGtkWaterfall *waterfall)
 {
@@ -439,6 +442,7 @@ hyscan_gtk_waterfall_control_new (HyScanGtkWaterfall *waterfall)
                        NULL);
 }
 
+/* Функция задает поведение колесика мыши. */
 void
 hyscan_gtk_waterfall_control_set_wheel_behaviour (HyScanGtkWaterfallControl *self,
                                                   gboolean                   scroll_without_ctrl)
@@ -447,6 +451,7 @@ hyscan_gtk_waterfall_control_set_wheel_behaviour (HyScanGtkWaterfallControl *sel
   self->priv->scroll_without_ctrl = scroll_without_ctrl;
 }
 
+/* Функция масштабирует изображение относительно центра. */
 void
 hyscan_gtk_waterfall_control_zoom (HyScanGtkWaterfallControl *self,
                                    gboolean            zoom_in)

@@ -1,8 +1,7 @@
 #include "hyscan-gtk-waterfall-tools.h"
 #include <math.h>
 
-
-/* Функция вычисляет расстояние между точками. */
+/* Функция определяет расстояние между точками. */
 gdouble
 hyscan_gtk_waterfall_tools_distance(HyScanCoordinates *start,
                                     HyScanCoordinates *end)
@@ -10,6 +9,7 @@ hyscan_gtk_waterfall_tools_distance(HyScanCoordinates *start,
   return sqrt (pow (ABS(end->x - start->x), 2) + pow (ABS(end->y - start->y), 2));
 }
 
+/* Функция определяет угол наклона отрезка. */
 gdouble
 hyscan_gtk_waterfall_tools_angle (HyScanCoordinates *start,
                                   HyScanCoordinates *end)
@@ -20,6 +20,7 @@ hyscan_gtk_waterfall_tools_angle (HyScanCoordinates *start,
   return -atan ((end->y - start->y) / (end->x - start->x));
 }
 
+/* Функция возвращает середину отрезка. */
 HyScanCoordinates
 hyscan_gtk_waterfall_tools_middle (HyScanCoordinates *start,
                                    HyScanCoordinates *end)
@@ -32,7 +33,7 @@ hyscan_gtk_waterfall_tools_middle (HyScanCoordinates *start,
   return ret;
 }
 
-
+/* Функция проверяет, попадает ли отрезок хоть одной точкой внутрь прямоугольника. */
 gboolean
 hyscan_gtk_waterfall_tools_line_in_square (HyScanCoordinates *line_start,
                                            HyScanCoordinates *line_end,
@@ -64,17 +65,18 @@ hyscan_gtk_waterfall_tools_line_in_square (HyScanCoordinates *line_start,
   xs = (MIN (square_start->y, square_end->y) - b) / k;
   xe = (MAX (square_start->y, square_end->y) - b) / k;
 
-if ((ys > MIN (square_start->y, square_end->y) && ys < MAX (square_start->y, square_end->y)) ||
-    (ye > MIN (square_start->y, square_end->y) && ye < MAX (square_start->y, square_end->y)) ||
-    (xs > MIN (square_start->x, square_end->x) && xs < MAX (square_start->x, square_end->x)) ||
-    (xe > MIN (square_start->x, square_end->x) && xe < MAX (square_start->x, square_end->x)))
-    {
-      return TRUE;
-    }
+  if ((ys > MIN (square_start->y, square_end->y) && ys < MAX (square_start->y, square_end->y)) ||
+      (ye > MIN (square_start->y, square_end->y) && ye < MAX (square_start->y, square_end->y)) ||
+      (xs > MIN (square_start->x, square_end->x) && xs < MAX (square_start->x, square_end->x)) ||
+      (xe > MIN (square_start->x, square_end->x) && xe < MAX (square_start->x, square_end->x)))
+      {
+        return TRUE;
+      }
 
   return FALSE;
 }
 
+/* Функция подсчитывает коэффициеты k и b прямой, на которой лежит отрезок. */
 gboolean
 hyscan_gtk_waterfall_tools_line_k_b_calc (HyScanCoordinates *start,
                                           HyScanCoordinates *end,
@@ -90,6 +92,7 @@ hyscan_gtk_waterfall_tools_line_k_b_calc (HyScanCoordinates *start,
    return TRUE;
 }
 
+/* Функция определяет, лежит ли точка внутри прямоугольника. */
 gboolean
 hyscan_gtk_waterfall_tools_point_in_square (HyScanCoordinates *point,
                                             HyScanCoordinates *square_start,
@@ -107,16 +110,7 @@ hyscan_gtk_waterfall_tools_point_in_square (HyScanCoordinates *point,
   return inside;
 }
 
-gboolean
-hyscan_gtk_waterfall_tools_point_in_square_w (HyScanCoordinates *point,
-                                              HyScanCoordinates *square_start,
-                                              gdouble                        dx,
-                                              gdouble                        dy)
-{
-  g_message ("not implemented, lol");
-  return FALSE;
-}
-
+/* Функция создает паттерн для хэндлов. */
 cairo_pattern_t*
 hyscan_gtk_waterfall_tools_make_handle_pattern (gdouble radius,
                                                 GdkRGBA inner,
@@ -139,7 +133,7 @@ hyscan_gtk_waterfall_tools_make_handle_pattern (gdouble radius,
   return pattern;
 }
 
-
+/* Вспомогательная функция установки цвета. */
 void
 hyscan_cairo_set_source_gdk_rgba (cairo_t *cr,
                                   GdkRGBA *rgba)

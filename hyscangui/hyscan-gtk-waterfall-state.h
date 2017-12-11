@@ -89,7 +89,7 @@
  * - #hyscan_gtk_waterfall_state_set_changes_allowed
  * - #hyscan_gtk_waterfall_state_get_changes_allowed
  *
- * Класс не является потокобезопасным.
+ * Класс не является потокобезопасным и предназначен для использования в главном потоке.
  *
  */
 #ifndef __HYSCAN_GTK_WATERFALL_STATE_H__
@@ -136,6 +136,13 @@ struct _HyScanGtkWaterfallStateClass
 HYSCAN_API
 GType                   hyscan_gtk_waterfall_state_get_type                    (void);
 
+/**
+ *
+ * Функция создает новый объект \link HyScanGtkWaterfall \endlink.
+ *
+ * \return новый объект \link HyScanGtkWaterfall \endlink.
+ *
+ */
 HYSCAN_API
 HyScanGtkWaterfallState *hyscan_gtk_waterfall_state_new                        (void);
 
@@ -146,8 +153,8 @@ HyScanGtkWaterfallState *hyscan_gtk_waterfall_state_new                        (
  * Идентификатор может быть абсолютно любым, кроме NULL.
  * Рекомедуется использовать адрес вызывающего эту функцию слоя.
  *
- * \param state - указатель на объект \link HyScanGtkWaterfall \endlink;
- * \param owner - идентификатор объекта, желающего захватить ввод.
+ * \param state указатель на объект \link HyScanGtkWaterfall \endlink;
+ * \param owner идентификатор объекта, желающего захватить ввод.
  *
  */
 HYSCAN_API
@@ -157,7 +164,7 @@ void                    hyscan_gtk_waterfall_state_set_input_owner             (
  *
  * Функция возвращает владельца ввода.
  *
- * \param state - указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
  *
  * \return идентификатор владельца ввода или NULL, если владелец не установлен.
  *
@@ -171,8 +178,8 @@ gconstpointer           hyscan_gtk_waterfall_state_get_input_owner             (
  * Идентификатор может быть абсолютно любым, кроме NULL.
  * Рекомедуется использовать адрес вызывающего эту функцию слоя.
  *
- * \param state - указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param owner - идентификатор объекта, желающего захватить ввод.
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param owner идентификатор объекта, желающего захватить ввод.
  *
  */
 HYSCAN_API
@@ -182,7 +189,7 @@ void                    hyscan_gtk_waterfall_state_set_handle_grabbed          (
  *
  * Функция возвращает владельца ввода.
  *
- * \param state - указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
  *
  * \return идентификатор владельца ввода или NULL, если владелец не установлен.
  *
@@ -194,7 +201,7 @@ gconstpointer           hyscan_gtk_waterfall_state_get_handle_grabbed          (
  *
  * Функция возвращает владельца ввода.
  *
- * \param state - указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
  *
  * \return идентификатор владельца ввода или NULL, если владелец не установлен.
  *
@@ -206,7 +213,7 @@ void                    hyscan_gtk_waterfall_state_set_changes_allowed         (
  *
  * Функция возвращает владельца ввода.
  *
- * \param state - указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
  *
  * \return идентификатор владельца ввода или NULL, если владелец не установлен.
  *
@@ -214,26 +221,81 @@ void                    hyscan_gtk_waterfall_state_set_changes_allowed         (
 HYSCAN_API
 gboolean                hyscan_gtk_waterfall_state_get_changes_allowed         (HyScanGtkWaterfallState *state);
 
+/**
+ *
+ * Функция устанавливает режим отображения эхолот.
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param source отображаемый тип данных.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_echosounder                 (HyScanGtkWaterfallState *state,
                                                                                 HyScanSourceType         source);
+/**
+ *
+ * Функция устанавливает режим отображения водопад.
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param lsource тип данных, отображаемый слева;
+ * \param rsource тип данных, отображаемый справа.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_sidescan                    (HyScanGtkWaterfallState *state,
                                                                                 HyScanSourceType         lsource,
                                                                                 HyScanSourceType         rsource);
+/**
+ *
+ * Функция устанавливает тип тайла (наклонная или горизонтальная дальность).
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param type тип тайла.
+ *
+ */
+HYSCAN_API
 void                    hyscan_gtk_waterfall_state_set_tile_type               (HyScanGtkWaterfallState *state,
                                                                                 HyScanTileType           type);
 
+/**
+ *
+ * Функция устанавливаетимя профиля.
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param profile имя профиля.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_set_profile                 (HyScanGtkWaterfallState *state,
                                                                                 const gchar             *profile);
 
+/**
+ *
+ * Функция устанавливает систему кэширования.
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param cache указатель на объект \link HyScanCache \endlink;
+ * \param cache2 указатель на объект \link HyScanCache \endlink;
+ * \param prefix префикс системы кэширования.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_set_cache                   (HyScanGtkWaterfallState *state,
                                                                                 HyScanCache             *cache,
                                                                                 HyScanCache             *cache2,
                                                                                 const gchar             *prefix);
 
+/**
+ *
+ * Функция задает БД, проект и галс
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param db указатель на объект \link HyScanDB \endlink;
+ * \param project имя проекта;
+ * \param track имя галса;
+ * \param raw использовать ли сырые данные.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_set_track                   (HyScanGtkWaterfallState *state,
                                                                                 HyScanDB                *db,
@@ -241,42 +303,132 @@ void                    hyscan_gtk_waterfall_state_set_track                   (
                                                                                 const gchar             *track,
                                                                                 gboolean                 raw);
 
+/**
+ *
+ * Функция устанавливает скорость судна.
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param speed скорость судна в м/с.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_set_ship_speed              (HyScanGtkWaterfallState *state,
                                                                                 gfloat                   speed);
+/**
+ *
+ * Функция устанавливает скорость звука.
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param velocity профиль скорости звука.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_set_sound_velocity          (HyScanGtkWaterfallState *state,
                                                                                 GArray                  *velocity);
 
+/**
+ *
+ * Функция задает источник данных глубины.
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param source источник данных;
+ * \param channel номер канала.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_set_depth_source            (HyScanGtkWaterfallState *state,
                                                                                 HyScanSourceType         source,
                                                                                 guint                    channel);
+/**
+ *
+ * Функция задает окно валидности данных глубины.
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param usecs окно валидности в микросекундах.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_set_depth_time              (HyScanGtkWaterfallState *state,
                                                                                 gulong                   usecs);
+/**
+ *
+ * Функция задает размер фильтра для данных глубины.
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param size размер фильтра.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_set_depth_filter_size       (HyScanGtkWaterfallState *state,
                                                                                 guint                    size);
 
+/**
+ *
+ * Функция возвращает тип отображения и источники, как противоположность
+ * функциям hyscan_gtk_waterfall_state_echosounder и hyscan_gtk_waterfall_state_sidescan.
+ * В случае режима эхолот источники справа и слева будут идентичны.
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param type тип отображения;
+ * \param lsource тип данных слева;
+ * \param rsource тип данных справа.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_get_sources                 (HyScanGtkWaterfallState *state,
                                                                                 HyScanWaterfallDisplayType *type,
                                                                                 HyScanSourceType        *lsource,
                                                                                 HyScanSourceType        *rsource);
+/**
+ *
+ * Функция возвращает тип тайла.
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param type тип тайла.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_get_tile_type               (HyScanGtkWaterfallState *state,
                                                                                 HyScanTileType          *type);
+/**
+ *
+ * Функция возвращает имя профиля.
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param profile имя профиля.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_get_profile                 (HyScanGtkWaterfallState *state,
                                                                                 gchar                  **profile);
 
+/**
+ *
+ * Функция возвращает систему кэширования.
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param cache указатель на объект \link HyScanCache \endlink;
+ * \param cache2 указатель на объект \link HyScanCache \endlink;
+ * \param prefix префикс кэша.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_get_cache                   (HyScanGtkWaterfallState *state,
                                                                                 HyScanCache            **cache,
                                                                                 HyScanCache            **cache2,
                                                                                 gchar                  **prefix);
 
+/**
+ *
+ * Функция возвращает БД, проект и галс.
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param db указатель на \link HyScanDB \endlink;
+ * \param project имя проекта;
+ * \param track имя галса;
+ * \param raw использовать ли сырые данные.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_get_track                   (HyScanGtkWaterfallState *state,
                                                                                 HyScanDB               **db,
@@ -284,20 +436,61 @@ void                    hyscan_gtk_waterfall_state_get_track                   (
                                                                                 gchar                  **track,
                                                                                 gboolean                *raw);
 
+/**
+ *
+ * Функция возвращает скорость судна.
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param speed скорость судна.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_get_ship_speed              (HyScanGtkWaterfallState *state,
                                                                                 gfloat                  *speed);
+/**
+ *
+ * Функция возвращает профиль скорости звука.
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param velocity профиль скорости звука.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_get_sound_velocity          (HyScanGtkWaterfallState *state,
                                                                                 GArray                 **velocity);
 
+/**
+ *
+ * Функция возвращает источник данных глубины
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param source тип источника;
+ * \param channel канал данных.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_get_depth_source            (HyScanGtkWaterfallState *state,
                                                                                 HyScanSourceType        *source,
                                                                                 guint                   *channel);
+/**
+ *
+ * Функция возвращает окно валидности данных глубины.
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param usecs окно валидности.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_get_depth_time              (HyScanGtkWaterfallState *state,
                                                                                 gulong                  *usecs);
+/**
+ *
+ * Функция возвращает размер фильтра глубины.
+ *
+ * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
+ * \param size размер фильтра.
+ *
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_get_depth_filter_size       (HyScanGtkWaterfallState *state,
                                                                                 guint                   *size);

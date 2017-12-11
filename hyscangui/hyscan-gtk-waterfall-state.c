@@ -76,7 +76,7 @@ static gboolean hyscan_gtk_waterfall_state_mouse_button_release  (GtkWidget     
                                                                   HyScanGtkWaterfallState *self);
 
 
-static gint        hyscan_gtk_waterfall_state_signals[SIGNAL_LAST] = {0};
+static guint       hyscan_gtk_waterfall_state_signals[SIGNAL_LAST] = {0};
 static GQuark      hyscan_gtk_waterfall_state_details[DETAIL_LAST] = {0};
 
 G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE (HyScanGtkWaterfallState, hyscan_gtk_waterfall_state, GTK_TYPE_CIFRO_AREA);
@@ -208,12 +208,14 @@ hyscan_gtk_waterfall_state_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_waterfall_state_parent_class)->finalize (object);
 }
 
+/* Функция создает новый объект. */
 HyScanGtkWaterfallState*
 hyscan_gtk_waterfall_state_new (void)
 {
   return g_object_new (HYSCAN_TYPE_GTK_WATERFALL_STATE, NULL);
 }
 
+/* Функция позволяет слою захватить ввод. */
 void
 hyscan_gtk_waterfall_state_set_input_owner (HyScanGtkWaterfallState *self,
                                             gconstpointer            instance)
@@ -227,6 +229,7 @@ hyscan_gtk_waterfall_state_set_input_owner (HyScanGtkWaterfallState *self,
   self->priv->input_owner = instance;
 }
 
+/* Функция возвращает владельца ввода. */
 gconstpointer
 hyscan_gtk_waterfall_state_get_input_owner (HyScanGtkWaterfallState *self)
 {
@@ -235,6 +238,7 @@ hyscan_gtk_waterfall_state_get_input_owner (HyScanGtkWaterfallState *self)
   return self->priv->input_owner;
 }
 
+/* Функция позволяет слою захватить ввод. */
 void
 hyscan_gtk_waterfall_state_set_handle_grabbed (HyScanGtkWaterfallState *self,
                                                gconstpointer            instance)
@@ -244,6 +248,7 @@ hyscan_gtk_waterfall_state_set_handle_grabbed (HyScanGtkWaterfallState *self,
   self->priv->handle_processor = instance;
 }
 
+/* Функция возвращает владельца ввода. */
 gconstpointer
 hyscan_gtk_waterfall_state_get_handle_grabbed (HyScanGtkWaterfallState *self)
 {
@@ -252,6 +257,7 @@ hyscan_gtk_waterfall_state_get_handle_grabbed (HyScanGtkWaterfallState *self)
   return self->priv->handle_processor;
 }
 
+/* Функция возвращает владельца ввода. */
 void
 hyscan_gtk_waterfall_state_set_changes_allowed (HyScanGtkWaterfallState *self,
                                                 gboolean                 allowed)
@@ -262,6 +268,7 @@ hyscan_gtk_waterfall_state_set_changes_allowed (HyScanGtkWaterfallState *self,
   self->priv->changes_allowed = allowed;
 }
 
+/* Функция возвращает владельца ввода. */
 gboolean
 hyscan_gtk_waterfall_state_get_changes_allowed (HyScanGtkWaterfallState *self)
 {
@@ -270,6 +277,7 @@ hyscan_gtk_waterfall_state_get_changes_allowed (HyScanGtkWaterfallState *self)
   return self->priv->changes_allowed;
 }
 
+/* Функция устанавливает режим отображения эхолот. */
 void
 hyscan_gtk_waterfall_state_echosounder (HyScanGtkWaterfallState *self,
                                         HyScanSourceType         source)
@@ -286,6 +294,7 @@ hyscan_gtk_waterfall_state_echosounder (HyScanGtkWaterfallState *self,
                        hyscan_gtk_waterfall_state_details[DETAIL_SOURCES], NULL);
 }
 
+/* Функция устанавливает режим отображения водопад. */
 void
 hyscan_gtk_waterfall_state_sidescan (HyScanGtkWaterfallState *self,
                                      HyScanSourceType         lsource,
@@ -304,9 +313,10 @@ hyscan_gtk_waterfall_state_sidescan (HyScanGtkWaterfallState *self,
                        hyscan_gtk_waterfall_state_details[DETAIL_SOURCES], NULL);
 }
 
+/* Функция устанавливает тип тайла (наклонная или горизонтальная дальность). */
 void
 hyscan_gtk_waterfall_state_set_tile_type (HyScanGtkWaterfallState *self,
-                                    HyScanTileType           type)
+                                          HyScanTileType           type)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
@@ -319,6 +329,7 @@ hyscan_gtk_waterfall_state_set_tile_type (HyScanGtkWaterfallState *self,
                        hyscan_gtk_waterfall_state_details[DETAIL_TILE_TYPE], NULL);
 }
 
+/* Функция устанавливаетимя профиля. */
 void
 hyscan_gtk_waterfall_state_set_profile (HyScanGtkWaterfallState *self,
                                         const gchar             *profile)
@@ -337,6 +348,7 @@ hyscan_gtk_waterfall_state_set_profile (HyScanGtkWaterfallState *self,
                        hyscan_gtk_waterfall_state_details[DETAIL_PROFILE], NULL);
 }
 
+/* Функция устанавливает систему кэширования. */
 void
 hyscan_gtk_waterfall_state_set_cache (HyScanGtkWaterfallState *self,
                                       HyScanCache             *cache,
@@ -368,6 +380,7 @@ hyscan_gtk_waterfall_state_set_cache (HyScanGtkWaterfallState *self,
                        hyscan_gtk_waterfall_state_details[DETAIL_CACHE], NULL);
 }
 
+/* Функция задает БД, проект и галс */
 void
 hyscan_gtk_waterfall_state_set_track (HyScanGtkWaterfallState *self,
                                       HyScanDB                *db,
@@ -395,6 +408,7 @@ hyscan_gtk_waterfall_state_set_track (HyScanGtkWaterfallState *self,
                        hyscan_gtk_waterfall_state_details[DETAIL_TRACK], NULL);
 }
 
+/* Функция устанавливает скорость судна. */
 void
 hyscan_gtk_waterfall_state_set_ship_speed (HyScanGtkWaterfallState *self,
                                            gfloat                   speed)
@@ -409,6 +423,7 @@ hyscan_gtk_waterfall_state_set_ship_speed (HyScanGtkWaterfallState *self,
                        hyscan_gtk_waterfall_state_details[DETAIL_SPEED], NULL);
 }
 
+/* Функция устанавливает скорость звука. */
 void
 hyscan_gtk_waterfall_state_set_sound_velocity (HyScanGtkWaterfallState *self,
                                                GArray                  *velocity)
@@ -433,6 +448,7 @@ hyscan_gtk_waterfall_state_set_sound_velocity (HyScanGtkWaterfallState *self,
                        hyscan_gtk_waterfall_state_details[DETAIL_VELOCITY], NULL);
 }
 
+/* Функция задает источник данных глубины. */
 void
 hyscan_gtk_waterfall_state_set_depth_source (HyScanGtkWaterfallState *self,
                                              HyScanSourceType         source,
@@ -449,6 +465,7 @@ hyscan_gtk_waterfall_state_set_depth_source (HyScanGtkWaterfallState *self,
                        hyscan_gtk_waterfall_state_details[DETAIL_DEPTH_SOURCE], NULL);
 }
 
+/* Функция задает окно валидности данных глубины. */
 void
 hyscan_gtk_waterfall_state_set_depth_time (HyScanGtkWaterfallState *self,
                                            gulong                   usecs)
@@ -463,6 +480,7 @@ hyscan_gtk_waterfall_state_set_depth_time (HyScanGtkWaterfallState *self,
                        hyscan_gtk_waterfall_state_details[DETAIL_DEPTH_PARAMS], NULL);
 }
 
+/* Функция задает размер фильтра для данных глубины. */
 void
 hyscan_gtk_waterfall_state_set_depth_filter_size (HyScanGtkWaterfallState *self,
                                                   guint                    size)
@@ -477,6 +495,7 @@ hyscan_gtk_waterfall_state_set_depth_filter_size (HyScanGtkWaterfallState *self,
                        hyscan_gtk_waterfall_state_details[DETAIL_DEPTH_PARAMS], NULL);
 }
 
+/* Функция возвращает тип отображения и источники. */
 void
 hyscan_gtk_waterfall_state_get_sources (HyScanGtkWaterfallState       *self,
                                         HyScanWaterfallDisplayType    *type,
@@ -496,6 +515,7 @@ hyscan_gtk_waterfall_state_get_sources (HyScanGtkWaterfallState       *self,
     *rsource = priv->rsource;
 }
 
+/* Функция возвращает тип тайла. */
 void
 hyscan_gtk_waterfall_state_get_tile_type (HyScanGtkWaterfallState *self,
                                           HyScanTileType          *type)
@@ -509,6 +529,7 @@ hyscan_gtk_waterfall_state_get_tile_type (HyScanGtkWaterfallState *self,
     *type = priv->tile_type;
 }
 
+/* Функция возвращает имя профиля. */
 void
 hyscan_gtk_waterfall_state_get_profile (HyScanGtkWaterfallState *self,
                                         gchar                  **profile)
@@ -522,6 +543,7 @@ hyscan_gtk_waterfall_state_get_profile (HyScanGtkWaterfallState *self,
     *profile = g_strdup (priv->profile);
 }
 
+/* Функция возвращает систему кэширования. */
 void
 hyscan_gtk_waterfall_state_get_cache (HyScanGtkWaterfallState *self,
                                       HyScanCache            **cache,
@@ -541,6 +563,7 @@ hyscan_gtk_waterfall_state_get_cache (HyScanGtkWaterfallState *self,
     *prefix = (priv->prefix != NULL) ? g_strdup (priv->prefix) : NULL;
 }
 
+/* Функция возвращает БД, проект и галс. */
 void
 hyscan_gtk_waterfall_state_get_track (HyScanGtkWaterfallState *self,
                                       HyScanDB               **db,
@@ -563,6 +586,7 @@ hyscan_gtk_waterfall_state_get_track (HyScanGtkWaterfallState *self,
     *raw = priv->raw;
 }
 
+/* Функция возвращает скорость судна. */
 void
 hyscan_gtk_waterfall_state_get_ship_speed (HyScanGtkWaterfallState *self,
                                            gfloat                  *speed)
@@ -576,6 +600,7 @@ hyscan_gtk_waterfall_state_get_ship_speed (HyScanGtkWaterfallState *self,
     *speed = priv->speed;
 }
 
+/* Функция возвращает профиль скорости звука. */
 void
 hyscan_gtk_waterfall_state_get_sound_velocity (HyScanGtkWaterfallState *self,
                                                GArray                 **velocity)
@@ -589,6 +614,7 @@ hyscan_gtk_waterfall_state_get_sound_velocity (HyScanGtkWaterfallState *self,
     *velocity = (priv->velocity != NULL) ? g_array_ref (priv->velocity) : NULL;
 }
 
+/* Функция возвращает источник данных глубины */
 void
 hyscan_gtk_waterfall_state_get_depth_source (HyScanGtkWaterfallState *self,
                                              HyScanSourceType        *source,
@@ -605,6 +631,7 @@ hyscan_gtk_waterfall_state_get_depth_source (HyScanGtkWaterfallState *self,
     *channel = priv->depth_channel;
 }
 
+/* Функция возвращает окно валидности данных глубины. */
 void
 hyscan_gtk_waterfall_state_get_depth_time (HyScanGtkWaterfallState *self,
                                            gulong                  *usecs)
@@ -618,6 +645,7 @@ hyscan_gtk_waterfall_state_get_depth_time (HyScanGtkWaterfallState *self,
     *usecs = priv->depth_usecs;
 }
 
+/* Функция возвращает размер фильтра глубины. */
 void
 hyscan_gtk_waterfall_state_get_depth_filter_size (HyScanGtkWaterfallState *self,
                                                   guint                   *size)

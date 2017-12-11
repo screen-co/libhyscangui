@@ -39,46 +39,113 @@ typedef enum
 } HyScanGtkWaterfallMarksDraw;
 
 HYSCAN_API
-GType                    hyscan_gtk_waterfall_mark_get_type   (void);
+GType                    hyscan_gtk_waterfall_mark_get_type            (void);
 
+/**
+ *
+ * Функция создает новый объект \link HyScanGtkWaterfallMark \endlink.
+ *
+ * \param waterfall указатель на виджет \link HyScanGtkWaterfall \endlink;
+ *
+ * \return новый объект HyScanGtkWaterfallMark.
+ *
+ */
 HYSCAN_API
 HyScanGtkWaterfallMark  *hyscan_gtk_waterfall_mark_new                 (HyScanGtkWaterfall         *waterfall);
 
-/* фильтр лейблов */
+/**
+ *
+ * Функция задает фильтр меток.
+ *
+ * \param mark указатель на объект \link HyScanGtkWaterfallMark \endlink;
+ * \param filter
+ *
+ */
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_set_mark_filter     (HyScanGtkWaterfallMark     *mark,
                                                                         guint64                     filter);
-/* не работает */
+/**
+ *
+ * Функция задает тип отображения и пока что не работает.
+ *
+ * \param mark указатель на объект \link HyScanGtkWaterfallMark \endlink;
+ * \param type
+ *
+ */
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_set_draw_type       (HyScanGtkWaterfallMark     *mark,
                                                                         HyScanGtkWaterfallMarksDraw type);
 
-/* цвет рамки и текста, через hyscan_tile_color_converter_d2i */
+/**
+ *
+ * Функция задает основной цвет.
+ * Влияет на цвет меток и подписей.
+ *
+ * \param mark указатель на объект \link HyScanGtkWaterfallMark \endlink;
+ * \param color основной цвет.
+ *
+ */
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_set_main_color      (HyScanGtkWaterfallMark     *mark,
                                                                         GdkRGBA                     color);
+/**
+ *
+ * Функция задает толщину основных линий.
+ *
+ * \param mark указатель на объект \link HyScanGtkWaterfallMark \endlink;
+ * \param width толщина в пикселях.
+ *
+ */
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_set_mark_width      (HyScanGtkWaterfallMark     *mark,
                                                                         gdouble                     width);
-/**/
+/**
+ *
+ * Функция задает цвет рамки вокруг текста.
+ *
+ * \param mark указатель на объект \link HyScanGtkWaterfallMark \endlink;
+ * \param color цвет рамки.
+ *
+ */
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_set_frame_color     (HyScanGtkWaterfallMark     *mark,
                                                                         GdkRGBA                     color);
 
-/* цвет затемнения, через hyscan_tile_color_converter_d2i */
+/**
+ *
+ * Функция задает цвет подложки.
+ * Подложка рисуется под текстом и линиями метки.
+ *
+ * \param mark указатель на объект \link HyScanGtkWaterfallMark \endlink;
+ * \param color цвет подложки.
+ *
+ */
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_set_shadow_color    (HyScanGtkWaterfallMark     *mark,
                                                                         GdkRGBA                     color);
+/**
+ *
+ * Функция задает ширину линий подложки.
+ *
+ * \param mark указатель на объект \link HyScanGtkWaterfallMark \endlink;
+ * \param width ширина линий.
+ *
+ */
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_set_shadow_width    (HyScanGtkWaterfallMark     *mark,
                                                                         gdouble                     width);
+/**
+ *
+ * Функция задает цвет затемнения.
+ * Затемнение рисуется в момент создания метки.
+ *
+ * \param mark указатель на объект \link HyScanGtkWaterfallMark \endlink;
+ * \param color цвет затемнения.
+ *
+ */
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_set_blackout_color  (HyScanGtkWaterfallMark     *mark,
                                                                         GdkRGBA                     color);
-
-//HYSCAN_API
-//void                      hyscan_gtk_waterfall_mark_set_model (HyScanGtkWaterfallMark *mark,
-//                                                               HyScanMarkModel         *model);
 
 G_END_DECLS
 

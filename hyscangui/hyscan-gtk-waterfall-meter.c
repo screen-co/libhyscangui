@@ -80,9 +80,9 @@ static gboolean hyscan_gtk_waterfall_meter_key                     (GtkWidget   
                                                                     GdkEventKey             *event,
                                                                     HyScanGtkWaterfallMeter *self);
 
-static gboolean hyscan_gtk_waterfall_meter_interaction_processor                   (GtkWidget               *widget,
+static gboolean hyscan_gtk_waterfall_meter_interaction_processor   (GtkWidget               *widget,
                                                                     HyScanGtkWaterfallMeter *self);
-static gboolean hyscan_gtk_waterfall_meter_interaction_resolver             (GtkWidget               *widget,
+static gboolean hyscan_gtk_waterfall_meter_interaction_resolver    (GtkWidget               *widget,
                                                                     GdkEventAny             *event,
                                                                     HyScanGtkWaterfallMeter *self);
 static gboolean hyscan_gtk_waterfall_meter_motion                  (GtkWidget               *widget,
@@ -158,8 +158,8 @@ hyscan_gtk_waterfall_meter_object_constructed (GObject *object)
   HyScanGtkWaterfallMeter *self = HYSCAN_GTK_WATERFALL_METER (object);
   HyScanGtkWaterfallMeterPrivate *priv = self->priv;
 
-  g_signal_connect (priv->wf_state, "visible-draw",         G_CALLBACK (hyscan_gtk_waterfall_meter_draw), self);
-  g_signal_connect (priv->wf_state, "configure-event",      G_CALLBACK (hyscan_gtk_waterfall_meter_configure), self);
+  g_signal_connect (priv->wf_state, "visible-draw",               G_CALLBACK (hyscan_gtk_waterfall_meter_draw), self);
+  g_signal_connect (priv->wf_state, "configure-event",            G_CALLBACK (hyscan_gtk_waterfall_meter_configure), self);
   g_signal_connect_after (priv->wf_state, "key-press-event",      G_CALLBACK (hyscan_gtk_waterfall_meter_interaction_resolver), self);
   g_signal_connect_after (priv->wf_state, "button-release-event", G_CALLBACK (hyscan_gtk_waterfall_meter_interaction_resolver), self);
   g_signal_connect_after (priv->wf_state, "button-press-event",   G_CALLBACK (hyscan_gtk_waterfall_meter_button), self);
@@ -197,6 +197,7 @@ hyscan_gtk_waterfall_meter_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_waterfall_meter_parent_class)->finalize (object);
 }
 
+/* Функция захвата ввода. */
 static void
 hyscan_gtk_waterfall_meter_grab_input (HyScanGtkWaterfallLayer *iface)
 {
@@ -206,12 +207,14 @@ hyscan_gtk_waterfall_meter_grab_input (HyScanGtkWaterfallLayer *iface)
   hyscan_gtk_waterfall_state_set_changes_allowed (HYSCAN_GTK_WATERFALL_STATE (self->priv->wf_state), TRUE);
 }
 
+/* Функция возвращает название иконки. */
 static const gchar*
 hyscan_gtk_waterfall_meter_get_mnemonic (HyScanGtkWaterfallLayer *iface)
 {
   return "preferences-desktop-display-symbolic";
 }
 
+/* Функция ищет линейку по идентификатору. */
 static gint
 hyscan_gtk_waterfall_meter_find_by_id (gconstpointer _a,
                                        gconstpointer _b)
@@ -227,6 +230,7 @@ hyscan_gtk_waterfall_meter_find_by_id (gconstpointer _a,
     return 1;
 }
 
+/* Функция ищет ближайшую к указателю линейку. */
 static GList*
 hyscan_gtk_waterfall_meter_find_closest (HyScanGtkWaterfallMeter *self,
                                          HyScanCoordinates       *pointer)
@@ -255,6 +259,7 @@ hyscan_gtk_waterfall_meter_find_closest (HyScanGtkWaterfallMeter *self,
   return mlink;
 }
 
+/* Функция определяет, есть ли под указателем хэндл. */
 static gpointer
 hyscan_gtk_waterfall_meter_handle (HyScanGtkWaterfallState *state,
                                    GdkEventButton          *event,
@@ -284,7 +289,6 @@ hyscan_gtk_waterfall_meter_handle (HyScanGtkWaterfallState *state,
   rs = hyscan_gtk_waterfall_tools_distance (&mouse, &drawn->px_start);
   re = hyscan_gtk_waterfall_tools_distance (&mouse, &drawn->px_end);
 
-  /* TODO: Здесь мы только переписываем в current. */
   priv->current = *drawn;
   priv->current.start = (rs > re) ? drawn->start : drawn->end;
   priv->current.end   = (rs > re) ? drawn->end : drawn->start;
@@ -293,6 +297,7 @@ hyscan_gtk_waterfall_meter_handle (HyScanGtkWaterfallState *state,
   return self;
 }
 
+/* Функция обрабатывает нажатия клавиш клавиатуры. */
 static gboolean
 hyscan_gtk_waterfall_meter_key (GtkWidget               *widget,
                                 GdkEventKey             *event,
@@ -411,6 +416,7 @@ hyscan_gtk_waterfall_meter_interaction_processor (GtkWidget               *widge
   return TRUE;
 }
 
+/* Функция определяет возможность обработки нажатия. */
 static gboolean
 hyscan_gtk_waterfall_meter_interaction_resolver (GtkWidget               *widget,
                                                  GdkEventAny             *event,
@@ -445,6 +451,7 @@ hyscan_gtk_waterfall_meter_interaction_resolver (GtkWidget               *widget
   return TRUE;
 }
 
+/* Обработка движений мыши. */
 static gboolean
 hyscan_gtk_waterfall_meter_motion (GtkWidget               *widget,
                                    GdkEventMotion          *event,
@@ -465,6 +472,7 @@ hyscan_gtk_waterfall_meter_motion (GtkWidget               *widget,
   return FALSE;
 }
 
+/* Вспомогательная функция отрисовки. */
 static void
 hyscan_gtk_waterfall_meter_draw_helper (cairo_t           *cairo,
                                         HyScanCoordinates *start,
@@ -488,6 +496,7 @@ hyscan_gtk_waterfall_meter_draw_helper (cairo_t           *cairo,
   cairo_fill (cairo);
 }
 
+/* Функция отрисовки одной задачи. */
 static gboolean
 hyscan_gtk_waterfall_meter_draw_task (HyScanGtkWaterfallMeter     *self,
                                       cairo_t                     *cairo,
@@ -563,6 +572,7 @@ hyscan_gtk_waterfall_meter_draw_task (HyScanGtkWaterfallMeter     *self,
   return TRUE;
 }
 
+/* Функция отрисовки хэндла. */
 void
 hyscan_gtk_waterfall_meter_draw_handle  (cairo_t          *cairo,
                                          GdkRGBA           inner,
@@ -585,12 +595,13 @@ hyscan_gtk_waterfall_meter_draw_handle  (cairo_t          *cairo,
   cairo_pattern_destroy (pttrn);
 }
 
+/* Функция отрисовки. */
 static void
 hyscan_gtk_waterfall_meter_draw (GtkWidget               *widget,
                                  cairo_t                 *cairo,
                                  HyScanGtkWaterfallMeter *self)
 {
-  /* TODO: переделать, чтобы сначала рисовалась все подложки, потом все линейки
+  /* -TODO: переделать, чтобы сначала рисовалась все подложки, потом все линейки
    * TODO: возможно, имеет смысл обновлять только когда реально поменялись параметры отображения
    * для этого надо ловить изменение вью/скейла, а на обычный мышевоз не реагировать
    */
@@ -654,6 +665,7 @@ hyscan_gtk_waterfall_meter_draw (GtkWidget               *widget,
     }
 }
 
+/* Смена параметров виджета. */
 static gboolean
 hyscan_gtk_waterfall_meter_configure (GtkWidget               *widget,
                                       GdkEventConfigure       *event,
@@ -667,6 +679,8 @@ hyscan_gtk_waterfall_meter_configure (GtkWidget               *widget,
   return FALSE;
 }
 
+
+/* Функция создает новый слой HyScanGtkWaterfallMeter. */
 HyScanGtkWaterfallMeter*
 hyscan_gtk_waterfall_meter_new (HyScanGtkWaterfall *waterfall)
 {
@@ -675,6 +689,7 @@ hyscan_gtk_waterfall_meter_new (HyScanGtkWaterfall *waterfall)
                        NULL);
 }
 
+/* Функция задает основной цвет. */
 void
 hyscan_gtk_waterfall_meter_set_main_color (HyScanGtkWaterfallMeter *self,
                                            GdkRGBA                  color)
@@ -685,6 +700,7 @@ hyscan_gtk_waterfall_meter_set_main_color (HyScanGtkWaterfallMeter *self,
    hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
+/* Функция устанавливает цвет подложки. */
 void
 hyscan_gtk_waterfall_meter_set_shadow_color (HyScanGtkWaterfallMeter *self,
                                              GdkRGBA                  color)
@@ -695,6 +711,7 @@ hyscan_gtk_waterfall_meter_set_shadow_color (HyScanGtkWaterfallMeter *self,
   hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
+/* Функция задает цвет рамки. */
 void
 hyscan_gtk_waterfall_meter_set_frame_color (HyScanGtkWaterfallMeter *self,
                                             GdkRGBA                  color)
@@ -705,6 +722,7 @@ hyscan_gtk_waterfall_meter_set_frame_color (HyScanGtkWaterfallMeter *self,
   hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
+/* Функция задает толщину основных линий. */
 void
 hyscan_gtk_waterfall_meter_set_meter_width (HyScanGtkWaterfallMeter *self,
                                             gdouble                  width)
@@ -715,6 +733,7 @@ hyscan_gtk_waterfall_meter_set_meter_width (HyScanGtkWaterfallMeter *self,
   hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
+/* Функция задает толщину подложки. */
 void
 hyscan_gtk_waterfall_meter_set_shadow_width (HyScanGtkWaterfallMeter *self,
                                              gdouble                  width)

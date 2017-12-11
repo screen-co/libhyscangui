@@ -44,21 +44,67 @@ struct _HyScanGtkWaterfallMeterClass
 HYSCAN_API
 GType                           hyscan_gtk_waterfall_meter_get_type            (void);
 
+/**
+ *
+ * Функция создает новый слой HyScanGtkWaterfallMeter.
+ *
+ * \param waterfall указатель на виджет \link HyScanGtkWaterfall \endlink;
+ *
+ * \return новый слой HyScanGtkWaterfallMeter.
+ */
 HYSCAN_API
 HyScanGtkWaterfallMeter        *hyscan_gtk_waterfall_meter_new                 (HyScanGtkWaterfall      *waterfall);
 
+/**
+ *
+ * Функция задает основной цвет.
+ * Влияет на цвет линеек и текста.
+ *
+ * \param meter указатель на \link HyScanGtkWaterfallMeter \endlink;
+ * \param color основной цвет.
+ */
 HYSCAN_API
 void                            hyscan_gtk_waterfall_meter_set_main_color      (HyScanGtkWaterfallMeter *meter,
                                                                                 GdkRGBA                  color);
+/**
+ *
+ * Функция устанавливает цвет подложки.
+ * Подложки рисуются под линейками и текстом.
+ *
+ * \param meter указатель на \link HyScanGtkWaterfallMeter \endlink;
+ * \param color цвет подложки.
+ */
 HYSCAN_API
 void                            hyscan_gtk_waterfall_meter_set_shadow_color    (HyScanGtkWaterfallMeter *meter,
                                                                                 GdkRGBA                  color);
+/**
+ *
+ * Функция задает цвет рамки.
+ * Рамки рисуются вокруг подложки под текстом.
+ *
+ * \param meter указатель на \link HyScanGtkWaterfallMeter \endlink;
+ * \param color цвет рамок.
+ */
 HYSCAN_API
 void                            hyscan_gtk_waterfall_meter_set_frame_color     (HyScanGtkWaterfallMeter *meter,
                                                                                 GdkRGBA                  color);
+/**
+ *
+ * Функция задает толщину основных линий.
+ *
+ * \param meter указатель на \link HyScanGtkWaterfallMeter \endlink;
+ * \param width толщина основных линий.
+ */
 HYSCAN_API
 void                            hyscan_gtk_waterfall_meter_set_meter_width     (HyScanGtkWaterfallMeter *meter,
                                                                                 gdouble                  width);
+/**
+ *
+ * Функция задает толщину подложки.
+ *
+ * \param meter указатель на \link HyScanGtkWaterfallMeter \endlink;
+ * \param width толщина подложки.
+ */
 HYSCAN_API
 void                            hyscan_gtk_waterfall_meter_set_shadow_width    (HyScanGtkWaterfallMeter *meter,
                                                                                 gdouble                  width);
