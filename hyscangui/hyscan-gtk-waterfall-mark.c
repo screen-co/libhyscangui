@@ -744,11 +744,13 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               g_clear_object (&idepth);
               g_clear_object (&depth);
               g_clear_object (&mdata);
+              g_clear_pointer (&track_id, g_free);
               state->track_changed = FALSE;
             }
           if (state->profile_changed)
             {
               g_clear_object (&mdata);
+              g_clear_pointer (&track_id, g_free);
               state->profile_changed = FALSE;
             }
           if (state->depth_source_changed)
@@ -890,10 +892,8 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               mark.width             = task->dx * 1000;
               mark.height            = task->dy * 1000;
 
-              g_message ("ADD: %s ", mark.track);
               hyscan_waterfall_mark_data_add (mdata, &mark);
               hyscan_waterfall_mark_free (&mark);
-
             }
           else if (task->action == TASK_MODIFY)
             {
