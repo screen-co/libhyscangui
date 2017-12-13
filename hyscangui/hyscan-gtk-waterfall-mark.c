@@ -698,18 +698,21 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
   guint32 mc = 0, oldmc = 0;
   gchar **ids;
   guint nids, i;
-  gboolean refresh = FALSE;
   HyScanGtkWaterfallMarkState *state = &priv->state;
 
   g_mutex_init (&cond_mutex);
 
   while (!g_atomic_int_get (&priv->stop))
     {
+      /* Проверяем счётчик изменений. */
+      if (mdata != NULL)
+        mc = hyscan_waterfall_mark_data_get_mod_count (mdata);
+
       /* Ждем сигнализации об изменениях. */
-      if (g_atomic_int_get (&priv->cond_flag) == 0)
+      if (mc == oldmc && g_atomic_int_get (&priv->cond_flag) == 0)
         {
-          gint64 end = g_get_monotonic_time () + G_TIME_SPAN_MILLISECOND * 250;
           gboolean triggered;
+          gint64 end = g_get_monotonic_time () + G_TIME_SPAN_MILLISECOND * 250;
 
           g_mutex_lock (&cond_mutex);
           triggered = g_cond_wait_until (&priv->cond, &cond_mutex, end);
@@ -722,7 +725,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
 
       g_atomic_int_set (&priv->cond_flag, 0);
 
-      /* Проверяем, поменялось ли что-то. */
+      /* Проверяем, требуется ли синхронизация. */
       if (g_atomic_int_get (&priv->state_changed))
         {
           /* Синхронизация. */
@@ -746,12 +749,14 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               g_clear_object (&mdata);
               g_clear_pointer (&track_id, g_free);
               state->track_changed = FALSE;
+              mc = oldmc = 0;
             }
           if (state->profile_changed)
             {
               g_clear_object (&mdata);
               g_clear_pointer (&track_id, g_free);
               state->profile_changed = FALSE;
+              mc = oldmc = 0;
             }
           if (state->depth_source_changed)
             {
@@ -830,14 +835,12 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
                 idepth = hyscan_gtk_waterfall_mark_open_depth (self);
               depth = hyscan_gtk_waterfall_mark_open_depthometer (self, idepth);
             }
-
-          refresh = TRUE;
         }
 
+      /* Если в результате синхронизации нет объектов, с которыми можно иметь
+       * дело, возвращаемся в начало. */
       if (mdata == NULL || rproj == NULL || lproj ==NULL)
         continue;
-
-      /* Нормальная работа. */
 
       /* Чтобы как можно меньше задерживать mainloop, копируем список задач. */
       g_mutex_lock (&priv->task_lock);
@@ -848,8 +851,6 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
       /* Пересчитываем текущие задачи и отправляем в БД. */
       for (link = list; link != NULL; link = link->next)
         {
-          refresh = TRUE;
-
           task = link->data;
 
           if (task->action == TASK_REMOVE)
@@ -921,15 +922,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
       g_list_free_full (list, hyscan_gtk_waterfall_mark_free_task);
       list = NULL;
 
-      /* Проверяем счётчик изменений. */
-      mc = hyscan_waterfall_mark_data_get_mod_count (mdata);
-
-      /* Если он не изменился и не стоит флаг принудительного обновления... */
-      if (mc == oldmc && !refresh)
-        continue;
-
-      oldmc = mc;
-      refresh = FALSE;
+      oldmc = hyscan_waterfall_mark_data_get_mod_count (mdata);
 
       /* Получаем список идентификаторов. */
       ids = hyscan_waterfall_mark_data_get_ids (mdata, &nids);
