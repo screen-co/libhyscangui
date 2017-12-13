@@ -1,5 +1,4 @@
 #include <hyscan-depthometer.h>
-#include <hyscan-depth-acoustic.h>
 #include <hyscan-depth-nmea.h>
 #include <hyscan-mark-manager.h>
 #include <hyscan-projector.h>
@@ -327,7 +326,7 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
   priv->mode = LOCAL_EMPTY;
 
   priv->stop = FALSE;
-  priv->processing = g_thread_new ("gtk-wf_state-mark", hyscan_gtk_waterfall_mark_processing, self);
+  priv->processing = g_thread_new ("gtk-wf-mark", hyscan_gtk_waterfall_mark_processing, self);
 }
 
 static void
@@ -393,22 +392,7 @@ hyscan_gtk_waterfall_mark_open_depth (HyScanGtkWaterfallMark *self)
   if (state->db == NULL || state->project == NULL || state->track == NULL)
     return NULL;
 
-  if (hyscan_source_is_acoustic (state->depth_source))
-    {
-      HyScanDepthAcoustic *dacoustic;
-      dacoustic = hyscan_depth_acoustic_new (state->db,
-                                             state->project,
-                                             state->track,
-                                             state->depth_source,
-                                             state->raw);
-
-      if (dacoustic != NULL)
-        hyscan_depth_acoustic_set_sound_velocity (dacoustic, state->velocity);
-
-      idepth = HYSCAN_DEPTH (dacoustic);
-    }
-
-  else if (HYSCAN_SOURCE_NMEA_DPT == state->depth_source)
+  if (HYSCAN_SOURCE_NMEA_DPT == state->depth_source)
     {
       HyScanDepthNMEA *dnmea;
       dnmea = hyscan_depth_nmea_new (state->db,
@@ -417,6 +401,9 @@ hyscan_gtk_waterfall_mark_open_depth (HyScanGtkWaterfallMark *self)
                                      state->depth_channel);
       idepth = HYSCAN_DEPTH (dnmea);
     }
+
+  if (idepth == NULL)
+    return NULL;
 
   hyscan_depth_set_cache (idepth, state->cache, state->prefix);
   return idepth;
@@ -787,8 +774,6 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
                 hyscan_projector_set_sound_velocity (lproj, state->velocity);
               if (rproj != NULL)
                 hyscan_projector_set_sound_velocity (rproj, state->velocity);
-              if (HYSCAN_IS_DEPTH_ACOUSTIC (idepth))
-                hyscan_depth_acoustic_set_sound_velocity (HYSCAN_DEPTH_ACOUSTIC (idepth), state->velocity);
               state->velocity_changed = FALSE;
             }
           if (state->cache_changed)
