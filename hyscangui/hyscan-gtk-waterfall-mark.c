@@ -57,9 +57,6 @@ typedef struct
   HyScanTileType              tile_type;
   gboolean                    tile_type_changed;
 
-  gchar                      *profile;
-  gboolean                    profile_changed;
-
   HyScanCache                *cache;
   gchar                      *prefix;
   gboolean                    cache_changed;
@@ -201,8 +198,6 @@ static void     hyscan_gtk_waterfall_mark_sources_changed         (HyScanGtkWate
                                                                    HyScanGtkWaterfallMark  *self);
 static void     hyscan_gtk_waterfall_mark_tile_type_changed       (HyScanGtkWaterfallState *model,
                                                                    HyScanGtkWaterfallMark  *self);
-static void     hyscan_gtk_waterfall_mark_profile_changed         (HyScanGtkWaterfallState *model,
-                                                                   HyScanGtkWaterfallMark  *self);
 static void     hyscan_gtk_waterfall_mark_cache_changed           (HyScanGtkWaterfallState *model,
                                                                    HyScanGtkWaterfallMark  *self);
 static void     hyscan_gtk_waterfall_mark_track_changed           (HyScanGtkWaterfallState *model,
@@ -288,7 +283,6 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
   /* Сигналы модели водопада. */
   g_signal_connect (priv->wf_state, "changed::sources",      G_CALLBACK (hyscan_gtk_waterfall_mark_sources_changed), self);
   g_signal_connect (priv->wf_state, "changed::tile-type",    G_CALLBACK (hyscan_gtk_waterfall_mark_tile_type_changed), self);
-  g_signal_connect (priv->wf_state, "changed::profile",      G_CALLBACK (hyscan_gtk_waterfall_mark_profile_changed), self);
   g_signal_connect (priv->wf_state, "changed::track",        G_CALLBACK (hyscan_gtk_waterfall_mark_track_changed), self);
   g_signal_connect (priv->wf_state, "changed::speed",        G_CALLBACK (hyscan_gtk_waterfall_mark_ship_speed_changed), self);
   g_signal_connect (priv->wf_state, "changed::velocity",     G_CALLBACK (hyscan_gtk_waterfall_mark_sound_velocity_changed), self);
@@ -298,7 +292,6 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
 
   hyscan_gtk_waterfall_mark_sources_changed (priv->wf_state, self);
   hyscan_gtk_waterfall_mark_tile_type_changed (priv->wf_state, self);
-  hyscan_gtk_waterfall_mark_profile_changed (priv->wf_state, self);
   hyscan_gtk_waterfall_mark_cache_changed (priv->wf_state, self);
   hyscan_gtk_waterfall_mark_track_changed (priv->wf_state, self);
   hyscan_gtk_waterfall_mark_ship_speed_changed (priv->wf_state, self);
@@ -470,7 +463,6 @@ hyscan_gtk_waterfall_mark_free_task (gpointer data)
 static void
 hyscan_gtk_waterfall_mark_clear_state (HyScanGtkWaterfallMarkState *state)
 {
-  g_clear_pointer (&state->profile, g_free);
   g_clear_object (&state->cache);
   g_clear_pointer (&state->prefix, g_free);
   g_clear_object (&state->db);
@@ -551,111 +543,98 @@ static void
 hyscan_gtk_waterfall_mark_sync_states (HyScanGtkWaterfallMark *self)
 {
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
-  HyScanGtkWaterfallMarkState *new = &priv->new_state;
-  HyScanGtkWaterfallMarkState *cur = &priv->state;
+  HyScanGtkWaterfallMarkState *new_st = &priv->new_state;
+  HyScanGtkWaterfallMarkState *cur_st = &priv->state;
 
-  if (new->sources_changed)
+  if (new_st->sources_changed)
     {
-      cur->display_type = new->display_type;
-      cur->lsource = new->lsource;
-      cur->rsource = new->rsource;
+      cur_st->display_type = new_st->display_type;
+      cur_st->lsource = new_st->lsource;
+      cur_st->rsource = new_st->rsource;
 
-      new->sources_changed = FALSE;
-      cur->sources_changed = TRUE;
+      new_st->sources_changed = FALSE;
+      cur_st->sources_changed = TRUE;
     }
-  if (new->track_changed)
+  if (new_st->track_changed)
     {
       /* Очищаем текущее. */
-      g_clear_object (&cur->db);
-      g_clear_pointer (&cur->project, g_free);
-      g_clear_pointer (&cur->track, g_free);
+      g_clear_object (&cur_st->db);
+      g_clear_pointer (&cur_st->project, g_free);
+      g_clear_pointer (&cur_st->track, g_free);
 
       /* Копируем из нового. */
-      cur->db = new->db;
-      cur->project = new->project;
-      cur->track = new->track;
-      cur->raw = new->raw;
+      cur_st->db = new_st->db;
+      cur_st->project = new_st->project;
+      cur_st->track = new_st->track;
+      cur_st->raw = new_st->raw;
 
       /* Очищаем новое. */
-      new->db = NULL;
-      new->project = NULL;
-      new->track = NULL;
+      new_st->db = NULL;
+      new_st->project = NULL;
+      new_st->track = NULL;
 
       /* Выставляем флаги. */
-      new->track_changed = FALSE;
-      cur->track_changed = TRUE;
-    }
-  if (new->profile_changed)
-    {
-      /* Очищаем текущее. */
-      g_clear_pointer (&cur->profile, g_free);
-
-      /* Копируем из нового. */
-      cur->profile = new->profile;
-      new->profile = NULL;
-
-      /* Выставляем флаги. */
-      new->profile_changed = FALSE;
-      cur->profile_changed = TRUE;
+      new_st->track_changed = FALSE;
+      cur_st->track_changed = TRUE;
     }
 
-  if (new->cache_changed)
+  if (new_st->cache_changed)
     {
-      g_clear_object (&cur->cache);
-      g_clear_pointer (&cur->prefix, g_free);
+      g_clear_object (&cur_st->cache);
+      g_clear_pointer (&cur_st->prefix, g_free);
 
-      cur->cache = new->cache;
-      cur->prefix = new->prefix;
+      cur_st->cache = new_st->cache;
+      cur_st->prefix = new_st->prefix;
 
-      new->cache = NULL;
-      new->prefix = NULL;
+      new_st->cache = NULL;
+      new_st->prefix = NULL;
 
-      new->cache_changed = FALSE;
-      cur->cache_changed = TRUE;
+      new_st->cache_changed = FALSE;
+      cur_st->cache_changed = TRUE;
     }
 
-  if (new->depth_source_changed)
+  if (new_st->depth_source_changed)
     {
-      cur->depth_source = new->depth_source;
-      cur->depth_channel = new->depth_channel;
+      cur_st->depth_source = new_st->depth_source;
+      cur_st->depth_channel = new_st->depth_channel;
 
-      new->depth_source_changed = FALSE;
-      cur->depth_source_changed = TRUE;
+      new_st->depth_source_changed = FALSE;
+      cur_st->depth_source_changed = TRUE;
     }
-  if (new->depth_params_changed)
+  if (new_st->depth_params_changed)
     {
-      cur->depth_time = new->depth_time;
-      cur->depth_size = new->depth_size;
+      cur_st->depth_time = new_st->depth_time;
+      cur_st->depth_size = new_st->depth_size;
 
-      new->depth_params_changed = FALSE;
-      cur->depth_params_changed = TRUE;
+      new_st->depth_params_changed = FALSE;
+      cur_st->depth_params_changed = TRUE;
     }
 
-  if (new->speed_changed)
+  if (new_st->speed_changed)
     {
-      cur->ship_speed = new->ship_speed;
+      cur_st->ship_speed = new_st->ship_speed;
 
-      cur->speed_changed = TRUE;
-      new->speed_changed = FALSE;
+      cur_st->speed_changed = TRUE;
+      new_st->speed_changed = FALSE;
     }
-  if (new->velocity_changed)
+  if (new_st->velocity_changed)
     {
-      if (cur->velocity != NULL)
-        g_clear_pointer (&cur->velocity, g_array_unref);
+      if (cur_st->velocity != NULL)
+        g_clear_pointer (&cur_st->velocity, g_array_unref);
 
-      cur->velocity = new->velocity;
+      cur_st->velocity = new_st->velocity;
 
-      new->velocity = NULL;
+      new_st->velocity = NULL;
 
-      cur->velocity_changed = TRUE;
-      new->velocity_changed = FALSE;
+      cur_st->velocity_changed = TRUE;
+      new_st->velocity_changed = FALSE;
     }
-  if (new->mark_filter_changed)
+  if (new_st->mark_filter_changed)
     {
-      cur->mark_filter = new->mark_filter;
+      cur_st->mark_filter = new_st->mark_filter;
 
-      cur->mark_filter_changed = TRUE;
-      new->mark_filter_changed = FALSE;
+      cur_st->mark_filter_changed = TRUE;
+      new_st->mark_filter_changed = FALSE;
     }
 }
 
@@ -738,13 +717,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               state->track_changed = FALSE;
               mc = oldmc = 0;
             }
-          if (state->profile_changed)
-            {
-              g_clear_object (&mdata);
-              g_clear_pointer (&track_id, g_free);
-              state->profile_changed = FALSE;
-              mc = oldmc = 0;
-            }
+
           if (state->depth_source_changed)
             {
               g_clear_object (&idepth);
@@ -1198,7 +1171,7 @@ hyscan_gtk_waterfall_mark_mouse_interaction_processor (GtkWidget              *w
                                                        HyScanGtkWaterfallMark *self)
 {
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
-  HyScanGtkWaterfallMarkTask *new = NULL;
+  HyScanGtkWaterfallMarkTask *new_task = NULL;
   /* Мы оказываемся в этой функции только когда функция
    * hyscan_gtk_waterfall_mark_mouse_button_release решила,
    * что мы имеем право обработать это воздействие.
@@ -1245,8 +1218,8 @@ hyscan_gtk_waterfall_mark_mouse_interaction_processor (GtkWidget              *w
   else if (priv->mode == LOCAL_EDIT || priv->mode == LOCAL_CREATE)
     {
 
-      new = g_new0 (HyScanGtkWaterfallMarkTask, 1);
-      hyscan_gtk_waterfall_mark_copy_task (&priv->current, new);
+      new_task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
+      hyscan_gtk_waterfall_mark_copy_task (&priv->current, new_task);
 
       priv->mouse_mode = priv->mode = LOCAL_EMPTY;
       hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wf_state, NULL);
@@ -1273,9 +1246,9 @@ hyscan_gtk_waterfall_mark_mouse_interaction_processor (GtkWidget              *w
           g_list_free_full (priv->cancellable, hyscan_gtk_waterfall_mark_free_task);
           priv->cancellable = NULL;
 
-          new = g_new0 (HyScanGtkWaterfallMarkTask, 1);
-          new->id = g_strdup (priv->current.id);
-          new->action = TASK_REMOVE;
+          new_task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
+          new_task->id = g_strdup (priv->current.id);
+          new_task->action = TASK_REMOVE;
         }
 
 reset:
@@ -1283,10 +1256,10 @@ reset:
       hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wf_state, NULL);
     }
 
-  if (new != NULL)
+  if (new_task != NULL)
     {
       g_mutex_lock (&priv->task_lock);
-      priv->tasks = g_list_prepend (priv->tasks, new);
+      priv->tasks = g_list_prepend (priv->tasks, new_task);
       g_mutex_unlock (&priv->task_lock);
 
       g_atomic_int_inc (&priv->cond_flag);
@@ -1556,7 +1529,7 @@ hyscan_gtk_waterfall_mark_draw (GtkWidget              *widget,
     {
       gboolean visible;
       HyScanGtkWaterfallMarkTask *task;
-      HyScanGtkWaterfallMarkTask *new;
+      HyScanGtkWaterfallMarkTask *new_task;
 
       task = link->data;
 
@@ -1568,9 +1541,9 @@ hyscan_gtk_waterfall_mark_draw (GtkWidget              *widget,
         continue;
 
       /* Иначе добавляем в список видимых.*/
-      new = g_new0 (HyScanGtkWaterfallMarkTask, 1);
-      hyscan_gtk_waterfall_mark_copy_task (task, new);
-      priv->visible = g_list_prepend (priv->visible, new);
+      new_task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
+      hyscan_gtk_waterfall_mark_copy_task (task, new_task);
+      priv->visible = g_list_prepend (priv->visible, new_task);
     }
   g_mutex_unlock (&priv->drawable_lock);
 
@@ -1596,10 +1569,10 @@ hyscan_gtk_waterfall_mark_draw (GtkWidget              *widget,
     }
   else /*if (priv->mode == LOCAL_EMPTY)*/
     {
-      HyScanGtkWaterfallMarkTask new = {.mark = NULL};
+      HyScanGtkWaterfallMarkTask new_task = {.mark = NULL};
 
-      new = priv->current;
-      hyscan_gtk_waterfall_mark_draw_task (self, cairo, &new, TRUE, FALSE);
+      new_task = priv->current;
+      hyscan_gtk_waterfall_mark_draw_task (self, cairo, &new_task, TRUE, FALSE);
 
     }
 
@@ -1671,24 +1644,6 @@ hyscan_gtk_waterfall_mark_tile_type_changed (HyScanGtkWaterfallState *model,
   g_cond_signal (&priv->cond);
 }
 
-/* Функция обрабатывает смену профиля. */
-static void
-hyscan_gtk_waterfall_mark_profile_changed (HyScanGtkWaterfallState *model,
-                                           HyScanGtkWaterfallMark  *self)
-{
-  HyScanGtkWaterfallMarkPrivate *priv = self->priv;
-  g_mutex_lock (&priv->state_lock);
-
-  g_clear_pointer (&priv->new_state.profile, g_free);
-  hyscan_gtk_waterfall_state_get_profile (model, &priv->new_state.profile);
-
-  g_atomic_int_set (&priv->state_changed, TRUE);
-  g_mutex_unlock (&priv->state_lock);
-
-  g_atomic_int_inc (&priv->cond_flag);
-  g_cond_signal (&priv->cond);
-}
-
 /* Функция обрабатывает смену системы кэширования. */
 static void
 hyscan_gtk_waterfall_mark_cache_changed (HyScanGtkWaterfallState *model,
@@ -1729,6 +1684,16 @@ hyscan_gtk_waterfall_mark_track_changed (HyScanGtkWaterfallState *model,
                                        &priv->new_state.track,
                                        &priv->new_state.raw);
   priv->new_state.track_changed = TRUE;
+
+  g_mutex_lock (&priv->drawable_lock);
+  g_list_free_full (priv->drawable, hyscan_gtk_waterfall_mark_free_task);
+  g_list_free_full (priv->visible, hyscan_gtk_waterfall_mark_free_task);
+  g_list_free_full (priv->cancellable, hyscan_gtk_waterfall_mark_free_task);
+  priv->drawable = NULL;
+  priv->visible = NULL;
+  priv->cancellable = NULL;
+  g_mutex_unlock (&priv->drawable_lock);
+  priv->mode = priv->mouse_mode = LOCAL_EMPTY;
 
   g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);

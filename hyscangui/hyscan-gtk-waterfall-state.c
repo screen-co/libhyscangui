@@ -40,8 +40,6 @@ struct _HyScanGtkWaterfallStatePrivate
   HyScanSourceType            rsource;
   HyScanTileType              tile_type;
 
-  gchar                      *profile;
-
   HyScanDB                   *db;
   gchar                      *project;
   gchar                      *track;
@@ -194,8 +192,6 @@ hyscan_gtk_waterfall_state_object_finalize (GObject *object)
 
   g_clear_object (&priv->db);
 
-  g_free (priv->profile);
-
   g_free (priv->project);
   g_free (priv->track);
   if (priv->velocity != NULL)
@@ -327,25 +323,6 @@ hyscan_gtk_waterfall_state_set_tile_type (HyScanGtkWaterfallState *self,
 
   g_signal_emit (self, hyscan_gtk_waterfall_state_signals[SIGNAL_CHANGED],
                        hyscan_gtk_waterfall_state_details[DETAIL_TILE_TYPE], NULL);
-}
-
-/* Функция устанавливаетимя профиля. */
-void
-hyscan_gtk_waterfall_state_set_profile (HyScanGtkWaterfallState *self,
-                                        const gchar             *profile)
-{
-  HyScanGtkWaterfallStatePrivate *priv;
-
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_STATE (self));
-  priv = self->priv;
-
-  g_clear_pointer (&self->priv->profile, g_free);
-  if (profile == NULL)
-    profile = "default";
-  priv->profile = g_strdup (profile);
-
-  g_signal_emit (self, hyscan_gtk_waterfall_state_signals[SIGNAL_CHANGED],
-                       hyscan_gtk_waterfall_state_details[DETAIL_PROFILE], NULL);
 }
 
 /* Функция устанавливает систему кэширования. */
@@ -527,20 +504,6 @@ hyscan_gtk_waterfall_state_get_tile_type (HyScanGtkWaterfallState *self,
 
   if (type != NULL)
     *type = priv->tile_type;
-}
-
-/* Функция возвращает имя профиля. */
-void
-hyscan_gtk_waterfall_state_get_profile (HyScanGtkWaterfallState *self,
-                                        gchar                  **profile)
-{
-  HyScanGtkWaterfallStatePrivate *priv;
-
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_STATE (self));
-  priv = self->priv;
-
-  if (profile != NULL)
-    *profile = g_strdup (priv->profile);
 }
 
 /* Функция возвращает систему кэширования. */

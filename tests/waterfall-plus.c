@@ -184,15 +184,15 @@ GtkWidget*
 make_layer_btn (HyScanGtkWaterfallLayer *layer,
                 GtkWidget               *from)
 {
-  GtkWidget *new;
+  GtkWidget *button;
   const gchar *icon;
 
   icon = hyscan_gtk_waterfall_layer_get_mnemonic (layer);
-  new = gtk_radio_button_new_from_widget (GTK_RADIO_BUTTON (from));
-  gtk_toggle_button_set_mode (GTK_TOGGLE_BUTTON (new), FALSE);
-  gtk_button_set_image (GTK_BUTTON (new), gtk_image_new_from_icon_name (icon, GTK_ICON_SIZE_BUTTON));
+  button = gtk_radio_button_new_from_widget (GTK_RADIO_BUTTON (from));
+  gtk_toggle_button_set_mode (GTK_TOGGLE_BUTTON (button), FALSE);
+  gtk_button_set_image (GTK_BUTTON (button), gtk_image_new_from_icon_name (icon, GTK_ICON_SIZE_BUTTON));
 
-  return new;
+  return button;
 }
 
 GtkWidget*

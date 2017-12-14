@@ -1,13 +1,19 @@
 #include "hyscan-gtk-waterfall-depth.h"
-#include "hyscan-gtk-waterfall-private.h"
-#include <hyscan-depth-acoustic.h>
 #include <hyscan-depth-nmea.h>
 #include <hyscan-depthometer.h>
 #include <hyscan-tile-color.h>
 #include <math.h>
 
+enum
+{
+  PROP_WATERFALL = 1
+};
+
 struct _HyScanGtkWaterfallDepthPrivate
 {
+  HyScanGtkWaterfallState *wf_state;
+  HyScanGtkWaterfall      *wfall;
+
   HyScanDB              *db;
   gchar                 *project;
   gchar                 *track;
@@ -16,7 +22,7 @@ struct _HyScanGtkWaterfallDepthPrivate
   HyScanCache           *cache;
   gchar                 *prefix;
 
-  HyScanGtkWaterfallType widget_type;
+  HyScanWaterfallDisplayType widget_type;
 
   HyScanTileType         tile_type;
 
@@ -52,6 +58,12 @@ struct _HyScanGtkWaterfallDepthPrivate
   GMutex                 task_lock;
 };
 
+static void               hyscan_gtk_waterfall_depth_interface_init       (HyScanGtkWaterfallLayerInterface *iface);
+static void               hyscan_gtk_waterfall_depth_set_property         (GObject                 *object,
+                                                                           guint                    prop_id,
+                                                                           const GValue            *value,
+                                                                           GParamSpec              *pspec);
+
 static void               hyscan_gtk_waterfall_depth_object_constructed   (GObject                 *object);
 static void               hyscan_gtk_waterfall_depth_object_finalize      (GObject                 *object);
 
@@ -64,12 +76,6 @@ static HyScanDepthometer *hyscan_gtk_waterfall_depth_open_depth           (HySca
 static HyScanDepth       *hyscan_gtk_waterfall_depth_open_idepth          (HyScanGtkWaterfallDepthPrivate *priv);
 static gpointer           hyscan_gtk_waterfall_depth_processing           (gpointer                 data);
 
-static void               (*parent_open)                                  (HyScanGtkWaterfall            *waterfall,
-                                                                           HyScanDB                      *db,
-                                                                           const gchar                   *project_name,
-                                                                           const gchar                   *track_name,
-                                                                           gboolean                       raw);
-static void               (*parent_close)                                 (HyScanGtkWaterfall            *waterfall);
 static void               hyscan_gtk_waterfall_depth_open                 (HyScanGtkWaterfall            *waterfall,
                                                                            HyScanDB                      *db,
                                                                            const gchar                   *project_name,
@@ -83,36 +89,74 @@ static void               hyscan_gtk_waterfall_depth_open_internal        (HySca
                                                                            gboolean                       raw);
 static void               hyscan_gtk_waterfall_depth_close_internal       (HyScanGtkWaterfall            *waterfall);
 
+static void               hyscan_gtk_waterfall_depth_sources_changed        (HyScanGtkWaterfallState *state,
+                                                                             HyScanGtkWaterfallDepth *self);
+static void               hyscan_gtk_waterfall_depth_tile_type_changed      (HyScanGtkWaterfallState *state,
+                                                                             HyScanGtkWaterfallDepth *self);
+static void               hyscan_gtk_waterfall_depth_cache_changed          (HyScanGtkWaterfallState *state,
+                                                                             HyScanGtkWaterfallDepth *self);
+static void               hyscan_gtk_waterfall_depth_track_changed          (HyScanGtkWaterfallState *state,
+                                                                             HyScanGtkWaterfallDepth *self);
+static void               hyscan_gtk_waterfall_depth_ship_speed_changed     (HyScanGtkWaterfallState *state,
+                                                                             HyScanGtkWaterfallDepth *self);
+static void               hyscan_gtk_waterfall_depth_sound_velocity_changed (HyScanGtkWaterfallState *state,
+                                                                             HyScanGtkWaterfallDepth *self);
+static void               hyscan_gtk_waterfall_depth_depth_source_changed   (HyScanGtkWaterfallState *state,
+                                                                             HyScanGtkWaterfallDepth *self);
+static void               hyscan_gtk_waterfall_depth_depth_params_changed   (HyScanGtkWaterfallState *state,
+                                                                             HyScanGtkWaterfallDepth *self);
 
-G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkWaterfallDepth, hyscan_gtk_waterfall_depth, HYSCAN_TYPE_GTK_WATERFALL_GRID);
+G_DEFINE_TYPE_WITH_CODE (HyScanGtkWaterfallDepth, hyscan_gtk_waterfall_depth, HYSCAN_TYPE_GTK_WATERFALL_DEPTH,
+                         G_ADD_PRIVATE (HyScanGtkWaterfallDepth)
+                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_WATERFALL_LAYER,
+                                                hyscan_gtk_waterfall_depth_interface_init));
 
 static void
 hyscan_gtk_waterfall_depth_class_init (HyScanGtkWaterfallDepthClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
-  HyScanGtkWaterfallClass *waterfall_class = HYSCAN_GTK_WATERFALL_CLASS (klass);
 
+  object_class->set_property = hyscan_gtk_waterfall_depth_set_property;
   object_class->constructed = hyscan_gtk_waterfall_depth_object_constructed;
   object_class->finalize = hyscan_gtk_waterfall_depth_object_finalize;
 
-  parent_open = waterfall_class->open;
-  parent_close = waterfall_class->close;
-
-  waterfall_class->open = hyscan_gtk_waterfall_depth_open;
-  waterfall_class->close = hyscan_gtk_waterfall_depth_close;
+  g_object_class_install_property (object_class, PROP_WATERFALL,
+    g_param_spec_object ("waterfall", "Waterfall", "Waterfall widget",
+                         HYSCAN_TYPE_GTK_WATERFALL_STATE,
+                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
-hyscan_gtk_waterfall_depth_init (HyScanGtkWaterfallDepth *wfdepth)
+hyscan_gtk_waterfall_depth_init (HyScanGtkWaterfallDepth *self)
 {
-  wfdepth->priv = hyscan_gtk_waterfall_depth_get_instance_private (wfdepth);
+  self->priv = hyscan_gtk_waterfall_depth_get_instance_private (self);
+}
+
+static void
+hyscan_gtk_waterfall_depth_set_property (GObject      *object,
+                                         guint         prop_id,
+                                         const GValue *value,
+                                         GParamSpec   *pspec)
+{
+  HyScanGtkWaterfallDepth *self = HYSCAN_GTK_WATERFALL_DEPTH (object);
+
+  if (prop_id == PROP_WATERFALL)
+    {
+      self->priv->wfall = g_value_dup_object (value);
+      self->priv->wf_state = HYSCAN_GTK_WATERFALL_STATE (self->priv->wfall);
+    }
+  else
+    {
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+    }
+
 }
 
 static void
 hyscan_gtk_waterfall_depth_object_constructed (GObject *object)
 {
-  HyScanGtkWaterfallDepth *wfdepth = HYSCAN_GTK_WATERFALL_DEPTH (object);
-  HyScanGtkWaterfallDepthPrivate *priv = wfdepth->priv;
+  HyScanGtkWaterfallDepth *self = HYSCAN_GTK_WATERFALL_DEPTH (object);
+  HyScanGtkWaterfallDepthPrivate *priv = self->priv;
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_depth_parent_class)->constructed (object);
 
@@ -126,16 +170,33 @@ hyscan_gtk_waterfall_depth_object_constructed (GObject *object)
   g_mutex_init (&priv->task_lock);
 
   /* Waterfall.*/
-  g_signal_connect (wfdepth, "visible-draw", G_CALLBACK (hyscan_gtk_waterfall_depth_visible_draw), NULL);
-  g_signal_connect_after (wfdepth, "configure-event", G_CALLBACK (hyscan_gtk_waterfall_depth_configure), NULL);
+  g_signal_connect (self, "visible-draw", G_CALLBACK (hyscan_gtk_waterfall_depth_visible_draw), NULL);
+  g_signal_connect_after (self, "configure-event", G_CALLBACK (hyscan_gtk_waterfall_depth_configure), NULL);
+
+  g_signal_connect (priv->wf_state, "changed::sources",      G_CALLBACK (hyscan_gtk_waterfall_depth_sources_changed), self);
+  g_signal_connect (priv->wf_state, "changed::tile-type",    G_CALLBACK (hyscan_gtk_waterfall_depth_tile_type_changed), self);
+  g_signal_connect (priv->wf_state, "changed::speed",        G_CALLBACK (hyscan_gtk_waterfall_depth_ship_speed_changed), self);
+  g_signal_connect (priv->wf_state, "changed::velocity",     G_CALLBACK (hyscan_gtk_waterfall_depth_sound_velocity_changed), self);
+  g_signal_connect (priv->wf_state, "changed::depth-source", G_CALLBACK (hyscan_gtk_waterfall_depth_depth_source_changed), self);
+  g_signal_connect (priv->wf_state, "changed::depth-params", G_CALLBACK (hyscan_gtk_waterfall_depth_depth_params_changed), self);
+  g_signal_connect (priv->wf_state, "changed::cache",        G_CALLBACK (hyscan_gtk_waterfall_depth_cache_changed), self);
+
+  hyscan_gtk_waterfall_depth_sources_changed (priv->wf_state, self);
+  hyscan_gtk_waterfall_depth_tile_type_changed (priv->wf_state, self);
+  hyscan_gtk_waterfall_depth_cache_changed (priv->wf_state, self);
+  hyscan_gtk_waterfall_depth_track_changed (priv->wf_state, self);
+  hyscan_gtk_waterfall_depth_ship_speed_changed (priv->wf_state, self);
+  hyscan_gtk_waterfall_depth_sound_velocity_changed (priv->wf_state, self);
+  hyscan_gtk_waterfall_depth_depth_source_changed (priv->wf_state, self);
+  hyscan_gtk_waterfall_depth_depth_params_changed (priv->wf_state, self);
 }
 
 static void
 hyscan_gtk_waterfall_depth_object_finalize (GObject *object)
 {
   HyScanGtkWaterfall *waterfall = HYSCAN_GTK_WATERFALL (object);
-  HyScanGtkWaterfallDepth *wfdepth = HYSCAN_GTK_WATERFALL_DEPTH (object);
-  HyScanGtkWaterfallDepthPrivate *priv = wfdepth->priv;
+  HyScanGtkWaterfallDepth *self = HYSCAN_GTK_WATERFALL_DEPTH (object);
+  HyScanGtkWaterfallDepthPrivate *priv = self->priv;
 
   hyscan_gtk_waterfall_depth_close (waterfall);
 
@@ -156,8 +217,8 @@ hyscan_gtk_waterfall_depth_visible_draw (GtkWidget *widget,
                                          cairo_t   *cairo)
 {
   GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
-  HyScanGtkWaterfallDepth *wfdepth = HYSCAN_GTK_WATERFALL_DEPTH (widget);
-  HyScanGtkWaterfallDepthPrivate *priv = wfdepth->priv;
+  HyScanGtkWaterfallDepth *self = HYSCAN_GTK_WATERFALL_DEPTH (widget);
+  HyScanGtkWaterfallDepthPrivate *priv = self->priv;
 
   cairo_surface_t *surface = cairo_get_target (cairo);
   guchar *data = cairo_image_surface_get_data (surface);
@@ -192,7 +253,7 @@ hyscan_gtk_waterfall_depth_visible_draw (GtkWidget *widget,
   gtk_cifro_area_value_to_point (carea, &line_to, NULL, line_width, 0);
   line_width = (line_to - line_from) / 2.0;
 
-  if (priv->widget_type == HYSCAN_GTK_WATERFALL_SIDESCAN)
+  if (priv->widget_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN)
     size = priv->widget_height;
   else
     size = priv->widget_width;
@@ -203,7 +264,7 @@ hyscan_gtk_waterfall_depth_visible_draw (GtkWidget *widget,
       gtk_cifro_area_point_to_value (carea, along_px, along_px, &echo_m, &ss_m);
 
       /* Теперь вычисляем время для этой координаты.*/
-      if (priv->widget_type == HYSCAN_GTK_WATERFALL_SIDESCAN)
+      if (priv->widget_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN)
         time = (ss_m / speed) * 1000000 + ltime;
       else
         time = (echo_m / speed) * 1000000 + ltime;
@@ -221,7 +282,7 @@ hyscan_gtk_waterfall_depth_visible_draw (GtkWidget *widget,
           continue;
         }
 
-      if (priv->widget_type == HYSCAN_GTK_WATERFALL_SIDESCAN)
+      if (priv->widget_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN)
         {
           /* Рисуем точку на правом и левом бортах. */
           for (j = 0; j < 2; j++)
@@ -264,13 +325,13 @@ hyscan_gtk_waterfall_depth_configure (GtkWidget         *widget,
                                       GdkEventConfigure *event)
 {
   GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
-  HyScanGtkWaterfallDepth *wfdepth = HYSCAN_GTK_WATERFALL_DEPTH (widget);
+  HyScanGtkWaterfallDepth *self = HYSCAN_GTK_WATERFALL_DEPTH (widget);
   guint width, height;
 
   /* Выясняем высоту виджета в пикселях. */
   gtk_cifro_area_get_size (carea, &width, &height);
-  wfdepth->priv->widget_width = width;
-  wfdepth->priv->widget_height = height;
+  self->priv->widget_width = width;
+  self->priv->widget_height = height;
 
   return FALSE;
 }
@@ -281,19 +342,7 @@ hyscan_gtk_waterfall_depth_open_idepth (HyScanGtkWaterfallDepthPrivate *priv)
 {
   HyScanDepth *idepth = NULL;
 
-  if (hyscan_source_is_acoustic (priv->depth_source))
-    {
-      HyScanDepthAcoustic *dacoustic;
-
-      dacoustic = hyscan_depth_acoustic_new (priv->db, priv->project, priv->track, priv->depth_source, priv->raw);
-
-      if (dacoustic != NULL)
-        hyscan_depth_acoustic_set_sound_velocity (dacoustic, priv->sound_velocity);
-
-      idepth = HYSCAN_DEPTH (dacoustic);
-    }
-
-  else if (priv->depth_source == HYSCAN_SOURCE_NMEA_DPT)
+  if (priv->depth_source == HYSCAN_SOURCE_NMEA_DPT)
     {
       HyScanDepthNMEA *dnmea;
       dnmea = hyscan_depth_nmea_new (priv->db, priv->project, priv->track, priv->depth_channel);
@@ -405,85 +454,23 @@ hyscan_gtk_waterfall_depth_open (HyScanGtkWaterfall *waterfall,
                                  const gchar        *track,
                                  gboolean            raw)
 {
-  if (parent_open != NULL)
-    parent_open (waterfall, db, project, track, raw);
-
   hyscan_gtk_waterfall_depth_open_internal (waterfall, db, project, track, raw);
 }
 
 static void
 hyscan_gtk_waterfall_depth_close (HyScanGtkWaterfall *waterfall)
 {
-  if (parent_close != NULL)
-    parent_close (waterfall);
-
   hyscan_gtk_waterfall_depth_close_internal (waterfall);
 }
 
-static void
-hyscan_gtk_waterfall_depth_open_internal (HyScanGtkWaterfall *waterfall,
-                                          HyScanDB           *db,
-                                          const gchar        *project,
-                                          const gchar        *track,
-                                          gboolean            raw)
-{
-  HyScanGtkWaterfallDepth *wfdepth = HYSCAN_GTK_WATERFALL_DEPTH (waterfall);
-  HyScanGtkWaterfallDepthPrivate *priv = wfdepth->priv;
-
-  if (priv->open)
-    return;
-
-  priv->db = g_object_ref (db);
-  priv->project = g_strdup (project);
-  priv->track = g_strdup (track);
-
-  priv->cache = g_object_ref (hyscan_gtk_waterfall_get_cache (waterfall));
-  priv->prefix = g_strdup (hyscan_gtk_waterfall_get_cache_prefix (waterfall));
-
-  priv->widget_type = hyscan_gtk_waterfall_get_sources (waterfall, NULL, NULL);
-
-  if (priv->widget_type == HYSCAN_GTK_WATERFALL_SIDESCAN)
-    priv->tile_type = hyscan_gtk_waterfall_get_tile_type (waterfall);
-  else
-    priv->tile_type = HYSCAN_TILE_SLANT;
-
-  priv->ship_speed = hyscan_gtk_waterfall_get_ship_speed (waterfall);
-  priv->sound_velocity = g_array_ref (hyscan_gtk_waterfall_get_sound_velocity (waterfall));
-  priv->raw = raw;
-
-  priv->depth_source = hyscan_gtk_waterfall_get_depth_source (waterfall, &priv->depth_channel);
-  priv->depth_size = hyscan_gtk_waterfall_get_depth_filter_size (waterfall);
-  priv->depth_time = hyscan_gtk_waterfall_get_depth_time (waterfall);
-
-  priv->open = TRUE;
-  priv->stop = 0;
-
-  priv->processing = g_thread_new ("waterfall-depth", hyscan_gtk_waterfall_depth_processing, priv);
-}
-
-static void
-hyscan_gtk_waterfall_depth_close_internal (HyScanGtkWaterfall *waterfall)
-{
-  HyScanGtkWaterfallDepth *wfdepth = HYSCAN_GTK_WATERFALL_DEPTH (waterfall);
-  HyScanGtkWaterfallDepthPrivate *priv = wfdepth->priv;
-
-  g_atomic_int_set (&priv->stop, 1);
-  g_clear_pointer (&priv->processing, g_thread_join);
-  g_array_set_size (priv->tasks, 0);
-  g_atomic_int_set (&priv->ltime_set, 0);
-
-  g_clear_object (&priv->db);
-  g_clear_pointer (&priv->project, g_free);
-  g_clear_pointer (&priv->track, g_free);
-
-  g_clear_object (&priv->cache);
-  g_clear_pointer (&priv->prefix, g_free);
-
-  g_clear_pointer (&priv->sound_velocity, g_array_unref);
-
-  priv->open = FALSE;
-}
-
+static void hyscan_gtk_waterfall_depth_sources_changed (HyScanGtkWaterfallState *state, HyScanGtkWaterfallDepth *self) {}
+static void hyscan_gtk_waterfall_depth_tile_type_changed (HyScanGtkWaterfallState *state, HyScanGtkWaterfallDepth *self) {}
+static void hyscan_gtk_waterfall_depth_cache_changed (HyScanGtkWaterfallState *state, HyScanGtkWaterfallDepth *self) {}
+static void hyscan_gtk_waterfall_depth_track_changed (HyScanGtkWaterfallState *state, HyScanGtkWaterfallDepth *self) {}
+static void hyscan_gtk_waterfall_depth_ship_speed_changed (HyScanGtkWaterfallState *state, HyScanGtkWaterfallDepth *self) {}
+static void hyscan_gtk_waterfall_depth_sound_velocity_changed (HyScanGtkWaterfallState *state, HyScanGtkWaterfallDepth *self) {}
+static void hyscan_gtk_waterfall_depth_depth_source_changed (HyScanGtkWaterfallState *state, HyScanGtkWaterfallDepth *self) {}
+static void hyscan_gtk_waterfall_depth_depth_params_changed (HyScanGtkWaterfallState *state, HyScanGtkWaterfallDepth *self) {}
 
 GtkWidget*
 hyscan_gtk_waterfall_depth_new (void)
@@ -492,31 +479,37 @@ hyscan_gtk_waterfall_depth_new (void)
 }
 
 void
-hyscan_gtk_waterfall_depth_show (HyScanGtkWaterfallDepth *wfdepth,
+hyscan_gtk_waterfall_depth_show (HyScanGtkWaterfallDepth *self,
                                  gboolean                 show)
 {
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_DEPTH (wfdepth));
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_DEPTH (self));
 
-  wfdepth->priv->show = show;
+  self->priv->show = show;
 }
 
 void
-hyscan_gtk_waterfall_depth_set_color (HyScanGtkWaterfallDepth *wfdepth,
+hyscan_gtk_waterfall_depth_set_color (HyScanGtkWaterfallDepth *self,
                                       guint32                  color)
 {
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_DEPTH (wfdepth));
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_DEPTH (self));
 
-  wfdepth->priv->color = color;
+  self->priv->color = color;
 }
 
 void
-hyscan_gtk_waterfall_depth_set_width (HyScanGtkWaterfallDepth *wfdepth,
+hyscan_gtk_waterfall_depth_set_width (HyScanGtkWaterfallDepth *self,
                                       gdouble                  width)
 {
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_DEPTH (wfdepth));
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_DEPTH (self));
 
   if (width < 0.0)
     return;
 
-  wfdepth->priv->width = width / 2;
+  self->priv->width = width / 2;
+}
+
+static void
+hyscan_gtk_waterfall_depth_interface_init (HyScanGtkWaterfallLayerInterface *iface)
+{
+  g_warning ("implement");
 }

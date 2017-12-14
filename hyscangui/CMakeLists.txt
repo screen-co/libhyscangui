@@ -27,6 +27,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-waterfall-tools.c
              hyscan-gtk-waterfall-mark.c
              hyscan-gtk-waterfall-meter.c
+             # hyscan-gtk-waterfall-depth.c
              ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c)
 
 target_link_libraries (${HYSCAN_GUI_LIBRARY} ${GTK3_LIBRARIES} ${HYSCAN_LIBRARIES} ${GTKCIFROAREA_LIBRARIES})

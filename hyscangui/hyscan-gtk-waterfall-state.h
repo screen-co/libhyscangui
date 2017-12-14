@@ -259,18 +259,6 @@ void                    hyscan_gtk_waterfall_state_set_tile_type               (
 
 /**
  *
- * Функция устанавливаетимя профиля.
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param profile имя профиля.
- *
- */
-HYSCAN_API
-void                    hyscan_gtk_waterfall_state_set_profile                 (HyScanGtkWaterfallState *state,
-                                                                                const gchar             *profile);
-
-/**
- *
  * Функция устанавливает систему кэширования.
  *
  * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
@@ -390,17 +378,6 @@ void                    hyscan_gtk_waterfall_state_get_sources                 (
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_get_tile_type               (HyScanGtkWaterfallState *state,
                                                                                 HyScanTileType          *type);
-/**
- *
- * Функция возвращает имя профиля.
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param profile имя профиля.
- *
- */
-HYSCAN_API
-void                    hyscan_gtk_waterfall_state_get_profile                 (HyScanGtkWaterfallState *state,
-                                                                                gchar                  **profile);
 
 /**
  *

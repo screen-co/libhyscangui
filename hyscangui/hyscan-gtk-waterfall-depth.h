@@ -1,7 +1,7 @@
 #ifndef __HYSCAN_GTK_WATERFALL_DEPTH_H__
 #define __HYSCAN_GTK_WATERFALL_DEPTH_H__
 
-#include <hyscan-gtk-waterfall-grid.h>
+#include <hyscan-gtk-waterfall-layer.h>
 
 G_BEGIN_DECLS
 
@@ -18,14 +18,14 @@ typedef struct _HyScanGtkWaterfallDepthClass HyScanGtkWaterfallDepthClass;
 
 struct _HyScanGtkWaterfallDepth
 {
-  HyScanGtkWaterfallGrid parent_instance;
+  GObject parent_instance;
 
   HyScanGtkWaterfallDepthPrivate *priv;
 };
 
 struct _HyScanGtkWaterfallDepthClass
 {
-  HyScanGtkWaterfallGridClass parent_class;
+  GObjectClass parent_class;
 };
 
 HYSCAN_API
@@ -39,7 +39,7 @@ void                     hyscan_gtk_waterfall_depth_show             (HyScanGtkW
                                                                       gboolean                 show);
 
 HYSCAN_API
-void                     hyscan_gtk_waterfall_depth_set_color        (HyScanGtkWaterfallDepth *wfdepth,
+void                     hyscan_gtk_waterfall_depth_set_main_color   (HyScanGtkWaterfallDepth *wfdepth,
                                                                       guint32                  color);
 
 HYSCAN_API
