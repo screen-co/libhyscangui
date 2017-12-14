@@ -13,6 +13,12 @@ enum
   PROP_WATERFALL = 1
 };
 
+enum
+{
+  SIGNAL_SELECTED,
+  SIGNAL_LAST
+};
+
 /* Состояния объекта. */
 enum
 {
@@ -211,6 +217,8 @@ static void     hyscan_gtk_waterfall_mark_depth_source_changed    (HyScanGtkWate
 static void     hyscan_gtk_waterfall_mark_depth_params_changed    (HyScanGtkWaterfallState *model,
                                                                    HyScanGtkWaterfallMark  *self);
 
+static guint    hyscan_gtk_waterfall_mark_signals[SIGNAL_LAST] = {0};
+
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkWaterfallMark, hyscan_gtk_waterfall_mark, G_TYPE_OBJECT,
                          G_ADD_PRIVATE (HyScanGtkWaterfallMark)
                          G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_WATERFALL_LAYER, hyscan_gtk_waterfall_mark_interface_init));
@@ -228,6 +236,14 @@ hyscan_gtk_waterfall_mark_class_init (HyScanGtkWaterfallMarkClass *klass)
     g_param_spec_object ("waterfall", "Waterfall", "Waterfall widget",
                          HYSCAN_TYPE_GTK_WATERFALL_STATE,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+
+  hyscan_gtk_waterfall_mark_signals[SIGNAL_SELECTED] =
+    g_signal_new ("selected", HYSCAN_TYPE_GTK_WATERFALL_MARK,
+                  G_SIGNAL_RUN_LAST,
+                  0, NULL, NULL,
+                  g_cclosure_marshal_VOID__STRING,
+                  G_TYPE_NONE,
+                  1, G_TYPE_STRING);
 }
 
 static void
@@ -1171,7 +1187,7 @@ hyscan_gtk_waterfall_mark_mouse_interaction_processor (GtkWidget              *w
                                                        HyScanGtkWaterfallMark *self)
 {
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
-  HyScanGtkWaterfallMarkTask *new_task = NULL;
+  HyScanGtkWaterfallMarkTask *task = NULL;
   /* Мы оказываемся в этой функции только когда функция
    * hyscan_gtk_waterfall_mark_mouse_button_release решила,
    * что мы имеем право обработать это воздействие.
@@ -1203,6 +1219,7 @@ hyscan_gtk_waterfall_mark_mouse_interaction_processor (GtkWidget              *w
   else if (priv->mode == LOCAL_EDIT_CENTER || priv->mode == LOCAL_EDIT_BORDER)
     {
       GList *link;
+      HyScanGtkWaterfallMarkTask *emit;
 
       /* Удаляем метку из общего списка. */
       g_mutex_lock (&priv->drawable_lock);
@@ -1214,12 +1231,18 @@ hyscan_gtk_waterfall_mark_mouse_interaction_processor (GtkWidget              *w
 
       priv->mode = LOCAL_EDIT;
       hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wf_state, self);
+
+      emit = link->data;
+
+      g_signal_emit (self, hyscan_gtk_waterfall_mark_signals[SIGNAL_SELECTED],
+                     0, emit->id);
+
     }
   else if (priv->mode == LOCAL_EDIT || priv->mode == LOCAL_CREATE)
     {
 
-      new_task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
-      hyscan_gtk_waterfall_mark_copy_task (&priv->current, new_task);
+      task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
+      hyscan_gtk_waterfall_mark_copy_task (&priv->current, task);
 
       priv->mouse_mode = priv->mode = LOCAL_EMPTY;
       hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wf_state, NULL);
@@ -1246,9 +1269,9 @@ hyscan_gtk_waterfall_mark_mouse_interaction_processor (GtkWidget              *w
           g_list_free_full (priv->cancellable, hyscan_gtk_waterfall_mark_free_task);
           priv->cancellable = NULL;
 
-          new_task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
-          new_task->id = g_strdup (priv->current.id);
-          new_task->action = TASK_REMOVE;
+          task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
+          task->id = g_strdup (priv->current.id);
+          task->action = TASK_REMOVE;
         }
 
 reset:
@@ -1256,10 +1279,10 @@ reset:
       hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wf_state, NULL);
     }
 
-  if (new_task != NULL)
+  if (task != NULL)
     {
       g_mutex_lock (&priv->task_lock);
-      priv->tasks = g_list_prepend (priv->tasks, new_task);
+      priv->tasks = g_list_prepend (priv->tasks, task);
       g_mutex_unlock (&priv->task_lock);
 
       g_atomic_int_inc (&priv->cond_flag);
