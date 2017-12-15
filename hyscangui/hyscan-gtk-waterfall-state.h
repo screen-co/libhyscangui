@@ -154,12 +154,12 @@ HyScanGtkWaterfallState *hyscan_gtk_waterfall_state_new                        (
  * Рекомедуется использовать адрес вызывающего эту функцию слоя.
  *
  * \param state указатель на объект \link HyScanGtkWaterfall \endlink;
- * \param owner идентификатор объекта, желающего захватить ввод.
+ * \param instance идентификатор объекта, желающего захватить ввод.
  *
  */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_set_input_owner             (HyScanGtkWaterfallState *state,
-                                                                                gconstpointer       instance);
+                                                                                gconstpointer            instance);
 /**
  *
  * Функция возвращает владельца ввода.
@@ -173,13 +173,13 @@ HYSCAN_API
 gconstpointer           hyscan_gtk_waterfall_state_get_input_owner             (HyScanGtkWaterfallState *state);
 /**
  *
- * Функция позволяет слою захватить ввод.
+ * Функция позволяет слою захватить хэндл.
  *
  * Идентификатор может быть абсолютно любым, кроме NULL.
  * Рекомедуется использовать адрес вызывающего эту функцию слоя.
  *
  * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param owner идентификатор объекта, желающего захватить ввод.
+ * \param instance идентификатор объекта, желающего захватить хэндл.
  *
  */
 HYSCAN_API
@@ -187,11 +187,11 @@ void                    hyscan_gtk_waterfall_state_set_handle_grabbed          (
                                                                                 gconstpointer            instance);
 /**
  *
- * Функция возвращает владельца ввода.
+ * Функция возвращает владельца хэндла.
  *
  * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
  *
- * \return идентификатор владельца ввода или NULL, если владелец не установлен.
+ * \return идентификатор владельца хэндла или NULL, если владелец не установлен.
  *
  */
 HYSCAN_API
@@ -199,11 +199,10 @@ gconstpointer           hyscan_gtk_waterfall_state_get_handle_grabbed          (
 
 /**
  *
- * Функция возвращает владельца ввода.
+ * Функция позволяет запретить или разрешить изменения.
  *
  * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- *
- * \return идентификатор владельца ввода или NULL, если владелец не установлен.
+ * \param allowed TRUE, чтобы разрешить изменения.
  *
  */
 HYSCAN_API
@@ -211,11 +210,11 @@ void                    hyscan_gtk_waterfall_state_set_changes_allowed         (
                                                                                 gboolean                 allowed);
 /**
  *
- * Функция возвращает владельца ввода.
+ * Функция позволяет узнать, запрещены изменения или нет.
  *
  * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
  *
- * \return идентификатор владельца ввода или NULL, если владелец не установлен.
+ * \return TRUE, если разрешены, FALSE, если запрещены.
  *
  */
 HYSCAN_API

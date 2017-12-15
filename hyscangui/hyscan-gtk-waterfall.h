@@ -116,7 +116,6 @@ GtkWidget              *hyscan_gtk_waterfall_new                        (void);
  * Функция потокобезопасно инициирует перерисовку виджета.
  *
  * \param wfall - указатель на объект \link HyScanGtkWaterfall \endlink;
- * \param upsample - величина передискретизации.
  *
  */
 HYSCAN_API
