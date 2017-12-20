@@ -177,6 +177,8 @@ hyscan_gtk_waterfall_grid_object_constructed (GObject *object)
   gdk_rgba_parse (&grid_color, FRAME_DEFAULT);
   gdk_rgba_parse (&shad_color, SHADOW_DEFAULT);
 
+  hyscan_gtk_waterfall_grid_set_grid_step (self, 100, 100);
+
   priv->text_color = text_color;
   priv->grid_color = grid_color;
   priv->shad_color = shad_color;
@@ -329,7 +331,7 @@ hyscan_gtk_waterfall_grid_vertical (GtkWidget *widget,
   if (priv->x_grid_step == 0.0)
     step = priv->virtual_border * 6.0;
   else
-    step = priv->x_grid_step/scale;
+    step = priv->x_grid_step;
 
   axis_to = to_x;
   axis_from = from_x;
@@ -457,7 +459,7 @@ hyscan_gtk_waterfall_grid_horisontal (GtkWidget *widget,
   if (priv->y_grid_step == 0.0)
     step = priv->virtual_border * 6.0;
   else
-    step = priv->y_grid_step/scale;
+    step = priv->y_grid_step;
 
   axis_to = to_y;
   axis_from = from_y;

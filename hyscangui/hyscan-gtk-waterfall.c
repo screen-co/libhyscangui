@@ -197,7 +197,7 @@ hyscan_gtk_waterfall_class_init (HyScanGtkWaterfallClass *klass)
     g_signal_new ("automove-state", HYSCAN_TYPE_GTK_WATERFALL,
                   G_SIGNAL_RUN_LAST, 0,
                   NULL, NULL,
-                  g_cclosure_marshal_VOID__POINTER,
+                  g_cclosure_marshal_VOID__BOOLEAN,
                   G_TYPE_NONE,
                   1, G_TYPE_BOOLEAN);
 
@@ -208,13 +208,6 @@ hyscan_gtk_waterfall_class_init (HyScanGtkWaterfallClass *klass)
                   g_cclosure_user_marshal_VOID__INT_DOUBLE,
                   G_TYPE_NONE,
                   2, G_TYPE_INT, G_TYPE_DOUBLE);
-  hyscan_gtk_waterfall_signals[SIGNAL_INPUT_GRABBED] =
-    g_signal_new ("input-grabbed", HYSCAN_TYPE_GTK_WATERFALL,
-                  G_SIGNAL_RUN_LAST, 0,
-                  NULL, NULL,
-                  g_cclosure_user_marshal_VOID__INT_DOUBLE,
-                  G_TYPE_NONE,
-                  1, G_TYPE_POINTER);
 }
 
 static void
@@ -989,6 +982,7 @@ hyscan_gtk_waterfall_automover (gpointer data)
     {
       priv->length = length;
       gtk_cifro_area_set_view (carea, -lwidth, rwidth, 0, length);
+      g_signal_emit (self, hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE], 0, writeable);
       priv->once = TRUE;
     }
 
@@ -998,6 +992,7 @@ hyscan_gtk_waterfall_automover (gpointer data)
       priv->length = length;
       priv->automove = FALSE;
       priv->auto_tag = 0;
+      g_signal_emit (self, hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE], 0, writeable);
       gtk_widget_queue_draw (GTK_WIDGET(data));
 
       return G_SOURCE_REMOVE;
@@ -1078,21 +1073,22 @@ hyscan_gtk_waterfall_profile_changed (HyScanGtkWaterfallState *model,
 /* Функция обрабатывает смену БД, проекта, галса. */
 static void
 hyscan_gtk_waterfall_track_changed (HyScanGtkWaterfallState *model,
-                                    HyScanGtkWaterfall   *self)
+                                    HyScanGtkWaterfall      *self)
 {
+  HyScanGtkWaterfallPrivate *priv = self->priv;
   HyScanDB *db;
   gchar *db_uri;
   gchar *project;
   gchar *track;
   gboolean raw;
 
-  if (self->priv->auto_tag != 0)
+  if (priv->auto_tag != 0)
     {
-      g_source_remove (self->priv->auto_tag);
-      self->priv->auto_tag = 0;
+      g_source_remove (priv->auto_tag);
+      priv->auto_tag = 0;
     }
 
-  self->priv->open = FALSE;
+  priv->open = FALSE;
 
   hyscan_gtk_waterfall_state_get_track (model, &db, &project, &track, &raw);
 
@@ -1101,20 +1097,20 @@ hyscan_gtk_waterfall_track_changed (HyScanGtkWaterfallState *model,
 
   db_uri = hyscan_db_get_uri (db);
 
-  hyscan_tile_color_open (self->priv->color, db_uri, project, track);
-  hyscan_tile_queue_open (self->priv->queue, db, project, track, raw);
-  hyscan_track_rect_open (self->priv->lrect, db, project, track, self->priv->left_source, raw);
-  hyscan_track_rect_open (self->priv->rrect, db, project, track, self->priv->right_source, raw);
+  hyscan_tile_color_open (priv->color, db_uri, project, track);
+  hyscan_tile_queue_open (priv->queue, db, project, track, raw);
+  hyscan_track_rect_open (priv->lrect, db, project, track, priv->left_source, raw);
+  hyscan_track_rect_open (priv->rrect, db, project, track, priv->right_source, raw);
 
-  self->priv->open = TRUE;
+  priv->open = TRUE;
 
-  self->priv->length = self->priv->lwidth = self->priv->rwidth = 0.0;
+  priv->length = priv->lwidth = priv->rwidth = 0.0;
 
-  self->priv->once = FALSE;
-  self->priv->automove = TRUE;
-  self->priv->prev_time = g_get_monotonic_time ();
+  priv->once = FALSE;
+  priv->automove = TRUE;
+  priv->prev_time = g_get_monotonic_time ();
 
-  self->priv->auto_tag = g_timeout_add (self->priv->automove_time,
+  priv->auto_tag = g_timeout_add (priv->automove_time,
                                   hyscan_gtk_waterfall_automover,
                                   self);
   g_free (db_uri);
@@ -1331,6 +1327,12 @@ hyscan_gtk_waterfall_automove (HyScanGtkWaterfall *self,
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (self));
   priv = self->priv;
 
+  if (priv->auto_tag == 0)
+    {
+      g_signal_emit (self, hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE], 0, FALSE);
+      return;
+    }
+
   if (priv->automove == automove)
     return;
 
@@ -1340,6 +1342,8 @@ hyscan_gtk_waterfall_automove (HyScanGtkWaterfall *self,
     gtk_cifro_area_move (GTK_CIFRO_AREA (self), 0, G_MAXINT);
   else /*if (priv->widget_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER) */
     gtk_cifro_area_move (GTK_CIFRO_AREA (self), G_MAXINT, 0);
+
+  g_signal_emit (self, hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE], 0, FALSE);
 }
 
 /* Функция задает период автосдвижки. */

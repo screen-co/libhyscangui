@@ -20,6 +20,25 @@ spdch (HyScanGtkWaterfallState *state)
   return FALSE;
 }
 
+GtkWidget*
+make_layer_btn (HyScanGtkWaterfallLayer *layer,
+                const gchar             *text)
+{
+  GtkWidget *button;
+  GtkWidget *image;
+  const gchar *icon;
+
+  icon = hyscan_gtk_waterfall_layer_get_mnemonic (layer);
+  image = gtk_image_new_from_icon_name (icon, GTK_ICON_SIZE_BUTTON);
+
+  button = gtk_button_new ();
+
+  gtk_button_set_image (GTK_BUTTON (button), image);
+  gtk_button_set_label (GTK_BUTTON (button), text);
+
+  return button;
+}
+
 int
 main (int    argc,
       char **argv)
@@ -140,8 +159,8 @@ main (int    argc,
 
   {
     GtkWidget *bbox;
-    GtkWidget *l_control = gtk_button_new_with_label (MNEMONIC (control));
-    GtkWidget *l_mark = gtk_button_new_with_label (MNEMONIC (mark));
+    GtkWidget *l_control = make_layer_btn (HYSCAN_GTK_WATERFALL_LAYER (control), "control");
+    GtkWidget *l_mark = make_layer_btn (HYSCAN_GTK_WATERFALL_LAYER (mark), "mark");
     g_signal_connect_swapped (l_control, "clicked",
                               G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input),
                               HYSCAN_GTK_WATERFALL_LAYER (control));

@@ -288,8 +288,8 @@ reopen_clicked (GtkButton *button,
   dialog = gtk_file_chooser_dialog_new ("Select track", GTK_WINDOW (window),
                                         GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
                                         "Cancel",   DIALOG_CANCEL,
-                                        "Raw",      DIALOG_OPEN_RAW,
-                                        "Computed", DIALOG_OPEN_COMPUTED,
+                                        "_Raw",      DIALOG_OPEN_RAW,
+                                        "_Computed", DIALOG_OPEN_COMPUTED,
                                         NULL);
   if (project_dir != NULL)
     gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), project_dir);
