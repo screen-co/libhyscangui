@@ -92,6 +92,7 @@
  * Класс не является потокобезопасным и предназначен для использования в главном потоке.
  *
  */
+ 
 #ifndef __HYSCAN_GTK_WATERFALL_STATE_H__
 #define __HYSCAN_GTK_WATERFALL_STATE_H__
 

@@ -1,3 +1,13 @@
+/*
+ * \file hyscan-gtk-waterfall-mark.c
+ *
+ * \brief Исходный файл слоя меток
+ * \author Dmitriev Alexander (m1n7@yandex.ru)
+ * \date 2018
+ * \license Проприетарная лицензия ООО "Экран"
+ *
+ */
+
 #include <hyscan-depthometer.h>
 #include <hyscan-depth-nmea.h>
 #include <hyscan-mark-manager.h>
@@ -96,6 +106,8 @@ struct _HyScanGtkWaterfallMarkPrivate
 {
   HyScanGtkWaterfallState    *wf_state;
   HyScanGtkWaterfall         *wfall;
+
+  gboolean                    layer_visibility;
 
   HyScanGtkWaterfallMarkState new_state;
   HyScanGtkWaterfallMarkState state;
@@ -336,6 +348,9 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
 
   priv->stop = FALSE;
   priv->processing = g_thread_new ("gtk-wf-mark", hyscan_gtk_waterfall_mark_processing, self);
+
+  /* Включаем видимость слоя. */
+  priv->layer_visibility = TRUE;
 }
 
 static void
@@ -379,8 +394,23 @@ hyscan_gtk_waterfall_mark_grab_input (HyScanGtkWaterfallLayer *iface)
 {
   HyScanGtkWaterfallMark *self = HYSCAN_GTK_WATERFALL_MARK (iface);
 
+  /* Мы не можем захватить ввод, если слой отключен. */
+  if (!self->priv->layer_visibility)
+    return;
+
   hyscan_gtk_waterfall_state_set_input_owner (self->priv->wf_state, self);
   hyscan_gtk_waterfall_state_set_changes_allowed (self->priv->wf_state, TRUE);
+}
+
+/* Функция захватывает ввод. */
+static void
+hyscan_gtk_waterfall_mark_set_visible (HyScanGtkWaterfallLayer *iface,
+                                       gboolean                 visible)
+{
+  HyScanGtkWaterfallMark *self = HYSCAN_GTK_WATERFALL_MARK (iface);
+
+  self->priv->layer_visibility = visible;
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 /* Функуция возвращает название иконки. */
@@ -1077,6 +1107,10 @@ hyscan_gtk_waterfall_mark_handle (HyScanGtkWaterfallState *state,
   mouse.x = event->x;
   mouse.y = event->y;
 
+  /* Мы не можем обрабатывать действия, если слой отключен. */
+  if (!priv->layer_visibility)
+    return NULL;
+
   if (hyscan_gtk_waterfall_tools_distance(&priv->press, &mouse) > 2)
     return NULL;
 
@@ -1537,6 +1571,10 @@ hyscan_gtk_waterfall_mark_draw (GtkWidget              *widget,
   GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
 
+  /* Проверяем видимость слоя. */
+  if (!priv->layer_visibility)
+    return;
+
   /* Актуализируем пределы видимой области. */
   gtk_cifro_area_get_view (carea, &priv->view._0.x, &priv->view._1.x, &priv->view._0.y, &priv->view._1.y);
 
@@ -1907,5 +1945,6 @@ static void
 hyscan_gtk_waterfall_mark_interface_init (HyScanGtkWaterfallLayerInterface *iface)
 {
   iface->grab_input = hyscan_gtk_waterfall_mark_grab_input;
+  iface->set_visible = hyscan_gtk_waterfall_mark_set_visible;
   iface->get_mnemonic = hyscan_gtk_waterfall_mark_get_mnemonic;
 }

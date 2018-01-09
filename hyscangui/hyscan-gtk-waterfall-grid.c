@@ -39,6 +39,7 @@ struct _HyScanGtkWaterfallGridPrivate
 {
   HyScanGtkWaterfallState *wf_state;
   HyScanGtkWaterfall      *wfall;
+  gboolean                 layer_visibility;
 
   PangoLayout      *font;              /* Раскладка шрифта. */
   gint              text_height;       /* Максимальная высота текста. */
@@ -77,6 +78,9 @@ static void     hyscan_gtk_waterfall_grid_set_property           (GObject       
                                                                   GParamSpec            *pspec);
 static void     hyscan_gtk_waterfall_grid_object_constructed     (GObject               *object);
 static void     hyscan_gtk_waterfall_grid_object_finalize        (GObject               *object);
+static void     hyscan_gtk_waterfall_grid_set_visible            (HyScanGtkWaterfallLayer *layer,
+                                                                  gboolean                 visible);
+
 static const gchar* hyscan_gtk_waterfall_grid_get_mnemonic       (HyScanGtkWaterfallLayer *layer);
 
 static gboolean hyscan_gtk_waterfall_grid_configure              (GtkWidget             *widget,
@@ -182,6 +186,9 @@ hyscan_gtk_waterfall_grid_object_constructed (GObject *object)
   priv->text_color = text_color;
   priv->grid_color = grid_color;
   priv->shad_color = shad_color;
+
+  /* Включаем видимость слоя. */
+  priv->layer_visibility = TRUE;
 }
 
 static void
@@ -200,10 +207,20 @@ hyscan_gtk_waterfall_grid_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_waterfall_grid_parent_class)->finalize (object);
 }
 
+static void
+hyscan_gtk_waterfall_grid_set_visible (HyScanGtkWaterfallLayer *layer,
+                                       gboolean                 visible)
+{
+  HyScanGtkWaterfallGrid *self = HYSCAN_GTK_WATERFALL_GRID (layer);
+
+  self->priv->layer_visibility = visible;
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
+}
+
 static const gchar*
 hyscan_gtk_waterfall_grid_get_mnemonic (HyScanGtkWaterfallLayer *iface)
 {
-  return "waterfall-self";
+  return "waterfall-grid";
 }
 
 
@@ -287,6 +304,10 @@ hyscan_gtk_waterfall_grid_draw (GtkWidget *widget,
                                 HyScanGtkWaterfallGrid *self)
 {
   HyScanGtkWaterfallGridPrivate *priv = self->priv;
+
+  /* Проверяем видимость слоя. */
+  if (!priv->layer_visibility)
+    return;
 
   if (priv->draw_x_grid)
     hyscan_gtk_waterfall_grid_vertical (widget, cairo, self);
@@ -848,5 +869,6 @@ static void
 hyscan_gtk_waterfall_grid_interface_init (HyScanGtkWaterfallLayerInterface *iface)
 {
   iface->grab_input = NULL;
+  iface->set_visible = hyscan_gtk_waterfall_grid_set_visible;
   iface->get_mnemonic = hyscan_gtk_waterfall_grid_get_mnemonic;
 }

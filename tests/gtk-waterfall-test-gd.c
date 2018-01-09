@@ -43,7 +43,6 @@ int
 main (int    argc,
       char **argv)
 {
-
   GtkWidget *window = NULL;
   GtkWidget *wf_widget = NULL;
   GtkWidget *gtkgrid = NULL;
@@ -134,9 +133,10 @@ main (int    argc,
                                                  HYSCAN_SOURCE_SIDE_SCAN_PORT);
   hyscan_gtk_waterfall_state_set_cache (wf_state, cache, cache2, cache_prefix);
   hyscan_gtk_waterfall_state_set_ship_speed (wf_state, speed);
-  hyscan_gtk_waterfall_state_set_depth_source (wf_state, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, 1);
+  hyscan_gtk_waterfall_state_set_depth_source (wf_state, HYSCAN_SOURCE_NMEA_DPT, 1);
   hyscan_gtk_waterfall_state_set_depth_filter_size (wf_state, 2);
   hyscan_gtk_waterfall_state_set_depth_time (wf_state, 100000);
+  hyscan_gtk_waterfall_state_set_tile_type (wf_state, HYSCAN_TILE_GROUND);
 
   hyscan_gtk_waterfall_set_upsample (wf, 2);
 

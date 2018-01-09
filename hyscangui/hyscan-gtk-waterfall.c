@@ -1343,7 +1343,7 @@ hyscan_gtk_waterfall_automove (HyScanGtkWaterfall *self,
   else /*if (priv->widget_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER) */
     gtk_cifro_area_move (GTK_CIFRO_AREA (self), G_MAXINT, 0);
 
-  g_signal_emit (self, hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE], 0, FALSE);
+  g_signal_emit (self, hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE], 0, automove);
 }
 
 /* Функция задает период автосдвижки. */

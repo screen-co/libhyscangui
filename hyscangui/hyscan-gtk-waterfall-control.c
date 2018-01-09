@@ -473,5 +473,6 @@ static void
 hyscan_gtk_waterfall_control_interface_init (HyScanGtkWaterfallLayerInterface *iface)
 {
   iface->grab_input = hyscan_gtk_waterfall_control_grab_input;
+  iface->set_visible = NULL;
   iface->get_mnemonic = hyscan_gtk_waterfall_control_get_mnemonic;
 }

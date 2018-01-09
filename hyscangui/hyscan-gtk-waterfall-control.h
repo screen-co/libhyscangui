@@ -19,6 +19,7 @@
  * - #hyscan_gtk_waterfall_control_zoom масштабирование изображения.
  *
  */
+
 #ifndef __HYSCAN_GTK_WATERFALL_CONTROL_H__
 #define __HYSCAN_GTK_WATERFALL_CONTROL_H__
 

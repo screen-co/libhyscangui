@@ -445,8 +445,6 @@ hyscan_gtk_waterfall_depth_processing (gpointer data)
   return NULL;
 }
 
-
-
 static void
 hyscan_gtk_waterfall_depth_open (HyScanGtkWaterfall *waterfall,
                                  HyScanDB           *db,

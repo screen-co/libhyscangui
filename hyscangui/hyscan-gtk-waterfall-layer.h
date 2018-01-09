@@ -124,6 +124,8 @@ struct _HyScanGtkWaterfallLayerInterface
   GTypeInterface       g_iface;
 
   void         (*grab_input)   (HyScanGtkWaterfallLayer *layer);
+  void         (*set_visible)  (HyScanGtkWaterfallLayer *layer,
+                                gboolean                 visible);
 
   const gchar *(*get_mnemonic) (HyScanGtkWaterfallLayer *layer);
 };
@@ -138,6 +140,16 @@ GType           hyscan_gtk_waterfall_layer_get_type     (void);
  */
 HYSCAN_API
 void            hyscan_gtk_waterfall_layer_grab_input   (HyScanGtkWaterfallLayer *layer);
+
+/**
+ * Функция позволяет полностью скрыть слой.
+ *
+ * \param layer указатель на объект, имплементирующий \link HyScanGtkWaterfallLayer \endlink
+ * \param visible TRUE для показа слоя, FALSE для скрытия
+ */
+HYSCAN_API
+void            hyscan_gtk_waterfall_layer_set_visibile (HyScanGtkWaterfallLayer *layer,
+                                                         gboolean                 visible);
 
 /**
  * Функция возвращает название иконки для слоя.

@@ -2,6 +2,7 @@
 #define __HYSCAN_GTK_WATERFALL_DEPTH_H__
 
 #include <hyscan-gtk-waterfall-layer.h>
+#include <hyscan-types.h>
 
 G_BEGIN_DECLS
 
@@ -34,6 +35,9 @@ GType                    hyscan_gtk_waterfall_depth_get_type         (void);
 HYSCAN_API
 GtkWidget               *hyscan_gtk_waterfall_depth_new              (void);
 
+HYSCAN_API
+void                     hyscan_gtk_waterfall_depth_show             (HyScanGtkWaterfallDepth *wfdepth,
+                                                                      gboolean                 show);
 HYSCAN_API
 void                     hyscan_gtk_waterfall_depth_show             (HyScanGtkWaterfallDepth *wfdepth,
                                                                       gboolean                 show);

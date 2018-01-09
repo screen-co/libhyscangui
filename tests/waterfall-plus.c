@@ -3,6 +3,7 @@
 #include <hyscan-gtk-waterfall-grid.h>
 #include <hyscan-gtk-waterfall-mark.h>
 #include <hyscan-gtk-waterfall-meter.h>
+#include <hyscan-gtk-waterfall-player.h>
 #include <hyscan-tile-color.h>
 #include <hyscan-cached.h>
 #include <gtk/gtk.h>
@@ -33,6 +34,10 @@ void       level_changed    (GtkScale  *white,
                              GtkScale  *gamma);
 
 void       color_changed    (GtkColorButton  *chooser);
+void       player_changed   (GtkScale                 *player_scale,
+                             HyScanGtkWaterfallPlayer *player);
+void       player_stop      (HyScanGtkWaterfallPlayer *player,
+                             GtkScale                 *scale);
 
 gchar     *uri_composer     (gchar    **path,
                              gchar     *prefix,
@@ -54,6 +59,7 @@ static HyScanGtkWaterfallGrid    *wf_grid;
 static HyScanGtkWaterfallControl *wf_ctrl;
 static HyScanGtkWaterfallMark    *wf_mark;
 static HyScanGtkWaterfallMeter   *wf_metr;
+static HyScanGtkWaterfallPlayer  *wf_play;
 static HyScanDB                  *db;
 static gchar                     *db_uri;
 static gchar                     *project_dir;
@@ -134,6 +140,7 @@ main (int    argc,
   wf_metr = hyscan_gtk_waterfall_meter_new (wf);
   wf_mark = hyscan_gtk_waterfall_mark_new (wf);
   wf_ctrl = hyscan_gtk_waterfall_control_new (wf);
+  wf_play = hyscan_gtk_waterfall_player_new (wf);
 
   //hyscan_gtk_waterfall_echosounder (wf, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD);
 
@@ -174,6 +181,7 @@ main (int    argc,
   g_clear_object (&wf_ctrl);
   g_clear_object (&wf_mark);
   g_clear_object (&wf_metr);
+  g_clear_object (&wf_play);
 
   xmlCleanupParser ();
 
@@ -207,6 +215,7 @@ make_overlay (HyScanGtkWaterfall *wf,
   GtkWidget *btn_reopen = gtk_button_new_from_icon_name ("folder-symbolic", GTK_ICON_SIZE_BUTTON);
   GtkWidget *scale_white = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.000, 1.0, 0.001);
   GtkWidget *scale_gamma = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.5, 2.0, 0.005);
+  GtkWidget *scale_player = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -10.0, 10.0, 0.1);
 
   GtkWidget *lay_ctrl = make_layer_btn (HYSCAN_GTK_WATERFALL_LAYER (wf_ctrl), NULL);
   GtkWidget *lay_mark = make_layer_btn (HYSCAN_GTK_WATERFALL_LAYER (wf_mark), lay_ctrl);
@@ -228,10 +237,16 @@ make_overlay (HyScanGtkWaterfall *wf,
   /* Настраиваем прокрутки. */
   gtk_scale_set_value_pos (GTK_SCALE (scale_white), GTK_POS_LEFT);
   gtk_scale_set_value_pos (GTK_SCALE (scale_gamma), GTK_POS_LEFT);
+  gtk_scale_set_value_pos (GTK_SCALE (scale_player), GTK_POS_LEFT);
   gtk_widget_set_size_request (scale_white, 150, 1);
   gtk_widget_set_size_request (scale_gamma, 150, 1);
+  gtk_widget_set_size_request (scale_player, 150, 1);
   gtk_range_set_value (GTK_RANGE (scale_white), white);
   gtk_range_set_value (GTK_RANGE (scale_gamma), gamma);
+  gtk_range_set_value (GTK_RANGE (scale_player), 0.0);
+
+  gtk_scale_add_mark (GTK_SCALE (scale_player), 0.0, GTK_POS_TOP, NULL);
+  gtk_scale_set_has_origin (GTK_SCALE (scale_player), FALSE);
 
   /* Layer control. */
   gtk_box_pack_start (GTK_BOX (lay_box), lay_ctrl, FALSE, TRUE, 0);
@@ -248,16 +263,20 @@ make_overlay (HyScanGtkWaterfall *wf,
   gtk_box_pack_start (GTK_BOX (box), scale_white,  FALSE, FALSE, 2);
   gtk_box_pack_start (GTK_BOX (box), scale_gamma,  FALSE, FALSE, 2);
   gtk_box_pack_start (GTK_BOX (box), lay_box,      FALSE, FALSE, 2);
+  gtk_box_pack_start (GTK_BOX (box), scale_player, FALSE, FALSE, 2);
 
   g_signal_connect (btn_reopen, "clicked", G_CALLBACK (reopen_clicked), NULL);
   g_signal_connect (zoom_btn_in, "clicked", G_CALLBACK (zoom_clicked), GINT_TO_POINTER (1));
   g_signal_connect (zoom_btn_out, "clicked", G_CALLBACK (zoom_clicked), GINT_TO_POINTER (0));
   g_signal_connect (scale_white, "value-changed", G_CALLBACK (level_changed), scale_gamma);
   g_signal_connect_swapped (scale_gamma, "value-changed", G_CALLBACK (level_changed), scale_white);
+  g_signal_connect (scale_player, "value-changed", G_CALLBACK (player_changed), wf_play);
   g_signal_connect (color_chooser, "color-set", G_CALLBACK (color_changed), NULL);
   g_signal_connect_swapped (lay_ctrl, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_ctrl));
   g_signal_connect_swapped (lay_mark, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_mark));
   g_signal_connect_swapped (lay_metr, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_metr));
+
+  g_signal_connect (wf_play, "player-stop", G_CALLBACK (player_stop), scale_player);
 
   hyscan_gtk_waterfall_layer_grab_input (HYSCAN_GTK_WATERFALL_LAYER (wf_ctrl));
   gtk_widget_set_size_request (GTK_WIDGET (wf), 800, 600);
@@ -346,6 +365,24 @@ level_changed (GtkScale  *white_scale,
   hyscan_gtk_waterfall_set_levels_for_all (wf, 0.0, gamma, (white > 0.0) ? white : 0.001);
 }
 
+void
+player_changed (GtkScale                 *player_scale,
+                HyScanGtkWaterfallPlayer *player)
+{
+  gdouble speed = gtk_range_get_value (GTK_RANGE (player_scale));
+
+  gtk_range_set_fill_level (GTK_RANGE (player_scale), G_MAXDOUBLE);
+  gtk_range_set_show_fill_level (GTK_RANGE (player_scale), speed != 0);
+
+  hyscan_gtk_waterfall_player_set_speed (player, speed);
+}
+
+void
+player_stop (HyScanGtkWaterfallPlayer *player,
+             GtkScale                 *scale)
+{
+  gtk_range_set_value (GTK_RANGE (scale), 0.0);
+}
 
 void
 color_changed (GtkColorButton *chooser)

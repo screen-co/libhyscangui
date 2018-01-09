@@ -1,3 +1,13 @@
+/*
+ * \file hyscan-gtk-waterfall-meter.c
+ *
+ * \brief Исходный файл слоя измерений
+ * \author Dmitriev Alexander (m1n7@yandex.ru)
+ * \date 2018
+ * \license Проприетарная лицензия ООО "Экран"
+ *
+ */
+
 #include "hyscan-gtk-waterfall-meter.h"
 #include "hyscan-gtk-waterfall-tools.h"
 #include <math.h>
@@ -30,6 +40,8 @@ struct _HyScanGtkWaterfallMeterPrivate
   HyScanGtkWaterfallState      *wf_state;
   HyScanGtkWaterfall           *wfall;
   PangoLayout                  *font;              /* Раскладка шрифта. */
+
+  gboolean                      layer_visibility;
 
   HyScanCoordinates             press;
   HyScanCoordinates             release;
@@ -179,6 +191,9 @@ hyscan_gtk_waterfall_meter_object_constructed (GObject *object)
   hyscan_gtk_waterfall_meter_set_frame_color  (self, color_frame);
   hyscan_gtk_waterfall_meter_set_meter_width  (self, 1);
   hyscan_gtk_waterfall_meter_set_shadow_width (self, 3);
+
+  /* Включаем видимость слоя. */
+  priv->layer_visibility = TRUE;
 }
 
 static void
@@ -206,8 +221,23 @@ hyscan_gtk_waterfall_meter_grab_input (HyScanGtkWaterfallLayer *iface)
 {
   HyScanGtkWaterfallMeter *self = HYSCAN_GTK_WATERFALL_METER (iface);
 
-  hyscan_gtk_waterfall_state_set_input_owner (HYSCAN_GTK_WATERFALL_STATE (self->priv->wf_state), self);
-  hyscan_gtk_waterfall_state_set_changes_allowed (HYSCAN_GTK_WATERFALL_STATE (self->priv->wf_state), TRUE);
+  /* Мы не можем захватить ввод, если слой отключен. */
+  if (!self->priv->layer_visibility)
+    return;
+
+  hyscan_gtk_waterfall_state_set_input_owner (self->priv->wf_state, self);
+  hyscan_gtk_waterfall_state_set_changes_allowed (self->priv->wf_state, TRUE);
+}
+
+/* Функция захвата ввода. */
+static void
+hyscan_gtk_waterfall_meter_set_visible (HyScanGtkWaterfallLayer *iface,
+                                        gboolean                 visible)
+{
+  HyScanGtkWaterfallMeter *self = HYSCAN_GTK_WATERFALL_METER (iface);
+
+  self->priv->layer_visibility = visible;
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 /* Функция возвращает название иконки. */
@@ -276,6 +306,10 @@ hyscan_gtk_waterfall_meter_handle (HyScanGtkWaterfallState *state,
 
   mouse.x = event->x;
   mouse.y = event->y;
+
+  /* Мы не можем обрабатывать действия, если слой отключен. */
+  if (!self->priv->layer_visibility)
+    return NULL;
 
   if (hyscan_gtk_waterfall_tools_distance (&priv->press, &mouse) > 2)
     return NULL;
@@ -612,6 +646,10 @@ hyscan_gtk_waterfall_meter_draw (GtkWidget               *widget,
   GList *link;
   HyScanGtkWaterfallMeterPrivate *priv = self->priv;
 
+  /* Проверяем видимость слоя. */
+  if (!priv->layer_visibility)
+    return;
+
   gtk_cifro_area_get_view (GTK_CIFRO_AREA (widget),
                            &priv->view._0.x,
                            &priv->view._1.x,
@@ -766,5 +804,6 @@ static void
 hyscan_gtk_waterfall_meter_interface_init (HyScanGtkWaterfallLayerInterface *iface)
 {
   iface->grab_input = hyscan_gtk_waterfall_meter_grab_input;
+  iface->set_visible = hyscan_gtk_waterfall_meter_set_visible;
   iface->get_mnemonic = hyscan_gtk_waterfall_meter_get_mnemonic;
 }

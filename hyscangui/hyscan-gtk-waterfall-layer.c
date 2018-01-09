@@ -28,7 +28,19 @@ hyscan_gtk_waterfall_layer_grab_input (HyScanGtkWaterfallLayer *layer)
 
   if (iface->grab_input != NULL)
     (* iface->grab_input) (layer);
+}
 
+void
+hyscan_gtk_waterfall_layer_set_visibile (HyScanGtkWaterfallLayer *layer,
+                                         gboolean                 visible)
+{
+  HyScanGtkWaterfallLayerInterface *iface;
+
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_LAYER (layer));
+
+  iface = HYSCAN_GTK_WATERFALL_LAYER_GET_IFACE (layer);
+  if (iface->set_visible != NULL)
+    (* iface->set_visible) (layer, visible);
 }
 
 const gchar*

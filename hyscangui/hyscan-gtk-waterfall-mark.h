@@ -1,3 +1,98 @@
+/**
+ * \file hyscan-gtk-waterfall-state.h
+ *
+ * \brief Виджет "водопад"
+ *
+ * \author Dmitriev Alexander (m1n7@yandex.ru)
+ * \date 2017
+ * \license Проприетарная лицензия ООО "Экран"
+ * \defgroup HyScanGtkWaterfallState HyScanGtkWaterfallState - хранение параметров водопада
+ *
+ * Данный класс решает две задачи. Первая - хранение основных параметров водопада.
+ * Вторая - хранения прав доступа к пользовательским воздействиям.
+ *
+ * Хранение параметров водопада.
+ * С помощью функций-сеттеров устанавливаются параметры и в этот же момент
+ * эмиттируется детализированный сигнал "changed".
+ * \code
+ * void
+ * changed_cb (HyScanGtkWaterfallState *state,
+ *             gpointer                 userdata);
+ *
+ * \endcode
+ *
+ * Сигнал "handle" интересен только разработчикам новых слоёв и более подробно
+ * описан в документации к интерфейсу \link HyScanGtkWaterfallLayer \endlink
+ * \code
+ * gconstpointer
+ * handle_cb (HyScanGtkWaterfallState *state,
+ *            GdkEventButton          *event,
+ *            gpointer                *userdata)
+ * \endcode
+ *
+ * - Тип тайла (наклонная / горизонтальная дальность):
+ *     \link hyscan_gtk_waterfall_state_set_tile_type сеттер, \endlink
+ *     \link hyscan_gtk_waterfall_state_get_tile_type геттер, \endlink
+ *     сигнал "changed::tile-type"
+ * - Система кэширования:
+ *     \link hyscan_gtk_waterfall_state_set_cache сеттер, \endlink
+ *     \link hyscan_gtk_waterfall_state_get_cache геттер, \endlink
+ *     сигнал "changed::profile"
+ * - Текущие БД, проект и галс:
+ *     \link hyscan_gtk_waterfall_state_set_track сеттер, \endlink
+ *     \link hyscan_gtk_waterfall_state_get_track геттер, \endlink
+ *     сигнал "changed::track"
+ * - Скорость судна:
+ *     \link hyscan_gtk_waterfall_state_set_ship_speed сеттер, \endlink
+ *     \link hyscan_gtk_waterfall_state_get_ship_speed геттер, \endlink
+ *     сигнал "changed::speed"
+ * - Профиль скорости звука:
+ *     \link hyscan_gtk_waterfall_state_set_sound_velocity сеттер, \endlink
+ *     \link hyscan_gtk_waterfall_state_get_sound_velocity геттер, \endlink
+ *     сигнал "changed::velocity"
+ * - Источник данных глубины:
+ *     \link hyscan_gtk_waterfall_state_set_depth_source сеттер, \endlink
+ *     \link hyscan_gtk_waterfall_state_get_depth_source геттер, \endlink
+ *     сигнал "changed::depth-source"
+ * - Окно валидности данных глубины:
+ *     \link hyscan_gtk_waterfall_state_set_depth_time сеттер, \endlink
+ *     \link hyscan_gtk_waterfall_state_get_depth_time геттер, \endlink
+ *     сигнал "changed::depth-params"
+ * - Размер фильтра для глубины:
+ *     \link hyscan_gtk_waterfall_state_set_depth_filter_size сеттер, \endlink
+ *     \link hyscan_gtk_waterfall_state_get_depth_filter_size геттер, \endlink
+ *     сигнал "changed::cache"
+ *
+ * Отдельно стоит функция задания типа отображения (водопад и эхолот):
+ * - #hyscan_gtk_waterfall_state_echosounder задает режим отображения "эхолот"
+ *   (один борт, более поздние данные справа)
+ * - #hyscan_gtk_waterfall_state_sidescan задает режим отображения "ГБО"
+ *   (два борта, более поздние данные сверху)
+ * - #hyscan_gtk_waterfall_state_get_sources возвращает режим отображения и
+ *   выбранные источники.
+ * Сигнал - "changed::sources"
+ *
+ * Разграничение доступа.
+ *
+ * Некоторые слои (см. HyScanGtkWaterfallLayer) могут уметь взаимодействовать
+ * с пользователем. Поскольку пользовательский опыт унифицирован, на одно и то же
+ * воздействие (щелчок кнопкой мыши, нажатие кнопки) могут отреагировать несколько
+ * слоёв сразу. А потому введены понятия "владелец ввода" и "держатель хэндла (ручки)".
+ * Программисту, встраивающему водопад в свою программу, эти методы не интересны.
+ * Для разработки новых слоев надо обратиться к документации HyScanGtkWaterfallLayer,
+ * где и описано разграничение доступа.
+ *
+ * - #hyscan_gtk_waterfall_state_set_input_owner
+ * - #hyscan_gtk_waterfall_state_get_input_owner
+ * - #hyscan_gtk_waterfall_state_set_handle_grabbed
+ * - #hyscan_gtk_waterfall_state_get_handle_grabbed
+ * - #hyscan_gtk_waterfall_state_set_changes_allowed
+ * - #hyscan_gtk_waterfall_state_get_changes_allowed
+ *
+ * Класс не является потокобезопасным и предназначен для использования в главном потоке.
+ *
+ */
+
 #ifndef __HYSCAN_GTK_WATERFALL_MARK_H__
 #define __HYSCAN_GTK_WATERFALL_MARK_H__
 
