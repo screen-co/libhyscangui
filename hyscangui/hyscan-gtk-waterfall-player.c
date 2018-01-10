@@ -23,30 +23,30 @@ enum
 
 struct _HyScanGtkWaterfallPlayerPrivate
 {
-  HyScanGtkWaterfallState     *wf_state;
-  HyScanGtkWaterfall          *wfall;
-  GtkCifroArea                *carea;
-  HyScanWaterfallDisplayType   display_type;
+  HyScanGtkWaterfall          *wfall;        /**< Водопад. */
+  HyScanGtkWaterfallState     *wf_state;     /**< Параметры водопада. */
+  GtkCifroArea                *carea;        /**< Цифроариа. */
+  HyScanWaterfallDisplayType   display_type; /**< Тип отображения. */
 
-  guint                        player_tag;
-  gint64                       last_time;
+  guint                        player_tag;   /**< Идентификатор функции проигрывания. */
+  gint64                       last_time;    /**< Предыдущее время вызова ф-ии прогрывания. */
 
-  guint                        fps;
-  gdouble                      speed;
+  guint                        fps;          /**< Количество кадров в секунду. */
+  gdouble                      speed;        /**< Скорость сдвижки. */
 
 };
 
 static void     hyscan_gtk_waterfall_player_interface_init           (HyScanGtkWaterfallLayerInterface *iface);
-static void     hyscan_gtk_waterfall_player_set_property             (GObject                *object,
-                                                                      guint                   prop_id,
-                                                                      const GValue           *value,
-                                                                      GParamSpec             *pspec);
-static void     hyscan_gtk_waterfall_player_object_constructed       (GObject                *object);
-static void     hyscan_gtk_waterfall_player_object_finalize          (GObject                *object);
-static void     hyscan_gtk_waterfall_player_sources_changed          (HyScanGtkWaterfallState   *state,
+static void     hyscan_gtk_waterfall_player_set_property             (GObject                  *object,
+                                                                      guint                     prop_id,
+                                                                      const GValue             *value,
+                                                                      GParamSpec               *pspec);
+static void     hyscan_gtk_waterfall_player_object_constructed       (GObject                  *object);
+static void     hyscan_gtk_waterfall_player_object_finalize          (GObject                  *object);
+static void     hyscan_gtk_waterfall_player_sources_changed          (HyScanGtkWaterfallState  *state,
                                                                       HyScanGtkWaterfallPlayer *self);
-static void     hyscan_gtk_waterfall_player_start                    (HyScanGtkWaterfallPlayer *player);
-static gboolean hyscan_gtk_waterfall_player_player                   (gpointer                data);
+static void     hyscan_gtk_waterfall_player_starter                  (HyScanGtkWaterfallPlayer *player);
+static gboolean hyscan_gtk_waterfall_player_player                   (gpointer                  data);
 
 static guint    hyscan_gtk_waterfall_player_signals[SIGNAL_LAST] = {0};
 
@@ -120,6 +120,9 @@ hyscan_gtk_waterfall_player_object_constructed (GObject *object)
   hyscan_gtk_waterfall_player_set_speed (self, 0.0);
   hyscan_gtk_waterfall_player_set_fps (self, 25);
   hyscan_gtk_waterfall_player_sources_changed (priv->wf_state, self);
+
+  /* Включаем видимость слоя. */
+  hyscan_gtk_waterfall_layer_set_visible (HYSCAN_GTK_WATERFALL_LAYER (self), TRUE);
 }
 
 static void
@@ -136,6 +139,7 @@ hyscan_gtk_waterfall_player_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_waterfall_player_parent_class)->finalize (object);
 }
 
+/* Функция обработки сигнала смены типа отображения. */
 static void
 hyscan_gtk_waterfall_player_sources_changed (HyScanGtkWaterfallState   *state,
                                              HyScanGtkWaterfallPlayer *self)
@@ -150,8 +154,9 @@ hyscan_gtk_waterfall_player_get_mnemonic (HyScanGtkWaterfallLayer *iface)
   return "applications-multimedia-symbolic";
 }
 
+/* Функция запускает проигрывание. */
 static void
-hyscan_gtk_waterfall_player_start (HyScanGtkWaterfallPlayer *self)
+hyscan_gtk_waterfall_player_starter (HyScanGtkWaterfallPlayer *self)
 {
   HyScanGtkWaterfallPlayerPrivate *priv = self->priv;
   guint interval;
@@ -173,6 +178,7 @@ hyscan_gtk_waterfall_player_start (HyScanGtkWaterfallPlayer *self)
   priv->player_tag = g_timeout_add (interval, hyscan_gtk_waterfall_player_player, self);
 }
 
+/* Функция, сдвигающая изображение. */
 static gboolean
 hyscan_gtk_waterfall_player_player (gpointer data)
 {
@@ -230,17 +236,23 @@ hyscan_gtk_waterfall_player_player (gpointer data)
 
   gtk_cifro_area_set_view (priv->carea, from_x, to_x, from_y, to_y);
 
+  /* Запоминаем время вызова и продолжаем работу. */
 next:
   priv->last_time = time;
   return G_SOURCE_CONTINUE;
 
+ /* Если пора остановиться: выполняем сдвижку (чтобы гарантированно прийти в
+ *  начало или конец галса), эмиттируем сигнал, удаляем функцию из главного потока. */
 stop:
   gtk_cifro_area_set_view (priv->carea, from_x, to_x, from_y, to_y);
-  priv->player_tag = 0;
   g_signal_emit (self, hyscan_gtk_waterfall_player_signals[SIGNAL_STOP], 0);
+
+  priv->player_tag = 0;
   return G_SOURCE_REMOVE;
 }
 
+
+/* Функция создает новый объект. */
 HyScanGtkWaterfallPlayer*
 hyscan_gtk_waterfall_player_new (HyScanGtkWaterfall *waterfall)
 {
@@ -249,9 +261,10 @@ hyscan_gtk_waterfall_player_new (HyScanGtkWaterfall *waterfall)
                        NULL);
 }
 
+/* Функция задает количество кадров в секунду. */
 void
 hyscan_gtk_waterfall_player_set_fps (HyScanGtkWaterfallPlayer *self,
-                                          guint               fps)
+                                     guint                     fps)
 {
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_PLAYER (self));
 
@@ -260,9 +273,10 @@ hyscan_gtk_waterfall_player_set_fps (HyScanGtkWaterfallPlayer *self,
 
   self->priv->fps = fps;
 
-  hyscan_gtk_waterfall_player_start (self);
+  hyscan_gtk_waterfall_player_starter (self);
 }
 
+/* Функция задает скорость сдвижки. */
 void
 hyscan_gtk_waterfall_player_set_speed (HyScanGtkWaterfallPlayer *self,
                                        gdouble             speed)
@@ -271,7 +285,7 @@ hyscan_gtk_waterfall_player_set_speed (HyScanGtkWaterfallPlayer *self,
 
   self->priv->speed = speed;
 
-  hyscan_gtk_waterfall_player_start (self);
+  hyscan_gtk_waterfall_player_starter (self);
 }
 
 static void

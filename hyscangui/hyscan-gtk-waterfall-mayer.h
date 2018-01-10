@@ -17,25 +17,6 @@ typedef struct _HyScanGtkWaterfallMayerPrivate HyScanGtkWaterfallMayerPrivate;
 typedef struct _HyScanGtkWaterfallMayerClass HyScanGtkWaterfallMayerClass;
 typedef struct _HyScanGtkWaterfallMayerState HyScanGtkWaterfallMayerState;
 
-typedef enum
-{
-  HYSCAN_GTK_WATERFALL_MAYER_SIGNAL_NONE,
-  HYSCAN_GTK_WATERFALL_MAYER_SIGNAL_SOURCES,
-  HYSCAN_GTK_WATERFALL_MAYER_SIGNAL_TILE_TYPE,
-  HYSCAN_GTK_WATERFALL_MAYER_SIGNAL_PROFILE,
-  HYSCAN_GTK_WATERFALL_MAYER_SIGNAL_TRACK,
-  HYSCAN_GTK_WATERFALL_MAYER_SIGNAL_SPEED,
-  HYSCAN_GTK_WATERFALL_MAYER_SIGNAL_VELOCITY,
-  HYSCAN_GTK_WATERFALL_MAYER_SIGNAL_DEPTH_SOURCE,
-  HYSCAN_GTK_WATERFALL_MAYER_SIGNAL_DEPTH_PARAMS,
-  HYSCAN_GTK_WATERFALL_MAYER_SIGNAL_CACHE,
-  HYSCAN_GTK_WATERFALL_MAYER_SIGNAL_ALL = G_MAXUINT64,
-} HyScanGtkWaterfallMayerSignalMask;
-
-typedef gboolean HyScanGtkWaterfallMayerCheckFunc (HyScanGtkWaterfallMayerState*, gpointer);
-typedef void HyScanGtkWaterfallMayerThreadFunc (HyScanGtkWaterfallMayerState*, gpointer, gboolean);
-typedef gpointer HyScanGtkWaterfallMayerStopFunc (HyScanGtkWaterfallMayerState*, gpointer);
-
 struct _HyScanGtkWaterfallMayer
 {
   GObject parent_instance;
@@ -51,16 +32,6 @@ struct _HyScanGtkWaterfallMayerClass
                                 gboolean                 visible);
   const gchar *(*get_mnemonic) (HyScanGtkWaterfallMayer *layer);
 
-  /* Маска сигналов. */
-  guint64 signal_mask;
-
-  /* Виртуальные данные, доступные только классу и его потомку. */
-  HyScanGtkWaterfallMayerCheckFunc *check_func;
-  HyScanGtkWaterfallMayerThreadFunc *thread_func;
-  HyScanGtkWaterfallMayerStopFunc *stop_func;
-  gpointer       thread_data;
-  const gchar   *thread_name;
-
   GObjectClass parent_class;
 };
 
@@ -69,7 +40,7 @@ GType                  hyscan_gtk_waterfall_mayer_get_type              (void);
 void                   hyscan_gtk_waterfall_mayer_grab_input            (HyScanGtkWaterfallMayer *mayer);
 void                   hyscan_gtk_waterfall_mayer_set_visible           (HyScanGtkWaterfallMayer *mayer,
                                                                          gboolean                 visible);
-void                   hyscan_gtk_waterfall_mayer_get_mnemonic          (HyScanGtkWaterfallMayer *mayer);
+const gchar*           hyscan_gtk_waterfall_mayer_get_mnemonic          (HyScanGtkWaterfallMayer *mayer);
 
 
 

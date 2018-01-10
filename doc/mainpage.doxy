@@ -8,13 +8,14 @@
  * Именно такое разбиение на классы в чём-то искуственно и необходимо для того,
  * чтобы изолировать отображаемые сущности друг от друга. Поэтому рассматривать эти классы отдельно
  * не всегда возможно. За дальнейшим описанием устройства водопада следует обратиться \link HyScanGtkWaterfall сюда. \endlink
- * - \link HyScanGtkWaterfallState \endlink - базовый виджет водопада, реализующий хранение параметров.
- * - \link HyScanGtkWaterfall \endlink - базовый виджет водопада, осуществляющий отрисовку акустических данных.
- * - \link HyScanGtkWaterfallLayer \endlink - интерфейс слоёв для водопада.
- *   - \link HyScanGtkWaterfallControl \endlink - управление видимой областью.
- *   - \link HyScanGtkWaterfallGrid \endlink - слой координатной сетки.
- *   - \link HyScanGtkWaterfallDepth \endlink - слой глубины.
- *   - \link HyScanGtkWaterfallMark \endlink - слой меток.
- *   - \link HyScanGtkWaterfallPlayer \endlink - плеер.
+ * - \link HyScanGtkWaterfallState \endlink - базовый виджет водопада, реализующий хранение параметров;
+ * - \link HyScanGtkWaterfall \endlink - базовый виджет водопада, осуществляющий отрисовку акустических данных;
+ * - \link HyScanGtkWaterfallLayer \endlink - интерфейс слоёв для водопада;
+ *   - \link HyScanGtkWaterfallControl \endlink - управление видимой областью;
+ *   - \link HyScanGtkWaterfallGrid \endlink - слой координатной сетки;
+ *   - \link HyScanGtkWaterfallDepth \endlink - слой глубины;
+ *   - \link HyScanGtkWaterfallMark \endlink - слой меток;
+ *   - \link HyScanGtkWaterfallPlayer \endlink - плеер;
+ *   - \link HyScanGtkWaterfallMagnifier \endlink - лупа.
  *
  */

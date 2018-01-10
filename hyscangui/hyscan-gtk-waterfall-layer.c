@@ -31,8 +31,8 @@ hyscan_gtk_waterfall_layer_grab_input (HyScanGtkWaterfallLayer *layer)
 }
 
 void
-hyscan_gtk_waterfall_layer_set_visibile (HyScanGtkWaterfallLayer *layer,
-                                         gboolean                 visible)
+hyscan_gtk_waterfall_layer_set_visible (HyScanGtkWaterfallLayer *layer,
+                                        gboolean                 visible)
 {
   HyScanGtkWaterfallLayerInterface *iface;
 

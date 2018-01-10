@@ -2,6 +2,7 @@
 #include <hyscan-gtk-waterfall-control.h>
 #include <hyscan-gtk-waterfall-grid.h>
 #include <hyscan-gtk-waterfall-mark.h>
+#include <hyscan-gtk-waterfall-magnifier.h>
 #include <hyscan-tile-color.h>
 #include <hyscan-cached.h>
 #include <gtk/gtk.h>
@@ -52,6 +53,7 @@ main (int    argc,
   HyScanGtkWaterfallControl *control = NULL;
   HyScanGtkWaterfallGrid *grid = NULL;
   HyScanGtkWaterfallMark *mark = NULL;
+  HyScanGtkWaterfallMagnifier *loopa = NULL;
 
   gchar *project_name;
   gchar *track_name;
@@ -127,6 +129,7 @@ main (int    argc,
   control = hyscan_gtk_waterfall_control_new (wf);
   grid = hyscan_gtk_waterfall_grid_new (wf);
   mark = hyscan_gtk_waterfall_mark_new (wf);
+  loopa = hyscan_gtk_waterfall_magnifier_new (wf);
 
   hyscan_gtk_waterfall_layer_grab_input (HYSCAN_GTK_WATERFALL_LAYER (control));
 

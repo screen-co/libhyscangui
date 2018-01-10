@@ -148,8 +148,8 @@ void            hyscan_gtk_waterfall_layer_grab_input   (HyScanGtkWaterfallLayer
  * \param visible TRUE для показа слоя, FALSE для скрытия
  */
 HYSCAN_API
-void            hyscan_gtk_waterfall_layer_set_visibile (HyScanGtkWaterfallLayer *layer,
-                                                         gboolean                 visible);
+void            hyscan_gtk_waterfall_layer_set_visible (HyScanGtkWaterfallLayer *layer,
+                                                        gboolean                 visible);
 
 /**
  * Функция возвращает название иконки для слоя.

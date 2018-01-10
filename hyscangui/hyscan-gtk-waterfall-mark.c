@@ -350,7 +350,7 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
   priv->processing = g_thread_new ("gtk-wf-mark", hyscan_gtk_waterfall_mark_processing, self);
 
   /* Включаем видимость слоя. */
-  priv->layer_visibility = TRUE;
+  hyscan_gtk_waterfall_layer_set_visible (HYSCAN_GTK_WATERFALL_LAYER (self), TRUE);
 }
 
 static void
@@ -382,8 +382,6 @@ hyscan_gtk_waterfall_mark_object_finalize (GObject *object)
   hyscan_gtk_waterfall_mark_clear_task (&priv->current);
 
   g_object_unref (priv->font);
-
-
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_mark_parent_class)->finalize (object);
 }

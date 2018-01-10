@@ -193,7 +193,7 @@ hyscan_gtk_waterfall_meter_object_constructed (GObject *object)
   hyscan_gtk_waterfall_meter_set_shadow_width (self, 3);
 
   /* Включаем видимость слоя. */
-  priv->layer_visibility = TRUE;
+  hyscan_gtk_waterfall_layer_set_visible (HYSCAN_GTK_WATERFALL_LAYER (self), TRUE);
 }
 
 static void
@@ -381,7 +381,7 @@ hyscan_gtk_waterfall_meter_button (GtkWidget               *widget,
   priv->release.y = event->y;
 
   /* Слишком большое перемещение говорит о том, что пользователь двигает область.  */
-  if (hyscan_gtk_waterfall_tools_distance(&priv->press, &priv->release) > 2)
+  if (hyscan_gtk_waterfall_tools_distance (&priv->press, &priv->release) > 2)
     return FALSE;
 
   return hyscan_gtk_waterfall_meter_interaction_processor (widget, self);

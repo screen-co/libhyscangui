@@ -152,6 +152,9 @@ hyscan_gtk_waterfall_control_object_constructed (GObject *object)
   g_signal_connect (priv->wfall, "changed::sources", G_CALLBACK (hyscan_gtk_waterfall_control_sources_changed), self);
 
   hyscan_gtk_waterfall_control_sources_changed (priv->wf_state, self);
+
+  /* Включаем видимость слоя. */
+  hyscan_gtk_waterfall_layer_set_visible (HYSCAN_GTK_WATERFALL_LAYER (self), TRUE);
 }
 
 static void
@@ -330,9 +333,9 @@ hyscan_gtk_waterfall_control_mouse_button (GtkWidget      *widget,
 
 /* Обработчик движения мыши. */
 static gboolean
-hyscan_gtk_waterfall_control_mouse_motion (GtkWidget      *widget,
-                             GdkEventMotion *event,
-                             HyScanGtkWaterfallControl *self)
+hyscan_gtk_waterfall_control_mouse_motion (GtkWidget                 *widget,
+                                           GdkEventMotion            *event,
+                                           HyScanGtkWaterfallControl *self)
 {
   GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
   HyScanGtkWaterfallControlPrivate *priv = self->priv;

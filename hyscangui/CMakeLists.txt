@@ -29,6 +29,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-waterfall-mark.c
              hyscan-gtk-waterfall-meter.c
              hyscan-gtk-waterfall-player.c
+             hyscan-gtk-waterfall-magnifier.c
              # hyscan-gtk-waterfall-depth.c
              ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c)
 
@@ -64,6 +65,7 @@ install (FILES hyscan-gtk-area.h
                hyscan-gtk-waterfall-mark.h
                hyscan-gtk-waterfall-meter.h
                hyscan-gtk-waterfall-player.h
+               hyscan-gtk-waterfall-magnifier.h
          COMPONENT development
          DESTINATION "include/hyscan-${HYSCAN_MAJOR_VERSION}/hyscangui"
          PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)

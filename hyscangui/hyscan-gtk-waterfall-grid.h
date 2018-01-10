@@ -64,6 +64,9 @@ GType                   hyscan_gtk_waterfall_grid_get_type         (void);
  *
  * Функция создает новый виджет \link HyScanGtkWaterfallGrid \endlink
  *
+ * \param waterfall указатель на виджет \link HyScanGtkWaterfall \endlink
+ *
+ * \return новый виджет \link HyScanGtkWaterfallGrid \endlink
  */
 HYSCAN_API
 HyScanGtkWaterfallGrid *hyscan_gtk_waterfall_grid_new                   (HyScanGtkWaterfall     *waterfall);
