@@ -76,14 +76,12 @@ HyScanGtkWaterfallGrid *hyscan_gtk_waterfall_grid_new                   (HyScanG
  * Функция позволяет включить или отключить координатную сетку.
  *
  * \param grid - указатель на объект \link HyScanGtkWaterfallGrid \endlink;
- * \param draw_horisontal - TRUE, чтобы показать горизонтальные линии сетки, FALSE, чтобы скрыть.
- * \param draw_vertical - TRUE, чтобы показать вертикальные линии сетки, FALSE, чтобы скрыть.
+ * \param draw_grid - TRUE, чтобы показать линии сетки, FALSE, чтобы скрыть.
  *
  */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_grid_show_grid             (HyScanGtkWaterfallGrid *grid,
-                                                                         gboolean                draw_horisontal,
-                                                                         gboolean                draw_vertical);
+                                                                         gboolean                draw_grid);
 /**
  *
  * Функция позволяет включить или отключить информационное окошко.

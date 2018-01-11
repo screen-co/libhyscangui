@@ -72,7 +72,19 @@ main (int    argc,
   guint cmap_len;
 
   gtk_init (&argc, &argv);
+  {
+    GtkAdjustment * adj =  gtk_adjustment_new (0, 0, 1, 2, 3, 4);
+    GtkWidget * sb =  gtk_scrollbar_new (GTK_ORIENTATION_VERTICAL, adj);
 
+    GValue gv = {0};
+    g_value_init (&gv, G_TYPE_INT);
+    g_message ("%s", g_type_name (G_TYPE_INT));
+
+    gtk_widget_style_get_property (sb, "slider-width", &gv);
+
+    g_message ("%i", g_value_get_int (&gv));
+
+  }
   /* Парсим аргументы*/
   {
     gchar **args;
@@ -192,6 +204,8 @@ main (int    argc,
   // gtk_container_add (GTK_CONTAINER (window), wf_widget);
   gtk_container_add (GTK_CONTAINER (window), gtkgrid);
   gtk_widget_show_all (window);
+
+
 
   //hyscan_gtk_waterfall_echosounder (wf, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD);
   /* !use_computed == use_raw. */

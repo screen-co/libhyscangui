@@ -158,6 +158,11 @@ main (int    argc,
 
   /* Кладем виджет в основное окно. */
   overlay = make_overlay (wf, white, gamma);
+  {
+    GtkAdjustment *adj = gtk_adjustment_new (1,0,100,10,12,23);
+    GtkWidget* scrl = gtk_scrollbar_new (GTK_ORIENTATION_VERTICAL, adj);
+
+  }
 
   gtk_container_add (GTK_CONTAINER (window), overlay);
   gtk_widget_show_all (window);
@@ -169,7 +174,7 @@ main (int    argc,
   gtk_main ();
 
   g_clear_object (&cache);
-  g_clear_object (&cache2);
+   g_clear_object (&cache2);
   g_clear_object (&db);
 
   g_free (project_name);
@@ -286,7 +291,7 @@ make_overlay (HyScanGtkWaterfall *wf,
   gtk_overlay_add_overlay (GTK_OVERLAY (overlay), box);
   gtk_widget_set_halign (box, GTK_ALIGN_CENTER);
   gtk_widget_set_valign (box, GTK_ALIGN_END);
-  gtk_widget_set_margin_bottom (box, 5);
+  gtk_widget_set_margin_bottom (box, 12);
 
   return overlay;
 }
