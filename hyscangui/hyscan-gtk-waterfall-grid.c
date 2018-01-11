@@ -316,11 +316,10 @@ hyscan_gtk_waterfall_grid_draw (GtkWidget *widget,
   if (!priv->layer_visibility)
     return;
 
-  /* Местоположение. */
-  if (priv->draw_position)
+  /* Информационное окошко. */
+  if (priv->show_info)
     {
-      hyscan_gtk_waterfall_position_vertical (widget, cairo, self);
-      hyscan_gtk_waterfall_position_horisontal (widget, cairo, self);
+      hyscan_gtk_waterfall_grid_info (widget, cairo, self);
     }
 
   /* Сетка и подписи. */
@@ -330,11 +329,13 @@ hyscan_gtk_waterfall_grid_draw (GtkWidget *widget,
       hyscan_gtk_waterfall_grid_horisontal (widget, cairo, self);
     }
 
-  /* Информационное окошко. */
-  if (priv->show_info)
+  /* Местоположение. */
+  if (priv->draw_position)
     {
-      hyscan_gtk_waterfall_grid_info (widget, cairo, self);
+      hyscan_gtk_waterfall_position_vertical (widget, cairo, self);
+      hyscan_gtk_waterfall_position_horisontal (widget, cairo, self);
     }
+
 }
 
 /* Функция рисует сетку по горизонтальной оси. */
@@ -602,8 +603,9 @@ hyscan_gtk_waterfall_position_vertical (GtkWidget              *widget,
 {
   HyScanGtkWaterfallGridPrivate *priv = self->priv;
   gdouble from_x, to_x, from_y, to_y;
-  gdouble bar_x, bar_y, bar_width, bar_height;
-  HyScanCoordinates bar0, bar1;
+  gdouble bar_width, bar_height;
+  HyScanCoordinates bar0;
+  gdouble mid, wid;
   gdouble min_x, max_x, min_y, max_y ;
   guint area_width, area_height;
   gint border = priv->virtual_border;
@@ -617,12 +619,13 @@ hyscan_gtk_waterfall_position_vertical (GtkWidget              *widget,
   cairo_set_line_width (cairo, 1);
 
   /* Сначала подложка. */
-  bar0.x = round (area_width - 1.0 - text_height/2.0) + 0.5;
+  bar0.x = round (area_width - 1.0 - text_height / 4.0) + 0.5;
   bar0.y = round (area_height / 2.0) + 0.5;
 
   bar_height = area_height - 2 * border;
-  bar_height = round (bar_height / 2.0);
   bar_width = text_height / 2.0;
+
+  bar_height = round (bar_height / 2.0);
   bar_width = round (bar_width / 2.0);
 
   hyscan_cairo_set_source_gdk_rgba (cairo, &priv->shad_color);
@@ -635,9 +638,9 @@ hyscan_gtk_waterfall_position_vertical (GtkWidget              *widget,
   cairo_stroke (cairo);
 
   /* Центр и ширина ползунка в относительных величинах. */
-  gdouble mid = from_y + (to_y - from_y) / 2.0;
-          mid /= max_y - min_y;
-  gdouble wid = (to_y - from_y) / (max_y - min_y);
+  mid = (to_y + from_y) / 2.0 - min_y;
+  mid /= max_y - min_y;
+  wid = (to_y - from_y) / (max_y - min_y);
 
   if (wid >= 1)
     {
@@ -663,45 +666,59 @@ hyscan_gtk_waterfall_position_horisontal (GtkWidget              *widget,
 {
   HyScanGtkWaterfallGridPrivate *priv = self->priv;
   gdouble from_x, to_x, from_y, to_y;
-  gdouble bar_x, bar_y, bar_width, bar_height;
+  gdouble bar_width, bar_height;
+  HyScanCoordinates bar0;
+  gdouble mid, wid;
   gdouble min_x, max_x, min_y, max_y ;
   guint area_width, area_height;
   gint border = priv->virtual_border;
+  gint text_height = priv->text_height;
 
   /* Размеры. */
   gtk_cifro_area_get_view (GTK_CIFRO_AREA (widget), &from_x, &to_x, &from_y, &to_y);
   gtk_cifro_area_get_limits (GTK_CIFRO_AREA (widget), &min_x, &max_x, &min_y, &max_y);
   gtk_cifro_area_get_size (GTK_CIFRO_AREA (widget), &area_width, &area_height);
 
-  /* Сначала подложка. */
   cairo_set_line_width (cairo, 1);
-  bar_x = round (border) + 0.5;
-  bar_y = round (area_height - priv->text_height / 2.0) + 0.5;
-  bar_width = round (area_width - 2 * border);
-  bar_height = round (priv->text_height / 2.0) - 1.0;
+
+  /* Сначала подложка. */
+  bar0.x = round (area_width / 2.0) + 0.5;
+  bar0.y = round (area_height - 1.0 - text_height / 4.0) + 0.5;
+
+  bar_height = text_height / 2.0;
+  bar_width = area_width - 2 * border;
+
+  bar_height = round (bar_height / 2.0);
+  bar_width = round (bar_width / 2.0);
 
   hyscan_cairo_set_source_gdk_rgba (cairo, &priv->shad_color);
-  cairo_rectangle (cairo, bar_x, bar_y, bar_width, bar_height);
+  cairo_rectangle (cairo, bar0.x - bar_width, bar0.y - bar_height, bar_width * 2, bar_height * 2);
   cairo_fill (cairo);
   cairo_stroke (cairo);
 
   hyscan_cairo_set_source_gdk_rgba (cairo, &priv->grid_color);
-  cairo_rectangle (cairo, bar_x, bar_y, bar_width, bar_height);
+  cairo_rectangle (cairo, bar0.x - bar_width, bar0.y - bar_height, bar_width * 2, bar_height * 2);
   cairo_stroke (cairo);
 
-  if (from_x >= min_x)
+  /* Центр и ширина ползунка в относительных величинах. */
+  mid = (to_x + from_x) / 2.0 - min_x;
+  mid /= max_x - min_x;
+  wid = (to_x - from_x) / (max_x - min_x);
+
+  if (wid >= 1)
     {
-      bar_x = border + bar_width * ((from_x-min_x) / (max_x - min_x));
-      bar_width = (bar_width) * (to_x - from_x) / (max_x - min_x);
+      wid = 1;
+      mid = 0.5;
     }
 
-  bar_x += round (priv->text_height / 8.0);
-  bar_width -= round (priv->text_height / 4.0);
+  bar0.x = border + text_height / 8.0 + round (mid * (area_width - 2 * border - text_height / 4.0)) + 0.5;
 
-  bar_y += round (priv->text_height / 8.0);
-  bar_height -= round (priv->text_height / 4.0);
+  bar_height = bar_height - 1 - text_height / 8;
+  bar_width = round ((wid / 2) * (area_width - 2 * border - text_height / 8));
+  bar_width = round ((wid / 2) * (area_width - 2 * border - text_height / 8));
+
   hyscan_cairo_set_source_gdk_rgba (cairo, &priv->text_color);
-  cairo_rectangle (cairo, bar_x, bar_y, bar_width, bar_height);
+  cairo_rectangle (cairo, bar0.x - bar_width, bar0.y - bar_height, bar_width * 2, bar_height * 2);
   cairo_fill (cairo);
   cairo_stroke (cairo);
 }
