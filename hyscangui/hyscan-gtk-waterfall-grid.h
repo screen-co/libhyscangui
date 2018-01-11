@@ -16,10 +16,9 @@
  * Методы этого класса предоставляют богатые возможности по настройке отображения.
  *
  * - #hyscan_gtk_waterfall_grid_show_grid - включение и выключение сетки;
+ * - #hyscan_gtk_waterfall_grid_show_position - включение и выключение линеек местоположения;
  * - #hyscan_gtk_waterfall_grid_show_info - включение и выключение информационного окна;
- * - #hyscan_gtk_waterfall_grid_info_position_auto - автоматическое позиционирование информационного окна;
- * - #hyscan_gtk_waterfall_grid_info_position_abs - абсолютное позиционирование информационного окна;
- * - #hyscan_gtk_waterfall_grid_info_position_perc - процентное позиционирование информационного окна;
+ * - #hyscan_gtk_waterfall_grid_set_info_position - задает местоположение информационного окна;
  * - #hyscan_gtk_waterfall_grid_set_grid_step - шаг сетки;
  * - #hyscan_gtk_waterfall_grid_set_grid_color - цвет сетки;
  * - #hyscan_gtk_waterfall_grid_set_main_color - цвет подписей.
@@ -40,6 +39,14 @@ G_BEGIN_DECLS
 #define HYSCAN_GTK_WATERFALL_GRID_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_WATERFALL_GRID, HyScanGtkWaterfallGridClass))
 #define HYSCAN_IS_GTK_WATERFALL_GRID_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_WATERFALL_GRID))
 #define HYSCAN_GTK_WATERFALL_GRID_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_WATERFALL_GRID, HyScanGtkWaterfallGridClass))
+
+typedef enum
+{
+  HYSCAN_GTK_WATERFALL_GRID_TOP_LEFT,
+  HYSCAN_GTK_WATERFALL_GRID_TOP_RIGHT,
+  HYSCAN_GTK_WATERFALL_GRID_BOTTOM_LEFT,
+  HYSCAN_GTK_WATERFALL_GRID_BOTTOM_RIGHT,
+} HyScanGtkWaterfallGridInfoPosition;
 
 typedef struct _HyScanGtkWaterfallGrid HyScanGtkWaterfallGrid;
 typedef struct _HyScanGtkWaterfallGridPrivate HyScanGtkWaterfallGridPrivate;
@@ -84,6 +91,19 @@ void                    hyscan_gtk_waterfall_grid_show_grid             (HyScanG
                                                                          gboolean                draw_grid);
 /**
  *
+ * Функция позволяет включить или отключить отображение линеек, указывающих
+ * местоположение экрана относительно границ галса.
+ *
+ * \param grid - указатель на объект \link HyScanGtkWaterfallGrid \endlink;
+ * \param show_position - TRUE, чтобы показать линейки, FALSE, чтобы скрыть.
+ *
+ */
+HYSCAN_API
+void                    hyscan_gtk_waterfall_grid_show_position         (HyScanGtkWaterfallGrid *grid,
+                                                                         gboolean                show_position);
+
+/**
+ *
  * Функция позволяет включить или отключить информационное окошко.
  *
  * \param grid - указатель на объект \link HyScanGtkWaterfallGrid \endlink;
@@ -99,40 +119,12 @@ void                    hyscan_gtk_waterfall_grid_show_info             (HyScanG
  * Функция задает местоположение информационного окошка по умолчанию.
  *
  * \param grid - указатель на объект \link HyScanGtkWaterfallGrid \endlink;
+ * \param position - местоположение информационного окошка;
  *
  */
 HYSCAN_API
-void                    hyscan_gtk_waterfall_grid_info_position_auto    (HyScanGtkWaterfallGrid *grid);
-
-/**
- *
- * Функция задает местоположение информационного окошка в абсолютных координатах.
- * Задается местоположение верхней левой точки окна.
- *
- * \param grid - указатель на объект \link HyScanGtkWaterfallGrid \endlink;
- * \param x_position - горизонтальная координата в пикселях;
- * \param y_position - вертикальная координата в пикселях.
- *
- */
-HYSCAN_API
-void                    hyscan_gtk_waterfall_grid_info_position_abs     (HyScanGtkWaterfallGrid *grid,
-                                                                         gint                    x_position,
-                                                                         gint                    y_position);
-
-/**
- *
- * Функция задает местоположение информационного окошка в процентах.
- * Задается местоположение верхней левой точки окна.
- *
- * \param grid - указатель на объект \link HyScanGtkWaterfallGrid \endlink;
- * \param x_position - горизонтальная координата в процентах;
- * \param y_position - вертикальная координата в процентах.
- *
- */
-HYSCAN_API
-void                    hyscan_gtk_waterfall_grid_info_position_perc    (HyScanGtkWaterfallGrid *grid,
-                                                                         gint                     x_position,
-                                                                         gint                     y_position);
+void                    hyscan_gtk_waterfall_grid_set_info_position    (HyScanGtkWaterfallGrid             *grid,
+                                                                        HyScanGtkWaterfallGridInfoPosition  position);
 
 /**
  *

@@ -158,11 +158,6 @@ main (int    argc,
 
   /* Кладем виджет в основное окно. */
   overlay = make_overlay (wf, white, gamma);
-  {
-    GtkAdjustment *adj = gtk_adjustment_new (1,0,100,10,12,23);
-    GtkWidget* scrl = gtk_scrollbar_new (GTK_ORIENTATION_VERTICAL, adj);
-
-  }
 
   gtk_container_add (GTK_CONTAINER (window), overlay);
   gtk_widget_show_all (window);
@@ -174,7 +169,7 @@ main (int    argc,
   gtk_main ();
 
   g_clear_object (&cache);
-   g_clear_object (&cache2);
+  g_clear_object (&cache2);
   g_clear_object (&db);
 
   g_free (project_name);

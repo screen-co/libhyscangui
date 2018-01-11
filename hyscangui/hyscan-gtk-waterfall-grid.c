@@ -22,13 +22,6 @@ enum
 
 enum
 {
-  INFOBOX_AUTO,
-  INFOBOX_ABSOLUTE,
-  INFOBOX_PERCENT
-};
-
-enum
-{
   VALUE_X,
   VALUE_Y,
   UNITS_X,
@@ -173,7 +166,7 @@ hyscan_gtk_waterfall_grid_object_constructed (GObject *object)
   priv->draw_grid = TRUE;
   priv->draw_position = TRUE;
   priv->show_info = TRUE;
-  priv->info_coordinates = INFOBOX_AUTO;
+  priv->info_coordinates = HYSCAN_GTK_WATERFALL_GRID_TOP_RIGHT;
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_grid_parent_class)->constructed (object);
 
@@ -185,7 +178,7 @@ hyscan_gtk_waterfall_grid_object_constructed (GObject *object)
   /* Сигналы модели. */
   g_signal_connect (priv->wf_state, "changed::sources", G_CALLBACK (hyscan_gtk_waterfall_grid_sources_changed), self);
 
- gdk_rgba_parse (&grid_color, FRAME_DEFAULT);
+  gdk_rgba_parse (&grid_color, FRAME_DEFAULT);
   gdk_rgba_parse (&shad_color, SHADOW_DEFAULT);
 
   hyscan_gtk_waterfall_grid_set_grid_step (self, 100, 100);
@@ -806,23 +799,25 @@ hyscan_gtk_waterfall_grid_info (GtkWidget *widget,
 
   /* Размер места для отображения информации. */
   info_width = value_width + units_width + 2 * text_spacing;
+  info_width /= 2;
   info_height = 2 * font_height + text_spacing * 3;
+  info_height /= 2;
 
-  /* Правый верхний угол окошка. Либо надо рассчитать, либо координаты уже есть. */
-  switch (priv->info_coordinates)
+  /* Центр окошка. */
+  y = info_height + text_spacing + border;
+
+  if (priv->info_coordinates == HYSCAN_GTK_WATERFALL_GRID_BOTTOM_LEFT ||
+      priv->info_coordinates == HYSCAN_GTK_WATERFALL_GRID_BOTTOM_RIGHT)
     {
-    case INFOBOX_ABSOLUTE:
-      x = priv->info_x + info_width / 2;
-      y = priv->info_y - info_height / 2;
-      break;
-    case INFOBOX_PERCENT:
-      x = area_width * priv->info_x_perc / 100.0 + info_width / 2;
-      y = area_height * priv->info_y_perc / 100.0 - info_height / 2;
-      break;
-    case INFOBOX_AUTO:
-    default:
-      x = area_width - border * 1.2;
-      y = border * 1.2;
+      y = area_height - y;
+    }
+
+  x = info_width + text_spacing + border;
+
+  if (priv->info_coordinates == HYSCAN_GTK_WATERFALL_GRID_TOP_RIGHT ||
+      priv->info_coordinates == HYSCAN_GTK_WATERFALL_GRID_BOTTOM_RIGHT)
+    {
+      x = area_width - x;
     }
 
   /* Проверяем размеры области отображения. */
@@ -833,14 +828,17 @@ hyscan_gtk_waterfall_grid_info (GtkWidget *widget,
   cairo_set_line_width (cairo, 1.0);
 
   hyscan_cairo_set_source_gdk_rgba (cairo, &priv->shad_color);
-  cairo_rectangle (cairo, x + 0.5, y + 0.5, -info_width, info_height);
+  cairo_rectangle (cairo, x + 0.5 - info_width, y + 0.5 - info_height, 2* info_width, 2* info_height);
   cairo_fill (cairo);
 
   hyscan_cairo_set_source_gdk_rgba (cairo, &priv->grid_color);
-  cairo_rectangle (cairo, x + 0.5, y + 0.5, -info_width, info_height);
+  cairo_rectangle (cairo, x + 0.5 - info_width, y + 0.5 - info_height, 2* info_width, 2* info_height);
   cairo_stroke (cairo);
 
   /* Теперь составляем строки с фактическими координатами. */
+  x = x + 0.5 + info_width;
+  y = y + 0.5 - info_height;
+
   value = value_x;
   gtk_cifro_area_get_axis_step (scale, 1, &value, NULL, NULL, &value_power);
   value_power = (value_power > 0) ? 0 : value_power;
@@ -885,7 +883,7 @@ hyscan_gtk_waterfall_grid_info (GtkWidget *widget,
 
 }
 
-/* Функция указывает, какие линии рисовать. */
+/* Функция включает и отключает линии сетки. */
 void
 hyscan_gtk_waterfall_grid_show_grid (HyScanGtkWaterfallGrid *self,
                                      gboolean                draw)
@@ -893,6 +891,18 @@ hyscan_gtk_waterfall_grid_show_grid (HyScanGtkWaterfallGrid *self,
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (self));
 
   self->priv->draw_grid = draw;
+
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
+}
+
+/* Функция включает и отключает скроллбары. */
+void
+hyscan_gtk_waterfall_grid_show_position (HyScanGtkWaterfallGrid *self,
+                                         gboolean                show_position)
+{
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (self));
+
+  self->priv->draw_position = show_position;
 
   hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
@@ -911,41 +921,12 @@ hyscan_gtk_waterfall_grid_show_info (HyScanGtkWaterfallGrid *self,
 
 /* Функция задает координаты информационного окна по умолчанию. */
 void
-hyscan_gtk_waterfall_grid_info_position_auto (HyScanGtkWaterfallGrid *self)
+hyscan_gtk_waterfall_grid_set_info_position (HyScanGtkWaterfallGrid             *self,
+                                             HyScanGtkWaterfallGridInfoPosition  position)
 {
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (self));
 
-  self->priv->info_coordinates = INFOBOX_AUTO;
-
-  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
-}
-
-/* Функция задает координаты информационного окна в пикселях. */
-void
-hyscan_gtk_waterfall_grid_info_position_abs (HyScanGtkWaterfallGrid *self,
-                                             gint                    x_position,
-                                             gint                    y_position)
-{
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (self));
-
-  self->priv->info_coordinates = INFOBOX_ABSOLUTE;
-  self->priv->info_x = x_position;
-  self->priv->info_y = y_position;
-
-  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
-}
-
-/* Функция задает координаты информационного окна в процентах. */
-void
-hyscan_gtk_waterfall_grid_info_position_perc (HyScanGtkWaterfallGrid *self,
-                                              gint                    x_position,
-                                              gint                    y_position)
-{
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (self));
-
-  self->priv->info_coordinates = INFOBOX_PERCENT;
-  self->priv->info_x_perc = x_position;
-  self->priv->info_y_perc = y_position;
+  self->priv->info_coordinates = position;
 
   hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
