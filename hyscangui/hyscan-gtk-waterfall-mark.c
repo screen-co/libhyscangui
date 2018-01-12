@@ -534,8 +534,11 @@ hyscan_gtk_waterfall_mark_copy_task (HyScanGtkWaterfallMarkTask *src,
                                      HyScanGtkWaterfallMarkTask *dst)
 {
   *dst = *src;
-  dst->mark = hyscan_waterfall_mark_copy (src->mark);
-  dst->id = g_strdup (src->id);
+
+  if (dst->mark != NULL)
+    dst->mark = hyscan_waterfall_mark_copy (src->mark);
+  if (dst->id != NULL)
+    dst->id = g_strdup (src->id);
 }
 
 /* Функция определяет идентификатор галса. */
@@ -854,6 +857,8 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
       for (link = list; link != NULL; link = link->next)
         {
           task = link->data;
+          HyScanCoordinates mc;
+          gdouble mw, mh;
 
           if (task->action == TASK_REMOVE)
             {
@@ -872,8 +877,26 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               _proj = lproj;
             }
 
-          status  = hyscan_projector_coord_to_index (_proj, task->center.y, &index0);
-          status &= hyscan_projector_coord_to_count (_proj, ABS (task->center.x), &count0, 0.0);
+
+          if (state->display_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN)
+              {
+                mc.y = task->center.y;
+                mc.x = ABS (task->center.x);
+                mw = 1000 * task->dx;
+                mh = 1000 * task->dy;
+              }
+            else if (state->display_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER)
+              {
+                mc.y = task->center.x;
+                mc.x = ABS (task->center.y);
+                mw = 1000 * task->dy;
+                mh = 1000 * task->dx;
+              }
+
+          status  = hyscan_projector_coord_to_index (_proj, mc.y, &index0);
+          status &= hyscan_projector_coord_to_count (_proj, mc.x, &count0, 0.0);
+          // status  = hyscan_projector_coord_to_index (_proj, task->center.y, &index0);
+          // status &= hyscan_projector_coord_to_count (_proj, ABS (task->center.x), &count0, 0.0);
 
           if (!status)
             continue;
@@ -892,8 +915,8 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               mark.source0           = source;
               mark.index0            = index0;
               mark.count0            = count0;
-              mark.width             = task->dx * 1000;
-              mark.height            = task->dy * 1000;
+              mark.width             = mw;
+              mark.height            = mh;
 
               hyscan_waterfall_mark_data_add (mdata, &mark);
               hyscan_waterfall_mark_free (&mark);
@@ -912,8 +935,8 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               mark.source0           = source;
               mark.index0            = index0;
               mark.count0            = count0;
-              mark.width             = task->dx * 1000;
-              mark.height            = task->dy * 1000;
+              mark.width             = mw;
+              mark.height            = mh;
 
               hyscan_waterfall_mark_data_modify (mdata, task->id, &mark);
               hyscan_waterfall_mark_free (&mark);
@@ -933,6 +956,8 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
       /* Каждую метку переводим в наши координаты. */
       for (i = 0; i < nids; i++)
         {
+          HyScanCoordinates mc;
+          gdouble mw, mh;
           HyScanWaterfallMark *mark;
 
           mark = hyscan_waterfall_mark_data_get (mdata, ids[i]);
@@ -959,13 +984,28 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
           task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
           task->mark = mark;
           task->id = ids[i];
-          hyscan_projector_index_to_coord (_proj, mark->index0, &task->center.y);
-          hyscan_projector_count_to_coord (_proj, mark->count0, &task->center.x, 0.0);
-          task->dx = mark->width / 1000.0;
-          task->dy = mark->height / 1000.0;
+          hyscan_projector_index_to_coord (_proj, mark->index0, &mc.y);
+          hyscan_projector_count_to_coord (_proj, mark->count0, &mc.x, 0.0);
+          mw = mark->width / 1000.0;
+          mh = mark->height / 1000.0;
 
-          if (mark->source0 == state->lsource)
-            task->center.x *= -1;
+          if (state->display_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN)
+            {
+              task->center.y = mc.y;
+              task->center.x = mc.x;
+              task->dx = mw;
+              task->dy = mh;
+            }
+          else if (state->display_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER)
+            {
+              task->center.y = - mc.x;
+              task->center.x = mc.y;
+              task->dx = mh;
+              task->dy = mw;
+            }
+
+          // if (mark->source0 == state->lsource)
+            // task->center.x *= -1;
 
           list = g_list_prepend (list, task);
           continue;
@@ -1274,6 +1314,7 @@ hyscan_gtk_waterfall_mark_mouse_interaction_processor (GtkWidget              *w
     {
 
       task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
+
       hyscan_gtk_waterfall_mark_copy_task (&priv->current, task);
 
       priv->mouse_mode = priv->mode = LOCAL_EMPTY;

@@ -2,6 +2,7 @@
 #include <hyscan-gtk-waterfall-control.h>
 #include <hyscan-gtk-waterfall-grid.h>
 #include <hyscan-gtk-waterfall-mark.h>
+#include <hyscan-gtk-waterfall-meter.h>
 #include <hyscan-tile-color.h>
 #include <hyscan-cached.h>
 #include <gtk/gtk.h>
@@ -51,6 +52,7 @@ main (int    argc,
   HyScanGtkWaterfallControl *control = NULL;
   HyScanGtkWaterfallGrid *grid = NULL;
   HyScanGtkWaterfallMark *mark = NULL;
+  HyScanGtkWaterfallMeter *meter = NULL;
 
   gchar *project_name;
   gchar *track_name;
@@ -126,17 +128,19 @@ main (int    argc,
   control = hyscan_gtk_waterfall_control_new (wf);
   grid = hyscan_gtk_waterfall_grid_new (wf);
   mark = hyscan_gtk_waterfall_mark_new (wf);
+  meter = hyscan_gtk_waterfall_meter_new (wf);
 
   hyscan_gtk_waterfall_layer_grab_input (HYSCAN_GTK_WATERFALL_LAYER (control));
 
-  hyscan_gtk_waterfall_state_sidescan (wf_state, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD,
-                                                 HYSCAN_SOURCE_SIDE_SCAN_PORT);
+  // hyscan_gtk_waterfall_state_sidescan (wf_state, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD,
+                                                 // HYSCAN_SOURCE_SIDE_SCAN_PORT);
+  hyscan_gtk_waterfall_state_echosounder (wf_state, HYSCAN_SOURCE_SIDE_SCAN_PORT);
   hyscan_gtk_waterfall_state_set_cache (wf_state, cache, cache2, cache_prefix);
   hyscan_gtk_waterfall_state_set_ship_speed (wf_state, speed);
-  hyscan_gtk_waterfall_state_set_depth_source (wf_state, HYSCAN_SOURCE_NMEA_DPT, 1);
-  hyscan_gtk_waterfall_state_set_depth_filter_size (wf_state, 2);
-  hyscan_gtk_waterfall_state_set_depth_time (wf_state, 100000);
-  hyscan_gtk_waterfall_state_set_tile_type (wf_state, HYSCAN_TILE_GROUND);
+  // hyscan_gtk_waterfall_state_set_depth_source (wf_state, HYSCAN_SOURCE_NMEA_DPT, 1);
+  // hyscan_gtk_waterfall_state_set_depth_filter_size (wf_state, 2);
+  // hyscan_gtk_waterfall_state_set_depth_time (wf_state, 100000);
+  // hyscan_gtk_waterfall_state_set_tile_type (wf_state, HYSCAN_TILE_GROUND);
 
   hyscan_gtk_waterfall_set_upsample (wf, 2);
 
@@ -162,19 +166,23 @@ main (int    argc,
     GtkWidget *bbox;
     GtkWidget *l_control = make_layer_btn (HYSCAN_GTK_WATERFALL_LAYER (control), "control");
     GtkWidget *l_mark = make_layer_btn (HYSCAN_GTK_WATERFALL_LAYER (mark), "mark");
+    GtkWidget *l_meter = make_layer_btn (HYSCAN_GTK_WATERFALL_LAYER (meter), "meter");
     g_signal_connect_swapped (l_control, "clicked",
                               G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input),
                               HYSCAN_GTK_WATERFALL_LAYER (control));
     g_signal_connect_swapped (l_mark, "clicked",
                               G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input),
                               HYSCAN_GTK_WATERFALL_LAYER (mark));
-
+    g_signal_connect_swapped (l_meter, "clicked",
+                              G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input),
+                              HYSCAN_GTK_WATERFALL_LAYER (meter));
 
     gtkgrid = gtk_box_new (GTK_ORIENTATION_VERTICAL, 2);
     bbox = gtk_button_box_new (GTK_ORIENTATION_HORIZONTAL);
     gtk_button_box_set_layout (GTK_BUTTON_BOX (bbox), GTK_BUTTONBOX_CENTER);
 
     gtk_box_pack_start (GTK_BOX (bbox), l_mark, TRUE, FALSE, 0);
+    gtk_box_pack_start (GTK_BOX (bbox), l_meter, TRUE, FALSE, 0);
     gtk_box_pack_start (GTK_BOX (bbox), l_control, TRUE, FALSE, 0);
 
     GtkWidget *spd = gtk_button_new_with_label ("speed * 0.9");

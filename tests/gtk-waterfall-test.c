@@ -216,7 +216,7 @@ main (int    argc,
 
   g_clear_object (&control);
   g_clear_object (&grid);
-  // g_clear_object (&mark);
+  g_clear_object (&loopa);
 
   g_clear_object (&cache);
   g_clear_object (&cache2);
