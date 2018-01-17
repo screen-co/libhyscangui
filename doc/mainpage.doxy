@@ -2,6 +2,10 @@
  *
  * Библиотека содержит специализированные виджеты HyScan.
  *
- * - \link HyScanGtkArea \endlink - виджет рабочей области.
+ * - \link HyScanGtkArea \endlink - виджет рабочей области;
+ * - \link HyScanGtkParamKey \endlink - виджет для отображения HyScanDataSchemaKey;
+ * - \link HyScanGtkParam \endlink - базовый виджет отображения HyScanParam;
+ * - \link HyScanGtkParamList \endlink - отображение HyScanParam единым списком;
+ * - \link HyScanGtkParamCC \endlink - отображение HyScanParam с уровнем вложенности не более 2.
  *
  */
