@@ -885,18 +885,16 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
                 mw = 1000 * task->dx;
                 mh = 1000 * task->dy;
               }
-            else if (state->display_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER)
-              {
-                mc.y = task->center.x;
-                mc.x = ABS (task->center.y);
-                mw = 1000 * task->dy;
-                mh = 1000 * task->dx;
-              }
+          else /*if (state->display_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER)*/
+            {
+              mc.y = task->center.x;
+              mc.x = ABS (task->center.y);
+              mw = 1000 * task->dy;
+              mh = 1000 * task->dx;
+            }
 
           status  = hyscan_projector_coord_to_index (_proj, mc.y, &index0);
           status &= hyscan_projector_coord_to_count (_proj, mc.x, &count0, 0.0);
-          // status  = hyscan_projector_coord_to_index (_proj, task->center.y, &index0);
-          // status &= hyscan_projector_coord_to_count (_proj, ABS (task->center.x), &count0, 0.0);
 
           if (!status)
             continue;
@@ -1058,7 +1056,7 @@ hyscan_gtk_waterfall_mark_find_closest (HyScanGtkWaterfallMark *self,
                                         HyScanCoordinates      *pointer,
                                         HyScanCoordinates      *point)
 {
-  HyScanCoordinates returnable;
+  HyScanCoordinates returnable = {0, 0};
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
   gdouble thres = HANDLE_RADIUS;
   GList *link, *mlink = NULL;
@@ -1138,7 +1136,6 @@ hyscan_gtk_waterfall_mark_handle (HyScanGtkWaterfallState *state,
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
   HyScanGtkWaterfallMarkTask *task;
   HyScanCoordinates mouse, corner;
-  gdouble thres;
   gint mode;
   GList *link;
 
@@ -1151,8 +1148,6 @@ hyscan_gtk_waterfall_mark_handle (HyScanGtkWaterfallState *state,
 
   if (hyscan_gtk_waterfall_tools_distance(&priv->press, &mouse) > 2)
     return NULL;
-
-  thres = priv->color.shadow_width;
 
   /* Предполагается, что редактировать можно только метки в БД.
    * Ещё не отправленные редактировать нельзя. */
