@@ -1135,6 +1135,7 @@ hyscan_gtk_waterfall_mark_handle (HyScanGtkWaterfallState *state,
 {
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
   HyScanGtkWaterfallMarkTask *task;
+  gdouble rc, rtl, rtr, rbl, rbr;
   HyScanCoordinates mouse, corner;
   gint mode;
   GList *link;
@@ -1156,7 +1157,6 @@ hyscan_gtk_waterfall_mark_handle (HyScanGtkWaterfallState *state,
   if (link == NULL)
     return NULL;
 
-  gdouble rc, rtl, rtr, rbl, rbr;
   task = link->data;
 
   rc = hyscan_gtk_waterfall_tools_distance(&task->px_center, &mouse);
