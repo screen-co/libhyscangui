@@ -993,6 +993,10 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               task->center.x = mc.x;
               task->dx = mw;
               task->dy = mh;
+
+              if (mark->source0 == state->lsource)
+                task->center.x *= -1;
+
             }
           else if (state->display_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER)
             {

@@ -145,8 +145,8 @@ main (int    argc,
 
   hyscan_gtk_waterfall_layer_grab_input (HYSCAN_GTK_WATERFALL_LAYER (control));
 
-  hyscan_gtk_waterfall_state_sidescan (wf_state, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD,
-                                                 HYSCAN_SOURCE_SIDE_SCAN_PORT);
+  hyscan_gtk_waterfall_state_sidescan (wf_state, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, HYSCAN_SOURCE_SIDE_SCAN_PORT);
+  hyscan_gtk_waterfall_state_echosounder (wf_state, HYSCAN_SOURCE_ECHOSOUNDER);
   hyscan_gtk_waterfall_state_set_cache (wf_state, cache, cache2, cache_prefix);
   hyscan_gtk_waterfall_state_set_ship_speed (wf_state, speed);
   hyscan_gtk_waterfall_state_set_depth_source (wf_state, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, 1);
