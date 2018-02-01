@@ -38,7 +38,7 @@ struct _HyScanGtkWaterfallGridPrivate
   PangoLayout      *font;              /* Раскладка шрифта. */
   gint              text_height;       /* Максимальная высота текста. */
   gint              virtual_border;    /* Виртуальная граница изображения. */
-  guint             font_size;         /* Размер шрифта. */
+  guint             font_scale;         /* Размер шрифта. */
 
   GdkRGBA           grid_color;        /* Цвет осей. */
   GdkRGBA           text_color;        /* Цвет подписей. */
@@ -76,8 +76,8 @@ static void     hyscan_gtk_waterfall_grid_object_finalize        (GObject       
 
 static void     hyscan_gtk_waterfall_grid_set_visible            (HyScanGtkWaterfallLayer *layer,
                                                                   gboolean                 visible);
-static void     hyscan_gtk_waterfall_grid_set_font_size          (HyScanGtkWaterfallLayer *layer,
-                                                                  guint                    font_size);
+static void     hyscan_gtk_waterfall_grid_set_font_scale         (HyScanGtkWaterfallLayer *layer,
+                                                                  gdouble                  font_scale);
 static const gchar* hyscan_gtk_waterfall_grid_get_mnemonic       (HyScanGtkWaterfallLayer *layer);
 
 static gboolean hyscan_gtk_waterfall_grid_configure              (GtkWidget             *widget,
@@ -191,7 +191,8 @@ hyscan_gtk_waterfall_grid_object_constructed (GObject *object)
   priv->shad_color = shad_color;
 
   /* Включаем видимость слоя. */
-  priv->layer_visibility = TRUE;
+  hyscan_gtk_waterfall_layer_set_visible (HYSCAN_GTK_WATERFALL_LAYER (self), TRUE);
+  hyscan_gtk_waterfall_layer_set_font_scale (HYSCAN_GTK_WATERFALL_LAYER (self), 1.0);
 }
 
 static void
@@ -221,28 +222,35 @@ hyscan_gtk_waterfall_grid_set_visible (HyScanGtkWaterfallLayer *layer,
 }
 
 static void
-hyscan_gtk_waterfall_grid_set_font_size (HyScanGtkWaterfallLayer *layer,
-                                         guint                    font_size)
+hyscan_gtk_waterfall_grid_set_font_scale (HyScanGtkWaterfallLayer *layer,
+                                          gdouble                  font_scale)
 {
-  PangoFontDescription *pfd;
+  PangoFontDescription *descr;
+  PangoContext *context;
+  gint size;
   HyScanGtkWaterfallGrid *self = HYSCAN_GTK_WATERFALL_GRID (layer);
   HyScanGtkWaterfallGridPrivate *priv = self->priv;
 
-  self->priv->font_size = font_size;
+  self->priv->font_scale = font_scale;
 
   if (priv->font == NULL)
     return;
 
-  pfd = pango_font_description_new ();
+  if (priv->font_scale == 0.0)
+    return;
 
-  if (font_size != 0)
-    pango_font_description_set_size (pfd, font_size * PANGO_SCALE);
+  context = pango_layout_get_context (priv->font);
+  descr = pango_font_description_copy (pango_context_get_font_description (context));
+  size = pango_font_description_get_size (descr);
 
-  pango_layout_set_font_description (priv->font, pfd);
+  size *= font_scale;
+  pango_font_description_set_size (descr, size);
+
+  pango_layout_set_font_description (priv->font, descr);
 
   hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 
-  pango_font_description_free (pfd);
+  pango_font_description_free (descr);
 }
 
 static const gchar*
@@ -274,7 +282,7 @@ hyscan_gtk_waterfall_grid_configure (GtkWidget            *widget,
   g_clear_object (&priv->font);
   priv->font = gtk_widget_create_pango_layout (widget, NULL);
 
-  hyscan_gtk_waterfall_grid_set_font_size (HYSCAN_GTK_WATERFALL_LAYER (self), priv->font_size);
+  hyscan_gtk_waterfall_grid_set_font_scale (HYSCAN_GTK_WATERFALL_LAYER (self), priv->font_scale);
 
   pango_layout_set_text (priv->font, "0123456789.,m", -1);
   pango_layout_get_size (priv->font, NULL, &text_height);
@@ -1026,6 +1034,6 @@ hyscan_gtk_waterfall_grid_interface_init (HyScanGtkWaterfallLayerInterface *ifac
 {
   iface->grab_input = NULL;
   iface->set_visible = hyscan_gtk_waterfall_grid_set_visible;
-  iface->set_font_size = hyscan_gtk_waterfall_grid_set_font_size;
+  iface->set_font_scale = hyscan_gtk_waterfall_grid_set_font_scale;
   iface->get_mnemonic = hyscan_gtk_waterfall_grid_get_mnemonic;
 }

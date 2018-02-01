@@ -78,6 +78,7 @@ main (int    argc,
   gdouble speed = 1.0;
   gdouble white = 0.2;
   gdouble gamma = 1.0;
+  gdouble fontscale = 1.0;
   HyScanCache *cache = HYSCAN_CACHE (hyscan_cached_new (512));
   HyScanCache *cache2 = HYSCAN_CACHE (hyscan_cached_new (512));
 
@@ -89,11 +90,12 @@ main (int    argc,
     GError *error = NULL;
     GOptionContext *context;
     GOptionEntry entries[] = {
-      { "project",     'p', 0, G_OPTION_ARG_STRING, &project_name, "Project name;",          NULL},
-      { "track",       't', 0, G_OPTION_ARG_STRING, &track_name,   "Track name;",            NULL},
-      { "speed",       's', 0, G_OPTION_ARG_DOUBLE, &speed,        "Speed of ship;",         NULL},
-      { "white",       'w', 0, G_OPTION_ARG_DOUBLE, &white,        "white level (0.0-1.0);", NULL},
-      { "gamma",       'g', 0, G_OPTION_ARG_DOUBLE, &gamma,        "gamma level (0.0-1.0);", NULL},
+      { "project",     'p', 0, G_OPTION_ARG_STRING, &project_name, "Project name",          NULL},
+      { "track",       't', 0, G_OPTION_ARG_STRING, &track_name,   "Track name",            NULL},
+      { "speed",       's', 0, G_OPTION_ARG_DOUBLE, &speed,        "Speed of ship",         NULL},
+      { "white",       'w', 0, G_OPTION_ARG_DOUBLE, &white,        "white level (0.0-1.0)", NULL},
+      { "gamma",       'g', 0, G_OPTION_ARG_DOUBLE, &gamma,        "gamma level (0.0-1.0)", NULL},
+      { "fontscale",   '\0',0, G_OPTION_ARG_DOUBLE, &fontscale,    "scale font size",       NULL},
       {NULL}
     };
 
@@ -143,6 +145,10 @@ main (int    argc,
   wf_play = hyscan_gtk_waterfall_player_new (wf);
 
   //hyscan_gtk_waterfall_echosounder (wf, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD);
+  hyscan_gtk_waterfall_layer_set_font_scale (HYSCAN_GTK_WATERFALL_LAYER (wf_grid), fontscale);
+  hyscan_gtk_waterfall_layer_set_font_scale (HYSCAN_GTK_WATERFALL_LAYER (wf_metr), fontscale);
+  hyscan_gtk_waterfall_layer_set_font_scale (HYSCAN_GTK_WATERFALL_LAYER (wf_mark), fontscale);
+
   hyscan_gtk_waterfall_state_set_cache (wf_state, cache, cache2, "prefix");
 
   hyscan_gtk_waterfall_state_set_depth_source (wf_state, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, 1);

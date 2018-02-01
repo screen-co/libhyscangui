@@ -158,7 +158,7 @@ struct _HyScanGtkWaterfallMarkPrivate
 
   PangoLayout      *font;              /* Раскладка шрифта. */
   gint              text_height;
-  guint             font_size;
+  gdouble           font_scale;
 };
 
 static void     hyscan_gtk_waterfall_mark_interface_init          (HyScanGtkWaterfallLayerInterface *iface);
@@ -352,6 +352,7 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
 
   /* Включаем видимость слоя. */
   hyscan_gtk_waterfall_layer_set_visible (HYSCAN_GTK_WATERFALL_LAYER (self), TRUE);
+  hyscan_gtk_waterfall_layer_set_font_scale (HYSCAN_GTK_WATERFALL_LAYER (self), 1.0);
 }
 
 static void
@@ -414,28 +415,35 @@ hyscan_gtk_waterfall_mark_set_visible (HyScanGtkWaterfallLayer *iface,
 
 /* Функция задает размер шрифта. */
 static void
-hyscan_gtk_waterfall_mark_set_font_size (HyScanGtkWaterfallLayer *layer,
-                                         guint                    font_size)
+hyscan_gtk_waterfall_mark_set_font_scale (HyScanGtkWaterfallLayer *layer,
+                                          gdouble                  font_scale)
 {
-  PangoFontDescription *pfd;
+  PangoFontDescription *descr;
+  PangoContext *context;
+  gint size;
   HyScanGtkWaterfallMark *self = HYSCAN_GTK_WATERFALL_MARK (layer);
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
 
-  self->priv->font_size = font_size;
+  self->priv->font_scale = font_scale;
 
   if (priv->font == NULL)
     return;
 
-  pfd = pango_font_description_new ();
+  if (priv->font_scale == 0.0)
+    return;
 
-  if (font_size != 0)
-    pango_font_description_set_size (pfd, font_size * PANGO_SCALE);
+  context = pango_layout_get_context (priv->font);
+  descr = pango_font_description_copy (pango_context_get_font_description (context));
+  size = pango_font_description_get_size (descr);
 
-  pango_layout_set_font_description (priv->font, pfd);
+  size *= font_scale;
+  pango_font_description_set_size (descr, size);
+
+  pango_layout_set_font_description (priv->font, descr);
 
   hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 
-  pango_font_description_free (pfd);
+  pango_font_description_free (descr);
 }
 
 
@@ -1719,7 +1727,7 @@ hyscan_gtk_waterfall_mark_configure (GtkWidget              *widget,
   g_clear_pointer (&priv->font, g_object_unref);
   priv->font = gtk_widget_create_pango_layout (widget, NULL);
 
-  hyscan_gtk_waterfall_layer_set_font_size (HYSCAN_GTK_WATERFALL_LAYER (self), priv->font_size);
+  hyscan_gtk_waterfall_layer_set_font_scale (HYSCAN_GTK_WATERFALL_LAYER (self), priv->font_scale);
 
   pango_layout_set_text (priv->font,
                          "0123456789"
@@ -2014,6 +2022,6 @@ hyscan_gtk_waterfall_mark_interface_init (HyScanGtkWaterfallLayerInterface *ifac
 {
   iface->grab_input = hyscan_gtk_waterfall_mark_grab_input;
   iface->set_visible = hyscan_gtk_waterfall_mark_set_visible;
-  iface->set_font_size = hyscan_gtk_waterfall_mark_set_font_size;
+  iface->set_font_scale = hyscan_gtk_waterfall_mark_set_font_scale;
   iface->get_mnemonic = hyscan_gtk_waterfall_mark_get_mnemonic;
 }
