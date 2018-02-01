@@ -40,6 +40,7 @@ struct _HyScanGtkWaterfallMeterPrivate
   HyScanGtkWaterfallState      *wf_state;
   HyScanGtkWaterfall           *wfall;
   PangoLayout                  *font;              /* Раскладка шрифта. */
+  guint                         font_size;
 
   gboolean                      layer_visibility;
 
@@ -239,6 +240,33 @@ hyscan_gtk_waterfall_meter_set_visible (HyScanGtkWaterfallLayer *iface,
   self->priv->layer_visibility = visible;
   hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
+
+/* Функция задает размер шрифта. */
+static void
+hyscan_gtk_waterfall_meter_set_font_size (HyScanGtkWaterfallLayer *iface,
+                                          guint                    font_size)
+{
+  PangoFontDescription *pfd;
+  HyScanGtkWaterfallMeter *self = HYSCAN_GTK_WATERFALL_METER (iface);
+  HyScanGtkWaterfallMeterPrivate *priv = self->priv;
+
+  self->priv->font_size = font_size;
+
+  if (priv->font == NULL)
+    return;
+
+  pfd = pango_font_description_new ();
+
+  if (font_size != 0)
+    pango_font_description_set_size (pfd, font_size * PANGO_SCALE);
+
+  pango_layout_set_font_description (priv->font, pfd);
+
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
+
+  pango_font_description_free (pfd);
+}
+
 
 /* Функция возвращает название иконки. */
 static const gchar*
@@ -715,7 +743,9 @@ hyscan_gtk_waterfall_meter_configure (GtkWidget               *widget,
   HyScanGtkWaterfallMeterPrivate *priv = self->priv;
 
   g_clear_pointer (&priv->font, g_object_unref);
+
   priv->font = gtk_widget_create_pango_layout (widget, NULL);
+  hyscan_gtk_waterfall_layer_set_font_size (HYSCAN_GTK_WATERFALL_LAYER (self), priv->font_size);
 
   return FALSE;
 }
@@ -805,5 +835,6 @@ hyscan_gtk_waterfall_meter_interface_init (HyScanGtkWaterfallLayerInterface *ifa
 {
   iface->grab_input = hyscan_gtk_waterfall_meter_grab_input;
   iface->set_visible = hyscan_gtk_waterfall_meter_set_visible;
+  iface->set_font_size = hyscan_gtk_waterfall_meter_set_font_size;
   iface->get_mnemonic = hyscan_gtk_waterfall_meter_get_mnemonic;
 }

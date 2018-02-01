@@ -158,6 +158,7 @@ struct _HyScanGtkWaterfallMarkPrivate
 
   PangoLayout      *font;              /* Раскладка шрифта. */
   gint              text_height;
+  guint             font_size;
 };
 
 static void     hyscan_gtk_waterfall_mark_interface_init          (HyScanGtkWaterfallLayerInterface *iface);
@@ -410,6 +411,33 @@ hyscan_gtk_waterfall_mark_set_visible (HyScanGtkWaterfallLayer *iface,
   self->priv->layer_visibility = visible;
   hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
+
+/* Функция задает размер шрифта. */
+static void
+hyscan_gtk_waterfall_mark_set_font_size (HyScanGtkWaterfallLayer *layer,
+                                         guint                    font_size)
+{
+  PangoFontDescription *pfd;
+  HyScanGtkWaterfallMark *self = HYSCAN_GTK_WATERFALL_MARK (layer);
+  HyScanGtkWaterfallMarkPrivate *priv = self->priv;
+
+  self->priv->font_size = font_size;
+
+  if (priv->font == NULL)
+    return;
+
+  pfd = pango_font_description_new ();
+
+  if (font_size != 0)
+    pango_font_description_set_size (pfd, font_size * PANGO_SCALE);
+
+  pango_layout_set_font_description (priv->font, pfd);
+
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
+
+  pango_font_description_free (pfd);
+}
+
 
 /* Функуция возвращает название иконки. */
 static const gchar*
@@ -1691,6 +1719,8 @@ hyscan_gtk_waterfall_mark_configure (GtkWidget              *widget,
   g_clear_pointer (&priv->font, g_object_unref);
   priv->font = gtk_widget_create_pango_layout (widget, NULL);
 
+  hyscan_gtk_waterfall_layer_set_font_size (HYSCAN_GTK_WATERFALL_LAYER (self), priv->font_size);
+
   pango_layout_set_text (priv->font,
                          "0123456789"
                          "abcdefghijklmnopqrstuvwxyz"
@@ -1984,5 +2014,6 @@ hyscan_gtk_waterfall_mark_interface_init (HyScanGtkWaterfallLayerInterface *ifac
 {
   iface->grab_input = hyscan_gtk_waterfall_mark_grab_input;
   iface->set_visible = hyscan_gtk_waterfall_mark_set_visible;
+  iface->set_font_size = hyscan_gtk_waterfall_mark_set_font_size;
   iface->get_mnemonic = hyscan_gtk_waterfall_mark_get_mnemonic;
 }

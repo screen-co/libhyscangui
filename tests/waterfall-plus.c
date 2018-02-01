@@ -143,7 +143,6 @@ main (int    argc,
   wf_play = hyscan_gtk_waterfall_player_new (wf);
 
   //hyscan_gtk_waterfall_echosounder (wf, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD);
-
   hyscan_gtk_waterfall_state_set_cache (wf_state, cache, cache2, "prefix");
 
   hyscan_gtk_waterfall_state_set_depth_source (wf_state, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, 1);
