@@ -330,7 +330,7 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
 
   hyscan_gtk_waterfall_mark_set_mark_filter (self, HYSCAN_GTK_WATERFALL_MARKS_ALL);
 
-  gdk_rgba_parse (&mark, "#f754e1");
+  gdk_rgba_parse (&mark, "#ea3546");
   gdk_rgba_parse (&shadow, SHADOW_DEFAULT);
   gdk_rgba_parse (&blackout, SHADOW_DEFAULT);
   gdk_rgba_parse (&frame, FRAME_DEFAULT);
@@ -454,13 +454,13 @@ hyscan_gtk_waterfall_mark_get_mnemonic (HyScanGtkWaterfallLayer *iface)
   return "user-bookmarks-symbolic";
 }
 
-/* Функция создает новый HyScanDepth. */
-static HyScanDepth*
+/* Функция создает новый HyScanNavData. */
+static HyScanNavData*
 hyscan_gtk_waterfall_mark_open_depth (HyScanGtkWaterfallMark *self)
 {
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
   HyScanGtkWaterfallMarkState *state = &priv->state;
-  HyScanDepth *idepth = NULL;
+  HyScanNavData *idepth = NULL;
 
   if (state->db == NULL || state->project == NULL || state->track == NULL)
     return NULL;
@@ -472,20 +472,20 @@ hyscan_gtk_waterfall_mark_open_depth (HyScanGtkWaterfallMark *self)
                                      state->project,
                                      state->track,
                                      state->depth_channel);
-      idepth = HYSCAN_DEPTH (dnmea);
+      idepth = HYSCAN_NAV_DATA (dnmea);
     }
 
   if (idepth == NULL)
     return NULL;
 
-  hyscan_depth_set_cache (idepth, state->cache, state->prefix);
+  hyscan_nav_data_set_cache (idepth, state->cache, state->prefix);
   return idepth;
 }
 
 /* Функция создает новый HyScanDepthometer. */
 static HyScanDepthometer*
 hyscan_gtk_waterfall_mark_open_depthometer (HyScanGtkWaterfallMark *self,
-                                             HyScanDepth            *idepth)
+                                             HyScanNavData            *idepth)
 {
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
   HyScanDepthometer *depth = NULL;
@@ -731,7 +731,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
   HyScanProjector         *lproj = NULL;
   HyScanProjector         *rproj = NULL;
   HyScanProjector         *_proj = NULL;
-  HyScanDepth             *idepth = NULL;
+  HyScanNavData             *idepth = NULL;
   HyScanDepthometer       *depth = NULL;
   HyScanWaterfallMarkData *mdata = NULL;
 
@@ -835,7 +835,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
           if (state->cache_changed)
             {
               if (idepth != NULL)
-                hyscan_depth_set_cache (idepth, state->cache, state->prefix);
+                hyscan_nav_data_set_cache (idepth, state->cache, state->prefix);
               if (depth != NULL)
                 hyscan_depthometer_set_cache (depth, state->cache, state->prefix);
               if (lproj != NULL)

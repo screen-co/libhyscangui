@@ -22,7 +22,6 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-waterfall-state.c
              hyscan-gtk-waterfall.c
              hyscan-gtk-waterfall-layer.c
-             # hyscan-gtk-waterfall-mayer.c
              hyscan-gtk-waterfall-control.c
              hyscan-gtk-waterfall-grid.c
              hyscan-gtk-waterfall-tools.c

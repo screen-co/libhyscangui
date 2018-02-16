@@ -183,7 +183,7 @@ hyscan_gtk_waterfall_meter_object_constructed (GObject *object)
   g_signal_connect (priv->wf_state, "handle",  G_CALLBACK (hyscan_gtk_waterfall_meter_handle), self);
   g_signal_connect (priv->wf_state, "changed::track",  G_CALLBACK (hyscan_gtk_waterfall_meter_track_changed), self);
 
-  gdk_rgba_parse (&color_meter, "#fff44f");
+  gdk_rgba_parse (&color_meter, "#f9c80e");
   gdk_rgba_parse (&color_shadow, SHADOW_DEFAULT);
   gdk_rgba_parse (&color_frame, FRAME_DEFAULT);
 

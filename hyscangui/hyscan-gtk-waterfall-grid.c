@@ -161,8 +161,7 @@ hyscan_gtk_waterfall_grid_object_constructed (GObject *object)
 {
   HyScanGtkWaterfallGrid *self = HYSCAN_GTK_WATERFALL_GRID (object);
   HyScanGtkWaterfallGridPrivate *priv = self->priv;
-  GdkRGBA text_color = {0.33, 0.85, 0.95, 1.0},
-          grid_color, shad_color;
+  GdkRGBA text_color, grid_color, shad_color;
 
   priv->x_axis_name = g_strdup ("↔");
   priv->y_axis_name = g_strdup ("↕");
@@ -181,6 +180,7 @@ hyscan_gtk_waterfall_grid_object_constructed (GObject *object)
   /* Сигналы модели. */
   g_signal_connect (priv->wf_state, "changed::sources", G_CALLBACK (hyscan_gtk_waterfall_grid_sources_changed), self);
 
+  gdk_rgba_parse (&text_color, "#d6f8d6");
   gdk_rgba_parse (&grid_color, FRAME_DEFAULT);
   gdk_rgba_parse (&shad_color, SHADOW_DEFAULT);
 
