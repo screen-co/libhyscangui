@@ -344,6 +344,12 @@ reopen_clicked (GtkButton *button,
 
   hyscan_gtk_waterfall_state_set_track (wf_state, db, project, track, rawness);
 
+  {
+    gchar * title = g_strdup_printf ("Waterfall+ %s, %s", project, track);
+    gtk_window_set_title (GTK_WINDOW (window), title);
+    g_free (title);
+  }
+
 cleanup:
 
   g_clear_pointer (&split, g_strfreev);

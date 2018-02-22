@@ -9,7 +9,7 @@
  */
 
 #include <hyscan-depthometer.h>
-#include <hyscan-depth-nmea.h>
+#include <hyscan-nmea-parser.h>
 #include <hyscan-mark-manager.h>
 #include <hyscan-projector.h>
 #include <hyscan-tile-color.h>
@@ -467,11 +467,11 @@ hyscan_gtk_waterfall_mark_open_depth (HyScanGtkWaterfallMark *self)
 
   if (HYSCAN_SOURCE_NMEA_DPT == state->depth_source)
     {
-      HyScanDepthNMEA *dnmea;
-      dnmea = hyscan_depth_nmea_new (state->db,
-                                     state->project,
-                                     state->track,
-                                     state->depth_channel);
+      HyScanNMEAParser *dnmea;
+      dnmea = hyscan_nmea_parser_new (state->db,
+                                      state->project,
+                                      state->track,
+                                      state->depth_channel);
       idepth = HYSCAN_NAV_DATA (dnmea);
     }
 
