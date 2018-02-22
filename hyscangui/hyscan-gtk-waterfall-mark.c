@@ -471,7 +471,9 @@ hyscan_gtk_waterfall_mark_open_depth (HyScanGtkWaterfallMark *self)
       dnmea = hyscan_nmea_parser_new (state->db,
                                       state->project,
                                       state->track,
-                                      state->depth_channel);
+                                      state->depth_channel,
+                                      HYSCAN_SOURCE_NMEA_DPT,
+                                      HYSCAN_NMEA_FIELD_DEPTH);
       idepth = HYSCAN_NAV_DATA (dnmea);
     }
 
