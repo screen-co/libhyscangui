@@ -536,7 +536,7 @@ hyscan_gtk_waterfall_mark_free_task (gpointer data)
 {
   HyScanGtkWaterfallMarkTask *task = data;
 
-  hyscan_waterfall_mark_deep_free (task->mark);
+  hyscan_waterfall_mark_free (task->mark);
   g_free (task->id);
   g_free (task);
 }
@@ -559,7 +559,7 @@ hyscan_gtk_waterfall_mark_clear_task (gpointer data)
 {
   HyScanGtkWaterfallMarkTask *task = data;
 
-  hyscan_waterfall_mark_deep_free (task->mark);
+  hyscan_waterfall_mark_free (task->mark);
   g_free (task->id);
 
   task->mark = NULL;
@@ -939,43 +939,33 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
 
           if (task->action == TASK_CREATE)
             {
-              HyScanWaterfallMark mark = {0};
+              gint64 mtime = g_get_real_time ();
+              gchar *label = g_strdup_printf ("Mark #%u", ++priv->count);
+              HyScanWaterfallMark *mark = hyscan_waterfall_mark_new ();
 
-              mark.track             = g_strdup (track_id);
-              mark.name              = g_strdup_printf ("Mark #%u", ++priv->count);
-              mark.description       = g_strdup_printf ("description");
-              mark.operator_name     = g_strdup_printf ("operator");
-              mark.labels            = HYSCAN_GTK_WATERFALL_MARKS_ALL;
-              mark.creation_time     = g_get_real_time ();
-              mark.modification_time = g_get_real_time ();
-              mark.source0           = source;
-              mark.index0            = index0;
-              mark.count0            = count0;
-              mark.width             = mw;
-              mark.height            = mh;
+              hyscan_waterfall_mark_set_track  (mark, track_id);
+              hyscan_waterfall_mark_set_text   (mark, label, "description", "operator");
+              hyscan_waterfall_mark_set_labels (mark, HYSCAN_GTK_WATERFALL_MARKS_ALL);
+              hyscan_waterfall_mark_set_ctime  (mark, mtime);
+              hyscan_waterfall_mark_set_mtime  (mark, mtime);
+              hyscan_waterfall_mark_set_center (mark, source, index0, count0);
+              hyscan_waterfall_mark_set_size   (mark, mw, mh);
+              
+              hyscan_waterfall_mark_data_add (mdata, mark);
 
-              hyscan_waterfall_mark_data_add (mdata, &mark);
-              hyscan_waterfall_mark_free (&mark);
+              hyscan_waterfall_mark_free (mark);
+              g_free (label);
             }
           else if (task->action == TASK_MODIFY)
             {
-              HyScanWaterfallMark mark = {0};
-
-              mark.track             = g_strdup (task->mark->track);
-              mark.name              = g_strdup (task->mark->name);
-              mark.description       = g_strdup (task->mark->description);
-              mark.operator_name     = g_strdup (task->mark->operator_name);
-              mark.labels            = task->mark->labels;
-              mark.creation_time     = task->mark->creation_time;
-              mark.modification_time = g_get_real_time ();
-              mark.source0           = source;
-              mark.index0            = index0;
-              mark.count0            = count0;
-              mark.width             = mw;
-              mark.height            = mh;
-
-              hyscan_waterfall_mark_data_modify (mdata, task->id, &mark);
-              hyscan_waterfall_mark_free (&mark);
+              HyScanWaterfallMark *mark = hyscan_waterfall_mark_copy (task->mark);
+              
+              hyscan_waterfall_mark_set_mtime (mark, g_get_real_time ());
+              hyscan_waterfall_mark_set_center (mark, source, index0, count0);
+              hyscan_waterfall_mark_set_size   (mark, mw, mh);
+              
+              hyscan_waterfall_mark_data_modify (mdata, task->id, mark);
+              hyscan_waterfall_mark_free (mark);
             }
         }
 
@@ -1051,7 +1041,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
           continue;
 
 ignore:
-          hyscan_waterfall_mark_deep_free (mark);
+          hyscan_waterfall_mark_free (mark);
           g_free (ids[i]);
         }
 
