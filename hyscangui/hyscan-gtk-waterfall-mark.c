@@ -480,7 +480,7 @@ hyscan_gtk_waterfall_mark_open_depth (HyScanGtkWaterfallMark *self)
   if (idepth == NULL)
     return NULL;
 
-  hyscan_nav_data_set_cache (idepth, state->cache, state->prefix);
+  hyscan_nav_data_set_cache (idepth, state->cache);
   return idepth;
 }
 
@@ -499,7 +499,7 @@ hyscan_gtk_waterfall_mark_open_depthometer (HyScanGtkWaterfallMark *self,
   if (depth == NULL)
     return NULL;
 
-  hyscan_depthometer_set_cache (depth, priv->state.cache, priv->state.prefix);
+  hyscan_depthometer_set_cache (depth, priv->state.cache);
   hyscan_depthometer_set_filter_size (depth, priv->state.depth_size);
   //hyscan_depthometer_set_validity_time (depth, priv->state.depth_time);
 
@@ -523,7 +523,7 @@ hyscan_gtk_waterfall_mark_open_projector (HyScanGtkWaterfallMark *self,
   if (projector == NULL)
     return NULL;
 
-  hyscan_projector_set_cache (projector, state->cache, state->prefix);
+  hyscan_projector_set_cache (projector, state->cache);
   hyscan_projector_set_ship_speed (projector, state->ship_speed);
   hyscan_projector_set_sound_velocity (projector, state->velocity);
 
@@ -837,13 +837,13 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
           if (state->cache_changed)
             {
               if (idepth != NULL)
-                hyscan_nav_data_set_cache (idepth, state->cache, state->prefix);
+                hyscan_nav_data_set_cache (idepth, state->cache);
               if (depth != NULL)
-                hyscan_depthometer_set_cache (depth, state->cache, state->prefix);
+                hyscan_depthometer_set_cache (depth, state->cache);
               if (lproj != NULL)
-                hyscan_projector_set_cache (lproj, state->cache, state->prefix);
+                hyscan_projector_set_cache (lproj, state->cache);
               if (rproj != NULL)
-                hyscan_projector_set_cache (rproj, state->cache, state->prefix);
+                hyscan_projector_set_cache (rproj, state->cache);
               state->cache_changed = FALSE;
             }
 

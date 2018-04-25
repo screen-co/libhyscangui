@@ -1203,10 +1203,10 @@ hyscan_gtk_waterfall_cache_changed (HyScanGtkWaterfallState *model,
   if (cache == NULL)
     goto exit;
 
-  hyscan_tile_color_set_cache (self->priv->color, cache2, prefix);
-  hyscan_tile_queue_set_cache (self->priv->queue, cache, prefix);
-  hyscan_track_rect_set_cache (self->priv->lrect, cache, prefix);
-  hyscan_track_rect_set_cache (self->priv->rrect, cache, prefix);
+  hyscan_tile_color_set_cache (self->priv->color, cache2);
+  hyscan_tile_queue_set_cache (self->priv->queue, cache);
+  hyscan_track_rect_set_cache (self->priv->lrect, cache);
+  hyscan_track_rect_set_cache (self->priv->rrect, cache);
 
 exit:
   if (cache != NULL)
