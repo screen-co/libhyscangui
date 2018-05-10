@@ -64,6 +64,7 @@ struct _HyScanGtkWaterfallGridPrivate
 
   HyScanWaterfallDisplayType display_type;
 
+  gdouble condence;
 };
 
 static void     hyscan_gtk_waterfall_grid_interface_init         (HyScanGtkWaterfallLayerInterface *iface);
@@ -193,6 +194,7 @@ hyscan_gtk_waterfall_grid_object_constructed (GObject *object)
   /* Включаем видимость слоя. */
   hyscan_gtk_waterfall_layer_set_visible (HYSCAN_GTK_WATERFALL_LAYER (self), TRUE);
   hyscan_gtk_waterfall_layer_set_font_scale (HYSCAN_GTK_WATERFALL_LAYER (self), 1.0);
+  hyscan_gtk_waterfall_grid_set_condence (self, 1);
 }
 
 static void
@@ -445,7 +447,7 @@ hyscan_gtk_waterfall_grid_vertical (GtkWidget *widget,
     while (axis <= axis_to)
       {
         gdouble x, y;
-        g_ascii_formatd (text_str, sizeof(text_str), text_format, axis * 138);
+        g_ascii_formatd (text_str, sizeof(text_str), text_format, axis * priv->condence);
         pango_layout_set_text (font, text_str, -1);
         pango_layout_get_size (font, &text_width, NULL);
         text_width /= PANGO_SCALE;
@@ -797,7 +799,7 @@ hyscan_gtk_waterfall_grid_info (GtkWidget *widget,
   value_power = (value_power > 0) ? 0 : value_power;
 
   g_snprintf (text_format, sizeof(text_format), "-%%.%df", (gint) ABS (value_power));
-  g_snprintf (text_str[VALUE_X], sizeof(text_str[VALUE_X]), text_format, MAX( ABS( from_x ), ABS( to_x ) ));
+  g_snprintf (text_str[VALUE_X], sizeof(text_str[VALUE_X]), text_format, MAX( ABS( from_x * priv->condence ), ABS( to_x * priv->condence ) ));
 
   /* Для координаты У. */
   value = value_y;
@@ -881,7 +883,7 @@ hyscan_gtk_waterfall_grid_info (GtkWidget *widget,
   gtk_cifro_area_get_axis_step (scale, 1, &value, NULL, NULL, &value_power);
   value_power = (value_power > 0) ? 0 : value_power;
   g_snprintf (text_format, sizeof(text_format), "%%.%df", (gint) ABS (value_power));
-  g_ascii_formatd (text_str[VALUE_X], sizeof(text_str[VALUE_X]), text_format, value_x);
+  g_ascii_formatd (text_str[VALUE_X], sizeof(text_str[VALUE_X]), text_format, value_x * priv->condence);
 
   value = value_y;
   gtk_cifro_area_get_axis_step (scale, 1, &value, NULL, NULL, &value_power);
@@ -1036,4 +1038,14 @@ hyscan_gtk_waterfall_grid_interface_init (HyScanGtkWaterfallLayerInterface *ifac
   iface->set_visible = hyscan_gtk_waterfall_grid_set_visible;
   iface->set_font_scale = hyscan_gtk_waterfall_grid_set_font_scale;
   iface->get_mnemonic = hyscan_gtk_waterfall_grid_get_mnemonic;
+}
+
+void
+hyscan_gtk_waterfall_grid_set_condence (HyScanGtkWaterfallGrid *self,
+                                        gdouble                 condence)
+{
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (self));
+
+  self->priv->condence = condence;
+
 }
