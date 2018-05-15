@@ -904,11 +904,11 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
           if (task->action == TASK_CREATE)
             {
               gint64 mtime = g_get_real_time ();
-              gchar *label = g_strdup_printf ("Mark #%u", ++priv->count);
+              gchar *label = g_strdup_printf ("Метка #%u", ++priv->count);
               HyScanWaterfallMark *mark = hyscan_waterfall_mark_new ();
 
               hyscan_waterfall_mark_set_track  (mark, track_id);
-              hyscan_waterfall_mark_set_text   (mark, label, "description", "operator");
+              hyscan_waterfall_mark_set_text   (mark, label, "", "");
               hyscan_waterfall_mark_set_labels (mark, HYSCAN_GTK_WATERFALL_MARKS_ALL);
               hyscan_waterfall_mark_set_ctime  (mark, mtime);
               hyscan_waterfall_mark_set_mtime  (mark, mtime);
