@@ -445,7 +445,7 @@ hyscan_gtk_waterfall_grid_vertical (GtkWidget *widget,
     while (axis <= axis_to)
       {
         gdouble x, y;
-        g_ascii_formatd (text_str, sizeof(text_str), text_format, axis);
+        g_ascii_formatd (text_str, sizeof(text_str), text_format, axis * 138);
         pango_layout_set_text (font, text_str, -1);
         pango_layout_get_size (font, &text_width, NULL);
         text_width /= PANGO_SCALE;

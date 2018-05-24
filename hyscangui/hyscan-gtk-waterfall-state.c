@@ -38,7 +38,7 @@ struct _HyScanGtkWaterfallStatePrivate
   HyScanWaterfallDisplayType  disp_type;
   HyScanSourceType            lsource;
   HyScanSourceType            rsource;
-  HyScanTileType              tile_type;
+  HyScanTileFlags             tile_flags;
 
   HyScanDB                   *db;
   gchar                      *project;
@@ -132,7 +132,7 @@ hyscan_gtk_waterfall_state_object_constructed (GObject *object)
   priv->disp_type     = HYSCAN_WATERFALL_DISPLAY_SIDESCAN;
   priv->lsource       = HYSCAN_SOURCE_SIDE_SCAN_PORT;
   priv->rsource       = HYSCAN_SOURCE_SIDE_SCAN_STARBOARD;
-  priv->tile_type     = HYSCAN_TILE_SLANT;
+  priv->tile_flags     = 0;
   priv->speed         = 1.0;
   priv->depth_source  = HYSCAN_SOURCE_SIDE_SCAN_PORT;
   priv->depth_channel = 1;
@@ -311,15 +311,15 @@ hyscan_gtk_waterfall_state_sidescan (HyScanGtkWaterfallState *self,
 
 /* Функция устанавливает тип тайла (наклонная или горизонтальная дальность). */
 void
-hyscan_gtk_waterfall_state_set_tile_type (HyScanGtkWaterfallState *self,
-                                          HyScanTileType           type)
+hyscan_gtk_waterfall_state_set_tile_flags (HyScanGtkWaterfallState *self,
+                                           HyScanTileFlags          flags)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_STATE (self));
   priv = self->priv;
 
-  priv->tile_type = type;
+  priv->tile_flags = flags;
 
   g_signal_emit (self, hyscan_gtk_waterfall_state_signals[SIGNAL_CHANGED],
                        hyscan_gtk_waterfall_state_details[DETAIL_TILE_TYPE], NULL);
@@ -494,16 +494,16 @@ hyscan_gtk_waterfall_state_get_sources (HyScanGtkWaterfallState       *self,
 
 /* Функция возвращает тип тайла. */
 void
-hyscan_gtk_waterfall_state_get_tile_type (HyScanGtkWaterfallState *self,
-                                          HyScanTileType          *type)
+hyscan_gtk_waterfall_state_get_tile_flags (HyScanGtkWaterfallState *self,
+                                           HyScanTileFlags         *flags)
 {
   HyScanGtkWaterfallStatePrivate *priv;
 
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_STATE (self));
   priv = self->priv;
 
-  if (type != NULL)
-    *type = priv->tile_type;
+  if (flags != NULL)
+    *flags = priv->tile_flags;
 }
 
 /* Функция возвращает систему кэширования. */

@@ -66,7 +66,7 @@ struct _HyScanGtkWaterfallPrivate
   guint32                dummy_color;        /**< Цвет подложки. */
 
   guint                  tile_upsample;      /**< Величина передискретизации. */
-  HyScanTileType         tile_type;          /**< Тип отображения. */
+  HyScanTileFlags        tile_flags;         /**< Флаги генерации. */
 
   HyScanTrackRect       *lrect;
   HyScanTrackRect       *rrect;
@@ -157,7 +157,7 @@ static gboolean hyscan_gtk_waterfall_automover               (gpointer          
 
 static void     hyscan_gtk_waterfall_sources_changed         (HyScanGtkWaterfallState          *model,
                                                               HyScanGtkWaterfall            *self);
-static void     hyscan_gtk_waterfall_tile_type_changed       (HyScanGtkWaterfallState          *model,
+static void     hyscan_gtk_waterfall_tile_flags_changed       (HyScanGtkWaterfallState          *model,
                                                               HyScanGtkWaterfall            *self);
 static void     hyscan_gtk_waterfall_profile_changed         (HyScanGtkWaterfallState          *model,
                                                               HyScanGtkWaterfall            *self);
@@ -247,7 +247,7 @@ hyscan_gtk_waterfall_object_constructed (GObject *object)
 
   /* Сигналы HyScanGtkWaterfallState. */
   g_signal_connect (self, "changed::sources",      G_CALLBACK (hyscan_gtk_waterfall_sources_changed), self);
-  g_signal_connect (self, "changed::tile-type",    G_CALLBACK (hyscan_gtk_waterfall_tile_type_changed), self);
+  g_signal_connect (self, "changed::tile-type",    G_CALLBACK (hyscan_gtk_waterfall_tile_flags_changed), self);
   g_signal_connect (self, "changed::profile",      G_CALLBACK (hyscan_gtk_waterfall_profile_changed), self);
   g_signal_connect (self, "changed::track",        G_CALLBACK (hyscan_gtk_waterfall_track_changed), self);
   g_signal_connect (self, "changed::speed",        G_CALLBACK (hyscan_gtk_waterfall_speed_changed), self);
@@ -257,7 +257,7 @@ hyscan_gtk_waterfall_object_constructed (GObject *object)
   g_signal_connect (self, "changed::cache",        G_CALLBACK (hyscan_gtk_waterfall_cache_changed), self);
 
   hyscan_gtk_waterfall_sources_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
-  hyscan_gtk_waterfall_tile_type_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
+  hyscan_gtk_waterfall_tile_flags_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
   hyscan_gtk_waterfall_profile_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
   hyscan_gtk_waterfall_track_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
   hyscan_gtk_waterfall_speed_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
@@ -401,7 +401,7 @@ hyscan_gtk_waterfall_prepare_tile (HyScanGtkWaterfallPrivate *priv,
       tile->rotate = TRUE;
     }
 
-  tile->type = priv->tile_type;
+  tile->flags = priv->tile_flags;
   tile->upsample = priv->tile_upsample;
 }
 
@@ -1057,10 +1057,10 @@ hyscan_gtk_waterfall_sources_changed (HyScanGtkWaterfallState *model,
 
 /* Функция обрабатывает смену типа тайлов. */
 static void
-hyscan_gtk_waterfall_tile_type_changed (HyScanGtkWaterfallState *model,
-                                        HyScanGtkWaterfall   *self)
+hyscan_gtk_waterfall_tile_flags_changed (HyScanGtkWaterfallState *model,
+                                         HyScanGtkWaterfall   *self)
 {
-  hyscan_gtk_waterfall_state_get_tile_type (model, &self->priv->tile_type);
+  hyscan_gtk_waterfall_state_get_tile_flags (model, &self->priv->tile_flags);
 }
 
 /* Функция обрабатывает смену профиля. */

@@ -92,7 +92,7 @@
  * Класс не является потокобезопасным и предназначен для использования в главном потоке.
  *
  */
- 
+
 #ifndef __HYSCAN_GTK_WATERFALL_STATE_H__
 #define __HYSCAN_GTK_WATERFALL_STATE_H__
 
@@ -254,8 +254,8 @@ void                    hyscan_gtk_waterfall_state_sidescan                    (
  *
  */
 HYSCAN_API
-void                    hyscan_gtk_waterfall_state_set_tile_type               (HyScanGtkWaterfallState *state,
-                                                                                HyScanTileType           type);
+void                    hyscan_gtk_waterfall_state_set_tile_flags              (HyScanGtkWaterfallState *state,
+                                                                                HyScanTileFlags          flags);
 
 /**
  *
@@ -376,8 +376,8 @@ void                    hyscan_gtk_waterfall_state_get_sources                 (
  *
  */
 HYSCAN_API
-void                    hyscan_gtk_waterfall_state_get_tile_type               (HyScanGtkWaterfallState *state,
-                                                                                HyScanTileType          *type);
+void                    hyscan_gtk_waterfall_state_get_tile_flags              (HyScanGtkWaterfallState *state,
+                                                                                HyScanTileFlags         *flags);
 
 /**
  *

@@ -70,8 +70,8 @@ typedef struct
   HyScanSourceType            rsource;
   gboolean                    sources_changed;
 
-  HyScanTileType              tile_type;
-  gboolean                    tile_type_changed;
+  HyScanTileFlags             tile_flags;
+  gboolean                    tile_flags_changed;
 
   HyScanCache                *cache;
   gchar                      *prefix;
@@ -215,7 +215,7 @@ static gboolean hyscan_gtk_waterfall_mark_configure               (GtkWidget    
 
 static void     hyscan_gtk_waterfall_mark_sources_changed         (HyScanGtkWaterfallState *model,
                                                                    HyScanGtkWaterfallMark  *self);
-static void     hyscan_gtk_waterfall_mark_tile_type_changed       (HyScanGtkWaterfallState *model,
+static void     hyscan_gtk_waterfall_mark_tile_flags_changed       (HyScanGtkWaterfallState *model,
                                                                    HyScanGtkWaterfallMark  *self);
 static void     hyscan_gtk_waterfall_mark_cache_changed           (HyScanGtkWaterfallState *model,
                                                                    HyScanGtkWaterfallMark  *self);
@@ -311,7 +311,7 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
 
   /* Сигналы модели водопада. */
   g_signal_connect (priv->wf_state, "changed::sources",      G_CALLBACK (hyscan_gtk_waterfall_mark_sources_changed), self);
-  g_signal_connect (priv->wf_state, "changed::tile-type",    G_CALLBACK (hyscan_gtk_waterfall_mark_tile_type_changed), self);
+  g_signal_connect (priv->wf_state, "changed::tile-type",    G_CALLBACK (hyscan_gtk_waterfall_mark_tile_flags_changed), self);
   g_signal_connect (priv->wf_state, "changed::track",        G_CALLBACK (hyscan_gtk_waterfall_mark_track_changed), self);
   g_signal_connect (priv->wf_state, "changed::speed",        G_CALLBACK (hyscan_gtk_waterfall_mark_ship_speed_changed), self);
   g_signal_connect (priv->wf_state, "changed::velocity",     G_CALLBACK (hyscan_gtk_waterfall_mark_sound_velocity_changed), self);
@@ -320,7 +320,7 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
   g_signal_connect (priv->wf_state, "changed::cache",        G_CALLBACK (hyscan_gtk_waterfall_mark_cache_changed), self);
 
   hyscan_gtk_waterfall_mark_sources_changed (priv->wf_state, self);
-  hyscan_gtk_waterfall_mark_tile_type_changed (priv->wf_state, self);
+  hyscan_gtk_waterfall_mark_tile_flags_changed (priv->wf_state, self);
   hyscan_gtk_waterfall_mark_cache_changed (priv->wf_state, self);
   hyscan_gtk_waterfall_mark_track_changed (priv->wf_state, self);
   hyscan_gtk_waterfall_mark_ship_speed_changed (priv->wf_state, self);
@@ -950,7 +950,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               hyscan_waterfall_mark_set_mtime  (mark, mtime);
               hyscan_waterfall_mark_set_center (mark, source, index0, count0);
               hyscan_waterfall_mark_set_size   (mark, mw, mh);
-              
+
               hyscan_waterfall_mark_data_add (mdata, mark);
 
               hyscan_waterfall_mark_free (mark);
@@ -959,11 +959,11 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
           else if (task->action == TASK_MODIFY)
             {
               HyScanWaterfallMark *mark = hyscan_waterfall_mark_copy (task->mark);
-              
+
               hyscan_waterfall_mark_set_mtime (mark, g_get_real_time ());
               hyscan_waterfall_mark_set_center (mark, source, index0, count0);
               hyscan_waterfall_mark_set_size   (mark, mw, mh);
-              
+
               hyscan_waterfall_mark_data_modify (mdata, task->id, mark);
               hyscan_waterfall_mark_free (mark);
             }
@@ -1757,14 +1757,14 @@ hyscan_gtk_waterfall_mark_sources_changed (HyScanGtkWaterfallState *model,
 
 /* Функция обрабатывает смену типа тайлов. */
 static void
-hyscan_gtk_waterfall_mark_tile_type_changed (HyScanGtkWaterfallState *model,
-                                             HyScanGtkWaterfallMark  *self)
+hyscan_gtk_waterfall_mark_tile_flags_changed (HyScanGtkWaterfallState *model,
+                                              HyScanGtkWaterfallMark  *self)
 {
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
   g_mutex_lock (&priv->state_lock);
 
-  hyscan_gtk_waterfall_state_get_tile_type (model, &priv->new_state.tile_type);
-  priv->new_state.tile_type_changed = TRUE;
+  hyscan_gtk_waterfall_state_get_tile_flags (model, &priv->new_state.tile_flags);
+  priv->new_state.tile_flags_changed = TRUE;
 
   g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
