@@ -79,8 +79,8 @@ main (int    argc,
   gdouble white = 0.2;
   gdouble gamma = 1.0;
   gdouble fontscale = 1.0;
-  HyScanCache *cache = HYSCAN_CACHE (hyscan_cached_new (512));
-  HyScanCache *cache2 = HYSCAN_CACHE (hyscan_cached_new (512));
+  HyScanCache *cache = HYSCAN_CACHE (hyscan_cached_new (2048));
+  HyScanCache *cache2 = HYSCAN_CACHE (hyscan_cached_new (2048));
 
   gtk_init (&argc, &argv);
 
@@ -143,6 +143,8 @@ main (int    argc,
   wf_mark = hyscan_gtk_waterfall_mark_new (wf);
   wf_ctrl = hyscan_gtk_waterfall_control_new (wf);
   wf_play = hyscan_gtk_waterfall_player_new (wf);
+
+  hyscan_gtk_waterfall_state_set_ship_speed (wf_state, speed);
 
   //hyscan_gtk_waterfall_echosounder (wf, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD);
   hyscan_gtk_waterfall_layer_set_font_scale (HYSCAN_GTK_WATERFALL_LAYER (wf_grid), fontscale);
