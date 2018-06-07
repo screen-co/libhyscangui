@@ -227,13 +227,16 @@ hyscan_gtk_waterfall_control_keyboard (GtkWidget   *widget,
 
   if (arrow_keys)
     {
+      guint width, height = 0;
+      gtk_cifro_area_get_size (carea, &width, &height);
+
       gint step_x = -1 * (key == GDK_KEY_Left) + 1 * (key == GDK_KEY_Right);
       gint step_y = -1 * (key == GDK_KEY_Down) + 1 * (key == GDK_KEY_Up);
 
       if (event->state & GDK_CONTROL_MASK)
         {
-          step_x *= 10.0;
-          step_y *= 10.0;
+          step_x *= (gdouble)width / 10.0;
+          step_y *= (gdouble)height / 10.0;
         }
 
       gtk_cifro_area_move (carea, step_x, step_y);

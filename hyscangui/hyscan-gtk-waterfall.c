@@ -920,7 +920,13 @@ hyscan_gtk_waterfall_cifroarea_get_stick (GtkCifroArea          *carea,
       else
         *stick_y = GTK_CIFRO_AREA_STICK_CENTER;
 
-      *stick_x = GTK_CIFRO_AREA_STICK_CENTER;
+      if (priv->lwidth > 0 && priv->rwidth == 0)
+        *stick_x = GTK_CIFRO_AREA_STICK_RIGHT;
+      else if (priv->rwidth > 0 && priv->lwidth == 0)
+        *stick_x = GTK_CIFRO_AREA_STICK_LEFT;
+      else
+        *stick_x = GTK_CIFRO_AREA_STICK_CENTER;
+
     }
 
   else /*if (priv->widget_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER)*/
@@ -965,6 +971,25 @@ hyscan_gtk_waterfall_automover (gpointer data)
       l_length = r_length;
       lwidth = 0.0;
     }
+
+  /* Костылируем. */
+  if (priv->widget_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN &&
+      (priv->left_source == HYSCAN_SOURCE_INVALID || priv->right_source == HYSCAN_SOURCE_INVALID))
+    {
+      if (priv->left_source == HYSCAN_SOURCE_INVALID)
+        {
+          l_init = r_init;
+          l_length = r_length;
+          lwidth = 0;
+        }
+      if (priv->right_source == HYSCAN_SOURCE_INVALID)
+        {
+          r_init = l_init;
+          r_length = l_length;
+          rwidth = 0;
+        }
+    }
+  /* Закончили упражнение. */
 
   priv->init = l_init && r_init;
   writeable = l_writeable || r_writeable;
@@ -1053,6 +1078,7 @@ hyscan_gtk_waterfall_sources_changed (HyScanGtkWaterfallState *model,
                                       &self->priv->widget_type,
                                       &self->priv->left_source,
                                       &self->priv->right_source);
+  hyscan_gtk_waterfall_track_changed (model, self);
 }
 
 /* Функция обрабатывает смену типа тайлов. */
@@ -1099,8 +1125,14 @@ hyscan_gtk_waterfall_track_changed (HyScanGtkWaterfallState *model,
 
   hyscan_tile_color_open (priv->color, db_uri, project, track);
   hyscan_tile_queue_open (priv->queue, db, project, track, raw);
-  hyscan_track_rect_open (priv->lrect, db, project, track, priv->left_source, raw);
-  hyscan_track_rect_open (priv->rrect, db, project, track, priv->right_source, raw);
+
+  hyscan_track_rect_open (priv->lrect, NULL, NULL, NULL, priv->left_source, raw);
+  hyscan_track_rect_open (priv->rrect, NULL, NULL, NULL, priv->right_source, raw);
+
+  if (priv->left_source != HYSCAN_SOURCE_INVALID)
+    hyscan_track_rect_open (priv->lrect, db, project, track, priv->left_source, raw);
+  if (priv->right_source != HYSCAN_SOURCE_INVALID)
+    hyscan_track_rect_open (priv->rrect, db, project, track, priv->right_source, raw);
 
   priv->open = TRUE;
 

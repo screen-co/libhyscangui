@@ -518,6 +518,9 @@ hyscan_gtk_waterfall_mark_open_projector (HyScanGtkWaterfallMark *self,
   if (state->db == NULL || state->project == NULL || state->track == NULL)
     return NULL;
 
+  if (source == HYSCAN_SOURCE_INVALID)
+    return NULL;
+
   projector = hyscan_projector_new (state->db, state->project, state->track, source, state->raw);
 
   if (projector == NULL)
