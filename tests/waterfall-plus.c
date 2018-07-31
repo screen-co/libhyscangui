@@ -1,3 +1,4 @@
+#include <hyscan-gtk-area.h>
 #include <hyscan-gtk-waterfall.h>
 #include <hyscan-gtk-waterfall-control.h>
 #include <hyscan-gtk-waterfall-grid.h>
@@ -45,10 +46,14 @@ gchar     *uri_composer     (gchar    **path,
 
 GtkWidget *make_layer_btn   (HyScanGtkWaterfallLayer *layer,
                              GtkWidget          *from);
-GtkWidget *make_overlay     (HyScanGtkWaterfall *wf,
+GtkWidget *make_menu        (HyScanGtkWaterfall *wf,
                              gdouble             white,
                              gdouble             gamma);
-
+GtkWidget *make_central     (HyScanGtkWaterfall     *wf,
+                             HyScanGtkWaterfallGrid *grid);
+gboolean   slant_ground     (GtkSwitch *widget,
+                             gboolean   state,
+                             gpointer   udata);
 void       open_db          (HyScanDB **db,
                              gchar    **old_uri,
                              gchar     *new_uri);
@@ -69,7 +74,8 @@ int
 main (int    argc,
       char **argv)
 {
-  GtkWidget *overlay;
+  GtkWidget *area;
+  GtkWidget *left;
   GtkWidget *wf_widget;
 
   gchar *project_name = NULL;
@@ -78,7 +84,6 @@ main (int    argc,
   gdouble speed = 1.0;
   gdouble white = 0.2;
   gdouble gamma = 1.0;
-  gdouble fontscale = 1.0;
   HyScanCache *cache = HYSCAN_CACHE (hyscan_cached_new (512));
   HyScanCache *cache2 = HYSCAN_CACHE (hyscan_cached_new (512));
 
@@ -95,7 +100,6 @@ main (int    argc,
       { "speed",       's', 0, G_OPTION_ARG_DOUBLE, &speed,        "Speed of ship",         NULL},
       { "white",       'w', 0, G_OPTION_ARG_DOUBLE, &white,        "white level (0.0-1.0)", NULL},
       { "gamma",       'g', 0, G_OPTION_ARG_DOUBLE, &gamma,        "gamma level (0.0-1.0)", NULL},
-      { "fontscale",   '\0',0, G_OPTION_ARG_DOUBLE, &fontscale,    "scale font size",       NULL},
       {NULL}
     };
 
@@ -145,13 +149,10 @@ main (int    argc,
   wf_play = hyscan_gtk_waterfall_player_new (wf);
 
   //hyscan_gtk_waterfall_echosounder (wf, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD);
-  hyscan_gtk_waterfall_layer_set_font_scale (HYSCAN_GTK_WATERFALL_LAYER (wf_grid), fontscale);
-  hyscan_gtk_waterfall_layer_set_font_scale (HYSCAN_GTK_WATERFALL_LAYER (wf_metr), fontscale);
-  hyscan_gtk_waterfall_layer_set_font_scale (HYSCAN_GTK_WATERFALL_LAYER (wf_mark), fontscale);
 
   hyscan_gtk_waterfall_state_set_cache (wf_state, cache, cache2, "prefix");
 
-  hyscan_gtk_waterfall_state_set_depth_source (wf_state, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, 1);
+  hyscan_gtk_waterfall_state_set_depth_source (wf_state, HYSCAN_SOURCE_NMEA_DPT, 1);
   hyscan_gtk_waterfall_state_set_depth_filter_size (wf_state, 2);
   hyscan_gtk_waterfall_state_set_depth_time (wf_state, 100000);
 
@@ -162,9 +163,18 @@ main (int    argc,
   hyscan_gtk_waterfall_set_substrate (wf, hyscan_tile_color_converter_d2i (0.15, 0.15, 0.15, 1.0));
 
   /* Кладем виджет в основное окно. */
-  overlay = make_overlay (wf, white, gamma);
+  area = hyscan_gtk_area_new ();
 
-  gtk_container_add (GTK_CONTAINER (window), overlay);
+  left = make_menu (wf, white, gamma);
+
+  hyscan_gtk_area_set_left (HYSCAN_GTK_AREA (area), left);
+  {
+    GtkWidget * grid = make_central (wf, wf_grid);
+    hyscan_gtk_area_set_central (HYSCAN_GTK_AREA (area), grid);
+  }
+  // hyscan_gtk_area_set_central (HYSCAN_GTK_AREA (area), wf_widget);
+
+  gtk_container_add (GTK_CONTAINER (window), area);
   gtk_widget_show_all (window);
 
   if (db != NULL && project_name != NULL && track_name != NULL)
@@ -209,18 +219,19 @@ make_layer_btn (HyScanGtkWaterfallLayer *layer,
 }
 
 GtkWidget*
-make_overlay (HyScanGtkWaterfall *wf,
-              gdouble             white,
-              gdouble             gamma)
+make_menu (HyScanGtkWaterfall *wf,
+           gdouble             white,
+           gdouble             gamma)
 {
-  GtkWidget *overlay = gtk_overlay_new ();
-  GtkWidget *box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+  // GtkWidget *overlay = gtk_overlay_new ();
+  GtkWidget *box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
   GtkWidget *zoom_btn_in = gtk_button_new_from_icon_name ("zoom-in-symbolic", GTK_ICON_SIZE_BUTTON);
   GtkWidget *zoom_btn_out = gtk_button_new_from_icon_name ("zoom-out-symbolic", GTK_ICON_SIZE_BUTTON);
   GtkWidget *btn_reopen = gtk_button_new_from_icon_name ("folder-symbolic", GTK_ICON_SIZE_BUTTON);
   GtkWidget *scale_white = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.000, 1.0, 0.001);
   GtkWidget *scale_gamma = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.5, 2.0, 0.005);
   GtkWidget *scale_player = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -10.0, 10.0, 0.1);
+  GtkWidget *slant_ground_switch = gtk_switch_new ();
 
   GtkWidget *lay_ctrl = make_layer_btn (HYSCAN_GTK_WATERFALL_LAYER (wf_ctrl), NULL);
   GtkWidget *lay_mark = make_layer_btn (HYSCAN_GTK_WATERFALL_LAYER (wf_mark), lay_ctrl);
@@ -240,9 +251,9 @@ make_overlay (HyScanGtkWaterfall *wf,
   gtk_color_chooser_set_rgba (GTK_COLOR_CHOOSER (color_chooser), &rgba);
 
   /* Настраиваем прокрутки. */
-  gtk_scale_set_value_pos (GTK_SCALE (scale_white), GTK_POS_LEFT);
-  gtk_scale_set_value_pos (GTK_SCALE (scale_gamma), GTK_POS_LEFT);
-  gtk_scale_set_value_pos (GTK_SCALE (scale_player), GTK_POS_LEFT);
+  gtk_scale_set_value_pos (GTK_SCALE (scale_white), GTK_POS_TOP);
+  gtk_scale_set_value_pos (GTK_SCALE (scale_gamma), GTK_POS_TOP);
+  gtk_scale_set_value_pos (GTK_SCALE (scale_player), GTK_POS_TOP);
   gtk_widget_set_size_request (scale_white, 150, 1);
   gtk_widget_set_size_request (scale_gamma, 150, 1);
   gtk_widget_set_size_request (scale_player, 150, 1);
@@ -254,21 +265,28 @@ make_overlay (HyScanGtkWaterfall *wf,
   gtk_scale_set_has_origin (GTK_SCALE (scale_player), FALSE);
 
   /* Layer control. */
-  gtk_box_pack_start (GTK_BOX (lay_box), lay_ctrl, FALSE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (lay_box), lay_mark, FALSE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (lay_box), lay_metr, FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (lay_box), lay_ctrl, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (lay_box), lay_mark, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (lay_box), lay_metr, TRUE, TRUE, 0);
 
   /* Кладём в коробку. */
-  gtk_box_pack_start (GTK_BOX (track_box), zoom_btn_in,  FALSE, FALSE, 0);
-  gtk_box_pack_start (GTK_BOX (track_box), zoom_btn_out, FALSE, FALSE, 0);
-  gtk_box_pack_start (GTK_BOX (track_box), btn_reopen,   FALSE, FALSE, 2);
+  gtk_box_pack_start (GTK_BOX (track_box), zoom_btn_in,  TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (track_box), zoom_btn_out, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (track_box), btn_reopen,   TRUE, TRUE, 2);
 
-  gtk_box_pack_start (GTK_BOX (box), track_box,   FALSE, FALSE, 2);
-  gtk_box_pack_start (GTK_BOX (box), color_chooser,FALSE, FALSE, 2);
-  gtk_box_pack_start (GTK_BOX (box), scale_white,  FALSE, FALSE, 2);
-  gtk_box_pack_start (GTK_BOX (box), scale_gamma,  FALSE, FALSE, 2);
-  gtk_box_pack_start (GTK_BOX (box), lay_box,      FALSE, FALSE, 2);
-  gtk_box_pack_start (GTK_BOX (box), scale_player, FALSE, FALSE, 2);
+  gtk_box_pack_start (GTK_BOX (box), track_box,    FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL), FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), gtk_label_new ("Изображение"), FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), color_chooser,FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), scale_white,  FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), scale_gamma,  FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL), FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), gtk_label_new ("Слой"), FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), lay_box,      FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), gtk_label_new ("Плеер"), FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), scale_player, FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), gtk_label_new ("Накл/гор"), FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), slant_ground_switch, FALSE, TRUE, 0);
 
   g_signal_connect (btn_reopen, "clicked", G_CALLBACK (reopen_clicked), NULL);
   g_signal_connect (zoom_btn_in, "clicked", G_CALLBACK (zoom_clicked), GINT_TO_POINTER (1));
@@ -280,20 +298,21 @@ make_overlay (HyScanGtkWaterfall *wf,
   g_signal_connect_swapped (lay_ctrl, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_ctrl));
   g_signal_connect_swapped (lay_mark, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_mark));
   g_signal_connect_swapped (lay_metr, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_metr));
+  g_signal_connect (slant_ground_switch, "state-set", G_CALLBACK (slant_ground), wf);
 
   g_signal_connect (wf_play, "player-stop", G_CALLBACK (player_stop), scale_player);
 
   hyscan_gtk_waterfall_layer_grab_input (HYSCAN_GTK_WATERFALL_LAYER (wf_ctrl));
   gtk_widget_set_size_request (GTK_WIDGET (wf), 800, 600);
 
-  gtk_container_add (GTK_CONTAINER (overlay), GTK_WIDGET (wf));
+  // gtk_container_add (GTK_CONTAINER (overlay), GTK_WIDGET (wf));
 
-  gtk_overlay_add_overlay (GTK_OVERLAY (overlay), box);
-  gtk_widget_set_halign (box, GTK_ALIGN_CENTER);
-  gtk_widget_set_valign (box, GTK_ALIGN_END);
+  // gtk_overlay_add_overlay (GTK_OVERLAY (overlay), box);
+  gtk_widget_set_margin_top (box, 12);
   gtk_widget_set_margin_bottom (box, 12);
+  gtk_widget_set_margin_end (box, 12);
 
-  return overlay;
+  return box;
 }
 
 void
@@ -446,6 +465,50 @@ uri_composer (gchar **path,
     }
 
   return uri;
+}
+
+GtkWidget *
+make_central (HyScanGtkWaterfall     *wf,
+              HyScanGtkWaterfallGrid *wf_grid)
+{
+  GtkWidget * grid = gtk_grid_new ();
+  GtkWidget * hscroll = gtk_scrollbar_new (GTK_ORIENTATION_HORIZONTAL,
+                                           hyscan_gtk_waterfall_grid_get_hadjustment (wf_grid));
+  GtkWidget * vscroll = gtk_scrollbar_new (GTK_ORIENTATION_VERTICAL,
+                                           // hyscan_gtk_waterfall_grid_get_hadjustment (wf_grid));
+                                           hyscan_gtk_waterfall_grid_get_vadjustment (wf_grid));
+
+  g_object_set (wf, "hexpand", TRUE, "vexpand", TRUE, NULL);
+  gtk_range_set_inverted (GTK_RANGE (vscroll), TRUE);
+
+  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (wf), 0, 0, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), hscroll, 0, 1, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), vscroll, 1, 0, 1, 1);
+
+  return grid;
+}
+
+gboolean
+slant_ground (GtkSwitch *widget,
+              gboolean   state,
+              gpointer   udata)
+{
+  HyScanTileFlags flags = 0;
+  HyScanTileFlags gnd_flag = HYSCAN_TILE_GROUND;
+  HyScanGtkWaterfallState *wf = udata;
+  HyScanGtkWaterfallState *wf_state = HYSCAN_GTK_WATERFALL_STATE (wf);
+
+  hyscan_gtk_waterfall_state_get_tile_flags (wf_state, &flags);
+
+  if (state)
+    flags |= gnd_flag;
+  else
+    flags &= ~gnd_flag;
+
+  hyscan_gtk_waterfall_state_set_tile_flags (wf_state, flags);
+
+  gtk_switch_set_state (GTK_SWITCH (widget), state);
+  return TRUE;
 }
 
 void

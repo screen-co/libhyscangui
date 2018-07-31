@@ -237,7 +237,7 @@ hyscan_gtk_waterfall_object_constructed (GObject *object)
   gtk_cifro_area_set_view (GTK_CIFRO_AREA (self), -50, 50, 0, 100 );
 
   /* Сигналы HyScanTileQueue. */
-  g_signal_connect_swapped (priv->queue, "tile-queue-ready", G_CALLBACK (hyscan_gtk_waterfall_queue_draw), self);
+  // g_signal_connect_swapped (priv->queue, "tile-queue-ready", G_CALLBACK (hyscan_gtk_waterfall_queue_draw), self);
   g_signal_connect_swapped (priv->queue, "tile-queue-image", G_CALLBACK (hyscan_gtk_waterfall_image_generated), self);
   g_signal_connect_swapped (priv->queue, "tile-queue-hash", G_CALLBACK (hyscan_gtk_waterfall_hash_changed), self);
 

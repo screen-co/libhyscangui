@@ -77,6 +77,26 @@ GType                   hyscan_gtk_waterfall_grid_get_type         (void);
  */
 HYSCAN_API
 HyScanGtkWaterfallGrid *hyscan_gtk_waterfall_grid_new                   (HyScanGtkWaterfall     *waterfall);
+/**
+ *
+ * Функция возвращает GtkAdjusment для горизонтальной оси.
+ *
+ * \param grid указатель на слой \link HyScanGtkWaterfallGrid \endlink
+ *
+ * \return GtkAdjusment для горизонтальной оси
+ */
+HYSCAN_API
+GtkAdjustment          *hyscan_gtk_waterfall_grid_get_hadjustment       (HyScanGtkWaterfallGrid  *grid);
+/**
+ *
+ * Функция возвращает GtkAdjusment для вертикальной оси.
+ *
+ * \param grid указатель на слой \link HyScanGtkWaterfallGrid \endlink
+ *
+ * \return GtkAdjusment для вертикальной оси
+ */
+HYSCAN_API
+GtkAdjustment          *hyscan_gtk_waterfall_grid_get_vadjustment       (HyScanGtkWaterfallGrid  *grid);
 
 /**
  *
@@ -89,18 +109,6 @@ HyScanGtkWaterfallGrid *hyscan_gtk_waterfall_grid_new                   (HyScanG
 HYSCAN_API
 void                    hyscan_gtk_waterfall_grid_show_grid             (HyScanGtkWaterfallGrid *grid,
                                                                          gboolean                draw_grid);
-/**
- *
- * Функция позволяет включить или отключить отображение линеек, указывающих
- * местоположение экрана относительно границ галса.
- *
- * \param grid - указатель на объект \link HyScanGtkWaterfallGrid \endlink;
- * \param show_position - TRUE, чтобы показать линейки, FALSE, чтобы скрыть.
- *
- */
-HYSCAN_API
-void                    hyscan_gtk_waterfall_grid_show_position         (HyScanGtkWaterfallGrid *grid,
-                                                                         gboolean                show_position);
 
 /**
  *

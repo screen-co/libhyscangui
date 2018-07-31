@@ -126,9 +126,6 @@ struct _HyScanGtkWaterfallLayerInterface
   void         (*grab_input)   (HyScanGtkWaterfallLayer *layer);
   void         (*set_visible)  (HyScanGtkWaterfallLayer *layer,
                                 gboolean                 visible);
-  void         (*set_font_scale)(HyScanGtkWaterfallLayer *layer,
-                                 gdouble                  font_scale);
-
   const gchar *(*get_mnemonic) (HyScanGtkWaterfallLayer *layer);
 };
 
@@ -152,15 +149,6 @@ void            hyscan_gtk_waterfall_layer_grab_input   (HyScanGtkWaterfallLayer
 HYSCAN_API
 void            hyscan_gtk_waterfall_layer_set_visible (HyScanGtkWaterfallLayer *layer,
                                                         gboolean                 visible);
-/**
- * Функция позволяет увеличить или уменьшить шрифт.
- *
- * \param layer указатель на объект, имплементирующий \link HyScanGtkWaterfallLayer \endlink
- * \param font_scale увеличение шрифта, строго больше нуля.
- */
-HYSCAN_API
-void            hyscan_gtk_waterfall_layer_set_font_scale (HyScanGtkWaterfallLayer *layer,
-                                                           gdouble                  font_scale);
 
 /**
  * Функция возвращает название иконки для слоя.

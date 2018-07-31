@@ -43,21 +43,6 @@ hyscan_gtk_waterfall_layer_set_visible (HyScanGtkWaterfallLayer *layer,
     (* iface->set_visible) (layer, visible);
 }
 
-void
-hyscan_gtk_waterfall_layer_set_font_scale (HyScanGtkWaterfallLayer *layer,
-                                           gdouble                  font_scale)
-{
-  HyScanGtkWaterfallLayerInterface *iface;
-
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_LAYER (layer));
-  if (font_scale == 0.0)
-    return;
-    
-  iface = HYSCAN_GTK_WATERFALL_LAYER_GET_IFACE (layer);
-  if (iface->set_font_scale != NULL)
-    (* iface->set_font_scale) (layer, font_scale);
-}
-
 const gchar*
 hyscan_gtk_waterfall_layer_get_mnemonic (HyScanGtkWaterfallLayer *layer)
 {

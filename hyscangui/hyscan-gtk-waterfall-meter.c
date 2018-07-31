@@ -40,7 +40,6 @@ struct _HyScanGtkWaterfallMeterPrivate
   HyScanGtkWaterfallState      *wf_state;
   HyScanGtkWaterfall           *wfall;
   PangoLayout                  *font;              /* Раскладка шрифта. */
-  guint                         font_scale;
 
   gboolean                      layer_visibility;
 
@@ -195,7 +194,6 @@ hyscan_gtk_waterfall_meter_object_constructed (GObject *object)
 
   /* Включаем видимость слоя. */
   hyscan_gtk_waterfall_layer_set_visible (HYSCAN_GTK_WATERFALL_LAYER (self), TRUE);
-  hyscan_gtk_waterfall_layer_set_font_scale (HYSCAN_GTK_WATERFALL_LAYER (self), 1.0);
 }
 
 static void
@@ -241,40 +239,6 @@ hyscan_gtk_waterfall_meter_set_visible (HyScanGtkWaterfallLayer *layer,
   self->priv->layer_visibility = visible;
   hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
-
-/* Функция задает размер шрифта. */
-static void
-hyscan_gtk_waterfall_meter_set_font_scale (HyScanGtkWaterfallLayer *layer,
-                                           gdouble                  font_scale)
-{
-  PangoFontDescription *descr;
-  PangoContext *context;
-  gint size;
-  HyScanGtkWaterfallMeter *self = HYSCAN_GTK_WATERFALL_METER (layer);
-  HyScanGtkWaterfallMeterPrivate *priv = self->priv;
-
-  self->priv->font_scale = font_scale;
-
-  if (priv->font == NULL)
-    return;
-
-  if (priv->font_scale == 0.0)
-    return;
-
-  context = pango_layout_get_context (priv->font);
-  descr = pango_font_description_copy (pango_context_get_font_description (context));
-  size = pango_font_description_get_size (descr);
-
-  size *= font_scale;
-  pango_font_description_set_size (descr, size);
-
-  pango_layout_set_font_description (priv->font, descr);
-
-  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
-
-  pango_font_description_free (descr);
-}
-
 
 /* Функция возвращает название иконки. */
 static const gchar*
@@ -753,7 +717,6 @@ hyscan_gtk_waterfall_meter_configure (GtkWidget               *widget,
   g_clear_pointer (&priv->font, g_object_unref);
 
   priv->font = gtk_widget_create_pango_layout (widget, NULL);
-  hyscan_gtk_waterfall_layer_set_font_scale (HYSCAN_GTK_WATERFALL_LAYER (self), priv->font_scale);
 
   return FALSE;
 }
@@ -843,6 +806,5 @@ hyscan_gtk_waterfall_meter_interface_init (HyScanGtkWaterfallLayerInterface *ifa
 {
   iface->grab_input = hyscan_gtk_waterfall_meter_grab_input;
   iface->set_visible = hyscan_gtk_waterfall_meter_set_visible;
-  iface->set_font_scale = hyscan_gtk_waterfall_meter_set_font_scale;
   iface->get_mnemonic = hyscan_gtk_waterfall_meter_get_mnemonic;
 }
