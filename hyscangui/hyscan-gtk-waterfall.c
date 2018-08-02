@@ -1327,14 +1327,14 @@ hyscan_gtk_waterfall_automove (HyScanGtkWaterfall *self,
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (self));
   priv = self->priv;
 
+  if (priv->automove == automove)
+    return;
+
   if (priv->auto_tag == 0)
     {
       g_signal_emit (self, hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE], 0, FALSE);
       return;
     }
-
-  if (priv->automove == automove)
-    return;
 
   priv->automove = automove;
 
