@@ -885,8 +885,12 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
 
       /* Если в результате синхронизации нет объектов, с которыми можно иметь
        * дело, возвращаемся в начало. */
-      if (mdata == NULL || rproj == NULL || lproj ==NULL)
-        continue;
+      if (mdata == NULL ||
+          (rproj == NULL && state->rsource != HYSCAN_SOURCE_INVALID) ||
+          (lproj == NULL && state->lsource != HYSCAN_SOURCE_INVALID))
+        {
+          continue;
+        }
 
       /* Чтобы как можно меньше задерживать mainloop, копируем список задач. */
       g_mutex_lock (&priv->task_lock);
