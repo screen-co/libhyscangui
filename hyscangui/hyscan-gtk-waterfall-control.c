@@ -433,7 +433,7 @@ static void
 hyscan_gtk_waterfall_control_sources_changed (HyScanGtkWaterfallState   *model,
                                               HyScanGtkWaterfallControl *self)
 {
-  hyscan_gtk_waterfall_state_get_sources (model, &self->priv->display_type, NULL, NULL);
+  self->priv->display_type = hyscan_gtk_waterfall_state_get_sources (model, NULL, NULL);
 }
 
 /* Функция создает новый объект. */

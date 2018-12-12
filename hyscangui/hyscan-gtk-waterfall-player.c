@@ -144,7 +144,7 @@ static void
 hyscan_gtk_waterfall_player_sources_changed (HyScanGtkWaterfallState   *state,
                                              HyScanGtkWaterfallPlayer *self)
 {
-  hyscan_gtk_waterfall_state_get_sources (state, &self->priv->display_type, NULL, NULL);
+  self->priv->display_type = hyscan_gtk_waterfall_state_get_sources (state, NULL, NULL);
 }
 
 /* Функция возвращает название иконки. */

@@ -20,13 +20,6 @@
   #define COMPOSE_FORMAT "/%s"
 #endif
 
-enum
-{
-  DIALOG_CANCEL,
-  DIALOG_OPEN_RAW,
-  DIALOG_OPEN_COMPUTED
-};
-
 void       reopen_clicked   (GtkButton *button,
                              gpointer   user_data);
 void       zoom_clicked     (GtkButton *button,
@@ -65,9 +58,11 @@ static HyScanGtkWaterfallControl *wf_ctrl;
 static HyScanGtkWaterfallMark    *wf_mark;
 static HyScanGtkWaterfallMeter   *wf_metr;
 static HyScanGtkWaterfallPlayer  *wf_play;
+
 static HyScanDB                  *db;
 static gchar                     *db_uri;
 static gchar                     *project_dir;
+static HyScanMarkModel           *markmodel;
 static GtkWidget                 *window;
 
 int
@@ -128,6 +123,7 @@ main (int    argc,
   }
 
   open_db (&db, &db_uri, db_uri);
+  markmodel = hyscan_mark_model_new ();
 
   /* Основное окно программы. */
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
@@ -137,24 +133,18 @@ main (int    argc,
   gtk_window_set_default_size (GTK_WINDOW (window), 1024, 700);
 
   /* Водопад. */
-  wf_widget = hyscan_gtk_waterfall_new ();
+  wf_widget = hyscan_gtk_waterfall_new (cache);
   /* Для удобства приведем типы. */
   wf  = HYSCAN_GTK_WATERFALL (wf_widget);
   wf_state  = HYSCAN_GTK_WATERFALL_STATE (wf_widget);
 
   wf_grid = hyscan_gtk_waterfall_grid_new (wf);
   wf_metr = hyscan_gtk_waterfall_meter_new (wf);
-  wf_mark = hyscan_gtk_waterfall_mark_new (wf);
+  wf_mark = hyscan_gtk_waterfall_mark_new (wf, markmodel);
   wf_ctrl = hyscan_gtk_waterfall_control_new (wf);
   wf_play = hyscan_gtk_waterfall_player_new (wf);
 
   //hyscan_gtk_waterfall_echosounder (wf, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD);
-
-  hyscan_gtk_waterfall_state_set_cache (wf_state, cache, cache2, "prefix");
-
-  hyscan_gtk_waterfall_state_set_depth_source (wf_state, HYSCAN_SOURCE_NMEA_DPT, 1);
-  hyscan_gtk_waterfall_state_set_depth_filter_size (wf_state, 2);
-  hyscan_gtk_waterfall_state_set_depth_time (wf_state, 100000);
 
   hyscan_gtk_waterfall_set_upsample (wf, 2);
 
@@ -178,7 +168,10 @@ main (int    argc,
   gtk_widget_show_all (window);
 
   if (db != NULL && project_name != NULL && track_name != NULL)
-    hyscan_gtk_waterfall_state_set_track (wf_state, db, project_name, track_name, TRUE);
+    {
+      hyscan_gtk_waterfall_state_set_track (wf_state, db, project_name, track_name);
+      hyscan_mark_model_set_project (markmodel, db, project_name);
+    }
 
   /* Начинаем работу. */
   gtk_main ();
@@ -324,26 +317,20 @@ reopen_clicked (GtkButton *button,
   gchar *track = NULL;
   gchar *project = NULL;
   gchar **split = NULL;
-  gboolean rawness;
   guint len;
   gint res;
 
   dialog = gtk_file_chooser_dialog_new ("Select track", GTK_WINDOW (window),
                                         GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
-                                        "Cancel",   DIALOG_CANCEL,
-                                        "_Raw",      DIALOG_OPEN_RAW,
-                                        "_Computed", DIALOG_OPEN_COMPUTED,
+                                        "Cancel",   GTK_RESPONSE_CANCEL,
+                                        "_Open",    GTK_RESPONSE_OK,
                                         NULL);
   if (project_dir != NULL)
     gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), project_dir);
 
   res = gtk_dialog_run (GTK_DIALOG (dialog));
 
-  if (res == DIALOG_OPEN_RAW)
-    rawness = TRUE;
-  else if (res == DIALOG_OPEN_COMPUTED)
-    rawness = FALSE;
-  else
+  if (res == GTK_RESPONSE_CANCEL)
     goto cleanup;
 
   path = gtk_file_chooser_get_current_folder (GTK_FILE_CHOOSER (dialog));
@@ -361,7 +348,8 @@ reopen_clicked (GtkButton *button,
   track = split[len - 1];
 
 
-  hyscan_gtk_waterfall_state_set_track (wf_state, db, project, track, rawness);
+  hyscan_gtk_waterfall_state_set_track (wf_state, db, project, track);
+  hyscan_mark_model_set_project (markmodel, db, project);
 
   {
     gchar * title = g_strdup_printf ("Waterfall+ %s, %s", project, track);
@@ -498,7 +486,7 @@ slant_ground (GtkSwitch *widget,
   HyScanGtkWaterfallState *wf = udata;
   HyScanGtkWaterfallState *wf_state = HYSCAN_GTK_WATERFALL_STATE (wf);
 
-  hyscan_gtk_waterfall_state_get_tile_flags (wf_state, &flags);
+  flags = hyscan_gtk_waterfall_state_get_tile_flags (wf_state);
 
   if (state)
     flags |= gnd_flag;

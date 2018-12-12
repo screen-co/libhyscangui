@@ -314,7 +314,7 @@ static void
 hyscan_gtk_waterfall_grid_sources_changed (HyScanGtkWaterfallState   *state,
                                            HyScanGtkWaterfallGrid *self)
 {
-  hyscan_gtk_waterfall_state_get_sources (state, &self->priv->display_type, NULL, NULL);
+  self->priv->display_type = hyscan_gtk_waterfall_state_get_sources (state, NULL, NULL);
 }
 
 /* Обработчик сигнала visible-draw. */

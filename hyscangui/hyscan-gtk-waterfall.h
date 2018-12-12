@@ -109,7 +109,7 @@ GType                   hyscan_gtk_waterfall_get_type                   (void);
  *
  */
 HYSCAN_API
-GtkWidget              *hyscan_gtk_waterfall_new                        (void);
+GtkWidget              *hyscan_gtk_waterfall_new                        (HyScanCache        *cache);
 
 /**
  *

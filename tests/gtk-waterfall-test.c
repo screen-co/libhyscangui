@@ -55,10 +55,11 @@ main (int    argc,
   HyScanGtkWaterfallMark *mark = NULL;
   HyScanGtkWaterfallMagnifier *loopa = NULL;
 
+  HyScanMarkModel *markmodel;
+
   gchar *project_name;
   gchar *track_name;
   gchar *db_uri;
-  gchar *cache_prefix = "wf-test";
   gchar *title;
   gboolean use_computed = FALSE;
   HyScanDB *db;
@@ -66,7 +67,6 @@ main (int    argc,
   gdouble white = 0.2;
   gdouble gamma = 1.0;
   HyScanCache *cache = HYSCAN_CACHE (hyscan_cached_new (512));
-  HyScanCache *cache2 = HYSCAN_CACHE (hyscan_cached_new (512));
 
   guint32 background, colors[2], *colormap;
   guint cmap_len;
@@ -133,25 +133,24 @@ main (int    argc,
   if (db == NULL)
     g_error ("can't open db at: %s", db_uri);
 
+  markmodel = hyscan_mark_model_new ();
+
+
   /* Водопад. */
-  wf_widget = hyscan_gtk_waterfall_new ();
+  wf_widget = hyscan_gtk_waterfall_new (cache);
   wf_state = HYSCAN_GTK_WATERFALL_STATE (wf_widget);
   wf = HYSCAN_GTK_WATERFALL (wf_widget);
 
   control = hyscan_gtk_waterfall_control_new (wf);
   grid = hyscan_gtk_waterfall_grid_new (wf);
-  mark = hyscan_gtk_waterfall_mark_new (wf);
+  mark = hyscan_gtk_waterfall_mark_new (wf, markmodel);
   loopa = hyscan_gtk_waterfall_magnifier_new (wf);
 
   hyscan_gtk_waterfall_layer_grab_input (HYSCAN_GTK_WATERFALL_LAYER (control));
 
   hyscan_gtk_waterfall_state_sidescan (wf_state, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, HYSCAN_SOURCE_SIDE_SCAN_PORT);
   hyscan_gtk_waterfall_state_echosounder (wf_state, HYSCAN_SOURCE_ECHOSOUNDER);
-  hyscan_gtk_waterfall_state_set_cache (wf_state, cache, cache2, cache_prefix);
   hyscan_gtk_waterfall_state_set_ship_speed (wf_state, speed);
-  hyscan_gtk_waterfall_state_set_depth_source (wf_state, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, 1);
-  hyscan_gtk_waterfall_state_set_depth_filter_size (wf_state, 2);
-  hyscan_gtk_waterfall_state_set_depth_time (wf_state, 100000);
 
   hyscan_gtk_waterfall_set_upsample (wf, 2);
 
@@ -209,7 +208,8 @@ main (int    argc,
 
   //hyscan_gtk_waterfall_echosounder (wf, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD);
   /* !use_computed == use_raw. */
-  hyscan_gtk_waterfall_state_set_track (wf_state, db, project_name, track_name, !use_computed);
+  hyscan_gtk_waterfall_state_set_track (wf_state, db, project_name, track_name);
+  hyscan_mark_model_set_project (markmodel, db, project_name);
 
   /* Начинаем работу. */
   gtk_main ();
@@ -219,7 +219,7 @@ main (int    argc,
   g_clear_object (&loopa);
 
   g_clear_object (&cache);
-  g_clear_object (&cache2);
+  g_clear_object (&markmodel);
   g_clear_object (&db);
 
   g_free (project_name);

@@ -167,13 +167,6 @@ static void     hyscan_gtk_waterfall_speed_changed           (HyScanGtkWaterfall
                                                               HyScanGtkWaterfall            *self);
 static void     hyscan_gtk_waterfall_velocity_changed        (HyScanGtkWaterfallState          *model,
                                                               HyScanGtkWaterfall            *self);
-static void     hyscan_gtk_waterfall_depth_source_changed    (HyScanGtkWaterfallState          *model,
-                                                              HyScanGtkWaterfall            *self);
-static void     hyscan_gtk_waterfall_depth_params_changed    (HyScanGtkWaterfallState          *model,
-                                                              HyScanGtkWaterfall            *self);
-static void     hyscan_gtk_waterfall_cache_changed           (HyScanGtkWaterfallState          *model,
-                                                              HyScanGtkWaterfall            *self);
-
 
 static guint    hyscan_gtk_waterfall_signals[SIGNAL_LAST] = {0};
 
@@ -221,23 +214,28 @@ hyscan_gtk_waterfall_object_constructed (GObject *object)
 {
   HyScanGtkWaterfall *self = HYSCAN_GTK_WATERFALL (object);
   HyScanGtkWaterfallPrivate *priv;
+  HyScanCache *cache;
+  HyScanAmplitudeFactory *af;
+  HyScanDepthFactory *df;
   guint n_threads = g_get_num_processors ();
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_parent_class)->constructed (object);
   priv = self->priv;
 
+  cache = hyscan_gtk_waterfall_state_get_cache (HYSCAN_GTK_WATERFALL_STATE (self));
+  af = hyscan_gtk_waterfall_state_get_amp_factory (HYSCAN_GTK_WATERFALL_STATE (self));
+  df = hyscan_gtk_waterfall_state_get_dpt_factory (HYSCAN_GTK_WATERFALL_STATE (self));
   // n_threads = 1;
-  priv->queue = hyscan_tile_queue_new (n_threads);
-  priv->color = hyscan_tile_color_new ();
-  priv->lrect = hyscan_track_rect_new ();
-  priv->rrect = hyscan_track_rect_new ();
+  priv->queue = hyscan_tile_queue_new (n_threads, cache, af, df);
+  priv->color = hyscan_tile_color_new (cache);
+  priv->lrect = hyscan_track_rect_new (cache, af, df);
+  priv->rrect = hyscan_track_rect_new (cache, af, df);
 
   /* Параметры GtkCifroArea по умолчанию. */
   gtk_cifro_area_set_scale_on_resize (GTK_CIFRO_AREA (self), FALSE);
   gtk_cifro_area_set_view (GTK_CIFRO_AREA (self), -50, 50, 0, 100 );
 
   /* Сигналы HyScanTileQueue. */
-  // g_signal_connect_swapped (priv->queue, "tile-queue-ready", G_CALLBACK (hyscan_gtk_waterfall_queue_draw), self);
   g_signal_connect_swapped (priv->queue, "tile-queue-image", G_CALLBACK (hyscan_gtk_waterfall_image_generated), self);
   g_signal_connect_swapped (priv->queue, "tile-queue-hash", G_CALLBACK (hyscan_gtk_waterfall_hash_changed), self);
 
@@ -247,14 +245,13 @@ hyscan_gtk_waterfall_object_constructed (GObject *object)
 
   /* Сигналы HyScanGtkWaterfallState. */
   g_signal_connect (self, "changed::sources",      G_CALLBACK (hyscan_gtk_waterfall_sources_changed), self);
-  g_signal_connect (self, "changed::tile-type",    G_CALLBACK (hyscan_gtk_waterfall_tile_flags_changed), self);
+  g_signal_connect (self, "changed::tile-flags",   G_CALLBACK (hyscan_gtk_waterfall_tile_flags_changed), self);
   g_signal_connect (self, "changed::profile",      G_CALLBACK (hyscan_gtk_waterfall_profile_changed), self);
   g_signal_connect (self, "changed::track",        G_CALLBACK (hyscan_gtk_waterfall_track_changed), self);
   g_signal_connect (self, "changed::speed",        G_CALLBACK (hyscan_gtk_waterfall_speed_changed), self);
   g_signal_connect (self, "changed::velocity",     G_CALLBACK (hyscan_gtk_waterfall_velocity_changed), self);
-  g_signal_connect (self, "changed::depth-source", G_CALLBACK (hyscan_gtk_waterfall_depth_source_changed), self);
-  g_signal_connect (self, "changed::depth-params", G_CALLBACK (hyscan_gtk_waterfall_depth_params_changed), self);
-  g_signal_connect (self, "changed::cache",        G_CALLBACK (hyscan_gtk_waterfall_cache_changed), self);
+  // g_signal_connect (self, "changed::amp-factory",  G_CALLBACK (hyscan_gtk_waterfall_depth_amp_changed), self);
+  // g_signal_connect (self, "changed::dpt-factory",  G_CALLBACK (hyscan_gtk_waterfall_cache_dpt_changed), self);
 
   hyscan_gtk_waterfall_sources_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
   hyscan_gtk_waterfall_tile_flags_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
@@ -262,9 +259,6 @@ hyscan_gtk_waterfall_object_constructed (GObject *object)
   hyscan_gtk_waterfall_track_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
   hyscan_gtk_waterfall_speed_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
   hyscan_gtk_waterfall_velocity_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
-  hyscan_gtk_waterfall_depth_source_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
-  hyscan_gtk_waterfall_depth_params_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
-  hyscan_gtk_waterfall_cache_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
 
   /* Инициализируем масштабы. */
   priv->zooms = g_malloc0 (ZOOM_LEVELS * sizeof (gdouble));
@@ -275,6 +269,10 @@ hyscan_gtk_waterfall_object_constructed (GObject *object)
   priv->tile_upsample = 2;
 
   priv->redraw_tag = g_timeout_add (10, hyscan_gtk_waterfall_redrawer, self);
+
+  g_object_unref (cache);
+  g_object_unref (af);
+  g_object_unref (df);
 }
 
 static void
@@ -1049,10 +1047,9 @@ static void
 hyscan_gtk_waterfall_sources_changed (HyScanGtkWaterfallState *model,
                                       HyScanGtkWaterfall   *self)
 {
-  hyscan_gtk_waterfall_state_get_sources (model,
-                                      &self->priv->widget_type,
-                                      &self->priv->left_source,
-                                      &self->priv->right_source);
+  self->priv->widget_type = hyscan_gtk_waterfall_state_get_sources (model,
+                                                                    &self->priv->left_source,
+                                                                    &self->priv->right_source);
 }
 
 /* Функция обрабатывает смену типа тайлов. */
@@ -1060,7 +1057,7 @@ static void
 hyscan_gtk_waterfall_tile_flags_changed (HyScanGtkWaterfallState *model,
                                          HyScanGtkWaterfall   *self)
 {
-  hyscan_gtk_waterfall_state_get_tile_flags (model, &self->priv->tile_flags);
+  self->priv->tile_flags = hyscan_gtk_waterfall_state_get_tile_flags (model);
 }
 
 /* Функция обрабатывает смену профиля. */
@@ -1075,12 +1072,13 @@ static void
 hyscan_gtk_waterfall_track_changed (HyScanGtkWaterfallState *model,
                                     HyScanGtkWaterfall      *self)
 {
+  HyScanAmplitudeFactory *af;
+  HyScanDepthFactory *df;
   HyScanGtkWaterfallPrivate *priv = self->priv;
   HyScanDB *db;
   gchar *db_uri;
   gchar *project;
   gchar *track;
-  gboolean raw;
 
   if (priv->auto_tag != 0)
     {
@@ -1090,17 +1088,25 @@ hyscan_gtk_waterfall_track_changed (HyScanGtkWaterfallState *model,
 
   priv->open = FALSE;
 
-  hyscan_gtk_waterfall_state_get_track (model, &db, &project, &track, &raw);
+  hyscan_gtk_waterfall_state_get_track (model, &db, &project, &track);
 
   if (project == NULL || track == NULL)
     return;
 
   db_uri = hyscan_db_get_uri (db);
 
+  af = hyscan_gtk_waterfall_state_get_amp_factory (model);
+  df = hyscan_gtk_waterfall_state_get_dpt_factory (model);
+
+  hyscan_amplitude_factory_set_track (af, db, project, track);
+  hyscan_depth_factory_set_track (df, db, project, track);
+
   hyscan_tile_color_open (priv->color, db_uri, project, track);
-  hyscan_tile_queue_open (priv->queue, db, project, track, raw);
-  hyscan_track_rect_open (priv->lrect, db, project, track, priv->left_source, raw);
-  hyscan_track_rect_open (priv->rrect, db, project, track, priv->right_source, raw);
+
+  hyscan_track_rect_amp_changed (priv->lrect);
+  hyscan_track_rect_dpt_changed (priv->lrect);
+  hyscan_track_rect_amp_changed (priv->rrect);
+  hyscan_track_rect_dpt_changed (priv->rrect);
 
   priv->open = TRUE;
 
@@ -1127,9 +1133,7 @@ static void
 hyscan_gtk_waterfall_speed_changed (HyScanGtkWaterfallState *model,
                                     HyScanGtkWaterfall   *self)
 {
-  gfloat speed;
-
-  hyscan_gtk_waterfall_state_get_ship_speed (model, &speed);
+  gfloat speed = hyscan_gtk_waterfall_state_get_ship_speed (model);
 
   hyscan_tile_queue_set_ship_speed (self->priv->queue, speed);
   hyscan_track_rect_set_ship_speed (self->priv->lrect, speed);
@@ -1145,7 +1149,7 @@ hyscan_gtk_waterfall_velocity_changed (HyScanGtkWaterfallState *model,
 {
   GArray *velocity;
 
-  hyscan_gtk_waterfall_state_get_sound_velocity (model, &velocity);
+  velocity = hyscan_gtk_waterfall_state_get_sound_velocity (model);
 
   hyscan_tile_queue_set_sound_velocity (self->priv->queue, velocity);
   hyscan_track_rect_set_sound_velocity (self->priv->lrect, velocity);
@@ -1155,73 +1159,12 @@ hyscan_gtk_waterfall_velocity_changed (HyScanGtkWaterfallState *model,
     g_array_unref (velocity);
 }
 
-/* Функция обрабатывает смену источников данных глубины. */
-static void
-hyscan_gtk_waterfall_depth_source_changed (HyScanGtkWaterfallState *model,
-                                           HyScanGtkWaterfall   *self)
-{
-  HyScanSourceType source;
-  guint channel;
-
-  hyscan_gtk_waterfall_state_get_depth_source (model, &source, &channel);
-
-  hyscan_tile_queue_set_depth_source (self->priv->queue, source, channel);
-  hyscan_track_rect_set_depth_source (self->priv->lrect, source, channel);
-  hyscan_track_rect_set_depth_source (self->priv->rrect, source, channel);
-}
-
-/* Функция обрабатывает смену параметров определения глубины. */
-static void
-hyscan_gtk_waterfall_depth_params_changed (HyScanGtkWaterfallState *model,
-                                           HyScanGtkWaterfall   *self)
-{
-  guint size;
-  gulong time;
-
-  hyscan_gtk_waterfall_state_get_depth_filter_size (model, &size);
-  hyscan_gtk_waterfall_state_get_depth_time (model, &time);
-
-  hyscan_tile_queue_set_depth_filter_size (self->priv->queue, size);
-  hyscan_track_rect_set_depth_filter_size (self->priv->lrect, size);
-  hyscan_track_rect_set_depth_filter_size (self->priv->rrect, size);
-  hyscan_tile_queue_set_depth_time (self->priv->queue, time);
-  hyscan_track_rect_set_depth_time (self->priv->lrect, time);
-  hyscan_track_rect_set_depth_time (self->priv->rrect, time);
-}
-
-/* Функция обрабатывает смену системы кэширования. */
-static void
-hyscan_gtk_waterfall_cache_changed (HyScanGtkWaterfallState *model,
-                                    HyScanGtkWaterfall   *self)
-{
-  HyScanCache *cache;
-  HyScanCache *cache2;
-  gchar *prefix;
-
-  hyscan_gtk_waterfall_state_get_cache (model, &cache, &cache2, &prefix);
-
-  if (cache == NULL)
-    goto exit;
-
-  hyscan_tile_color_set_cache (self->priv->color, cache2);
-  hyscan_tile_queue_set_cache (self->priv->queue, cache);
-  hyscan_track_rect_set_cache (self->priv->lrect, cache);
-  hyscan_track_rect_set_cache (self->priv->rrect, cache);
-
-exit:
-  if (cache != NULL)
-    g_object_unref (cache);
-  if (cache2 != NULL)
-    g_object_unref (cache2);
-  if (prefix != NULL)
-    g_free (prefix);
-}
-
 /* Функция создает новый виджет водопада. */
 GtkWidget*
-hyscan_gtk_waterfall_new (void)
+hyscan_gtk_waterfall_new (HyScanCache *cache)
 {
-  return g_object_new (HYSCAN_TYPE_GTK_WATERFALL, NULL);
+  return g_object_new (HYSCAN_TYPE_GTK_WATERFALL,
+                       "cache", cache, NULL);
 }
 
 /* Функция запрашивает перерисовку виджета. */
