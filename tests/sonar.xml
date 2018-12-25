@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+
+  <enum id="sigs">
+    <value name="Тон 100" value="1">
+      <description>Тоновый сигнал 100</description>
+    </value>
+    <value name="Тон 200" value="2">
+      <description>Тоновый сигнал 200</description>
+    </value>
+    <value name="ЛЧМ 1" value="3">
+      <description>ЛЧМ-сигнал 1</description>
+    </value>
+    <value name="ЛЧМ 2" value="4">
+      <description>ЛЧМ-сигнал 2</description>
+    </value>
+    <value name="ЛЧМ 5" value="5">
+      <description>ЛЧМ-сигнал 5</description>
+    </value>
+  </enum>
+
+  <schema id="sonar" name="Sonar schema"> <description>Sonar schema description</description>
+    <key id="charm" name="Очарование" type="string"><default>HyScan 5.0</default><description>аддитивное квантовое число, представляющее один из кварковых ароматов</description></key>
+    <key id="strangeness" name="Странность" type="integer">2100<description>квантовое число, необходимое для описания определённых короткоживущих частиц</description></key>
+    <key id="ibin" name="Бинарное" type="integer" view="bin"></key>
+    <key id="idec" name="Десятичное" type="integer" view="dec"></key>
+    <key id="ihex" name="Шестнадцатеричное" type="integer" view="hex"></key>
+    <key id="truth" name="Истинность" type="double">3.1415<description>флейворное (ароматовое) квантовое число, свойственное t-кваркам</description></key>
+    <key id="beauty" name="Прелесть" type="boolean"><description>Процессы, происходящие с участием b-кварка, носят жаргонное название «B-физика»</description></key>
+    <key id="signal" name="Сигнал" enum="sigs"><default>3</default><description>Сигнал</description></key>
+
+    <key id="idate" name="Дата" type="integer" view="date"><default>702165661</default></key>
+    <key id="itime" name="Время" type="integer" view="time"><default>102684900</default></key>
+    <key id="idatetime" name="Дата и время" type="integer" view="datetime"><default>2504434115</default></key>
+  </schema>
+  <schema id="sonar-ro">
+    <key id="charm" name="Гадость" type="string" access="readonly"><default>HyScan 4.0</default><description>аддитивное квантовое число, представляющее один из кварковых ароматов</description></key>
+    <key id="strangeness" name="Неприятность" type="integer" access="readonly">1600<description>квантовое число, необходимое для описания определённых короткоживущих частиц</description></key>
+    <key id="truth" name="Вредность" type="double" access="readonly">-1<description>флейворное (ароматовое) квантовое число, свойственное t-кваркам</description></key>
+    <key id="beauty" name="Злость" type="boolean" access="readonly"><description>Процессы, происходящие с участием b-кварка, носят жаргонное название «B-физика»</description></key>
+    <key id="signal" name="Сигнал" enum="sigs" access="readonly"><default>1</default><description>Сигнал</description></key>
+  </schema>
+  
+  <schema id="micro" name="Micro schema"> <description>Micro schema description</description>
+    <key id="text" name="Строка" type="string"><default>HyScan 5.0</default></key>
+    <key id="ibin" name="Бинарное" type="integer" view="bin"></key>
+    <key id="idec" name="Десятичное" type="integer" view="dec"></key>
+    <key id="ihex" name="Шестнадцатеричное" type="integer" view="hex"></key>
+  </schema>
+  <schema id="sonar-ro">
+    <key id="charm" name="Гадость" type="string" access="readonly"><default>HyScan 4.0</default><description>аддитивное квантовое число, представляющее один из кварковых ароматов</description></key>
+    <key id="strangeness" name="Неприятность" type="integer" access="readonly">1600<description>квантовое число, необходимое для описания определённых короткоживущих частиц</description></key>
+    <key id="truth" name="Вредность" type="double" access="readonly">-1<description>флейворное (ароматовое) квантовое число, свойственное t-кваркам</description></key>
+    <key id="beauty" name="Злость" type="boolean" access="readonly"><description>Процессы, происходящие с участием b-кварка, носят жаргонное название «B-физика»</description></key>
+    <key id="signal" name="Сигнал" enum="sigs" access="readonly"><default>1</default><description>Сигнал</description></key>
+  </schema>
+
+  <schema id="level1" name="level 1"><description>Level1 schema description</description>
+    <node id="level0-0-ro" name="Пино нуар" schema="sonar-ro"><description>Старый 1</description></node>
+    <node id="level0-1-ro" name="Примитиво" schema="sonar-ro"><description>Старый 2</description></node>
+    <node id="level0-0" name="Маратефтико" schema="sonar"><description>Новый 1</description></node>
+    <node id="level0-1" name="Темпранильо" schema="sonar"><description>Новый 2</description></node>
+    <node id="level0-2" name="Монтепульчано" schema="sonar"><description>Новый 3</description></node>
+    <key id="dmitriev" name="Дмитриев" type="integer"><description>Первый этаж</description> </key>
+    <key id="fadeev" name="Фадеев" type="string"><default>На месте</default><description>Первый этаж</description> </key>
+    <key id="maximov" name="Максимов" type="double"><description>Второй этаж</description> </key>
+    <key id="pylaev" name="Пылаев" enum="sigs"> <default>1</default><description>Второй этаж</description> </key>
+    <key id="dummy" name="Всё" type="boolean"><description>Беседка</description> </key>
+  </schema>
+  <schema id="level2" name="level 2"> <description>Level2 schema description</description>
+    <node id="sonar-0" schema="level1" name="Система"> <description>Системные настройки</description></node>
+    <node id="sonar-1" schema="level1" name="Звук"> <description>Параметры озвучивания</description></node>
+    <node id="sonar-ro-0" schema="level1" name="Точность"> <description>Повышение прецизионности</description></node>
+    <node id="sonar-ro-1" schema="level1" name="Сервис"> <description>Сервисная информация</description></node>
+    <key id="L2_K0" name="Ель" type="string"><description>Колючая</description><default>ёлочка</default></key>
+    <key id="L2_K1" name="Сосна" type="string"><description>Корабельная</description><default>сосенка</default></key>
+    <key id="L2_K2" name="Дуб" type="string"><description>Могучий</description><default>дубок</default></key>
+    <key id="L2_K3" name="Секвойя" type="string"><description>Огромная</description><default>секвойка</default></key>
+    <key id="L2_K4" name="Можжевельник" type="string"><description>Ароматный</description><default>можжевельничек</default></key>
+    <key id="L2_K5" name="Береза" type="string"><description>Русская</description><default>березонька</default></key>
+  </schema>
+  <schema id="level3" name="level 3"><description>Level3 schema description</description>
+    <node id="level2-0" schema="level2" name="Север"><description>Сверху</description></node>
+    <node id="level2-1" schema="level2" name="Юг"><description>Снизу</description></node>
+    <key id="L3_K0" name="(L3: K0) kid" type="string"><description>L3, K0 descr</description><default>L3; K0 def</default></key>
+    <key id="L3_K1" name="(L3: K1) kid" type="string"><description>L3, K1 descr</description><default>L3; K1 def</default></key>
+    <key id="L3_K2" name="(L3: K2) kid" type="string"><description>L3, K2 descr</description><default>L3; K2 def</default></key>
+    <key id="L3_K3" name="(L3: K3) kid" type="string"><description>L3, K3 descr</description><default>L3; K3 def</default></key>
+    <key id="L3_K4" name="(L3: K4) kid" type="string"><description>L3, K4 descr</description><default>L3; K4 def</default></key>
+    <key id="L3_K5" name="(L3: K5) kid" type="string"><description>L3, K5 descr</description><default>L3; K5 def</default></key>
+  </schema>
+
+
+</schemalist>
