@@ -185,6 +185,9 @@ HYSCAN_API
 void                    hyscan_gtk_waterfall_grid_set_shadow_color      (HyScanGtkWaterfallGrid *grid,
                                                                          guint32                 color);
 
+HYSCAN_API
+GtkWidget *             hyscan_gtk_waterfall_grid_make_grid             (HyScanGtkWaterfallGrid *grid,
+                                                                         GtkWidget              *child);
 G_END_DECLS
 
 #endif /* __HYSCAN_GTK_WATERFALL_GRID_H__ */

@@ -897,11 +897,36 @@ hyscan_gtk_waterfall_grid_set_shadow_color (HyScanGtkWaterfallGrid *self,
   hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-
 static void
 hyscan_gtk_waterfall_grid_interface_init (HyScanGtkWaterfallLayerInterface *iface)
 {
   iface->grab_input = NULL;
   iface->set_visible = hyscan_gtk_waterfall_grid_set_visible;
   iface->get_mnemonic = hyscan_gtk_waterfall_grid_get_mnemonic;
+}
+
+GtkWidget *
+hyscan_gtk_waterfall_grid_make_grid (HyScanGtkWaterfallGrid *grid,
+                                     GtkWidget              *child)
+{
+  GtkWidget * container;
+  GtkWidget * hscroll, * vscroll;
+  GtkAdjustment * hadj, * vadj;
+
+  container = gtk_grid_new ();
+  hadj = hyscan_gtk_waterfall_grid_get_hadjustment (grid);
+  vadj = hyscan_gtk_waterfall_grid_get_vadjustment (grid);
+
+  hscroll = gtk_scrollbar_new (GTK_ORIENTATION_HORIZONTAL, hadj);
+  vscroll = gtk_scrollbar_new (GTK_ORIENTATION_VERTICAL, vadj);
+
+  gtk_widget_set_hexpand (child, TRUE);
+  gtk_widget_set_vexpand (child, TRUE);
+  gtk_range_set_inverted (GTK_RANGE (vscroll), TRUE);
+
+  gtk_grid_attach (GTK_GRID (container), child,   0, 0, 1, 1);
+  gtk_grid_attach (GTK_GRID (container), hscroll, 0, 1, 1, 1);
+  gtk_grid_attach (GTK_GRID (container), vscroll, 1, 0, 1, 1);
+
+  return container;
 }

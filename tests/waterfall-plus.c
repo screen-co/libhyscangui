@@ -42,8 +42,6 @@ GtkWidget *make_layer_btn   (HyScanGtkWaterfallLayer *layer,
 GtkWidget *make_menu        (HyScanGtkWaterfall *wf,
                              gdouble             white,
                              gdouble             gamma);
-GtkWidget *make_central     (HyScanGtkWaterfall     *wf,
-                             HyScanGtkWaterfallGrid *grid);
 gboolean   slant_ground     (GtkSwitch *widget,
                              gboolean   state,
                              gpointer   udata);
@@ -71,6 +69,7 @@ main (int    argc,
 {
   GtkWidget *area;
   GtkWidget *left;
+  GtkWidget *central;
   GtkWidget *wf_widget;
 
   gchar *project_name = NULL;
@@ -156,13 +155,10 @@ main (int    argc,
   area = hyscan_gtk_area_new ();
 
   left = make_menu (wf, white, gamma);
-
   hyscan_gtk_area_set_left (HYSCAN_GTK_AREA (area), left);
-  {
-    GtkWidget * grid = make_central (wf, wf_grid);
-    hyscan_gtk_area_set_central (HYSCAN_GTK_AREA (area), grid);
-  }
-  // hyscan_gtk_area_set_central (HYSCAN_GTK_AREA (area), wf_widget);
+
+  central = hyscan_gtk_waterfall_grid_make_grid (wf_grid, GTK_WIDGET (wf));
+  hyscan_gtk_area_set_central (HYSCAN_GTK_AREA (area), central);
 
   gtk_container_add (GTK_CONTAINER (window), area);
   gtk_widget_show_all (window);
@@ -453,27 +449,6 @@ uri_composer (gchar **path,
     }
 
   return uri;
-}
-
-GtkWidget *
-make_central (HyScanGtkWaterfall     *wf,
-              HyScanGtkWaterfallGrid *wf_grid)
-{
-  GtkWidget * grid = gtk_grid_new ();
-  GtkWidget * hscroll = gtk_scrollbar_new (GTK_ORIENTATION_HORIZONTAL,
-                                           hyscan_gtk_waterfall_grid_get_hadjustment (wf_grid));
-  GtkWidget * vscroll = gtk_scrollbar_new (GTK_ORIENTATION_VERTICAL,
-                                           // hyscan_gtk_waterfall_grid_get_hadjustment (wf_grid));
-                                           hyscan_gtk_waterfall_grid_get_vadjustment (wf_grid));
-
-  g_object_set (wf, "hexpand", TRUE, "vexpand", TRUE, NULL);
-  gtk_range_set_inverted (GTK_RANGE (vscroll), TRUE);
-
-  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (wf), 0, 0, 1, 1);
-  gtk_grid_attach (GTK_GRID (grid), hscroll, 0, 1, 1, 1);
-  gtk_grid_attach (GTK_GRID (grid), vscroll, 1, 0, 1, 1);
-
-  return grid;
 }
 
 gboolean
