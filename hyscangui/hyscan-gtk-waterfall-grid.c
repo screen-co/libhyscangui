@@ -65,6 +65,7 @@ struct _HyScanGtkWaterfallGridPrivate
 
   HyScanWaterfallDisplayType display_type;
 
+  gdouble condence;
 };
 
 static void     hyscan_gtk_waterfall_grid_interface_init         (HyScanGtkWaterfallLayerInterface *iface);
@@ -453,7 +454,7 @@ hyscan_gtk_waterfall_grid_vertical (GtkWidget *widget,
     while (axis <= axis_to)
       {
         gdouble x, y;
-        g_ascii_formatd (text_str, sizeof(text_str), text_format, axis);
+        g_ascii_formatd (text_str, sizeof(text_str), text_format, axis * priv->condence);
         pango_layout_set_text (font, text_str, -1);
         pango_layout_get_size (font, &text_width, NULL);
         text_width /= PANGO_SCALE;
@@ -678,7 +679,7 @@ hyscan_gtk_waterfall_grid_info (GtkWidget *widget,
   value_power = (value_power > 0) ? 0 : value_power;
 
   g_snprintf (text_format, sizeof(text_format), "-%%.%df", (gint) ABS (value_power));
-  g_snprintf (text_str[VALUE_X], sizeof(text_str[VALUE_X]), text_format, MAX( ABS( from_x ), ABS( to_x ) ));
+  g_snprintf (text_str[VALUE_X], sizeof(text_str[VALUE_X]), text_format, MAX( ABS( from_x * priv->condence ), ABS( to_x * priv->condence ) ));
 
   /* Для координаты У. */
   value = value_y;
@@ -762,7 +763,7 @@ hyscan_gtk_waterfall_grid_info (GtkWidget *widget,
   gtk_cifro_area_get_axis_step (scale, 1, &value, NULL, NULL, &value_power);
   value_power = (value_power > 0) ? 0 : value_power;
   g_snprintf (text_format, sizeof(text_format), "%%.%df", (gint) ABS (value_power));
-  g_ascii_formatd (text_str[VALUE_X], sizeof(text_str[VALUE_X]), text_format, value_x);
+  g_ascii_formatd (text_str[VALUE_X], sizeof(text_str[VALUE_X]), text_format, value_x * priv->condence);
 
   value = value_y;
   gtk_cifro_area_get_axis_step (scale, 1, &value, NULL, NULL, &value_power);
@@ -896,6 +897,18 @@ hyscan_gtk_waterfall_grid_set_shadow_color (HyScanGtkWaterfallGrid *self,
 
   hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
+
+void
+hyscan_gtk_waterfall_grid_set_condence (HyScanGtkWaterfallGrid *self,
+                                        gdouble                 condence)
+{
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (self));
+
+  self->priv->condence = condence;
+
+  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
+}
+
 
 static void
 hyscan_gtk_waterfall_grid_interface_init (HyScanGtkWaterfallLayerInterface *iface)

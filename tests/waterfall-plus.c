@@ -143,6 +143,8 @@ main (int    argc,
   wf_ctrl = hyscan_gtk_waterfall_control_new (wf);
   wf_play = hyscan_gtk_waterfall_player_new (wf);
 
+  hyscan_gtk_waterfall_state_set_ship_speed (wf_state, speed);
+
   //hyscan_gtk_waterfall_echosounder (wf, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD);
 
   hyscan_gtk_waterfall_set_upsample (wf, 2);
