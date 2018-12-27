@@ -9,7 +9,9 @@ GType find_function (const gchar * view);
 void  make_window   (HyScanParam * backend,
                      GType         view_type,
                      const gchar * title,
-                     const gchar * subtitle);
+                     const gchar * subtitle,
+                     gboolean      hidden,
+                     const gchar * root);
 
 int
 main (int argc, char **argv)
@@ -20,6 +22,8 @@ main (int argc, char **argv)
   gchar *id = NULL;
   gchar *view = g_strdup ("list");
   gint   n_windows = 1;
+  gboolean hidden = FALSE;
+  gchar *root = NULL;
 
   gtk_init (&argc, &argv);
 
@@ -32,6 +36,8 @@ main (int argc, char **argv)
       {
         { "id",     'i', 0, G_OPTION_ARG_STRING, &id,   "Schema id to show", NULL },
         { "view",   'v', 0, G_OPTION_ARG_STRING, &view, "View type (list, tree, cc)", NULL },
+        { "unhide", 'u', 0, G_OPTION_ARG_NONE,   &hidden, "Make hidden keys visible", NULL },
+        { "root",   'r', 0, G_OPTION_ARG_STRING, &root, "Root node", NULL },
         { "windows",'n', 0, G_OPTION_ARG_INT,    &n_windows, "Number of windows", NULL },
         { NULL }
       };
@@ -76,7 +82,7 @@ main (int argc, char **argv)
 
   /* Создаем окна. */
   for (; n_windows > 0; --n_windows)
-    make_window (HYSCAN_PARAM (data_box), view_type, file, id);
+    make_window (HYSCAN_PARAM (data_box), view_type, file, id, hidden, root);
 
   gtk_main ();
 
@@ -108,13 +114,19 @@ void
 make_window (HyScanParam * backend,
              GType         view_type,
              const gchar * title,
-             const gchar * subtitle)
+             const gchar * subtitle,
+             gboolean      hidden,
+             const gchar * root)
 {
   GtkWidget *window, *header;
   GtkWidget *frontend;
 
   /* Виджет отображения. */
-  frontend = g_object_new (view_type, "param", backend, NULL);
+  frontend = g_object_new (view_type,
+                           "param", backend,
+                           "hidden", hidden,
+                           "root", root,
+                           NULL);
   hyscan_gtk_param_set_watch_period (HYSCAN_GTK_PARAM (frontend), 1000);
 
   /* Хэдербар. */
@@ -134,4 +146,3 @@ make_window (HyScanParam * backend,
   gtk_container_add (GTK_CONTAINER (window), frontend);
   gtk_widget_show_all (window);
 }
-

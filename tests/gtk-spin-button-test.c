@@ -35,7 +35,7 @@ main (int argc, char **argv)
 
   gtk_init (&argc, &argv);
 
-  adj = gtk_adjustment_new (0, -65536, 65536, 1, 1, 1);
+  adj = gtk_adjustment_new (0, -65536, 65537, 1, 1, 1);
 
   bin = g_object_new (HYSCAN_TYPE_GTK_SPIN_BUTTON, "adjustment", adj, "base", 2, NULL);
   dec = g_object_new (HYSCAN_TYPE_GTK_SPIN_BUTTON, "adjustment", adj, "base", 10, NULL);

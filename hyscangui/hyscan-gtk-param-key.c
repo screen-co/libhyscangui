@@ -47,15 +47,16 @@
  * выбирается, как этот ключ будет отображен: строка, переключатель, число,
  * календарь, список. Пользователю не требуется подключаться к разным сигналам
  * в зависимости от типа ключа: существует единственный сигнал "changed",
- * передающий #GValue
+ * передающий #GVariant
  */
 #include "hyscan-gtk-param-key.h"
 #include <hyscan-gtk-spin-button.h>
 #include <hyscan-gtk-datetime.h>
 #include <hyscan-gui-marshallers.h>
+#include <math.h>
 
 #define DESCRIPTION_MARKUP "<span style=\"italic\">\%s</span>"
-#define TEXT_WIDTH 16
+#define TEXT_WIDTH 24
 #define INVALID "HyScanGtkParam: invalid key"
 
 #define time_view(view) (view == HYSCAN_DATA_SCHEMA_VIEW_DATE || \
@@ -217,7 +218,8 @@ hyscan_gtk_param_key_object_constructed (GObject *object)
   priv->label = gtk_label_new (priv->key->name);
   priv->value = hyscan_gtk_param_key_make_editor (self);
 
-  sensitive = priv->key->access != HYSCAN_DATA_SCHEMA_ACCESS_READONLY;
+  sensitive = (priv->key->access & HYSCAN_DATA_SCHEMA_ACCESS_WRITE);
+
   gtk_widget_set_sensitive (priv->label, sensitive);
   gtk_widget_set_sensitive (priv->value, sensitive);
 
@@ -225,7 +227,7 @@ hyscan_gtk_param_key_object_constructed (GObject *object)
     gtk_widget_set_tooltip_text (priv->label, priv->key->description);
 
   gtk_widget_set_halign (priv->label, GTK_ALIGN_END);
-  gtk_widget_set_hexpand (priv->label, TRUE);
+  gtk_widget_set_hexpand (priv->label, FALSE);
   gtk_widget_set_halign (priv->value, GTK_ALIGN_START);
   gtk_widget_set_hexpand (priv->value, TRUE);
 
@@ -377,13 +379,18 @@ hyscan_gtk_param_key_make_editor_integer (HyScanDataSchema    *schema,
   if (_step != NULL)
     step = g_variant_get_int64 (_step);
 
+  /* Это сделано потому, что adjustment принимает значения [start, end). */
+  if (max < G_MAXINT64 - step)
+    max += step;
+  else
+    max = G_MAXINT64;
 
   if (key->view == HYSCAN_DATA_SCHEMA_VIEW_BIN)
     base = 2;
-  else if (key->view == HYSCAN_DATA_SCHEMA_VIEW_DEC || key->view == HYSCAN_DATA_SCHEMA_VIEW_DEFAULT)
-    base = 10;
-  else /* if (key->view == HYSCAN_DATA_SCHEMA_VIEW_HEX) */
+  else if (key->view == HYSCAN_DATA_SCHEMA_VIEW_HEX)
     base = 16;
+  else /* if (key->view == HYSCAN_DATA_SCHEMA_VIEW_DEC || key->view == HYSCAN_DATA_SCHEMA_VIEW_DEFAULT) */
+    base = 10;
 
   adjustment = gtk_adjustment_new (def, min, max, step, step, step);
   editor = g_object_new (HYSCAN_TYPE_GTK_SPIN_BUTTON,
@@ -440,11 +447,12 @@ hyscan_gtk_param_key_make_editor_double (HyScanDataSchema    *schema,
   GtkAdjustment *adjustment;
   GVariant *_min, *_max, *_step, *_def;
   gdouble def, min, max, step;
+  guint digits;
 
   def = 0;
   min = -G_MAXDOUBLE;
   max = G_MAXDOUBLE;
-  step = 1;
+  step = 0.1;
 
   _def = hyscan_data_schema_key_get_default (schema, key->id);
   _min = hyscan_data_schema_key_get_minimum (schema, key->id);
@@ -460,16 +468,25 @@ hyscan_gtk_param_key_make_editor_double (HyScanDataSchema    *schema,
   if (_step != NULL)
     step = g_variant_get_double (_step);
 
+  /* Это сделано потому, что adjustment принимает значения [start, end). */
+  if (max < G_MAXDOUBLE - step)
+    max += step;
+  else
+    max = G_MAXINT64;
+
+  /* Количество знаков после запятой определяется шагом. */
+  digits = ABS(log10 (step)) + 1;
+
   adjustment = gtk_adjustment_new (def, min, max, step, step, step);
-  editor = gtk_spin_button_new (adjustment, 1.0, 0);
+  editor = gtk_spin_button_new (adjustment, step, digits);
 
   gtk_entry_set_width_chars (GTK_ENTRY (editor), TEXT_WIDTH);
   gtk_entry_set_max_width_chars (GTK_ENTRY (editor), TEXT_WIDTH);
 
-  g_clear_pointer(&_def, g_variant_unref);
-  g_clear_pointer(&_min, g_variant_unref);
-  g_clear_pointer(&_max, g_variant_unref);
-  g_clear_pointer(&_step, g_variant_unref);
+  g_clear_pointer (&_def, g_variant_unref);
+  g_clear_pointer (&_min, g_variant_unref);
+  g_clear_pointer (&_max, g_variant_unref);
+  g_clear_pointer (&_step, g_variant_unref);
 
   return editor;
 }
@@ -517,12 +534,10 @@ hyscan_gtk_param_key_make_editor_enum (HyScanDataSchema    *schema,
     {
       HyScanDataSchemaEnumValue *data = link->data;
 
-      gchar *text = g_strdup_printf ("%li (%s)", data->value, data->name);
       gchar *id = hyscan_gtk_param_key_enum_id (data->value);
 
-      gtk_combo_box_text_append (GTK_COMBO_BOX_TEXT (editor), id, text);
+      gtk_combo_box_text_append (GTK_COMBO_BOX_TEXT (editor), id, data->name);
 
-      g_free (text);
       g_free (id);
     }
 
@@ -682,7 +697,7 @@ hyscan_gtk_param_key_notify_enum (GObject    *object,
  *
  * Функция создает новый виджет HyScanGtkParamKey.
  *
- * Returns: новый виджет HyScanGtkParamKey.
+ * Returns: HyScanGtkParamKey.
  */
 GtkWidget *
 hyscan_gtk_param_key_new (HyScanDataSchema    *schema,

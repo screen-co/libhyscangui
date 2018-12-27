@@ -74,15 +74,16 @@ static void        hyscan_gtk_param_cc_row_activated        (GtkListBox         
                                                              GtkListBoxRow               *row,
                                                              gpointer                     udata);
 static void        hyscan_gtk_param_cc_make_level0          (HyScanGtkParamCC            *self,
-                                                             const HyScanDataSchemaNode  *node,
                                                              GHashTable                  *widgets);
 static GtkWidget * hyscan_gtk_param_cc_make_level1          (const HyScanDataSchemaNode  *node,
                                                              GHashTable                  *widgets,
-                                                             HyScanParamList             *plist);
+                                                             HyScanParamList             *plist,
+                                                             gboolean                     show_hidden);
 static GtkWidget * hyscan_gtk_param_cc_make_level2          (const HyScanDataSchemaNode  *node,
                                                              GHashTable                  *widgets,
                                                              HyScanParamList             *plist,
-                                                             gboolean                     label);
+                                                             gboolean                     show_label,
+                                                             gboolean                     show_hidden);
 static GtkWidget * hyscan_gtk_param_cc_add_row              (HyScanGtkParamCC            *self,
                                                              const HyScanDataSchemaNode  *node,
                                                              HyScanParamList             *plist);
@@ -107,8 +108,6 @@ hyscan_gtk_param_cc_init (HyScanGtkParamCC *self)
 static void
 hyscan_gtk_param_cc_object_constructed (GObject *object)
 {
-  HyScanDataSchema *schema;
-  const HyScanDataSchemaNode *node;
   GHashTable *widgets;
   GtkWidget *abar, *scroll;
   HyScanGtkParamCC *self = HYSCAN_GTK_PARAM_CC (object);
@@ -132,12 +131,10 @@ hyscan_gtk_param_cc_object_constructed (GObject *object)
                 "transition-type", GTK_STACK_TRANSITION_TYPE_SLIDE_UP_DOWN,
                 NULL);
 
-  schema = hyscan_gtk_param_get_schema (HYSCAN_GTK_PARAM (self));
-  node = hyscan_data_schema_list_nodes (schema);
 
   widgets = hyscan_gtk_param_get_widgets (HYSCAN_GTK_PARAM (self));
 
-  hyscan_gtk_param_cc_make_level0 (self, node, widgets);
+  hyscan_gtk_param_cc_make_level0 (self, widgets);
 
   {
     GtkListBoxRow *row;
@@ -199,28 +196,32 @@ hyscan_gtk_param_cc_row_activated (GtkListBox    *box,
 /* Функция создает виджет нулевого уровня (ключи + все виджеты 1 уровня). */
 static void
 hyscan_gtk_param_cc_make_level0 (HyScanGtkParamCC           *self,
-                                 const HyScanDataSchemaNode *node,
                                  GHashTable                 *widgets)
 {
   HyScanGtkParamCCPrivate *priv = self->priv;
+  const HyScanDataSchemaNode *node;
+  gboolean show_hidden;
   HyScanParamList *plist;
   GList *link;
   GtkWidget *box;
 
-  plist = hyscan_param_list_new ();
+  node = hyscan_gtk_param_get_nodes (HYSCAN_GTK_PARAM (self));
+  show_hidden = hyscan_gtk_param_get_show_hidden (HYSCAN_GTK_PARAM (self));
 
   /* Ключи этого уровня. */
-  box = hyscan_gtk_param_cc_make_level2 (node, widgets, plist, FALSE);
+  plist = hyscan_param_list_new ();
+  box = hyscan_gtk_param_cc_make_level2 (node, widgets, plist, FALSE, show_hidden);
   if (box != NULL)
     {
       GtkWidget *scroll;
-      g_object_set (box, "margin", 18, NULL);
 
+      g_object_set (box, "margin", 18, NULL);
       scroll = SCROLLABLE (box);
 
       gtk_stack_add_titled (priv->stack, scroll, node->path, node->path);
       hyscan_gtk_param_cc_add_row (self, node, plist);
     }
+  g_object_unref (plist);
 
   /* Подузлы этого уровня. */
   for (link = node->nodes; link != NULL; link = link->next)
@@ -228,39 +229,58 @@ hyscan_gtk_param_cc_make_level0 (HyScanGtkParamCC           *self,
       HyScanDataSchemaNode *subnode = link->data;
 
       plist = hyscan_param_list_new ();
-      box = hyscan_gtk_param_cc_make_level1 (subnode, widgets, plist);
+      box = hyscan_gtk_param_cc_make_level1 (subnode, widgets, plist, show_hidden);
       gtk_stack_add_titled (priv->stack, box, subnode->path, subnode->path);
       hyscan_gtk_param_cc_add_row (self, subnode, plist);
     }
+
 }
 
 /* Функция создает виджет 1 уровня (текущие ключи + ключи 2 уровня). */
 static GtkWidget *
 hyscan_gtk_param_cc_make_level1 (const HyScanDataSchemaNode *node,
                                  GHashTable                 *widgets,
-                                 HyScanParamList            *plist)
+                                 HyScanParamList            *plist,
+                                 gboolean                    show_hidden)
 {
-  GtkWidget *box, *widget, *scroll;
+  GtkWidget *box, *widget;
   HyScanDataSchemaNode *subnode;
   GList *link;
+  gboolean empty = TRUE;
 
   box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 2);
   g_object_set (box, "margin", 18, NULL);
 
-  widget = hyscan_gtk_param_cc_make_level2 (node, widgets, plist, FALSE);
-  gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
+  widget = hyscan_gtk_param_cc_make_level2 (node, widgets, plist, FALSE, show_hidden);
+  if (widget != NULL)
+    {
+      gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
+      empty = FALSE;
+    }
 
   for (link = node->nodes; link != NULL; link = link->next)
     {
       subnode = link->data;
 
-      widget = hyscan_gtk_param_cc_make_level2 (subnode, widgets, plist, TRUE);
+      widget = hyscan_gtk_param_cc_make_level2 (subnode, widgets, plist, TRUE, show_hidden);
+
+      if (!widget)
+        continue;
 
       gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
+      empty = FALSE;
     }
 
-  scroll = SCROLLABLE (box);
-  return scroll;
+  if (empty)
+    {
+      g_clear_object (&box);
+      return NULL;
+    }
+  else
+    {
+      GtkWidget *scroll = SCROLLABLE (box);
+      return scroll;
+    }
 }
 
 /* Функция создает виджет 2 уровня (текущие ключи). */
@@ -268,13 +288,14 @@ static GtkWidget *
 hyscan_gtk_param_cc_make_level2 (const HyScanDataSchemaNode *node,
                                  GHashTable                 *widgets,
                                  HyScanParamList            *plist,
-                                 gboolean                    label)
+                                 gboolean                    show_label,
+                                 gboolean                    show_hidden)
 {
   GList *link;
-  GtkWidget *box, *frame;
+  GtkWidget *box, *frame, *pkey;
   GtkSizeGroup *size;
 
-  if (node->keys == NULL)
+  if (!hyscan_gtk_param_node_has_visible_keys (node, show_hidden))
     return NULL;
 
   g_list_foreach (node->keys, hyscan_gtk_param_cc_plist_adder, plist);
@@ -291,8 +312,12 @@ hyscan_gtk_param_cc_make_level2 (const HyScanDataSchemaNode *node,
   for (link = node->keys; link != NULL; link = link->next)
     {
       HyScanDataSchemaKey *key = link->data;
-      GtkWidget *pkey = g_hash_table_lookup (widgets, key->id);
 
+      /* А скрытые ключи я тебе, лысый, не покажу. */
+      if ((key->access & HYSCAN_DATA_SCHEMA_ACCESS_HIDDEN) && !show_hidden)
+        continue;
+
+      pkey = g_hash_table_lookup (widgets, key->id);
       if (pkey == NULL)
         continue;
 
@@ -303,12 +328,11 @@ hyscan_gtk_param_cc_make_level2 (const HyScanDataSchemaNode *node,
 
   g_object_unref (size);
 
-  if (!label)
+  if (!show_label)
     return box;
 
   frame = gtk_frame_new (node->name);
-  g_object_set (frame, "shadow-type", GTK_SHADOW_NONE,
-                       "margin-top", 12, NULL);
+  g_object_set (frame, "shadow-type", GTK_SHADOW_NONE, NULL);
 
   gtk_container_add (GTK_CONTAINER (frame), box);
   return frame;
@@ -321,31 +345,31 @@ hyscan_gtk_param_cc_add_row (HyScanGtkParamCC           *self,
                              HyScanParamList            *plist)
 {
   HyScanGtkParamCCPrivate *priv = self->priv;
-  GtkWidget *box, *name, *descr;
-  gchar *markup;
-  const gchar * text;
+  GtkWidget *box, *title, *subtitle;
+  gchar *markup, *name;
+  const gchar *desc;
 
   /* Виджет заголовка. */
-  name = g_object_new (GTK_TYPE_LABEL,
-                       "wrap", FALSE,
-                       "single-line-mode", TRUE,
-                       "ellipsize", PANGO_ELLIPSIZE_END,
-                       "width-chars", 20,
-                       "label", node->name,
-                       NULL);
+  name = hyscan_gtk_param_get_node_name (node);
+  title = g_object_new (GTK_TYPE_LABEL,
+                        "wrap", FALSE,
+                        "single-line-mode", TRUE,
+                        "ellipsize", PANGO_ELLIPSIZE_END,
+                        "width-chars", 20,
+                        "label", name,
+                        NULL);
 
   /* Виджет описания. */
-  text = (node->description != NULL) ? node->description : "";
-  markup = g_markup_printf_escaped ("<span size=\"smaller\">\%s</span>", text);
+  desc = (node->description != NULL) ? node->description : "";
+  markup = g_markup_printf_escaped ("<span size=\"smaller\">\%s</span>", desc);
 
-  descr = g_object_new (GTK_TYPE_LABEL,
-                       "wrap", FALSE,
-                       "single-line-mode", TRUE,
-                       "ellipsize", PANGO_ELLIPSIZE_END,
-                       "label", markup,
-                       "use-markup", TRUE,
-                       NULL);
-  g_free (markup);
+  subtitle = g_object_new (GTK_TYPE_LABEL,
+                           "wrap", FALSE,
+                           "single-line-mode", TRUE,
+                           "ellipsize", PANGO_ELLIPSIZE_END,
+                           "label", markup,
+                           "use-markup", TRUE,
+                           NULL);
 
   /* Контейнер для заголовка и описания. */
   box = g_object_new (GTK_TYPE_BOX,
@@ -353,13 +377,16 @@ hyscan_gtk_param_cc_add_row (HyScanGtkParamCC           *self,
                       "margin", 6, NULL);
 
   /* Упаковка. */
-  gtk_box_pack_start (GTK_BOX (box), name, FALSE, FALSE, 0);
-  gtk_box_pack_end (GTK_BOX (box), descr, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (box), title, FALSE, FALSE, 0);
+  gtk_box_pack_end (GTK_BOX (box), subtitle, FALSE, FALSE, 0);
 
   gtk_list_box_insert (GTK_LIST_BOX (priv->lbox), box, -1);
 
   g_ptr_array_add (priv->paths, (gpointer)g_strdup (node->path));
-  g_ptr_array_add (priv->plists, plist);
+  g_ptr_array_add (priv->plists, g_object_ref (plist));
+
+  g_free (markup);
+  g_free (name);
 
   return NULL;
 }
@@ -367,15 +394,38 @@ hyscan_gtk_param_cc_add_row (HyScanGtkParamCC           *self,
 /**
  * hyscan_gtk_param_cc_new:
  * @param: интерфейс #HyScanParam
+ * @root: корневой узел схемы
+ * @show_hidden: показывать ли скрытые ключи
  *
- * Функция создаёт новый виджет #HyScanGtkParamCC
+ * Функция создаёт виджет #HyScanGtkParamCC.
  *
- * Returns: Свежесозданный #HyScanGtkParamCC.
+ * Returns: #HyScanGtkParamCC.
  */
 GtkWidget *
-hyscan_gtk_param_cc_new (HyScanParam *param)
+hyscan_gtk_param_cc_new (HyScanParam *param,
+                         const gchar *root,
+                         gboolean     show_hidden)
+{
+  return g_object_new (HYSCAN_TYPE_GTK_PARAM_CC,
+                       "param", param,
+                       "root", root,
+                       "hidden", show_hidden,
+                       NULL);
+}
+
+/**
+ * hyscan_gtk_param_cc_new_default:
+ * @param: интерфейс #HyScanParam
+ *
+ * Функция создаёт виджет #HyScanGtkParamCC с настройками по умолчанию.
+ *
+ * Returns: #HyScanGtkParamCC.
+ */
+GtkWidget *
+hyscan_gtk_param_cc_new_default (HyScanParam *param)
 {
   return g_object_new (HYSCAN_TYPE_GTK_PARAM_CC,
                        "param", param,
                        NULL);
 }
+

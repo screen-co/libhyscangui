@@ -410,7 +410,7 @@ hyscan_gtk_datetime_output (GtkSpinButton *button)
  * Функция создаёт новый виджет #HyScanGtkDateTime, отображающий данные в
  * соответствии с заданным режимом
  *
- * Returns: Свежесозданный #HyScanGtkDateTime.
+ * Returns: #HyScanGtkDateTime.
  */
 GtkWidget *
 hyscan_gtk_datetime_new (HyScanGtkDateTimeMode mode)

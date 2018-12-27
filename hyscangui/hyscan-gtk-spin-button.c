@@ -291,7 +291,7 @@ hyscan_gtk_spin_button_filter_bin (const gchar *src)
     {
       gchar c = src[i];
 
-      if (c == '0' && c == '1')
+      if (c == '0' || c == '1')
         dst[j++] = c;
       else
         changed = TRUE;
@@ -338,10 +338,10 @@ hyscan_gtk_spin_button_format_hex (gint64   value,
 }
 
 /* Функция печатает ровно 1 байт. */
-static gint
+static gboolean
 hyscan_gtk_spin_button_print_byte (guchar    byte,
                                    gboolean  omit_leading,
-                                   gboolean  print_on_zero,
+                                   gboolean  reduce,
                                    gchar    *dst)
 {
   gint count = 0;
@@ -360,8 +360,8 @@ hyscan_gtk_spin_button_print_byte (guchar    byte,
         break;
     }
 
-  /* Если выставлен print_on_zero, надо напечатать "0" */
-  if (print_on_zero && byte == 0)
+  /* Если выставлен reduce, надо напечатать "0" */
+  if (reduce && byte == 0)
     j = 0;
 
   /* Непосредственно печать. */
@@ -371,6 +371,7 @@ hyscan_gtk_spin_button_print_byte (guchar    byte,
       count += g_sprintf (dst + count, "%u", bit);
     }
 
+  /* Возвращаем количество напечатанных символов. */
   return count;
 }
 
@@ -382,7 +383,7 @@ hyscan_gtk_spin_button_format_bin (gint64   value,
   gint i;
   gchar * str;
   gchar * strp;
-  gboolean cut = TRUE;
+  gboolean omit_leading = TRUE;
   guchar *b = (guchar*) &value;
 
   strp = str = g_malloc0 (70); /* "0b" + 64 + '\0' плюс немного сверху */
@@ -392,10 +393,23 @@ hyscan_gtk_spin_button_format_bin (gint64   value,
 
   for (i = 7; i >= 0; --i)
     {
-      gint nsyms = hyscan_gtk_spin_button_print_byte (b[i], cut, i == 0, strp);
+      gint nsyms;
+
+      /* Существуют вот такие случаи:
+       * 1 00000000 (256) - последний байт надо вывести целиком
+       * 0 00000000 (0) - можно написать просто "0"
+       * 0{1-7}х - надо отбросить лидирующие нули, которые не несут смысла
+       *
+       * - omit_leading висит TRUE до тех пор, пока не будет напечатан хоть один
+       * значащий бит
+       * - "0" будет написано, если до этого не было ни единого значащего И это
+       * последний байт
+       */
+      nsyms = hyscan_gtk_spin_button_print_byte (b[i], omit_leading,
+                                                 i == 0 && omit_leading, strp);
 
       if (nsyms)
-        cut = FALSE;
+        omit_leading = FALSE;
 
       strp += nsyms;
     }
@@ -408,7 +422,7 @@ hyscan_gtk_spin_button_format_bin (gint64   value,
  *
  * Функция создаёт новый виджет #HyScanGtkSpinButton
  *
- * Returns: Свежесозданный #HyScanGtkSpinButton.
+ * Returns: #HyScanGtkSpinButton.
  */
 GtkWidget *
 hyscan_gtk_spin_button_new (void)

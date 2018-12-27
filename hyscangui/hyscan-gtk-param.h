@@ -70,6 +70,13 @@ HYSCAN_API
 HyScanDataSchema *      hyscan_gtk_param_get_schema       (HyScanGtkParam  *gtk_param);
 
 HYSCAN_API
+const HyScanDataSchemaNode *
+                        hyscan_gtk_param_get_nodes        (HyScanGtkParam  *gtk_param);
+
+HYSCAN_API
+gboolean                hyscan_gtk_param_get_show_hidden  (HyScanGtkParam  *gtk_param);
+
+HYSCAN_API
 void                    hyscan_gtk_param_set_watch_list   (HyScanGtkParam  *gtk_param,
                                                            HyScanParamList *plist);
 
@@ -88,6 +95,13 @@ void                    hyscan_gtk_param_set_watch_period (HyScanGtkParam  *gtk_
 
 HYSCAN_API
 GtkWidget *             hyscan_gtk_param_make_action_bar  (HyScanGtkParam  *gtk_param);
+
+HYSCAN_API
+gchar *                 hyscan_gtk_param_get_node_name    (const HyScanDataSchemaNode *node);
+
+HYSCAN_API
+gboolean                hyscan_gtk_param_node_has_visible_keys (const HyScanDataSchemaNode *node,
+                                                                gboolean                    show_hidden);
 
 
 G_END_DECLS
