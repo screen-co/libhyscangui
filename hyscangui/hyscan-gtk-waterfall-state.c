@@ -100,7 +100,7 @@ hyscan_gtk_waterfall_state_class_init (HyScanGtkWaterfallStateClass *klass)
     g_signal_new ("handle", HYSCAN_TYPE_GTK_WATERFALL_STATE,
                   G_SIGNAL_RUN_LAST,
                   0, hyscan_gtk_waterfall_state_handle_accumulator, NULL,
-                  g_cclosure_user_marshal_POINTER__POINTER,
+                  hyscan_gui_marshal_POINTER__POINTER,
                   G_TYPE_POINTER,
                   1, G_TYPE_POINTER);
 

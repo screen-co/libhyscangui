@@ -224,7 +224,7 @@ gint                    hyscan_gtk_waterfall_get_scale                  (HyScanG
  * \param automove - TRUE для включения и FALSE для отключения автосдвижки.
  */
 HYSCAN_API
-void                    hyscan_gtk_waterfall_automove                   (HyScanGtkWaterfall *wfall,
+gboolean                hyscan_gtk_waterfall_automove                   (HyScanGtkWaterfall *wfall,
                                                                          gboolean            automove);
 /**
  * Функция устанавливает период автосдвижки.

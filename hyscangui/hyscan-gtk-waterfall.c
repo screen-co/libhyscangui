@@ -198,7 +198,7 @@ hyscan_gtk_waterfall_class_init (HyScanGtkWaterfallClass *klass)
     g_signal_new ("waterfall-zoom", HYSCAN_TYPE_GTK_WATERFALL,
                   G_SIGNAL_RUN_LAST, 0,
                   NULL, NULL,
-                  g_cclosure_user_marshal_VOID__INT_DOUBLE,
+                  hyscan_gui_marshal_VOID__INT_DOUBLE,
                   G_TYPE_NONE,
                   2, G_TYPE_INT, G_TYPE_DOUBLE);
 }
@@ -1261,7 +1261,7 @@ hyscan_gtk_waterfall_get_scale (HyScanGtkWaterfall *self,
 }
 
 /* Функция включает и выключает автосдвижку. */
-void
+gboolean
 hyscan_gtk_waterfall_automove (HyScanGtkWaterfall *self,
                                gboolean            automove)
 {
@@ -1271,13 +1271,10 @@ hyscan_gtk_waterfall_automove (HyScanGtkWaterfall *self,
   priv = self->priv;
 
   if (priv->automove == automove)
-    return;
+    return automove;
 
   if (priv->auto_tag == 0)
-    {
-      g_signal_emit (self, hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE], 0, FALSE);
-      return;
-    }
+    return FALSE;
 
   priv->automove = automove;
 
@@ -1286,7 +1283,8 @@ hyscan_gtk_waterfall_automove (HyScanGtkWaterfall *self,
   else /*if (priv->widget_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER) */
     gtk_cifro_area_move (GTK_CIFRO_AREA (self), G_MAXINT, 0);
 
-  g_signal_emit (self, hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE], 0, automove);
+  // g_signal_emit (self, hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE], 0, automove);
+  return automove;
 }
 
 /* Функция задает период автосдвижки. */
