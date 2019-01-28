@@ -55,9 +55,19 @@ if (HYSCAN_USE_SYS_LIBS)
   add_definitions (${HYSCAN_CFLAGS})
 else ()
   include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscantypes/hyscantypes")
+  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancore/hyscancore")
+  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancache/hyscancache")
   link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscantypes/bin")
-  set (HYSCAN_LIBRARIES "hyscantypes-${HYSCAN_MAJOR_VERSION}")
+  link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancore/bin")
+  link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancache/bin")
+  set (HYSCAN_LIBRARIES "hyscantypes-${HYSCAN_MAJOR_VERSION}"
+                        "hyscancore-${HYSCAN_MAJOR_VERSION}"
+                        "hyscancache-${HYSCAN_MAJOR_VERSION}")
 endif ()
+
+include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../gtkcifroarea/gtkcifroarea")
+link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../gtkcifroarea/bin")
+set (GTKCIFROAREA_LIBRARIES gtkcifroarea-3.1)
 
 include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/hyscangui")
 

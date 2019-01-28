@@ -8,11 +8,15 @@ add_executable (gtk-area-test gtk-area-test.c)
 add_executable (gtk-param-test gtk-param-test.c)
 add_executable (gtk-spin-button-test gtk-spin-button-test.c)
 add_executable (gtk-datetime-test gtk-datetime-test.c)
+add_executable (gtk-map-test gtk-map-test.c)
+add_executable (tilename-to-geo-test tilename-to-geo-test.c)
 
 target_link_libraries (gtk-area-test ${TEST_LIBRARIES})
 target_link_libraries (gtk-param-test ${TEST_LIBRARIES})
 target_link_libraries (gtk-spin-button-test ${TEST_LIBRARIES})
 target_link_libraries (gtk-datetime-test ${TEST_LIBRARIES})
+target_link_libraries (gtk-map-test ${TEST_LIBRARIES})
+target_link_libraries (tilename-to-geo-test ${TEST_LIBRARIES})
 
 install (TARGETS gtk-area-test
          COMPONENT test

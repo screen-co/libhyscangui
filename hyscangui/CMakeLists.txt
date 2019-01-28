@@ -28,9 +28,15 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-param-list.c
              hyscan-gtk-param-cc.c
              hyscan-gtk-param-tree.c
+             hyscan-task-queue.c
+             hyscan-gtk-map.c
+             hyscan-gtk-map-tiles.c
+             hyscan-gtk-map-float.c
+             hyscan-gtk-map-tile-source.c
+             hyscan-gtk-map-tiles-osm.c
              ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c)
 
-target_link_libraries (${HYSCAN_GUI_LIBRARY} ${GTK3_LIBRARIES} ${HYSCAN_LIBRARIES})
+target_link_libraries (${HYSCAN_GUI_LIBRARY} ${GTK3_LIBRARIES} ${HYSCAN_LIBRARIES} ${GTKCIFROAREA_LIBRARIES})
 
 set_target_properties (${HYSCAN_GUI_LIBRARY} PROPERTIES DEFINE_SYMBOL "HYSCAN_API_EXPORTS")
 set_target_properties (${HYSCAN_GUI_LIBRARY} PROPERTIES SOVERSION ${HYSCAN_GUI_VERSION})
