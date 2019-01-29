@@ -36,6 +36,7 @@ static gboolean hyscan_gtk_map_motion                   (GtkWidget             *
                                                          GdkEventMotion        *event);
 static gboolean hyscan_gtk_map_scroll                   (GtkWidget             *widget,
                                                          GdkEventScroll        *event);
+static guint    hyscan_gtk_map_count_columns            (guint                  zoom);
 
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMap, hyscan_gtk_map, GTK_TYPE_CIFRO_AREA)
@@ -216,6 +217,13 @@ hyscan_gtk_map_button_press_release (GtkWidget      *widget,
   return FALSE;
 }
 
+/* Определяет общее количество тайлов по выстое при указанном масштабе. */
+static guint
+hyscan_gtk_map_count_columns (guint zoom)
+{
+  return (guint) ((zoom != 0) ? 2 << (zoom - 1) : 1);
+}
+
 /* Перводит координаты тайла подвижной карты (Slippy map) в широту и долготу.
  * Источник: https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames. */
 void
@@ -224,10 +232,10 @@ hyscan_gtk_map_tile_to_geo (guint              zoom,
                             gdouble            tile_x,
                             gdouble            tile_y)
 {
-  gdouble n;
+  guint n;
   gdouble lat_tmp;
 
-  n = pow (2.0, zoom);
+  n = hyscan_gtk_map_count_columns (zoom);
 
   coords->lon = tile_x / n * 360.0 - 180.0;
 
@@ -248,7 +256,7 @@ hyscan_gtk_map_geo_to_tile (guint              zoom,
 
   lat_rad = coords.lat / 180.0 * M_PI;
 
-  total_tiles = (gint) pow (2, zoom);
+  total_tiles = hyscan_gtk_map_count_columns (zoom);
 
   (tile_x != NULL) ? *tile_x = total_tiles * (coords.lon + 180.0) / 360.0 : 0;
   (tile_y != NULL) ? *tile_y = total_tiles * (1 - log (tan (lat_rad) + (1 / cos (lat_rad))) / M_PI) / 2 : 0;
@@ -262,9 +270,9 @@ hyscan_gtk_map_set_tile_view (HyScanGtkMap *map,
                               gdouble       from_tile_y,
                               gdouble       to_tile_y)
 {
-  gdouble total_tiles;
+  guint total_tiles;
   
-  total_tiles = pow (2, map->priv->zoom);
+  total_tiles = hyscan_gtk_map_count_columns (map->priv->zoom);
   
   /* Меняем направление по оси OY, так как нумерация тайлов идёт сверху вниз. */
   gtk_cifro_area_set_view (GTK_CIFRO_AREA (map),
@@ -301,8 +309,7 @@ hyscan_gtk_map_tile_to_point (HyScanGtkMap *map,
 
   priv = map->priv;
 
-  /* todo: pow() с целыми числами вроде как-то не очень. */
-  y_tile = pow (2, priv->zoom) - y_tile;
+  y_tile = hyscan_gtk_map_count_columns (priv->zoom) - y_tile;
   gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (map), x, y, x_tile, y_tile);
 }
 
@@ -323,9 +330,9 @@ hyscan_gtk_map_get_tile_view (HyScanGtkMap *map,
                               gdouble      *from_tile_y,
                               gdouble      *to_tile_y)
 {
-  gdouble total_tiles;
+  guint total_tiles;
 
-  total_tiles = pow (2, map->priv->zoom);
+  total_tiles = hyscan_gtk_map_count_columns (map->priv->zoom);
 
   /* Меняем направление по оси OY, так как нумерация тайлов идёт сверху вниз. */
   gtk_cifro_area_get_view (GTK_CIFRO_AREA (map),
@@ -357,7 +364,7 @@ hyscan_gtk_map_get_tile_view_i (HyScanGtkMap *map,
   guint total_tiles;
   gdouble from_x, to_x, from_y, to_y;
 
-  total_tiles = (guint) pow (2, map->priv->zoom);
+  total_tiles = hyscan_gtk_map_count_columns (map->priv->zoom);
 
   gtk_cifro_area_get_view (GTK_CIFRO_AREA (map),
                            &from_x, &to_x,
