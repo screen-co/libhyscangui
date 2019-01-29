@@ -11,21 +11,16 @@ enum
   PROP_O,
   PROP_MAP,
   PROP_CACHE,
-  PROP_SOURCE
+  PROP_FACTORY
 };
 
 struct _HyScanGtkMapTilesPrivate
 {
-  HyScanGtkMap                *map;
-  HyScanCache                 *cache;
-  gchar                       *img_src;
-  cairo_surface_t             *img_surface;
+  HyScanGtkMap                *map;            /* Виджет карты, на котором показываются тайлы. */
+  HyScanCache                 *cache;          /* Кэш тайлов. */
 
-  HyScanGtkMapTileSource      *source;         /* Фабрика тайлов. */
+  HyScanGtkMapTileFactory     *factory;        /* Фабрика тайлов. */
   HyScanTaskQueue             *task_queue;     /* Очередь задач по созданию тайлов. */
-
-  guint                        zoom;           /* Текущий масштаб карты. */
-  guint                        max_y;          /* Количество тайлов по оси Y в текущем масштабе. */
 };
 
 static void                 hyscan_gtk_map_tiles_set_property             (GObject                *object,
@@ -36,10 +31,6 @@ static void                 hyscan_gtk_map_tiles_object_constructed       (GObje
 static void                 hyscan_gtk_map_tiles_object_finalize          (GObject                *object);
 static void                 hyscan_gtk_map_tiles_draw                     (HyScanGtkMapTiles      *layer,
                                                                            cairo_t                *cairo);
-static gdouble              hyscan_gtk_map_tiles_merc_to_y                (HyScanGtkMapTiles      *layer,
-                                                                           gdouble                 y);
-static gdouble              hyscan_gtk_map_tiles_y_to_merc                (HyScanGtkMapTiles      *layer,
-                                                                           gdouble                 y);
 static gint                 hyscan_gtk_map_tiles_compare                  (HyScanGtkMapTile       *a,
                                                                            HyScanGtkMapTile       *b);
 static void                 hyscan_gtk_map_tiles_load                     (HyScanGtkMapTile       *tile,
@@ -72,9 +63,9 @@ hyscan_gtk_map_tiles_class_init (HyScanGtkMapTilesClass *klass)
                                    g_param_spec_object ("cache", "Cache", "Cache object",
                                                         HYSCAN_TYPE_CACHE,
                                                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-  g_object_class_install_property (object_class, PROP_SOURCE,
-                                   g_param_spec_object ("source", "Tile source", "GtkMapTileSource object",
-                                                        HYSCAN_TYPE_GTK_MAP_TILE_SOURCE,
+  g_object_class_install_property (object_class, PROP_FACTORY,
+                                   g_param_spec_object ("factory", "Tile factory", "GtkMapTileFactory object",
+                                                        HYSCAN_TYPE_GTK_MAP_FILE_FACTORY,
                                                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -99,8 +90,8 @@ hyscan_gtk_map_tiles_set_property (GObject      *object,
       priv->map = g_value_get_object (value);
       break;
 
-    case PROP_SOURCE:
-      priv->source = g_value_get_object (value);
+    case PROP_FACTORY:
+      priv->factory = g_value_get_object (value);
       break;
 
     case PROP_CACHE:
@@ -120,9 +111,6 @@ hyscan_gtk_map_tiles_object_constructed (GObject *object)
   HyScanGtkMapTilesPrivate *priv = gtk_map_tiles->priv;
 
   G_OBJECT_CLASS (hyscan_gtk_map_tiles_parent_class)->constructed (object);
-
-  /* Создаём тайл-заглушку. */
-  priv->img_surface = cairo_image_surface_create_from_png (priv->img_src);
 
   /* Создаём очередь задач по поиску тайлов. */
   priv->task_queue = hyscan_task_queue_new ((GFunc) hyscan_gtk_map_tiles_load, gtk_map_tiles,
@@ -144,7 +132,6 @@ hyscan_gtk_map_tiles_object_finalize (GObject *object)
   g_signal_handlers_disconnect_by_data (priv->map, gtk_map_tiles);
 
   /* Освобождаем память. */
-  cairo_surface_destroy (priv->img_surface);
   g_object_unref (priv->task_queue);
 
   G_OBJECT_CLASS (hyscan_gtk_map_tiles_parent_class)->finalize (object);
@@ -159,7 +146,7 @@ hyscan_gtk_map_tiles_load (HyScanGtkMapTile  *tile,
 
   /* Если фабрике удалось сделать новый тайл, то запрашиваем обновление области
    * виджета с новым тайлом. */
-  if (hyscan_gtk_map_tile_source_find (priv->source, tile))
+  if (hyscan_gtk_map_file_factory_create (priv->factory, tile))
     {
       HyScanBuffer *buffer;
       gchar key[256];
@@ -343,12 +330,12 @@ hyscan_gtk_map_tiles_draw (HyScanGtkMapTiles *layer,
  * Returns: указатель на #HyScanGtkMapTiles. Для удаления g_object_unref().
  */
 HyScanGtkMapTiles *
-hyscan_gtk_map_tiles_new (HyScanGtkMap           *map,
-                          HyScanCache            *cache,
-                          HyScanGtkMapTileSource *source)
+hyscan_gtk_map_tiles_new (HyScanGtkMap            *map,
+                          HyScanCache             *cache,
+                          HyScanGtkMapTileFactory *factory)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_TILES,
                        "map", map,
                        "cache", cache,
-                       "source", source, NULL);
+                       "factory", factory, NULL);
 }

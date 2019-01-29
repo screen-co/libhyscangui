@@ -32,7 +32,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-map.c
              hyscan-gtk-map-tiles.c
              hyscan-gtk-map-float.c
-             hyscan-gtk-map-tile-source.c
+             hyscan-gtk-map-tile-factory.c
              hyscan-gtk-map-tiles-osm.c
              ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c)
 

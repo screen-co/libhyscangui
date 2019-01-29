@@ -11,7 +11,6 @@ enum
 
 struct _HyScanTaskQueuePrivate
 {
-  gint                         prop_a;
   GFunc           task_func;            /* Функция выполнения задачи. */
   GCompareFunc    cmp_func;             /* Функция сравнения двух задач. */
   GDestroyNotify  task_free_func;       /* Функция удаления задачи. */

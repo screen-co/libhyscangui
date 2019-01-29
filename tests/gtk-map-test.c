@@ -43,7 +43,7 @@ int main (int     argc,
   osm_source = hyscan_gtk_map_tiles_osm_new ();
   tiles = hyscan_gtk_map_tiles_new (HYSCAN_GTK_MAP (map),
                                     cache,
-                                    HYSCAN_GTK_MAP_TILE_SOURCE (osm_source));
+                                    HYSCAN_GTK_MAP_FILE_FACTORY (osm_source));
 
   float_layer = hyscan_gtk_map_float_new (HYSCAN_GTK_MAP (map));
 
