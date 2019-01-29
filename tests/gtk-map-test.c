@@ -1,11 +1,9 @@
 #include <gtk/gtk.h>
-#include <gtk-cifro-curve.h>
 #include <hyscan-gtk-map.h>
 #include <hyscan-gtk-map-tiles.h>
 #include <math.h>
 #include <hyscan-gtk-map-float.h>
 #include <hyscan-gtk-map-tiles-osm.h>
-#include <hyscan-cache.h>
 #include <hyscan-cached.h>
 
 void
@@ -35,9 +33,6 @@ int main (int     argc,
 
   /* Создаём область карты. */
   map = hyscan_gtk_map_new ();
-  gtk_cifro_area_control_set_scroll_mode (GTK_CIFRO_AREA_CONTROL (map), GTK_CIFRO_AREA_SCROLL_MODE_ZOOM);
-  gtk_cifro_area_control_set_move_step (GTK_CIFRO_AREA_CONTROL (map), 20);
-  gtk_cifro_area_control_set_rotate_step (GTK_CIFRO_AREA_CONTROL (map), M_PI / 180);
 
   /* Добавляем слои. */
   osm_source = hyscan_gtk_map_tiles_osm_new ();

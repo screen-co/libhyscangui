@@ -2,7 +2,7 @@
 #define __HYSCAN_GTK_MAP_H__
 
 #include <gtk/gtk.h>
-#include <gtk-cifro-area-control.h>
+#include <gtk-cifro-area.h>
 #include <hyscan-geo.h>
 
 G_BEGIN_DECLS
@@ -21,14 +21,14 @@ typedef struct _HyScanGtkMapClass HyScanGtkMapClass;
 
 struct _HyScanGtkMap
 {
-  GtkCifroAreaControl  parent_instance;
+  GtkCifroArea parent_instance;
 
   HyScanGtkMapPrivate *priv;
 };
 
 struct _HyScanGtkMapClass
 {
-  GtkCifroAreaControlClass parent_class;
+  GtkCifroAreaClass parent_class;
 };
 
 HYSCAN_API

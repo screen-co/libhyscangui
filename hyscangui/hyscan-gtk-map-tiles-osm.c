@@ -75,12 +75,12 @@ hyscan_gtk_map_tiles_osm_object_constructed (GObject *object)
 
   /* Хост и шаблон uri тайлов. */
 
-//  priv->host = "a.tile.openstreetmap.org";
-//  priv->uri_tpl = "/%d/%d/%d.png";
+  //  priv->host = "a.tile.openstreetmap.org";
+  //  priv->uri_tpl = "/%d/%d/%d.png";
 
   /* Wikimedia - todo: TLS redirect. */
-//  const gchar *host = "maps.wikimedia.org";
-//  const gchar *uri_tpl = "/osm-intl/%d/%d/%d.png";
+  //  const gchar *host = "maps.wikimedia.org";
+  //  const gchar *uri_tpl = "/osm-intl/%d/%d/%d.png";
 
   priv->host = "tile.thunderforest.com";
   priv->uri_tpl = "/cycle/%d/%d/%d.png?apikey=03fb8295553d4a2eaacc64d7dd88e3b9";
@@ -135,7 +135,7 @@ hyscan_gtk_map_tiles_osm_create_tile (HyScanGtkMapTileFactory *factory,
   gboolean status_ok = FALSE;
 
   /* Чтобы часто не отправлять запросы на сервер, добавляем задержку между запросами. */
-//  g_usleep (G_USEC_PER_SEC / 4);
+  //  g_usleep (G_USEC_PER_SEC / 4);
 
   /* Подключаемся к серверу с тайлами. */
   client = g_socket_client_new ();
