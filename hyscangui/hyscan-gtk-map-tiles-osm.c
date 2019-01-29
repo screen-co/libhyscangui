@@ -1,5 +1,5 @@
 #include "hyscan-gtk-map-tiles-osm.h"
-#include <hyscan-gtk-map-tile-factory.h>
+#include <hyscan-gtk-map-tile-source.h>
 #include <gio/gio.h>
 #include <string.h>
 
@@ -14,7 +14,7 @@ struct _HyScanGtkMapTilesOsmPrivate
   const gchar *uri_tpl;
 };
 
-static void           hyscan_gtk_map_tiles_osm_interface_init           (HyScanGtkMapTileFactoryInterface *iface);
+static void           hyscan_gtk_map_tiles_osm_interface_init           (HyScanGtkMapTileSourceInterface *iface);
 static void           hyscan_gtk_map_tiles_osm_set_property             (GObject               *object,
                                                                          guint                  prop_id,
                                                                          const GValue          *value,
@@ -27,7 +27,7 @@ static cairo_status_t hyscan_gtk_map_tiles_osm_download                 (GDataIn
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapTilesOsm, hyscan_gtk_map_tiles_osm, G_TYPE_OBJECT,
                          G_ADD_PRIVATE (HyScanGtkMapTilesOsm)
-                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_MAP_FILE_FACTORY,
+                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_MAP_TILE_SOURCE,
                                                 hyscan_gtk_map_tiles_osm_interface_init))
 
 static void
@@ -79,8 +79,8 @@ hyscan_gtk_map_tiles_osm_object_constructed (GObject *object)
   //  priv->uri_tpl = "/%d/%d/%d.png";
 
   /* Wikimedia - todo: TLS redirect. */
-  //  const gchar *host = "maps.wikimedia.org";
-  //  const gchar *uri_tpl = "/osm-intl/%d/%d/%d.png";
+  // const gchar *host = "maps.wikimedia.org";
+  // const gchar *uri_tpl = "/osm-intl/%d/%d/%d.png";
 
   priv->host = "tile.thunderforest.com";
   priv->uri_tpl = "/cycle/%d/%d/%d.png?apikey=03fb8295553d4a2eaacc64d7dd88e3b9";
@@ -115,10 +115,10 @@ hyscan_gtk_map_tiles_osm_download (GDataInputStream *input_stream,
 
 /* Ищет указанный тайл и загружает его. */
 static gboolean
-hyscan_gtk_map_tiles_osm_create_tile (HyScanGtkMapTileFactory *factory,
-                                      HyScanGtkMapTile        *tile)
+hyscan_gtk_map_tiles_osm_fill_tile (HyScanGtkMapTileSource *source,
+                                    HyScanGtkMapTile       *tile)
 {
-  HyScanGtkMapTilesOsm *osm = HYSCAN_GTK_MAP_TILES_OSM (factory);
+  HyScanGtkMapTilesOsm *osm = HYSCAN_GTK_MAP_TILES_OSM (source);
   HyScanGtkMapTilesOsmPrivate *priv = osm->priv;
 
   gchar *uri = NULL;
@@ -228,17 +228,17 @@ exit:
   return status_ok;
 }
 
-/* Реализация интрефейса HyScanGtkMapTileFactory. */
+/* Реализация интрефейса HyScanGtkMapTileSource. */
 static void
-hyscan_gtk_map_tiles_osm_interface_init (HyScanGtkMapTileFactoryInterface *iface)
+hyscan_gtk_map_tiles_osm_interface_init (HyScanGtkMapTileSourceInterface *iface)
 {
-  iface->create_tile = hyscan_gtk_map_tiles_osm_create_tile;
+  iface->fill_tile = hyscan_gtk_map_tiles_osm_fill_tile;
 }
 
 /**
  * hyscan_gtk_map_tiles_osm_new:
  *
- * Создаёт новую фабрику тайлов из сервера тайлов OpenStreetMap.
+ * Создаёт новый источник тайлов из сервера тайлов OpenStreetMap.
  *
  * Returns: новый объект #HyScanGtkMapTilesOsm.
  */

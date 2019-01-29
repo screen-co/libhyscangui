@@ -11,7 +11,7 @@ enum
   PROP_O,
   PROP_MAP,
   PROP_CACHE,
-  PROP_FACTORY
+  PROP_SOURCE
 };
 
 struct _HyScanGtkMapTilesPrivate
@@ -19,7 +19,7 @@ struct _HyScanGtkMapTilesPrivate
   HyScanGtkMap                *map;            /* Виджет карты, на котором показываются тайлы. */
   HyScanCache                 *cache;          /* Кэш тайлов. */
 
-  HyScanGtkMapTileFactory     *factory;        /* Фабрика тайлов. */
+  HyScanGtkMapTileSource      *source;         /* Источник тайлов. */
   HyScanTaskQueue             *task_queue;     /* Очередь задач по созданию тайлов. */
 };
 
@@ -63,9 +63,9 @@ hyscan_gtk_map_tiles_class_init (HyScanGtkMapTilesClass *klass)
                                    g_param_spec_object ("cache", "Cache", "Cache object",
                                                         HYSCAN_TYPE_CACHE,
                                                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-  g_object_class_install_property (object_class, PROP_FACTORY,
-                                   g_param_spec_object ("factory", "Tile factory", "GtkMapTileFactory object",
-                                                        HYSCAN_TYPE_GTK_MAP_FILE_FACTORY,
+  g_object_class_install_property (object_class, PROP_SOURCE,
+                                   g_param_spec_object ("source", "Tile source", "GtkMapTileSource object",
+                                                        HYSCAN_TYPE_GTK_MAP_TILE_SOURCE,
                                                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -90,8 +90,8 @@ hyscan_gtk_map_tiles_set_property (GObject      *object,
       priv->map = g_value_get_object (value);
       break;
 
-    case PROP_FACTORY:
-      priv->factory = g_value_get_object (value);
+    case PROP_SOURCE:
+      priv->source = g_value_get_object (value);
       break;
 
     case PROP_CACHE:
@@ -137,16 +137,16 @@ hyscan_gtk_map_tiles_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_tiles_parent_class)->finalize (object);
 }
 
-/* Загружает запрошенный тайл из фабрики тайлов. */
+/* Заполняет запрошенный тайл из источника тайлов. */
 static void
 hyscan_gtk_map_tiles_load (HyScanGtkMapTile  *tile,
                            HyScanGtkMapTiles *layer)
 {
   HyScanGtkMapTilesPrivate *priv = layer->priv;
 
-  /* Если фабрике удалось сделать новый тайл, то запрашиваем обновление области
+  /* Если удалось заполнить новый тайл, то запрашиваем обновление области
    * виджета с новым тайлом. */
-  if (hyscan_gtk_map_file_factory_create (priv->factory, tile))
+  if (hyscan_gtk_map_tile_source_fill (priv->source, tile))
     {
       HyScanBuffer *buffer;
       gchar key[256];
@@ -209,7 +209,7 @@ hyscan_gtk_map_tiles_key (HyScanGtkMapTile *tile,
 }
 
 /* Получает информацию об указанном тайле. Если тайла нет в кэше, то делает
- * запрос в фабрику тайлов.
+ * запрос в источник тайлов.
  * Возвращает TRUE, если тайл загружен. Иначе FALSE. */
 static gboolean
 hyscan_gtk_map_tiles_get_tile (HyScanGtkMapTilesPrivate *priv,
@@ -332,10 +332,10 @@ hyscan_gtk_map_tiles_draw (HyScanGtkMapTiles *layer,
 HyScanGtkMapTiles *
 hyscan_gtk_map_tiles_new (HyScanGtkMap            *map,
                           HyScanCache             *cache,
-                          HyScanGtkMapTileFactory *factory)
+                          HyScanGtkMapTileSource *source)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_TILES,
                        "map", map,
                        "cache", cache,
-                       "factory", factory, NULL);
+                       "source", source, NULL);
 }

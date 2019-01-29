@@ -2,7 +2,7 @@
 #define __HYSCAN_GTK_MAP_TILES_H__
 
 #include <hyscan-api.h>
-#include <hyscan-gtk-map-tile-factory.h>
+#include <hyscan-gtk-map-tile-source.h>
 #include <hyscan-gtk-map.h>
 #include <hyscan-cache.h>
 
@@ -37,7 +37,7 @@ GType               hyscan_gtk_map_tiles_get_type (void);
 HYSCAN_API
 HyScanGtkMapTiles * hyscan_gtk_map_tiles_new      (HyScanGtkMap            *map,
                                                    HyScanCache             *cache,
-                                                   HyScanGtkMapTileFactory *factory);
+                                                   HyScanGtkMapTileSource  *source);
 
 G_END_DECLS
 
