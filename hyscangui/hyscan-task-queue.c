@@ -189,13 +189,21 @@ hyscan_task_queue_push (HyScanTaskQueue *queue,
 
   /* todo: add timeout. */
 
-  /* Если задача ещё нет в очереди, то добавляем её. */
   if (!g_queue_find_custom (priv->queue, task, priv->cmp_func))
+
+    /* Если задача ещё нет в очереди, то добавляем её. */
     {
       g_queue_push_tail (priv->queue, task);
       g_thread_pool_push (priv->pool, task, &error);
       if (error != NULL)
         g_warning ("HyScanTaskQueue: %s", error->message);
+    }
+  else
+
+    /* Если такая же задача уже есть в очереди, то удаляем её. */
+    {
+      if (priv->task_free_func)
+        priv->task_free_func (task);
     }
 
   /* Операции с очередью сделаны — разблокируем доступ. */

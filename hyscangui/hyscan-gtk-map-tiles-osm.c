@@ -75,10 +75,10 @@ hyscan_gtk_map_tiles_osm_object_constructed (GObject *object)
 
   /* Хост и шаблон uri тайлов. */
 
-  //  priv->host = "a.tile.openstreetmap.org";
-  //  priv->uri_tpl = "/%d/%d/%d.png";
+  // priv->host = "a.tile.openstreetmap.org";
+  // priv->uri_tpl = "/%d/%d/%d.png";
 
-  /* Wikimedia - todo: TLS redirect. */
+  /* Wikimedia - todo: TLS redirect (use libcurl or libsoup?). */
   // const gchar *host = "maps.wikimedia.org";
   // const gchar *uri_tpl = "/osm-intl/%d/%d/%d.png";
 
@@ -152,7 +152,10 @@ hyscan_gtk_map_tiles_osm_fill_tile (HyScanGtkMapTileSource *source,
   output_stream = g_io_stream_get_output_stream (G_IO_STREAM (connection));
 
   /* Отправляем HTTP-запрос на получение тайла. */
-  uri = g_strdup_printf (priv->uri_tpl, tile->zoom, tile->x, tile->y);
+  uri = g_strdup_printf (priv->uri_tpl,
+                         hyscan_gtk_map_tile_get_zoom (tile),
+                         hyscan_gtk_map_tile_get_x (tile),
+                         hyscan_gtk_map_tile_get_y (tile));
 
   request = g_strdup_printf ("GET %s HTTP/1.1\r\n"
                              "Host: %s\r\n"
@@ -191,29 +194,13 @@ hyscan_gtk_map_tiles_osm_fill_tile (HyScanGtkMapTileSource *source,
   if (status_ok)
     {
       cairo_surface_t *png_surface;
-      gssize dsize;
 
-      /* Загружаем тело ответа. */
+      /* Из тела ответа формируем поверхность cairo. */
       png_surface = cairo_image_surface_create_from_png_stream ((cairo_read_func_t) hyscan_gtk_map_tiles_osm_download,
                                                                  data_stream);
 
-      /* Проверяем формат загруженного изображения. */
-      if (cairo_image_surface_get_format (tile->surface) == cairo_image_surface_get_format (png_surface))
-        {
-          /* Копируем поверхность в целевой тайл. */
-          dsize = cairo_image_surface_get_height (png_surface) * cairo_image_surface_get_stride (png_surface);
-
-          /* todo: тут можно словить сегфолт, если размер полученного тайла больше ожидаемого. */
-          memcpy (cairo_image_surface_get_data (tile->surface),
-                  cairo_image_surface_get_data (png_surface),
-                  (size_t) dsize);
-        }
-      else
-        {
-          g_warning ("Wrong image format");
-          status_ok = FALSE;
-        }
-
+      /* Устанавливаем загруженную поверхность в тайл. */
+      status_ok = hyscan_gtk_map_tile_set_content (tile, png_surface);
       cairo_surface_destroy (png_surface);
     }
 
