@@ -273,6 +273,9 @@ hyscan_gtk_map_tiles_draw (HyScanGtkMapTiles *layer,
   hyscan_gtk_map_get_tile_view_i (priv->map, &x0, &xn, &y0, &yn);
   zoom = hyscan_gtk_map_get_zoom (priv->map);
 
+  /* Очищаем очередь загрузки тайлов, которую мы сформировали в прошлый раз. */
+  hyscan_task_queue_clear (priv->task_queue);
+
   /* Отрисовываем все тайлы, которые находятся в видимой области */
   for (x = x0; x <= xn; ++x)
     {

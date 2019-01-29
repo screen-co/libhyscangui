@@ -41,6 +41,9 @@ HYSCAN_API
 void                   hyscan_task_queue_push             (HyScanTaskQueue  *queue,
                                                            gpointer          task);
 
+HYSCAN_API
+void                   hyscan_task_queue_clear            (HyScanTaskQueue  *queue);
+
 G_END_DECLS
 
 #endif /* __HYSCAN_TASK_QUEUE_H__ */
