@@ -48,7 +48,7 @@ int main (int     argc,
   gtk_widget_show_all (window);
 
   hyscan_gtk_map_move_to (HYSCAN_GTK_MAP(map), center);
-  hyscan_gtk_map_set_zoom (HYSCAN_GTK_MAP(map), 10);
+  hyscan_gtk_map_set_zoom (HYSCAN_GTK_MAP(map), 12);
 
   gtk_main ();
 

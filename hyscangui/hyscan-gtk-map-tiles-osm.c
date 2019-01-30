@@ -83,7 +83,8 @@ hyscan_gtk_map_tiles_osm_object_constructed (GObject *object)
   // const gchar *uri_tpl = "/osm-intl/%d/%d/%d.png";
 
   priv->host = "tile.thunderforest.com";
-  priv->uri_tpl = "/cycle/%d/%d/%d.png?apikey=03fb8295553d4a2eaacc64d7dd88e3b9";
+  // priv->uri_tpl = "/cycle/%d/%d/%d.png?apikey=03fb8295553d4a2eaacc64d7dd88e3b9";
+  priv->uri_tpl = "/landscape/%d/%d/%d.png?apikey=03fb8295553d4a2eaacc64d7dd88e3b9";
 }
 
 static void

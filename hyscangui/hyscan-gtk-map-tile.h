@@ -57,7 +57,7 @@ HYSCAN_API
 cairo_surface_t *      hyscan_gtk_map_tile_get_surface      (HyScanGtkMapTile *tile);
 
 HYSCAN_API
-gint hyscan_gtk_map_tile_compare                            (HyScanGtkMapTile *a,
+gint                   hyscan_gtk_map_tile_compare          (HyScanGtkMapTile *a,
                                                              HyScanGtkMapTile *b);
 
 

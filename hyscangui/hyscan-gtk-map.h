@@ -29,6 +29,18 @@ struct _HyScanGtkMap
 struct _HyScanGtkMapClass
 {
   GtkCifroAreaClass parent_class;
+
+  void (*tile_to_point) (HyScanGtkMap       *map,
+                         gdouble            *x,
+                         gdouble            *y,
+                         gdouble             x_tile,
+                         gdouble             y_tile);
+
+  void (*point_to_tile) (HyScanGtkMap       *map,
+                         gdouble             x,
+                         gdouble             y,
+                         gdouble            *x_tile,
+                         gdouble            *y_tile);
 };
 
 HYSCAN_API
@@ -54,13 +66,14 @@ void                   hyscan_gtk_map_tile_to_point    (HyScanGtkMap       *map,
                                                         gdouble            *y,
                                                         gdouble             x_tile,
                                                         gdouble             y_tile);
-
 HYSCAN_API
-void                   hyscan_gtk_map_get_tile_view    (HyScanGtkMap       *map,
-                                                        gdouble            *from_tile_x,
-                                                        gdouble            *to_tile_x,
-                                                        gdouble            *from_tile_y,
-                                                        gdouble            *to_tile_y);
+void                   hyscan_gtk_map_to_point_tile    (HyScanGtkMap       *map,
+                                                        gdouble             x,
+                                                        gdouble             y,
+                                                        gdouble            *x_tile,
+                                                        gdouble            *y_tile);
+
+
 HYSCAN_API
 void                   hyscan_gtk_map_get_tile_view_i  (HyScanGtkMap       *map,
                                                         guint              *from_tile_x,
