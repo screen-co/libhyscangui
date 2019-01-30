@@ -56,7 +56,7 @@ hyscan_gtk_map_float_set_property (GObject      *object,
   switch (prop_id)
     {
     case PROP_MAP:
-      priv->map = g_value_get_object (value);
+      priv->map = g_value_dup_object (value);
       break;
 
     default:
@@ -86,6 +86,8 @@ hyscan_gtk_map_float_object_finalize (GObject *object)
 
   /* Отключаемся от сигналов карты. */
   g_signal_handlers_disconnect_by_data (priv->map, gtk_map_float);
+
+  g_object_unref (priv->map);
 
   G_OBJECT_CLASS (hyscan_gtk_map_float_parent_class)->finalize (object);
 }

@@ -88,15 +88,15 @@ hyscan_gtk_map_tiles_set_property (GObject      *object,
   switch (prop_id)
     {
     case PROP_MAP:
-      priv->map = g_value_get_object (value);
+      priv->map = g_value_dup_object (value);
       break;
 
     case PROP_SOURCE:
-      priv->source = g_value_get_object (value);
+      priv->source = g_value_dup_object (value);
       break;
 
     case PROP_CACHE:
-      priv->cache = g_value_get_object (value);
+      priv->cache = g_value_dup_object (value);
       break;
 
     default:
@@ -134,6 +134,9 @@ hyscan_gtk_map_tiles_object_finalize (GObject *object)
 
   /* Освобождаем память. */
   g_object_unref (priv->task_queue);
+  g_object_unref (priv->map);
+  g_object_unref (priv->source);
+  g_object_unref (priv->cache);
 
   G_OBJECT_CLASS (hyscan_gtk_map_tiles_parent_class)->finalize (object);
 }
