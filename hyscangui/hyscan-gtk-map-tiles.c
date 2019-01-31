@@ -239,27 +239,62 @@ hyscan_gtk_map_tiles_fill_tile (HyScanGtkMapTilesPrivate *priv,
   return found;
 }
 
-/* Отрисовывает отдельный тайл. */
+/* Отрисовывает отдельный тайл, растягивая его до нужных размеров
+ *
+ * A ┌──────┐ B
+ *   │ tile │
+ *   │      │
+ * D └──────┘ C
+ *
+ */
 static void
 hyscan_gtk_map_tiles_draw_tile (HyScanGtkMapTiles *layer,
                                 HyScanGtkMapTile  *tile,
                                 cairo_t           *cairo)
 {
-  gdouble x, y;
+  gdouble xa, ya, xb;
+  guint x_tile, y_tile;
   cairo_surface_t *surface;
+  cairo_surface_t *scaled_surface;
 
-  /* Переводим координаты тайла в координаты для рисования. */
-  hyscan_gtk_map_tile_to_point (layer->priv->map, &x, &y,
-                                hyscan_gtk_map_tile_get_x (tile),
-                                hyscan_gtk_map_tile_get_y (tile));
+  /* Определяем координаты двух вершин тайла на карте. */
+  x_tile = hyscan_gtk_map_tile_get_x (tile);
+  y_tile = hyscan_gtk_map_tile_get_y (tile);
+  hyscan_gtk_map_tile_to_point (layer->priv->map, &xa, &ya, x_tile, y_tile);
+  hyscan_gtk_map_tile_to_point (layer->priv->map, &xb, NULL, x_tile + 1, y_tile);
 
   /* todo: use dummy surface if null */
   surface = hyscan_gtk_map_tile_get_surface (tile);
-
-  /* Рисуем тайл в нужном месте. */
   cairo_surface_mark_dirty (surface);
-  cairo_set_source_surface (cairo, surface, x, y);
+
+  /* Растягиваем тайл до нужного размера size x size. */
+  /* В общем случае трансформация тайла должна быть сложнее - по координатам
+   * всех четырёх вершин и афинных преобразований будет недостаточно.
+   * todo: трансформация тайла независимо от реализации hyscan_gtk_map_tile_to_point()
+   * */
+  {
+    cairo_t *cr;
+    gdouble size;
+    gdouble scale;
+
+    size = xb - xa;
+    scale = size / hyscan_gtk_map_tile_get_size (tile);
+
+    scaled_surface = cairo_surface_create_similar_image (surface, CAIRO_FORMAT_RGB24, (int) size, (int) size);
+    cr = cairo_create (scaled_surface);
+    cairo_scale (cr, scale, scale);
+    cairo_set_source_surface (cr, surface, 0, 0);
+    cairo_set_operator (cr, CAIRO_OPERATOR_SOURCE);
+    cairo_paint (cr);
+
+    cairo_destroy (cr);
+  }
+
+  /* Рисуем растянутый тайл в нужном месте. */
+  cairo_set_source_surface (cairo, scaled_surface, xa, ya);
   cairo_paint (cairo);
+
+  cairo_surface_destroy (scaled_surface);
 }
 
 /* Рисует тайлы текущей видимой области по сигналу "visible-draw". */

@@ -12,7 +12,7 @@ enum
 
 struct _HyScanGtkMapPrivate
 {
-  guint             zoom;                      /* Текущий масштаб карты. */
+  guint                  zoom;                 /* Текущий масштаб карты. */
 
   /* Обработка перемещения карты мышью. */
   gboolean               move_area;            /* Признак перемещения при нажатой клавише мыши. */
@@ -104,7 +104,10 @@ hyscan_gtk_map_configure (GtkWidget          *widget,
 
       gtk_cifro_area_get_size (carea, &width, &height);
       gtk_cifro_area_get_view (carea, &x, NULL, &y, NULL);
-      gtk_cifro_area_set_view (carea, x, x + width / 256.0, y, y + height / 256.0);
+      if (FALSE) /* todo: cartesian map. */
+        gtk_cifro_area_set_view (carea, x, x + 22200, y, y + 22200);
+      else
+        gtk_cifro_area_set_view (carea, x, x + width / 256.0, y, y + height / 256.0);
       map->priv->view_initialized = TRUE;
     }
 
@@ -119,6 +122,8 @@ hyscan_gtk_map_visible_draw (GtkWidget *widget,
   HyScanGtkMap *map = HYSCAN_GTK_MAP (widget);
   HyScanGtkMapPrivate *priv = map->priv;
   /* todo: ??? */
+
+  g_message ("Scale %f", hyscan_gtk_map_get_scale (map));
 }
 
 static void
@@ -248,7 +253,7 @@ hyscan_gtk_map_button_press_release (GtkWidget      *widget,
 
       clip_width = widget_width - border_left - border_right;
       clip_height = widget_height - border_top - border_bottom;
-      if ((clip_width <= 0 ) || (clip_height <=0 ))
+      if ((clip_width <= 0) || (clip_height <= 0))
         return FALSE;
 
       if ((event->x > border_left) && (event->x < (border_left + clip_width)) &&
@@ -314,8 +319,8 @@ hyscan_gtk_map_tile_to_merc (HyScanGtkMap *map,
 {
   HyScanGtkMapPrivate *priv = map->priv;
 
-  *y = hyscan_gtk_map_count_columns (priv->zoom) - y_tile;
-  *x = x_tile;
+  (y != NULL) ? *y = hyscan_gtk_map_count_columns (priv->zoom) - y_tile : 0;
+  (x != NULL) ? *x = x_tile : 0;
 }
 
 /* Переводит из СК проекции меркатора в СК тайлов. */
@@ -328,8 +333,8 @@ hyscan_gtk_map_merc_to_tile (HyScanGtkMap *map,
 {
   HyScanGtkMapPrivate *priv = map->priv;
 
-  *y_tile = hyscan_gtk_map_count_columns (priv->zoom) - y;
-  *x_tile = x;
+  (y_tile != NULL) ? *y_tile = hyscan_gtk_map_count_columns (priv->zoom) - y : 0;
+  (x_tile != NULL) ? *x_tile = x : 0;
 }
 
 /* Переводит из СК тайлов в логическую СК. */
@@ -394,6 +399,58 @@ hyscan_gtk_map_tile_to_point (HyScanGtkMap *map,
   hyscan_gtk_map_tile_to_value (map, &x_val, &y_val, x_tile, y_tile);
   gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (map), x, y, x_val, y_val);
 }
+/**
+ * hyscan_gtk_map_tile_to_point:
+ * @map: указатель на карту #HyScanGtkMap
+ * @x: (out) (nullable): координата x в видимой области
+ * @y: (out) (nullable): координата y в видимой области
+ * @x_tile: координата x тайла
+ * @y_tile: координата y тайла
+ *
+ * Переводит координаты точки видимой области в тайловую систему координат.
+ */
+void
+hyscan_gtk_map_point_to_tile (HyScanGtkMap *map,
+                              gdouble       x,
+                              gdouble       y,
+                              gdouble      *x_tile,
+                              gdouble      *y_tile)
+{
+  gdouble x_val, y_val;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
+
+  gtk_cifro_area_visible_point_to_value (GTK_CIFRO_AREA (map), x, y, &x_val, &y_val);
+  hyscan_gtk_map_value_to_tile (map, x_val, y_val, x_tile, y_tile);
+}
+
+
+/* Получает границы тайлов, полность покрывающих видимую области. */
+static void
+hyscan_gtk_map_get_tile_view (HyScanGtkMap *map,
+                              gdouble      *from_tile_x,
+                              gdouble      *to_tile_x,
+                              gdouble      *from_tile_y,
+                              gdouble      *to_tile_y)
+{
+  gdouble from_x, to_x, from_y, to_y;
+  gdouble from_tile_x_d, from_tile_y_d, to_tile_x_d, to_tile_y_d;
+  gboolean invert;
+
+  /* Переводим из логической СК в тайловую. */
+  gtk_cifro_area_get_view (GTK_CIFRO_AREA (map), &from_x, &to_x, &from_y, &to_y);
+  hyscan_gtk_map_value_to_tile (map, from_x, from_y, &from_tile_x_d, &from_tile_y_d);
+  hyscan_gtk_map_value_to_tile (map, to_x, to_y, &to_tile_x_d, &to_tile_y_d);
+
+  /* Устанавливаем границы так, чтобы выполнялось from_* < to_*. */
+  invert = (from_tile_y_d > to_tile_y_d);
+  (to_tile_y != NULL) ? *to_tile_y = (invert ? from_tile_y_d : to_tile_y_d) : 0;
+  (from_tile_y != NULL) ? *from_tile_y = (invert ? to_tile_y_d : from_tile_y_d) : 0;
+
+  invert = (from_tile_x_d > to_tile_x_d);
+  (to_tile_x != NULL) ? *to_tile_x = (invert ? from_tile_x_d : to_tile_x_d) : 0;
+  (from_tile_x != NULL) ? *from_tile_x = (invert ? to_tile_x_d : from_tile_x_d) : 0;
+}
 
 /**
  * hyscan_gtk_map_get_tile_view_i:
@@ -413,24 +470,14 @@ hyscan_gtk_map_get_tile_view_i (HyScanGtkMap *map,
                                 guint        *from_tile_y,
                                 guint        *to_tile_y)
 {
-  gdouble from_x, to_x, from_y, to_y;
   gdouble from_tile_x_d, from_tile_y_d, to_tile_x_d, to_tile_y_d;
-  gboolean invert;
 
-  gtk_cifro_area_get_view (GTK_CIFRO_AREA (map), &from_x, &to_x, &from_y, &to_y);
-  
-  /* Переводим из логической СК в тайловую. */
-  hyscan_gtk_map_value_to_tile (map, from_x, from_y, &from_tile_x_d, &from_tile_y_d);
-  hyscan_gtk_map_value_to_tile (map, to_x, to_y, &to_tile_x_d, &to_tile_y_d);
+  hyscan_gtk_map_get_tile_view (map, &from_tile_x_d, &to_tile_x_d, &from_tile_y_d, &to_tile_y_d);
 
-  /* Устанавливаем границы так, чтобы выполнялось from_* < to_*. */
-  invert = (from_tile_y_d > to_tile_y_d);
-  (to_tile_y != NULL) ? *to_tile_y = (guint) (invert ? from_tile_y_d : to_tile_y_d) : 0;
-  (from_tile_y != NULL) ? *from_tile_y = (guint) (invert ? to_tile_y_d : from_tile_y_d) : 0;
-    
-  invert = (from_tile_x_d > to_tile_x_d);
-  (to_tile_x != NULL) ? *to_tile_x = (guint) (invert ? from_tile_x_d : to_tile_x_d) : 0;
-  (from_tile_x != NULL) ? *from_tile_x = (guint) (invert ? to_tile_x_d : from_tile_x_d) : 0;
+  (to_tile_y != NULL) ? *to_tile_y = (guint) to_tile_y_d : 0;
+  (from_tile_y != NULL) ? *from_tile_y = (guint) from_tile_y_d : 0;
+  (to_tile_x != NULL) ? *to_tile_x = (guint) to_tile_x_d : 0;
+  (from_tile_x != NULL) ? *from_tile_x = (guint) from_tile_x_d : 0;
 }
 
 /**
@@ -499,15 +546,15 @@ hyscan_gtk_map_set_zoom (HyScanGtkMap *map,
 
   gdouble x0_value, y0_value, xn_value, yn_value;
   HyScanGeoGeodetic center;
-  
+
   g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
 
   /* todo: откуда брать эти значения? */
   if (zoom < 1 || zoom > 19)
     return;
-  
+
   priv = map->priv;
-  
+
   /* Получаем координаты центрального тайла в (lat, lon). */
   gtk_cifro_area_get_view (GTK_CIFRO_AREA (map), &x0_value, &xn_value, &y0_value, &yn_value);
   hyscan_gtk_map_value_to_geo (map, &center, (xn_value + x0_value) / 2, (yn_value + y0_value) / 2);
@@ -555,4 +602,52 @@ hyscan_gtk_map_geo_to_tile (guint              zoom,
 
   (tile_x != NULL) ? *tile_x = total_tiles * (coords.lon + 180.0) / 360.0 : 0;
   (tile_y != NULL) ? *tile_y = total_tiles * (1 - log (tan (lat_rad) + (1 / cos (lat_rad))) / M_PI) / 2 : 0;
+}
+
+/**
+ * hyscan_gtk_map_get_scale:
+ * @map:
+ *
+ * Определяет масштаб в центре карты.
+ *
+ * Returns: количество пикселов в одном метре вдоль ширины виджета.
+ */
+gdouble
+hyscan_gtk_map_get_scale (HyScanGtkMap *map)
+{
+  HyScanGtkMapPrivate *priv;
+  guint width, height;
+  guint dx = 10;
+  gdouble x_tile1, y_tile1, x_tile2, y_tile2;
+  gdouble distance;
+  HyScanGeoGeodetic coord1, coord2;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), -1.0);
+
+  priv = map->priv;
+
+  /* Берём две точки в видимой области на небольшом расстоянии в dx пикселей. */
+  gtk_cifro_area_get_visible_size (GTK_CIFRO_AREA (map), &width, &height);
+  hyscan_gtk_map_point_to_tile (map, width / 2.0 - dx / 2.0, height / 2.0, &x_tile1, &y_tile1);
+  hyscan_gtk_map_point_to_tile (map, width / 2.0 + dx / 2.0, height / 2.0, &x_tile2, &y_tile2);
+
+  /* Определяем географические координаты точек. */
+  hyscan_gtk_map_tile_to_geo (priv->zoom, &coord1, x_tile1, y_tile1);
+  hyscan_gtk_map_tile_to_geo (priv->zoom, &coord2, x_tile2, y_tile2);
+
+  /* Считаем расстояние между coord1 и coord2: Haversine formula */
+  {
+    gdouble R = 6.371e6;
+    gdouble c;
+    gdouble a;
+    gdouble deg2rad = M_PI / 180;
+    gdouble d_lat = deg2rad * (coord2.lat - coord1.lat);
+    gdouble d_lon = deg2rad * (coord2.lon - coord1.lon);
+
+    a = pow (sin (d_lat / 2), 2) + cos (deg2rad * coord1.lat) * cos (deg2rad * coord2.lat) * pow (sin (d_lon / 2), 2);
+    c = 2 * atan2 (sqrt (a), sqrt (1.0 - a));
+    distance = R * c;
+  }
+
+  return dx / distance;
 }

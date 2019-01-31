@@ -1,5 +1,6 @@
-#include <gtk-cifro-area.h>
 #include "hyscan-gtk-map-float.h"
+#include <gtk-cifro-area.h>
+#include <math.h>
 
 enum
 {
@@ -100,20 +101,62 @@ hyscan_gtk_map_float_draw (HyScanGtkMapFloat *layer,
   HyScanGtkMapFloatPrivate *priv = layer->priv;
   GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
 
+  /* Размеры линейки. */
+  gint margin = 6;
+  gint height = 5;
+  gdouble max_ruler = 100;
+
   guint visible_width, visible_height;
-  guint width, height;
-  gdouble scale_x, scale_y;
-  gdouble x, y, x_r, y_b;
+  gdouble x0, y0;
 
+  gdouble scale;
+  gdouble metres;
+
+  /* Координаты размещения линейки. */
   gtk_cifro_area_get_visible_size (carea, &visible_width, &visible_height);
-  gtk_cifro_area_get_size (carea, &width, &height);
-  gtk_cifro_area_point_to_value (carea, 0, 0, &x, &y);
-  gtk_cifro_area_point_to_value (carea, visible_width, visible_height, &x_r, &y_b);
-  gtk_cifro_area_get_scale (carea, &scale_x, &scale_y);
+  x0 = visible_width - max_ruler - margin;
+  y0 = visible_height - margin;
 
-  cairo_rectangle (cairo, visible_width - 150, visible_height - 150, 100, 100);
-  cairo_set_source_rgba (cairo, 1, 0, 0, 0.80);
-  cairo_fill (cairo);
+  /* Определяем размер линейки, чтобы он был круглым числом метров. */
+  scale = hyscan_gtk_map_get_scale (priv->map);
+  metres = 80 / scale;
+  metres = pow (10, floor (log10 (metres)));
+  while (metres * scale < max_ruler / 2)
+    metres *= 2;
+
+  /* Рисуем линейку и подпись к ней. */
+  {
+    gchar label[256];
+    cairo_text_extents_t extents;
+    gdouble text_width;
+
+    /* Формируем текст надписи и вычисляем её размер. */
+    if (metres < 1000)
+      g_snprintf (label, 256, "%.0f m", metres);
+    else
+      g_snprintf (label, 256, "%.0f km", metres / 1000);
+    cairo_text_extents (cairo, label, &extents);
+    text_width = extents.width + 10;
+
+    /* Фоновый цвет линейки, чтобы не сливалась с картой. */
+    cairo_rectangle (cairo, x0 - text_width - margin, y0 - margin,
+                     2 * margin + text_width + max_ruler, 2 * margin + height);
+    cairo_set_source_rgba (cairo, 1, 1, 1, 0.80);
+    cairo_fill (cairo);
+
+    /* Рисуем линейку. */
+    cairo_set_source_rgb (cairo, 0, 0, 0);
+    cairo_set_line_width (cairo, 2);
+    cairo_move_to (cairo, x0, y0);
+    cairo_line_to (cairo, x0, y0 + height);
+    cairo_line_to (cairo, x0 + metres * scale, y0 + height);
+    cairo_line_to (cairo, x0 + metres * scale, y0);
+    cairo_stroke (cairo);
+
+    /* Рисуем надпись. */
+    cairo_move_to (cairo, x0 - text_width, y0 + height);
+    cairo_show_text (cairo, label);
+  }
 }
 
 HyScanGtkMapFloat *

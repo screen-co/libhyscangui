@@ -61,13 +61,16 @@ HYSCAN_API
 guint                  hyscan_gtk_map_get_zoom         (HyScanGtkMap       *map);
 
 HYSCAN_API
+gdouble                hyscan_gtk_map_get_scale        (HyScanGtkMap       *map);
+
+HYSCAN_API
 void                   hyscan_gtk_map_tile_to_point    (HyScanGtkMap       *map,
                                                         gdouble            *x,
                                                         gdouble            *y,
                                                         gdouble             x_tile,
                                                         gdouble             y_tile);
 HYSCAN_API
-void                   hyscan_gtk_map_to_point_tile    (HyScanGtkMap       *map,
+void                   hyscan_gtk_map_point_to_tile    (HyScanGtkMap       *map,
                                                         gdouble             x,
                                                         gdouble             y,
                                                         gdouble            *x_tile,

@@ -30,6 +30,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-param-tree.c
              hyscan-task-queue.c
              hyscan-gtk-map.c
+             hyscan-gtk-crts-map.c
              hyscan-gtk-map-tile.c
              hyscan-gtk-map-tiles.c
              hyscan-gtk-map-float.c
