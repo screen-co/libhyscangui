@@ -113,6 +113,8 @@ hyscan_task_queue_object_constructed (GObject *object)
   priv->pool = g_thread_pool_new ((GFunc) hyscan_task_queue_process, task_queue,
                                   priv->max_concurrent, FALSE, NULL);
   priv->queue = g_queue_new ();
+
+  g_mutex_init (&priv->queue_lock);
 }
 
 static void
@@ -124,6 +126,8 @@ hyscan_task_queue_object_finalize (GObject *object)
   /* Освобождаем память. */
   g_queue_free (priv->queue);
   g_thread_pool_free (priv->pool, TRUE, FALSE);
+
+  g_mutex_clear (&priv->queue_lock);
 
   G_OBJECT_CLASS (hyscan_task_queue_parent_class)->finalize (object);
 }

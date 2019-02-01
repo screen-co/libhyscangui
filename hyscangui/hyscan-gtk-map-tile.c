@@ -20,6 +20,7 @@ struct _HyScanGtkMapTilePrivate
   guint                        size;           /* Размер тайла size x size - тайлы квадратные. */
 
   cairo_surface_t             *surface;        /* Поверхность cairo с изображением тайла. */
+  gboolean                     filled;         /* Заполнена ли поверхность surface реальным изображением. */
 };
 
 static void    hyscan_gtk_map_tile_set_property             (GObject               *object,
@@ -164,6 +165,23 @@ hyscan_gtk_map_tile_get_surface (HyScanGtkMapTile *tile)
 }
 
 gboolean
+hyscan_gtk_map_tile_is_filled (HyScanGtkMapTile *tile)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile), FALSE);
+
+  return tile->priv->filled;
+}
+
+void
+hyscan_gtk_map_tile_set_filled (HyScanGtkMapTile *tile,
+                                gboolean          filled)
+{
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile));
+
+  tile->priv->filled = filled;
+}
+
+gboolean
 hyscan_gtk_map_tile_set_content (HyScanGtkMapTile *tile,
                                  cairo_surface_t  *content)
 {
@@ -188,6 +206,7 @@ hyscan_gtk_map_tile_set_content (HyScanGtkMapTile *tile,
   memcpy (cairo_image_surface_get_data (priv->surface),
           cairo_image_surface_get_data (content),
           (size_t) dsize);
+  priv->filled = TRUE;
 
   return TRUE;
 }

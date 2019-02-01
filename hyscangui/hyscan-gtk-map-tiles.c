@@ -219,6 +219,7 @@ hyscan_gtk_map_tiles_fill_tile (HyScanGtkMapTilesPrivate *priv,
   gchar key[256];
   gboolean found;
 
+  /* Создаём буфер-обёртку вокруг данных cairo-поверхности тайла. */
   cache_buffer = hyscan_buffer_new ();
   hyscan_gtk_map_tiles_wrap_tile_surface (cache_buffer, tile);
 
@@ -226,10 +227,14 @@ hyscan_gtk_map_tiles_fill_tile (HyScanGtkMapTilesPrivate *priv,
   hyscan_gtk_map_tiles_cache_key (tile, key, 256);
 
   found = hyscan_cache_get (priv->cache, key, NULL, cache_buffer);
-
-  if (!found) /* Тайл в кэше не найден, добавляем его в очередь на загрузку. */
+  if (found)
+    /* Тайл найден в кэше, отмечаем его как заполненный. */
     {
-      /* Передаём тайл в очередь. */
+      hyscan_gtk_map_tile_set_filled (tile, TRUE);
+    }
+  else
+    /* Тайл не найден, добавляем его в очередь на загрузку. */
+    {
       g_object_ref (tile);
       hyscan_task_queue_push (priv->task_queue, tile);
     }
@@ -257,13 +262,15 @@ hyscan_gtk_map_tiles_draw_tile (HyScanGtkMapTiles *layer,
   cairo_surface_t *surface;
   cairo_surface_t *scaled_surface;
 
+  if (!hyscan_gtk_map_tile_is_filled (tile))
+    return;
+
   /* Определяем координаты двух вершин тайла на карте. */
   x_tile = hyscan_gtk_map_tile_get_x (tile);
   y_tile = hyscan_gtk_map_tile_get_y (tile);
   hyscan_gtk_map_tile_to_point (layer->priv->map, &xa, &ya, x_tile, y_tile);
   hyscan_gtk_map_tile_to_point (layer->priv->map, &xb, NULL, x_tile + 1, y_tile);
 
-  /* todo: use dummy surface if null */
   surface = hyscan_gtk_map_tile_get_surface (tile);
   cairo_surface_mark_dirty (surface);
 
