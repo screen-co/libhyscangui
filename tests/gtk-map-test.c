@@ -8,6 +8,8 @@
 #include <hyscan-gtk-crts-map.h>
 #include <hyscan-gtk-map-fs-tile-source.h>
 
+static gchar    *tiles_dir = "/tmp/tiles";   /* Путь к каталогу, где хранятся тайлы. */
+
 void
 destroy_callback (GtkWidget *widget,
                   gpointer   user_data)
@@ -56,12 +58,36 @@ int main (int     argc,
 
   gtk_init (&argc, &argv);
 
+/* Разбор командной строки. */
+  {
+    GError *error = NULL;
+    GOptionContext *context;
+    GOptionEntry entries[] =
+      {
+        { "tile-dir", 'd', 0, G_OPTION_ARG_STRING, &tiles_dir, "Path to directory containing tiles", NULL },
+        { NULL }
+      };
+
+    context = g_option_context_new ("");
+    g_option_context_set_help_enabled (context, TRUE);
+    g_option_context_add_main_entries (context, entries, NULL);
+    g_option_context_set_ignore_unknown_options (context, FALSE);
+
+    if (!g_option_context_parse (context, &argc, &argv, &error))
+      {
+        g_message( error->message);
+        return -1;
+      }
+
+    g_option_context_free (context);
+  }
+
   /* Создаём область карты. */
   map = create_map (center);
 
   /* Источники тайлов. */
   osm_source = hyscan_gtk_map_tiles_osm_new ();
-  fs_source = hyscan_gtk_map_fs_tile_source_new ("/tmp/tiles", HYSCAN_GTK_MAP_TILE_SOURCE(osm_source));
+  fs_source = hyscan_gtk_map_fs_tile_source_new (tiles_dir, HYSCAN_GTK_MAP_TILE_SOURCE(osm_source));
 
   /* Добавляем слои. */
   tiles = hyscan_gtk_map_tiles_new (HYSCAN_GTK_MAP (map),
