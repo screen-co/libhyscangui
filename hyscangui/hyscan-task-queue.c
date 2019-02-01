@@ -180,7 +180,10 @@ hyscan_task_queue_try_next (HyScanTaskQueue *queue)
       priv->processing_tasks = g_list_append (priv->processing_tasks, task);
       ++priv->processing_count;
       if (error != NULL)
-        g_warning ("HyScanTaskQueue: %s", error->message);
+        {
+          g_warning ("HyScanTaskQueue: %s", error->message);
+          g_clear_error (&error);
+        }
     }
 
   /* Операции с очередью сделаны — разблокируем доступ. */

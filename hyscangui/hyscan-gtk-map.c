@@ -13,6 +13,9 @@ enum
 struct _HyScanGtkMapPrivate
 {
   guint                  zoom;                 /* Текущий масштаб карты. */
+  guint                  max_zoom;             /* Максимальный масштаб (включительно). */
+  guint                  min_zoom;             /* Минимальный масштаб (включительно). */
+  gdouble                scale;                /* Увеличение размера тайлов. */
 
   /* Обработка перемещения карты мышью. */
   gboolean               move_area;            /* Признак перемещения при нажатой клавише мыши. */
@@ -101,13 +104,16 @@ hyscan_gtk_map_configure (GtkWidget          *widget,
     {
       guint width, height;
       gdouble x, y;
+      gdouble tile_size;
+
+      tile_size = 256.0 * map->priv->scale;
 
       gtk_cifro_area_get_size (carea, &width, &height);
       gtk_cifro_area_get_view (carea, &x, NULL, &y, NULL);
       if (FALSE) /* todo: cartesian map. */
         gtk_cifro_area_set_view (carea, x, x + 22200, y, y + 22200);
       else
-        gtk_cifro_area_set_view (carea, x, x + width / 256.0, y, y + height / 256.0);
+        gtk_cifro_area_set_view (carea, x, x + width / tile_size, y, y + height / tile_size);
       map->priv->view_initialized = TRUE;
     }
 
@@ -174,6 +180,9 @@ hyscan_gtk_map_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_parent_class)->constructed (object);
 
   priv->zoom = 7;
+  priv->min_zoom = 0;
+  priv->max_zoom = 19;
+  priv->scale = 1;
 }
 
 static void
@@ -192,11 +201,38 @@ hyscan_gtk_map_scroll (GtkWidget      *widget,
 {
   HyScanGtkMap *map = HYSCAN_GTK_MAP (widget);
   HyScanGtkMapPrivate *priv = map->priv;
+  gint dscale = 0;
+
+  guint zoom;
+  gdouble scale;
 
   if (event->direction == GDK_SCROLL_UP)
-    hyscan_gtk_map_set_zoom (map, priv->zoom + 1);
+    dscale = 1;
   else if (event->direction == GDK_SCROLL_DOWN)
-    hyscan_gtk_map_set_zoom (map, priv->zoom - 1);
+    dscale = -1;
+
+  if (dscale == 0)
+    return FALSE;
+
+  zoom = priv->zoom;
+  scale = priv->scale;
+
+  /* Изменяем масштаб. При больших изменений масштаба меняем масштаб тайловой сетки. */
+  scale *= pow (2, dscale * 0.2);
+  if (scale > 1.5 && zoom < priv->max_zoom)
+    {
+      scale /= 2;
+      zoom += 1;
+    }
+  else if (scale < .75 && zoom > priv->min_zoom)
+    {
+      scale *= 2;
+      zoom -= 1;
+    }
+
+  g_message ("Zoom %d, scale %.2f", zoom, scale);
+  hyscan_gtk_map_set_zoom (map, zoom);
+  hyscan_gtk_map_set_tile_scaling (map, scale);
 
   return FALSE;
 }
@@ -481,6 +517,48 @@ hyscan_gtk_map_get_tile_view_i (HyScanGtkMap *map,
 }
 
 /**
+ * hyscan_gtk_map_set_tile_scaling:
+ * @map: указатель на #HyScanGtkMap
+ * @scaling: степень увеличения тайла (1.0 - без изменения)
+ *
+ * Изменяет масштаб за счёт изменения размера тайла в @scaling раз при том же
+ * размере тайловой сетки (zoom). Увеличение тайла в 2 раза соответствует
+ * масштабу следующей тайловой сетки (zoom + 1).
+ *
+ * Для реального изменения детализации карты используйте hyscan_gtk_map_set_zoom().
+ */
+void
+hyscan_gtk_map_set_tile_scaling (HyScanGtkMap *map,
+                                 gdouble       scaling)
+{
+  GtkCifroArea *carea;
+  guint widget_width, widget_height;
+  gdouble width, height;
+  gdouble from_x, from_y, to_x, to_y;
+  gdouble x, y;
+  gdouble tile_size;
+
+  carea = GTK_CIFRO_AREA (map);
+
+  map->priv->scale = scaling;
+  tile_size = 256.0 * map->priv->scale;
+
+  /* Определяем центр видимой области. */
+  gtk_cifro_area_get_view (carea, &from_x, &to_x, &from_y, &to_y);
+  x = (from_x + to_x) / 2;
+  y = (from_y + to_y) / 2;
+
+  /* Определяем размер видимой области в растянутых тайлах. */
+  gtk_cifro_area_get_size (carea, &widget_width, &widget_height);
+  width = widget_width / tile_size;
+  height = widget_height / tile_size;
+
+  /* Меняем границу видимой области согласно новым размерам, сохраняя центр. */
+  gtk_cifro_area_set_view (carea, x - width / 2.0,  x + width / 2.0,
+                                  y - height / 2.0, y + height / 2.0);
+}
+
+/**
  * hyscan_gtk_map_move_to:
  * @map: указатель на объект #HyScanGtkMap
  * @center: новые координаты центра
@@ -549,11 +627,12 @@ hyscan_gtk_map_set_zoom (HyScanGtkMap *map,
 
   g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
 
-  /* todo: откуда брать эти значения? */
-  if (zoom < 1 || zoom > 19)
-    return;
-
   priv = map->priv;
+  if (zoom < priv->min_zoom || zoom > priv->max_zoom)
+    {
+      g_warning ("HyScanGtkMap: Zoom must be in interval from %d to %d", priv->min_zoom, priv->max_zoom);
+      return;
+    }
 
   /* Получаем координаты центрального тайла в (lat, lon). */
   gtk_cifro_area_get_view (GTK_CIFRO_AREA (map), &x0_value, &xn_value, &y0_value, &yn_value);
@@ -606,11 +685,11 @@ hyscan_gtk_map_geo_to_tile (guint              zoom,
 
 /**
  * hyscan_gtk_map_get_scale:
- * @map:
+ * @map: указатель на #HyScanGtkMap
  *
  * Определяет масштаб в центре карты.
  *
- * Returns: количество пикселов в одном метре вдоль ширины виджета.
+ * Returns: количество пикселов в одном метре вдоль ширины виджета
  */
 gdouble
 hyscan_gtk_map_get_scale (HyScanGtkMap *map)
