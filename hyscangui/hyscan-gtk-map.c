@@ -128,8 +128,6 @@ hyscan_gtk_map_visible_draw (GtkWidget *widget,
   HyScanGtkMap *map = HYSCAN_GTK_MAP (widget);
   HyScanGtkMapPrivate *priv = map->priv;
   /* todo: ??? */
-
-  g_message ("Scale %f", hyscan_gtk_map_get_scale (map));
 }
 
 static void

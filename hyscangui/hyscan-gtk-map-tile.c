@@ -20,6 +20,7 @@ struct _HyScanGtkMapTilePrivate
   guint                        size;           /* Размер тайла size x size - тайлы квадратные. */
 
   cairo_surface_t             *surface;        /* Поверхность cairo с изображением тайла. */
+  guint32                      data_size;
   gboolean                     filled;         /* Заполнена ли поверхность surface реальным изображением. */
 };
 
@@ -100,6 +101,7 @@ hyscan_gtk_map_tile_object_constructed (GObject *object)
   priv->format = CAIRO_FORMAT_RGB24;
   /* todo: может быть использовать cairo_image_surface_create_for_data. */
   priv->surface = cairo_image_surface_create (priv->format, priv->size, priv->size);
+  priv->data_size = (guint32) (cairo_image_surface_get_height (priv->surface) * cairo_image_surface_get_stride (priv->surface));
 }
 
 static void
@@ -164,6 +166,16 @@ hyscan_gtk_map_tile_get_surface (HyScanGtkMapTile *tile)
   return tile->priv->surface;
 }
 
+guchar *
+hyscan_gtk_map_tile_get_data (HyScanGtkMapTile *tile,
+                              guint32          *size)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile), NULL);
+
+  *size = tile->priv->data_size;
+  return cairo_image_surface_get_data (tile->priv->surface);
+}
+
 gboolean
 hyscan_gtk_map_tile_is_filled (HyScanGtkMapTile *tile)
 {
@@ -206,6 +218,27 @@ hyscan_gtk_map_tile_set_content (HyScanGtkMapTile *tile,
   memcpy (cairo_image_surface_get_data (priv->surface),
           cairo_image_surface_get_data (content),
           (size_t) dsize);
+  priv->filled = TRUE;
+
+  return TRUE;
+}
+
+gboolean
+hyscan_gtk_map_tile_set_data (HyScanGtkMapTile *tile,
+                              guchar           *data,
+                              guint32           size)
+{
+  HyScanGtkMapTilePrivate *priv;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile), FALSE);
+
+  priv = tile->priv;
+
+  /* Проверяем размер буфера. */
+  if (size != priv->data_size)
+    return FALSE;
+
+  memcpy (cairo_image_surface_get_data (priv->surface), data, size);
   priv->filled = TRUE;
 
   return TRUE;

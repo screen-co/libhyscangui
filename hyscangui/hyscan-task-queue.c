@@ -146,7 +146,6 @@ hyscan_task_queue_process (gpointer         task,
   g_mutex_lock (&priv->queue_lock);
   priv->processing_tasks = g_list_remove (priv->processing_tasks, task);
   --priv->processing_count;
-  g_message ("Task done. Rest queue length: %d", g_queue_get_length (priv->queue));
   g_mutex_unlock (&priv->queue_lock);
 
   /* Освобождаем память от задачи. */

@@ -54,6 +54,11 @@ gboolean               hyscan_gtk_map_tile_set_content      (HyScanGtkMapTile *t
                                                              cairo_surface_t  *content);
 
 HYSCAN_API
+gboolean               hyscan_gtk_map_tile_set_data         (HyScanGtkMapTile *tile,
+                                                             guchar           *data,
+                                                             guint32           size);
+
+HYSCAN_API
 gboolean               hyscan_gtk_map_tile_is_filled        (HyScanGtkMapTile *tile);
 
 HYSCAN_API
@@ -62,6 +67,10 @@ void                   hyscan_gtk_map_tile_set_filled       (HyScanGtkMapTile *t
 
 HYSCAN_API
 cairo_surface_t *      hyscan_gtk_map_tile_get_surface      (HyScanGtkMapTile *tile);
+
+HYSCAN_API
+guchar *               hyscan_gtk_map_tile_get_data         (HyScanGtkMapTile *tile,
+                                                             guint32          *size);
 
 HYSCAN_API
 gint                   hyscan_gtk_map_tile_compare          (HyScanGtkMapTile *a,
