@@ -109,7 +109,7 @@ static void
 hyscan_gtk_param_cc_object_constructed (GObject *object)
 {
   GHashTable *widgets;
-  GtkWidget *abar, *scroll;
+  GtkWidget *scroll;
   HyScanGtkParamCC *self = HYSCAN_GTK_PARAM_CC (object);
   HyScanGtkParamCCPrivate *priv = self->priv;
 
@@ -147,10 +147,6 @@ hyscan_gtk_param_cc_object_constructed (GObject *object)
 
   gtk_grid_attach (GTK_GRID (self), GTK_WIDGET (scroll), 0, 0, 1, 1);
   gtk_grid_attach (GTK_GRID (self), GTK_WIDGET (priv->stack), 1, 0, 1, 1);
-
-  abar = hyscan_gtk_param_make_action_bar (HYSCAN_GTK_PARAM (self));
-
-  gtk_grid_attach (GTK_GRID (self), abar, 0, 1, 2, 1);
 }
 
 static void
@@ -230,8 +226,13 @@ hyscan_gtk_param_cc_make_level0 (HyScanGtkParamCC           *self,
 
       plist = hyscan_param_list_new ();
       box = hyscan_gtk_param_cc_make_level1 (subnode, widgets, plist, show_hidden);
-      gtk_stack_add_titled (priv->stack, box, subnode->path, subnode->path);
-      hyscan_gtk_param_cc_add_row (self, subnode, plist);
+      if (box != NULL)
+        {
+          gtk_stack_add_titled (priv->stack, box, subnode->path, subnode->path);
+          hyscan_gtk_param_cc_add_row (self, subnode, plist);
+        }
+
+      g_clear_object (&plist);
     }
 
 }
@@ -250,7 +251,7 @@ hyscan_gtk_param_cc_make_level1 (const HyScanDataSchemaNode *node,
 
   box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 2);
   g_object_set (box, "margin", 18, NULL);
-
+g_message ("Level1: %s", node->path);
   widget = hyscan_gtk_param_cc_make_level2 (node, widgets, plist, FALSE, show_hidden);
   if (widget != NULL)
     {
@@ -273,6 +274,7 @@ hyscan_gtk_param_cc_make_level1 (const HyScanDataSchemaNode *node,
 
   if (empty)
     {
+      g_message ("EMPTY Level1: %s", node->path);
       g_clear_object (&box);
       return NULL;
     }
@@ -295,6 +297,7 @@ hyscan_gtk_param_cc_make_level2 (const HyScanDataSchemaNode *node,
   GtkWidget *box, *frame, *pkey;
   GtkSizeGroup *size;
 
+  g_message ("Level2 %s", node->path);
   if (!hyscan_gtk_param_node_has_visible_keys (node, show_hidden))
     return NULL;
 
@@ -312,6 +315,7 @@ hyscan_gtk_param_cc_make_level2 (const HyScanDataSchemaNode *node,
   for (link = node->keys; link != NULL; link = link->next)
     {
       HyScanDataSchemaKey *key = link->data;
+      g_message ("  Level2 %s", key->id);
 
       /* А скрытые ключи я тебе, лысый, не покажу. */
       if ((key->access & HYSCAN_DATA_SCHEMA_ACCESS_HIDDEN) && !show_hidden)

@@ -100,7 +100,7 @@ hyscan_gtk_param_tree_object_constructed (GObject *object)
   const HyScanDataSchemaNode *nodes;
   GHashTable *widgets;
   GtkTreeStore *tstore;
-  GtkWidget *abar, *tview, *tree_scroll;
+  GtkWidget *tview, *tree_scroll;
   gboolean show_hidden;
 
   HyScanGtkParamTree *self = HYSCAN_GTK_PARAM_TREE (object);
@@ -136,13 +136,9 @@ hyscan_gtk_param_tree_object_constructed (GObject *object)
                               "child", tview,
                               NULL);
 
-  /* Нижняя панель с кнопками. */
-  abar = hyscan_gtk_param_make_action_bar (HYSCAN_GTK_PARAM (self));
-
   /* Упаковываем всё в сетку. */
   gtk_grid_attach (GTK_GRID (self), GTK_WIDGET (priv->stack), 1, 0, 1, 1);
   gtk_grid_attach (GTK_GRID (self), GTK_WIDGET (tree_scroll), 0, 0, 1, 1);
-  gtk_grid_attach (GTK_GRID (self), abar, 0, 1, 2, 1);
 }
 
 static void

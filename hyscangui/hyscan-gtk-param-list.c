@@ -123,7 +123,6 @@ hyscan_gtk_param_list_add_widgets (HyScanGtkParamList   *self,
 static void
 hyscan_gtk_param_list_object_constructed (GObject *object)
 {
-  GtkWidget *abar;
   GtkWidget *scrolled;
   GtkWidget *subbox;
   HyScanParamList *plist;
@@ -153,10 +152,6 @@ hyscan_gtk_param_list_object_constructed (GObject *object)
   gtk_container_add (GTK_CONTAINER (scrolled), subbox);
   g_object_set (scrolled, "hexpand", TRUE, "vexpand", TRUE, NULL);
   gtk_grid_attach (GTK_GRID (self), scrolled, 0, 0, 1, 1);
-
-  /* Кнопки внизу виджета, отмена и применить. */
-  abar = hyscan_gtk_param_make_action_bar (HYSCAN_GTK_PARAM (self));
-  gtk_grid_attach (GTK_GRID (self), abar, 0, 1, 1, 1);
 }
 
 static void
