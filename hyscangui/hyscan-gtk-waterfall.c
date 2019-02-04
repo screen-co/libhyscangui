@@ -1047,9 +1047,14 @@ static void
 hyscan_gtk_waterfall_sources_changed (HyScanGtkWaterfallState *model,
                                       HyScanGtkWaterfall   *self)
 {
-  self->priv->widget_type = hyscan_gtk_waterfall_state_get_sources (model,
-                                                                    &self->priv->left_source,
-                                                                    &self->priv->right_source);
+  HyScanGtkWaterfallPrivate *priv = self->priv;
+
+  priv->widget_type = hyscan_gtk_waterfall_state_get_sources (model,
+                                                              &priv->left_source,
+                                                              &priv->right_source);
+
+  hyscan_track_rect_set_source (priv->lrect, priv->left_source);
+  hyscan_track_rect_set_source (priv->rrect, priv->right_source);
 }
 
 /* Функция обрабатывает смену типа тайлов. */
@@ -1103,6 +1108,8 @@ hyscan_gtk_waterfall_track_changed (HyScanGtkWaterfallState *model,
 
   hyscan_tile_color_open (priv->color, db_uri, project, track);
 
+  hyscan_tile_queue_amp_changed (priv->queue);
+  hyscan_tile_queue_dpt_changed (priv->queue);
   hyscan_track_rect_amp_changed (priv->lrect);
   hyscan_track_rect_dpt_changed (priv->lrect);
   hyscan_track_rect_amp_changed (priv->rrect);
@@ -1267,7 +1274,7 @@ hyscan_gtk_waterfall_automove (HyScanGtkWaterfall *self,
 {
   HyScanGtkWaterfallPrivate *priv;
 
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (self));
+  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (self), FALSE);
   priv = self->priv;
 
   if (priv->automove == automove)
