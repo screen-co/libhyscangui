@@ -472,7 +472,7 @@ hyscan_gtk_param_key_make_editor_double (HyScanDataSchema    *schema,
   if (max < G_MAXDOUBLE - step)
     max += step;
   else
-    max = G_MAXINT64;
+    max = G_MAXDOUBLE;
 
   /* Количество знаков после запятой определяется шагом. */
   digits = ABS(log10 (step)) + 1;

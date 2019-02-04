@@ -251,8 +251,8 @@ hyscan_gtk_param_tree_populate (const HyScanDataSchemaNode *node,
   GList *link;
   GtkTreeIter iter;
   GtkWidget *page;
-  gboolean populated = FALSE;
-  gboolean has_visible = FALSE;
+  gboolean have_subnodes = FALSE;
+  gboolean have_keys = FALSE;
 
   if (node == NULL)
     {
@@ -263,46 +263,54 @@ hyscan_gtk_param_tree_populate (const HyScanDataSchemaNode *node,
   /* Для всех узлов... */
   for (link = node->nodes; link != NULL; link = link->next)
     {
-      GtkTreeIter temp_iter;
-      gboolean populated_now = FALSE;
+      gboolean populated;
       HyScanDataSchemaNode *child = link->data;
 
-      /* Запоминаем текущий итер, чтобы иметь возможность восстановить его
-       * состояние.
-       * После этого добавляем узел в дерево и углубляемся. */
-      temp_iter = iter;
+      /* После этого добавляем узел в дерево и углубляемся. */
       hyscan_gtk_param_tree_append_node (store, &iter, parent, child);
-      populated_now = hyscan_gtk_param_tree_populate (child, store, &iter,
-                                                      stack, widgets, plists,
-                                                      show_hidden);
+      populated = hyscan_gtk_param_tree_populate (child, store, &iter,
+                                                  stack, widgets, plists,
+                                                  show_hidden);
 
-      /* Если ничего добавлено не было, то удаляем узел и восстанавливаем
-       * значение итера, чтобы не пустые узлы не висели.
+      /* Если ничего добавлено не было, то удаляем узел. Это, кстати, автоматически
+       * инвалидирует итер, но последующий вызов hyscan_gtk_param_tree_append_node
+       * снова сделает его валидным.
        * Иначе запоминаем, что на этом уровне или ниже что-то да есть. */
-      if (!populated_now)
-        {
-          gtk_tree_store_remove (store, &iter);
-          iter = temp_iter;
-        }
+      if (!populated)
+        gtk_tree_store_remove (store, &iter);
       else
-        {
-          populated = TRUE;
-        }
+        have_subnodes = TRUE;
     }
 
   /* Оказались на уровне текущих ключей. Если добавлять нечего, то досрочно
    * выходим, не забыв оповестить вызывающего, добавили мы что-то или нет.
    * А ещё делаем страничку-заглушку, если ниже были какие-то ключи. */
-  has_visible = hyscan_gtk_param_node_has_visible_keys (node, show_hidden);
-  if (!has_visible)
+  have_keys = hyscan_gtk_param_node_has_visible_keys (node, show_hidden);
+  if (!have_keys)
     {
-      if (populated)
+      if (have_subnodes)
         {
+          /* Заготовка, чтобы показывать ссылки на подузлы. 
+          {
+            GtkTreeModel *model = GTK_TREE_MODEL (store);
+            gtk_tree_model_iter_children (model, &iter, parent);
+
+            while (gtk_tree_model_iter_next (model, &iter))
+              {
+                gchar *id;
+                gtk_tree_model_get (model, &iter, ID_COL, &id, -1);
+                g_message ("%s: %s", node->path, id);
+                g_free (id);
+                there was smth like iter_to path, which can be passed as uri to link label
+                then connect to "uri-activated" signal 
+              }
+          }
+          */
           page = gtk_label_new ("Nothing to display at this level");
           gtk_stack_add_named (stack, page, node->path);
         }
 
-      return populated;
+      return have_subnodes;
     }
 
   /* Добавляем страничку в стек и узел в дерево. */
