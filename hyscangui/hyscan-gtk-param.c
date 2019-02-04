@@ -651,9 +651,18 @@ hyscan_gtk_param_get_node_name (const HyScanDataSchemaNode *node)
 
   sub = g_strsplit (node->path, "/", -1);
 
+  /* g_strsplit возвращает нуль-терминированный список.
+   * Если первый же элемент - NULL, значит, ловить тут нечего. */
+  if (*sub == NULL)
+    {
+      g_strfreev (sub);
+      return NULL;
+    }
+
   /* Ищем последний элемент... */
   for (iter = sub; *iter != NULL; ++iter)
     ;
+
   /* А находим предпоследний! */
   --iter;
 

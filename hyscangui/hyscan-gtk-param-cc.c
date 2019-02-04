@@ -177,11 +177,15 @@ hyscan_gtk_param_cc_row_activated (GtkListBox    *box,
                                    GtkListBoxRow *row,
                                    gpointer       udata)
 {
+  gint row_index;
+  gchar *path;
   HyScanGtkParamCC *self = udata;
   HyScanGtkParamCCPrivate *priv = self->priv;
 
-  gint row_index = gtk_list_box_row_get_index (row);
-  gchar *path = g_ptr_array_index (priv->paths, row_index);
+  g_return_if_fail (row != NULL);
+
+  row_index = gtk_list_box_row_get_index (row);
+  path = g_ptr_array_index (priv->paths, row_index);
   HyScanParamList *plist = g_ptr_array_index (priv->plists, row_index);
 
   gtk_stack_set_visible_child_name (priv->stack, path);
@@ -251,7 +255,7 @@ hyscan_gtk_param_cc_make_level1 (const HyScanDataSchemaNode *node,
 
   box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 2);
   g_object_set (box, "margin", 18, NULL);
-g_message ("Level1: %s", node->path);
+
   widget = hyscan_gtk_param_cc_make_level2 (node, widgets, plist, FALSE, show_hidden);
   if (widget != NULL)
     {
@@ -274,7 +278,6 @@ g_message ("Level1: %s", node->path);
 
   if (empty)
     {
-      g_message ("EMPTY Level1: %s", node->path);
       g_clear_object (&box);
       return NULL;
     }
@@ -297,7 +300,6 @@ hyscan_gtk_param_cc_make_level2 (const HyScanDataSchemaNode *node,
   GtkWidget *box, *frame, *pkey;
   GtkSizeGroup *size;
 
-  g_message ("Level2 %s", node->path);
   if (!hyscan_gtk_param_node_has_visible_keys (node, show_hidden))
     return NULL;
 
@@ -315,7 +317,6 @@ hyscan_gtk_param_cc_make_level2 (const HyScanDataSchemaNode *node,
   for (link = node->keys; link != NULL; link = link->next)
     {
       HyScanDataSchemaKey *key = link->data;
-      g_message ("  Level2 %s", key->id);
 
       /* А скрытые ключи я тебе, лысый, не покажу. */
       if ((key->access & HYSCAN_DATA_SCHEMA_ACCESS_HIDDEN) && !show_hidden)

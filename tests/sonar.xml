@@ -174,6 +174,10 @@
     <node id="sub_keyless3" name="Темпранильо" schema="keyless"><description>Новый 2</description></node>
     <node id="sub_keyless4" name="Монтепульчано" schema="keyless"><description>Новый 3</description></node>
   </schema>
+  
+  <schema id="nameless"><description>Node with no name</description>
+    <key id="text" name="Строка" type="string" access="rw"><default>I belong to a node with no name</default></key>
+  </schema>
 
 
 </schemalist>
