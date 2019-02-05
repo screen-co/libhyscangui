@@ -277,9 +277,10 @@ hyscan_gtk_map_tiles_draw (HyScanGtkMapTiles *layer,
 {
   HyScanGtkMapTilesPrivate *priv = layer->priv;
 
-  guint x0, y0, xn, yn, x, y;
+  gint x0, xn, y0, yn, x, y;
   guint zoom;
   guint tile_size;
+  gint last_tile;
 
   cairo_t *tiles_cairo;
   cairo_surface_t *tiles_surface;
@@ -288,6 +289,13 @@ hyscan_gtk_map_tiles_draw (HyScanGtkMapTiles *layer,
   hyscan_gtk_map_get_tile_view_i (priv->map, &x0, &xn, &y0, &yn);
   zoom = hyscan_gtk_map_get_zoom (priv->map);
   tile_size = hyscan_gtk_map_get_tile_size (priv->map);
+
+  /* Берём только валидные номера тайлов: от 0 до 2^zoom - 1. */
+  last_tile = (zoom == 0 ? 1 : 2 << (zoom - 1)) - 1;
+  x0 = CLAMP (x0, 0, last_tile);
+  y0 = CLAMP (y0, 0, last_tile);
+  xn = CLAMP (xn, 0, last_tile);
+  yn = CLAMP (yn, 0, last_tile);
 
   /* Создаем буфер для отрисовки тайлов в исходном размере tile_size. */
   tiles_surface = cairo_image_surface_create (CAIRO_FORMAT_RGB24,
@@ -305,7 +313,7 @@ hyscan_gtk_map_tiles_draw (HyScanGtkMapTiles *layer,
         {
           HyScanGtkMapTile *tile;
 
-          tile = hyscan_gtk_map_tile_new (x, y, zoom, tile_size);
+          tile = hyscan_gtk_map_tile_new ((guint) x, (guint) y, zoom, tile_size);
 
           /* Если получилось заполнить тайл, то рисуем его в буфер. */
           if (hyscan_gtk_map_tiles_fill_tile (priv, tile))

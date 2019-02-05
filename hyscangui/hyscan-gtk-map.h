@@ -89,10 +89,10 @@ void                   hyscan_gtk_map_point_to_tile    (HyScanGtkMap       *map,
 
 HYSCAN_API
 void                   hyscan_gtk_map_get_tile_view_i  (HyScanGtkMap       *map,
-                                                        guint              *from_tile_x,
-                                                        guint              *to_tile_x,
-                                                        guint              *from_tile_y,
-                                                        guint              *to_tile_y);
+                                                        gint               *from_tile_x,
+                                                        gint               *to_tile_x,
+                                                        gint               *from_tile_y,
+                                                        gint               *to_tile_y);
 
 HYSCAN_API
 void                   hyscan_gtk_map_geo_to_tile      (guint               zoom,

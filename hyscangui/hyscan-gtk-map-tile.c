@@ -51,7 +51,7 @@ hyscan_gtk_map_tile_class_init (HyScanGtkMapTileClass *klass)
     g_param_spec_uint ("y", "Y", "Y coordinate", 0, G_MAXUINT32, 0,
                        G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_ZOOM,
-    g_param_spec_uint ("z", "Z", "Zoom", 1, 19, 1,
+    g_param_spec_uint ("z", "Z", "Zoom", 0, 19, 1,
                        G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_SIZE,
     g_param_spec_uint ("size", "Size", "Tile size, px", 0, G_MAXUINT, 256,
