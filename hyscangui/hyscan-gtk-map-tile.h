@@ -35,7 +35,8 @@ GType                  hyscan_gtk_map_tile_get_type         (void);
 HYSCAN_API
 HyScanGtkMapTile *     hyscan_gtk_map_tile_new              (guint              x,
                                                              guint              y,
-                                                             guint              z);
+                                                             guint              z,
+                                                             guint              size);
 
 HYSCAN_API
 guint                  hyscan_gtk_map_tile_get_x            (HyScanGtkMapTile *tile);

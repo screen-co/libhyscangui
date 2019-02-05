@@ -8,6 +8,7 @@ enum
   PROP_X,
   PROP_Y,
   PROP_ZOOM,
+  PROP_SIZE,
 };
 
 struct _HyScanGtkMapTilePrivate
@@ -52,6 +53,9 @@ hyscan_gtk_map_tile_class_init (HyScanGtkMapTileClass *klass)
   g_object_class_install_property (object_class, PROP_ZOOM,
     g_param_spec_uint ("z", "Z", "Zoom", 1, 19, 1,
                        G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+  g_object_class_install_property (object_class, PROP_SIZE,
+    g_param_spec_uint ("size", "Size", "Tile size, px", 0, G_MAXUINT, 256,
+                       G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
@@ -83,6 +87,10 @@ hyscan_gtk_map_tile_set_property (GObject      *object,
       priv->zoom = g_value_get_uint (value);
       break;
 
+    case PROP_SIZE:
+      priv->size = g_value_get_uint (value);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -97,7 +105,6 @@ hyscan_gtk_map_tile_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_gtk_map_tile_parent_class)->constructed (object);
 
-  priv->size = 256;
   priv->format = CAIRO_FORMAT_RGB24;
   /* todo: может быть использовать cairo_image_surface_create_for_data. */
   priv->surface = cairo_image_surface_create (priv->format, priv->size, priv->size);
@@ -118,12 +125,14 @@ hyscan_gtk_map_tile_object_finalize (GObject *object)
 HyScanGtkMapTile *
 hyscan_gtk_map_tile_new (guint x,
                          guint y,
-                         guint z)
+                         guint z,
+                         guint size)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_TILE,
                        "x", x,
                        "y", y,
-                       "z", z, NULL);
+                       "z", z,
+                       "size", size, NULL);
 }
 
 guint
@@ -214,13 +223,7 @@ hyscan_gtk_map_tile_set_content (HyScanGtkMapTile *tile,
   /* Копируем поверхность в целевой тайл. */
   dsize = cairo_image_surface_get_height (content) * cairo_image_surface_get_stride (content);
 
-  /* todo: тут можно словить сегфолт, если размер полученного тайла больше ожидаемого. */
-  memcpy (cairo_image_surface_get_data (priv->surface),
-          cairo_image_surface_get_data (content),
-          (size_t) dsize);
-  priv->filled = TRUE;
-
-  return TRUE;
+  return hyscan_gtk_map_tile_set_data (tile, cairo_image_surface_get_data (content), (guint32) dsize);
 }
 
 gboolean
@@ -240,6 +243,7 @@ hyscan_gtk_map_tile_set_data (HyScanGtkMapTile *tile,
 
   memcpy (cairo_image_surface_get_data (priv->surface), data, size);
   priv->filled = TRUE;
+  cairo_surface_mark_dirty (priv->surface);
 
   return TRUE;
 }

@@ -18,6 +18,8 @@ struct _HyScanGtkMapPrivate
   gdouble                scale;                /* Увеличение размера тайлов. */
   gdouble                max_value;            /* Границы логической СК. */
 
+  guint                  tile_size_real;       /* Реальный размер тайла. */
+
   /* Обработка перемещения карты мышью. */
   gboolean               move_area;            /* Признак перемещения при нажатой клавише мыши. */
   gdouble                start_from_x;         /* Начальная граница отображения по оси X. */
@@ -114,15 +116,16 @@ hyscan_gtk_map_configure (GtkWidget          *widget,
 {
   GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
   HyScanGtkMap *map = HYSCAN_GTK_MAP (widget);
+  HyScanGtkMapPrivate *priv = map->priv;
 
-  /* Инициализирует границы видимой области, чтобы размер тайла был 256 пикселей. */
-  if (!map->priv->view_initialized)
+  /* Инициализирует границы видимой области, чтобы тайлы были правильного размера. */
+  if (!priv->view_initialized)
     {
       guint width, height;
       gdouble x, y;
       gdouble tile_size;
 
-      tile_size = 256.0 * map->priv->scale;
+      tile_size = priv->tile_size_real * priv->scale;
 
       gtk_cifro_area_get_size (carea, &width, &height);
       gtk_cifro_area_get_view (carea, &x, NULL, &y, NULL);
@@ -198,6 +201,7 @@ hyscan_gtk_map_object_constructed (GObject *object)
   priv->max_zoom = 19;
   priv->max_value = pow (2, priv->max_zoom);
   priv->scale = 1;
+  priv->tile_size_real = 256;
 }
 
 static void
@@ -572,6 +576,22 @@ hyscan_gtk_map_get_tile_view_i (HyScanGtkMap *map,
   (from_tile_x != NULL) ? *from_tile_x = (guint) from_tile_x_d : 0;
 }
 
+gdouble
+hyscan_gtk_map_get_tile_scaling (HyScanGtkMap *map)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), 0);
+
+  return map->priv->scale;
+}
+
+guint
+hyscan_gtk_map_get_tile_size (HyScanGtkMap *map)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), 0);
+
+  return map->priv->tile_size_real;
+}
+
 /**
  * hyscan_gtk_map_set_tile_scaling:
  * @map: указатель на #HyScanGtkMap
@@ -597,7 +617,7 @@ hyscan_gtk_map_set_tile_scaling (HyScanGtkMap *map,
   carea = GTK_CIFRO_AREA (map);
 
   map->priv->scale = scaling;
-  tile_size = 256.0 * map->priv->scale;
+  tile_size = map->priv->tile_size_real * map->priv->scale;
 
   /* Определяем центр видимой области. */
   hyscan_gtk_map_get_tile_view (map, &from_x, &to_x, &from_y, &to_y);

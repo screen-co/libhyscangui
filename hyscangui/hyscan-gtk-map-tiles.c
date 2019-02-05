@@ -52,9 +52,6 @@ static void                 hyscan_gtk_map_tiles_update_cache_key         (HySca
                                                                            HyScanGtkMapTile         *tile);
 static gboolean             hyscan_gtk_map_tiles_fill_tile                (HyScanGtkMapTilesPrivate *priv,
                                                                            HyScanGtkMapTile         *tile);
-static void                 hyscan_gtk_map_tiles_draw_tile                (HyScanGtkMapTiles        *layer,
-                                                                           HyScanGtkMapTile         *tile,
-                                                                           cairo_t                  *cairo);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMapTiles, hyscan_gtk_map_tiles, G_TYPE_OBJECT)
 
@@ -273,66 +270,6 @@ hyscan_gtk_map_tiles_fill_tile (HyScanGtkMapTilesPrivate *priv,
   return found;
 }
 
-/* Отрисовывает отдельный тайл, растягивая его до нужных размеров
- *
- * A ┌──────┐ B
- *   │ tile │
- *   │      │
- * D └──────┘ C
- *
- */
-static void
-hyscan_gtk_map_tiles_draw_tile (HyScanGtkMapTiles *layer,
-                                HyScanGtkMapTile  *tile,
-                                cairo_t           *cairo)
-{
-  gdouble xa, ya, xb;
-  guint x_tile, y_tile;
-  cairo_surface_t *surface;
-  cairo_surface_t *scaled_surface;
-
-  if (!hyscan_gtk_map_tile_is_filled (tile))
-    return;
-
-  /* Определяем координаты двух вершин тайла на карте. */
-  x_tile = hyscan_gtk_map_tile_get_x (tile);
-  y_tile = hyscan_gtk_map_tile_get_y (tile);
-  hyscan_gtk_map_tile_to_point (layer->priv->map, &xa, &ya, x_tile, y_tile);
-  hyscan_gtk_map_tile_to_point (layer->priv->map, &xb, NULL, x_tile + 1, y_tile);
-
-  surface = hyscan_gtk_map_tile_get_surface (tile);
-  cairo_surface_mark_dirty (surface);
-
-  /* Растягиваем тайл до нужного размера size x size. */
-  /* В общем случае трансформация тайла должна быть сложнее - по координатам
-   * всех четырёх вершин и афинных преобразований будет недостаточно.
-   * todo: трансформация тайла независимо от реализации hyscan_gtk_map_tile_to_point()
-   * */
-  {
-    cairo_t *cr;
-    gdouble size;
-    gdouble scale;
-
-    size = xb - xa;
-    scale = size / hyscan_gtk_map_tile_get_size (tile);
-
-    scaled_surface = cairo_surface_create_similar_image (surface, CAIRO_FORMAT_RGB24, (int) size, (int) size);
-    cr = cairo_create (scaled_surface);
-    cairo_scale (cr, scale, scale);
-    cairo_set_source_surface (cr, surface, 0, 0);
-    cairo_set_operator (cr, CAIRO_OPERATOR_SOURCE);
-    cairo_paint (cr);
-
-    cairo_destroy (cr);
-  }
-
-  /* Рисуем растянутый тайл в нужном месте. */
-  cairo_set_source_surface (cairo, scaled_surface, xa, ya);
-  cairo_paint (cairo);
-
-  cairo_surface_destroy (scaled_surface);
-}
-
 /* Рисует тайлы текущей видимой области по сигналу "visible-draw". */
 static void
 hyscan_gtk_map_tiles_draw (HyScanGtkMapTiles *layer,
@@ -342,10 +279,21 @@ hyscan_gtk_map_tiles_draw (HyScanGtkMapTiles *layer,
 
   guint x0, y0, xn, yn, x, y;
   guint zoom;
+  guint tile_size;
+
+  cairo_t *tiles_cairo;
+  cairo_surface_t *tiles_surface;
 
   /* Получаем границы тайлов, покрывающих видимую область. */
   hyscan_gtk_map_get_tile_view_i (priv->map, &x0, &xn, &y0, &yn);
   zoom = hyscan_gtk_map_get_zoom (priv->map);
+  tile_size = hyscan_gtk_map_get_tile_size (priv->map);
+
+  /* Создаем буфер для отрисовки тайлов в исходном размере tile_size. */
+  tiles_surface = cairo_image_surface_create (CAIRO_FORMAT_RGB24,
+                                              tile_size * (xn - x0 + 1),
+                                              tile_size * (yn - y0 + 1));
+  tiles_cairo = cairo_create (tiles_surface);
 
   /* Очищаем очередь загрузки тайлов, которую мы сформировали в прошлый раз. */
   hyscan_task_queue_clear (priv->task_queue);
@@ -357,13 +305,39 @@ hyscan_gtk_map_tiles_draw (HyScanGtkMapTiles *layer,
         {
           HyScanGtkMapTile *tile;
 
-          tile = hyscan_gtk_map_tile_new (x, y, zoom);
-          hyscan_gtk_map_tiles_fill_tile (priv, tile);
-          hyscan_gtk_map_tiles_draw_tile (layer, tile, cairo);
+          tile = hyscan_gtk_map_tile_new (x, y, zoom, tile_size);
+
+          /* Если получилось заполнить тайл, то рисуем его в буфер. */
+          if (hyscan_gtk_map_tiles_fill_tile (priv, tile))
+            {
+              cairo_surface_t *tile_surface;
+
+              tile_surface = hyscan_gtk_map_tile_get_surface (tile);
+              cairo_set_source_surface (tiles_cairo, tile_surface, (x - x0) * tile_size, (y - y0) * tile_size);
+              cairo_paint (tiles_cairo);
+            }
 
           g_object_unref (tile);
         }
     }
+
+  /* Растягиваем буфер под необходимый размер тайла и переносим его на поверхность виджета. */
+  {
+    gdouble scale;
+    gdouble xs, ys;
+
+    scale = hyscan_gtk_map_get_tile_scaling (priv->map);
+    hyscan_gtk_map_tile_to_point (priv->map, &xs, &ys, x0, y0);
+
+    cairo_save (cairo);
+    cairo_scale (cairo, scale, scale);
+    cairo_set_source_surface (cairo, tiles_surface, xs / scale, ys / scale);
+    cairo_paint (cairo);
+    cairo_restore (cairo);
+  }
+
+  cairo_destroy (tiles_cairo);
+  cairo_surface_destroy (tiles_surface);
 }
 
 /**

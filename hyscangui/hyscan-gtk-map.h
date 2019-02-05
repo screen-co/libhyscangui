@@ -53,8 +53,16 @@ HYSCAN_API
 void                   hyscan_gtk_map_move_to          (HyScanGtkMap       *map,
                                                         HyScanGeoGeodetic   center);
 
+HYSCAN_API
+guint                  hyscan_gtk_map_get_tile_size    (HyScanGtkMap       *map);
+
+HYSCAN_API
 void                   hyscan_gtk_map_set_tile_scaling (HyScanGtkMap       *map,
                                                         gdouble             scaling);
+
+HYSCAN_API
+gdouble                hyscan_gtk_map_get_tile_scaling (HyScanGtkMap       *map);
+
 HYSCAN_API
 void                   hyscan_gtk_map_set_zoom         (HyScanGtkMap       *map,
                                                         guint               zoom);
