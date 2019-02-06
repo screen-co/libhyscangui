@@ -39,6 +39,11 @@ HyScanGtkMapTiles * hyscan_gtk_map_tiles_new      (HyScanGtkMap            *map,
                                                    HyScanCache             *cache,
                                                    HyScanGtkMapTileSource  *source);
 
+HYSCAN_API
+void                hyscan_gtk_map_tiles_set_zoom (HyScanGtkMapTiles       *layer,
+                                                   guint                    zoom);
+
+
 G_END_DECLS
 
 #endif /* __HYSCAN_GTK_MAP_TILES_H__ */

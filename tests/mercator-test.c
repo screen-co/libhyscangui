@@ -21,10 +21,10 @@ int main (int argc,
       HyScanGeoGeodetic translated;
       gdouble lat_err, lon_err;
 
-      hyscan_mercator_geo_to_tile (mercator, 7, coords[i], &x, &y);
-      g_message ("Tile name: %f, %f", x, y);
+      hyscan_mercator_geo_to_value (mercator, coords[i], &x, &y);
+      g_message ("Projection coordinates: %f, %f", x, y);
 
-      hyscan_mercator_tile_to_geo (mercator, 7, &translated, x, y);
+      hyscan_mercator_value_to_geo (mercator, &translated, x, y);
       g_message ("Geo coordinates: %f, %f", translated.lat, translated.lon);
 
       lat_err = fabs (translated.lat - coords[i].lat);

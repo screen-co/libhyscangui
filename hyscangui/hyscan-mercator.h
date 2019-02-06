@@ -34,22 +34,26 @@ GType                  hyscan_mercator_get_type         (void);
 
 HYSCAN_API
 gdouble                hyscan_mercator_get_scale        (HyScanMercator    *mercator,
-                                                         guint              zoom,
                                                          HyScanGeoGeodetic  coords);
 
 HYSCAN_API
-void                   hyscan_mercator_tile_to_geo      (HyScanMercator    *mercator,
-                                                         guint              zoom,
+void                   hyscan_mercator_value_to_geo     (HyScanMercator    *mercator,
                                                          HyScanGeoGeodetic *coords,
-                                                         gdouble            tile_x,
-                                                         gdouble            tile_y);
+                                                         gdouble            x,
+                                                         gdouble            y);
 
 HYSCAN_API
-void                   hyscan_mercator_geo_to_tile      (HyScanMercator    *mercator,
-                                                         guint              zoom,
+void                   hyscan_mercator_geo_to_value     (HyScanMercator    *mercator,
                                                          HyScanGeoGeodetic  coords,
-                                                         gdouble           *tile_x,
-                                                         gdouble           *tile_y);
+                                                         gdouble           *x,
+                                                         gdouble           *y);
+
+HYSCAN_API
+void                   hyscan_mercator_get_limits       (HyScanMercator    *mercator,
+                                                         gdouble           *min_x,
+                                                         gdouble           *max_x,
+                                                         gdouble           *min_y,
+                                                         gdouble           *max_y);
 
 HYSCAN_API
 HyScanMercator *       hyscan_mercator_new              (HyScanGeoEllipsoidParam p);

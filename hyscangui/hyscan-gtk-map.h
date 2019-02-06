@@ -29,18 +29,6 @@ struct _HyScanGtkMap
 struct _HyScanGtkMapClass
 {
   GtkCifroAreaClass parent_class;
-
-  void (*tile_to_point) (HyScanGtkMap       *map,
-                         gdouble            *x,
-                         gdouble            *y,
-                         gdouble             x_tile,
-                         gdouble             y_tile);
-
-  void (*point_to_tile) (HyScanGtkMap       *map,
-                         gdouble             x,
-                         gdouble             y,
-                         gdouble            *x_tile,
-                         gdouble            *y_tile);
 };
 
 HYSCAN_API
@@ -54,51 +42,13 @@ void                   hyscan_gtk_map_move_to          (HyScanGtkMap       *map,
                                                         HyScanGeoGeodetic   center);
 
 HYSCAN_API
-guint                  hyscan_gtk_map_get_tile_size    (HyScanGtkMap       *map);
-
-HYSCAN_API
-void                   hyscan_gtk_map_set_tile_scaling (HyScanGtkMap       *map,
-                                                        gdouble             scaling);
-
-HYSCAN_API
-gdouble                hyscan_gtk_map_get_tile_scaling (HyScanGtkMap       *map);
-
-HYSCAN_API
-void                   hyscan_gtk_map_set_zoom         (HyScanGtkMap       *map,
-                                                        guint               zoom);
-
-HYSCAN_API
-guint                  hyscan_gtk_map_get_zoom         (HyScanGtkMap       *map);
-
-HYSCAN_API
 gdouble                hyscan_gtk_map_get_scale        (HyScanGtkMap       *map);
-
-HYSCAN_API
-void                   hyscan_gtk_map_tile_to_point    (HyScanGtkMap       *map,
-                                                        gdouble            *x,
-                                                        gdouble            *y,
-                                                        gdouble             x_tile,
-                                                        gdouble             y_tile);
-HYSCAN_API
-void                   hyscan_gtk_map_point_to_tile    (HyScanGtkMap       *map,
-                                                        gdouble             x,
-                                                        gdouble             y,
-                                                        gdouble            *x_tile,
-                                                        gdouble            *y_tile);
 
 HYSCAN_API
 void                   hyscan_gtk_map_value_to_geo     (HyScanGtkMap       *map,
                                                         HyScanGeoGeodetic  *coords,
                                                         gdouble             x_val,
                                                         gdouble             y_val);
-
-
-HYSCAN_API
-void                   hyscan_gtk_map_get_tile_view_i  (HyScanGtkMap       *map,
-                                                        gint               *from_tile_x,
-                                                        gint               *to_tile_x,
-                                                        gint               *from_tile_y,
-                                                        gint               *to_tile_y);
 
 G_END_DECLS
 
