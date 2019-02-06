@@ -102,8 +102,8 @@ int main (int     argc,
   gtk_container_add (GTK_CONTAINER (window), map);
   g_signal_connect (G_OBJECT (window), "destroy", G_CALLBACK (destroy_callback), NULL);
   gtk_widget_show_all (window);
-  hyscan_gtk_map_move_to (HYSCAN_GTK_MAP (map), center);
   hyscan_gtk_map_set_zoom (HYSCAN_GTK_MAP (map), zoom);
+  hyscan_gtk_map_move_to (HYSCAN_GTK_MAP (map), center);
 
   /* Main loop. */
   gtk_main ();

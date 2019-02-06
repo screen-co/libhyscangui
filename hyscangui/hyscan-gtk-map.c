@@ -15,10 +15,9 @@ struct _HyScanGtkMapPrivate
   guint                  zoom;                 /* Текущий масштаб карты. */
   guint                  max_zoom;             /* Максимальный масштаб (включительно). */
   guint                  min_zoom;             /* Минимальный масштаб (включительно). */
-  gdouble                scale;                /* Увеличение размера тайлов. */
   gdouble                max_value;            /* Границы логической СК. */
 
-  guint                  tile_size_real;       /* Реальный размер тайла. */
+  guint                  tile_size_real;       /* Реальный размер тайла в пискселах. */
 
   /* Обработка перемещения карты мышью. */
   gboolean               move_area;            /* Признак перемещения при нажатой клавише мыши. */
@@ -78,9 +77,9 @@ static void     hyscan_gtk_map_get_border               (GtkCifroArea          *
                                                          guint                 *border_bottom,
                                                          guint                 *border_left,
                                                          guint                 *border_right);
-static void     hyscan_gtk_map_get_clip_size            (HyScanGtkMap          *map,
-                                                         guint                 *width,
-                                                         guint                 *height);
+static void     hyscan_gtk_map_check_scale              (GtkCifroArea          *carea,
+                                                         gdouble               *scale_x,
+                                                         gdouble               *scale_y);
 static void     hyscan_gtk_map_set_tile_view            (HyScanGtkMap          *map,
                                                          gdouble                from_tile_x,
                                                          gdouble                to_tile_x,
@@ -111,10 +110,31 @@ hyscan_gtk_map_class_init (HyScanGtkMapClass *klass)
   /* Реализация виртуальных функций GtkCifroArea. */
   carea_class->get_limits = hyscan_gtk_map_get_limits;
   carea_class->get_border = hyscan_gtk_map_get_border;
+  carea_class->check_scale = hyscan_gtk_map_check_scale;
 
   /* Перевод координат из тайлов в область рисования. todo: мб сделать из тайлов в гео, а карту прямоугольную? */
   map_class->tile_to_point = hyscan_gtk_map_tile_to_merc;
   map_class->point_to_tile = hyscan_gtk_map_merc_to_tile;
+}
+
+/* Устанавливает подходящий zoom в зависимости от выбранного масштаба. */
+static void
+hyscan_gtk_map_set_optimal_zoom (HyScanGtkMap *map)
+{
+  HyScanGtkMapPrivate *priv = map->priv;
+  gdouble scale;
+  gdouble optimal_zoom;
+  guint izoom;
+
+  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (map), &scale, NULL);
+
+  /* Подбираем зум, чтобы тайлы не растягивались...
+   * scale = pow (2, max_zoom - optimal_zoom) / tile_size_real */
+  optimal_zoom = priv->max_zoom - log2 (scale * priv->tile_size_real);
+
+  /* ... но поскольку zoom должен быть целочисленным, то окргуляем его (желательно вверх). */
+  izoom = (guint) optimal_zoom;
+  priv->zoom = (optimal_zoom - izoom) > 0.2 ? izoom + 1 : izoom;
 }
 
 /* Обработчик сигнала "configure-event". */
@@ -123,29 +143,14 @@ hyscan_gtk_map_configure (GtkWidget          *widget,
                           GdkEventConfigure  *event,
                           gpointer            user_data)
 {
-  GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
   HyScanGtkMap *map = HYSCAN_GTK_MAP (widget);
   HyScanGtkMapPrivate *priv = map->priv;
 
   /* Инициализирует границы видимой области, чтобы тайлы были правильного размера. */
   if (!priv->view_initialized)
     {
-      guint width, height;
-      guint border_top, border_bottom, border_left, border_right;
-      gdouble x, y;
-      gdouble tile_size;
-
-      tile_size = priv->tile_size_real * priv->scale;
-
-      gtk_cifro_area_get_size (carea, &width, &height);
-      gtk_cifro_area_get_border (carea, &border_top, &border_bottom, &border_left, &border_right);
-      width -= border_left + border_right;
-      height -= border_top + border_bottom;
-      gtk_cifro_area_get_view (carea, &x, NULL, &y, NULL);
-      if (FALSE) /* todo: cartesian map. */
-        gtk_cifro_area_set_view (carea, x, x + 22200, y, y + 22200);
-      else
-        hyscan_gtk_map_set_tile_view (map, x, x + width / tile_size, y, y + height / tile_size);
+      gtk_cifro_area_set_view (GTK_CIFRO_AREA (map), 0, map->priv->max_value, 0, map->priv->max_value);
+      hyscan_gtk_map_set_optimal_zoom (map);
       map->priv->view_initialized = TRUE;
     }
 
@@ -213,7 +218,6 @@ hyscan_gtk_map_object_constructed (GObject *object)
   priv->min_zoom = 0;
   priv->max_zoom = 19;
   priv->max_value = pow (2, priv->max_zoom);
-  priv->scale = 1;
   priv->tile_size_real = 256;
 }
 
@@ -232,39 +236,26 @@ hyscan_gtk_map_scroll (GtkWidget      *widget,
                        GdkEventScroll *event)
 {
   HyScanGtkMap *map = HYSCAN_GTK_MAP (widget);
-  HyScanGtkMapPrivate *priv = map->priv;
-  gint dscale = 0;
 
-  guint zoom;
+  gdouble dscale;
   gdouble scale;
 
-  if (event->direction == GDK_SCROLL_UP)
-    dscale = 1;
-  else if (event->direction == GDK_SCROLL_DOWN)
-    dscale = -1;
+  gdouble from_x, to_x, from_y, to_y;
 
-  if (dscale == 0)
+  if (event->direction == GDK_SCROLL_UP)
+    dscale = -1;
+  else if (event->direction == GDK_SCROLL_DOWN)
+    dscale = 1;
+  else
     return FALSE;
 
-  zoom = priv->zoom;
-  scale = priv->scale;
+  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (map), &scale, NULL);
+  /* За 4 колесика изменяем масштаб в 2 раза. */
+  scale *= pow (2, dscale * .25);
 
-  /* Изменяем масштаб. При больших изменений масштаба меняем масштаб тайловой сетки. */
-  scale *= pow (2, dscale * 0.2);
-  if (scale > 1.5 && zoom < priv->max_zoom)
-    {
-      scale /= 2;
-      zoom += 1;
-    }
-  else if (scale < .75 && zoom > priv->min_zoom)
-    {
-      scale *= 2;
-      zoom -= 1;
-    }
-
-  g_message ("Zoom %d, scale %.2f", zoom, scale);
-  hyscan_gtk_map_set_zoom (map, zoom);
-  hyscan_gtk_map_set_tile_scaling (map, scale);
+  gtk_cifro_area_get_view (GTK_CIFRO_AREA (map), &from_x, &to_x, &from_y, &to_y);
+  gtk_cifro_area_set_scale (GTK_CIFRO_AREA (map), scale, scale, (from_x + to_x) / 2, (from_y + to_y) / 2);
+  hyscan_gtk_map_set_optimal_zoom (map);
 
   return FALSE;
 }
@@ -377,6 +368,17 @@ hyscan_gtk_map_value_to_geo (HyScanGtkMap       *map,
   hyscan_gtk_map_tile_to_geo (map->priv->zoom, coords, x_tile, y_tile);
 }
 
+/* Реализация функции check_scale GtkCifroArea.
+ * Сохраняет одинаковый масштаб по обеим осям. */
+static void
+hyscan_gtk_map_check_scale (GtkCifroArea *carea,
+                            gdouble      *scale_x,
+                            gdouble      *scale_y)
+{
+  // todo: check min scale, max scale
+  *scale_y = *scale_x;
+}
+
 static void
 hyscan_gtk_map_get_border (GtkCifroArea *carea,
                            guint        *border_top,
@@ -474,28 +476,6 @@ hyscan_gtk_map_value_to_tile (HyScanGtkMap *map,
   klass = HYSCAN_GTK_MAP_GET_CLASS (map);
   g_return_if_fail (klass->point_to_tile != NULL);
   klass->point_to_tile (map, x, y, x_tile, y_tile);
-}
-
-/* Получает размер видимой области: clip_size = widget_size - border_size. */
-static void
-hyscan_gtk_map_get_clip_size (HyScanGtkMap *map,
-                              guint        *width,
-                              guint        *height)
-{
-  guint widget_width;
-  guint widget_height;
-  guint border_top, border_bottom, border_left, border_right;
-
-  gtk_cifro_area_get_size (GTK_CIFRO_AREA (map), &widget_width, &widget_height);
-  gtk_cifro_area_get_border (GTK_CIFRO_AREA (map), &border_top, &border_bottom, &border_left, &border_right);
-
-  if (width != NULL)
-    {
-      *width = widget_width > border_left + border_right ? (widget_width - border_left - border_right) : 0;
-    }
-
-  (width != NULL) ? *width = (widget_width - border_left - border_right) : 0;
-  (height != NULL) ? *height = (widget_height - border_top - border_bottom) : 0;
 }
 
 GtkWidget *
@@ -624,12 +604,25 @@ hyscan_gtk_map_get_tile_view_i (HyScanGtkMap *map,
   (from_tile_x != NULL) ? *from_tile_x = (guint) from_tile_x_d : 0;
 }
 
+/* Расятжение тайла при текущем масштабе и зуме. */
 gdouble
 hyscan_gtk_map_get_tile_scaling (HyScanGtkMap *map)
 {
+  gdouble pixel_size;
+  gdouble tile_size;
+  HyScanGtkMapPrivate *priv;
+
   g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), 0);
 
-  return map->priv->scale;
+  priv = map->priv;
+
+  /* Размер пиксела в логических единицах. */
+  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (map), &pixel_size, NULL);
+
+  /* Размер тайла в логических единицах. */
+  tile_size = pow (2, priv->max_zoom - priv->zoom);
+
+  return tile_size / (pixel_size * map->priv->tile_size_real);
 }
 
 guint
@@ -655,28 +648,15 @@ void
 hyscan_gtk_map_set_tile_scaling (HyScanGtkMap *map,
                                  gdouble       scaling)
 {
-  guint clip_width, clip_height;
-  gdouble width, height;
   gdouble from_x, from_y, to_x, to_y;
-  gdouble x, y;
-  gdouble tile_size;
+  HyScanGtkMapPrivate *priv = map->priv;
 
-  map->priv->scale = scaling;
-  tile_size = map->priv->tile_size_real * map->priv->scale;
+  /* Переводим map scaling в carea scale. */
+  scaling = pow (2, priv->max_zoom - priv->zoom) / (scaling * priv->tile_size_real);
 
-  /* Определяем центр видимой области. */
-  hyscan_gtk_map_get_tile_view (map, &from_x, &to_x, &from_y, &to_y);
-  x = (from_x + to_x) / 2;
-  y = (from_y + to_y) / 2;
-
-  /* Определяем размер видимой области в растянутых тайлах. */
-  hyscan_gtk_map_get_clip_size (map, &clip_width, &clip_height);
-  width = clip_width / tile_size;
-  height = clip_height / tile_size;
-
-  /* Меняем границу видимой области согласно новым размерам, сохраняя центр. */
-  hyscan_gtk_map_set_tile_view (map, x - width / 2.0,  x + width / 2.0,
-                                     y - height / 2.0, y + height / 2.0);
+  /* Меняем масштаб, сохраняя текущий центр. */
+  gtk_cifro_area_get_view (GTK_CIFRO_AREA (map), &from_x, &to_x, &from_y, &to_y);
+  gtk_cifro_area_set_scale (GTK_CIFRO_AREA (map), scaling, scaling, (from_x + to_x) / 2, (from_y + to_y) / 2);
 }
 
 /**
@@ -762,12 +742,12 @@ hyscan_gtk_map_set_zoom (HyScanGtkMap *map,
   x = (x0_value + xn_value) / 2;
   y = (y0_value + yn_value) / 2;
 
-  /* Определяем размер новой области так, чтобы количество видимых тайлов не изменилось. */
+  /* Меняем размер видимой области пропорционально изменению масштаба. */
   diff_factor = pow (2, (gdouble) priv->zoom - (gdouble) zoom);
   width = (xn_value - x0_value) * diff_factor;
   height = (yn_value - y0_value) * diff_factor;
 
-  /* Меняем масштаб. */
+  /* Меняем зум. */
   priv->zoom = zoom;
 
   gtk_cifro_area_set_view (GTK_CIFRO_AREA (map), x - width / 2.0, x + width / 2.0, y - height / 2.0, y + height / 2.0);
