@@ -803,38 +803,29 @@ gdouble
 hyscan_gtk_map_get_scale (HyScanGtkMap *map)
 {
   HyScanGtkMapPrivate *priv;
-  guint width, height;
-  guint dx = 10;
-  gdouble x_tile1, y_tile1, x_tile2, y_tile2;
-  gdouble distance;
-  HyScanGeoGeodetic coord1, coord2;
+  gdouble scale;
+  gdouble from_x, to_x, from_y, to_y;
+  HyScanGeoGeodetic geo_center;
+
+  gdouble R = 6.371e6; /* Радиус Земли. */
+
+  gdouble tile_px;
+  gdouble tile_metres;
 
   g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), -1.0);
 
   priv = map->priv;
 
-  /* Берём две точки в видимой области на небольшом расстоянии в dx пикселей. */
-  gtk_cifro_area_get_visible_size (GTK_CIFRO_AREA (map), &width, &height);
-  hyscan_gtk_map_point_to_tile (map, width / 2.0 - dx / 2.0, height / 2.0, &x_tile1, &y_tile1);
-  hyscan_gtk_map_point_to_tile (map, width / 2.0 + dx / 2.0, height / 2.0, &x_tile2, &y_tile2);
+  /* Определяем географические координаты центра видимой области. */
+  gtk_cifro_area_get_view (GTK_CIFRO_AREA (map), &from_x, &to_x, &from_y, &to_y);
+  hyscan_gtk_map_value_to_geo (map, &geo_center, (from_x + to_x) / 2.0, (from_y + to_y) / 2.0);
 
-  /* Определяем географические координаты точек. */
-  hyscan_gtk_map_tile_to_geo (priv->zoom, &coord1, x_tile1, y_tile1);
-  hyscan_gtk_map_tile_to_geo (priv->zoom, &coord2, x_tile2, y_tile2);
+  /* Определяем размер логического тайла в метрах на текущей широте. */
+  tile_metres = (2 * M_PI * R) * cos (M_PI / 180 * geo_center.lat) / pow (2, priv->max_zoom);
 
-  /* Считаем расстояние между coord1 и coord2: Haversine formula */
-  {
-    gdouble R = 6.371e6;
-    gdouble c;
-    gdouble a;
-    gdouble deg2rad = M_PI / 180;
-    gdouble d_lat = deg2rad * (coord2.lat - coord1.lat);
-    gdouble d_lon = deg2rad * (coord2.lon - coord1.lon);
+  /* Определяем размер логического тайла в пикселах. */
+  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (map), &scale, NULL);
+  tile_px = 1 / scale;
 
-    a = pow (sin (d_lat / 2), 2) + cos (deg2rad * coord1.lat) * cos (deg2rad * coord2.lat) * pow (sin (d_lon / 2), 2);
-    c = 2 * atan2 (sqrt (a), sqrt (1.0 - a));
-    distance = R * c;
-  }
-
-  return dx / distance;
+  return tile_px / tile_metres;
 }
