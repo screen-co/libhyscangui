@@ -5,7 +5,6 @@
 #include <hyscan-gtk-map-float.h>
 #include <hyscan-gtk-map-tiles-osm.h>
 #include <hyscan-cached.h>
-#include <hyscan-gtk-crts-map.h>
 #include <hyscan-gtk-map-fs-tile-source.h>
 
 static gchar    *tiles_dir = "/tmp/tiles";   /* Путь к каталогу, где хранятся тайлы. */
@@ -23,18 +22,7 @@ create_map (HyScanGeoGeodetic center)
 {
   GtkWidget *map;
 
-  if (FALSE)
-    {
-      HyScanGeo *geo;
-      geo = hyscan_geo_new (center, HYSCAN_GEO_ELLIPSOID_WGS84);
-      map = hyscan_gtk_crts_map_new (geo);
-
-      g_object_unref (geo);
-    }
-  else
-    {
-      map = hyscan_gtk_map_new ();
-    }
+  map = hyscan_gtk_map_new ();
 
   return map;
 }
@@ -46,7 +34,7 @@ int main (int     argc,
   GtkWidget *map;
   HyScanGtkMapTilesOsm *osm_source;
   HyScanGtkMapFsTileSource *fs_source;
-  HyScanCache *cache = HYSCAN_CACHE (hyscan_cached_new (512));
+  HyScanCache *cache = HYSCAN_CACHE (hyscan_cached_new (64));
 
   HyScanGtkMapTiles *tiles;
   HyScanGtkMapFloat *float_layer;

@@ -3,6 +3,7 @@
  */
 
 #include "hyscan-gtk-map.h"
+#include "hyscan-mercator.h"
 #include <math.h>
 
 enum
@@ -12,23 +13,26 @@ enum
 
 struct _HyScanGtkMapPrivate
 {
-  guint                  zoom;                 /* Текущий масштаб карты. */
-  guint                  max_zoom;             /* Максимальный масштаб (включительно). */
-  guint                  min_zoom;             /* Минимальный масштаб (включительно). */
-  gdouble                max_value;            /* Границы логической СК. */
+  guint                    zoom;                 /* Текущий масштаб карты. */
+  guint                    max_zoom;             /* Максимальный масштаб (включительно). */
+  guint                    min_zoom;             /* Минимальный масштаб (включительно). */
+  gdouble                  max_value;            /* Границы логической СК. */
 
-  guint                  tile_size_real;       /* Реальный размер тайла в пискселах. */
+  HyScanMercator          *projection;           /* Проекция поверхности Земли на плоскость карты. */
+
+  guint                    tile_size_real;       /* Реальный размер тайла в пискселах. */
+  HyScanGeoEllipsoidParam  ellipsoid;            /* Параметры эллипсоида для проекции Меркатора. */
 
   /* Обработка перемещения карты мышью. */
-  gboolean               move_area;            /* Признак перемещения при нажатой клавише мыши. */
-  gdouble                start_from_x;         /* Начальная граница отображения по оси X. */
-  gdouble                start_to_x;           /* Начальная граница отображения по оси X. */
-  gdouble                start_from_y;         /* Начальная граница отображения по оси Y. */
-  gdouble                start_to_y;           /* Начальная граница отображения по оси Y. */
-  gint                   move_from_x;          /* Начальная координата перемещения. */
-  gint                   move_from_y;          /* Начальная координата перемещения. */
+  gboolean                 move_area;            /* Признак перемещения при нажатой клавише мыши. */
+  gdouble                  start_from_x;         /* Начальная граница отображения по оси X. */
+  gdouble                  start_to_x;           /* Начальная граница отображения по оси X. */
+  gdouble                  start_from_y;         /* Начальная граница отображения по оси Y. */
+  gdouble                  start_to_y;           /* Начальная граница отображения по оси Y. */
+  gint                     move_from_x;          /* Начальная координата перемещения. */
+  gint                     move_from_y;          /* Начальная координата перемещения. */
 
-  gboolean               view_initialized;     /* Флаг о том, что область отображения инициализирована. */
+  gboolean                 view_initialized;     /* Флаг о том, что область отображения инициализирована. */
 };
 
 static void     hyscan_gtk_map_set_property             (GObject               *object,
@@ -219,6 +223,11 @@ hyscan_gtk_map_object_constructed (GObject *object)
   priv->max_zoom = 19;
   priv->max_value = pow (2, priv->max_zoom);
   priv->tile_size_real = 256;
+  {
+    HyScanGeoEllipsoidParam p;
+    hyscan_geo_init_ellipsoid_user (&p, 6372.7982e3, 0.0);
+    priv->projection = hyscan_mercator_new (p);
+  }
 }
 
 static void
@@ -226,6 +235,8 @@ hyscan_gtk_map_object_finalize (GObject *object)
 {
   HyScanGtkMap *gtk_map = HYSCAN_GTK_MAP (object);
   HyScanGtkMapPrivate *priv = gtk_map->priv;
+
+  g_object_unref (priv->projection);
 
   G_OBJECT_CLASS (hyscan_gtk_map_parent_class)->finalize (object);
 }
@@ -349,23 +360,28 @@ hyscan_gtk_map_geo_to_value (HyScanGtkMap      *map,
                              gdouble           *x_val,
                              gdouble           *y_val)
 {
+  HyScanGtkMapPrivate *priv = map->priv;
   gdouble x_tile, y_tile;
 
-  hyscan_gtk_map_geo_to_tile (map->priv->zoom, coords, &x_tile, &y_tile);
+  hyscan_mercator_geo_to_tile (priv->projection, priv->zoom, coords, &x_tile, &y_tile);
   hyscan_gtk_map_tile_to_value (map, x_val, y_val, x_tile, y_tile);
 }
 
 /* Переводит координаты логической СК в географическую. */
-static void
+void
 hyscan_gtk_map_value_to_geo (HyScanGtkMap       *map,
                              HyScanGeoGeodetic  *coords,
                              gdouble             x_val,
                              gdouble             y_val)
 {
+  HyScanGtkMapPrivate *priv;
   gdouble x_tile, y_tile;
 
+  g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
+
+  priv = map->priv;
   hyscan_gtk_map_value_to_tile (map, x_val, y_val, &x_tile, &y_tile);
-  hyscan_gtk_map_tile_to_geo (map->priv->zoom, coords, x_tile, y_tile);
+  hyscan_mercator_tile_to_geo (priv->projection, priv->zoom, coords, x_tile, y_tile);
 }
 
 /* Реализация функции check_scale GtkCifroArea.
@@ -386,7 +402,7 @@ hyscan_gtk_map_get_border (GtkCifroArea *carea,
                            guint        *border_left,
                            guint        *border_right)
 {
-  guint border = 150;
+  guint border = 25;
 
   *border_bottom = border;
   *border_top = border;
@@ -753,44 +769,6 @@ hyscan_gtk_map_set_zoom (HyScanGtkMap *map,
   gtk_cifro_area_set_view (GTK_CIFRO_AREA (map), x - width / 2.0, x + width / 2.0, y - height / 2.0, y + height / 2.0);
 }
 
-/* Перводит координаты тайла подвижной карты (Slippy map) в широту и долготу.
- * Источник: https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames. */
-void
-hyscan_gtk_map_tile_to_geo (guint              zoom,
-                            HyScanGeoGeodetic *coords,
-                            gdouble            tile_x,
-                            gdouble            tile_y)
-{
-  guint n;
-  gdouble lat_tmp;
-
-  n = hyscan_gtk_map_count_columns (zoom);
-
-  coords->lon = tile_x / n * 360.0 - 180.0;
-
-  lat_tmp = M_PI - 2.0 * M_PI * tile_y / n;
-  coords->lat = 180.0 / M_PI * atan (0.5 * (exp (lat_tmp) - exp (-lat_tmp)));
-}
-
-/* Перводит координаты широты и долготы в координаты тайла подвижной карты (Slippy map).
- * Источник: https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames. */
-void
-hyscan_gtk_map_geo_to_tile (guint              zoom,
-                            HyScanGeoGeodetic  coords,
-                            gdouble           *tile_x,
-                            gdouble           *tile_y)
-{
-  gint total_tiles;
-  gdouble lat_rad;
-
-  lat_rad = coords.lat / 180.0 * M_PI;
-
-  total_tiles = hyscan_gtk_map_count_columns (zoom);
-
-  (tile_x != NULL) ? *tile_x = total_tiles * (coords.lon + 180.0) / 360.0 : 0;
-  (tile_y != NULL) ? *tile_y = total_tiles * (1 - log (tan (lat_rad) + (1 / cos (lat_rad))) / M_PI) / 2 : 0;
-}
-
 /**
  * hyscan_gtk_map_get_scale:
  * @map: указатель на #HyScanGtkMap
@@ -807,8 +785,6 @@ hyscan_gtk_map_get_scale (HyScanGtkMap *map)
   gdouble from_x, to_x, from_y, to_y;
   HyScanGeoGeodetic geo_center;
 
-  gdouble R = 6.371e6; /* Радиус Земли. */
-
   gdouble tile_px;
   gdouble tile_metres;
 
@@ -821,7 +797,7 @@ hyscan_gtk_map_get_scale (HyScanGtkMap *map)
   hyscan_gtk_map_value_to_geo (map, &geo_center, (from_x + to_x) / 2.0, (from_y + to_y) / 2.0);
 
   /* Определяем размер логического тайла в метрах на текущей широте. */
-  tile_metres = (2 * M_PI * R) * cos (M_PI / 180 * geo_center.lat) / pow (2, priv->max_zoom);
+  tile_metres = hyscan_mercator_get_scale (priv->projection, priv->max_zoom, geo_center);
 
   /* Определяем размер логического тайла в пикселах. */
   gtk_cifro_area_get_scale (GTK_CIFRO_AREA (map), &scale, NULL);
