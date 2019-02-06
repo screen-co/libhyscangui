@@ -2,19 +2,19 @@
 <schemalist>
 
   <enum id="sigs">
-    <value name="Тон 100" value="1">
+    <value id="t100" name="Тон 100" value="1">
       <description>Тоновый сигнал 100</description>
     </value>
-    <value name="Тон 200" value="2">
+    <value id="t200" name="Тон 200" value="2">
       <description>Тоновый сигнал 200</description>
     </value>
-    <value name="ЛЧМ 1" value="3">
+    <value id="lfm1" name="ЛЧМ 1" value="3">
       <description>ЛЧМ-сигнал 1</description>
     </value>
-    <value name="ЛЧМ 2" value="4">
+    <value id="lfm2" name="ЛЧМ 2" value="4">
       <description>ЛЧМ-сигнал 2</description>
     </value>
-    <value name="ЛЧМ 5" value="5">
+    <value id="lfm5" name="ЛЧМ 5" value="5">
       <description>ЛЧМ-сигнал 5</description>
     </value>
   </enum>
