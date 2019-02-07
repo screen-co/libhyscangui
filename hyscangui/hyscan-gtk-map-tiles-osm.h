@@ -34,7 +34,8 @@ struct _HyScanGtkMapTilesOsmClass
 GType                        hyscan_gtk_map_tiles_osm_get_type         (void);
 
 HYSCAN_API
-HyScanGtkMapTilesOsm *       hyscan_gtk_map_tiles_osm_new              (void);
+HyScanGtkMapTilesOsm *       hyscan_gtk_map_tiles_osm_new              (const gchar *host,
+                                                                        const gchar *uri_format);
 
 G_END_DECLS
 
