@@ -1,3 +1,25 @@
+/**
+ * SECTION: hyscan-geo-projection
+ * @Short_description: Картографическая проекция
+ * @Title: HyScanGeoProjection
+ *
+ * Картографическая проекция отображает поверхность Земли на плоскость.
+ *
+ * Для перевода географических координат (широта, долгота) в координаты на
+ * плоскости проекции (x, y) и обратно используются функции
+ * hyscan_geo_projection_geo_to_value()  и hyscan_geo_projection_value_to_geo()
+ * соответственно.
+ *
+ * Чтобы получить значение масштаба в опредленной точке используйте
+ * hyscan_geo_projection_get_scale().
+ *
+ * Границы проекции на плоскости можно получить с помощью
+ * hyscan_geo_projection_get_limits().
+ *
+ * Проекция Меркатора реализована в классах #HyScanMercator и #HyScanPseudoMercator.
+ *
+ */
+
 #include "hyscan-geo-projection.h"
 
 G_DEFINE_INTERFACE (HyScanGeoProjection, hyscan_geo_projection, G_TYPE_OBJECT)

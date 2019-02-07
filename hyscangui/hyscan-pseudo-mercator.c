@@ -1,9 +1,26 @@
+/**
+ * SECTION: hyscan-pseudo-mercator
+ * @Short_description: Картографическая проекция Меркатора для сферы
+ * @Title: HyScanPseudoMercator
+ *
+ * Класс реализует интерфейс #HyScanGeoProjection.
+ *
+ * Псевдопроекция Меркатора — упрощенная версия проекции #HyScanMercator, где
+ * принято считать, что Земля имеет форму сферы.
+ *
+ * Подобная проекция используется многими Web-сервисами: OSM, Google, Bing -
+ * поскольку позволяет значительно упростить вычисления, не сильно теряя в
+ * точности данных.
+ *
+ * Границы проекции по обеим осями (0, 1).
+ */
+
 #include "hyscan-pseudo-mercator.h"
 #include <math.h>
 
+#define EARTH_RADIUS 6378137.0
 #define DEG2RAD(x) ((x) * G_PI / 180.0)
 #define RAD2DEG(x) ((x) * 180.0 / G_PI)
-#define LAT_OUT_OF_RANGE(x) (fabs (x) > 180.0)
 
 enum
 {
@@ -16,16 +33,8 @@ struct _HyScanPseudoMercatorPrivate
 };
 
 static void    hyscan_pseudo_mercator_interface_init     (HyScanGeoProjectionInterface *iface);
-static void    hyscan_pseudo_mercator_set_property       (GObject               *object,
-                                                          guint                  prop_id,
-                                                          const GValue          *value,
-                                                          GParamSpec            *pspec);
-static void    hyscan_pseudo_mercator_get_property               (GObject               *object,
-                                                          guint                  prop_id,
-                                                          GValue                *value,
-                                                          GParamSpec            *pspec);
-static void    hyscan_pseudo_mercator_object_constructed (GObject               *object);
-static void    hyscan_pseudo_mercator_object_finalize    (GObject               *object);
+static void    hyscan_pseudo_mercator_object_constructed (GObject                      *object);
+static void    hyscan_pseudo_mercator_object_finalize    (GObject                      *object);
 
 static void    hyscan_pseudo_mercator_value_to_geo       (HyScanGeoProjection          *projection,
                                                           HyScanGeoGeodetic            *coords,
@@ -55,9 +64,6 @@ hyscan_pseudo_mercator_class_init (HyScanPseudoMercatorClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
-  object_class->set_property = hyscan_pseudo_mercator_set_property;
-  object_class->get_property = hyscan_pseudo_mercator_get_property;
-
   object_class->constructed = hyscan_pseudo_mercator_object_constructed;
   object_class->finalize = hyscan_pseudo_mercator_object_finalize;
 }
@@ -68,6 +74,8 @@ hyscan_pseudo_mercator_init (HyScanPseudoMercator *pseudo_mercator)
   pseudo_mercator->priv = hyscan_pseudo_mercator_get_instance_private (pseudo_mercator);
 }
 
+
+/* Реализация интерфейса HyScanGeoProjectionInterface. */
 static void
 hyscan_pseudo_mercator_interface_init (HyScanGeoProjectionInterface *iface)
 {
@@ -78,41 +86,6 @@ hyscan_pseudo_mercator_interface_init (HyScanGeoProjectionInterface *iface)
 }
 
 static void
-hyscan_pseudo_mercator_set_property (GObject      *object,
-                                     guint         prop_id,
-                                     const GValue *value,
-                                     GParamSpec   *pspec)
-{
-  HyScanPseudoMercator *pseudo_mercator = HYSCAN_PSEUDO_MERCATOR (object);
-  HyScanPseudoMercatorPrivate *priv = pseudo_mercator->priv;
-
-  switch (prop_id)
-    {
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-      break;
-    }
-}
-
-static void
-hyscan_pseudo_mercator_get_property (GObject    *object,
-                             guint       prop_id,
-                             GValue     *value,
-                             GParamSpec *pspec)
-{
-  HyScanPseudoMercator *pseudo_mercator = HYSCAN_PSEUDO_MERCATOR (object);
-  HyScanPseudoMercatorPrivate *priv = pseudo_mercator->priv;
-
-  switch ( prop_id )
-    {
-
-    default:
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-      break;
-    }
-}
-
-static void
 hyscan_pseudo_mercator_object_constructed (GObject *object)
 {
   HyScanPseudoMercator *pseudo_mercator = HYSCAN_PSEUDO_MERCATOR (object);
@@ -120,7 +93,7 @@ hyscan_pseudo_mercator_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_pseudo_mercator_parent_class)->constructed (object);
 
-  priv->equator_length = 2 * M_PI * 6378137.0;
+  priv->equator_length = 2 * M_PI * EARTH_RADIUS;
 }
 
 static void
@@ -188,7 +161,7 @@ hyscan_pseudo_mercator_get_scale (HyScanGeoProjection *projection,
 {
   HyScanPseudoMercatorPrivate *priv = HYSCAN_PSEUDO_MERCATOR (projection)->priv;
 
-  return cos (M_PI / 180 * coords.lat) * priv->equator_length;
+  return cos (DEG2RAD (coords.lat)) * priv->equator_length;
 }
 
 HyScanGeoProjection *
