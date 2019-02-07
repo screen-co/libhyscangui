@@ -288,15 +288,17 @@ hyscan_gtk_map_tiles_value_to_tile (HyScanGtkMapTiles *layer,
                                     gdouble           *y_tile)
 {
   HyScanGtkMapTilesPrivate *priv = layer->priv;
-  gdouble tile_size;
-  gdouble min_x, max_x, max_y;
+  gdouble tile_size_x;
+  gdouble tile_size_y;
+  gdouble min_x, max_x, max_y, min_y;
 
   /* Размер тайла в логических единицах. */
-  gtk_cifro_area_get_limits (GTK_CIFRO_AREA (priv->map), &min_x, &max_x, NULL, &max_y);
-  tile_size = (max_x - min_x) / pow (2, zoom);
+  gtk_cifro_area_get_limits (GTK_CIFRO_AREA (priv->map), &min_x, &max_x, &min_y, &max_y);
+  tile_size_x = (max_x - min_x) / pow (2, zoom);
+  tile_size_y = (max_y - min_y) / pow (2, zoom);
 
-  (y_tile != NULL) ? *y_tile = (max_y - y) / tile_size : 0;
-  (x_tile != NULL) ? *x_tile = (x - min_x) / tile_size : 0;
+  (y_tile != NULL) ? *y_tile = (max_y - y) / tile_size_y : 0;
+  (x_tile != NULL) ? *x_tile = (x - min_x) / tile_size_x : 0;
 }
 
 /* Получает целочисленные координаты верхнего левого и правого нижнего тайлов,
@@ -367,7 +369,9 @@ hyscan_gtk_map_tiles_set_optimal_zoom (HyScanGtkMapTilesPrivate *priv)
 
   /* ... но поскольку zoom должен быть целочисленным, то окргуляем его (желательно вверх). */
   izoom = (guint) optimal_zoom;
-  return (optimal_zoom - izoom) > 0.2 ? izoom + 1 : izoom;
+  izoom = (optimal_zoom - izoom) > 0.2 ? izoom + 1 : izoom;
+
+  return CLAMP (izoom, priv->min_zoom, priv->max_zoom);
 }
 
 /**

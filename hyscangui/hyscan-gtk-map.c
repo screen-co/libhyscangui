@@ -3,17 +3,17 @@
  */
 
 #include "hyscan-gtk-map.h"
-#include "hyscan-mercator.h"
 #include <math.h>
 
 enum
 {
   PROP_O,
+  PROP_PROJECTION,
 };
 
 struct _HyScanGtkMapPrivate
 {
-  HyScanMercator          *projection;           /* Проекция поверхности Земли на плоскость карты. */
+  HyScanGeoProjection     *projection;           /* Проекция поверхности Земли на плоскость карты. */
 
   /* Обработка перемещения карты мышью. */
   gboolean                 move_area;            /* Признак перемещения при нажатой клавише мыши. */
@@ -75,6 +75,10 @@ hyscan_gtk_map_class_init (HyScanGtkMapClass *klass)
   carea_class->get_limits = hyscan_gtk_map_get_limits;
   carea_class->get_border = hyscan_gtk_map_get_border;
   carea_class->check_scale = hyscan_gtk_map_check_scale;
+
+  g_object_class_install_property (object_class, PROP_PROJECTION,
+    g_param_spec_object ("projection", "Projection", "HyScanGeoProjection", HYSCAN_TYPE_GEO_PROJECTION,
+                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 /* Функция рисования чего???. */
@@ -119,6 +123,9 @@ hyscan_gtk_map_set_property (GObject      *object,
 
   switch (prop_id)
     {
+    case PROP_PROJECTION:
+      priv->projection = g_value_dup_object (value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -132,12 +139,6 @@ hyscan_gtk_map_object_constructed (GObject *object)
   HyScanGtkMapPrivate *priv = gtk_map->priv;
 
   G_OBJECT_CLASS (hyscan_gtk_map_parent_class)->constructed (object);
-
-  {
-    HyScanGeoEllipsoidParam p;
-    hyscan_geo_init_ellipsoid_user (&p, 6372.7982e3, 0.0);
-    priv->projection = hyscan_mercator_new (p);
-  }
 }
 
 static void
@@ -267,7 +268,7 @@ hyscan_gtk_map_value_to_geo (HyScanGtkMap       *map,
   g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
 
   priv = map->priv;
-  hyscan_mercator_value_to_geo (priv->projection, coords, x_val, y_val);
+  hyscan_geo_projection_value_to_geo (priv->projection, coords, x_val, y_val);
 }
 
 /* Реализация функции check_scale GtkCifroArea.
@@ -306,13 +307,14 @@ hyscan_gtk_map_get_limits (GtkCifroArea *carea,
 {
   HyScanGtkMapPrivate *priv = HYSCAN_GTK_MAP (carea)->priv;
 
-  hyscan_mercator_get_limits (priv->projection, min_x, max_x, min_y, max_y);
+  hyscan_geo_projection_get_limits (priv->projection, min_x, max_x, min_y, max_y);
 }
 
 GtkWidget *
-hyscan_gtk_map_new ()
+hyscan_gtk_map_new (HyScanGeoProjection *projection)
 {
-  return g_object_new (HYSCAN_TYPE_GTK_MAP, NULL);
+  return g_object_new (HYSCAN_TYPE_GTK_MAP,
+                       "projection", projection, NULL);
 }
 
 /**
@@ -344,7 +346,7 @@ hyscan_gtk_map_move_to (HyScanGtkMap      *map,
   height = to_y - from_y;
 
   /* Получаем координаты геоточки в проекции карты. */
-  hyscan_mercator_geo_to_value (priv->projection, center, &center_x, &center_y);
+  hyscan_geo_projection_geo_to_value (priv->projection, center, &center_x, &center_y);
 
   /* Перемещаем показываемую область в новый центр. */
   gtk_cifro_area_set_view (carea,
@@ -380,7 +382,7 @@ hyscan_gtk_map_get_scale (HyScanGtkMap *map)
   hyscan_gtk_map_value_to_geo (map, &geo_center, (from_x + to_x) / 2.0, (from_y + to_y) / 2.0);
 
   /* Определяем размер единичного отрезка на проекции в метрах. */
-  dist_metres = hyscan_mercator_get_scale (priv->projection, geo_center);
+  dist_metres = hyscan_geo_projection_get_scale (priv->projection, geo_center);
 
   /* Определяем размер единичного отрезка на проекции в пикселах. */
   gtk_cifro_area_get_scale (GTK_CIFRO_AREA (map), &scale, NULL);

@@ -3,7 +3,7 @@
 
 #include <gtk/gtk.h>
 #include <gtk-cifro-area.h>
-#include <hyscan-geo.h>
+#include <hyscan-geo-projection.h>
 
 G_BEGIN_DECLS
 
@@ -35,20 +35,20 @@ HYSCAN_API
 GType                  hyscan_gtk_map_get_type         (void);
 
 HYSCAN_API
-GtkWidget *            hyscan_gtk_map_new              (void);
+GtkWidget *            hyscan_gtk_map_new              (HyScanGeoProjection *projection);
 
 HYSCAN_API
-void                   hyscan_gtk_map_move_to          (HyScanGtkMap       *map,
-                                                        HyScanGeoGeodetic   center);
+void                   hyscan_gtk_map_move_to          (HyScanGtkMap        *map,
+                                                        HyScanGeoGeodetic    center);
 
 HYSCAN_API
-gdouble                hyscan_gtk_map_get_scale        (HyScanGtkMap       *map);
+gdouble                hyscan_gtk_map_get_scale        (HyScanGtkMap        *map);
 
 HYSCAN_API
-void                   hyscan_gtk_map_value_to_geo     (HyScanGtkMap       *map,
-                                                        HyScanGeoGeodetic  *coords,
-                                                        gdouble             x_val,
-                                                        gdouble             y_val);
+void                   hyscan_gtk_map_value_to_geo     (HyScanGtkMap        *map,
+                                                        HyScanGeoGeodetic   *coords,
+                                                        gdouble              x_val,
+                                                        gdouble              y_val);
 
 G_END_DECLS
 

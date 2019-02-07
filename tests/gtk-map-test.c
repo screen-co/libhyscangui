@@ -6,6 +6,7 @@
 #include <hyscan-gtk-map-tiles-osm.h>
 #include <hyscan-cached.h>
 #include <hyscan-gtk-map-fs-tile-source.h>
+#include <hyscan-pseudo-mercator.h>
 
 static gchar    *tiles_dir = "/tmp/tiles";   /* Путь к каталогу, где хранятся тайлы. */
 
@@ -21,8 +22,11 @@ GtkWidget *
 create_map (HyScanGeoGeodetic center)
 {
   GtkWidget *map;
+  HyScanGeoProjection *projection;
 
-  map = hyscan_gtk_map_new ();
+  projection = hyscan_pseudo_mercator_new ();
+  map = hyscan_gtk_map_new (projection);
+  g_object_unref (projection);
 
   return map;
 }

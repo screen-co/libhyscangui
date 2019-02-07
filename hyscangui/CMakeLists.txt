@@ -36,7 +36,9 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-map-tile-source.c
              hyscan-gtk-map-tiles-osm.c
              hyscan-gtk-map-fs-tile-source.c
+             hyscan-geo-projection.c
              hyscan-mercator.c
+             hyscan-pseudo-mercator.c
              ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c)
 
 target_link_libraries (${HYSCAN_GUI_LIBRARY} ${GTK3_LIBRARIES} ${HYSCAN_LIBRARIES} ${GTKCIFROAREA_LIBRARIES})

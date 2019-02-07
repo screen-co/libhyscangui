@@ -1,9 +1,7 @@
 #ifndef __HYSCAN_MERCATOR_H__
 #define __HYSCAN_MERCATOR_H__
 
-#include <glib-object.h>
-#include <hyscan-geo.h>
-#include <hyscan-api.h>
+#include <hyscan-geo-projection.h>
 
 G_BEGIN_DECLS
 
@@ -33,31 +31,9 @@ struct _HyScanMercatorClass
 GType                  hyscan_mercator_get_type         (void);
 
 HYSCAN_API
-gdouble                hyscan_mercator_get_scale        (HyScanMercator    *mercator,
-                                                         HyScanGeoGeodetic  coords);
-
-HYSCAN_API
-void                   hyscan_mercator_value_to_geo     (HyScanMercator    *mercator,
-                                                         HyScanGeoGeodetic *coords,
-                                                         gdouble            x,
-                                                         gdouble            y);
-
-HYSCAN_API
-void                   hyscan_mercator_geo_to_value     (HyScanMercator    *mercator,
-                                                         HyScanGeoGeodetic  coords,
-                                                         gdouble           *x,
-                                                         gdouble           *y);
-
-HYSCAN_API
-void                   hyscan_mercator_get_limits       (HyScanMercator    *mercator,
-                                                         gdouble           *min_x,
-                                                         gdouble           *max_x,
-                                                         gdouble           *min_y,
-                                                         gdouble           *max_y);
-
-HYSCAN_API
-HyScanMercator *       hyscan_mercator_new              (HyScanGeoEllipsoidParam p);
-
+HyScanGeoProjection *  hyscan_mercator_new              (HyScanGeoEllipsoidParam p,
+                                                         gdouble                 min_lat,
+                                                         gdouble                 max_lat);
 
 G_END_DECLS
 
