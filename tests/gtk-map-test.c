@@ -3,7 +3,7 @@
 #include <hyscan-gtk-map-tiles.h>
 #include <math.h>
 #include <hyscan-gtk-map-float.h>
-#include <hyscan-gtk-map-tiles-osm.h>
+#include <hyscan-network-map-tile-source.h>
 #include <hyscan-cached.h>
 #include <hyscan-gtk-map-fs-tile-source.h>
 #include <hyscan-pseudo-mercator.h>
@@ -25,7 +25,7 @@ create_map_yandex (HyScanGtkMapTileSource **source)
   GtkWidget *map;
   HyScanGeoProjection *projection;
   HyScanGeoEllipsoidParam p;
-  HyScanGtkMapTilesOsm *osm;
+  HyScanNetworkMapTileSource *nw_source;
 
   /* Проекция Яндекса - эллипсоид WGS84 с указанными границами по широте. */
   hyscan_geo_init_ellipsoid (&p, HYSCAN_GEO_ELLIPSOID_WGS84);
@@ -33,8 +33,8 @@ create_map_yandex (HyScanGtkMapTileSource **source)
   map = hyscan_gtk_map_new (projection);
   g_object_unref (projection);
 
-  osm = hyscan_gtk_map_tiles_osm_new ("vec02.maps.yandex.net", "/tiles?l=map&v=2.2.3&z=%d&x=%d&y=%d");
-  *source = HYSCAN_GTK_MAP_TILE_SOURCE (osm);
+  nw_source = hyscan_network_map_tile_source_new ("http://vec02.maps.yandex.net/tiles?l=map&v=2.2.3&z=%d&x=%d&y=%d");
+  *source = HYSCAN_GTK_MAP_TILE_SOURCE (nw_source);
 
   return map;
 }
@@ -45,24 +45,23 @@ create_map (HyScanGtkMapTileSource **source)
 {
   GtkWidget *map;
   HyScanGeoProjection *projection;
-  HyScanGtkMapTilesOsm *osm;
+  HyScanNetworkMapTileSource *nw_source;
+  // const gchar *url_format = "https://tile.thunderforest.com/landscape/%d/%d/%d.png?apikey=03fb8295553d4a2eaacc64d7dd88e3b9";
+  const gchar *url_format[] = {
+    "https://tile.thunderforest.com/landscape/%d/%d/%d.png?apikey=03fb8295553d4a2eaacc64d7dd88e3b9",
+    "http://a.tile.openstreetmap.org/%d/%d/%d.png",
+    "https://maps.wikimedia.org/osm-intl/%d/%d/%d.png",
+    "http://www.google.cn/maps/vt?lyrs=s@189&gl=cn&x=%2$d&y=%3$d&z=%1$d" /* todo: jpeg пока не реализован. */
+  };
 
   projection = hyscan_pseudo_mercator_new ();
   
   map = hyscan_gtk_map_new (projection);
   g_object_unref (projection);
 
-   osm = hyscan_gtk_map_tiles_osm_new ("tile.thunderforest.com",
-                                      "/landscape/%d/%d/%d.png?apikey=03fb8295553d4a2eaacc64d7dd88e3b9");
+  nw_source = hyscan_network_map_tile_source_new (url_format[2]);
 
-  // "a.tile.openstreetmap.org", "/%d/%d/%d.png";
-
-  /* Wikimedia - todo: TLS redirect (use libcurl or libsoup?). */
-  // "maps.wikimedia.org", "/osm-intl/%d/%d/%d.png";
-
-  // "www.google.cn", "/maps/vt?lyrs=s@189&gl=cn&x=%2$d&y=%3$d&z=%1$d";
-
-  *source = osm;
+  *source = HYSCAN_GTK_MAP_TILE_SOURCE (nw_source);
 
   return map;
 }
@@ -72,7 +71,7 @@ int main (int     argc,
 {
   GtkWidget *window;
   GtkWidget *map;
-  HyScanGtkMapTileSource *osm_source;
+  HyScanGtkMapTileSource *nw_source;
   HyScanGtkMapFsTileSource *fs_source;
   HyScanCache *cache = HYSCAN_CACHE (hyscan_cached_new (64));
 
@@ -111,9 +110,9 @@ int main (int     argc,
   }
 
   /* Создаём область карты. */
-  map = create_map_yandex (&osm_source);
+  map = create_map(&nw_source);
 
-  fs_source = hyscan_gtk_map_fs_tile_source_new (tiles_dir, HYSCAN_GTK_MAP_TILE_SOURCE(osm_source));
+  fs_source = hyscan_gtk_map_fs_tile_source_new (tiles_dir, HYSCAN_GTK_MAP_TILE_SOURCE(nw_source));
 
   /* Добавляем слои. */
   tiles = hyscan_gtk_map_tiles_new (HYSCAN_GTK_MAP (map),
@@ -137,7 +136,7 @@ int main (int     argc,
 
   /* Освобождаем память. */
   g_clear_object (&fs_source);
-  g_clear_object (&osm_source);
+  g_clear_object (&nw_source);
   g_clear_object (&float_layer);
   g_clear_object (&tiles);
   g_clear_object (&cache);

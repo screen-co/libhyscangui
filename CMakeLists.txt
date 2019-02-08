@@ -45,8 +45,9 @@ endif ()
 
 pkg_check_modules (GTK3 REQUIRED gtk+-3.0)
 pkg_check_modules (LIBXML2 REQUIRED libxml-2.0)
-add_definitions (${GTK3_CFLAGS} ${LIBXML2_CFLAGS})
-link_directories (${GTK3_LIBRARY_DIRS} ${LIBXML2_LIBRARY_DIRS})
+pkg_check_modules (LIBSOUP REQUIRED libsoup-2.4)
+add_definitions (${GTK3_CFLAGS} ${LIBXML2_CFLAGS} ${LIBSOUP_CFLAGS})
+link_directories (${GTK3_LIBRARY_DIRS} ${LIBXML2_LIBRARY_DIRS} ${LIBSOUP_LIBRARY_DIRS})
 
 if (HYSCAN_USE_SYS_LIBS)
   pkg_check_modules (HYSCAN REQUIRED "hyscantypes-${HYSCAN_MAJOR_VERSION}")

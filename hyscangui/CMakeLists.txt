@@ -34,14 +34,14 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-map-tiles.c
              hyscan-gtk-map-float.c
              hyscan-gtk-map-tile-source.c
-             hyscan-gtk-map-tiles-osm.c
+             hyscan-network-map-tile-source.c
              hyscan-gtk-map-fs-tile-source.c
              hyscan-geo-projection.c
              hyscan-mercator.c
              hyscan-pseudo-mercator.c
              ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c)
 
-target_link_libraries (${HYSCAN_GUI_LIBRARY} ${GTK3_LIBRARIES} ${HYSCAN_LIBRARIES} ${GTKCIFROAREA_LIBRARIES})
+target_link_libraries (${HYSCAN_GUI_LIBRARY} ${GTK3_LIBRARIES} ${HYSCAN_LIBRARIES} ${GTKCIFROAREA_LIBRARIES} ${LIBSOUP_LIBRARIES})
 
 set_target_properties (${HYSCAN_GUI_LIBRARY} PROPERTIES DEFINE_SYMBOL "HYSCAN_API_EXPORTS")
 set_target_properties (${HYSCAN_GUI_LIBRARY} PROPERTIES SOVERSION ${HYSCAN_GUI_VERSION})
