@@ -9,6 +9,7 @@
 #include <hyscan-pseudo-mercator.h>
 #include <hyscan-mercator.h>
 #include <hyscan-gtk-map-control.h>
+#include <hyscan-gtk-map-ruler.h>
 
 static gchar    *tiles_dir = "/tmp/tiles";   /* Путь к каталогу, где хранятся тайлы. */
 
@@ -75,6 +76,7 @@ int main (int     argc,
   HyScanGtkMapControl *control;
   HyScanGtkMapTileSource *nw_source;
   HyScanGtkMapFsTileSource *fs_source;
+  HyScanGtkMapRuler *ruler;
   HyScanCache *cache = HYSCAN_CACHE (hyscan_cached_new (64));
 
   HyScanGtkMapTiles *tiles;
@@ -115,13 +117,12 @@ int main (int     argc,
   map = create_map(&nw_source);
 
   /* Добавляем слои. */
-  control = hyscan_gtk_map_control_new (HYSCAN_GTK_MAP (map));
 
   fs_source = hyscan_gtk_map_fs_tile_source_new (tiles_dir, HYSCAN_GTK_MAP_TILE_SOURCE(nw_source));
-  tiles = hyscan_gtk_map_tiles_new (HYSCAN_GTK_MAP (map),
-                                    cache,
-                                    HYSCAN_GTK_MAP_TILE_SOURCE (fs_source));
 
+  tiles = hyscan_gtk_map_tiles_new (HYSCAN_GTK_MAP (map), cache, HYSCAN_GTK_MAP_TILE_SOURCE (fs_source));
+  control = hyscan_gtk_map_control_new (HYSCAN_GTK_MAP (map));
+  ruler = hyscan_gtk_map_ruler_new (HYSCAN_GTK_MAP (map));
   float_layer = hyscan_gtk_map_float_new (HYSCAN_GTK_MAP (map));
 
   /* Добавляем виджет карты в окно. */
@@ -138,6 +139,7 @@ int main (int     argc,
   gtk_main ();
 
   /* Освобождаем память. */
+  g_clear_object (&ruler);
   g_clear_object (&control);
   g_clear_object (&fs_source);
   g_clear_object (&nw_source);

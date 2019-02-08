@@ -50,6 +50,27 @@ void                   hyscan_gtk_map_value_to_geo     (HyScanGtkMap        *map
                                                         gdouble              x_val,
                                                         gdouble              y_val);
 
+HYSCAN_API
+gconstpointer          hyscan_gtk_map_get_howner       (HyScanGtkMap        *map);
+
+HYSCAN_API
+void                   hyscan_gtk_map_set_howner       (HyScanGtkMap        *map,
+                                                        gconstpointer        howner);
+
+HYSCAN_API
+void                   hyscan_gtk_map_release_input   (HyScanGtkMap        *map,
+                                                       gconstpointer        howner);
+
+HYSCAN_API
+gboolean               hyscan_gtk_map_grab_input      (HyScanGtkMap        *map,
+                                                       gconstpointer        howner);
+
+HYSCAN_API
+gboolean               hyscan_gtk_map_is_howner       (HyScanGtkMap        *map,
+                                                       gconstpointer        howner);
+
+
+
 G_END_DECLS
 
 #endif /* __HYSCAN_GTK_MAP_H__ */

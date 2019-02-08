@@ -27,6 +27,7 @@ enum
 struct _HyScanGtkMapPrivate
 {
   HyScanGeoProjection     *projection;           /* Проекция поверхности Земли на плоскость карты. */
+  gconstpointer            howner;               /* Кто в данный момент обрабатывает взаимодействие с картой. */
 };
 
 static void     hyscan_gtk_map_set_property             (GObject               *object,
@@ -276,4 +277,52 @@ hyscan_gtk_map_get_scale (HyScanGtkMap *map)
   dist_pixels = 1 / scale;
 
   return dist_pixels / dist_metres;
+}
+
+gconstpointer
+hyscan_gtk_map_get_howner (HyScanGtkMap *map)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), NULL);
+
+  return map->priv->howner;
+}
+
+void
+hyscan_gtk_map_set_howner (HyScanGtkMap  *map,
+                           gconstpointer  howner)
+{
+  g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
+
+  map->priv->howner = howner;
+}
+
+gboolean
+hyscan_gtk_map_is_howner (HyScanGtkMap  *map,
+                          gconstpointer  howner)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), FALSE);
+
+  return howner == map->priv->howner;
+}
+
+void
+hyscan_gtk_map_release_input (HyScanGtkMap  *map,
+                              gconstpointer  howner)
+{
+  g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
+
+  if (howner == map->priv->howner)
+    map->priv->howner = NULL;
+}
+
+gboolean
+hyscan_gtk_map_grab_input (HyScanGtkMap  *map,
+                           gconstpointer  howner)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), FALSE);
+
+  if (map->priv->howner == NULL)
+    map->priv->howner = howner;
+
+  return howner == map->priv->howner;
 }

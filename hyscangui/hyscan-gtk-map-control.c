@@ -1,4 +1,5 @@
 #include "hyscan-gtk-map-control.h"
+#include <gdk/gdk.h>
 #include <math.h>
 
 enum
@@ -7,12 +8,19 @@ enum
   PROP_MAP
 };
 
+enum
+{
+  STATE_IDLE,
+  STATE_AWAIT,
+  STATE_MOVE,
+};
+
 struct _HyScanGtkMapControlPrivate
 {
   HyScanGtkMap *                  map;           /* Gtk-виджет карты. */
 
   /* Обработка перемещения карты мышью. */
-  gboolean                 move_area;            /* Признак перемещения при нажатой клавише мыши. */
+  gint                     move_state;
   gdouble                  start_from_x;         /* Начальная граница отображения по оси X. */
   gdouble                  start_to_x;           /* Начальная граница отображения по оси X. */
   gdouble                  start_from_y;         /* Начальная граница отображения по оси Y. */
@@ -132,6 +140,29 @@ hyscan_gtk_map_control_scroll (HyScanGtkMapControl *control,
   return FALSE;
 }
 
+static void
+hyscan_gtk_map_set_state (HyScanGtkMapControlPrivate *priv,
+                          gint state)
+{
+  GdkWindow *window;
+  GdkCursor *cursor = NULL;
+
+  priv->move_state = state;
+
+  window = gtk_widget_get_window (GTK_WIDGET (priv->map));
+  if (priv->move_state == STATE_MOVE)
+    {
+      GdkDisplay *display;
+
+      display = gdk_window_get_display (window);
+      cursor = gdk_cursor_new_from_name (display, "grabbing");
+      // cursor = gdk_cursor_new (GDK_DIAMOND_CROSS);
+    }
+
+  gdk_window_set_cursor (window, cursor);
+  g_clear_object (&cursor);
+}
+
 /* Обработчик перемещений курсора мыши. */
 static gboolean
 hyscan_gtk_map_control_motion (HyScanGtkMapControl *control,
@@ -141,8 +172,20 @@ hyscan_gtk_map_control_motion (HyScanGtkMapControl *control,
   HyScanGtkMap *map = HYSCAN_GTK_MAP (priv->map);
   GtkCifroArea *carea = GTK_CIFRO_AREA (map);
 
+  /* Если после нажатия кнопки сдвинулись больше 3 пикселей - начинаем сдвиг. */
+  if (priv->move_state == STATE_AWAIT)
+    {
+      if (fabs (priv->move_from_x - event->x) + fabs (priv->move_from_y - event->y) > 3 && hyscan_gtk_map_grab_input (map, control))
+        {
+          hyscan_gtk_map_set_state (priv, STATE_MOVE);
+
+          gtk_cifro_area_get_view (carea, &priv->start_from_x, &priv->start_to_x,
+                                          &priv->start_from_y, &priv->start_to_y);
+        }
+    }
+
   /* Режим перемещения - сдвигаем область. */
-  if (priv->move_area)
+  if (priv->move_state == STATE_MOVE)
     {
       gdouble x0, y0;
       gdouble xd, yd;
@@ -171,8 +214,12 @@ hyscan_gtk_map_control_button_press_release (HyScanGtkMapControl *control,
   HyScanGtkMap *map = HYSCAN_GTK_MAP (priv->map);
   GtkCifroArea *carea = GTK_CIFRO_AREA (map);
 
+  /* Обрабатываем только нажатия левой клавишей мыши. */
+  if (event->button != 1)
+    return FALSE;
+
   /* Нажата левая клавиша мышки в видимой области - переходим в режим перемещения. */
-  if ((event->type == GDK_BUTTON_PRESS) && (event->button == 1))
+  if (event->type == GDK_BUTTON_PRESS)
     {
       guint widget_width, widget_height;
       guint border_top, border_bottom;
@@ -190,18 +237,24 @@ hyscan_gtk_map_control_button_press_release (HyScanGtkMapControl *control,
       if ((event->x > border_left) && (event->x < (border_left + clip_width)) &&
           (event->y > border_top) && (event->y < (border_top + clip_height)))
         {
-          priv->move_area = TRUE;
+          hyscan_gtk_map_set_state (priv, STATE_AWAIT);
           priv->move_from_x = (gint) event->x;
           priv->move_from_y = (gint) event->y;
-          gtk_cifro_area_get_view (carea, &priv->start_from_x, &priv->start_to_x,
-                                          &priv->start_from_y, &priv->start_to_y);
         }
     }
 
-  /* Выключаем режим перемещения. */
-  if ((event->type == GDK_BUTTON_RELEASE) && (event->button == 1))
+  /* Выключаем режим перемещения, если ввод был захвачен нами. */
+  if (event->type == GDK_BUTTON_RELEASE)
     {
-      priv->move_area = FALSE;
+      gboolean stop_propagation;
+
+      /* Если ввод был захвачен нами, то не передаём это событие дальше. */
+      stop_propagation = (priv->move_state == STATE_MOVE);
+
+      hyscan_gtk_map_set_state (priv, STATE_IDLE);
+      hyscan_gtk_map_release_input (map, control);
+
+      return stop_propagation;
     }
 
   return FALSE;
