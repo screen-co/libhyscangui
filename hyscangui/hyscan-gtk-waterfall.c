@@ -992,7 +992,6 @@ hyscan_gtk_waterfall_automover (gpointer data)
       priv->auto_tag = 0;
       g_signal_emit (self, hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE], 0, writeable);
       gtk_widget_queue_draw (GTK_WIDGET(data));
-
       return G_SOURCE_REMOVE;
     }
 
@@ -1290,7 +1289,7 @@ hyscan_gtk_waterfall_automove (HyScanGtkWaterfall *self,
   else /*if (priv->widget_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER) */
     gtk_cifro_area_move (GTK_CIFRO_AREA (self), G_MAXINT, 0);
 
-  // g_signal_emit (self, hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE], 0, automove);
+  g_signal_emit (self, hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE], 0, automove);
   return automove;
 }
 
