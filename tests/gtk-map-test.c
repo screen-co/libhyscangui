@@ -8,6 +8,7 @@
 #include <hyscan-gtk-map-fs-tile-source.h>
 #include <hyscan-pseudo-mercator.h>
 #include <hyscan-mercator.h>
+#include <hyscan-gtk-map-control.h>
 
 static gchar    *tiles_dir = "/tmp/tiles";   /* Путь к каталогу, где хранятся тайлы. */
 
@@ -71,6 +72,7 @@ int main (int     argc,
 {
   GtkWidget *window;
   GtkWidget *map;
+  HyScanGtkMapControl *control;
   HyScanGtkMapTileSource *nw_source;
   HyScanGtkMapFsTileSource *fs_source;
   HyScanCache *cache = HYSCAN_CACHE (hyscan_cached_new (64));
@@ -112,9 +114,10 @@ int main (int     argc,
   /* Создаём область карты. */
   map = create_map(&nw_source);
 
-  fs_source = hyscan_gtk_map_fs_tile_source_new (tiles_dir, HYSCAN_GTK_MAP_TILE_SOURCE(nw_source));
-
   /* Добавляем слои. */
+  control = hyscan_gtk_map_control_new (HYSCAN_GTK_MAP (map));
+
+  fs_source = hyscan_gtk_map_fs_tile_source_new (tiles_dir, HYSCAN_GTK_MAP_TILE_SOURCE(nw_source));
   tiles = hyscan_gtk_map_tiles_new (HYSCAN_GTK_MAP (map),
                                     cache,
                                     HYSCAN_GTK_MAP_TILE_SOURCE (fs_source));
@@ -135,6 +138,7 @@ int main (int     argc,
   gtk_main ();
 
   /* Освобождаем память. */
+  g_clear_object (&control);
   g_clear_object (&fs_source);
   g_clear_object (&nw_source);
   g_clear_object (&float_layer);

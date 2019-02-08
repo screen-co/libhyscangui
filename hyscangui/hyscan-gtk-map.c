@@ -7,7 +7,7 @@
  * местности в виджете.
  *
  * Проекция #HyScanGeoProjection определяет перевод координат из географических
- * в координаты на  плоскости и указывается при создании виджета карты в
+ * в координаты на плоскости и указывается при создании виджета карты в
  * функции hyscan_gtk_map_new().
  *
  * Для размещения тайлового слоя с изображением карты необходимо воспользоваться
@@ -27,15 +27,6 @@ enum
 struct _HyScanGtkMapPrivate
 {
   HyScanGeoProjection     *projection;           /* Проекция поверхности Земли на плоскость карты. */
-
-  /* Обработка перемещения карты мышью. */
-  gboolean                 move_area;            /* Признак перемещения при нажатой клавише мыши. */
-  gdouble                  start_from_x;         /* Начальная граница отображения по оси X. */
-  gdouble                  start_to_x;           /* Начальная граница отображения по оси X. */
-  gdouble                  start_from_y;         /* Начальная граница отображения по оси Y. */
-  gdouble                  start_to_y;           /* Начальная граница отображения по оси Y. */
-  gint                     move_from_x;          /* Начальная координата перемещения. */
-  gint                     move_from_y;          /* Начальная координата перемещения. */
 };
 
 static void     hyscan_gtk_map_set_property             (GObject               *object,
@@ -44,12 +35,6 @@ static void     hyscan_gtk_map_set_property             (GObject               *
                                                          GParamSpec            *pspec);
 static void     hyscan_gtk_map_object_constructed       (GObject               *object);
 static void     hyscan_gtk_map_object_finalize          (GObject               *object);
-static gboolean hyscan_gtk_map_button_press_release     (GtkWidget             *widget,
-                                                         GdkEventButton        *event);
-static gboolean hyscan_gtk_map_motion                   (GtkWidget             *widget,
-                                                         GdkEventMotion        *event);
-static gboolean hyscan_gtk_map_scroll                   (GtkWidget             *widget,
-                                                         GdkEventScroll        *event);
 static void     hyscan_gtk_map_get_limits               (GtkCifroArea          *carea,
                                                          gdouble               *min_x,
                                                          gdouble               *max_x,
@@ -71,18 +56,11 @@ static void
 hyscan_gtk_map_class_init (HyScanGtkMapClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
-  GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
   GtkCifroAreaClass *carea_class = GTK_CIFRO_AREA_CLASS (klass);
 
   object_class->set_property = hyscan_gtk_map_set_property;
   object_class->constructed = hyscan_gtk_map_object_constructed;
   object_class->finalize = hyscan_gtk_map_object_finalize;
-
-  /* Обработчики взаимодействия мышки пользователя с картой. */
-  widget_class->button_press_event = hyscan_gtk_map_button_press_release;
-  widget_class->button_release_event = hyscan_gtk_map_button_press_release;
-  widget_class->motion_notify_event = hyscan_gtk_map_motion;
-  widget_class->scroll_event = hyscan_gtk_map_scroll;
 
   /* Реализация виртуальных функций GtkCifroArea. */
   carea_class->get_limits = hyscan_gtk_map_get_limits;
@@ -163,110 +141,6 @@ hyscan_gtk_map_object_finalize (GObject *object)
   g_object_unref (priv->projection);
 
   G_OBJECT_CLASS (hyscan_gtk_map_parent_class)->finalize (object);
-}
-
-/* Обработчик событий прокрутки колёсика мышки. */
-static gboolean
-hyscan_gtk_map_scroll (GtkWidget      *widget,
-                       GdkEventScroll *event)
-{
-  HyScanGtkMap *map = HYSCAN_GTK_MAP (widget);
-
-  gdouble dscale;
-  gdouble scale;
-
-  gdouble from_x, to_x, from_y, to_y;
-
-  if (event->direction == GDK_SCROLL_UP)
-    dscale = -1;
-  else if (event->direction == GDK_SCROLL_DOWN)
-    dscale = 1;
-  else
-    return FALSE;
-
-  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (map), &scale, NULL);
-  /* За 4 колесика изменяем масштаб в 2 раза. */
-  scale *= pow (2, dscale * .25);
-
-  gtk_cifro_area_get_view (GTK_CIFRO_AREA (map), &from_x, &to_x, &from_y, &to_y);
-  gtk_cifro_area_set_scale (GTK_CIFRO_AREA (map), scale, scale, (from_x + to_x) / 2, (from_y + to_y) / 2);
-
-  return FALSE;
-}
-
-/* Обработчик перемещений курсора мыши. */
-static gboolean
-hyscan_gtk_map_motion (GtkWidget      *widget,
-                       GdkEventMotion *event)
-{
-  GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
-  HyScanGtkMap *map = HYSCAN_GTK_MAP (widget);
-  HyScanGtkMapPrivate *priv = map->priv;
-
-  /* Режим перемещения - сдвигаем область. */
-  if (priv->move_area)
-    {
-      gdouble x0, y0;
-      gdouble xd, yd;
-      gdouble dx, dy;
-
-      gtk_cifro_area_point_to_value (carea, priv->move_from_x, priv->move_from_y, &x0, &y0);
-      gtk_cifro_area_point_to_value (carea, event->x, event->y, &xd, &yd);
-      dx = x0 - xd;
-      dy = y0 - yd;
-
-      gtk_cifro_area_set_view (carea, priv->start_from_x + dx, priv->start_to_x + dx,
-                                      priv->start_from_y + dy, priv->start_to_y + dy);
-
-      gdk_event_request_motions (event);
-    }
-
-  return FALSE;
-}
-
-/* Обработчик нажатия кнопок мышки. */
-static gboolean
-hyscan_gtk_map_button_press_release (GtkWidget      *widget,
-                                     GdkEventButton *event)
-{
-  GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
-  HyScanGtkMap *map = HYSCAN_GTK_MAP (widget);
-  HyScanGtkMapPrivate *priv = map->priv;
-
-  /* Нажата левая клавиша мышки в видимой области - переходим в режим перемещения. */
-  if ((event->type == GDK_BUTTON_PRESS) && (event->button == 1))
-    {
-      guint widget_width, widget_height;
-      guint border_top, border_bottom;
-      guint border_left, border_right;
-      gint clip_width, clip_height;
-
-      gtk_cifro_area_get_size (carea, &widget_width, &widget_height);
-      gtk_cifro_area_get_border (carea, &border_top, &border_bottom, &border_left, &border_right);
-
-      clip_width = widget_width - border_left - border_right;
-      clip_height = widget_height - border_top - border_bottom;
-      if ((clip_width <= 0) || (clip_height <= 0))
-        return FALSE;
-
-      if ((event->x > border_left) && (event->x < (border_left + clip_width)) &&
-          (event->y > border_top) && (event->y < (border_top + clip_height)))
-        {
-          priv->move_area = TRUE;
-          priv->move_from_x = (gint) event->x;
-          priv->move_from_y = (gint) event->y;
-          gtk_cifro_area_get_view (carea, &priv->start_from_x, &priv->start_to_x,
-                                          &priv->start_from_y, &priv->start_to_y);
-        }
-    }
-
-  /* Выключаем режим перемещения. */
-  if ((event->type == GDK_BUTTON_RELEASE) && (event->button == 1))
-    {
-      priv->move_area = FALSE;
-    }
-
-  return FALSE;
 }
 
 /* Переводит координаты логической СК в географическую. */
