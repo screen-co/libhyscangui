@@ -93,7 +93,7 @@ hyscan_pseudo_mercator_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_pseudo_mercator_parent_class)->constructed (object);
 
-  priv->equator_length = 2 * M_PI * EARTH_RADIUS;
+  priv->equator_length = 2.0 * M_PI * EARTH_RADIUS;
 }
 
 static void
@@ -118,8 +118,8 @@ hyscan_pseudo_mercator_geo_to_value (HyScanGeoProjection *projection,
 
   lat_rad = DEG2RAD (coords.lat);
 
-  (x != NULL) ? *x = (coords.lon + 180) / 360: 0;
-  (y != NULL) ? *y = 1 - (1 - log(tan (lat_rad) + 1 / cos (lat_rad)) / M_PI) / 2 : 0;
+  (x != NULL) ? *x = (coords.lon + 180.0) / 360.0 : 0;
+  (y != NULL) ? *y = 1.0 - (1.0 - log (tan (lat_rad) + 1.0 / cos (lat_rad)) / M_PI) / 2.0 : 0;
 }
 
 /* Переводит координаты на карте (@x, @y) в географические координаты @coords. */
@@ -132,10 +132,10 @@ hyscan_pseudo_mercator_value_to_geo (HyScanGeoProjection *projection,
   (void) projection;
 
   /* Меняем направление оси OY. */
-  y = 1 - y;
+  y = 1.0 - y;
 
   coords->lon = x * 360.0 - 180.0 ;
-  coords->lat = RAD2DEG (atan (sinh (M_PI * (1 - 2 * y))));
+  coords->lat = RAD2DEG (atan (sinh (M_PI * (1.0 - 2.0 * y))));
 }
 
 /* Определяет границы проекции. */
@@ -148,10 +148,10 @@ hyscan_pseudo_mercator_get_limits (HyScanGeoProjection *projection,
 {
   (void) projection;
 
-  (min_x != NULL) ? *min_x = 0 : 0;
-  (max_x != NULL) ? *max_x = 1 : 0;
-  (min_y != NULL) ? *min_y = 0 : 0;
-  (max_y != NULL) ? *max_y = 1 : 0;
+  (min_x != NULL) ? *min_x = 0.0 : 0;
+  (max_x != NULL) ? *max_x = 1.0 : 0;
+  (min_y != NULL) ? *min_y = 0.0 : 0;
+  (max_y != NULL) ? *max_y = 1.0 : 0;
 }
 
 /* Определяет масштаб проекции в указанной точке @coords. */

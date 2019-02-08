@@ -17,7 +17,6 @@
  */
 
 #include "hyscan-mercator.h"
-#include <hyscan-geo-projection.h>
 #include <math.h>
 
 #define DEG2RAD(x) ((x) * G_PI / 180.0)
@@ -134,11 +133,11 @@ hyscan_mercator_set_limits (HyScanMercator *mercator,
   HyScanGeoGeodetic coord;
 
   coord.lat = min_lat;
-  coord.lon = -180;
+  coord.lon = -180.0;
   hyscan_geo_projection_geo_to_value (HYSCAN_GEO_PROJECTION (mercator), coord, &priv->min_x, &priv->min_y);
 
   coord.lat = max_lat;
-  coord.lon = 180;
+  coord.lon = 180.0;
   hyscan_geo_projection_geo_to_value (HYSCAN_GEO_PROJECTION (mercator), coord, &priv->max_x, &priv->max_y);
 }
 
@@ -183,7 +182,7 @@ hyscan_mercator_ellipsoid_lat (HyScanMercatorPrivate *priv,
     {
       gdouble con = e * sin (lat);
 
-      d_lat = M_PI_2 - 2 * atan (ts * pow ((1.0 - con) / (1.0 + con), e * 0.5)) - lat;
+      d_lat = M_PI_2 - 2.0 * atan (ts * pow ((1.0 - con) / (1.0 + con), e * 0.5)) - lat;
       lat += d_lat;
     }
 
@@ -239,7 +238,7 @@ hyscan_mercator_get_scale (HyScanGeoProjection *mercator,
 {
   (void) mercator;
 
-  return cos (M_PI / 180 * coords.lat);
+  return cos (DEG2RAD (coords.lat));
 }
 
 /**
