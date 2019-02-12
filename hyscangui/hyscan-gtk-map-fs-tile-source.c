@@ -89,7 +89,7 @@ hyscan_gtk_map_fs_tile_source_object_finalize (GObject *object)
   HyScanGtkMapFsTileSource *gtk_map_fs_tile_source = HYSCAN_GTK_MAP_FS_TILE_SOURCE (object);
   HyScanGtkMapFsTileSourcePrivate *priv = gtk_map_fs_tile_source->priv;
 
-  g_object_unref (priv->fallback_source);
+  g_clear_object (&priv->fallback_source);
   g_free (priv->source_dir);
 
   G_OBJECT_CLASS (hyscan_gtk_map_fs_tile_source_parent_class)->finalize (object);

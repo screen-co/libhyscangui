@@ -144,21 +144,6 @@ hyscan_gtk_map_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_parent_class)->finalize (object);
 }
 
-/* Переводит координаты логической СК в географическую. */
-void
-hyscan_gtk_map_value_to_geo (HyScanGtkMap       *map,
-                             HyScanGeoGeodetic  *coords,
-                             gdouble             x_val,
-                             gdouble             y_val)
-{
-  HyScanGtkMapPrivate *priv;
-
-  g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
-
-  priv = map->priv;
-  hyscan_geo_projection_value_to_geo (priv->projection, coords, x_val, y_val);
-}
-
 /* Реализация функции check_scale GtkCifroArea.
  * Сохраняет одинаковый масштаб по обеим осям. */
 static void
@@ -325,4 +310,34 @@ hyscan_gtk_map_grab_input (HyScanGtkMap  *map,
     map->priv->howner = howner;
 
   return howner == map->priv->howner;
+}
+
+/* Переводит координаты логической СК в географическую. */
+void
+hyscan_gtk_map_value_to_geo (HyScanGtkMap       *map,
+                             HyScanGeoGeodetic  *coords,
+                             gdouble             x_val,
+                             gdouble             y_val)
+{
+  HyScanGtkMapPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
+
+  priv = map->priv;
+  hyscan_geo_projection_value_to_geo (priv->projection, coords, x_val, y_val);
+}
+
+
+void
+hyscan_gtk_map_geo_to_value (HyScanGtkMap        *map,
+                             HyScanGeoGeodetic    coords,
+                             gdouble             *x_val,
+                             gdouble             *y_val)
+{
+  HyScanGtkMapPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
+
+  priv = map->priv;
+  hyscan_geo_projection_geo_to_value (priv->projection, coords, x_val, y_val);
 }

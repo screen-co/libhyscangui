@@ -196,7 +196,7 @@ hyscan_gtk_map_tiles_load (HyScanGtkMapTile  *tile,
       hyscan_cache_set2 (priv->cache, priv->key, NULL, priv->cache_buffer, buffer);
 
       /* Запрашиваем перерисовку карты. todo: add if (tile inside visible area) { ... } */
-      gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+      gdk_threads_add_idle ((GSourceFunc) gtk_widget_queue_draw, (GTK_WIDGET (priv->map)));
 
       g_object_unref (buffer);
     }

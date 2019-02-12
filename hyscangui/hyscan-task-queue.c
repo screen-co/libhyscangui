@@ -14,12 +14,13 @@ struct _HyScanTaskQueuePrivate
   GFunc           task_func;            /* Функция выполнения задачи. */
   GCompareFunc    cmp_func;             /* Функция сравнения двух задач. */
   GDestroyNotify  task_free_func;       /* Функция удаления задачи. */
+  guint           max_concurrent;       /* Максимальное количество задач, выполняемых одновременно. */
 
+  /* Состояние очереди задач. */
   GQueue         *queue;                /* Очередь задач, ожидающих обработки. */
   GList          *processing_tasks;     /* Список задач, находящихся в обработке. */
   guint           processing_count;     /* Длина списка processing_tasks. */
-  guint           max_concurrent;       /* Максимальное количество задач, выполняемых одновременно. */
-  GMutex          queue_lock;           /* Мутекс для ограничения доступа к редактиронию очереди задач. */
+  GMutex          queue_lock;           /* Мутекс для ограничения доступа к редактиронию переменных состояния очереди. */
 
   GThreadPool    *pool;                 /* Пул обработки задач. */
   gpointer        user_data;            /* Пользовательские данные для пула задач. */
@@ -145,7 +146,7 @@ hyscan_task_queue_process (gpointer         task,
   /* Удаляем задачу из очереди. */
   g_mutex_lock (&priv->queue_lock);
   priv->processing_tasks = g_list_remove (priv->processing_tasks, task);
-  --priv->processing_count;
+  g_atomic_int_add (&priv->processing_count, -1);
   g_mutex_unlock (&priv->queue_lock);
 
   /* Освобождаем память от задачи. */
@@ -177,7 +178,7 @@ hyscan_task_queue_try_next (HyScanTaskQueue *queue)
     {
       g_thread_pool_push (priv->pool, task, &error);
       priv->processing_tasks = g_list_append (priv->processing_tasks, task);
-      ++priv->processing_count;
+      g_atomic_int_inc (&priv->processing_count);
       if (error != NULL)
         {
           g_warning ("HyScanTaskQueue: %s", error->message);

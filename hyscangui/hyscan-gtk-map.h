@@ -51,6 +51,12 @@ void                   hyscan_gtk_map_value_to_geo     (HyScanGtkMap        *map
                                                         gdouble              y_val);
 
 HYSCAN_API
+void                   hyscan_gtk_map_geo_to_value     (HyScanGtkMap        *map,
+                                                        HyScanGeoGeodetic    coords,
+                                                        gdouble             *x_val,
+                                                        gdouble             *y_val);
+
+HYSCAN_API
 gconstpointer          hyscan_gtk_map_get_howner       (HyScanGtkMap        *map);
 
 HYSCAN_API
