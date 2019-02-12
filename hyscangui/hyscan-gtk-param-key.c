@@ -217,7 +217,7 @@ hyscan_gtk_param_key_object_constructed (GObject *object)
   priv->label = gtk_label_new (priv->key->name);
   priv->value = hyscan_gtk_param_key_make_editor (self);
 
-  sensitive = priv->key->access != HYSCAN_DATA_SCHEMA_ACCESS_READONLY;
+  sensitive = priv->key->access != HYSCAN_DATA_SCHEMA_ACCESS_READ;
   gtk_widget_set_sensitive (priv->label, sensitive);
   gtk_widget_set_sensitive (priv->value, sensitive);
 
@@ -509,7 +509,7 @@ hyscan_gtk_param_key_make_editor_enum (HyScanDataSchema    *schema,
 
   /* Список значений. */
   enum_id = hyscan_data_schema_key_get_enum_id (schema, key->id);
-  values = hyscan_data_schema_get_enum_values (schema, enum_id);
+  values = hyscan_data_schema_enum_get_values (schema, enum_id);
 
   editor = gtk_combo_box_text_new ();
 
