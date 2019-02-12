@@ -10,6 +10,7 @@
 #include <hyscan-mercator.h>
 #include <hyscan-gtk-map-control.h>
 #include <hyscan-gtk-map-ruler.h>
+#include <hyscan-gtk-map-grid.h>
 
 static gchar    *tiles_dir = "/tmp/tiles";   /* Путь к каталогу, где хранятся тайлы. */
 
@@ -77,6 +78,7 @@ int main (int     argc,
   HyScanGtkMapTileSource *nw_source;
   HyScanGtkMapFsTileSource *fs_source;
   HyScanGtkMapRuler *ruler;
+  HyScanGtkMapGrid *grid;
   HyScanCache *cache = HYSCAN_CACHE (hyscan_cached_new (64));
 
   HyScanGtkMapTiles *tiles;
@@ -122,6 +124,7 @@ int main (int     argc,
 
   tiles = hyscan_gtk_map_tiles_new (HYSCAN_GTK_MAP (map), cache, HYSCAN_GTK_MAP_TILE_SOURCE (fs_source));
   control = hyscan_gtk_map_control_new (HYSCAN_GTK_MAP (map));
+  grid = hyscan_gtk_map_grid_new (HYSCAN_GTK_MAP (map));
   ruler = hyscan_gtk_map_ruler_new (HYSCAN_GTK_MAP (map));
   float_layer = hyscan_gtk_map_float_new (HYSCAN_GTK_MAP (map));
 

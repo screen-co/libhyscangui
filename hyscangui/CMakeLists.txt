@@ -38,6 +38,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-map-fs-tile-source.c
              hyscan-gtk-map-control.c
              hyscan-gtk-map-ruler.c
+             hyscan-gtk-map-grid.c
              hyscan-geo-projection.c
              hyscan-mercator.c
              hyscan-pseudo-mercator.c
