@@ -124,6 +124,7 @@ hyscan_gtk_map_grid_object_finalize (GObject *object)
   HyScanGtkMapGrid *gtk_map_grid = HYSCAN_GTK_MAP_GRID (object);
   HyScanGtkMapGridPrivate *priv = gtk_map_grid->priv;
 
+  g_clear_object (&priv->pango_layout);
   g_object_unref (priv->map);
 
   G_OBJECT_CLASS (hyscan_gtk_map_grid_parent_class)->finalize (object);

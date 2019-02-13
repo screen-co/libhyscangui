@@ -1,8 +1,10 @@
 #include "hyscan-gtk-map-ruler.h"
 #include <math.h>
 
+#define SNAP_DISTANCE 6.0           /* Максимальное расстояние прилипания курсора мыши к звену ломаной. */
+#define EARTH_RADIUS 6378137.0      /* Радиус Земли. */
+
 #define IS_INSIDE(x, a, b) ((a) < (b) ? (a) < (x) && (x) < (b) : (b) < (x) && (x) < (a))
-#define EARTH_RADIUS 6378137.0
 #define DEG2RAD(x) ((x) * G_PI / 180.0)
 #define RAD2DEG(x) ((x) * 180.0 / G_PI)
 
@@ -12,7 +14,7 @@ enum
   PROP_MAP
 };
 
-/* Точка на линейке. */
+/* Координаты точки. */
 typedef struct
 {
   gdouble x;
@@ -21,17 +23,21 @@ typedef struct
 
 struct _HyScanGtkMapRulerPrivate
 {
-  HyScanGtkMap              *map;              /* Виджет карты. */
+  HyScanGtkMap              *map;                      /* Виджет карты. */
 
-  GList                     *points;           /* Список точек, между которыми необходимо измерить расстояние. */
-  HyScanGtkMapRulerPoint    *hover_point;      /* Точка из списка points под указателем мыши. */
-  HyScanGtkMapRulerPoint    *drag_point;       /* Точка из списка points, которая сейчас перетаскивается. */
-  HyScanGtkMapRulerPoint    *remove_point;     /* Точка из списка points, которую надо удалить при отжатии кнопки. */
+  PangoLayout               *pango_layout;             /* Раскладка шрифта. */
 
-  GList                     *middle_point_position; /* Указатель на отрезок, над которым находится курсор мыши. */
-  HyScanGtkMapRulerPoint     middle_point;          /* Точка под курсором мыши в середине отрезка. */
+  GList                     *points;                   /* Список вершин ломаной, длину которой необходимо измерить. */
+  HyScanGtkMapRulerPoint    *hover_point;              /* Вершина ломаной под курсором мыши. */
+  HyScanGtkMapRulerPoint    *drag_point;               /* Вершина ломаной, которая сейчас перетаскивается. */
+  HyScanGtkMapRulerPoint    *remove_point;             /* Вершина ломаной, которую надо удалить при отжатии кнопки. */
 
-  gdouble                    radius;           /* Радиус точки - узла в измеряемом пути. */
+  GList                     *hover_section;            /* Указатель на отрезок ломаной под курсором мыши. */
+  HyScanGtkMapRulerPoint     section_point;            /* Точка под курсором мыши в середине отрезка. */
+
+  gdouble                    radius;                   /* Радиус точки - вершины ломаной. */
+  gdouble                    line_width;               /* Ширина линии ломаной. */
+  GdkRGBA                    color;                    /* Цвет элементов. */
 };
 
 static void                     hyscan_gtk_map_ruler_set_property             (GObject                  *object,
@@ -70,6 +76,16 @@ static gdouble                  hyscan_gtk_map_ruler_distance                 (H
                                                                                gdouble                   y0,
                                                                                gdouble                  *x,
                                                                                gdouble                  *y);
+static gboolean                 hyscan_gtk_map_ruler_configure                (HyScanGtkMapRuler        *ruler,
+                                                                               GdkEvent                 *event);
+static void                     hyscan_gtk_map_ruler_draw_vertices            (HyScanGtkMapRulerPrivate *priv,
+                                                                               cairo_t                  *cairo);
+static void                     hyscan_gtk_map_ruler_draw_line                (HyScanGtkMapRulerPrivate *priv,
+                                                                               cairo_t                  *cairo);
+static void                     hyscan_gtk_map_ruler_draw_hover_section       (HyScanGtkMapRulerPrivate *priv,
+                                                                               cairo_t                  *cairo);
+static void                     hyscan_gtk_map_ruler_draw_label               (HyScanGtkMapRulerPrivate *priv,
+                                                                               cairo_t                  *cairo);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMapRuler, hyscan_gtk_map_ruler, G_TYPE_OBJECT)
 
@@ -122,12 +138,16 @@ hyscan_gtk_map_ruler_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_gtk_map_ruler_parent_class)->constructed (object);
 
-  priv->radius = 4.0;
+  priv->radius = 3.0;
+  priv->line_width = 1.0;
+  gdk_rgba_parse (&priv->color, "#008800");
 
   /* Подключаемся к сигналам перерисовки видимой области карты. */
   g_signal_connect_swapped (priv->map, "visible-draw",
                             G_CALLBACK (hyscan_gtk_map_ruler_draw), gtk_map_ruler);
 
+  g_signal_connect_swapped (priv->map, "configure-event",
+                            G_CALLBACK (hyscan_gtk_map_ruler_configure), gtk_map_ruler);
   g_signal_connect_swapped (priv->map, "button-press-event",
                             G_CALLBACK (hyscan_gtk_map_ruler_button_press_release), gtk_map_ruler);
   g_signal_connect_swapped (priv->map, "button-release-event",
@@ -143,9 +163,23 @@ hyscan_gtk_map_ruler_object_finalize (GObject *object)
   HyScanGtkMapRulerPrivate *priv = gtk_map_ruler->priv;
 
   g_list_free_full (priv->points, (GDestroyNotify) hyscan_gtk_map_ruler_point_free);
+  g_clear_object (&priv->pango_layout);
   g_clear_object (&priv->map);
 
   G_OBJECT_CLASS (hyscan_gtk_map_ruler_parent_class)->finalize (object);
+}
+
+/* Обработка сигнала "configure-event" виджета карты. */
+static gboolean
+hyscan_gtk_map_ruler_configure (HyScanGtkMapRuler *ruler,
+                                GdkEvent          *event)
+{
+  HyScanGtkMapRulerPrivate *priv = ruler->priv;
+
+  g_clear_object (&priv->pango_layout);
+  priv->pango_layout = gtk_widget_create_pango_layout (GTK_WIDGET (priv->map), NULL);
+
+  return FALSE;
 }
 
 /* Определяет расстояние между двумя географическими координатами. */
@@ -153,7 +187,15 @@ static gdouble
 hyscan_gtk_map_ruler_measure (HyScanGeoGeodetic coord1,
                               HyScanGeoGeodetic coord2)
 {
-  double lat1r, lon1r, lat2r, lon2r, u, v;
+  gdouble lon1r;
+  gdouble lat1r;
+
+  gdouble lon2r;
+  gdouble lat2r;
+
+  gdouble u;
+  gdouble v;
+
   lat1r = DEG2RAD (coord1.lat);
   lon1r = DEG2RAD (coord1.lon);
   lat2r = DEG2RAD (coord2.lat);
@@ -164,7 +206,7 @@ hyscan_gtk_map_ruler_measure (HyScanGeoGeodetic coord1,
   return 2.0 * EARTH_RADIUS * asin (sqrt (u * u + cos (lat1r) * cos (lat2r) * v * v));
 }
 
-/* Определяет общую длину ломаной по всем узлам. */
+/* Определяет общую длину ломаной по всем узлам или -1.0 если длина не определена. */
 static gdouble
 hyscan_gtk_map_ruler_get_distance (HyScanGtkMapRulerPrivate *priv)
 {
@@ -196,23 +238,81 @@ hyscan_gtk_map_ruler_get_distance (HyScanGtkMapRulerPrivate *priv)
   return distance;
 }
 
-/* Рисует элементы линейки по сигналу "visible-draw". */
+/* Подписывает общее расстояние над последней вершиной ломаной. */
 static void
-hyscan_gtk_map_ruler_draw (HyScanGtkMapRuler *ruler,
-                           cairo_t           *cairo)
+hyscan_gtk_map_ruler_draw_label (HyScanGtkMapRulerPrivate *priv,
+                                 cairo_t                  *cairo)
 {
-  HyScanGtkMapRulerPrivate *priv = ruler->priv;
+  GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
+  HyScanGtkMapRulerPoint *last_point;
+
+  gdouble distance;
+
+  gchar label[255];
+  gint height;
+
+  gdouble x;
+  gdouble y;
+
+  distance = hyscan_gtk_map_ruler_get_distance (priv);
+
+  if (distance < 0.0)
+    return;
+
+  if (distance < 1000.0)
+    g_snprintf (label, sizeof (label), "%.0f m", distance);
+  else
+    g_snprintf (label, sizeof (label), "%.2f km", distance / 1000.0);
+
+  pango_layout_set_text (priv->pango_layout, label, -1);
+  pango_layout_get_size (priv->pango_layout, NULL, &height);
+  height /= PANGO_SCALE;
+
+  last_point = g_list_last (priv->points)->data;
+  gtk_cifro_area_visible_value_to_point (carea, &x, &y, last_point->x, last_point->y);
+  cairo_move_to (cairo, x + priv->radius, y - height - priv->radius);
+  pango_cairo_show_layout (cairo, priv->pango_layout);
+}
+
+/* Рисует точку над звеном ломаной, если звено под курсором мыши. */
+static void
+hyscan_gtk_map_ruler_draw_hover_section (HyScanGtkMapRulerPrivate *priv,
+                                         cairo_t                  *cairo)
+{
+  GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
+
+  gdouble x;
+  gdouble y;
+
+  if (priv->hover_section == NULL)
+    return;
+
+  gtk_cifro_area_visible_value_to_point (carea, &x, &y, priv->section_point.x, priv->section_point.y);
+
+  gdk_cairo_set_source_rgba (cairo, &priv->color);
+  cairo_set_line_width (cairo, priv->line_width);
+
+  cairo_new_path (cairo);
+  cairo_arc (cairo, x, y, priv->radius * 2.0, 0, 2.0 * G_PI);
+  cairo_stroke (cairo);
+}
+
+/* Рисует ломаную линии. */
+static void
+hyscan_gtk_map_ruler_draw_line (HyScanGtkMapRulerPrivate *priv,
+                                cairo_t                  *cairo)
+{
   GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
 
   GList *point_l;
-  HyScanGtkMapRulerPoint *point;
+  HyScanGtkMapRulerPoint *point = NULL;
 
-  gdouble x, y;
+  gdouble x;
+  gdouble y;
 
-  cairo_set_line_width (cairo, 1.0);
-  cairo_set_source_rgb (cairo, 0, 0, 0);
+  gdk_cairo_set_source_rgba (cairo, &priv->color);
+  cairo_set_line_width (cairo, priv->line_width);
 
-  /* Рисуем линию. */
   cairo_new_path (cairo);
   for (point_l = priv->points; point_l != NULL; point_l = point_l->next)
     {
@@ -222,60 +322,46 @@ hyscan_gtk_map_ruler_draw (HyScanGtkMapRuler *ruler,
       cairo_line_to (cairo, x, y);
     }
   cairo_stroke (cairo);
+}
 
-  /* Рисуем узлы. */
+/* Рисует узлы ломаной линии. */
+static void
+hyscan_gtk_map_ruler_draw_vertices (HyScanGtkMapRulerPrivate *priv,
+                                    cairo_t                  *cairo)
+{
+  GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
+
+  GList *point_l;
+  HyScanGtkMapRulerPoint *point = NULL;
+
+  gdouble x, y;
+
   for (point_l = priv->points; point_l != NULL; point_l = point_l->next)
     {
+      gdouble radius;
       point = point_l->data;
 
       gtk_cifro_area_visible_value_to_point (carea, &x, &y, point->x, point->y);
 
-      cairo_move_to (cairo, x, y);
-      if (point == priv->hover_point)
-        {
-          cairo_set_source_rgb (cairo, 0, 1.0, 0);
-          cairo_arc (cairo, x, y, priv->radius * 2.0, 0, 2.0 * G_PI);
-        }
-      else
-        {
-          cairo_set_source_rgb (cairo, 1, 1, 1);
-          cairo_arc (cairo, x, y, priv->radius, 0, 2.0 * G_PI);
-        }
+      radius = (point == priv->hover_point) ? 2.0 * priv->radius : priv->radius;
 
-      cairo_set_source_rgb (cairo, 0.0, 0.0, 0.0);
-      cairo_stroke_preserve (cairo);
+      cairo_arc (cairo, x, y, radius, 0, 2.0 * G_PI);
+      gdk_cairo_set_source_rgba (cairo, &priv->color);
       cairo_fill (cairo);
     }
+}
 
-  /* Подписываем расстояние над последней точкой. */
-  {
-    gdouble distance;
+/* Рисует элементы линейки по сигналу "visible-draw". */
+static void
+hyscan_gtk_map_ruler_draw (HyScanGtkMapRuler *ruler,
+                           cairo_t           *cairo)
+{
+  HyScanGtkMapRulerPrivate *priv = ruler->priv;
 
-    distance = hyscan_gtk_map_ruler_get_distance (priv);
-    if (distance > 0.0)
-      {
-        gchar label[255];
-
-        cairo_move_to (cairo, x, y - 10);
-        if (distance > 1000)
-          g_snprintf (label, 255, "%.1f km", distance / 1000.0);
-        else
-          g_snprintf (label, 255, "%.1f m", distance);
-
-        cairo_show_text (cairo, label);
-      }
-  }
-
-  /* Рисуем точку над отрезком, если такая есть. */
-  if (priv->middle_point_position != NULL)
-    {
-      gtk_cifro_area_visible_value_to_point (carea, &x, &y, priv->middle_point.x, priv->middle_point.y);
-      cairo_set_source_rgb (cairo, 0, 0, 0);
-      cairo_set_line_width (cairo, 2.0);
-      cairo_new_path (cairo);
-      cairo_arc (cairo, x, y, priv->radius * 2.0, 0, 2.0 * G_PI);
-      cairo_stroke (cairo);
-    }
+  hyscan_gtk_map_ruler_draw_line (priv, cairo);
+  hyscan_gtk_map_ruler_draw_vertices (priv, cairo);
+  hyscan_gtk_map_ruler_draw_label (priv, cairo);
+  hyscan_gtk_map_ruler_draw_hover_section (priv, cairo);
 }
 
 /* Передвигает точку point под курсор. */
@@ -290,7 +376,8 @@ hyscan_gtk_map_ruler_motion_drag (HyScanGtkMapRulerPrivate *priv,
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }
 
-/* Расстояние от точки (x0, y0) до прямой ab. */
+/* Определяет расстояние от точки (x0, y0) до прямой через точки p1 и p2
+ * и координаты (x, y) ближайшей точки на этой прямой. */
 static gdouble
 hyscan_gtk_map_ruler_distance (HyScanGtkMapRulerPoint *p1,
                                HyScanGtkMapRulerPoint *p2,
@@ -308,14 +395,14 @@ hyscan_gtk_map_ruler_distance (HyScanGtkMapRulerPoint *p1,
   c = p1->x * p2->y - p2->x * p1->y;
 
   dist_ab2 = pow (a, 2) + pow (b, 2);
-  dist = fabs (a * x0 + b * y0 + c) / (sqrt (dist_ab2));
+  dist = fabs (a * x0 + b * y0 + c) / sqrt (dist_ab2);
   *x = (b * (b * x0 - a * y0) - a * c) / dist_ab2;
   *y = (a * (-b * x0 + a * y0) - b * c) / dist_ab2;
 
   return dist;
 }
 
-/* Определяет, находится ли под курсором мыши отрезок ломаной. */
+/* Находит звено ломаной в SNAP_DISTANCE-окрестности курсора мыши. */
 static GList *
 hyscan_gtk_map_ruler_get_segment_under_cursor (HyScanGtkMapRulerPrivate *priv,
                                                GdkEventMotion           *event)
@@ -348,15 +435,15 @@ hyscan_gtk_map_ruler_get_segment_under_cursor (HyScanGtkMapRulerPrivate *priv,
       /* Определяем расстояние от курсоры мыши до прямой между точками. */
       distance = hyscan_gtk_map_ruler_distance (prev_point, point, cur_x, cur_y, &nearest_x, &nearest_y);
       distance /= scale_x;
-      if (distance > 6.0)
+      if (distance > SNAP_DISTANCE)
         continue;
 
       /* Проверяем, что ближайшая точка на прямой попала внутрь отрезка между точками. */
       if (!IS_INSIDE (nearest_x, point->x, prev_point->x) || !IS_INSIDE (nearest_y, point->y, prev_point->y))
         continue;
 
-      priv->middle_point.x = nearest_x;
-      priv->middle_point.y = nearest_y;
+      priv->section_point.x = nearest_x;
+      priv->section_point.y = nearest_y;
 
       return point_l;
     }
@@ -400,7 +487,7 @@ hyscan_gtk_map_ruler_motion_hover (HyScanGtkMapRulerPrivate *priv,
                                    GdkEventMotion           *event)
 {
   HyScanGtkMapRulerPoint *hover_point;
-  GList *middle_point_position;
+  GList *hover_section;
 
   /* Под курсором мыши находится конец какого-то отрезка. */
   hover_point = hyscan_gtk_map_ruler_get_point_under_cursor (priv, event);
@@ -411,10 +498,10 @@ hyscan_gtk_map_ruler_motion_hover (HyScanGtkMapRulerPrivate *priv,
     }
 
   /* Под курсором мыши находится точки внутри отрезка. */
-  middle_point_position = hover_point == NULL ? hyscan_gtk_map_ruler_get_segment_under_cursor (priv, event) : NULL;
-  if (middle_point_position != NULL || priv->middle_point_position != middle_point_position)
+  hover_section = hover_point == NULL ? hyscan_gtk_map_ruler_get_segment_under_cursor (priv, event) : NULL;
+  if (hover_section != NULL || priv->hover_section != hover_section)
     {
-      priv->middle_point_position = middle_point_position;
+      priv->hover_section = hover_section;
       gtk_widget_queue_draw (GTK_WIDGET (priv->map));
     }
 }
@@ -518,14 +605,14 @@ hyscan_gtk_map_ruler_btn_click_add (HyScanGtkMapRuler *ruler,
   /* Мышь зажата между концами одного из отрезков.
    * Создаём точку и начинаем ее перетаскивать. */
   if (event->type == GDK_BUTTON_PRESS &&
-      priv->middle_point_position != NULL &&
+      priv->hover_section != NULL &&
       hyscan_gtk_map_grab_input (priv->map, ruler))
     {
-      priv->hover_point = hyscan_gtk_map_ruler_point_copy (&priv->middle_point);
-      priv->points = g_list_insert_before (priv->points, priv->middle_point_position, priv->hover_point);
+      priv->hover_point = hyscan_gtk_map_ruler_point_copy (&priv->section_point);
+      priv->points = g_list_insert_before (priv->points, priv->hover_section, priv->hover_point);
       priv->drag_point = priv->hover_point;
 
-      priv->middle_point_position = NULL;
+      priv->hover_section = NULL;
 
       return TRUE;
     }

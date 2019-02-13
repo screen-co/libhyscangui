@@ -142,6 +142,7 @@ int main (int     argc,
   gtk_main ();
 
   /* Освобождаем память. */
+  g_clear_object (&grid);
   g_clear_object (&ruler);
   g_clear_object (&control);
   g_clear_object (&fs_source);
