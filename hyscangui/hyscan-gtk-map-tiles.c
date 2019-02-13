@@ -436,7 +436,7 @@ hyscan_gtk_map_tiles_draw (HyScanGtkMapTiles *layer,
   yn = CLAMP (yn, 0, last_tile);
 
   /* Создаем буфер для отрисовки тайлов в исходном размере tile_size. */
-  tiles_surface = cairo_image_surface_create (CAIRO_FORMAT_RGB24,
+  tiles_surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32,
                                               tile_size * (xn - x0 + 1),
                                               tile_size * (yn - y0 + 1));
   tiles_cairo = cairo_create (tiles_surface);

@@ -12,7 +12,19 @@
 #include <hyscan-gtk-map-ruler.h>
 #include <hyscan-gtk-map-grid.h>
 
-static gchar    *tiles_dir = "/tmp/tiles";   /* Путь к каталогу, где хранятся тайлы. */
+static gchar *tiles_dir;      /* Путь к каталогу, где хранятся тайлы. */
+static gboolean yandex_projection = FALSE;   /* Использовать карту яндекса. */
+static guint tile_url_preset = 2;
+static gchar *tile_url_format;
+
+const gchar *tile_url_format_presets[] = {
+  "https://tile.thunderforest.com/landscape/%d/%d/%d.png?apikey=03fb8295553d4a2eaacc64d7dd88e3b9",
+  "http://a.tile.openstreetmap.org/%d/%d/%d.png",
+  "https://maps.wikimedia.org/osm-intl/%d/%d/%d.png",
+  "http://www.google.cn/maps/vt?lyrs=s@189&gl=cn&x=%2$d&y=%3$d&z=%1$d" /* todo: jpeg пока не реализован. */
+};
+
+static HyScanGeoGeodetic center = {.lat = 52.36, .lon = 4.9};
 
 void
 destroy_callback (GtkWidget *widget,
@@ -44,60 +56,146 @@ create_map_yandex (HyScanGtkMapTileSource **source)
 
 /* Создаёт OSM карту. */
 GtkWidget *
-create_map (HyScanGtkMapTileSource **source)
+create_map_user (HyScanGtkMapTileSource **source)
 {
   GtkWidget *map;
   HyScanGeoProjection *projection;
   HyScanNetworkMapTileSource *nw_source;
-  // const gchar *url_format = "https://tile.thunderforest.com/landscape/%d/%d/%d.png?apikey=03fb8295553d4a2eaacc64d7dd88e3b9";
-  const gchar *url_format[] = {
-    "https://tile.thunderforest.com/landscape/%d/%d/%d.png?apikey=03fb8295553d4a2eaacc64d7dd88e3b9",
-    "http://a.tile.openstreetmap.org/%d/%d/%d.png",
-    "https://maps.wikimedia.org/osm-intl/%d/%d/%d.png",
-    "http://www.google.cn/maps/vt?lyrs=s@189&gl=cn&x=%2$d&y=%3$d&z=%1$d" /* todo: jpeg пока не реализован. */
-  };
 
   projection = hyscan_pseudo_mercator_new ();
   
   map = hyscan_gtk_map_new (projection);
   g_object_unref (projection);
 
-  nw_source = hyscan_network_map_tile_source_new (url_format[2]);
+  nw_source = hyscan_network_map_tile_source_new (tile_url_format ? tile_url_format : tile_url_format_presets[tile_url_preset]);
 
   *source = HYSCAN_GTK_MAP_TILE_SOURCE (nw_source);
 
   return map;
 }
 
+GtkWidget *
+create_map (HyScanGtkMapTileSource **source)
+{
+  if (yandex_projection)
+    return create_map_yandex (source);
+  else
+    return create_map_user (source);
+}
+
+void
+on_grid_switch (GtkSwitch        *widget,
+                GParamSpec       *pspec,
+                HyScanGtkMapGrid *map_grid)
+{
+  hyscan_gtk_map_grid_set_active (map_grid, gtk_switch_get_active (widget));
+}
+
+void
+on_coordinate_change (GtkSwitch  *widget,
+                      GParamSpec *pspec,
+                      gdouble    *value)
+{
+  *value = gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget));
+}
+
+void
+on_move_to_click (HyScanGtkMap *map)
+{
+  hyscan_gtk_map_move_to (HYSCAN_GTK_MAP (map), center);
+}
+
+void
+on_ruler_switch (GtkSwitch         *widget,
+                 GParamSpec        *pspec,
+                 HyScanGtkMapRuler *map_ruler)
+{
+  gboolean active;
+
+  active = gtk_switch_get_active (widget);
+  hyscan_gtk_map_ruler_set_active (map_ruler, active);
+}
+
+/* Кнопки управления виджетом. */
+GtkWidget *
+create_control_box (HyScanGtkMap      *map,
+                    HyScanGtkMapRuler *ruler,
+                    HyScanGtkMapGrid  *grid)
+{
+  GtkWidget *ctrl_box;
+  GtkWidget *ctrl_widget;
+
+  ctrl_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
+
+  gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Координатная сетка"));
+  ctrl_widget = gtk_switch_new ();
+  gtk_switch_set_active (GTK_SWITCH (ctrl_widget), hyscan_gtk_map_grid_is_active (grid));
+  gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
+  g_signal_connect (ctrl_widget, "notify::active", G_CALLBACK (on_grid_switch), grid);
+
+  gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
+
+  gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Линейка"));
+  ctrl_widget = gtk_switch_new ();
+  gtk_switch_set_active (GTK_SWITCH (ctrl_widget), hyscan_gtk_map_ruler_is_active (ruler));
+  gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
+  g_signal_connect (ctrl_widget, "notify::active", G_CALLBACK (on_ruler_switch), ruler);
+  ctrl_widget = gtk_button_new ();
+  gtk_button_set_label (GTK_BUTTON (ctrl_widget), "Очистить");
+  g_signal_connect_swapped (ctrl_widget, "clicked", G_CALLBACK (hyscan_gtk_map_ruler_clear), ruler);
+  gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
+
+  gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
+
+  gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Навигация (ш, д)"));
+
+  ctrl_widget = gtk_spin_button_new_with_range (-90.0, 90.0, 0.01);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON (ctrl_widget), center.lat);
+  g_signal_connect (ctrl_widget, "notify::value", G_CALLBACK (on_coordinate_change), &center.lat);
+  gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
+
+  ctrl_widget = gtk_spin_button_new_with_range (-180.0, 180.0, 0.01);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON (ctrl_widget), center.lon);
+  g_signal_connect (ctrl_widget, "notify::value", G_CALLBACK (on_coordinate_change), &center.lon);
+  gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
+
+  ctrl_widget = gtk_button_new ();
+  gtk_button_set_label (GTK_BUTTON (ctrl_widget), "Перейти");
+  g_signal_connect_swapped (ctrl_widget, "clicked", G_CALLBACK (on_move_to_click), map);
+  gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
+
+  return ctrl_box;
+}
+
 int main (int     argc,
           gchar **argv)
 {
   GtkWidget *window;
-  GtkWidget *map;
+  HyScanGtkMap *map;
+  GtkWidget *grid;
+
   HyScanGtkMapControl *control;
-  HyScanGtkMapTileSource *nw_source;
-  HyScanGtkMapFsTileSource *fs_source;
   HyScanGtkMapRuler *ruler;
-  HyScanGtkMapGrid *grid;
+  HyScanGtkMapGrid *map_grid;
   HyScanCache *cache = HYSCAN_CACHE (hyscan_cached_new (64));
 
   HyScanGtkMapTiles *tiles;
   HyScanGtkMapFloat *float_layer;
 
-  HyScanGeoGeodetic center = {.lat = 52.36, .lon = 4.9};
   guint zoom = 12;
-//  HyScanGeoGeodetic center = {.lat = 81.64, .lon = 63.21};
-//  guint zoom = 10;
 
   gtk_init (&argc, &argv);
 
-/* Разбор командной строки. */
+  /* Разбор командной строки. */
   {
     GError *error = NULL;
     GOptionContext *context;
     GOptionEntry entries[] =
       {
         { "tile-dir", 'd', 0, G_OPTION_ARG_STRING, &tiles_dir, "Path to directory containing tiles", NULL },
+        { "yandex", 'y', 0, G_OPTION_ARG_NONE, &yandex_projection, "Use yandex projection and tile source", NULL },
+        { "tile-url-preset", 'p', 0, G_OPTION_ARG_INT, &tile_url_preset, "Use one of preset tile source", NULL },
+        { "tile-url-format", 'u', 0, G_OPTION_ARG_NONE, &tile_url_format, "User defined tile source", NULL },
         { NULL }
       };
 
@@ -112,28 +210,56 @@ int main (int     argc,
         return -1;
       }
 
+    if (tiles_dir == NULL)
+      tiles_dir = g_dir_make_tmp ("tilesXXXXXX", NULL);
+    else
+      tiles_dir = g_strdup (tiles_dir);
+
     g_option_context_free (context);
   }
 
-  /* Создаём область карты. */
-  map = create_map(&nw_source);
-
   /* Добавляем слои. */
+  {
+    HyScanGtkMapTileSource *nw_source;
+    HyScanGtkMapFsTileSource *fs_source;
 
-  fs_source = hyscan_gtk_map_fs_tile_source_new (tiles_dir, HYSCAN_GTK_MAP_TILE_SOURCE(nw_source));
+    /* Создаём виджет карты и соответствующий network-источник тайлов. */
+    map = HYSCAN_GTK_MAP (create_map (&nw_source));
 
-  tiles = hyscan_gtk_map_tiles_new (HYSCAN_GTK_MAP (map), cache, HYSCAN_GTK_MAP_TILE_SOURCE (fs_source));
-  control = hyscan_gtk_map_control_new (HYSCAN_GTK_MAP (map));
-  grid = hyscan_gtk_map_grid_new (HYSCAN_GTK_MAP (map));
-  ruler = hyscan_gtk_map_ruler_new (HYSCAN_GTK_MAP (map));
-  float_layer = hyscan_gtk_map_float_new (HYSCAN_GTK_MAP (map));
+    fs_source = hyscan_gtk_map_fs_tile_source_new (tiles_dir, HYSCAN_GTK_MAP_TILE_SOURCE(nw_source));
+    tiles = hyscan_gtk_map_tiles_new (map, cache, HYSCAN_GTK_MAP_TILE_SOURCE (fs_source));
+    g_clear_object (&nw_source);
+    g_clear_object (&fs_source);
+
+    control = hyscan_gtk_map_control_new (map);
+    map_grid = hyscan_gtk_map_grid_new (map);
+    ruler = hyscan_gtk_map_ruler_new (map);
+    float_layer = hyscan_gtk_map_float_new (map);
+  }
+
+  grid = gtk_grid_new ();
+  gtk_grid_set_row_spacing (GTK_GRID (grid), 20);
+  gtk_grid_set_column_spacing (GTK_GRID (grid), 20);
+  gtk_widget_set_margin_start (grid, 20);
+  gtk_widget_set_margin_end (grid, 20);
+  gtk_widget_set_margin_top (grid, 20);
+  gtk_widget_set_margin_bottom (grid, 20);
+
+  gtk_widget_set_hexpand (GTK_WIDGET(map), TRUE);
+  gtk_widget_set_vexpand (GTK_WIDGET(map), TRUE);
 
   /* Добавляем виджет карты в окно. */
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_window_set_default_size (GTK_WINDOW (window), 800, 600);
-  gtk_container_add (GTK_CONTAINER (window), map);
+
+  gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (map), 0, 0, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), create_control_box (map, ruler, map_grid), 1, 0, 1, 1);
+
+  gtk_container_add (GTK_CONTAINER (window), grid);
   g_signal_connect (G_OBJECT (window), "destroy", G_CALLBACK (destroy_callback), NULL);
+
   gtk_widget_show_all (window);
+
   gtk_cifro_area_set_view (GTK_CIFRO_AREA (map), 0, 10, 0, 10);
   hyscan_gtk_map_tiles_set_zoom (tiles, zoom);
   hyscan_gtk_map_move_to (HYSCAN_GTK_MAP (map), center);
@@ -142,14 +268,13 @@ int main (int     argc,
   gtk_main ();
 
   /* Освобождаем память. */
-  g_clear_object (&grid);
+  g_clear_object (&map_grid);
   g_clear_object (&ruler);
   g_clear_object (&control);
-  g_clear_object (&fs_source);
-  g_clear_object (&nw_source);
   g_clear_object (&float_layer);
   g_clear_object (&tiles);
   g_clear_object (&cache);
+  g_free (tiles_dir);
 
   return 0;
 }

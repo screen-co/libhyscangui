@@ -28,6 +28,7 @@ struct _HyScanGtkMapGridPrivate
   guint                             points;             /* Количество точек, по которым строится линия сетки. */
   guint                             step_width;         /* Шаг сетки в пикселах. */
 
+  gboolean                          active;             /* Признак того, что сетка отображается. */
 };
 
 static void    hyscan_gtk_map_grid_set_property             (GObject               *object,
@@ -139,6 +140,9 @@ hyscan_gtk_map_grid_border_size (HyScanGtkMapGrid *grid,
                                  guint            *border_right)
 {
   HyScanGtkMapGridPrivate *priv = grid->priv;
+
+  if (!priv->active)
+    return;
 
   (border_top != NULL) ? *border_top = MAX (*border_top, priv->border_size) : 0;
   (border_bottom != NULL) ? *border_bottom = MAX (*border_bottom, priv->border_size) : 0;
@@ -371,6 +375,9 @@ static void
 hyscan_gtk_map_grid_draw (HyScanGtkMapGrid *grid,
                           cairo_t          *cairo)
 {
+  if (!grid->priv->active)
+    return;
+
   hyscan_gtk_map_grid_draw_scale (grid, cairo);
   hyscan_gtk_map_grid_draw_grid (grid, cairo);
 }
@@ -533,4 +540,22 @@ HyScanGtkMapGrid *
 hyscan_gtk_map_grid_new (HyScanGtkMap* map)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_GRID, "map", map, NULL);
+}
+
+void
+hyscan_gtk_map_grid_set_active (HyScanGtkMapGrid *grid,
+                                gboolean          active)
+{
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_GRID (grid));
+
+  grid->priv->active = active;
+  gtk_widget_queue_draw (GTK_WIDGET (grid->priv->map));
+}
+
+gboolean
+hyscan_gtk_map_grid_is_active (HyScanGtkMapGrid *grid)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_GRID (grid), FALSE);
+
+  return grid->priv->active;
 }

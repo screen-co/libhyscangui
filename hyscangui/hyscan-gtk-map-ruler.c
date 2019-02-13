@@ -38,6 +38,8 @@ struct _HyScanGtkMapRulerPrivate
   gdouble                    radius;                   /* Радиус точки - вершины ломаной. */
   gdouble                    line_width;               /* Ширина линии ломаной. */
   GdkRGBA                    color;                    /* Цвет элементов. */
+
+  gboolean                   active;                   /* Признак того, что слой активен. */
 };
 
 static void                     hyscan_gtk_map_ruler_set_property             (GObject                  *object,
@@ -358,6 +360,9 @@ hyscan_gtk_map_ruler_draw (HyScanGtkMapRuler *ruler,
 {
   HyScanGtkMapRulerPrivate *priv = ruler->priv;
 
+  if (!priv->active)
+    return;
+
   hyscan_gtk_map_ruler_draw_line (priv, cairo);
   hyscan_gtk_map_ruler_draw_vertices (priv, cairo);
   hyscan_gtk_map_ruler_draw_label (priv, cairo);
@@ -513,6 +518,9 @@ hyscan_gtk_map_ruler_motion (HyScanGtkMapRuler *ruler,
 {
   HyScanGtkMapRulerPrivate *priv = ruler->priv;
 
+  if (!priv->active)
+    return FALSE;
+
   if (priv->drag_point)
     hyscan_gtk_map_ruler_motion_drag (priv, event, priv->drag_point);
   else
@@ -644,6 +652,9 @@ hyscan_gtk_map_ruler_button_press_release (HyScanGtkMapRuler *ruler,
 {
   HyScanGtkMapRulerPrivate *priv = ruler->priv;
 
+  if (!priv->active)
+    return FALSE;
+
   /* Обрабатываем только нажатия левой кнопки. */
   if (event->button != 1)
     return FALSE;
@@ -667,4 +678,44 @@ HyScanGtkMapRuler *
 hyscan_gtk_map_ruler_new (HyScanGtkMap *map)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_RULER, "map", map, NULL);
+}
+
+void
+hyscan_gtk_map_ruler_clear (HyScanGtkMapRuler *ruler)
+{
+  HyScanGtkMapRulerPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_RULER (ruler));
+  priv = ruler->priv;
+
+  if (priv->points == NULL)
+    return;
+
+  g_list_free_full (priv->points, (GDestroyNotify) hyscan_gtk_map_ruler_point_free);
+  priv->points = NULL;
+  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+}
+
+void
+hyscan_gtk_map_ruler_set_active (HyScanGtkMapRuler *ruler,
+                                 gboolean           active)
+{
+  HyScanGtkMapRulerPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_RULER (ruler));
+  priv = ruler->priv;
+
+  if (hyscan_gtk_map_is_howner (priv->map, ruler))
+    return;
+
+  ruler->priv->active = active;
+  gtk_widget_queue_draw (priv->map);
+}
+
+gboolean
+hyscan_gtk_map_ruler_is_active (HyScanGtkMapRuler *ruler)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_RULER (ruler), FALSE);
+
+  return ruler->priv->active;
 }
