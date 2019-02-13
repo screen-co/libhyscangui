@@ -109,7 +109,7 @@ static void
 hyscan_gtk_param_cc_object_constructed (GObject *object)
 {
   GHashTable *widgets;
-  GtkWidget *abar, *scroll;
+  GtkWidget *scroll;
   HyScanGtkParamCC *self = HYSCAN_GTK_PARAM_CC (object);
   HyScanGtkParamCCPrivate *priv = self->priv;
 
@@ -147,10 +147,6 @@ hyscan_gtk_param_cc_object_constructed (GObject *object)
 
   gtk_grid_attach (GTK_GRID (self), GTK_WIDGET (scroll), 0, 0, 1, 1);
   gtk_grid_attach (GTK_GRID (self), GTK_WIDGET (priv->stack), 1, 0, 1, 1);
-
-  abar = hyscan_gtk_param_make_action_bar (HYSCAN_GTK_PARAM (self));
-
-  gtk_grid_attach (GTK_GRID (self), abar, 0, 1, 2, 1);
 }
 
 static void
@@ -181,11 +177,15 @@ hyscan_gtk_param_cc_row_activated (GtkListBox    *box,
                                    GtkListBoxRow *row,
                                    gpointer       udata)
 {
+  gint row_index;
+  gchar *path;
   HyScanGtkParamCC *self = udata;
   HyScanGtkParamCCPrivate *priv = self->priv;
 
-  gint row_index = gtk_list_box_row_get_index (row);
-  gchar *path = g_ptr_array_index (priv->paths, row_index);
+  g_return_if_fail (row != NULL);
+
+  row_index = gtk_list_box_row_get_index (row);
+  path = g_ptr_array_index (priv->paths, row_index);
   HyScanParamList *plist = g_ptr_array_index (priv->plists, row_index);
 
   gtk_stack_set_visible_child_name (priv->stack, path);
@@ -230,8 +230,13 @@ hyscan_gtk_param_cc_make_level0 (HyScanGtkParamCC           *self,
 
       plist = hyscan_param_list_new ();
       box = hyscan_gtk_param_cc_make_level1 (subnode, widgets, plist, show_hidden);
-      gtk_stack_add_titled (priv->stack, box, subnode->path, subnode->path);
-      hyscan_gtk_param_cc_add_row (self, subnode, plist);
+      if (box != NULL)
+        {
+          gtk_stack_add_titled (priv->stack, box, subnode->path, subnode->path);
+          hyscan_gtk_param_cc_add_row (self, subnode, plist);
+        }
+
+      g_clear_object (&plist);
     }
 
 }

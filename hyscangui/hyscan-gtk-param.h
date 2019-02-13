@@ -94,9 +94,6 @@ void                    hyscan_gtk_param_set_watch_period (HyScanGtkParam  *gtk_
                                                            guint            period);
 
 HYSCAN_API
-GtkWidget *             hyscan_gtk_param_make_action_bar  (HyScanGtkParam  *gtk_param);
-
-HYSCAN_API
 gchar *                 hyscan_gtk_param_get_node_name    (const HyScanDataSchemaNode *node);
 
 HYSCAN_API

@@ -630,37 +630,6 @@ hyscan_gtk_param_set_watch_period (HyScanGtkParam *self,
 }
 
 /**
- * hyscan_gtk_param_make_action_bar:
- * @self: виджет #HyScanGtkParam
-
- * Функция создает кнопки "применить" и "отмена".
- * Дополнительно функция подключает сигналы.
- *
- * Returns: (transfer full): #GtkActionBar c кнопками.
- */
-GtkWidget *
-hyscan_gtk_param_make_action_bar (HyScanGtkParam *self)
-{
-  GtkWidget *bar, *apply, *discard;
-
-  g_return_val_if_fail (HYSCAN_IS_GTK_PARAM (self), NULL);
-
-  bar = gtk_action_bar_new ();
-  apply = gtk_button_new_with_label ("Apply");
-  discard = gtk_button_new_with_label ("Discard");
-
-  g_signal_connect_swapped (apply, "clicked",
-                            G_CALLBACK (hyscan_gtk_param_apply), self);
-  g_signal_connect_swapped (discard, "clicked",
-                            G_CALLBACK (hyscan_gtk_param_discard), self);
-
-  gtk_action_bar_pack_end (GTK_ACTION_BAR (bar), apply);
-  gtk_action_bar_pack_end (GTK_ACTION_BAR (bar), discard);
-
-  return bar;
-}
-
-/**
  * hyscan_gtk_param_get_node_name:
  * @node: интересующй #HyScanDataSchemaNode.
 
@@ -682,9 +651,18 @@ hyscan_gtk_param_get_node_name (const HyScanDataSchemaNode *node)
 
   sub = g_strsplit (node->path, "/", -1);
 
+  /* g_strsplit возвращает нуль-терминированный список.
+   * Если первый же элемент - NULL, значит, ловить тут нечего. */
+  if (*sub == NULL)
+    {
+      g_strfreev (sub);
+      return NULL;
+    }
+
   /* Ищем последний элемент... */
   for (iter = sub; *iter != NULL; ++iter)
     ;
+
   /* А находим предпоследний! */
   --iter;
 

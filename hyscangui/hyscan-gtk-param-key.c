@@ -472,7 +472,7 @@ hyscan_gtk_param_key_make_editor_double (HyScanDataSchema    *schema,
   if (max < G_MAXDOUBLE - step)
     max += step;
   else
-    max = G_MAXINT64;
+    max = G_MAXDOUBLE;
 
   /* Количество знаков после запятой определяется шагом. */
   digits = ABS(log10 (step)) + 1;
@@ -526,7 +526,7 @@ hyscan_gtk_param_key_make_editor_enum (HyScanDataSchema    *schema,
 
   /* Список значений. */
   enum_id = hyscan_data_schema_key_get_enum_id (schema, key->id);
-  values = hyscan_data_schema_get_enum_values (schema, enum_id);
+  values = hyscan_data_schema_enum_get_values (schema, enum_id);
 
   editor = gtk_combo_box_text_new ();
 

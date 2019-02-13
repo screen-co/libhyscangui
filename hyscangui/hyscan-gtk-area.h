@@ -50,7 +50,7 @@ struct _HyScanGtkAreaClass
 };
 
 HYSCAN_API
-GType          hyscan_gtk_area_get_type                (void);
+GType hyscan_gtk_area_get_type (void);
 
 /**
  *

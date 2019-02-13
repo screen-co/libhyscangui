@@ -59,7 +59,19 @@ else ()
   set (HYSCAN_LIBRARIES "hyscantypes-${HYSCAN_MAJOR_VERSION}")
 endif ()
 
-include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/hyscangui")
+if (HYSCAN_USE_SYS_LIBS)
+  pkg_check_modules (HYSCAN REQUIRED "hyscantypes-${HYSCAN_MAJOR_VERSION}")
+
+  link_directories (${HYSCAN_LIBRARY_DIRS})
+  add_definitions (${HYSCAN_CFLAGS})
+else ()
+  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/hyscangui")
+  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscantypes/hyscantypes")
+
+  link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscantypes/bin")
+  
+  set (HYSCAN_LIBRARIES "hyscantypes-${HYSCAN_MAJOR_VERSION}")
+endif ()
 
 add_definitions (-DG_LOG_DOMAIN="HyScanGUI")
 add_subdirectory (hyscangui)
