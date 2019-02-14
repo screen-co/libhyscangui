@@ -179,6 +179,7 @@ hyscan_gtk_waterfall_grid_object_constructed (GObject *object)
   gdk_rgba_parse (&shad_color, SHADOW_DEFAULT);
 
   hyscan_gtk_waterfall_grid_set_grid_step (self, 100, 100);
+  hyscan_gtk_waterfall_grid_set_condence (self, 1);
 
   priv->text_color = text_color;
   priv->grid_color = grid_color;
