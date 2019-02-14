@@ -6,6 +6,7 @@
 #include <hyscan-gtk-map.h>
 #include <math.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define CACHE_HEADER_MAGIC     0x308d32d9    /* Идентификатор заголовка кэша. */
 #define ZOOM_THRESHOLD         .3            /* Зум округляется вверх, если его дробная часть больше этого значения. */
@@ -528,9 +529,6 @@ hyscan_gtk_map_tile_surface_make (HyScanGtkMapTilesPrivate *priv,
   cairo_surface_t *surface;
   cairo_t *cairo;
 
-  guint x;
-  guint y;
-
   gboolean filled_ret = TRUE;
 
   surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32,
@@ -542,13 +540,39 @@ hyscan_gtk_map_tile_surface_make (HyScanGtkMapTilesPrivate *priv,
   hyscan_task_queue_clear (priv->task_queue);
 
   /* Отрисовываем все тайлы, которые находятся в видимой области */
-  for (x = priv->from_x; x <= priv->to_x; ++x)
-    {
-      for (y = priv->from_y; y <= priv->to_y; ++y)
-        {
-          filled_ret = hyscan_gtk_map_tiles_draw_tile (priv, cairo, x, y) && filled_ret;
-        }
-    }
+  {
+    gint r;
+    gint max_r;
+    gint xc, yc;
+    gint x;
+    gint y;
+
+    /* Определяем центр области и максимальное расстояние до ее границ. */
+    xc = (priv->to_x + priv->from_x + 1) / 2;
+    yc = (priv->to_y + priv->from_y + 1) / 2;
+    max_r = MAX (MAX (priv->to_x - xc, xc - priv->from_x),
+                 MAX (priv->to_y - yc, yc - priv->from_y));
+
+    /* Рисуем тайлы двигаясь из центра (xc, yc) к краям. */
+    for (r = 0; r <= max_r; ++r)
+      {
+        for (x = priv->from_x; x <= (gint) priv->to_x; ++x)
+          {
+            for (y = priv->from_y; y <= (gint) priv->to_y; ++y)
+              {
+                /* Пока пропускаем тайлы снаружи радиуса. */
+                if (abs (y - yc) > r || abs (x - xc) > r)
+                  continue;
+
+                /* И рисуем тайлы на расстоянии r от центра по одной из координат. */
+                if (abs (x - xc) != r && abs (y - yc) != r)
+                  continue;
+
+                filled_ret = hyscan_gtk_map_tiles_draw_tile (priv, cairo, x, y) && filled_ret;
+              }
+          }
+      }
+  }
 
   cairo_destroy (cairo);
 
