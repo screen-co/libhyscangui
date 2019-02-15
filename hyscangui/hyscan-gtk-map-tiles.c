@@ -11,8 +11,8 @@
 #define CACHE_HEADER_MAGIC     0x308d32d9    /* Идентификатор заголовка кэша. */
 #define ZOOM_THRESHOLD         .3            /* Зум округляется вверх, если его дробная часть больше этого значения. */
 
-#define TOTAL_TILES(zoom) ((zoom) == 0 ? 1 : (guint) 2 << (zoom - 1)) - 1
-#define CLAMP_TILE(val, zoom) CLAMP((gint)(val), 0, (gint)TOTAL_TILES ((zoom)))
+#define TOTAL_TILES(zoom)      ((zoom) == 0 ? 1 : 2u << (zoom - 1)) - 1
+#define CLAMP_TILE(val, zoom)  CLAMP((gint)(val), 0, (gint)TOTAL_TILES ((zoom)))
 
 enum
 {
@@ -22,11 +22,17 @@ enum
   PROP_SOURCE
 };
 
-/* Структруа заголовка кэша. */
+/* Структруа заголовка кэша: содержит данные для gdk_pixbuf_new_from_data(). */
 typedef struct
 {
-  guint32                      magic;          /* Идентификатор заголовка. */
-  guint32                      length;         /* Размер данных поверхности. */
+  guint32                      magic;               /* Идентификатор заголовка. */
+  
+  gsize                        size;                /* Размер пиксельных данных. */
+  gboolean                     has_alpha;           /* Есть ли альфа-канал? */
+  gint                         bits_per_sample;     /* Количество битов на точку. */
+  gint                         width;               /* Ширина изображения. */
+  gint                         height;              /* Высота изображения. */
+  gint                         rowstride;           /* Количество байтов в одной строке изображения. */
 } HyScanGtkMapTilesCacheHeader;
 
 struct _HyScanGtkMapTilesPrivate
@@ -42,10 +48,8 @@ struct _HyScanGtkMapTilesPrivate
 
   /* Кэш. */
   HyScanCache                 *cache;               /* Кэш тайлов. */
-  HyScanBuffer                *cache_buffer;        /* Буфер заголовка кэша данных. */
-  HyScanBuffer                *tile_buffer;         /* Буфер данных поверхности тайла. */
-  gchar                       *key;                 /* Ключ кэширования. */
-  size_t                       key_length;          /* Длина ключа. */
+  HyScanBuffer                *cache_buffer;        /* Буфер заголовка кэша данных для чтения. */
+  HyScanBuffer                *tile_buffer;         /* Буфер данных поверхности тайла для чтения. */
 
   /* Поверхность cairo с тайлами видимой области. */
   cairo_surface_t             *surface;             /* Поверхность cairo с тайлами. */
@@ -70,8 +74,9 @@ static void                 hyscan_gtk_map_tiles_draw                     (HySca
                                                                            cairo_t                  *cairo);
 static void                 hyscan_gtk_map_tiles_load                     (HyScanGtkMapTile         *tile,
                                                                            HyScanGtkMapTiles        *layer);
-static void                 hyscan_gtk_map_tiles_update_cache_key         (HyScanGtkMapTilesPrivate *priv,
-                                                                           HyScanGtkMapTile         *tile);
+static void                 hyscan_gtk_map_tiles_get_cache_key            (HyScanGtkMapTile         *tile,
+                                                                           gchar                    *key,
+                                                                           gsize                     key_length);
 static gboolean             hyscan_gtk_map_tiles_fill_tile                (HyScanGtkMapTilesPrivate *priv,
                                                                            HyScanGtkMapTile         *tile);
 static void                 hyscan_gtk_map_tiles_tile_to_point            (HyScanGtkMapTilesPrivate *priv,
@@ -105,7 +110,7 @@ static void                 hyscan_gtk_map_tiles_value_to_tile            (HySca
                                                                            gdouble                   y,
                                                                            gdouble                  *x_tile,
                                                                            gdouble                  *y_tile);
-static gboolean             hyscan_gtk_map_tiles_check_cache              (HyScanGtkMapTilesPrivate *priv,
+static gboolean             hyscan_gtk_map_tiles_cache_get                (HyScanGtkMapTilesPrivate *priv,
                                                                            HyScanGtkMapTile         *tile);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMapTiles, hyscan_gtk_map_tiles, G_TYPE_OBJECT)
@@ -212,12 +217,57 @@ hyscan_gtk_map_tiles_object_finalize (GObject *object)
   g_object_unref (priv->cache);
   g_object_unref (priv->cache_buffer);
   g_object_unref (priv->tile_buffer);
-  g_free (priv->key);
 
   G_OBJECT_CLASS (hyscan_gtk_map_tiles_parent_class)->finalize (object);
 }
 
-/* Заполняет запрошенный тайл из источника тайлов. */
+/* Помещает в кэш информацию о тайле. */
+static void
+hyscan_gtk_map_tiles_cache_set (HyScanGtkMapTilesPrivate *priv,
+                                HyScanGtkMapTile         *tile)
+{
+  HyScanBuffer *header_buffer;
+  HyScanGtkMapTilesCacheHeader header;
+
+  HyScanBuffer *data_buffer;
+  const guint8 *data;
+  guint dsize;
+
+  gchar cache_key[255];
+
+  GdkPixbuf *pixbuf;
+
+  /* Будем помещать в кэш изображение pixbuf. */
+  pixbuf = hyscan_gtk_map_tile_get_pixbuf (tile);
+
+  /* Не получится использовать буферы объекта, т.к. к ним идёт доступ из разных потоков. */
+  data_buffer = hyscan_buffer_new ();
+  header_buffer = hyscan_buffer_new ();
+
+  /* Оборачиваем в буфер пиксельные данные. */
+  dsize = gdk_pixbuf_get_byte_length (pixbuf);
+  data = gdk_pixbuf_read_pixels (pixbuf);
+  hyscan_buffer_wrap_data (data_buffer, HYSCAN_DATA_BLOB, (gpointer) data, dsize);
+
+  /* Оборачиваем в буфер заголовок с информацией об изображении. */
+  header.magic = CACHE_HEADER_MAGIC;
+  header.size = dsize;
+  header.has_alpha = gdk_pixbuf_get_has_alpha (pixbuf);
+  header.rowstride = gdk_pixbuf_get_rowstride (pixbuf);
+  header.height = gdk_pixbuf_get_height (pixbuf);
+  header.width = gdk_pixbuf_get_width (pixbuf);
+  header.bits_per_sample = gdk_pixbuf_get_bits_per_sample (pixbuf);
+  hyscan_buffer_wrap_data (header_buffer, HYSCAN_DATA_BLOB, &header, sizeof (header));
+
+  /* Помещаем все данные в кэш. */
+  hyscan_gtk_map_tiles_get_cache_key (tile, cache_key, sizeof (cache_key));
+  hyscan_cache_set2 (priv->cache, cache_key, NULL, header_buffer, data_buffer);
+
+  g_object_unref (header_buffer);
+  g_object_unref (data_buffer);
+}
+
+/* Заполняет запрошенный тайл из источника тайлов (выполняется в отдельном потоке). */
 static void
 hyscan_gtk_map_tiles_load (HyScanGtkMapTile  *tile,
                            HyScanGtkMapTiles *layer)
@@ -228,45 +278,20 @@ hyscan_gtk_map_tiles_load (HyScanGtkMapTile  *tile,
    * виджета с новым тайлом. */
   if (hyscan_gtk_map_tile_source_fill (priv->source, tile))
     {
-      HyScanGtkMapTilesCacheHeader header;
-      HyScanBuffer *buffer;
+      hyscan_gtk_map_tiles_cache_set (priv, tile);
 
-      guchar *data;
-      guint dsize;
-
-      /* Оборачиваем в буфер данные поверхности тайла. */
-      data = hyscan_gtk_map_tile_get_data (tile, &dsize);
-      buffer = hyscan_buffer_new ();
-      hyscan_buffer_wrap_data (buffer, HYSCAN_DATA_BLOB, data, (guint32) dsize);
-
-      /* Оборачиваем в буфер заголовок. */
-      header.magic = CACHE_HEADER_MAGIC;
-      header.length = dsize;
-      hyscan_buffer_wrap_data (priv->cache_buffer, HYSCAN_DATA_BLOB, &header, sizeof (header));
-
-      /* Помещаем данные тайла в кэш. */
-      hyscan_gtk_map_tiles_update_cache_key (priv, tile);
-      hyscan_cache_set2 (priv->cache, priv->key, NULL, priv->cache_buffer, buffer);
-
-      /* Запрашиваем перерисовку карты. todo: add if (tile inside visible area) { ... } */
+      /* Запрашиваем перерисовку карты в потоке GUI. todo: add if (tile inside visible area) { ... } */
       gdk_threads_add_idle ((GSourceFunc) gtk_widget_queue_draw, (GTK_WIDGET (priv->map)));
-
-      g_object_unref (buffer);
     }
 }
 
 /* Устанавливает ключ кэширования для тайла @tile. */
 static void
-hyscan_gtk_map_tiles_update_cache_key (HyScanGtkMapTilesPrivate *priv,
-                                       HyScanGtkMapTile         *tile)
+hyscan_gtk_map_tiles_get_cache_key (HyScanGtkMapTile *tile,
+                                    gchar            *key,
+                                    gsize             key_length)
 {
-  if (priv->key == NULL)
-    {
-      priv->key = g_strdup_printf ("tile.%u.%u.%u.%u", G_MAXUINT, G_MAXUINT, G_MAXUINT, G_MAXUINT);
-      priv->key_length = strlen (priv->key);
-    }
-
-  g_snprintf (priv->key, priv->key_length,
+  g_snprintf (key, key_length,
               "tile.%u.%u.%u.%u",
               hyscan_gtk_map_tile_get_zoom (tile),
               hyscan_gtk_map_tile_get_x (tile),
@@ -274,36 +299,75 @@ hyscan_gtk_map_tiles_update_cache_key (HyScanGtkMapTilesPrivate *priv,
               hyscan_gtk_map_tile_get_size (tile));
 }
 
+/* Копирует пиксельные данные изображения pixbuf.
+ * см. hyscan_gtk_map_tiles_tile_data_destroy(). */
+static guchar *
+hyscan_gtk_map_tiles_tile_data_copy (guchar   *data,
+                                     gsize     block_size)
+{
+  guchar *new_data;
+  new_data = g_slice_copy (block_size, data);
+
+  return new_data;
+}
+
+/* Освобождает память из-под данных изображения pixbuf.
+ * см. hyscan_gtk_map_tiles_tile_data_destroy(). */
+static void
+hyscan_gtk_map_tiles_tile_data_destroy (guchar   *data,
+                                        gpointer  block_size)
+{
+  g_slice_free1 (GPOINTER_TO_SIZE (block_size), data);
+}
+
 /* Функция проверяет кэш на наличие данных и считывает их. */
 static gboolean
-hyscan_gtk_map_tiles_check_cache (HyScanGtkMapTilesPrivate *priv,
-                                  HyScanGtkMapTile         *tile)
+hyscan_gtk_map_tiles_cache_get (HyScanGtkMapTilesPrivate *priv,
+                                HyScanGtkMapTile         *tile)
 {
   HyScanGtkMapTilesCacheHeader header;
+  guchar *cached_data;
+  guint32 size;
+
+  gchar cache_key[255];
+
+  GdkPixbuf *pixbuf;
 
   if (priv->cache == NULL)
     return FALSE;
 
   /* Формируем ключ кэшированных данных. */
-  hyscan_gtk_map_tiles_update_cache_key (priv, tile);
+  hyscan_gtk_map_tiles_get_cache_key (tile, cache_key, sizeof (cache_key));
 
   /* Ищем данные в кэше. */
   hyscan_buffer_wrap_data (priv->cache_buffer, HYSCAN_DATA_BLOB, &header, sizeof (header));
-  if (!hyscan_cache_get2 (priv->cache, priv->key, NULL, sizeof (header), priv->cache_buffer, priv->tile_buffer))
+  if (!hyscan_cache_get2 (priv->cache, cache_key, NULL, sizeof (header), priv->cache_buffer, priv->tile_buffer))
     return FALSE;
 
   /* Верификация данных. */
   if ((header.magic != CACHE_HEADER_MAGIC) ||
-      (header.length != hyscan_buffer_get_size (priv->tile_buffer)))
+      (header.size != hyscan_buffer_get_size (priv->tile_buffer)))
     {
       return FALSE;
     }
 
+  /* Установка в тайл данных изображения. */
+  cached_data = hyscan_buffer_get_data (priv->tile_buffer, &size);
+  pixbuf = gdk_pixbuf_new_from_data (hyscan_gtk_map_tiles_tile_data_copy (cached_data, size),
+                                     GDK_COLORSPACE_RGB,
+                                     header.has_alpha,
+                                     header.bits_per_sample,
+                                     header.width,
+                                     header.height,
+                                     header.rowstride,
+                                     hyscan_gtk_map_tiles_tile_data_destroy, GSIZE_TO_POINTER (size));
+  hyscan_gtk_map_tile_set_pixbuf (tile, pixbuf);
+  g_object_unref (pixbuf);
+
   return TRUE;
 }
 
-/* Получает информацию об указанном тайле. Сначала пробует искать в кэше, потом
- * идёт к источнику тайлов.
+/* Загружает изображение тайла.
  * Возвращает TRUE, если тайл загружен. Иначе FALSE. */
 static gboolean
 hyscan_gtk_map_tiles_fill_tile (HyScanGtkMapTilesPrivate *priv,
@@ -311,18 +375,10 @@ hyscan_gtk_map_tiles_fill_tile (HyScanGtkMapTilesPrivate *priv,
 {
   gboolean found;
 
-  found = hyscan_gtk_map_tiles_check_cache (priv, tile);
-  if (found)
-    /* Тайл найден в кэше, копируем его данные. */
-    {
-      guint32 size;
-      guchar *data;
+  found = hyscan_gtk_map_tiles_cache_get (priv, tile);
 
-      data = hyscan_buffer_get_data (priv->tile_buffer, &size);
-      hyscan_gtk_map_tile_set_data (tile, data, size);
-    }
-  else
-    /* Тайл не найден, добавляем его в очередь на загрузку. */
+  /* Тайл не найден, добавляем его в очередь на загрузку. */
+  if (!found)
     {
       g_object_ref (tile);
       hyscan_task_queue_push (priv->task_queue, tile);
@@ -497,10 +553,10 @@ hyscan_gtk_map_tiles_draw_tile (HyScanGtkMapTilesPrivate *priv,
   filled = hyscan_gtk_map_tiles_fill_tile (priv, tile);
   if (filled)
     {
-      cairo_surface_t *tile_surface;
+      GdkPixbuf *pixbuf;
 
-      tile_surface = hyscan_gtk_map_tile_get_surface (tile);
-      cairo_set_source_surface (cairo, tile_surface, (x - x0) * tile_size, (y - y0) * tile_size);
+      pixbuf = hyscan_gtk_map_tile_get_pixbuf (tile);
+      gdk_cairo_set_source_pixbuf (cairo, pixbuf, (x - x0) * tile_size, (y - y0) * tile_size);
       cairo_paint (cairo);
     }
 

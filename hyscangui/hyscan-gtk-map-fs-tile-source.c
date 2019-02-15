@@ -13,13 +13,19 @@ struct _HyScanGtkMapFsTileSourcePrivate
   HyScanGtkMapTileSource      *fallback_source;   /* Источник тайлов на случай, если файл с тайлом отсутствует. */
 };
 
-static void    hyscan_gtk_map_fs_tile_source_interface_init           (HyScanGtkMapTileSourceInterface *iface);
-static void    hyscan_gtk_map_fs_tile_source_set_property             (GObject                         *object,
-                                                                       guint                            prop_id,
-                                                                       const GValue                    *value,
-                                                                       GParamSpec                      *pspec);
-static void    hyscan_gtk_map_fs_tile_source_object_constructed       (GObject                         *object);
-static void    hyscan_gtk_map_fs_tile_source_object_finalize          (GObject                         *object);
+static void       hyscan_gtk_map_fs_tile_source_interface_init           (HyScanGtkMapTileSourceInterface *iface);
+static void       hyscan_gtk_map_fs_tile_source_set_property             (GObject                         *object,
+                                                                          guint                            prop_id,
+                                                                          const GValue                    *value,
+                                                                          GParamSpec                      *pspec);
+static void       hyscan_gtk_map_fs_tile_source_object_constructed       (GObject                         *object);
+static void       hyscan_gtk_map_fs_tile_source_object_finalize          (GObject                         *object);
+static gboolean   hyscan_gtk_map_fs_tile_source_fill_from_file           (HyScanGtkMapTile                *tile,
+                                                                          const gchar                     *tile_path);
+static gboolean   hyscan_gtk_map_fs_tile_source_fill_tile                (HyScanGtkMapTileSource          *source,
+                                                                          HyScanGtkMapTile                *tile);
+static gboolean   hyscan_gtk_map_fs_tile_source_save                     (HyScanGtkMapTile                *tile,
+                                                                          const gchar                     *tile_path);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapFsTileSource, hyscan_gtk_map_fs_tile_source, G_TYPE_OBJECT,
                          G_ADD_PRIVATE (HyScanGtkMapFsTileSource)
@@ -95,6 +101,58 @@ hyscan_gtk_map_fs_tile_source_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_fs_tile_source_parent_class)->finalize (object);
 }
 
+/* Загружает поверхность тайла из файла tile_path. */
+static gboolean
+hyscan_gtk_map_fs_tile_source_fill_from_file (HyScanGtkMapTile *tile,
+                                              const gchar      *tile_path)
+{
+  GdkPixbuf *pixbuf;
+  gboolean success;
+
+  if (!g_file_test (tile_path, G_FILE_TEST_EXISTS))
+    return FALSE;
+
+  /* Если файл существует, то загружаем поверхность тайла из него. */
+  pixbuf = gdk_pixbuf_new_from_file (tile_path, NULL);
+  if (pixbuf == NULL)
+    return FALSE;
+
+  success = hyscan_gtk_map_tile_set_pixbuf (tile, pixbuf);
+  g_object_unref (pixbuf);
+
+  return success;
+}
+
+/* Сохраняет файл с тайлом на диск. */
+static gboolean
+hyscan_gtk_map_fs_tile_source_save (HyScanGtkMapTile *tile,
+                                    const gchar      *tile_path)
+{
+  GError *write_error = NULL;
+  GdkPixbuf *pixbuf;
+
+  gchar *tile_dir;
+
+  /* Создаём подкаталог для записи тайла. */
+  tile_dir = g_path_get_dirname (tile_path);
+  g_mkdir_with_parents (tile_dir, 0755);
+  g_free (tile_dir);
+
+  /* Записываем PNG-файл с тайлом. */
+  pixbuf = hyscan_gtk_map_tile_get_pixbuf (tile);
+  gdk_pixbuf_save (pixbuf, tile_path, "png", &write_error, NULL);
+
+  if (write_error != NULL)
+    {
+      g_warning ("HyScanGtkMapFsTileSource: failed to save tile, %s", write_error->message);
+      g_clear_error (&write_error);
+
+      return FALSE;
+    }
+
+  return TRUE;
+}
+
 /* Ищет указанный тайл и загружает его изображение. */
 static gboolean
 hyscan_gtk_map_fs_tile_source_fill_tile (HyScanGtkMapTileSource *source,
@@ -102,9 +160,9 @@ hyscan_gtk_map_fs_tile_source_fill_tile (HyScanGtkMapTileSource *source,
 {
   HyScanGtkMapFsTileSource *fsource = HYSCAN_GTK_MAP_FS_TILE_SOURCE (source);
   HyScanGtkMapFsTileSourcePrivate *priv = fsource->priv;
-  gchar *tile_path;
 
-  gboolean success = FALSE;
+  gboolean success;
+  gchar *tile_path;
 
   /* Путь к файлу с тайлом. */
   tile_path = g_strdup_printf ("%s/%d/%d/%d.png",
@@ -113,41 +171,15 @@ hyscan_gtk_map_fs_tile_source_fill_tile (HyScanGtkMapTileSource *source,
                                hyscan_gtk_map_tile_get_x (tile),
                                hyscan_gtk_map_tile_get_y (tile));
 
-  if (g_file_test (tile_path, G_FILE_TEST_EXISTS))
-    /* Если файл существует, то загружаем поверхность тайла из него. */
+  /* Пробуем загрузить из файла. */
+  success = hyscan_gtk_map_fs_tile_source_fill_from_file (tile, tile_path);
+
+  /* Если файл отсутствует, то загружаем поверхность из запасного источника. */
+  if (!success && priv->fallback_source != NULL)
     {
-      cairo_surface_t *surface;
-
-      surface = cairo_image_surface_create_from_png (tile_path);
-      success = hyscan_gtk_map_tile_set_content (tile, surface);
-
-      cairo_surface_destroy (surface);
-    }
-  else
-    /* Если файл отсутствует, то загружаем поверхность из fallback источника,
-     * и сохраняем её в PNG-файл. */
-    {
-      if (priv->fallback_source != NULL)
-        success = hyscan_gtk_map_tile_source_fill (priv->fallback_source, tile);
-
+      success = hyscan_gtk_map_tile_source_fill (priv->fallback_source, tile);
       if (success)
-        {
-          cairo_status_t write_status;
-          gchar *tile_dir;
-
-          /* Создаём подкаталог для записи тайла. */
-          tile_dir = g_path_get_dirname (tile_path);
-          g_mkdir_with_parents (tile_dir, 0755);
-
-          /* Записываем PNG-файл с тайлом. */
-          write_status = cairo_surface_write_to_png (hyscan_gtk_map_tile_get_surface (tile), tile_path);
-          if (write_status != CAIRO_STATUS_SUCCESS)
-            {
-              g_warning ("HyScanGtkMapFsTileSource: failed to save tile, %s", cairo_status_to_string (write_status));
-            }
-
-          g_free (tile_dir);
-        }
+        hyscan_gtk_map_fs_tile_source_save (tile, tile_path);
     }
 
   g_free (tile_path);

@@ -21,6 +21,7 @@ const gchar *tile_url_format_presets[] = {
   "https://tile.thunderforest.com/landscape/%d/%d/%d.png?apikey=03fb8295553d4a2eaacc64d7dd88e3b9",
   "http://a.tile.openstreetmap.org/%d/%d/%d.png",
   "https://maps.wikimedia.org/osm-intl/%d/%d/%d.png",
+  "http://c.tile.stamen.com/watercolor/%d/%d/%d.jpg",
   "http://www.google.cn/maps/vt?lyrs=s@189&gl=cn&x=%2$d&y=%3$d&z=%1$d" /* todo: jpeg пока не реализован. */
 };
 

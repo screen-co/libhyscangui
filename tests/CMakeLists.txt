@@ -9,6 +9,7 @@ add_executable (gtk-param-test gtk-param-test.c)
 add_executable (gtk-spin-button-test gtk-spin-button-test.c)
 add_executable (gtk-datetime-test gtk-datetime-test.c)
 add_executable (gtk-map-test gtk-map-test.c)
+add_executable (task-queue-test task-queue-test.c)
 add_executable (mercator-test mercator-test.c)
 
 target_link_libraries (gtk-area-test ${TEST_LIBRARIES})
@@ -16,6 +17,7 @@ target_link_libraries (gtk-param-test ${TEST_LIBRARIES})
 target_link_libraries (gtk-spin-button-test ${TEST_LIBRARIES})
 target_link_libraries (gtk-datetime-test ${TEST_LIBRARIES})
 target_link_libraries (gtk-map-test ${TEST_LIBRARIES})
+target_link_libraries (task-queue-test ${TEST_LIBRARIES})
 target_link_libraries (mercator-test ${TEST_LIBRARIES})
 
 install (TARGETS gtk-area-test

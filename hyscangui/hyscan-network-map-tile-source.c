@@ -24,6 +24,8 @@
 #include <gio/gio.h>
 #include <string.h>
 #include <libsoup/soup.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
+#include <gdk/gdk.h>
 
 enum
 {
@@ -39,15 +41,14 @@ struct _HyScanNetworkMapTileSourcePrivate
 };
 
 static void           hyscan_network_map_tile_source_interface_init      (HyScanGtkMapTileSourceInterface *iface);
-static void           hyscan_network_map_tile_source_set_property        (GObject               *object,
-                                                                          guint                  prop_id,
-                                                                          const GValue          *value,
-                                                                          GParamSpec            *pspec);
-static void           hyscan_network_map_tile_source_object_constructed  (GObject               *object);
-static void           hyscan_network_map_tile_source_object_finalize     (GObject               *object);
-static cairo_status_t hyscan_network_map_tile_source_download            (GInputStream          *input_stream,
-                                                                          unsigned char         *data,
-                                                                          unsigned int           length);
+static void           hyscan_network_map_tile_source_set_property        (GObject                         *object,
+                                                                          guint                            prop_id,
+                                                                          const GValue                    *value,
+                                                                          GParamSpec                      *pspec);
+static void           hyscan_network_map_tile_source_object_constructed  (GObject                         *object);
+static void           hyscan_network_map_tile_source_object_finalize     (GObject                         *object);
+static gboolean       hyscan_network_map_tile_source_fill_tile           (HyScanGtkMapTileSource          *source,
+                                                                          HyScanGtkMapTile                *tile);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanNetworkMapTileSource, hyscan_network_map_tile_source, G_TYPE_OBJECT,
                          G_ADD_PRIVATE (HyScanNetworkMapTileSource)
@@ -129,24 +130,6 @@ hyscan_network_map_tile_source_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_network_map_tile_source_parent_class)->finalize (object);
 }
 
-/* Загружает png-поверхность cairo из указанного потока @input_stream. */
-static cairo_status_t
-hyscan_network_map_tile_source_download (GInputStream  *input_stream,
-                                         unsigned char *data,
-                                         unsigned int   length)
-{
-  gsize bytes_read;
-  static gssize total_bytes_read = 0;
-  GError *error = NULL;
-
-  g_input_stream_read_all (input_stream, data, length, &bytes_read, NULL, &error);
-  total_bytes_read += bytes_read;
-
-  g_clear_error (&error);
-
-  return bytes_read > 0 ? CAIRO_STATUS_SUCCESS : CAIRO_STATUS_READ_ERROR;
-}
-
 /* Ищет указанный тайл и загружает его. */
 static gboolean
 hyscan_network_map_tile_source_fill_tile (HyScanGtkMapTileSource *source,
@@ -158,8 +141,9 @@ hyscan_network_map_tile_source_fill_tile (HyScanGtkMapTileSource *source,
   gchar *url = NULL;
   GError *error = NULL;
 
-  SoupMessage *msg;
+  SoupMessage *soup_msg;
   GInputStream *input_stream;
+  GdkPixbuf *pixbuf = NULL;
 
   gboolean status_ok = FALSE;
 
@@ -169,40 +153,39 @@ hyscan_network_map_tile_source_fill_tile (HyScanGtkMapTileSource *source,
                          hyscan_gtk_map_tile_get_y (tile));
 
   /* Отправляем HTTP-запрос на получение тайла. */
-  msg = soup_message_new ("GET", url);
-  input_stream = soup_session_send (priv->session, msg, NULL, &error);
-
+  soup_msg = soup_message_new ("GET", url);
+  input_stream = soup_session_send (priv->session, soup_msg, NULL, &error);
   if (error != NULL)
     {
-      g_warning ("%s", error->message);
+      g_warning ("HyScanNetworkMapTileSource: failed to get \"%s\" (%s)", url, error->message);
       g_clear_error (&error);
+
+      goto exit;
     }
 
-  /* Чтобы часто не отправлять запросы на сервер, добавляем задержку между запросами. */
-  //  g_usleep (G_USEC_PER_SEC / 4);
-
-  /* Получаем изображение тайла из тела ответа. */
-  if (input_stream != NULL)
+  /* Из тела ответа формируем изображение pixbuf. */
+  pixbuf = gdk_pixbuf_new_from_stream (input_stream, NULL, &error);
+  if (error != NULL)
     {
-      cairo_surface_t *png_surface;
+      g_warning ("HyScanNetworkMapTileSource: failed to load image %s", error->message);
+      g_clear_error (&error);
 
-      /* Из тела ответа формируем поверхность cairo. */
-      png_surface = cairo_image_surface_create_from_png_stream ((cairo_read_func_t) hyscan_network_map_tile_source_download,
-                                                                 input_stream);
-
-      /* Устанавливаем загруженную поверхность в тайл. */
-      status_ok = hyscan_gtk_map_tile_set_content (tile, png_surface);
-      cairo_surface_destroy (png_surface);
+      goto exit;
     }
 
-  g_clear_object (&msg);
+  /* Устанавливаем загруженную поверхность в тайл. */
+  status_ok = hyscan_gtk_map_tile_set_pixbuf (tile, pixbuf);
+
+exit:
+  g_clear_object (&pixbuf);
+  g_clear_object (&soup_msg);
   g_clear_object (&input_stream);
   g_free (url);
 
   return status_ok;
 }
 
-/* Реализация интрефейса HyScanGtkMapTileSource. */
+/* Реализация интерфейса HyScanGtkMapTileSource. */
 static void
 hyscan_network_map_tile_source_interface_init (HyScanGtkMapTileSourceInterface *iface)
 {

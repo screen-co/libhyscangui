@@ -24,6 +24,7 @@ struct _HyScanTaskQueuePrivate
 
   GThreadPool    *pool;                 /* Пул обработки задач. */
   gpointer        user_data;            /* Пользовательские данные для пула задач. */
+  gboolean        shutdown;
 };
 
 static void    hyscan_task_queue_set_property             (GObject               *object,
@@ -125,10 +126,20 @@ hyscan_task_queue_object_finalize (GObject *object)
   HyScanTaskQueuePrivate *priv = task_queue->priv;
 
   /* Освобождаем память. */
-  g_queue_free (priv->queue);
-  g_thread_pool_free (priv->pool, TRUE, FALSE);
+  g_mutex_lock (&priv->queue_lock);
 
+  /* Ставим флаг о завершении работы. */
+  g_atomic_int_set (&priv->shutdown, TRUE);
+
+  if (priv->task_free_func != NULL)
+    g_queue_free_full (priv->queue, priv->task_free_func);
+  else
+    g_queue_free (priv->queue);
+
+  g_mutex_unlock (&priv->queue_lock);
   g_mutex_clear (&priv->queue_lock);
+  
+  g_thread_pool_free (priv->pool, FALSE, TRUE);
 
   G_OBJECT_CLASS (hyscan_task_queue_parent_class)->finalize (object);
 }
@@ -164,6 +175,10 @@ hyscan_task_queue_try_next (HyScanTaskQueue *queue)
   HyScanTaskQueuePrivate *priv = queue->priv;
   GError *error = NULL;
   gpointer task;
+
+  /* Объект находится в стадии завершения, больше не добавляем задачи. */
+  if (g_atomic_int_get (&priv->shutdown))
+    return;
 
   /* Не обрабатываем одновременно более n задач. */
   if (g_atomic_int_get (&priv->processing_count) > (gint) priv->max_concurrent)

@@ -16,13 +16,9 @@ struct _HyScanGtkMapTilePrivate
   guint                        x;              /* Положение по x в проекции Меркатора, от 0 до 2^zoom - 1. */
   guint                        y;              /* Положение по y в проекции Меркатора, от 0 до 2^zoom - 1. */
   guint                        zoom;           /* Масштаб. */
-
-  cairo_format_t               format;         /* Формат тайла CAIRO_FORMAT_RGB24 или CAIRO_FORMAT_ARGB32. */
   guint                        size;           /* Размер тайла size x size - тайлы квадратные. */
 
-  cairo_surface_t             *surface;        /* Поверхность cairo с изображением тайла. */
-  guint32                      data_size;
-  gboolean                     filled;         /* Заполнена ли поверхность surface реальным изображением. */
+  GdkPixbuf                   *pixbuf;         /* Изображение тайла. */
 };
 
 static void    hyscan_gtk_map_tile_set_property             (GObject               *object,
@@ -104,11 +100,6 @@ hyscan_gtk_map_tile_object_constructed (GObject *object)
   HyScanGtkMapTilePrivate *priv = gtk_map_tile->priv;
 
   G_OBJECT_CLASS (hyscan_gtk_map_tile_parent_class)->constructed (object);
-
-  priv->format = CAIRO_FORMAT_RGB24;
-  /* todo: может быть использовать cairo_image_surface_create_for_data. */
-  priv->surface = cairo_image_surface_create (priv->format, priv->size, priv->size);
-  priv->data_size = (guint32) (cairo_image_surface_get_height (priv->surface) * cairo_image_surface_get_stride (priv->surface));
 }
 
 static void
@@ -117,7 +108,7 @@ hyscan_gtk_map_tile_object_finalize (GObject *object)
   HyScanGtkMapTile *gtk_map_tile = HYSCAN_GTK_MAP_TILE (object);
   HyScanGtkMapTilePrivate *priv = gtk_map_tile->priv;
 
-  g_clear_pointer (&priv->surface, cairo_surface_destroy);
+  g_clear_object (&priv->pixbuf);
 
   G_OBJECT_CLASS (hyscan_gtk_map_tile_parent_class)->finalize (object);
 }
@@ -167,85 +158,35 @@ hyscan_gtk_map_tile_get_size (HyScanGtkMapTile *tile)
   return tile->priv->size;
 }
 
-cairo_surface_t *
-hyscan_gtk_map_tile_get_surface (HyScanGtkMapTile *tile)
-{
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile), NULL);
-
-  return tile->priv->surface;
-}
-
-guchar *
-hyscan_gtk_map_tile_get_data (HyScanGtkMapTile *tile,
-                              guint32          *size)
-{
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile), NULL);
-
-  *size = tile->priv->data_size;
-  return cairo_image_surface_get_data (tile->priv->surface);
-}
-
-gboolean
-hyscan_gtk_map_tile_is_filled (HyScanGtkMapTile *tile)
-{
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile), FALSE);
-
-  return tile->priv->filled;
-}
-
-void
-hyscan_gtk_map_tile_set_filled (HyScanGtkMapTile *tile,
-                                gboolean          filled)
-{
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile));
-
-  tile->priv->filled = filled;
-}
-
-gboolean
-hyscan_gtk_map_tile_set_content (HyScanGtkMapTile *tile,
-                                 cairo_surface_t  *content)
+gboolean 
+hyscan_gtk_map_tile_set_pixbuf (HyScanGtkMapTile *tile,
+                                GdkPixbuf        *pixbuf)
 {
   HyScanGtkMapTilePrivate *priv;
-  gssize dsize;
 
   g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile), FALSE);
+  g_return_val_if_fail (pixbuf != NULL, FALSE);
 
   priv = tile->priv;
 
-  /* Проверяем формат загруженного изображения. */
-  if (cairo_image_surface_get_format (content) != priv->format)
+  if (gdk_pixbuf_get_width (pixbuf) != (gint) priv->size ||
+      gdk_pixbuf_get_height (pixbuf) != (gint) priv->size)
     {
-      g_warning ("Wrong image format");
       return FALSE;
     }
 
-  /* Копируем поверхность в целевой тайл. */
-  dsize = cairo_image_surface_get_height (content) * cairo_image_surface_get_stride (content);
-
-  return hyscan_gtk_map_tile_set_data (tile, cairo_image_surface_get_data (content), (guint32) dsize);
-}
-
-gboolean
-hyscan_gtk_map_tile_set_data (HyScanGtkMapTile *tile,
-                              guchar           *data,
-                              guint32           size)
-{
-  HyScanGtkMapTilePrivate *priv;
-
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile), FALSE);
-
-  priv = tile->priv;
-
-  /* Проверяем размер буфера. */
-  if (size != priv->data_size)
-    return FALSE;
-
-  memcpy (cairo_image_surface_get_data (priv->surface), data, size);
-  priv->filled = TRUE;
-  cairo_surface_mark_dirty (priv->surface);
+  g_clear_object (&priv->pixbuf);
+  priv->pixbuf = g_object_ref (pixbuf);
 
   return TRUE;
+}
+
+GdkPixbuf *
+hyscan_gtk_map_tile_get_pixbuf (HyScanGtkMapTile *tile)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile), NULL);
+
+  return tile->priv->pixbuf;
 }
 
 /**

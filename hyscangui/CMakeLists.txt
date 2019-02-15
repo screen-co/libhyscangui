@@ -44,7 +44,12 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-pseudo-mercator.c
              ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c)
 
-target_link_libraries (${HYSCAN_GUI_LIBRARY} ${GTK3_LIBRARIES} ${HYSCAN_LIBRARIES} ${GTKCIFROAREA_LIBRARIES} ${LIBSOUP_LIBRARIES})
+target_link_libraries (${HYSCAN_GUI_LIBRARY}
+                       ${GTK3_LIBRARIES}
+                       ${HYSCAN_LIBRARIES}
+                       ${GTKCIFROAREA_LIBRARIES}
+                       ${LIBSOUP_LIBRARIES}
+                       ${GDK_PIXBUF_LIBRARIES})
 
 set_target_properties (${HYSCAN_GUI_LIBRARY} PROPERTIES DEFINE_SYMBOL "HYSCAN_API_EXPORTS")
 set_target_properties (${HYSCAN_GUI_LIBRARY} PROPERTIES SOVERSION ${HYSCAN_GUI_VERSION})

@@ -132,7 +132,7 @@ hyscan_gtk_map_control_scroll (HyScanGtkMapControl *control,
 
   gtk_cifro_area_get_scale (GTK_CIFRO_AREA (map), &scale, NULL);
   /* За 4 колесика изменяем масштаб в 2 раза. */
-  scale *= pow (2, dscale * .25);
+  scale *= pow (2, dscale * .1);
 
   gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (map), event->x, event->y, &center_x, &center_y);
   gtk_cifro_area_set_scale (GTK_CIFRO_AREA (map), scale, scale, center_x, center_y);
