@@ -27,6 +27,9 @@
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <gdk/gdk.h>
 
+#define USER_AGENT "Mozilla/5.0 (X11; Linux x86_64; rv:60.0) " \
+                   "Gecko/20100101 Firefox/60.0"                      /* Заголовок "User-agent" для HTTP-запросов. */
+
 enum
 {
   PROP_O,
@@ -107,8 +110,11 @@ hyscan_network_map_tile_source_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_network_map_tile_source_parent_class)->constructed (object);
 
-  /* Инициализируем HTTP-клиент SoupSession. */
-  priv->session = soup_session_new_with_options (SOUP_SESSION_ADD_FEATURE_BY_TYPE, SOUP_TYPE_CONTENT_SNIFFER, NULL);
+  /* Инициализируем HTTP-клиент SoupSession.
+   * Устанавливаем заголовок "user-agent", иначе некоторые серверы блокируют запросы. */
+  priv->session = soup_session_new_with_options (SOUP_SESSION_ADD_FEATURE_BY_TYPE, SOUP_TYPE_CONTENT_SNIFFER,
+                                                 SOUP_SESSION_USER_AGENT, USER_AGENT,
+                                                 NULL);
   if (debug_level != SOUP_LOGGER_LOG_NONE) {
     SoupLogger *logger;
 

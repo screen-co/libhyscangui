@@ -12,17 +12,23 @@
 #include <hyscan-gtk-map-ruler.h>
 #include <hyscan-gtk-map-grid.h>
 
-static gchar *tiles_dir;      /* Путь к каталогу, где хранятся тайлы. */
+static gchar *tiles_dir;                     /* Путь к каталогу, где хранятся тайлы. */
 static gboolean yandex_projection = FALSE;   /* Использовать карту яндекса. */
-static guint tile_url_preset = 2;
+static guint tile_url_preset = 0;
 static gchar *tile_url_format;
 
-const gchar *tile_url_format_presets[] = {
+/* Пресеты URL серверов. */
+const gchar *url_presets[] = {
   "https://tile.thunderforest.com/landscape/%d/%d/%d.png?apikey=03fb8295553d4a2eaacc64d7dd88e3b9",
-  "http://a.tile.openstreetmap.org/%d/%d/%d.png",
-  "https://maps.wikimedia.org/osm-intl/%d/%d/%d.png",
-  "http://c.tile.stamen.com/watercolor/%d/%d/%d.jpg",
-  "http://www.google.cn/maps/vt?lyrs=s@189&gl=cn&x=%2$d&y=%3$d&z=%1$d" /* todo: jpeg пока не реализован. */
+  "http://a.tile.openstreetmap.org/%d/%d/%d.png",                                       /* -p 1: OSM. */
+  "https://maps.wikimedia.org/osm-intl/%d/%d/%d.png",                                   /* -p 2: Wikimedia. */
+  "http://c.tile.stamen.com/watercolor/%d/%d/%d.jpg",                                   /* -p 3: Watercolor. */
+  "http://www.google.cn/maps/vt?lyrs=s@189&gl=cn&x=%2$d&y=%3$d&z=%1$d",                 /* -p 4: Google спутник. */
+};
+
+const gchar *url_presets_yandex[] = {
+  "http://vec02.maps.yandex.net/tiles?l=map&v=2.2.3&z=%d&x=%d&y=%d",                    /* -p 0: Yandex вектор. */
+  "https://sat02.maps.yandex.net/tiles?l=sat&v=3.455.0&x=%2$d&y=%3$d&z=%1$d&lang=ru_RU" /* -p 1: Yandex спутник. */
 };
 
 static HyScanGeoGeodetic center = {.lat = 52.36, .lon = 4.9};
@@ -49,7 +55,7 @@ create_map_yandex (HyScanGtkMapTileSource **source)
   map = hyscan_gtk_map_new (projection);
   g_object_unref (projection);
 
-  nw_source = hyscan_network_map_tile_source_new ("http://vec02.maps.yandex.net/tiles?l=map&v=2.2.3&z=%d&x=%d&y=%d");
+  nw_source = hyscan_network_map_tile_source_new (tile_url_format ? tile_url_format : url_presets_yandex[tile_url_preset]);
   *source = HYSCAN_GTK_MAP_TILE_SOURCE (nw_source);
 
   return map;
@@ -68,7 +74,7 @@ create_map_user (HyScanGtkMapTileSource **source)
   map = hyscan_gtk_map_new (projection);
   g_object_unref (projection);
 
-  nw_source = hyscan_network_map_tile_source_new (tile_url_format ? tile_url_format : tile_url_format_presets[tile_url_preset]);
+  nw_source = hyscan_network_map_tile_source_new (tile_url_format ? tile_url_format : url_presets[tile_url_preset]);
 
   *source = HYSCAN_GTK_MAP_TILE_SOURCE (nw_source);
 
@@ -193,10 +199,10 @@ int main (int     argc,
     GOptionContext *context;
     GOptionEntry entries[] =
       {
-        { "tile-dir", 'd', 0, G_OPTION_ARG_STRING, &tiles_dir, "Path to directory containing tiles", NULL },
-        { "yandex", 'y', 0, G_OPTION_ARG_NONE, &yandex_projection, "Use yandex projection and tile source", NULL },
-        { "tile-url-preset", 'p', 0, G_OPTION_ARG_INT, &tile_url_preset, "Use one of preset tile source", NULL },
-        { "tile-url-format", 'u', 0, G_OPTION_ARG_NONE, &tile_url_format, "User defined tile source", NULL },
+        { "tile-dir",        'd', 0, G_OPTION_ARG_STRING, &tiles_dir,         "Path to dir containing tiles", NULL },
+        { "yandex",          'y', 0, G_OPTION_ARG_NONE,   &yandex_projection, "Use yandex projection", NULL },
+        { "tile-url-preset", 'p', 0, G_OPTION_ARG_INT,    &tile_url_preset,   "Use one of preset tile source", NULL },
+        { "tile-url-format", 'u', 0, G_OPTION_ARG_NONE,   &tile_url_format,   "User defined tile source", NULL },
         { NULL }
       };
 
