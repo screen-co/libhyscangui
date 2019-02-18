@@ -33,12 +33,18 @@
 enum
 {
   PROP_O,
-  PROP_URL_FORMAT
+  PROP_URL_FORMAT,
+  PROP_MIN_ZOOM,
+  PROP_MAX_ZOOM,
 };
 
 struct _HyScanNetworkMapTileSourcePrivate
 {
   gchar       *url_format;    /* Формат URL изображения тайла, printf (url_format, z, x, y). */
+  guint        min_zoom;      /* Минимальный доступный зум. */
+  guint        max_zoom;      /* Максимальный доступный зум. */
+  guint        tile_size;     /* Размер тайла, пикселы. */
+
 
   SoupSession *session;       /* HTTP-клиент, который загружает изображения тайлов. */
 };
@@ -52,6 +58,10 @@ static void           hyscan_network_map_tile_source_object_constructed  (GObjec
 static void           hyscan_network_map_tile_source_object_finalize     (GObject                         *object);
 static gboolean       hyscan_network_map_tile_source_fill_tile           (HyScanGtkMapTileSource          *source,
                                                                           HyScanGtkMapTile                *tile);
+static void           hyscan_network_map_tile_source_get_zoom_limits     (HyScanGtkMapTileSource          *source,
+                                                                          guint                           *min_zoom,
+                                                                          guint                           *max_zoom);
+static guint          hyscan_network_map_tile_source_get_tile_size       (HyScanGtkMapTileSource          *source);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanNetworkMapTileSource, hyscan_network_map_tile_source, G_TYPE_OBJECT,
                          G_ADD_PRIVATE (HyScanNetworkMapTileSource)
@@ -71,6 +81,12 @@ hyscan_network_map_tile_source_class_init (HyScanNetworkMapTileSourceClass *klas
   g_object_class_install_property (object_class, PROP_URL_FORMAT,
     g_param_spec_string ("url-format", "URL Format", "Tile URL format suitable for printf (format, z, x, y)", NULL,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+  g_object_class_install_property (object_class, PROP_MIN_ZOOM,
+    g_param_spec_uint ("min-zoom", "Min zoom", "Minimal zoom", 0, G_MAXUINT, 0,
+                        G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+  g_object_class_install_property (object_class, PROP_MAX_ZOOM,
+    g_param_spec_uint ("max-zoom", "Max zoom", "Maximum zoom", 0, G_MAXUINT, 19,
+                        G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
@@ -94,6 +110,14 @@ hyscan_network_map_tile_source_set_property (GObject      *object,
       priv->url_format = g_value_dup_string (value);
       break;
 
+    case PROP_MIN_ZOOM:
+      priv->min_zoom = g_value_get_uint (value);
+      break;
+
+    case PROP_MAX_ZOOM:
+      priv->max_zoom = g_value_get_uint (value);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -109,6 +133,8 @@ hyscan_network_map_tile_source_object_constructed (GObject *object)
   // SoupLoggerLogLevel debug_level = SOUP_LOGGER_LOG_MINIMAL;
 
   G_OBJECT_CLASS (hyscan_network_map_tile_source_parent_class)->constructed (object);
+
+  priv->tile_size = 256;
 
   /* Инициализируем HTTP-клиент SoupSession.
    * Устанавливаем заголовок "user-agent", иначе некоторые серверы блокируют запросы. */
@@ -191,11 +217,35 @@ exit:
   return status_ok;
 }
 
+static void
+hyscan_network_map_tile_source_get_zoom_limits (HyScanGtkMapTileSource *source,
+                                               guint                   *min_zoom,
+                                               guint                   *max_zoom)
+{
+  HyScanNetworkMapTileSourcePrivate *priv;
+
+  priv = HYSCAN_NETWORK_MAP_TILE_SOURCE (source)->priv;
+  (max_zoom != NULL) ? *max_zoom = priv->max_zoom : 0;
+  (min_zoom != NULL) ? *min_zoom = priv->min_zoom : 0;
+}
+
+static guint
+hyscan_network_map_tile_source_get_tile_size (HyScanGtkMapTileSource *source)
+{
+  HyScanNetworkMapTileSourcePrivate *priv;
+
+  priv = HYSCAN_NETWORK_MAP_TILE_SOURCE (source)->priv;
+
+  return priv->tile_size;
+}
+
 /* Реализация интерфейса HyScanGtkMapTileSource. */
 static void
 hyscan_network_map_tile_source_interface_init (HyScanGtkMapTileSourceInterface *iface)
 {
   iface->fill_tile = hyscan_network_map_tile_source_fill_tile;
+  iface->get_zoom_limits = hyscan_network_map_tile_source_get_zoom_limits;
+  iface->get_tile_size = hyscan_network_map_tile_source_get_tile_size;
 }
 
 /**

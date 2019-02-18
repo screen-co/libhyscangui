@@ -14,8 +14,9 @@ hyscan_gtk_map_tile_source_default_init (HyScanGtkMapTileSourceInterface *iface)
  *
  * Заполнение тайла @tile из источника тайлов @source.
  */
-gboolean hyscan_gtk_map_tile_source_fill (HyScanGtkMapTileSource *source,
-                                          HyScanGtkMapTile       *tile)
+gboolean
+hyscan_gtk_map_tile_source_fill (HyScanGtkMapTileSource *source,
+                                 HyScanGtkMapTile       *tile)
 {
   HyScanGtkMapTileSourceInterface *iface;
 
@@ -26,4 +27,32 @@ gboolean hyscan_gtk_map_tile_source_fill (HyScanGtkMapTileSource *source,
     return (* iface->fill_tile) (source, tile);
 
   return FALSE;
+}
+
+void
+hyscan_gtk_map_tile_source_get_zoom_limits (HyScanGtkMapTileSource *source,
+                                            guint                  *min_zoom,
+                                            guint                  *max_zoom)
+{
+  HyScanGtkMapTileSourceInterface *iface;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_TILE_SOURCE (source));
+
+  iface = HYSCAN_GTK_MAP_TILE_SOURCE_GET_IFACE (source);
+  g_return_if_fail (iface->get_zoom_limits != NULL);
+
+  (* iface->get_zoom_limits) (source, min_zoom, max_zoom);
+}
+
+guint
+hyscan_gtk_map_tile_source_get_tile_size (HyScanGtkMapTileSource *source)
+{
+  HyScanGtkMapTileSourceInterface *iface;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE_SOURCE (source), 0);
+
+  iface = HYSCAN_GTK_MAP_TILE_SOURCE_GET_IFACE (source);
+  g_return_val_if_fail (iface->get_tile_size != NULL, 0);
+
+  return (* iface->get_tile_size) (source);
 }

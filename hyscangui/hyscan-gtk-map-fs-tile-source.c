@@ -188,9 +188,41 @@ hyscan_gtk_map_fs_tile_source_fill_tile (HyScanGtkMapTileSource *source,
 }
 
 static void
+hyscan_gtk_map_fs_tile_source_get_zoom_limits (HyScanGtkMapTileSource *source,
+                                               guint                  *min_zoom,
+                                               guint                  *max_zoom)
+{
+  HyScanGtkMapFsTileSourcePrivate *priv = HYSCAN_GTK_MAP_FS_TILE_SOURCE (source)->priv;
+
+  if (priv->fallback_source != NULL)
+    {
+      hyscan_gtk_map_tile_source_get_zoom_limits (priv->fallback_source,  min_zoom, max_zoom);
+    }
+  else
+    {
+      /* todo: get zooms from file system. */
+      (max_zoom != NULL) ? *max_zoom = 19 : 0;
+      (min_zoom != NULL) ? *min_zoom = 0 : 0;
+    }
+}
+
+static guint
+hyscan_gtk_map_fs_tile_source_get_tile_size (HyScanGtkMapTileSource *source)
+{
+  HyScanGtkMapFsTileSourcePrivate *priv = HYSCAN_GTK_MAP_FS_TILE_SOURCE (source)->priv;
+
+  if (priv->fallback_source != NULL)
+    return hyscan_gtk_map_tile_source_get_tile_size (priv->fallback_source);
+  else
+    return 256;  /* todo: get tile size from any file. */
+}
+
+static void
 hyscan_gtk_map_fs_tile_source_interface_init (HyScanGtkMapTileSourceInterface *iface)
 {
   iface->fill_tile = hyscan_gtk_map_fs_tile_source_fill_tile;
+  iface->get_tile_size = hyscan_gtk_map_fs_tile_source_get_tile_size;
+  iface->get_zoom_limits = hyscan_gtk_map_fs_tile_source_get_zoom_limits;
 }
 
 /**

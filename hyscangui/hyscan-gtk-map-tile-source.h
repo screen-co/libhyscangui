@@ -22,9 +22,22 @@ struct _HyScanGtkMapTileSourceInterface
 
   gboolean             (*fill_tile)               (HyScanGtkMapTileSource        *source,
                                                    HyScanGtkMapTile              *tile);
+
+  void                 (*get_zoom_limits)         (HyScanGtkMapTileSource        *source,
+                                                   guint                         *min_zoom,
+                                                   guint                         *max_zoom);
+
+  guint                (*get_tile_size)           (HyScanGtkMapTileSource        *source);
 };
 
 GType      hyscan_gtk_map_tile_source_get_type                  (void);
+
+HYSCAN_API
+void       hyscan_gtk_map_tile_source_get_zoom_limits           (HyScanGtkMapTileSource *source,
+                                                                 guint                  *min_zoom,
+                                                                 guint                  *max_zoom);
+HYSCAN_API
+guint      hyscan_gtk_map_tile_source_get_tile_size             (HyScanGtkMapTileSource *source);
 
 HYSCAN_API
 gboolean   hyscan_gtk_map_tile_source_fill                      (HyScanGtkMapTileSource *source,

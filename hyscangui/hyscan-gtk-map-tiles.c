@@ -39,12 +39,7 @@ struct _HyScanGtkMapTilesPrivate
 {
   HyScanGtkMap                *map;                 /* Виджет карты, на котором показываются тайлы. */
   HyScanTaskQueue             *task_queue;          /* Очередь задач по созданию тайлов. */
-
-  /* Источник тайлов и его параметры. todo: перенести параметры в HyScanGtkMapTileSource. */
   HyScanGtkMapTileSource      *source;              /* Источник тайлов. */
-  guint                        max_zoom;            /* Максимальный масштаб (включительно). */
-  guint                        min_zoom;            /* Минимальный масштаб (включительно). */
-  guint                        tile_size_real;      /* Реальный размер тайла в пикселах. */
 
   /* Кэш. */
   HyScanCache                 *cache;               /* Кэш тайлов. */
@@ -190,9 +185,6 @@ hyscan_gtk_map_tiles_object_constructed (GObject *object)
   priv->cache_buffer = hyscan_buffer_new ();
   priv->tile_buffer = hyscan_buffer_new ();
 
-  priv->min_zoom = 0;
-  priv->max_zoom = 19;
-  priv->tile_size_real = 256;
   priv->preload_margin = 3;
 
   /* Подключаемся к сигналу обновления видимой области карты. */
@@ -444,16 +436,20 @@ hyscan_gtk_map_tiles_get_scaling (HyScanGtkMapTilesPrivate *priv,
 {
   gdouble pixel_size;
   gdouble tile_size;
+  guint tile_size_px;
   gdouble min_x, max_x;
-
-  /* Размер пиксела в логических единицах. */
-  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &pixel_size, NULL);
 
   /* Размер тайла в логических единицах. */
   gtk_cifro_area_get_limits (GTK_CIFRO_AREA (priv->map), &min_x, &max_x, NULL, NULL);
   tile_size = (max_x - min_x) / pow (2, zoom);
 
-  return tile_size / (pixel_size * priv->tile_size_real);
+  /* Размер тайла в пикселах. */
+  tile_size_px = hyscan_gtk_map_tile_source_get_tile_size (priv->source);
+
+  /* Размер пиксела в логических единицах. */
+  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &pixel_size, NULL);
+
+  return tile_size / (tile_size_px * pixel_size);
 }
 
 /* Устанавливает подходящий zoom в зависимости от выбранного масштаба. */
@@ -463,13 +459,18 @@ hyscan_gtk_map_tiles_get_optimal_zoom (HyScanGtkMapTilesPrivate *priv)
   gdouble scale;
   gdouble optimal_zoom;
   guint izoom;
+
+  guint min_zoom;
+  guint max_zoom;
+
   gdouble tile_size;
   gdouble min_x, max_x;
 
   gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &scale, NULL);
 
   /* Целевой размер тайла в логических единицах, чтобы тайлы не растягивались. */
-  tile_size = priv->tile_size_real * scale;
+  tile_size = hyscan_gtk_map_tile_source_get_tile_size (priv->source);
+  tile_size = tile_size * scale;
 
   /* Подбираем зум, чтобы тайлы были нужного размера...
    * tile_size = area_limits / pow (2, zoom). */
@@ -480,7 +481,9 @@ hyscan_gtk_map_tiles_get_optimal_zoom (HyScanGtkMapTilesPrivate *priv)
   izoom = (guint) optimal_zoom;
   izoom = (optimal_zoom - izoom) > ZOOM_THRESHOLD ? izoom + 1 : izoom;
 
-  return CLAMP (izoom, priv->min_zoom, priv->max_zoom);
+  hyscan_gtk_map_tile_source_get_zoom_limits (priv->source, &min_zoom, &max_zoom);
+
+  return CLAMP (izoom, min_zoom, max_zoom);
 }
 
 /* Переводит координаты тайла в систему координат видимой области. */
@@ -516,7 +519,7 @@ hyscan_gtk_map_tiles_is_the_same_scale (HyScanGtkMapTilesPrivate *priv,
   guint width;
   guint height;
 
-  tile_size = priv->tile_size_real;
+  tile_size = hyscan_gtk_map_tile_source_get_tile_size (priv->source);
 
   width = (guint) tile_size * (priv->to_x - priv->from_x + 1);
   height = (guint) tile_size * (priv->to_y - priv->from_y + 1);
@@ -545,8 +548,7 @@ hyscan_gtk_map_tiles_draw_tile (HyScanGtkMapTilesPrivate *priv,
   y0 = priv->from_y;
   zoom = priv->zoom;
 
-  tile_size = priv->tile_size_real;
-
+  tile_size = hyscan_gtk_map_tile_source_get_tile_size (priv->source);
   tile = hyscan_gtk_map_tile_new (x, y, zoom, tile_size);
 
   /* Если получилось заполнить тайл, то рисуем его в буфер. */
@@ -585,11 +587,14 @@ hyscan_gtk_map_tile_surface_make (HyScanGtkMapTilesPrivate *priv,
   cairo_surface_t *surface;
   cairo_t *cairo;
 
+  guint tile_size;
+
   gboolean filled_ret = TRUE;
 
+  tile_size = hyscan_gtk_map_tile_source_get_tile_size (priv->source);
   surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32,
-                                        (priv->to_x - priv->from_x + 1) * priv->tile_size_real,
-                                        (priv->to_y - priv->from_y + 1) * priv->tile_size_real);
+                                        (priv->to_x - priv->from_x + 1) * tile_size,
+                                        (priv->to_y - priv->from_y + 1) * tile_size);
   cairo = cairo_create (surface);
 
   /* Очищаем очередь загрузки тайлов, которую мы сформировали в прошлый раз. */
@@ -775,9 +780,10 @@ hyscan_gtk_map_tiles_new (HyScanGtkMap            *map,
 /**
  * hyscan_gtk_map_set_zoom:
  * @map: указатель на #HyScanGtkMap
- * @zoom: масштаб карты (от 1 до 19)
+ * @zoom: масштаб карты
  *
- * Устанавливает новый масштаб карты.
+ * Устанавливает новый масштаб карты. Допустимые значение масштаба определяются
+ * используемым источником тайлов.
  */
 void
 hyscan_gtk_map_tiles_set_zoom (HyScanGtkMapTiles *layer,
@@ -792,12 +798,18 @@ hyscan_gtk_map_tiles_set_zoom (HyScanGtkMapTiles *layer,
   gdouble x, y;
   gdouble min_x, max_x;
 
+  guint min_zoom;
+  guint max_zoom;
+  guint tile_size_real;
+
   g_return_if_fail (HYSCAN_IS_GTK_MAP_TILES (layer));
 
   priv = layer->priv;
-  if (zoom < priv->min_zoom || zoom > priv->max_zoom)
+
+  hyscan_gtk_map_tile_source_get_zoom_limits (priv->source, &min_zoom, &max_zoom);
+  if (zoom < min_zoom || zoom > max_zoom)
     {
-      g_warning ("HyScanGtkMap: Zoom must be in interval from %d to %d", priv->min_zoom, priv->max_zoom);
+      g_warning ("HyScanGtkMap: Zoom must be in interval from %d to %d", min_zoom, max_zoom);
       return;
     }
 
@@ -810,8 +822,11 @@ hyscan_gtk_map_tiles_set_zoom (HyScanGtkMapTiles *layer,
   gtk_cifro_area_get_limits (GTK_CIFRO_AREA (priv->map), &min_x, &max_x, NULL, NULL);
   tile_size = (max_x - min_x) / pow (2, zoom);
 
+  /* Определяем размер тайла в пикселах. */
+  tile_size_real = hyscan_gtk_map_tile_source_get_tile_size (priv->source);
+
   /* Расcчитываем scale, чтобы тайлы не были растянутыми. */
-  scale = tile_size / priv->tile_size_real;
+  scale = tile_size / tile_size_real;
 
   gtk_cifro_area_set_scale (GTK_CIFRO_AREA (priv->map), scale, scale, x, y);
 }
