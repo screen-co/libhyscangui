@@ -46,6 +46,9 @@ struct _HyScanGtkMapTilesPrivate
   HyScanBuffer                *cache_buffer;        /* Буфер заголовка кэша данных для чтения. */
   HyScanBuffer                *tile_buffer;         /* Буфер данных поверхности тайла для чтения. */
 
+  GList                       *filled_buffer;       /* Список заполненных тайлов, которые можно нарисовать. */
+  GMutex                       filled_lock;         /* Блокировка доступа к filled_buffer. */
+
   /* Поверхность cairo с тайлами видимой области. */
   cairo_surface_t             *surface;             /* Поверхность cairo с тайлами. */
   gboolean                     surface_filled;      /* Признак того, что все тайлы заполнены. */
@@ -69,6 +72,8 @@ static void                 hyscan_gtk_map_tiles_draw                     (HySca
                                                                            cairo_t                  *cairo);
 static void                 hyscan_gtk_map_tiles_load                     (HyScanGtkMapTile         *tile,
                                                                            HyScanGtkMapTiles        *layer);
+static gboolean             hyscan_gtk_map_tiles_filled_buffer_flush      (HyScanGtkMapTiles        *layer);
+static gboolean             hyscan_gtk_map_tiles_buffer_is_visible        (HyScanGtkMapTiles        *layer);
 static void                 hyscan_gtk_map_tiles_get_cache_key            (HyScanGtkMapTile         *tile,
                                                                            gchar                    *key,
                                                                            gsize                     key_length);
@@ -186,6 +191,7 @@ hyscan_gtk_map_tiles_object_constructed (GObject *object)
   priv->tile_buffer = hyscan_buffer_new ();
 
   priv->preload_margin = 3;
+  g_mutex_init (&priv->filled_lock);
 
   /* Подключаемся к сигналу обновления видимой области карты. */
   g_signal_connect_swapped (priv->map, "visible-draw",
@@ -209,6 +215,7 @@ hyscan_gtk_map_tiles_object_finalize (GObject *object)
   g_object_unref (priv->cache);
   g_object_unref (priv->cache_buffer);
   g_object_unref (priv->tile_buffer);
+  g_mutex_clear (&priv->filled_lock);
 
   G_OBJECT_CLASS (hyscan_gtk_map_tiles_parent_class)->finalize (object);
 }
@@ -259,6 +266,68 @@ hyscan_gtk_map_tiles_cache_set (HyScanGtkMapTilesPrivate *priv,
   g_object_unref (data_buffer);
 }
 
+/* Проверяет, есть ли в буфере тайлы, которые сейчас видны. */
+static gboolean
+hyscan_gtk_map_tiles_buffer_is_visible (HyScanGtkMapTiles *layer)
+{
+  HyScanGtkMapTilesPrivate *priv = layer->priv;
+
+  GList *tile_l;
+
+  gint from_x;
+  gint from_y;
+  gint to_x;
+  gint to_y;
+
+  if (priv->filled_buffer == NULL)
+    return FALSE;
+
+  /* Определяем видимую область. */
+  hyscan_gtk_map_tiles_get_view (layer, priv->zoom, &from_x, &to_x, &from_y, &to_y);
+
+  /* Проверяем, есть ли в буфере тайлы из видимой области. */
+  for (tile_l = priv->filled_buffer; tile_l != NULL; tile_l = tile_l->next)
+    {
+      HyScanGtkMapTile *tile = tile_l->data;
+
+      gint x;
+      gint y;
+
+      guint zoom;
+
+      /* Пропускаем тайлы другого зума. */
+      zoom = hyscan_gtk_map_tile_get_zoom (tile);
+      if (zoom != priv->zoom)
+        continue;
+
+      x = hyscan_gtk_map_tile_get_x (tile);
+      y = hyscan_gtk_map_tile_get_y (tile);
+      if (from_x <= x && x <= to_x && from_y <= y && y <= to_y)
+        return TRUE;
+    }
+
+  return FALSE;
+}
+
+/* Запрашивает перерисовку виджета карты, если пришёл хотя бы один тайл из видимой области. */
+static gboolean
+hyscan_gtk_map_tiles_filled_buffer_flush (HyScanGtkMapTiles *layer)
+{
+  HyScanGtkMapTilesPrivate *priv = layer->priv;
+
+  g_mutex_lock (&priv->filled_lock);
+
+  if (hyscan_gtk_map_tiles_buffer_is_visible (layer))
+    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+  g_list_free_full (priv->filled_buffer, g_object_unref);
+  priv->filled_buffer = NULL;
+
+  g_mutex_unlock (&priv->filled_lock);
+
+  return FALSE;
+}
+
 /* Заполняет запрошенный тайл из источника тайлов (выполняется в отдельном потоке). */
 static void
 hyscan_gtk_map_tiles_load (HyScanGtkMapTile  *tile,
@@ -272,8 +341,12 @@ hyscan_gtk_map_tiles_load (HyScanGtkMapTile  *tile,
     {
       hyscan_gtk_map_tiles_cache_set (priv, tile);
 
-      /* Запрашиваем перерисовку карты в потоке GUI. todo: add if (tile inside visible area) { ... } */
-      gdk_threads_add_idle ((GSourceFunc) gtk_widget_queue_draw, (GTK_WIDGET (priv->map)));
+      /* Добавляем тайл в буфер заполненных тайлов. */
+      g_mutex_lock (&priv->filled_lock);
+      priv->filled_buffer = g_list_append (priv->filled_buffer, g_object_ref (tile));
+      g_mutex_unlock (&priv->filled_lock);
+
+      gdk_threads_add_idle ((GSourceFunc) hyscan_gtk_map_tiles_filled_buffer_flush, layer);
     }
 }
 
