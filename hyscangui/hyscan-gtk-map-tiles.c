@@ -325,7 +325,7 @@ hyscan_gtk_map_tiles_filled_buffer_flush (HyScanGtkMapTiles *layer)
 
   g_mutex_unlock (&priv->filled_lock);
 
-  return FALSE;
+  return G_SOURCE_REMOVE;
 }
 
 /* Заполняет запрошенный тайл из источника тайлов (выполняется в отдельном потоке). */

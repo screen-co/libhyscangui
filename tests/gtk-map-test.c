@@ -20,15 +20,16 @@ static gchar *tile_url_format;
 /* Пресеты URL серверов. */
 const gchar *url_presets[] = {
   "https://tile.thunderforest.com/landscape/%d/%d/%d.png?apikey=03fb8295553d4a2eaacc64d7dd88e3b9",
-  "http://a.tile.openstreetmap.org/%d/%d/%d.png",                                       /* -p 1: OSM. */
-  "https://maps.wikimedia.org/osm-intl/%d/%d/%d.png",                                   /* -p 2: Wikimedia. */
-  "http://c.tile.stamen.com/watercolor/%d/%d/%d.jpg",                                   /* -p 3: Watercolor. */
-  "http://www.google.cn/maps/vt?lyrs=s@189&gl=cn&x=%2$d&y=%3$d&z=%1$d",                 /* -p 4: Google спутник. */
+  "http://a.tile.openstreetmap.org/{z}/{x}/{y}.png",                                       /* -p 1: OSM. */
+  "https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png",                                   /* -p 2: Wikimedia. */
+  "http://c.tile.stamen.com/watercolor/{z}/{x}/{y}.jpg",                                   /* -p 3: Watercolor. */
+  "http://www.google.cn/maps/vt?lyrs=s@189&gl=cn&x={x}&y={y}&z={z}",                       /* -p 4: Google спутник. */
+  "http://ecn.t0.tiles.virtualearth.net/tiles/a{quadkey}.jpeg?g=6897"                      /* -p 5: Bing спутник. */
 };
 
 const gchar *url_presets_yandex[] = {
-  "http://vec02.maps.yandex.net/tiles?l=map&v=2.2.3&z=%d&x=%d&y=%d",                    /* -p 0: Yandex вектор. */
-  "https://sat02.maps.yandex.net/tiles?l=sat&v=3.455.0&x=%2$d&y=%3$d&z=%1$d&lang=ru_RU" /* -p 1: Yandex спутник. */
+  "http://vec02.maps.yandex.net/tiles?l=map&v=2.2.3&z={z}&x={x}&y={y}",                    /* -p 0: Yandex вектор. */
+  "https://sat02.maps.yandex.net/tiles?l=sat&v=3.455.0&x={x}&y={y}&z={z}&lang=ru_RU"       /* -p 1: Yandex спутник. */
 };
 
 static HyScanGeoGeodetic center = {.lat = 52.36, .lon = 4.9};
