@@ -229,7 +229,7 @@ hyscan_network_map_tile_source_set_format (HyScanNetworkMapTileSourcePrivate *pr
 
   priv->url_format = hyscan_network_map_tile_source_replace (url_tpl,
                                                              (gchar *[]){"{quadkey}", NULL},
-                                                             (gchar *[]){"{%s}", NULL});
+                                                             (gchar *[]){"%s", NULL});
   if (priv->url_format != NULL)
     {
       priv->url_type = URL_FORMAT_QUAD;

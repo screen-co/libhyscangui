@@ -45,6 +45,12 @@ HYSCAN_API
 gdouble                hyscan_gtk_map_get_scale        (HyScanGtkMap        *map);
 
 HYSCAN_API
+void                   hyscan_gtk_map_point_to_geo     (HyScanGtkMap        *map,
+                                                        HyScanGeoGeodetic   *coords,
+                                                        gdouble              x,
+                                                        gdouble              y);
+
+HYSCAN_API
 void                   hyscan_gtk_map_value_to_geo     (HyScanGtkMap        *map,
                                                         HyScanGeoGeodetic   *coords,
                                                         gdouble              x_val,

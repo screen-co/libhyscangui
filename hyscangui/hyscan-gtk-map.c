@@ -342,6 +342,33 @@ hyscan_gtk_map_grab_input (HyScanGtkMap  *map,
   return howner == map->priv->howner;
 }
 
+/**
+ * hyscan_gtk_map_point_to_geo:
+ * @map: указатель на #HyScanGtkMap
+ * @coords: географические координаты
+ * @x: координата x в системе координат виджета
+ * @y: координата y в системе координат виджета
+ *
+ * Преобразовывает координаты из системы координат виджета в географические
+ * координаты.
+ */
+void
+hyscan_gtk_map_point_to_geo (HyScanGtkMap        *map,
+                             HyScanGeoGeodetic   *coords,
+                             gdouble              x,
+                             gdouble              y)
+{
+  HyScanGtkMapPrivate *priv;
+  gdouble x_val;
+  gdouble y_val;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
+
+  priv = map->priv;
+  gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (map), x, y, &x_val, &y_val);
+  hyscan_geo_projection_value_to_geo (priv->projection, coords, x_val, y_val);
+}
+
 /* Переводит координаты логической СК в географическую. */
 void
 hyscan_gtk_map_value_to_geo (HyScanGtkMap       *map,

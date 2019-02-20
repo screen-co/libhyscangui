@@ -124,6 +124,21 @@ on_ruler_switch (GtkSwitch         *widget,
   hyscan_gtk_map_ruler_set_active (map_ruler, active);
 }
 
+gboolean
+on_motion_show_coords (HyScanGtkMap   *map,
+                       GdkEventMotion *event,
+                       GtkLabel       *label)
+{
+  HyScanGeoGeodetic geo;
+  gchar text[255];
+
+  hyscan_gtk_map_point_to_geo (map, &geo, event->x, event->y);
+  g_snprintf (text, sizeof (text), "%.5f°, %.5f°", geo.lat, geo.lon);
+  gtk_label_set_text (label, text);
+
+  return FALSE;
+}
+
 /* Кнопки управления виджетом. */
 GtkWidget *
 create_control_box (HyScanGtkMap      *map,
@@ -135,7 +150,9 @@ create_control_box (HyScanGtkMap      *map,
 
   ctrl_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
 
+  /* Координатная сетка. */
   gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Координатная сетка"));
+
   ctrl_widget = gtk_switch_new ();
   gtk_switch_set_active (GTK_SWITCH (ctrl_widget), hyscan_gtk_map_grid_is_active (grid));
   gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
@@ -143,11 +160,14 @@ create_control_box (HyScanGtkMap      *map,
 
   gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
 
+  /* Линейка. */
   gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Линейка"));
+
   ctrl_widget = gtk_switch_new ();
   gtk_switch_set_active (GTK_SWITCH (ctrl_widget), hyscan_gtk_map_ruler_is_active (ruler));
   gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
   g_signal_connect (ctrl_widget, "notify::active", G_CALLBACK (on_ruler_switch), ruler);
+
   ctrl_widget = gtk_button_new ();
   gtk_button_set_label (GTK_BUTTON (ctrl_widget), "Очистить");
   g_signal_connect_swapped (ctrl_widget, "clicked", G_CALLBACK (hyscan_gtk_map_ruler_clear), ruler);
@@ -155,6 +175,7 @@ create_control_box (HyScanGtkMap      *map,
 
   gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
 
+  /* Текстовые поля для ввода координат. */
   gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Навигация (ш, д)"));
 
   ctrl_widget = gtk_spin_button_new_with_range (-90.0, 90.0, 0.01);
@@ -170,6 +191,14 @@ create_control_box (HyScanGtkMap      *map,
   ctrl_widget = gtk_button_new ();
   gtk_button_set_label (GTK_BUTTON (ctrl_widget), "Перейти");
   g_signal_connect_swapped (ctrl_widget, "clicked", G_CALLBACK (on_move_to_click), map);
+  gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
+
+  gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
+
+  /* Текущие координаты. */
+  gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Координаты"));
+  ctrl_widget = gtk_label_new ("-, -");
+  g_signal_connect (map, "motion-notify-event", G_CALLBACK (on_motion_show_coords), ctrl_widget);
   gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
 
   return ctrl_box;
