@@ -40,6 +40,7 @@ enum
 
 typedef enum
 {
+  TASK_NONE,
   TASK_CREATE,
   TASK_MODIFY,
   TASK_REMOVE
@@ -99,7 +100,7 @@ struct _HyScanGtkWaterfallMarkPrivate
   GMutex                      state_lock;     /* */
 
   GHashTable                 *new_marks;
-  GMutex                      xlock;
+  GMutex                      mmodel_lock;
 
   GThread                    *processing;
   gint                        stop;
@@ -158,8 +159,13 @@ static void     hyscan_gtk_waterfall_mark_object_constructed      (GObject      
 static void     hyscan_gtk_waterfall_mark_object_finalize         (GObject                 *object);
 
 static void     hyscan_gtk_waterfall_mark_free_task               (gpointer                 data);
-static void     hyscan_gtk_waterfall_mark_clear_state             (HyScanGtkWaterfallMarkState  *state);
 static void     hyscan_gtk_waterfall_mark_clear_task              (gpointer                 data);
+static void     hyscan_gtk_waterfall_mark_copy_task               (HyScanGtkWaterfallMarkTask *src,
+                                                                   HyScanGtkWaterfallMarkTask *dst);
+static HyScanGtkWaterfallMarkTask *
+                hyscan_gtk_waterfall_mark_dup_task                (HyScanGtkWaterfallMarkTask *src);
+
+static void     hyscan_gtk_waterfall_mark_clear_state             (HyScanGtkWaterfallMarkState  *state);
 static void     hyscan_gtk_waterfall_mark_model_changed           (HyScanMarkModel         *model,
                                                                    HyScanGtkWaterfallMark  *self);
 static void     hyscan_gtk_waterfall_mark_sync_states             (HyScanGtkWaterfallMark  *self);
@@ -286,7 +292,7 @@ hyscan_gtk_waterfall_mark_object_constructed (GObject *object)
   g_mutex_init (&priv->task_lock);
   g_mutex_init (&priv->drawable_lock);
   g_mutex_init (&priv->state_lock);
-  g_mutex_init (&priv->xlock);
+  g_mutex_init (&priv->mmodel_lock);
 
   g_cond_init (&priv->cond);
 
@@ -366,7 +372,7 @@ hyscan_gtk_waterfall_mark_object_finalize (GObject *object)
   g_mutex_clear (&priv->task_lock);
   g_mutex_clear (&priv->drawable_lock);
   g_mutex_clear (&priv->state_lock);
-  g_mutex_clear (&priv->xlock);
+  g_mutex_clear (&priv->mmodel_lock);
 
   g_cond_clear (&priv->cond);
 
@@ -458,14 +464,21 @@ hyscan_gtk_waterfall_mark_clear_task (gpointer data)
 {
   HyScanGtkWaterfallMarkTask *task = data;
 
-  hyscan_waterfall_mark_free (task->mark);
-  g_free (task->id);
-
-  task->mark = NULL;
-  task->id = NULL;
+  g_clear_pointer (&task->mark, hyscan_waterfall_mark_free);
+  g_clear_pointer (&task->id, g_free);
 }
 
-/* Функция очищает структуру HyScanGtkWaterfallMarkTask. Без освобождения! */
+static void inspectsdsd(GList *list)
+{
+  GList *link;
+  for (link = list; link != NULL; link = link->next)
+    {
+      HyScanGtkWaterfallMarkTask *task = link->data;
+      // g_message ("  center: %f", task->center.x);
+    }
+
+}
+/* Функция копирует структуру HyScanGtkWaterfallMarkTask. */
 static void
 hyscan_gtk_waterfall_mark_copy_task (HyScanGtkWaterfallMarkTask *src,
                                      HyScanGtkWaterfallMarkTask *dst)
@@ -476,6 +489,16 @@ hyscan_gtk_waterfall_mark_copy_task (HyScanGtkWaterfallMarkTask *src,
     dst->mark = hyscan_waterfall_mark_copy (src->mark);
   if (dst->id != NULL)
     dst->id = g_strdup (src->id);
+}
+
+/* Функция копирует структуру HyScanGtkWaterfallMarkTask. */
+static HyScanGtkWaterfallMarkTask *
+hyscan_gtk_waterfall_mark_dup_task (HyScanGtkWaterfallMarkTask *src)
+{
+  HyScanGtkWaterfallMarkTask * dst = g_new0 (HyScanGtkWaterfallMarkTask, 1);
+
+  hyscan_gtk_waterfall_mark_copy_task (src, dst);
+  return dst;
 }
 
 /* Функция обработки сигнала changed от модели меток. */
@@ -489,10 +512,15 @@ hyscan_gtk_waterfall_mark_model_changed (HyScanMarkModel        *model,
   marks = hyscan_mark_model_get (model);
 
   /* Переписываем метки в private. */
-  g_mutex_lock (&priv->xlock);
+  g_mutex_lock (&priv->mmodel_lock);
+
   g_clear_pointer (&priv->new_marks, g_hash_table_unref);
   priv->new_marks = g_hash_table_ref (marks);
-  g_mutex_unlock (&priv->xlock);
+  g_atomic_int_inc (&priv->cond_flag);
+  g_cond_signal (&priv->cond);
+
+  g_mutex_unlock (&priv->mmodel_lock);
+
   g_hash_table_unref (marks);
 }
 
@@ -576,17 +604,17 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
 
   GHashTable *marks;
   GMutex cond_mutex;
-  GList *list, *link;
+  GList *list, *link, *tasks, *next;
   HyScanGtkWaterfallMarkTask *task;
   HyScanSourceType source;
   guint32 index0, count0;
   gboolean status;
-  GHashTableIter iter;
-  gchar * id;
   HyScanWaterfallMark *mark;
   HyScanGtkWaterfallMarkState *state = &priv->state;
 
   g_mutex_init (&cond_mutex);
+
+  list = NULL;
 
   while (!g_atomic_int_get (&priv->stop))
     {
@@ -606,6 +634,8 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
         }
 
       g_atomic_int_set (&priv->cond_flag, 0);
+      GTimer *timer = g_timer_new();
+      g_timer_start(timer);
 
       /* Проверяем, требуется ли синхронизация. */
       if (g_atomic_int_get (&priv->state_changed))
@@ -678,15 +708,20 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
       if (rproj == NULL || lproj ==NULL)
         continue;
 
-      /* 1. Отправляем сделанные пользователем изменения. */
-      /* Чтобы как можно меньше задерживать mainloop, копируем список задач. */
+
+      /* 0. Начинаем работу с метками в БД и свежими. Сначала переписываем
+       * всё к себе. */
       g_mutex_lock (&priv->task_lock);
-      list = priv->tasks;
+      tasks = priv->tasks;
       priv->tasks = NULL;
       g_mutex_unlock (&priv->task_lock);
+      g_mutex_lock (&priv->mmodel_lock);
+      marks = hyscan_mark_model_copy (priv->new_marks);
+      g_mutex_unlock (&priv->mmodel_lock);
 
+      /* 1. Отправляем сделанные пользователем изменения. */
       /* Пересчитываем текущие задачи и отправляем в БД. */
-      for (link = list; link != NULL; link = link->next)
+      for (link = tasks; link != NULL; link = link->next)
         {
           task = link->data;
           HyScanCoordinates mc;
@@ -763,72 +798,119 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
             }
         }
 
-      /* Очищаем список задач (напомню, что он предварительно скопирован). */
-      g_list_free_full (list, hyscan_gtk_waterfall_mark_free_task);
-      list = NULL;
-
-
-      marks = hyscan_mark_model_copy (priv->new_marks);
-      /* Каждую метку переводим в наши координаты. */
-      g_hash_table_iter_init(&iter, marks);
-      while (g_hash_table_iter_next (&iter, (gpointer)&id, (gpointer)&mark))
+      /* 2. Обрабатываем обновления модели.
+       * Каждую метку переводим в наши координаты. */
+      if (marks != NULL)
         {
-          HyScanCoordinates mc;
-          gdouble mw, mh;
+          GHashTableIter iter;
+          gchar * id;
 
-          /* Фильтруем по галсу. */
-          if (g_strcmp0 (mark->track, state->track) != 0)
-            continue;
-
-          /* Фильтруем по источнику. */
-          if (mark->source0 == state->lsource)
-            _proj = lproj;
-          else if (mark->source0 == state->rsource)
-            _proj = rproj;
-          else
-            continue;
-
-          task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
-          task->mark = mark;
-          task->id = id;
-          hyscan_projector_index_to_coord (_proj, mark->index0, &mc.y);
-          hyscan_projector_count_to_coord (_proj, mark->count0, &mc.x, 0.0);
-          mw = mark->width / 1000.0;
-          mh = mark->height / 1000.0;
-
-          if (state->display_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN)
+          g_hash_table_iter_init (&iter, marks);
+          while (g_hash_table_iter_next (&iter, (gpointer)&id, (gpointer)&mark))
             {
-              task->center.y = mc.y;
-              task->center.x = mc.x;
-              task->dx = mw;
-              task->dy = mh;
+              HyScanCoordinates mc;
+              gdouble mw, mh;
 
+              /* Фильтруем по галсу. */
+              if (g_strcmp0 (mark->track, state->track) != 0)
+                continue;
+
+              /* Фильтруем по источнику. */
               if (mark->source0 == state->lsource)
-                task->center.x *= -1;
+                _proj = lproj;
+              else if (mark->source0 == state->rsource)
+                _proj = rproj;
+              else
+                continue;
 
+              task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
+              task->mark = mark;
+              task->id = id;
+              hyscan_projector_index_to_coord (_proj, mark->index0, &mc.y);
+              hyscan_projector_count_to_coord (_proj, mark->count0, &mc.x, 0.0);
+              mw = mark->width / 1000.0;
+              mh = mark->height / 1000.0;
+
+              if (state->display_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN)
+                {
+                  task->center.y = mc.y;
+                  task->center.x = mc.x;
+                  task->dx = mw;
+                  task->dy = mh;
+
+                  if (mark->source0 == state->lsource)
+                    task->center.x *= -1;
+
+                }
+              else if (state->display_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER)
+                {
+                  task->center.y = - mc.x;
+                  task->center.x = mc.y;
+                  task->dx = mh;
+                  task->dy = mw;
+                }
+
+              list = g_list_prepend (list, task);
+
+              /* Убираем из ХТ без удаления ключа и стуктуры, т.к.
+               * выше используются их указатели. */
+              g_hash_table_iter_steal (&iter);
             }
-          else if (state->display_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER)
-            {
-              task->center.y = - mc.x;
-              task->center.x = mc.y;
-              task->dx = mh;
-              task->dy = mw;
-            }
-
-          list = g_list_prepend (list, task);
-
-          /* Убираем из ХТ без удаления ключа и стуктуры, т.к.
-           * выше используются их указатели. */
-          g_hash_table_steal (marks, id);
         }
 
+      /* 3. Теперь сливаем список заданий и список меток в БД. */
+      for (link = tasks; link != NULL; link = next)
+        {
+          GList *found;
+          next = link->next;
+          task = link->data;
+
+          /* Create - просто вставляем созданную метку.
+           * Modify - находим такую же и заменяем.
+           * Remove - находим такую же и удаляем. */
+          if (task->action == TASK_CREATE)
+            {
+              tasks = g_list_remove_link (tasks, link);
+              list = g_list_concat (list, link);
+            }
+          else if (task->action == TASK_MODIFY)
+            {
+              found = g_list_find_custom (list, link->data,
+                                          hyscan_gtk_waterfall_mark_find_by_id);
+              if (found != NULL)
+                {
+                  list = g_list_remove_link (list, found);
+                  g_list_free_full (found, hyscan_gtk_waterfall_mark_free_task);
+                  tasks = g_list_remove_link (tasks, link);
+                  list = g_list_concat (list, link);
+                }
+            }
+          else
+            if (task->action == TASK_REMOVE)
+            {
+              found = g_list_find_custom (list, link->data,
+                                          hyscan_gtk_waterfall_mark_find_by_id);
+              if (found != NULL)
+                {
+                  list = g_list_remove_link (list, found);
+                  g_list_free_full (found, hyscan_gtk_waterfall_mark_free_task);
+                }
+            }
+        }
+
+      /* Очищаем скопированное на шаге 0.*/
+      g_list_free_full (tasks, hyscan_gtk_waterfall_mark_free_task);
+      tasks = NULL;
       g_clear_pointer (&marks, g_hash_table_unref);
 
+      /* Переписываем drawable. */
       g_mutex_lock (&priv->drawable_lock);
+
       g_list_free_full (priv->drawable, hyscan_gtk_waterfall_mark_free_task);
       priv->drawable = list;
       list = NULL;
       g_mutex_unlock (&priv->drawable_lock);
+
       hyscan_gtk_waterfall_queue_draw (priv->wfall);
     }
 
@@ -920,7 +1002,6 @@ hyscan_gtk_waterfall_mark_find_closest (HyScanGtkWaterfallMark *self,
           returnable = corner;
           mlink = link;
         }
-
     }
 
   if (point != NULL)
@@ -952,7 +1033,7 @@ hyscan_gtk_waterfall_mark_handle (HyScanGtkWaterfallState *state,
   if (!priv->layer_visibility)
     return NULL;
 
-  if (hyscan_gtk_waterfall_tools_distance(&priv->press, &mouse) > 2)
+  if (hyscan_gtk_waterfall_tools_distance (&priv->press, &mouse) > 2)
     return NULL;
 
   /* Предполагается, что редактировать можно только метки в БД.
@@ -964,23 +1045,23 @@ hyscan_gtk_waterfall_mark_handle (HyScanGtkWaterfallState *state,
 
   task = link->data;
 
-  rc = hyscan_gtk_waterfall_tools_distance(&task->px_center, &mouse);
+  rc = hyscan_gtk_waterfall_tools_distance (&task->px_center, &mouse);
 
   corner.x = task->px_center.x - task->px_dx;
   corner.y = task->px_center.y - task->px_dy;
-  rtl = hyscan_gtk_waterfall_tools_distance(&corner, &mouse);
+  rtl = hyscan_gtk_waterfall_tools_distance (&corner, &mouse);
 
   corner.x = task->px_center.x + task->px_dx;
   corner.y = task->px_center.y - task->px_dy;
-  rtr = hyscan_gtk_waterfall_tools_distance(&corner, &mouse);
+  rtr = hyscan_gtk_waterfall_tools_distance (&corner, &mouse);
 
   corner.x = task->px_center.x - task->px_dx;
   corner.y = task->px_center.y + task->px_dy;
-  rbl = hyscan_gtk_waterfall_tools_distance(&corner, &mouse);
+  rbl = hyscan_gtk_waterfall_tools_distance (&corner, &mouse);
 
   corner.x = task->px_center.x + task->px_dx;
   corner.y = task->px_center.y + task->px_dy;
-  rbr = hyscan_gtk_waterfall_tools_distance(&corner, &mouse);
+  rbr = hyscan_gtk_waterfall_tools_distance (&corner, &mouse);
 
 
   if (rc < MIN (MIN(rtl, rtr), MIN(rbl, rbr)))
@@ -989,10 +1070,10 @@ hyscan_gtk_waterfall_mark_handle (HyScanGtkWaterfallState *state,
     mode = LOCAL_EDIT_BORDER;
 
   /* Очищаем current, чтобы ничего не текло. */
-  hyscan_gtk_waterfall_mark_clear_task (&priv->current);
-
   /* Переписываем редактируемую метку из общего списка в current. */
+  hyscan_gtk_waterfall_mark_clear_task (&priv->current);
   hyscan_gtk_waterfall_mark_copy_task (task, &priv->current);
+
   priv->current.action = TASK_MODIFY;
   priv->mode = mode;
   priv->mouse_mode = mode;
@@ -1061,7 +1142,7 @@ hyscan_gtk_waterfall_mark_mouse_interaction_processor (GtkWidget              *w
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
   HyScanGtkWaterfallMarkTask *task = NULL;
   /* Мы оказываемся в этой функции только когда функция
-   * hyscan_gtk_waterfall_mark_mouse_button_release решила,
+   * hyscan_gtk_waterfall_mark_button решила,
    * что мы имеем право обработать это воздействие.
    *
    * priv->mode фактически показывает, каким будет состояние ПЕРЕД
@@ -1112,10 +1193,7 @@ hyscan_gtk_waterfall_mark_mouse_interaction_processor (GtkWidget              *w
     }
   else if (priv->mode == LOCAL_EDIT || priv->mode == LOCAL_CREATE)
     {
-
-      task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
-
-      hyscan_gtk_waterfall_mark_copy_task (&priv->current, task);
+      task = hyscan_gtk_waterfall_mark_dup_task (&priv->current);
 
       priv->mouse_mode = priv->mode = LOCAL_EMPTY;
       hyscan_gtk_waterfall_state_set_handle_grabbed (priv->wf_state, NULL);
@@ -1154,9 +1232,15 @@ reset:
 
   if (task != NULL)
     {
+      /* Запихиваем в задания и отрисовываемые. */
       g_mutex_lock (&priv->task_lock);
       priv->tasks = g_list_prepend (priv->tasks, task);
       g_mutex_unlock (&priv->task_lock);
+
+      g_mutex_lock (&priv->drawable_lock);
+      priv->drawable = g_list_prepend (priv->drawable, hyscan_gtk_waterfall_mark_dup_task (task));
+      inspectsdsd (priv->drawable);
+      g_mutex_unlock (&priv->drawable_lock);
 
       g_atomic_int_inc (&priv->cond_flag);
       g_cond_signal (&priv->cond);
@@ -1425,40 +1509,36 @@ hyscan_gtk_waterfall_mark_draw (GtkWidget              *widget,
 
   /* Отрисовываем drawable. */
   g_mutex_lock (&priv->drawable_lock);
+  inspectsdsd (priv->drawable);
   for (link = priv->drawable; link != NULL; link = link->next)
     {
-      gboolean visible;
+      gboolean visible, pending;
       HyScanGtkWaterfallMarkTask *task;
       HyScanGtkWaterfallMarkTask *new_task;
 
       task = link->data;
 
       /* Фильтруем по лейблу. */
-      if (task->mark->labels != 0 && !(task->mark->labels & priv->mark_filter))
+
+      if (task->mark != NULL && task->mark->labels != 0 && !(task->mark->labels & priv->mark_filter))
         continue;
 
       /* Отрисовываем метку. */
-      visible = hyscan_gtk_waterfall_mark_draw_task (self, cairo, task, FALSE, FALSE);
+      pending = task->action != TASK_NONE;
+      visible = hyscan_gtk_waterfall_mark_draw_task (self, cairo, task, FALSE, pending);
 
       /* Если она не видима, движемся дальше.*/
       if (!visible)
         continue;
 
       /* Иначе добавляем в список видимых.*/
-      new_task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
-      hyscan_gtk_waterfall_mark_copy_task (task, new_task);
-      priv->visible = g_list_prepend (priv->visible, new_task);
+      if (!pending)
+        {
+          new_task = hyscan_gtk_waterfall_mark_dup_task (task);
+          priv->visible = g_list_prepend (priv->visible, new_task);
+        }
     }
   g_mutex_unlock (&priv->drawable_lock);
-
-  /* Отрисовываем те метки, которые ещё не в БД. */
-  g_mutex_lock (&priv->task_lock);
-  for (link = priv->tasks; link != NULL; link = link->next)
-    {
-      HyScanGtkWaterfallMarkTask *task = link->data;
-      hyscan_gtk_waterfall_mark_draw_task (self, cairo, task, FALSE, TRUE);
-    }
-  g_mutex_unlock (&priv->task_lock);
 
   /* Отрисовываем current метку. */
   if (priv->mode == LOCAL_EMPTY)

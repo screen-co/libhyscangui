@@ -642,7 +642,6 @@ hyscan_gtk_waterfall_meter_draw (GtkWidget               *widget,
    * TODO: возможно, имеет смысл обновлять только когда реально поменялись параметры отображения
    * для этого надо ловить изменение вью/скейла, а на обычный мышевоз не реагировать
    */
-
   GList *link;
   HyScanGtkWaterfallMeterPrivate *priv = self->priv;
 
