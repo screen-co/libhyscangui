@@ -32,7 +32,7 @@ struct _HyScanGtkMapRulerClass
 GType                  hyscan_gtk_map_ruler_get_type         (void);
 
 HYSCAN_API
-HyScanGtkMapRuler *    hyscan_gtk_map_ruler_new              (HyScanGtkMap *map);
+HyScanGtkMapRuler *    hyscan_gtk_map_ruler_new              ();
 
 G_END_DECLS
 

@@ -29,14 +29,7 @@ struct _HyScanGtkMapGridClass
 };
 
 HYSCAN_API
-void                   hyscan_gtk_map_grid_set_active (HyScanGtkMapGrid   *grid,
-                                                       gboolean            active);
-
-HYSCAN_API
-gboolean               hyscan_gtk_map_grid_is_active  (HyScanGtkMapGrid   *grid);
-
-HYSCAN_API
-HyScanGtkMapGrid *     hyscan_gtk_map_grid_new        (HyScanGtkMap       *map);
+HyScanGtkMapGrid *     hyscan_gtk_map_grid_new        (void);
 
 
 G_END_DECLS

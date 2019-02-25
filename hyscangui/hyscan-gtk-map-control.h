@@ -31,7 +31,7 @@ struct _HyScanGtkMapControlClass
 GType                  hyscan_gtk_map_control_get_type         (void);
 
 HYSCAN_API
-HyScanGtkMapControl *  hyscan_gtk_map_control_new (HyScanGtkMap *map);
+HyScanGtkMapControl *  hyscan_gtk_map_control_new              (void);
 
 G_END_DECLS
 

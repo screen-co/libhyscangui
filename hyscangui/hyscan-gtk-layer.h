@@ -22,10 +22,11 @@ struct _HyScanGtkLayerInterface
 
   void               (*added)            (HyScanGtkLayer          *gtk_layer,
                                           HyScanGtkLayerContainer *container);
-  void               (*grab_input)       (HyScanGtkLayer          *layer);     /* todo: implement. */
-  void               (*set_visible)      (HyScanGtkLayer          *layer,      /* todo: implement. */
+  void               (*grab_input)       (HyScanGtkLayer          *layer);
+  void               (*set_visible)      (HyScanGtkLayer          *layer,
                                           gboolean                 visible);
-  const gchar *      (*get_mnemonic)     (HyScanGtkLayer          *layer);     /* todo: implement. */
+  gboolean           (*get_visible)      (HyScanGtkLayer          *layer);
+  const gchar *      (*get_icon)         (HyScanGtkLayer          *layer);
 };
 
 HYSCAN_API
@@ -37,11 +38,13 @@ void          hyscan_gtk_layer_added                  (HyScanGtkLayer          *
 
 HYSCAN_API
 void          hyscan_gtk_layer_set_visible            (HyScanGtkLayer          *layer,
-                                                       HyScanGtkLayerContainer *event);
+                                                       gboolean                 visible);
 
 HYSCAN_API
-void          hyscan_gtk_layer_get_mnemonic           (HyScanGtkLayer          *layer,
-                                                       HyScanGtkLayerContainer *event);
+gboolean      hyscan_gtk_layer_get_visible            (HyScanGtkLayer          *layer);
+
+HYSCAN_API
+const gchar * hyscan_gtk_layer_get_icon (HyScanGtkLayer *layer);
 
 G_END_DECLS
 

@@ -66,6 +66,7 @@ static void                 hyscan_gtk_map_tiles_set_property             (GObje
                                                                            guint                     prop_id,
                                                                            const GValue             *value,
                                                                            GParamSpec               *pspec);
+static void                 hyscan_gtk_map_tiles_interface_init           (HyScanGtkLayerInterface  *iface);
 static void                 hyscan_gtk_map_tiles_object_constructed       (GObject                  *object);
 static void                 hyscan_gtk_map_tiles_object_finalize          (GObject                  *object);
 static void                 hyscan_gtk_map_tiles_draw                     (HyScanGtkMapTiles        *layer,
@@ -113,7 +114,9 @@ static void                 hyscan_gtk_map_tiles_value_to_tile            (HySca
 static gboolean             hyscan_gtk_map_tiles_cache_get                (HyScanGtkMapTilesPrivate *priv,
                                                                            HyScanGtkMapTile         *tile);
 
-G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMapTiles, hyscan_gtk_map_tiles, G_TYPE_OBJECT)
+G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapTiles, hyscan_gtk_map_tiles, G_TYPE_OBJECT,
+                         G_ADD_PRIVATE (HyScanGtkMapTiles)
+                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_LAYER, hyscan_gtk_map_tiles_interface_init))
 
 static void
 hyscan_gtk_map_tiles_class_init (HyScanGtkMapTilesClass *klass)
@@ -125,10 +128,6 @@ hyscan_gtk_map_tiles_class_init (HyScanGtkMapTilesClass *klass)
   object_class->constructed = hyscan_gtk_map_tiles_object_constructed;
   object_class->finalize = hyscan_gtk_map_tiles_object_finalize;
 
-  g_object_class_install_property (object_class, PROP_MAP,
-                                   g_param_spec_object ("map", "Map", "GtkMap object",
-                                                        HYSCAN_TYPE_GTK_MAP,
-                                                        G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_CACHE,
                                    g_param_spec_object ("cache", "Cache", "Cache object",
                                                         HYSCAN_TYPE_CACHE,
@@ -156,10 +155,6 @@ hyscan_gtk_map_tiles_set_property (GObject      *object,
 
   switch (prop_id)
     {
-    case PROP_MAP:
-      priv->map = g_value_dup_object (value);
-      break;
-
     case PROP_SOURCE:
       priv->source = g_value_dup_object (value);
       break;
@@ -192,10 +187,6 @@ hyscan_gtk_map_tiles_object_constructed (GObject *object)
 
   priv->preload_margin = 3;
   g_mutex_init (&priv->filled_lock);
-
-  /* Подключаемся к сигналу обновления видимой области карты. */
-  g_signal_connect_swapped (priv->map, "visible-draw",
-                            G_CALLBACK (hyscan_gtk_map_tiles_draw), gtk_map_tiles);
 }
 
 static void
@@ -209,8 +200,8 @@ hyscan_gtk_map_tiles_object_finalize (GObject *object)
 
   /* Освобождаем память. */
   g_clear_pointer (&priv->surface, cairo_surface_destroy);
+  g_clear_object (&priv->map);
   g_object_unref (priv->task_queue);
-  g_object_unref (priv->map);
   g_object_unref (priv->source);
   g_object_unref (priv->cache);
   g_object_unref (priv->cache_buffer);
@@ -218,6 +209,32 @@ hyscan_gtk_map_tiles_object_finalize (GObject *object)
   g_mutex_clear (&priv->filled_lock);
 
   G_OBJECT_CLASS (hyscan_gtk_map_tiles_parent_class)->finalize (object);
+}
+
+/* Реализация HyScanGtlLayerInterface.added() - подключается к сигналам виджета карты. */
+static void
+hyscan_gtk_map_tiles_added (HyScanGtkLayer          *gtk_layer,
+                            HyScanGtkLayerContainer *container)
+{
+  HyScanGtkMapTilesPrivate *priv = HYSCAN_GTK_MAP_TILES (gtk_layer)->priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
+
+  priv->map = g_object_ref (container);
+
+  /* Подключаемся к сигналу обновления видимой области карты. */
+  g_signal_connect_swapped (priv->map, "visible-draw",
+                            G_CALLBACK (hyscan_gtk_map_tiles_draw), gtk_layer);
+}
+
+static void
+hyscan_gtk_map_tiles_interface_init (HyScanGtkLayerInterface *iface)
+{
+  iface->get_visible = NULL;
+  iface->set_visible = NULL;
+  iface->added = hyscan_gtk_map_tiles_added;
+  iface->grab_input = NULL;
+  iface->get_icon = NULL;
 }
 
 /* Помещает в кэш информацию о тайле. */
@@ -841,12 +858,10 @@ hyscan_gtk_map_tiles_draw (HyScanGtkMapTiles *layer,
  * Returns: указатель на #HyScanGtkMapTiles. Для удаления g_object_unref().
  */
 HyScanGtkMapTiles *
-hyscan_gtk_map_tiles_new (HyScanGtkMap            *map,
-                          HyScanCache             *cache,
-                          HyScanGtkMapTileSource *source)
+hyscan_gtk_map_tiles_new (HyScanCache             *cache,
+                          HyScanGtkMapTileSource  *source)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_TILES,
-                       "map", map,
                        "cache", cache,
                        "source", source, NULL);
 }

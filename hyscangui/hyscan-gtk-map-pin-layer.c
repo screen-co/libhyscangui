@@ -18,7 +18,6 @@ typedef enum
 struct _HyScanGtkMapPinLayerPrivate
 {
   HyScanGtkMap              *map;                      /* Виджет карты. */
-  HyScanGtkLayerContainer   *container;
 
   PangoLayout               *pango_layout;             /* Раскладка шрифта. */
 
@@ -31,7 +30,7 @@ struct _HyScanGtkMapPinLayerPrivate
   gdouble                    radius;                   /* Радиус точки - вершины ломаной. */
   GdkRGBA                   *color;                    /* Цвет элементов. */
 
-  gboolean                   active;                   /* Признак того, что слой активен. */
+  gboolean                   visible;                  /* Признак того, что слой виден. */
 };
 
 static void          hyscan_gtk_map_pin_layer_set_property              (GObject                     *object,
@@ -79,9 +78,6 @@ hyscan_gtk_map_pin_layer_class_init (HyScanGtkMapPinLayerClass *klass)
 
   klass->draw = hyscan_gtk_map_pin_layer_draw_pins;
 
-  g_object_class_install_property (object_class, PROP_MAP,
-    g_param_spec_object ("map", "Map", "HyScanGtkMap widget", HYSCAN_TYPE_GTK_MAP,
-                         G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_COLOR,
     g_param_spec_boxed ("color", "Color", "GdkRGBA", GDK_TYPE_RGBA,
                          G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
@@ -157,21 +153,11 @@ hyscan_gtk_map_pin_layer_object_constructed (GObject *object)
   if (priv->color == NULL)
     {
       GdkRGBA default_color;
-      gdk_rgba_parse (&default_color, "#000000");
+      gdk_rgba_parse (&default_color, "#ffffff");
       priv->color = gdk_rgba_copy (&default_color);
     }
 
-  /* Подключаемся к сигналам перерисовки видимой области карты. */
-  g_signal_connect_swapped (priv->map, "visible-draw",
-                            G_CALLBACK (hyscan_gtk_map_pin_layer_draw), gtk_map_pin_layer);
-
-  g_signal_connect_swapped (priv->map, "configure-event",
-                            G_CALLBACK (hyscan_gtk_map_pin_layer_configure), gtk_map_pin_layer);
-
-  g_signal_connect_swapped (priv->map, "button-release-event",
-                             G_CALLBACK (hyscan_gtk_map_pin_layer_interact), gtk_map_pin_layer);
-   g_signal_connect_swapped (priv->map, "motion-notify-event",
-                             G_CALLBACK (hyscan_gtk_map_pin_layer_motion), gtk_map_pin_layer);
+  hyscan_gtk_layer_set_visible (HYSCAN_GTK_LAYER (gtk_map_pin_layer), TRUE);
 }
 
 static gpointer
@@ -189,14 +175,57 @@ static void
 hyscan_gtk_map_pin_layer_added (HyScanGtkLayer          *gtk_layer,
                                 HyScanGtkLayerContainer *container)
 {
-  HYSCAN_GTK_MAP_PIN_LAYER (gtk_layer)->priv->container = container;
+  HyScanGtkMapPinLayerPrivate *priv = HYSCAN_GTK_MAP_PIN_LAYER (gtk_layer)->priv;
+
+  /* Проверяем, что контенейнер - это карта. */
+  g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
+
+  priv->map = g_object_ref (container);
+
+  /* Сигналы контейнера. */
   g_signal_connect (container, "handle", G_CALLBACK (hyscan_gtk_map_pin_layer_handle), gtk_layer);
+
+  /* Подключаемся к сигналам перерисовки видимой области карты. */
+  g_signal_connect_swapped (container, "visible-draw",
+                            G_CALLBACK (hyscan_gtk_map_pin_layer_draw), gtk_layer);
+
+  /* Сигналы GtkWidget. */
+  g_signal_connect_swapped (container, "configure-event",
+                            G_CALLBACK (hyscan_gtk_map_pin_layer_configure), gtk_layer);
+  g_signal_connect_swapped (container, "button-release-event",
+                             G_CALLBACK (hyscan_gtk_map_pin_layer_interact), gtk_layer);
+  g_signal_connect_swapped (container, "motion-notify-event",
+                            G_CALLBACK (hyscan_gtk_map_pin_layer_motion), gtk_layer);
+}
+
+static void
+hyscan_gtk_map_pin_layer_set_visible (HyScanGtkLayer *layer,
+                                      gboolean        visible)
+{
+  HyScanGtkMapPinLayer *pin_layer = HYSCAN_GTK_MAP_PIN_LAYER (layer);
+  HyScanGtkMapPinLayerPrivate *priv = pin_layer->priv;
+
+  priv->visible = visible;
+
+  if (priv->map != NULL)
+    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+}
+
+static gboolean
+hyscan_gtk_map_pin_layer_get_visible (HyScanGtkLayer *layer)
+{
+  HyScanGtkMapPinLayer *pin_layer = HYSCAN_GTK_MAP_PIN_LAYER (layer);
+  HyScanGtkMapPinLayerPrivate *priv = pin_layer->priv;
+
+  return priv->visible;
 }
 
 static void
 hyscan_gtk_map_pin_layer_interface_init (HyScanGtkLayerInterface *iface)
 {
   iface->added = hyscan_gtk_map_pin_layer_added;
+  iface->set_visible = hyscan_gtk_map_pin_layer_set_visible;
+  iface->get_visible = hyscan_gtk_map_pin_layer_get_visible;
 }
 
 static void
@@ -266,9 +295,7 @@ static void
 hyscan_gtk_map_pin_layer_draw (HyScanGtkMapPinLayer *pin_layer,
                                cairo_t           *cairo)
 {
-  HyScanGtkMapPinLayerPrivate *priv = pin_layer->priv;
-
-  if (FALSE /* рисуем всегда. */ && !priv->active)
+  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (pin_layer)))
     return;
 
   HYSCAN_GTK_MAP_PIN_LAYER_GET_CLASS (pin_layer)->draw (pin_layer, cairo);
@@ -327,6 +354,7 @@ hyscan_gtk_map_pin_layer_interact (HyScanGtkLayer *layer,
                                    GdkEvent       *event)
 {
   HyScanGtkMapPinLayerPrivate *priv = HYSCAN_GTK_MAP_PIN_LAYER (layer)->priv;
+  HyScanGtkLayerContainer *container;
 
   GdkEventButton *event_btn;
   gconstpointer iowner;
@@ -341,9 +369,9 @@ hyscan_gtk_map_pin_layer_interact (HyScanGtkLayer *layer,
   if (event_btn->button != GDK_BUTTON_PRIMARY)
     return GDK_EVENT_PROPAGATE;
 
-
-  iowner = hyscan_gtk_layer_container_get_input_owner (priv->container);
-  howner = hyscan_gtk_layer_container_get_handle_grabbed (priv->container);
+  container = HYSCAN_GTK_LAYER_CONTAINER (priv->map);
+  iowner = hyscan_gtk_layer_container_get_input_owner (container);
+  howner = hyscan_gtk_layer_container_get_handle_grabbed (container);
 
   switch (priv->mode)
     {
@@ -357,7 +385,7 @@ hyscan_gtk_map_pin_layer_interact (HyScanGtkLayer *layer,
           priv->hover_point = hyscan_gtk_map_point_copy (&point);
           priv->points = g_list_append (priv->points, priv->hover_point);
           priv->mode = MODE_NONE;
-          hyscan_gtk_layer_container_set_handle_grabbed (priv->container, NULL);
+          hyscan_gtk_layer_container_set_handle_grabbed (container, NULL);
           gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 
           return GDK_EVENT_STOP;
@@ -366,7 +394,7 @@ hyscan_gtk_map_pin_layer_interact (HyScanGtkLayer *layer,
         /* Курсор над точкой - начинаем её перетаскивать. */
         {
           priv->mode = MODE_DRAG;
-          hyscan_gtk_layer_container_set_handle_grabbed (priv->container, layer);
+          hyscan_gtk_layer_container_set_handle_grabbed (container, layer);
           gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 
           return GDK_EVENT_STOP;
@@ -377,7 +405,7 @@ hyscan_gtk_map_pin_layer_interact (HyScanGtkLayer *layer,
     case MODE_DRAG:
       priv->mode = MODE_NONE;
 
-      hyscan_gtk_layer_container_set_handle_grabbed (priv->container, NULL);
+      hyscan_gtk_layer_container_set_handle_grabbed (container, NULL);
       return GDK_EVENT_STOP; /* Нажатие обработано. */
     }
 
@@ -394,11 +422,9 @@ hyscan_gtk_map_pin_layer_interact (HyScanGtkLayer *layer,
  * Returns: новый объект #HyScanGtkMapPinLayer. Для удаления g_object_unref().
  */
 HyScanGtkMapPinLayer *
-hyscan_gtk_map_pin_layer_new (HyScanGtkMap *map,
-                              GdkRGBA     *color)
+hyscan_gtk_map_pin_layer_new (GdkRGBA     *color)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_PIN_LAYER,
-                       "map", map,
                        "color", color, NULL);
 }
 
@@ -416,14 +442,6 @@ hyscan_gtk_map_pin_layer_clear (HyScanGtkMapPinLayer *pin_layer)
   g_list_free_full (priv->points, (GDestroyNotify) hyscan_gtk_map_point_free);
   priv->points = NULL;
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
-}
-
-gboolean
-hyscan_gtk_map_pin_layer_is_active (HyScanGtkMapPinLayer *pin_layer)
-{
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_PIN_LAYER (pin_layer), FALSE);
-
-  return pin_layer->priv->active;
 }
 
 GList *

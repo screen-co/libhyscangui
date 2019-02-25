@@ -56,10 +56,6 @@ hyscan_gtk_map_control_class_init (HyScanGtkMapControlClass *klass)
   object_class->set_property = hyscan_gtk_map_control_set_property;
   object_class->constructed = hyscan_gtk_map_control_object_constructed;
   object_class->finalize = hyscan_gtk_map_control_object_finalize;
-
-  g_object_class_install_property (object_class, PROP_MAP,
-    g_param_spec_object ("map", "Map", "HyScanGtkMap widget", HYSCAN_TYPE_GTK_MAP,
-                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
@@ -96,12 +92,6 @@ hyscan_gtk_map_control_object_constructed (GObject *object)
   HyScanGtkMapControlPrivate *priv = gtk_map_control->priv;
 
   G_OBJECT_CLASS (hyscan_gtk_map_control_parent_class)->constructed (object);
-
-  /* Обработчики взаимодействия мышки пользователя с картой. */
-  g_signal_connect_swapped (priv->map, "button-press-event",    G_CALLBACK (hyscan_gtk_map_control_button_press_release), gtk_map_control);
-  g_signal_connect_swapped (priv->map, "button-release-event",  G_CALLBACK (hyscan_gtk_map_control_button_press_release), gtk_map_control);
-  g_signal_connect_swapped (priv->map, "motion-notify-event",   G_CALLBACK (hyscan_gtk_map_control_motion), gtk_map_control);
-  g_signal_connect_swapped (priv->map, "scroll-event",          G_CALLBACK (hyscan_gtk_map_control_scroll), gtk_map_control);
 }
 
 static void
@@ -121,8 +111,17 @@ hyscan_gtk_map_control_added (HyScanGtkLayer          *gtk_layer,
                               HyScanGtkLayerContainer *container)
 {
   HyScanGtkMapControl *gtk_map_control = HYSCAN_GTK_MAP_CONTROL (gtk_layer);
+  HyScanGtkMapControlPrivate *priv = gtk_map_control->priv;
 
-  gtk_map_control->priv->container = g_object_ref (container);
+  g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
+
+  priv->map = g_object_ref (container);
+
+  /* Обработчики взаимодействия мышки пользователя с картой. */
+  g_signal_connect_swapped (priv->map, "button-press-event",    G_CALLBACK (hyscan_gtk_map_control_button_press_release), gtk_map_control);
+  g_signal_connect_swapped (priv->map, "button-release-event",  G_CALLBACK (hyscan_gtk_map_control_button_press_release), gtk_map_control);
+  g_signal_connect_swapped (priv->map, "motion-notify-event",   G_CALLBACK (hyscan_gtk_map_control_motion), gtk_map_control);
+  g_signal_connect_swapped (priv->map, "scroll-event",          G_CALLBACK (hyscan_gtk_map_control_scroll), gtk_map_control);
 }
 
 static void
@@ -285,7 +284,7 @@ hyscan_gtk_map_control_button_press_release (HyScanGtkMapControl *control,
  * Returns:
  */
 HyScanGtkMapControl *
-hyscan_gtk_map_control_new (HyScanGtkMap *map)
+hyscan_gtk_map_control_new (void)
 {
-  return g_object_new (HYSCAN_TYPE_GTK_MAP_CONTROL, "map", map, NULL);
+  return g_object_new (HYSCAN_TYPE_GTK_MAP_CONTROL, NULL);
 }

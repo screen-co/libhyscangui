@@ -38,6 +38,7 @@ static void                     hyscan_gtk_map_ruler_set_property             (G
                                                                                GParamSpec               *pspec);
 static void                     hyscan_gtk_map_ruler_object_constructed       (GObject                  *object);
 static void                     hyscan_gtk_map_ruler_object_finalize          (GObject                  *object);
+static void                     hyscan_gtk_map_ruler_interface_init           (HyScanGtkLayerInterface  *iface);
 static void                     hyscan_gtk_map_ruler_draw                     (HyScanGtkMapRuler        *ruler,
                                                                                cairo_t                  *cairo);
 static gboolean                 hyscan_gtk_map_ruler_button_press_release     (HyScanGtkMapRuler        *ruler,
@@ -81,7 +82,11 @@ static void                     hyscan_gtk_map_ruler_draw_label               (H
 static void                     hyscan_gtk_map_ruler_draw_impl                (HyScanGtkMapPinLayer     *priv,
                                                                                cairo_t                  *cairo);
 
-G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMapRuler, hyscan_gtk_map_ruler, HYSCAN_TYPE_GTK_MAP_PIN_LAYER)
+static HyScanGtkLayerInterface *hyscan_gtk_layer_parent_interface = NULL;
+
+G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapRuler, hyscan_gtk_map_ruler, HYSCAN_TYPE_GTK_MAP_PIN_LAYER,
+                         G_ADD_PRIVATE (HyScanGtkMapRuler)
+                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_LAYER, hyscan_gtk_map_ruler_interface_init))
 
 static void
 hyscan_gtk_map_ruler_class_init (HyScanGtkMapRulerClass *klass)
@@ -128,25 +133,9 @@ hyscan_gtk_map_ruler_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_gtk_map_ruler_parent_class)->constructed (object);
 
-  g_object_get (gtk_map_ruler,
-                "map", &priv->map,
-                "color", &priv->color,
-                NULL);
+  g_object_get (gtk_map_ruler, "color", &priv->color, NULL);
   priv->radius = 3.0;
   priv->line_width = 1.0;
-
-  /* Подключаемся к сигналам перерисовки видимой области карты. */
-  // g_signal_connect_swapped (priv->map, "visible-draw",
-  //                           G_CALLBACK (hyscan_gtk_map_ruler_draw), gtk_map_ruler);
-  //
-  g_signal_connect (priv->map, "configure-event",
-                    G_CALLBACK (hyscan_gtk_map_ruler_configure), gtk_map_ruler);
-  // g_signal_connect_swapped (priv->map, "button-press-event",
-  //                           G_CALLBACK (hyscan_gtk_map_ruler_button_press_release), gtk_map_ruler);
-  // g_signal_connect_swapped (priv->map, "button-release-event",
-  //                           G_CALLBACK (hyscan_gtk_map_ruler_button_press_release), gtk_map_ruler);
-  g_signal_connect_swapped (priv->map, "motion-notify-event",
-                            G_CALLBACK (hyscan_gtk_map_ruler_motion), gtk_map_ruler);
 }
 
 static void
@@ -161,6 +150,41 @@ hyscan_gtk_map_ruler_object_finalize (GObject *object)
   g_clear_pointer (&priv->color, gdk_rgba_free);
 
   G_OBJECT_CLASS (hyscan_gtk_map_ruler_parent_class)->finalize (object);
+}
+
+static void
+hyscan_gtk_map_ruler_added (HyScanGtkLayer          *gtk_layer,
+                            HyScanGtkLayerContainer *container)
+{
+  HyScanGtkMapRulerPrivate *priv = HYSCAN_GTK_MAP_RULER (gtk_layer)->priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
+
+  /* Выполняем реализацию в родительском классе. */
+  hyscan_gtk_layer_parent_interface->added (gtk_layer, container);
+
+  priv->map = HYSCAN_GTK_MAP (container);
+
+  /* Подключаемся к сигналам перерисовки видимой области карты. */
+  // g_signal_connect_swapped (priv->map, "visible-draw",
+  //                           G_CALLBACK (hyscan_gtk_map_ruler_draw), gtk_map_ruler);
+  //
+  g_signal_connect (priv->map, "configure-event",
+                    G_CALLBACK (hyscan_gtk_map_ruler_configure), gtk_layer);
+  // g_signal_connect_swapped (priv->map, "button-press-event",
+  //                           G_CALLBACK (hyscan_gtk_map_ruler_button_press_release), gtk_map_ruler);
+  // g_signal_connect_swapped (priv->map, "button-release-event",
+  //                           G_CALLBACK (hyscan_gtk_map_ruler_button_press_release), gtk_map_ruler);
+  g_signal_connect_swapped (priv->map, "motion-notify-event",
+                            G_CALLBACK (hyscan_gtk_map_ruler_motion), gtk_layer);
+}
+
+static void
+hyscan_gtk_map_ruler_interface_init (HyScanGtkLayerInterface *iface)
+{
+  hyscan_gtk_layer_parent_interface = g_type_interface_peek_parent (iface);
+
+  iface->added = hyscan_gtk_map_ruler_added;
 }
 
 /* Обработка сигнала "configure-event" виджета карты. */
@@ -505,9 +529,6 @@ hyscan_gtk_map_ruler_motion (HyScanGtkMapRuler *ruler,
 {
   HyScanGtkMapRulerPrivate *priv = ruler->priv;
 
-  if (!hyscan_gtk_map_pin_layer_is_active (HYSCAN_GTK_MAP_PIN_LAYER (ruler)))
-    return FALSE;
-
   if (FALSE && priv->drag_point)
     hyscan_gtk_map_ruler_motion_drag (priv, event, priv->drag_point);
   else
@@ -619,9 +640,6 @@ hyscan_gtk_map_ruler_button_press_release (HyScanGtkMapRuler *ruler,
 {
   HyScanGtkMapRulerPrivate *priv = ruler->priv;
 
-  if (!hyscan_gtk_map_pin_layer_is_active (HYSCAN_GTK_MAP_PIN_LAYER (ruler)))
-    return FALSE;
-
   /* Обрабатываем только нажатия левой кнопки. */
   if (event->button != 1)
     return FALSE;
@@ -642,7 +660,7 @@ hyscan_gtk_map_ruler_button_press_release (HyScanGtkMapRuler *ruler,
  * Returns: новый объект #HyScanGtkMapRuler. Для удаления g_object_unref().
  */
 HyScanGtkMapRuler *
-hyscan_gtk_map_ruler_new (HyScanGtkMap *map)
+hyscan_gtk_map_ruler_new ()
 {
-  return g_object_new (HYSCAN_TYPE_GTK_MAP_RULER, "map", map, NULL);
+  return g_object_new (HYSCAN_TYPE_GTK_MAP_RULER, NULL);
 }

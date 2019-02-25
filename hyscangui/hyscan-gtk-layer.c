@@ -26,7 +26,6 @@ hyscan_gtk_layer_default_init (HyScanGtkLayerInterface *iface)
 {
 }
 
-
 void
 hyscan_gtk_layer_added (HyScanGtkLayer *layer,
                         HyScanGtkLayerContainer *event)
@@ -38,4 +37,45 @@ hyscan_gtk_layer_added (HyScanGtkLayer *layer,
   iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
   if (iface->added != NULL)
     (*iface->added) (layer, event);
+}
+
+void
+hyscan_gtk_layer_set_visible (HyScanGtkLayer *layer,
+                              gboolean visible)
+{
+  HyScanGtkLayerInterface *iface;
+
+  g_return_if_fail (HYSCAN_IS_GTK_LAYER (layer));
+
+  iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
+  if (iface->set_visible != NULL)
+    (*iface->set_visible) (layer, visible);
+}
+
+gboolean
+hyscan_gtk_layer_get_visible (HyScanGtkLayer *layer)
+{
+  HyScanGtkLayerInterface *iface;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_LAYER (layer), TRUE);
+
+  iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
+  if (iface->get_visible != NULL)
+    return (*iface->get_visible) (layer);
+
+  return TRUE;
+}
+
+const gchar *
+hyscan_gtk_layer_get_icon (HyScanGtkLayer *layer)
+{
+  HyScanGtkLayerInterface *iface;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_LAYER (layer), NULL);
+
+  iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
+  if (iface->get_icon != NULL)
+    return (*iface->get_icon) (layer);
+
+  return "image-missing";
 }

@@ -32,7 +32,6 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-map.c
              hyscan-gtk-map-tile.c
              hyscan-gtk-map-tiles.c
-             hyscan-gtk-map-float.c
              hyscan-gtk-map-tile-source.c
              hyscan-network-map-tile-source.c
              hyscan-gtk-map-fs-tile-source.c

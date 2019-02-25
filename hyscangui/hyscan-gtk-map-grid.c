@@ -28,30 +28,33 @@ struct _HyScanGtkMapGridPrivate
   guint                             points;             /* Количество точек, по которым строится линия сетки. */
   guint                             step_width;         /* Шаг сетки в пикселах. */
 
-  gboolean                          active;             /* Признак того, что сетка отображается. */
+  gboolean                          visible;            /* Признак того, что сетка отображается. */
 };
 
-static void    hyscan_gtk_map_grid_set_property             (GObject               *object,
-                                                             guint                  prop_id,
-                                                             const GValue          *value,
-                                                             GParamSpec            *pspec);
-static void    hyscan_gtk_map_grid_object_constructed       (GObject               *object);
-static void    hyscan_gtk_map_grid_object_finalize          (GObject               *object);
-static void    hyscan_gtk_map_grid_draw                     (HyScanGtkMapGrid      *grid,
-                                                             cairo_t               *cairo);
-static gboolean hyscan_gtk_map_grid_configure               (HyScanGtkMapGrid      *grid,
-                                                             GdkEvent              *screen);
-static void     hyscan_gtk_map_grid_border_size              (HyScanGtkMapGrid      *grid,
-                                                             guint                 *border_top,
-                                                             guint                 *border_bottom,
-                                                             guint                 *border_left,
-                                                             guint                 *border_right);
-static void     hyscan_gtk_map_grid_draw_grid               (HyScanGtkMapGrid      *grid,
-                                                             cairo_t               *cairo);
-static void     hyscan_gtk_map_grid_draw_scale              (HyScanGtkMapGrid      *grid,
-                                                             cairo_t               *cairo);
+static void     hyscan_gtk_map_grid_set_property            (GObject                 *object,
+                                                             guint                    prop_id,
+                                                             const GValue            *value,
+                                                             GParamSpec              *pspec);
+static void     hyscan_gtk_map_grid_object_constructed      (GObject                 *object);
+static void     hyscan_gtk_map_grid_object_finalize         (GObject                 *object);
+static void     hyscan_gtk_map_grid_interface_init          (HyScanGtkLayerInterface *iface);
+static void     hyscan_gtk_map_grid_draw                    (HyScanGtkMapGrid        *grid,
+                                                             cairo_t                 *cairo);
+static gboolean hyscan_gtk_map_grid_configure               (HyScanGtkMapGrid        *grid,
+                                                             GdkEvent                *screen);
+static void     hyscan_gtk_map_grid_border_size              (HyScanGtkMapGrid        *grid,
+                                                             guint                   *border_top,
+                                                             guint                   *border_bottom,
+                                                             guint                   *border_left,
+                                                             guint                   *border_right);
+static void     hyscan_gtk_map_grid_draw_grid               (HyScanGtkMapGrid        *grid,
+                                                             cairo_t                 *cairo);
+static void     hyscan_gtk_map_grid_draw_scale              (HyScanGtkMapGrid        *grid,
+                                                             cairo_t                 *cairo);
 
-G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMapGrid, hyscan_gtk_map_grid, G_TYPE_OBJECT)
+G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapGrid, hyscan_gtk_map_grid, G_TYPE_OBJECT,
+                         G_ADD_PRIVATE (HyScanGtkMapGrid)
+                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_LAYER, hyscan_gtk_map_grid_interface_init))
 
 static void
 hyscan_gtk_map_grid_class_init (HyScanGtkMapGridClass *klass)
@@ -62,10 +65,6 @@ hyscan_gtk_map_grid_class_init (HyScanGtkMapGridClass *klass)
 
   object_class->constructed = hyscan_gtk_map_grid_object_constructed;
   object_class->finalize = hyscan_gtk_map_grid_object_finalize;
-
-  g_object_class_install_property (object_class, PROP_MAP,
-    g_param_spec_object ("map", "Map", "GtkMap widget", HYSCAN_TYPE_GTK_MAP,
-                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
@@ -85,10 +84,6 @@ hyscan_gtk_map_grid_set_property (GObject      *object,
 
   switch (prop_id)
     {
-    case PROP_MAP:
-      priv->map = g_value_dup_object (value);
-      break;
-
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -110,13 +105,6 @@ hyscan_gtk_map_grid_object_constructed (GObject *object)
   gdk_rgba_parse (&priv->label_color, "rgba(50, 50, 50, 1)");
   priv->scale_line_width = 2.0;
   priv->grid_line_width = 0.5;
-
-  g_signal_connect_swapped (priv->map, "border-size",
-                            G_CALLBACK (hyscan_gtk_map_grid_border_size), gtk_map_grid);
-  g_signal_connect_swapped (priv->map, "area-draw",
-                            G_CALLBACK (hyscan_gtk_map_grid_draw), gtk_map_grid);
-  g_signal_connect_swapped (priv->map, "configure-event",
-                            G_CALLBACK (hyscan_gtk_map_grid_configure), gtk_map_grid);
 }
 
 static void
@@ -131,6 +119,47 @@ hyscan_gtk_map_grid_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_grid_parent_class)->finalize (object);
 }
 
+static void
+hyscan_gtk_map_grid_set_visible (HyScanGtkLayer *layer,
+                                 gboolean        visible)
+{
+  HyScanGtkMapGridPrivate *priv = HYSCAN_GTK_MAP_GRID (layer)->priv;
+  priv->visible = visible;
+  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+}
+
+static gboolean
+hyscan_gtk_map_grid_get_visible (HyScanGtkLayer *layer)
+{
+  return HYSCAN_GTK_MAP_GRID (layer)->priv->visible;
+}
+
+static void
+hyscan_gtk_map_grid_added (HyScanGtkLayer          *gtk_layer,
+                           HyScanGtkLayerContainer *container)
+{
+  HyScanGtkMapGridPrivate *priv = HYSCAN_GTK_MAP_GRID (gtk_layer)->priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
+
+  priv->map = g_object_ref (container);
+
+  g_signal_connect_swapped (priv->map, "border-size",
+                            G_CALLBACK (hyscan_gtk_map_grid_border_size), gtk_layer);
+  g_signal_connect_swapped (priv->map, "area-draw",
+                            G_CALLBACK (hyscan_gtk_map_grid_draw), gtk_layer);
+  g_signal_connect_swapped (priv->map, "configure-event",
+                            G_CALLBACK (hyscan_gtk_map_grid_configure), gtk_layer);
+}
+
+static void
+hyscan_gtk_map_grid_interface_init (HyScanGtkLayerInterface *iface)
+{
+  iface->set_visible = hyscan_gtk_map_grid_set_visible;
+  iface->get_visible = hyscan_gtk_map_grid_get_visible;
+  iface->added = hyscan_gtk_map_grid_added;
+}
+
 /* Обработка сигнала "border-size" HyScanGtkMap. */
 static void
 hyscan_gtk_map_grid_border_size (HyScanGtkMapGrid *grid,
@@ -141,7 +170,7 @@ hyscan_gtk_map_grid_border_size (HyScanGtkMapGrid *grid,
 {
   HyScanGtkMapGridPrivate *priv = grid->priv;
 
-  if (!priv->active)
+  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (grid)))
     return;
 
   (border_top != NULL) ? *border_top = MAX (*border_top, priv->border_size) : 0;
@@ -375,7 +404,7 @@ static void
 hyscan_gtk_map_grid_draw (HyScanGtkMapGrid *grid,
                           cairo_t          *cairo)
 {
-  if (!grid->priv->active)
+  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (grid)))
     return;
 
   hyscan_gtk_map_grid_draw_scale (grid, cairo);
@@ -537,25 +566,7 @@ hyscan_gtk_map_grid_draw_grid (HyScanGtkMapGrid *grid,
 }
 
 HyScanGtkMapGrid *
-hyscan_gtk_map_grid_new (HyScanGtkMap* map)
+hyscan_gtk_map_grid_new (void)
 {
-  return g_object_new (HYSCAN_TYPE_GTK_MAP_GRID, "map", map, NULL);
-}
-
-void
-hyscan_gtk_map_grid_set_active (HyScanGtkMapGrid *grid,
-                                gboolean          active)
-{
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_GRID (grid));
-
-  grid->priv->active = active;
-  gtk_widget_queue_draw (GTK_WIDGET (grid->priv->map));
-}
-
-gboolean
-hyscan_gtk_map_grid_is_active (HyScanGtkMapGrid *grid)
-{
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_GRID (grid), FALSE);
-
-  return grid->priv->active;
+  return g_object_new (HYSCAN_TYPE_GTK_MAP_GRID, NULL);
 }
