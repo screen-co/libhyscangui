@@ -168,6 +168,9 @@ static HyScanGtkWaterfallMarkTask *
 static void     hyscan_gtk_waterfall_mark_clear_state             (HyScanGtkWaterfallMarkState  *state);
 static void     hyscan_gtk_waterfall_mark_model_changed           (HyScanMarkModel         *model,
                                                                    HyScanGtkWaterfallMark  *self);
+static gchar*   hyscan_gtk_waterfall_mark_get_track_id            (HyScanDB                *db,
+                                                                   const gchar             *project,
+                                                                   const gchar             *track);
 static void     hyscan_gtk_waterfall_mark_sync_states             (HyScanGtkWaterfallMark  *self);
 static gpointer hyscan_gtk_waterfall_mark_processing              (gpointer                 data);
 
@@ -468,16 +471,6 @@ hyscan_gtk_waterfall_mark_clear_task (gpointer data)
   g_clear_pointer (&task->id, g_free);
 }
 
-static void inspectsdsd(GList *list)
-{
-  GList *link;
-  for (link = list; link != NULL; link = link->next)
-    {
-      HyScanGtkWaterfallMarkTask *task = link->data;
-      // g_message ("  center: %f", task->center.x);
-    }
-
-}
 /* Функция копирует структуру HyScanGtkWaterfallMarkTask. */
 static void
 hyscan_gtk_waterfall_mark_copy_task (HyScanGtkWaterfallMarkTask *src,
@@ -522,6 +515,64 @@ hyscan_gtk_waterfall_mark_model_changed (HyScanMarkModel        *model,
   g_mutex_unlock (&priv->mmodel_lock);
 
   g_hash_table_unref (marks);
+}
+
+/* Функция определяет идентификатор галса. */
+static gchar*
+hyscan_gtk_waterfall_mark_get_track_id (HyScanDB    *db,
+                                        const gchar *project,
+                                        const gchar *track)
+{
+  gchar* track_id_str = NULL;
+  gint32 project_id = 0;      /* Идентификатор проекта. */
+  gint32 track_id = 0;        /* Идентификатор проекта. */
+  gint32 track_param_id = 0;  /* Идентификатор проекта. */
+  HyScanParamList *list = NULL;
+
+  if (db == NULL || project == NULL || track == NULL)
+    return NULL;
+
+  project_id = hyscan_db_project_open (db, project);
+  if (project_id <= 0)
+    {
+      g_warning ("HyScanGtkWaterfallMark: can't open project %s", project);
+      goto exit;
+    }
+
+  track_id = hyscan_db_track_open (db, project_id, track);
+  if (track_id <= 0)
+    {
+      g_warning ("HyScanGtkWaterfallMark: can't open track %s (project %s)", track, project);
+      goto exit;
+    }
+
+  track_param_id = hyscan_db_track_param_open (db, track_id);
+  if (track_param_id <= 0)
+    {
+      g_warning ("HyScanGtkWaterfallMark: can't open track %s parameters (project %s)", track, project);
+      goto exit;
+    }
+
+  list = hyscan_param_list_new ();
+  hyscan_param_list_add (list, "/id");
+  if (!hyscan_db_param_get (db, track_param_id, NULL, list))
+    {
+      g_warning ("HyScanGtkWaterfallMark: can't get track %s parameters (project %s)", track, project);
+      goto exit;
+    }
+
+  track_id_str = hyscan_param_list_dup_string (list, "/id");
+
+exit:
+  if (track_param_id > 0)
+    hyscan_db_close (db, track_param_id);
+  if (track_id > 0)
+    hyscan_db_close (db, track_id);
+  if (project_id> 0)
+    hyscan_db_close (db, project_id);
+
+  g_object_unref (list);
+  return track_id_str;
 }
 
 /* Функция синхронизирует состояния. */
@@ -602,6 +653,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
   HyScanProjector *_proj = NULL;
   HyScanDepthometer *depth = NULL;
 
+  gchar *track_id = NULL;
   GHashTable *marks;
   GMutex cond_mutex;
   GList *list, *link, *tasks, *next;
@@ -657,6 +709,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               g_clear_object (&lproj);
               g_clear_object (&rproj);
               g_clear_object (&depth);
+              g_clear_pointer (&track_id, g_free);
               state->amp_changed = FALSE;
             }
 
@@ -667,18 +720,14 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
             }
           if (state->speed_changed)
             {
-              if (lproj != NULL)
-                hyscan_projector_set_ship_speed (lproj, state->ship_speed);
-              if (rproj != NULL)
-                hyscan_projector_set_ship_speed (rproj, state->ship_speed);
+              g_clear_object (&lproj);
+              g_clear_object (&rproj);
               state->speed_changed = FALSE;
             }
           if (state->velocity_changed)
             {
-              if (lproj != NULL)
-                hyscan_projector_set_sound_velocity (lproj, state->velocity);
-              if (rproj != NULL)
-                hyscan_projector_set_sound_velocity (rproj, state->velocity);
+              g_clear_object (&lproj);
+              g_clear_object (&rproj);
               state->velocity_changed = FALSE;
             }
 
@@ -687,11 +736,21 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
           if (lproj == NULL)
             {
               lproj = hyscan_gtk_waterfall_mark_open_projector (self, state->lsource);
+              if (lproj != NULL)
+                {
+                  hyscan_projector_set_ship_speed (lproj, state->ship_speed);
+                  hyscan_projector_set_sound_velocity (lproj, state->velocity);
+                }
               // TEST PERFORMANCE PLS hyscan_projector_set_precalc_points (lproj, 10000);
             }
           if (rproj == NULL)
             {
               rproj = hyscan_gtk_waterfall_mark_open_projector (self, state->rsource);
+              if (rproj != NULL)
+                {
+                  hyscan_projector_set_ship_speed (rproj, state->ship_speed);
+                  hyscan_projector_set_sound_velocity (rproj, state->velocity);
+                }
               // TEST PERFORMANCE PLS hyscan_projector_set_precalc_points (rproj, 10000);
             }
           if (depth == NULL)
@@ -701,13 +760,19 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               depth = hyscan_depth_factory_produce (df);
               g_object_unref (df);
             }
+
+          if (track_id == NULL)
+            {
+              track_id = hyscan_gtk_waterfall_mark_get_track_id (state->db,
+                                                                 state->project,
+                                                                 state->track);
+            }
         }
 
       /* Если в результате синхронизации нет объектов, с которыми можно иметь
        * дело, возвращаемся в начало. */
       if (rproj == NULL || lproj ==NULL)
         continue;
-
 
       /* 0. Начинаем работу с метками в БД и свежими. Сначала переписываем
        * всё к себе. */
@@ -761,7 +826,6 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
 
           status  = hyscan_projector_coord_to_index (_proj, mc.y, &index0);
           status &= hyscan_projector_coord_to_count (_proj, mc.x, &count0, 0.0);
-
           if (!status)
             continue;
 
@@ -772,7 +836,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               gchar *label = g_strdup_printf ("Mark #%u", ++priv->count);
               mark = hyscan_waterfall_mark_new ();
 
-              hyscan_waterfall_mark_set_track  (mark, state->track);
+              hyscan_waterfall_mark_set_track  (mark, track_id);
               hyscan_waterfall_mark_set_text   (mark, label, "description", "operator");
               hyscan_waterfall_mark_set_text   (mark, label, "", "");
               hyscan_waterfall_mark_set_labels (mark, HYSCAN_GTK_WATERFALL_MARKS_ALL);
@@ -802,6 +866,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
        * Каждую метку переводим в наши координаты. */
       if (marks != NULL)
         {
+          priv->count = 0;
           GHashTableIter iter;
           gchar * id;
 
@@ -811,8 +876,9 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               HyScanCoordinates mc;
               gdouble mw, mh;
 
+              priv->count++;
               /* Фильтруем по галсу. */
-              if (g_strcmp0 (mark->track, state->track) != 0)
+              if (g_strcmp0 (mark->track, track_id) != 0)
                 continue;
 
               /* Фильтруем по источнику. */
@@ -1239,7 +1305,6 @@ reset:
 
       g_mutex_lock (&priv->drawable_lock);
       priv->drawable = g_list_prepend (priv->drawable, hyscan_gtk_waterfall_mark_dup_task (task));
-      inspectsdsd (priv->drawable);
       g_mutex_unlock (&priv->drawable_lock);
 
       g_atomic_int_inc (&priv->cond_flag);
@@ -1509,7 +1574,6 @@ hyscan_gtk_waterfall_mark_draw (GtkWidget              *widget,
 
   /* Отрисовываем drawable. */
   g_mutex_lock (&priv->drawable_lock);
-  inspectsdsd (priv->drawable);
   for (link = priv->drawable; link != NULL; link = link->next)
     {
       gboolean visible, pending;
