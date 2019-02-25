@@ -28,6 +28,7 @@ struct _HyScanPseudoMercatorClass
   GObjectClass parent_class;
 };
 
+HYSCAN_API
 GType                  hyscan_pseudo_mercator_get_type         (void);
 
 HYSCAN_API

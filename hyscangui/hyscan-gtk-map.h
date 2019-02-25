@@ -1,9 +1,8 @@
 #ifndef __HYSCAN_GTK_MAP_H__
 #define __HYSCAN_GTK_MAP_H__
 
-#include <gtk/gtk.h>
-#include <gtk-cifro-area.h>
 #include <hyscan-geo-projection.h>
+#include <hyscan-gtk-layer-container.h>
 
 G_BEGIN_DECLS
 
@@ -18,17 +17,23 @@ typedef struct _HyScanGtkMap HyScanGtkMap;
 typedef struct _HyScanGtkMapPrivate HyScanGtkMapPrivate;
 typedef struct _HyScanGtkMapClass HyScanGtkMapClass;
 
+/* Координаты точки. */
+typedef struct
+{
+  gdouble x;
+  gdouble y;
+} HyScanGtkMapPoint;
 
 struct _HyScanGtkMap
 {
-  GtkCifroArea parent_instance;
+  HyScanGtkLayerContainer parent_instance;
 
   HyScanGtkMapPrivate *priv;
 };
 
 struct _HyScanGtkMapClass
 {
-  GtkCifroAreaClass parent_class;
+  HyScanGtkLayerContainerClass parent_class;
 };
 
 HYSCAN_API
@@ -63,13 +68,6 @@ void                   hyscan_gtk_map_geo_to_value     (HyScanGtkMap        *map
                                                         gdouble             *y_val);
 
 HYSCAN_API
-gconstpointer          hyscan_gtk_map_get_howner       (HyScanGtkMap        *map);
-
-HYSCAN_API
-void                   hyscan_gtk_map_set_howner       (HyScanGtkMap        *map,
-                                                        gconstpointer        howner);
-
-HYSCAN_API
 void                   hyscan_gtk_map_release_input   (HyScanGtkMap        *map,
                                                        gconstpointer        howner);
 
@@ -77,10 +75,8 @@ HYSCAN_API
 gboolean               hyscan_gtk_map_grab_input      (HyScanGtkMap        *map,
                                                        gconstpointer        howner);
 
-HYSCAN_API
-gboolean               hyscan_gtk_map_is_howner       (HyScanGtkMap        *map,
-                                                       gconstpointer        howner);
-
+HyScanGtkMapPoint *    hyscan_gtk_map_point_copy      (HyScanGtkMapPoint   *point);
+void                   hyscan_gtk_map_point_free      (HyScanGtkMapPoint   *point);
 
 
 G_END_DECLS

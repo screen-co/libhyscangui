@@ -34,6 +34,7 @@ enum
 struct _HyScanGtkMapPrivate
 {
   HyScanGeoProjection     *projection;           /* Проекция поверхности Земли на плоскость карты. */
+  HyScanGtkLayerContainer *container;            /* Контейнер слоёв. */
   gconstpointer            howner;               /* Кто в данный момент обрабатывает взаимодействие с картой. */
 };
 
@@ -59,7 +60,7 @@ static void     hyscan_gtk_map_check_scale              (GtkCifroArea          *
 
 static guint    hyscan_gtk_map_signals [SIGNAL_LAST] = {0};
 
-G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMap, hyscan_gtk_map, GTK_TYPE_CIFRO_AREA)
+G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMap, hyscan_gtk_map, HYSCAN_TYPE_GTK_LAYER_CONTAINER)
 
 static void
 hyscan_gtk_map_class_init (HyScanGtkMapClass *klass)
@@ -117,7 +118,7 @@ hyscan_gtk_map_init (HyScanGtkMap *gtk_map)
   gtk_map->priv = hyscan_gtk_map_get_instance_private (gtk_map);
   gint event_mask = 0;
 
-  /* Обработчики сигналов. */
+  /* Обработчики сигналов GtkCifroArea. */
   g_signal_connect (gtk_map, "visible-draw", G_CALLBACK (hyscan_gtk_map_visible_draw), NULL);
 
   /* Список событий GTK, которые принимает виджет. */
@@ -159,6 +160,10 @@ hyscan_gtk_map_object_constructed (GObject *object)
   HyScanGtkMapPrivate *priv = gtk_map->priv;
 
   G_OBJECT_CLASS (hyscan_gtk_map_parent_class)->constructed (object);
+
+  /* Обработчики сигналов GtkWidget. */
+  /*g_signal_connect_swapped (gtk_map, "motion-notify-event",
+                            G_CALLBACK (hyscan_gtk_layer_container_propagate), priv->container);*/
 }
 
 static void
@@ -294,32 +299,6 @@ hyscan_gtk_map_get_scale (HyScanGtkMap *map)
   return dist_pixels / dist_metres;
 }
 
-gconstpointer
-hyscan_gtk_map_get_howner (HyScanGtkMap *map)
-{
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), NULL);
-
-  return map->priv->howner;
-}
-
-void
-hyscan_gtk_map_set_howner (HyScanGtkMap  *map,
-                           gconstpointer  howner)
-{
-  g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
-
-  map->priv->howner = howner;
-}
-
-gboolean
-hyscan_gtk_map_is_howner (HyScanGtkMap  *map,
-                          gconstpointer  howner)
-{
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), FALSE);
-
-  return howner == map->priv->howner;
-}
-
 void
 hyscan_gtk_map_release_input (HyScanGtkMap  *map,
                               gconstpointer  howner)
@@ -384,7 +363,6 @@ hyscan_gtk_map_value_to_geo (HyScanGtkMap       *map,
   hyscan_geo_projection_value_to_geo (priv->projection, coords, x_val, y_val);
 }
 
-
 void
 hyscan_gtk_map_geo_to_value (HyScanGtkMap        *map,
                              HyScanGeoGeodetic    coords,
@@ -397,4 +375,24 @@ hyscan_gtk_map_geo_to_value (HyScanGtkMap        *map,
 
   priv = map->priv;
   hyscan_geo_projection_geo_to_value (priv->projection, coords, x_val, y_val);
+}
+
+/* Копирует структуру HyScanGtkMapPoint. */
+HyScanGtkMapPoint *
+hyscan_gtk_map_point_copy (HyScanGtkMapPoint *point)
+{
+  HyScanGtkMapPoint *new_point;
+
+  new_point = g_slice_new (HyScanGtkMapPoint);
+  new_point->x = point->x;
+  new_point->y = point->y;
+
+  return new_point;
+}
+
+/* Освобождает память из-под структуры HyScanGtkMapPoint. */
+void
+hyscan_gtk_map_point_free (HyScanGtkMapPoint *point)
+{
+  g_slice_free (HyScanGtkMapPoint, point);
 }

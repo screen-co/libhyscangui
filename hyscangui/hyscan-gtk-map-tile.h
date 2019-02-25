@@ -31,6 +31,7 @@ struct _HyScanGtkMapTileClass
   GObjectClass parent_class;
 };
 
+HYSCAN_API
 GType                  hyscan_gtk_map_tile_get_type         (void);
 
 HYSCAN_API

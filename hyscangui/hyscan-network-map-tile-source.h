@@ -28,6 +28,7 @@ struct _HyScanNetworkMapTileSourceClass
   GObjectClass parent_class;
 };
 
+HYSCAN_API
 GType                          hyscan_network_map_tile_source_get_type         (void);
 
 HYSCAN_API

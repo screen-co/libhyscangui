@@ -11,11 +11,14 @@
 #include <hyscan-gtk-map-control.h>
 #include <hyscan-gtk-map-ruler.h>
 #include <hyscan-gtk-map-grid.h>
+#include <hyscan-gtk-map-pin-layer.h>
 
 static gchar *tiles_dir;                     /* Путь к каталогу, где хранятся тайлы. */
 static gboolean yandex_projection = FALSE;   /* Использовать карту яндекса. */
 static guint tile_url_preset = 0;
 static gchar *tile_url_format;
+
+HyScanGtkMap *map;
 
 /* Пресеты URL серверов. */
 const gchar *url_presets[] = {
@@ -100,6 +103,14 @@ on_grid_switch (GtkSwitch        *widget,
 }
 
 void
+on_editable_switch (GtkSwitch               *widget,
+                    GParamSpec              *pspec,
+                    HyScanGtkLayerContainer *container)
+{
+  hyscan_gtk_layer_container_set_changes_allowed (container, gtk_switch_get_active (widget));
+}
+
+void
 on_coordinate_change (GtkSwitch  *widget,
                       GParamSpec *pspec,
                       gdouble    *value)
@@ -114,14 +125,15 @@ on_move_to_click (HyScanGtkMap *map)
 }
 
 void
-on_ruler_switch (GtkSwitch         *widget,
-                 GParamSpec        *pspec,
-                 HyScanGtkMapRuler *map_ruler)
+on_layer_activate (GtkToggleButton *widget,
+                   GParamSpec      *pspec,
+                   HyScanGtkLayer  *layer)
 {
   gboolean active;
 
-  active = gtk_switch_get_active (widget);
-  hyscan_gtk_map_ruler_set_active (map_ruler, active);
+  active = gtk_toggle_button_get_active (widget);
+  if (active)
+    hyscan_gtk_layer_container_set_input_owner (HYSCAN_GTK_LAYER_CONTAINER (map), layer);
 }
 
 gboolean
@@ -139,16 +151,39 @@ on_motion_show_coords (HyScanGtkMap   *map,
   return FALSE;
 }
 
+GtkWidget*
+make_layer_btn (const gchar  *label,
+                GtkWidget    *from)
+{
+  GtkWidget *button;
+
+  button = gtk_radio_button_new_from_widget (GTK_RADIO_BUTTON (from));
+  gtk_toggle_button_set_mode (GTK_TOGGLE_BUTTON (button), FALSE);
+  gtk_button_set_label (GTK_BUTTON (button), label);
+
+  return button;
+}
+
 /* Кнопки управления виджетом. */
 GtkWidget *
-create_control_box (HyScanGtkMap      *map,
-                    HyScanGtkMapRuler *ruler,
-                    HyScanGtkMapGrid  *grid)
+create_control_box (HyScanGtkMap         *map,
+                    HyScanGtkMapRuler    *ruler,
+                    HyScanGtkMapPinLayer *pin_layer,
+                    HyScanGtkMapGrid     *grid)
 {
   GtkWidget *ctrl_box;
   GtkWidget *ctrl_widget;
 
   ctrl_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
+
+  /* Блокировка редактирования. */
+  gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Редактирование"));
+
+  ctrl_widget = gtk_switch_new ();
+  gtk_switch_set_active (GTK_SWITCH (ctrl_widget),
+                         hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (map)));
+  gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
+  g_signal_connect (ctrl_widget, "notify::active", G_CALLBACK (on_editable_switch), map);
 
   /* Координатная сетка. */
   gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Координатная сетка"));
@@ -160,17 +195,18 @@ create_control_box (HyScanGtkMap      *map,
 
   gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
 
-  /* Линейка. */
-  gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Линейка"));
-
-  ctrl_widget = gtk_switch_new ();
-  gtk_switch_set_active (GTK_SWITCH (ctrl_widget), hyscan_gtk_map_ruler_is_active (ruler));
+  gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Слои"));
+  ctrl_widget = make_layer_btn ("Линейка", NULL);
+  g_signal_connect (ctrl_widget, "notify::active", G_CALLBACK (on_layer_activate), ruler);
   gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
-  g_signal_connect (ctrl_widget, "notify::active", G_CALLBACK (on_ruler_switch), ruler);
+
+  ctrl_widget = make_layer_btn ("Булавка", ctrl_widget);
+  g_signal_connect (ctrl_widget, "notify::active", G_CALLBACK (on_layer_activate), pin_layer);
+  gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
 
   ctrl_widget = gtk_button_new ();
   gtk_button_set_label (GTK_BUTTON (ctrl_widget), "Очистить");
-  g_signal_connect_swapped (ctrl_widget, "clicked", G_CALLBACK (hyscan_gtk_map_ruler_clear), ruler);
+  g_signal_connect_swapped (ctrl_widget, "clicked", G_CALLBACK (hyscan_gtk_map_pin_layer_clear), pin_layer);
   gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
 
   gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
@@ -178,12 +214,12 @@ create_control_box (HyScanGtkMap      *map,
   /* Текстовые поля для ввода координат. */
   gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Навигация (ш, д)"));
 
-  ctrl_widget = gtk_spin_button_new_with_range (-90.0, 90.0, 0.01);
+  ctrl_widget = gtk_spin_button_new_with_range (-90.0, 90.0, 0.001);
   gtk_spin_button_set_value (GTK_SPIN_BUTTON (ctrl_widget), center.lat);
   g_signal_connect (ctrl_widget, "notify::value", G_CALLBACK (on_coordinate_change), &center.lat);
   gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
 
-  ctrl_widget = gtk_spin_button_new_with_range (-180.0, 180.0, 0.01);
+  ctrl_widget = gtk_spin_button_new_with_range (-180.0, 180.0, 0.001);
   gtk_spin_button_set_value (GTK_SPIN_BUTTON (ctrl_widget), center.lon);
   g_signal_connect (ctrl_widget, "notify::value", G_CALLBACK (on_coordinate_change), &center.lon);
   gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
@@ -208,11 +244,11 @@ int main (int     argc,
           gchar **argv)
 {
   GtkWidget *window;
-  HyScanGtkMap *map;
   GtkWidget *grid;
 
   HyScanGtkMapControl *control;
   HyScanGtkMapRuler *ruler;
+  HyScanGtkMapPinLayer *pin_layer;
   HyScanGtkMapGrid *map_grid;
   HyScanCache *cache = HYSCAN_CACHE (hyscan_cached_new (64));
 
@@ -259,6 +295,7 @@ int main (int     argc,
   {
     HyScanGtkMapTileSource *nw_source;
     HyScanGtkMapFsTileSource *fs_source;
+    GdkRGBA color;
 
     /* Создаём виджет карты и соответствующий network-источник тайлов. */
     map = HYSCAN_GTK_MAP (create_map (&nw_source));
@@ -271,7 +308,15 @@ int main (int     argc,
     control = hyscan_gtk_map_control_new (map);
     map_grid = hyscan_gtk_map_grid_new (map);
     ruler = hyscan_gtk_map_ruler_new (map);
+    gdk_rgba_parse (&color, "#dd5555");
+    pin_layer = hyscan_gtk_map_pin_layer_new (map, &color);
     float_layer = hyscan_gtk_map_float_new (map);
+
+    /* Слой управления первый, чтобы обрабатывать все взаимодействия. */
+    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (control));
+
+    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (pin_layer));
+    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (ruler));
   }
 
   grid = gtk_grid_new ();
@@ -290,7 +335,7 @@ int main (int     argc,
   gtk_window_set_default_size (GTK_WINDOW (window), 800, 600);
 
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (map), 0, 0, 1, 1);
-  gtk_grid_attach (GTK_GRID (grid), create_control_box (map, ruler, map_grid), 1, 0, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), create_control_box (map, ruler, pin_layer, map_grid), 1, 0, 1, 1);
 
   gtk_container_add (GTK_CONTAINER (window), grid);
   g_signal_connect (G_OBJECT (window), "destroy", G_CALLBACK (destroy_callback), NULL);
@@ -309,6 +354,7 @@ int main (int     argc,
   g_clear_object (&ruler);
   g_clear_object (&control);
   g_clear_object (&float_layer);
+  g_clear_object (&pin_layer);
   g_clear_object (&tiles);
   g_clear_object (&cache);
   g_free (tiles_dir);

@@ -30,6 +30,7 @@ struct _HyScanGtkMapTileSourceInterface
   guint                (*get_tile_size)           (HyScanGtkMapTileSource        *source);
 };
 
+HYSCAN_API
 GType      hyscan_gtk_map_tile_source_get_type                  (void);
 
 HYSCAN_API

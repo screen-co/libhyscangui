@@ -29,6 +29,7 @@ struct _HyScanTaskQueueClass
   GObjectClass parent_class;
 };
 
+HYSCAN_API
 GType                  hyscan_task_queue_get_type         (void);
 
 HYSCAN_API

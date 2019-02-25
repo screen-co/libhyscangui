@@ -635,16 +635,17 @@ hyscan_gtk_map_tiles_draw_tile (HyScanGtkMapTilesPrivate *priv,
       cairo_paint (cairo);
     }
 
+#ifdef HYSCAN_GTK_MAP_TILES_DEBUG
   /* Номер тайла для отладки. */
-  if (FALSE)
-    {
-      gchar label[255];
+  {
+    gchar label[255];
 
-      cairo_move_to (cairo, (x - x0) * tile_size, (y - y0) * tile_size);
-      cairo_set_source_rgb (cairo, 0, 0, 0);
-      g_snprintf (label, sizeof (label), "%d, %d", x, y);
-      cairo_show_text (cairo, label);
-    }
+    cairo_move_to (cairo, (x - x0) * tile_size, (y - y0) * tile_size);
+    cairo_set_source_rgb (cairo, 0, 0, 0);
+    g_snprintf (label, sizeof (label), "%d, %d", x, y);
+    cairo_show_text (cairo, label);
+  }
+#endif
 
   g_object_unref (tile);
 
@@ -827,7 +828,7 @@ hyscan_gtk_map_tiles_draw (HyScanGtkMapTiles *layer,
   }
 
   time = g_test_timer_elapsed ();
-  g_message ("Draw tiles fps %.1f", 1.0 / time);
+  // g_message ("Draw tiles fps %.1f", 1.0 / time);
 }
 
 /**

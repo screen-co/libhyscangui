@@ -1,7 +1,7 @@
 #ifndef __HYSCAN_GTK_MAP_RULER_H__
 #define __HYSCAN_GTK_MAP_RULER_H__
 
-#include <hyscan-gtk-map.h>
+#include <hyscan-gtk-map-pin-layer.h>
 
 G_BEGIN_DECLS
 
@@ -18,27 +18,18 @@ typedef struct _HyScanGtkMapRulerClass HyScanGtkMapRulerClass;
 
 struct _HyScanGtkMapRuler
 {
-  GObject parent_instance;
+  HyScanGtkMapPinLayer parent_instance;
 
   HyScanGtkMapRulerPrivate *priv;
 };
 
 struct _HyScanGtkMapRulerClass
 {
-  GObjectClass parent_class;
+  HyScanGtkMapPinLayerClass parent_class;
 };
 
+
 GType                  hyscan_gtk_map_ruler_get_type         (void);
-
-HYSCAN_API
-void                   hyscan_gtk_map_ruler_clear            (HyScanGtkMapRuler *ruler);
-
-HYSCAN_API
-void                   hyscan_gtk_map_ruler_set_active       (HyScanGtkMapRuler *ruler,
-                                                              gboolean           active);
-
-HYSCAN_API
-gboolean               hyscan_gtk_map_ruler_is_active       (HyScanGtkMapRuler *ruler);
 
 HYSCAN_API
 HyScanGtkMapRuler *    hyscan_gtk_map_ruler_new              (HyScanGtkMap *map);

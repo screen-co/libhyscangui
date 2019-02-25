@@ -39,7 +39,10 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-map-control.c
              hyscan-gtk-map-ruler.c
              hyscan-gtk-map-grid.c
+             hyscan-gtk-map-pin-layer.c
              hyscan-geo-projection.c
+             hyscan-gtk-layer.c
+             hyscan-gtk-layer-container.c
              hyscan-mercator.c
              hyscan-pseudo-mercator.c
              ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c)
