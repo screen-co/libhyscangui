@@ -116,21 +116,6 @@ static void
 hyscan_gtk_map_init (HyScanGtkMap *gtk_map)
 {
   gtk_map->priv = hyscan_gtk_map_get_instance_private (gtk_map);
-  gint event_mask = 0;
-
-  /* Обработчики сигналов GtkCifroArea. */
-  g_signal_connect (gtk_map, "visible-draw", G_CALLBACK (hyscan_gtk_map_visible_draw), NULL);
-
-  /* Список событий GTK, которые принимает виджет. */
-  event_mask |= GDK_KEY_PRESS_MASK;
-  event_mask |= GDK_KEY_RELEASE_MASK;
-  event_mask |= GDK_BUTTON_PRESS_MASK;
-  event_mask |= GDK_BUTTON_RELEASE_MASK;
-  event_mask |= GDK_POINTER_MOTION_MASK;
-  event_mask |= GDK_POINTER_MOTION_HINT_MASK;
-  event_mask |= GDK_SCROLL_MASK;
-  gtk_widget_add_events (GTK_WIDGET (gtk_map), event_mask);
-  gtk_widget_set_can_focus (GTK_WIDGET (gtk_map), TRUE);
 }
 
 static void

@@ -44,15 +44,19 @@ HYSCAN_API
 GList*                 hyscan_gtk_map_pin_layer_get_points     (HyScanGtkMapPinLayer *pin_layer);
 
 HYSCAN_API
+HyScanGtkMapPoint *    hyscan_gtk_map_pin_layer_insert_before  (HyScanGtkMapPinLayer *pin_layer,
+                                                                HyScanGtkMapPoint    *point,
+                                                                GList                *sibling);
+
+HYSCAN_API
 HyScanGtkMap*          hyscan_gtk_map_pin_layer_get_map        (HyScanGtkMapPinLayer *pin_layer);
 
 HYSCAN_API
 GdkRGBA*               hyscan_gtk_map_pin_layer_get_color      (HyScanGtkMapPinLayer *pin_layer);
 
 HYSCAN_API
-HyScanGtkMapPoint *    hyscan_gtk_map_pin_layer_get_point_at   (HyScanGtkMapPinLayer *pin_layer,
-                                                                gdouble               x,
-                                                                gdouble               y);
+void                   hyscan_gtk_map_pin_layer_start_drag     (HyScanGtkMapPinLayer *layer,
+                                                                HyScanGtkMapPoint    *handle_point);
 
 G_END_DECLS
 
