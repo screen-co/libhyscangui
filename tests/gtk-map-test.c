@@ -17,7 +17,10 @@ static gboolean yandex_projection = FALSE;   /* Использовать кар�
 static guint tile_url_preset = 0;
 static gchar *tile_url_format;
 
-HyScanGtkMap *map;
+static HyScanGtkMap *map;
+static GtkContainer *layer_toolbox;
+void   (*layer_toolbox_cb) (GtkContainer   *container,
+                            HyScanGtkLayer *layer);
 
 /* Пресеты URL серверов. */
 const gchar *url_presets[] = {
@@ -115,6 +118,7 @@ on_move_to_click (HyScanGtkMap *map)
   hyscan_gtk_map_move_to (HYSCAN_GTK_MAP (map), center);
 }
 
+/* Переключение активного слоя. */
 void
 on_row_activate (GtkListBox    *box,
                  GtkListBoxRow *row,
@@ -122,8 +126,21 @@ on_row_activate (GtkListBox    *box,
 {
   HyScanGtkLayer *layer;
 
+  gtk_container_foreach (layer_toolbox, (GtkCallback) gtk_widget_destroy, NULL);
+
   layer = g_object_get_data (G_OBJECT (row), "layer");
   hyscan_gtk_layer_container_set_input_owner (HYSCAN_GTK_LAYER_CONTAINER (map), layer);
+
+  layer_toolbox_cb = g_object_get_data (G_OBJECT (layer), "toolbox-cb");
+  if (layer_toolbox_cb != NULL)
+    {
+      layer_toolbox_cb (layer_toolbox, layer);
+      gtk_widget_show_all (GTK_WIDGET (layer_toolbox));
+    }
+  else
+    {
+      gtk_widget_hide (GTK_WIDGET (layer_toolbox));
+    }
 }
 
 void
@@ -176,6 +193,19 @@ add_layer_row (GtkListBox     *list_box,
   g_signal_connect (vsbl_chkbx, "notify::active", G_CALLBACK (on_change_layer_visibility), layer);
 }
 
+/* Создаёт панель инструментов для слоя булавок и линейки. */
+void
+create_ruler_toolbox (GtkContainer   *container,
+                      HyScanGtkLayer *layer)
+{
+  GtkWidget *ctrl_widget;
+
+  ctrl_widget = gtk_button_new ();
+  gtk_button_set_label (GTK_BUTTON (ctrl_widget), "Очистить");
+  g_signal_connect_swapped (ctrl_widget, "clicked", G_CALLBACK (hyscan_gtk_map_pin_layer_clear), layer);
+  gtk_container_add (container, ctrl_widget);
+}
+
 /* Кнопки управления виджетом. */
 GtkWidget *
 create_control_box (HyScanGtkMap         *map,
@@ -185,87 +215,79 @@ create_control_box (HyScanGtkMap         *map,
 {
   GtkWidget *ctrl_box;
   GtkWidget *ctrl_widget;
-  GtkWidget *layer_grid;
 
   ctrl_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
 
   /* Блокировка редактирования. */
-  gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Редактирование"));
+  {
+    gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Редактирование"));
 
-  ctrl_widget = gtk_switch_new ();
-  gtk_switch_set_active (GTK_SWITCH (ctrl_widget),
-                         hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (map)));
-  gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
-  g_signal_connect (ctrl_widget, "notify::active", G_CALLBACK (on_editable_switch), map);
-
-
-  /*ctrl_widget = gtk_switch_new ();
-  gtk_switch_set_active (GTK_SWITCH (ctrl_widget), hyscan_gtk_map_grid_is_active (grid));
-  gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
-  g_signal_connect (ctrl_widget, "notify::active", G_CALLBACK (on_grid_switch), grid);*/
+    ctrl_widget = gtk_switch_new ();
+    gtk_switch_set_active (GTK_SWITCH (ctrl_widget),
+                           hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (map)));
+    gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
+    g_signal_connect (ctrl_widget, "notify::active", G_CALLBACK (on_editable_switch), map);
+  }
 
   gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
 
-  gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Слои"));
-  layer_grid = gtk_grid_new ();
-  gtk_grid_set_column_spacing (GTK_GRID (layer_grid), 4);
-  gtk_grid_set_row_spacing (GTK_GRID (layer_grid), 4);
+  /* Переключение слоёв. */
+  {
+    GtkWidget *list_box;
 
-  ctrl_widget = gtk_list_box_new ();
+    list_box = gtk_list_box_new ();
 
-/*  {
-    const gchar *title = "Коорд. сетка";
-    HyScanGtkLayer *layer = HYSCAN_GTK_LAYER (ruler);
-    GtkWidget *vsbl_chkbx = gtk_check_button_new ();
+    add_layer_row (GTK_LIST_BOX (list_box), "Коорд. сетка", HYSCAN_GTK_LAYER (grid));
+    add_layer_row (GTK_LIST_BOX (list_box), "Линейка", HYSCAN_GTK_LAYER (ruler));
+    add_layer_row (GTK_LIST_BOX (list_box), "Булавка", HYSCAN_GTK_LAYER (pin_layer));
+    g_signal_connect (list_box, "row-activated", G_CALLBACK (on_row_activate), NULL);
 
-    ctrl_layer_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 2);
-    gtk_box_pack_start (GTK_BOX (ctrl_layer_box), vsbl_chkbx, FALSE, TRUE, 0);
-    gtk_box_pack_end (GTK_BOX (ctrl_layer_box), gtk_label_new (title), TRUE, TRUE, 0);
-    gtk_list_box_insert (GTK_LIST_BOX (ctrl_widget), ctrl_layer_box, 0);
+    gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Слои"));
+    gtk_container_add (GTK_CONTAINER (ctrl_box), list_box);
+  }
 
-    gtk_list_box_get_row_at_y (GTK_LIST_BOX (ctrl_widget), 0);
-    g_signal_connect (vsbl_chkbx, "notify::active", G_CALLBACK (on_change_layer_visibility), layer);
-  }*/
+  /* Контейнер для панели инструментов каждого слоя. */
+  {
+    layer_toolbox = GTK_CONTAINER (gtk_box_new (GTK_ORIENTATION_VERTICAL, 10));
+    gtk_container_add (GTK_CONTAINER (ctrl_box), GTK_WIDGET (layer_toolbox));
 
-  add_layer_row (GTK_LIST_BOX (ctrl_widget), "Коорд. сетка", HYSCAN_GTK_LAYER (grid));
-  add_layer_row (GTK_LIST_BOX (ctrl_widget), "Линейка", HYSCAN_GTK_LAYER (ruler));
-  add_layer_row (GTK_LIST_BOX (ctrl_widget), "Булавка", HYSCAN_GTK_LAYER (pin_layer));
-  gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
-  g_signal_connect (ctrl_widget, "row-activated", G_CALLBACK (on_row_activate), NULL);
-
-  ctrl_widget = gtk_button_new ();
-  gtk_button_set_label (GTK_BUTTON (ctrl_widget), "Очистить");
-  g_signal_connect_swapped (ctrl_widget, "clicked", G_CALLBACK (hyscan_gtk_map_pin_layer_clear), pin_layer);
-  gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
+    /* Устаналиваем коллбэки для создания панели инструментов слоя. */
+    g_object_set_data (G_OBJECT (ruler), "toolbox-cb", create_ruler_toolbox);
+    g_object_set_data (G_OBJECT (pin_layer), "toolbox-cb", create_ruler_toolbox);
+  }
 
   gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
 
   /* Текстовые поля для ввода координат. */
-  gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Навигация (ш, д)"));
+  {
+    gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Навигация (ш, д)"));
 
-  ctrl_widget = gtk_spin_button_new_with_range (-90.0, 90.0, 0.001);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON (ctrl_widget), center.lat);
-  g_signal_connect (ctrl_widget, "notify::value", G_CALLBACK (on_coordinate_change), &center.lat);
-  gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
+    ctrl_widget = gtk_spin_button_new_with_range (-90.0, 90.0, 0.001);
+    gtk_spin_button_set_value (GTK_SPIN_BUTTON (ctrl_widget), center.lat);
+    g_signal_connect (ctrl_widget, "notify::value", G_CALLBACK (on_coordinate_change), &center.lat);
+    gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
 
-  ctrl_widget = gtk_spin_button_new_with_range (-180.0, 180.0, 0.001);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON (ctrl_widget), center.lon);
-  g_signal_connect (ctrl_widget, "notify::value", G_CALLBACK (on_coordinate_change), &center.lon);
-  gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
+    ctrl_widget = gtk_spin_button_new_with_range (-180.0, 180.0, 0.001);
+    gtk_spin_button_set_value (GTK_SPIN_BUTTON (ctrl_widget), center.lon);
+    g_signal_connect (ctrl_widget, "notify::value", G_CALLBACK (on_coordinate_change), &center.lon);
+    gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
 
-  ctrl_widget = gtk_button_new ();
-  gtk_button_set_label (GTK_BUTTON (ctrl_widget), "Перейти");
-  g_signal_connect_swapped (ctrl_widget, "clicked", G_CALLBACK (on_move_to_click), map);
-  gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
+    ctrl_widget = gtk_button_new ();
+    gtk_button_set_label (GTK_BUTTON (ctrl_widget), "Перейти");
+    g_signal_connect_swapped (ctrl_widget, "clicked", G_CALLBACK (on_move_to_click), map);
+    gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
+  }
 
   gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
 
   /* Текущие координаты. */
-  gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Координаты"));
-  ctrl_widget = gtk_label_new ("-, -");
-  g_object_set (ctrl_widget, "width-chars", 24, NULL);
-  g_signal_connect (map, "motion-notify-event", G_CALLBACK (on_motion_show_coords), ctrl_widget);
-  gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
+  {
+    gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Координаты"));
+    ctrl_widget = gtk_label_new ("-, -");
+    g_object_set (ctrl_widget, "width-chars", 24, NULL);
+    g_signal_connect (map, "motion-notify-event", G_CALLBACK (on_motion_show_coords), ctrl_widget);
+    gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
+  }
 
   return ctrl_box;
 }
