@@ -366,15 +366,19 @@ int main (int     argc,
                   NULL);
 
     ruler = hyscan_gtk_map_ruler_new ();
-    gdk_rgba_parse (&color, "#dd4444");
+    gdk_rgba_parse (&color, "#dd5555");
     g_object_set (G_OBJECT (ruler),
+                  "shape", HYSCAN_GTK_MAP_PIN_LAYER_SHAPE_CIRCLE,
+                  "radius", 4,
                   "color", &color,
-                  "line-width", 2.0,
+                  "line-width", 1.5,
                   NULL);
 
     pin_layer = hyscan_gtk_map_pin_layer_new ();
     gdk_rgba_parse (&color, "#dd55dd");
     g_object_set (G_OBJECT (pin_layer),
+                  "shape", HYSCAN_GTK_MAP_PIN_LAYER_SHAPE_PIN,
+                  "radius", 10,
                   "color", &color,
                   NULL);
 

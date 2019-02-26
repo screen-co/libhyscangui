@@ -7,6 +7,8 @@ enum
   PROP_O,
   PROP_MAP,
   PROP_COLOR,
+  PROP_SHAPE,
+  PROP_RADIUS,
 };
 
 typedef enum
@@ -14,6 +16,20 @@ typedef enum
   MODE_NONE,               /* Режим без взаимодейстия. */
   MODE_DRAG,               /* Режим перетаскивания точки. */
 } HyScanGtkMapPinLayerMode;
+
+typedef struct
+{
+  /* Проверяет, что точка виджета с координатами (x, y) находится на поверхности маркера point. */
+  gboolean (*is_inside)    (HyScanGtkMapPinLayerPrivate *priv,
+                            HyScanGtkMapPoint           *point,
+                            gdouble                      x,
+                            gdouble                      y);
+
+  /* Рисует маркер point. */
+  void     (*draw_vertex)  (HyScanGtkMapPinLayerPrivate *priv,
+                            HyScanGtkMapPoint           *point,
+                            cairo_t                     *cairo);
+} HyScanGtkMapPinVtable;
 
 struct _HyScanGtkMapPinLayerPrivate
 {
@@ -31,6 +47,7 @@ struct _HyScanGtkMapPinLayerPrivate
   GdkRGBA                   *color;                    /* Цвет элементов. */
 
   gboolean                   visible;                  /* Признак того, что слой виден. */
+  HyScanGtkMapPinVtable      pin_vtable;               /* Таблица функций для отрисовки маркеров. */
 };
 
 static void          hyscan_gtk_map_pin_layer_set_property              (GObject                     *object,
@@ -69,6 +86,20 @@ static HyScanGtkMapPoint *   hyscan_gtk_map_pin_layer_get_point_at      (HyScanG
 static gpointer      hyscan_gtk_map_pin_layer_handle                    (HyScanGtkLayerContainer     *container,
                                                                          GdkEventMotion              *event,
                                                                          HyScanGtkMapPinLayer        *layer);
+static void          hyscan_gtk_map_pin_layer_draw_vertex_c             (HyScanGtkMapPinLayerPrivate *priv,
+                                                                         HyScanGtkMapPoint           *point,
+                                                                         cairo_t                     *cairo);
+static void          hyscan_gtk_map_pin_layer_draw_vertex               (HyScanGtkMapPinLayerPrivate *priv,
+                                                                         HyScanGtkMapPoint           *point,
+                                                                         cairo_t                     *cairo);
+static gboolean      hyscan_gtk_map_pin_layer_is_inside_c               (HyScanGtkMapPinLayerPrivate *priv,
+                                                                         HyScanGtkMapPoint           *point,
+                                                                         gdouble                      x,
+                                                                         gdouble                      y);
+static gboolean      hyscan_gtk_map_pin_layer_is_inside                 (HyScanGtkMapPinLayerPrivate *priv,
+                                                                         HyScanGtkMapPoint           *point,
+                                                                         gdouble                      x,
+                                                                         gdouble                      y);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapPinLayer, hyscan_gtk_map_pin_layer, G_TYPE_OBJECT,
                          G_ADD_PRIVATE (HyScanGtkMapPinLayer)
@@ -89,6 +120,17 @@ hyscan_gtk_map_pin_layer_class_init (HyScanGtkMapPinLayerClass *klass)
   g_object_class_install_property (object_class, PROP_COLOR,
     g_param_spec_boxed ("color", "Color", "GdkRGBA", GDK_TYPE_RGBA,
                         G_PARAM_READWRITE));
+
+  g_object_class_install_property (object_class, PROP_RADIUS,
+    g_param_spec_uint ("radius", "Marker Radius", "", 1, G_MAXUINT, 5,
+                       G_PARAM_WRITABLE));
+
+  g_object_class_install_property (object_class, PROP_SHAPE,
+    g_param_spec_uint ("shape", "Marker Shape", "",
+                       HYSCAN_GTK_MAP_PIN_LAYER_SHAPE_CIRCLE,
+                       HYSCAN_GTK_MAP_PIN_LAYER_SHAPE_PIN,
+                       HYSCAN_GTK_MAP_PIN_LAYER_SHAPE_CIRCLE,
+                       G_PARAM_WRITABLE));
 }
 
 static void
@@ -123,6 +165,29 @@ hyscan_gtk_map_pin_layer_get_property (GObject        *object,
 }
 
 static void
+hyscan_gtk_map_pin_layer_set_shape (HyScanGtkMapPinLayer *layer,
+                                    guint                 shape)
+{
+  HyScanGtkMapPinLayerPrivate *priv = layer->priv;
+
+  switch (shape)
+    {
+    case HYSCAN_GTK_MAP_PIN_LAYER_SHAPE_PIN:
+      priv->pin_vtable.draw_vertex = hyscan_gtk_map_pin_layer_draw_vertex;
+      priv->pin_vtable.is_inside   = hyscan_gtk_map_pin_layer_is_inside;
+      return;
+
+     case HYSCAN_GTK_MAP_PIN_LAYER_SHAPE_CIRCLE:
+       priv->pin_vtable.draw_vertex = hyscan_gtk_map_pin_layer_draw_vertex_c;
+       priv->pin_vtable.is_inside   = hyscan_gtk_map_pin_layer_is_inside_c;
+       return;
+
+     default:
+       g_warning ("Unknown shape %u", shape);
+    }
+}
+
+static void
 hyscan_gtk_map_pin_layer_set_property (GObject      *object,
                                        guint         prop_id,
                                        const GValue *value,
@@ -141,6 +206,14 @@ hyscan_gtk_map_pin_layer_set_property (GObject      *object,
       priv->color = g_value_dup_boxed (value);
       break;
 
+    case PROP_SHAPE:
+      hyscan_gtk_map_pin_layer_set_shape (gtk_map_pin_layer, g_value_get_uint (value));
+      break;
+
+    case PROP_RADIUS:
+      priv->radius = g_value_get_uint (value);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -156,7 +229,6 @@ hyscan_gtk_map_pin_layer_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_pin_layer_parent_class)->constructed (object);
 
   priv->mode = MODE_NONE;
-  priv->radius = 5.0;
 
   if (priv->color == NULL)
     {
@@ -266,31 +338,103 @@ hyscan_gtk_map_pin_layer_configure (HyScanGtkMapPinLayer *pin_layer,
   return FALSE;
 }
 
+/* Рисует метку в виде точки. */
+static void
+hyscan_gtk_map_pin_layer_draw_vertex_c (HyScanGtkMapPinLayerPrivate *priv,
+                                        HyScanGtkMapPoint           *point,
+                                        cairo_t                     *cairo)
+{
+  GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
+  gdouble radius;
+  gdouble x, y;
+
+  radius = (point == priv->hover_point) ? 2.0 * priv->radius : priv->radius;
+
+  gtk_cifro_area_visible_value_to_point (carea, &x, &y, point->x, point->y);
+
+  cairo_arc (cairo, x, y, radius, 0, 2.0 * G_PI);
+  gdk_cairo_set_source_rgba (cairo, priv->color);
+  cairo_fill (cairo);
+}
+
+/* Рисует метку в виде булавки. */
+static void
+hyscan_gtk_map_pin_layer_draw_vertex (HyScanGtkMapPinLayerPrivate *priv,
+                                      HyScanGtkMapPoint           *point,
+                                      cairo_t                     *cairo)
+{
+  GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
+  gdouble radius;
+  gdouble h;
+  gdouble x, y;
+
+  radius = (point == priv->hover_point) ? 1.2 * priv->radius : priv->radius;
+  h = 2.0 * radius;
+
+  gtk_cifro_area_visible_value_to_point (carea, &x, &y, point->x, point->y);
+
+  /* Тень под маркером. */
+  {
+    GdkRGBA color = {.red = .5, .green = .5, .blue = .5, .alpha = .3};
+
+    cairo_save (cairo);
+    cairo_translate(cairo, x, y);
+    cairo_scale (cairo, 1.0, 0.33);
+    cairo_translate(cairo, -x, -y);
+
+    cairo_arc (cairo, x, y, 0.8 * radius, 0, 2.0 * G_PI);
+    gdk_cairo_set_source_rgba (cairo, &color);
+    cairo_fill (cairo);
+    cairo_restore (cairo);
+  }
+
+  /* Сам маркер. */
+  {
+    GdkRGBA color = {.red = 1.0, .green = 1.0, .blue = 1.0, .alpha = .9};
+
+    cairo_new_path (cairo);
+    cairo_line_to (cairo, x, y);
+    cairo_arc (cairo, x, y - h, radius, -G_PI - G_PI / 10.0, G_PI / 10.0);
+    cairo_close_path (cairo);
+    gdk_cairo_set_source_rgba (cairo, priv->color);
+    cairo_fill (cairo);
+
+    cairo_new_sub_path (cairo);
+    cairo_arc (cairo, x, y - h, 0.5 * radius, 0, 2.0 * G_PI);
+    gdk_cairo_set_source_rgba (cairo, &color);
+    cairo_fill (cairo);
+  }
+}
+
+/* Определяет, покрывает ли изображение маркера @point виджет в точке x, y. */
+static gboolean
+hyscan_gtk_map_pin_layer_is_inside (HyScanGtkMapPinLayerPrivate *priv,
+                                    HyScanGtkMapPoint           *point,
+                                    gdouble                      x,
+                                    gdouble                      y)
+{
+  GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
+  gdouble x_point, y_point;
+  gdouble radius;
+  gdouble h;
+
+  gtk_cifro_area_value_to_point (carea, &x_point, &y_point, point->x, point->y);
+
+  radius = (point == priv->hover_point) ? 1.2 * priv->radius : priv->radius;
+  h = 2.0 * radius;
+
+  return fabs (x - x_point) <= radius && y < y_point && y > (y_point - h - radius);
+}
+
 /* Рисует узлы ломаной линии. */
 static void
 hyscan_gtk_map_pin_layer_draw_vertices (HyScanGtkMapPinLayerPrivate *priv,
-                                        cairo_t                  *cairo)
+                                        cairo_t                     *cairo)
 {
-  GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
-
   GList *point_l;
-  HyScanGtkMapPoint *point = NULL;
-
-  gdouble x, y;
 
   for (point_l = priv->points; point_l != NULL; point_l = point_l->next)
-    {
-      gdouble radius;
-      point = point_l->data;
-
-      gtk_cifro_area_visible_value_to_point (carea, &x, &y, point->x, point->y);
-
-      radius = (point == priv->hover_point) ? 2.0 * priv->radius : priv->radius;
-
-      cairo_arc (cairo, x, y, radius, 0, 2.0 * G_PI);
-      gdk_cairo_set_source_rgba (cairo, priv->color);
-      cairo_fill (cairo);
-    }
+    priv->pin_vtable.draw_vertex (priv, point_l->data, cairo);
 }
 
 /* Рисует элементы линейки по сигналу "visible-draw". */
@@ -437,6 +581,24 @@ hyscan_gtk_map_pin_layer_button_release (HyScanGtkLayer *layer,
   return GDK_EVENT_PROPAGATE;
 }
 
+/* Определяет, покрывает ли изображение маркера @point виджет в точке x, y. */
+static gboolean
+hyscan_gtk_map_pin_layer_is_inside_c (HyScanGtkMapPinLayerPrivate *priv,
+                                      HyScanGtkMapPoint           *point,
+                                      gdouble                      x,
+                                      gdouble                      y)
+{
+  GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
+  gdouble x_point, y_point;
+  gdouble sensitive_radius;
+
+  gtk_cifro_area_value_to_point (carea, &x_point, &y_point, point->x, point->y);
+
+  sensitive_radius = priv->radius * 2.0;
+
+  return fabs (x - x_point) <= sensitive_radius && fabs (y - y_point) <= sensitive_radius;
+}
+
 /* Находит точку на слое в окрестности указанных координат виджета. */
 static HyScanGtkMapPoint *
 hyscan_gtk_map_pin_layer_get_point_at (HyScanGtkMapPinLayer *pin_layer,
@@ -444,7 +606,6 @@ hyscan_gtk_map_pin_layer_get_point_at (HyScanGtkMapPinLayer *pin_layer,
                                        gdouble               y)
 {
   HyScanGtkMapPinLayerPrivate *priv = pin_layer->priv;
-  GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
   HyScanGtkMapPoint *hover_point;
   GList *point_l;
 
@@ -453,13 +614,8 @@ hyscan_gtk_map_pin_layer_get_point_at (HyScanGtkMapPinLayer *pin_layer,
   for (point_l = priv->points; point_l != NULL; point_l = point_l->next)
     {
       HyScanGtkMapPoint *point = point_l->data;
-      gdouble x_point, y_point;
-      gdouble sensitive_radius;
 
-      gtk_cifro_area_value_to_point (carea, &x_point, &y_point, point->x, point->y);
-
-      sensitive_radius = priv->radius * 2.0;
-      if (fabs (x - x_point) <= sensitive_radius && fabs (y - y_point) <= sensitive_radius)
+      if (priv->pin_vtable.is_inside (priv, point, x, y))
         {
           hover_point = point;
           break;

@@ -16,6 +16,12 @@ typedef struct _HyScanGtkMapPinLayer HyScanGtkMapPinLayer;
 typedef struct _HyScanGtkMapPinLayerPrivate HyScanGtkMapPinLayerPrivate;
 typedef struct _HyScanGtkMapPinLayerClass HyScanGtkMapPinLayerClass;
 
+enum
+{
+  HYSCAN_GTK_MAP_PIN_LAYER_SHAPE_CIRCLE,
+  HYSCAN_GTK_MAP_PIN_LAYER_SHAPE_PIN,
+};
+
 struct _HyScanGtkMapPinLayer
 {
   GObject parent_instance;
