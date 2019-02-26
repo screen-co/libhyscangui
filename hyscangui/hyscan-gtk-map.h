@@ -68,16 +68,10 @@ void                   hyscan_gtk_map_geo_to_value     (HyScanGtkMap        *map
                                                         gdouble             *y_val);
 
 HYSCAN_API
-void                   hyscan_gtk_map_release_input   (HyScanGtkMap        *map,
-                                                       gconstpointer        howner);
+HyScanGtkMapPoint *    hyscan_gtk_map_point_copy       (HyScanGtkMapPoint   *point);
 
 HYSCAN_API
-gboolean               hyscan_gtk_map_grab_input      (HyScanGtkMap        *map,
-                                                       gconstpointer        howner);
-
-HyScanGtkMapPoint *    hyscan_gtk_map_point_copy      (HyScanGtkMapPoint   *point);
-void                   hyscan_gtk_map_point_free      (HyScanGtkMapPoint   *point);
-
+void                   hyscan_gtk_map_point_free       (HyScanGtkMapPoint   *point);
 
 G_END_DECLS
 

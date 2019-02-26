@@ -1,15 +1,19 @@
 #include "hyscan-gtk-map-grid.h"
 #include <math.h>
 
-#define MAX_LAT 90.0
-#define MAX_LON 180.0
+#define MAX_LAT             90.0
+#define MAX_LON             180.0
+#define MAX_SCALE_SIZE_PX   100.0
 
-#define MAX_SCALE_SIZE_PX 100.0
+#define GRID_COLOR_DEFAULT  "#dddddd"
+#define LABEL_COLOR_DEFAULT "#222222"
 
 enum
 {
   PROP_O,
-  PROP_MAP
+  PROP_LINE_COLOR,
+  PROP_LINE_WIDTH,
+  PROP_LABEL_COLOR,
 };
 
 struct _HyScanGtkMapGridPrivate
@@ -20,9 +24,9 @@ struct _HyScanGtkMapGridPrivate
   guint                             border_size;        /* Необходимый размер окантовки видимой области. */
   guint                             margin;             /* Отступы подписей от края видимой области. */
 
-  GdkRGBA                           grid_color;         /* Цвет линий координатной сетки. */
+  GdkRGBA                          *grid_color;         /* Цвет линий координатной сетки. */
   gdouble                           grid_line_width;    /* Ширина линии координатной сетки. */
-  GdkRGBA                           label_color;        /* Цвет подписей. */
+  GdkRGBA                          *label_color;        /* Цвет подписей. */
   gdouble                           scale_line_width;   /* Ширина линии линейки масштаба. */
 
   guint                             points;             /* Количество точек, по которым строится линия сетки. */
@@ -65,6 +69,16 @@ hyscan_gtk_map_grid_class_init (HyScanGtkMapGridClass *klass)
 
   object_class->constructed = hyscan_gtk_map_grid_object_constructed;
   object_class->finalize = hyscan_gtk_map_grid_object_finalize;
+
+  g_object_class_install_property (object_class, PROP_LINE_COLOR,
+    g_param_spec_boxed ("line-color", "Grid Color", "Color of grid lines", GDK_TYPE_RGBA,
+                         G_PARAM_WRITABLE));
+  g_object_class_install_property (object_class, PROP_LABEL_COLOR,
+    g_param_spec_boxed ("label-color", "Label Color", "Color of grid labels", GDK_TYPE_RGBA,
+                         G_PARAM_WRITABLE));
+  g_object_class_install_property (object_class, PROP_LINE_WIDTH,
+    g_param_spec_double ("line-width", "Line width", "Width of grid lines", 0, G_MAXDOUBLE, 2.0,
+                         G_PARAM_WRITABLE));
 }
 
 static void
@@ -84,6 +98,18 @@ hyscan_gtk_map_grid_set_property (GObject      *object,
 
   switch (prop_id)
     {
+    case PROP_LINE_COLOR:
+      priv->grid_color = g_value_dup_boxed (value);
+      break;
+
+    case PROP_LABEL_COLOR:
+      priv->label_color = g_value_dup_boxed (value);
+      break;
+
+    case PROP_LINE_WIDTH:
+      priv->grid_line_width = g_value_get_double (value);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -101,8 +127,22 @@ hyscan_gtk_map_grid_object_constructed (GObject *object)
   priv->points = 5;
   priv->step_width = 200;
 
-  gdk_rgba_parse (&priv->grid_color, "rgba(0, 0, 128, 0.2)");
-  gdk_rgba_parse (&priv->label_color, "rgba(50, 50, 50, 1)");
+  if (priv->grid_color == NULL)
+    {
+      GdkRGBA color;
+
+      gdk_rgba_parse (&color, GRID_COLOR_DEFAULT);
+      priv->grid_color = gdk_rgba_copy (&color);
+    }
+
+  if (priv->label_color == NULL)
+    {
+      GdkRGBA color;
+
+      gdk_rgba_parse (&color, LABEL_COLOR_DEFAULT);
+      priv->label_color = gdk_rgba_copy (&color);
+    }
+
   priv->scale_line_width = 2.0;
   priv->grid_line_width = 0.5;
 }
@@ -255,7 +295,7 @@ hyscan_gtk_map_grid_draw_lat (HyScanGtkMapGrid *grid,
   cairo_move_to (cairo, priv->margin, grid_y + text_width / 2.0);
   cairo_save (cairo);
   cairo_rotate (cairo, -G_PI / 2.0);
-  gdk_cairo_set_source_rgba (cairo, &priv->label_color);
+  gdk_cairo_set_source_rgba (cairo, priv->label_color);
   pango_cairo_show_layout (cairo, priv->pango_layout);
   cairo_restore (cairo);
 
@@ -270,7 +310,7 @@ hyscan_gtk_map_grid_draw_lat (HyScanGtkMapGrid *grid,
       cairo_line_to (cairo, grid_x, grid_y);
     }
   cairo_set_line_width (cairo, priv->grid_line_width);
-  gdk_cairo_set_source_rgba (cairo, &priv->grid_color);
+  gdk_cairo_set_source_rgba (cairo, priv->grid_color);
   cairo_stroke (cairo);
 }
 
@@ -310,7 +350,7 @@ hyscan_gtk_map_grid_draw_lon (HyScanGtkMapGrid *grid,
       cairo_line_to (cairo, grid_x, grid_y);
     }
   cairo_set_line_width (cairo, priv->grid_line_width);
-  gdk_cairo_set_source_rgba (cairo, &priv->grid_color);
+  gdk_cairo_set_source_rgba (cairo, priv->grid_color);
   cairo_stroke (cairo);
 
   /* Рисуем подпись. */
@@ -324,7 +364,7 @@ hyscan_gtk_map_grid_draw_lon (HyScanGtkMapGrid *grid,
   text_width /= PANGO_SCALE;
 
   cairo_translate (cairo, grid_x - text_width / 2.0, priv->margin);
-  gdk_cairo_set_source_rgba (cairo, &priv->label_color);
+  gdk_cairo_set_source_rgba (cairo, priv->label_color);
   pango_cairo_show_layout (cairo, priv->pango_layout);
   cairo_restore (cairo);
 }
@@ -463,7 +503,7 @@ hyscan_gtk_map_grid_draw_scale (HyScanGtkMapGrid *grid,
 
     /* Рисуем линейку. */
     ruler_width = metres * scale;
-    gdk_cairo_set_source_rgba (cairo, &priv->label_color);
+    gdk_cairo_set_source_rgba (cairo, priv->label_color);
     cairo_set_line_width (cairo, priv->scale_line_width);
 
     cairo_move_to (cairo, x0 - priv->scale_line_width / 2.0, y0 + text_height / 2.0);

@@ -2,7 +2,7 @@
 #include <math.h>
 
 #define SNAP_DISTANCE 6.0           /* Максимальное расстояние прилипания курсора мыши к звену ломаной. */
-#define EARTH_RADIUS  6378137.0      /* Радиус Земли. */
+#define EARTH_RADIUS  6378137.0     /* Радиус Земли. */
 
 #define IS_INSIDE(x, a, b) ((a) < (b) ? (a) < (x) && (x) < (b) : (b) < (x) && (x) < (a))
 #define DEG2RAD(x) ((x) * G_PI / 180.0)
@@ -11,6 +11,7 @@
 enum
 {
   PROP_O,
+  PROP_LINE_WIDTH,
 };
 
 struct _HyScanGtkMapRulerPrivate
@@ -27,7 +28,6 @@ struct _HyScanGtkMapRulerPrivate
 
   gdouble                    radius;                   /* Радиус точки - вершины ломаной. */
   gdouble                    line_width;               /* Ширина линии ломаной. */
-  GdkRGBA                   *color;                    /* Цвет элементов. */
 };
 
 static void                     hyscan_gtk_map_ruler_set_property             (GObject                  *object,
@@ -39,7 +39,7 @@ static void                     hyscan_gtk_map_ruler_object_finalize          (G
 static void                     hyscan_gtk_map_ruler_interface_init           (HyScanGtkLayerInterface  *iface);
 static GList *                  hyscan_gtk_map_ruler_get_segment_under_cursor (HyScanGtkMapRuler        *ruler,
                                                                                GdkEventMotion           *event);
-static HyScanGtkMapPoint * hyscan_gtk_map_ruler_get_point_under_cursor   (HyScanGtkMapRulerPrivate *priv,
+static HyScanGtkMapPoint *      hyscan_gtk_map_ruler_get_point_under_cursor   (HyScanGtkMapRulerPrivate *priv,
                                                                                GdkEventMotion           *event);
 static void                     hyscan_gtk_map_ruler_motion_notify            (HyScanGtkMapRuler        *ruler,
                                                                                GdkEventMotion           *event);
@@ -84,6 +84,10 @@ hyscan_gtk_map_ruler_class_init (HyScanGtkMapRulerClass *klass)
   object_class->finalize = hyscan_gtk_map_ruler_object_finalize;
 
   pin_class->draw = hyscan_gtk_map_ruler_draw_impl;
+
+  g_object_class_install_property (object_class, PROP_LINE_WIDTH,
+    g_param_spec_double ("line-width", "Line width", "Width of lines between points", 0, G_MAXDOUBLE, 2.0,
+                         G_PARAM_WRITABLE));
 }
 
 static void
@@ -103,6 +107,9 @@ hyscan_gtk_map_ruler_set_property (GObject      *object,
 
   switch (prop_id)
     {
+    case PROP_LINE_WIDTH:
+      priv->line_width = g_value_get_double (value);
+      break;
 
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -118,9 +125,7 @@ hyscan_gtk_map_ruler_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_gtk_map_ruler_parent_class)->constructed (object);
 
-  g_object_get (gtk_map_ruler, "color", &priv->color, NULL);
   priv->radius = 3.0;
-  priv->line_width = 1.0;
 }
 
 static void
@@ -132,7 +137,6 @@ hyscan_gtk_map_ruler_object_finalize (GObject *object)
   g_list_free_full (priv->points, (GDestroyNotify) hyscan_gtk_map_point_free);
   g_clear_object (&priv->pango_layout);
   g_clear_object (&priv->map);
-  g_clear_pointer (&priv->color, gdk_rgba_free);
 
   G_OBJECT_CLASS (hyscan_gtk_map_ruler_parent_class)->finalize (object);
 }
@@ -309,7 +313,7 @@ hyscan_gtk_map_ruler_draw_hover_section (HyScanGtkMapRuler *ruler,
 
   gtk_cifro_area_visible_value_to_point (carea, &x, &y, priv->section_point.x, priv->section_point.y);
 
-  gdk_cairo_set_source_rgba (cairo, priv->color);
+  gdk_cairo_set_source_rgba (cairo, hyscan_gtk_map_pin_layer_get_color (HYSCAN_GTK_MAP_PIN_LAYER (ruler)));
   cairo_set_line_width (cairo, priv->line_width);
 
   cairo_new_path (cairo);
@@ -335,7 +339,7 @@ hyscan_gtk_map_ruler_draw_line (HyScanGtkMapRuler *ruler,
 
   carea = GTK_CIFRO_AREA (map);
 
-  gdk_cairo_set_source_rgba (cairo, priv->color);
+  gdk_cairo_set_source_rgba (cairo, hyscan_gtk_map_pin_layer_get_color (HYSCAN_GTK_MAP_PIN_LAYER (ruler)));
   cairo_set_line_width (cairo, priv->line_width);
 
   cairo_new_path (cairo);

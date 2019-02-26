@@ -6,7 +6,7 @@
  * Класс расширяет #GtkCifroArea, позволяя отображать картографическую проекцию
  * местности в виджете.
  *
- * Проекция #HyScanGeoProjection определяет перевод координат из географических
+ * Картографическая проекция #HyScanGeoProjection определяет перевод координат из географических
  * в координаты на плоскости и указывается при создании виджета карты в
  * функции hyscan_gtk_map_new().
  *
@@ -33,9 +33,7 @@ enum
 
 struct _HyScanGtkMapPrivate
 {
-  HyScanGeoProjection     *projection;           /* Проекция поверхности Земли на плоскость карты. */
-  HyScanGtkLayerContainer *container;            /* Контейнер слоёв. */
-  gconstpointer            howner;               /* Кто в данный момент обрабатывает взаимодействие с картой. */
+  HyScanGeoProjection     *projection;           /* Картографическая проекция поверхности Земли на плоскость карты. */
 };
 
 static void     hyscan_gtk_map_set_property             (GObject               *object,
@@ -102,16 +100,6 @@ hyscan_gtk_map_class_init (HyScanGtkMapClass *klass)
                   G_TYPE_NONE, 4, G_TYPE_POINTER, G_TYPE_POINTER, G_TYPE_POINTER, G_TYPE_POINTER);
 }
 
-/* Функция рисования чего???. */
-static void
-hyscan_gtk_map_visible_draw (GtkWidget *widget,
-                             cairo_t   *cairo)
-{
-  HyScanGtkMap *map = HYSCAN_GTK_MAP (widget);
-  HyScanGtkMapPrivate *priv = map->priv;
-  /* todo: ??? */
-}
-
 static void
 hyscan_gtk_map_init (HyScanGtkMap *gtk_map)
 {
@@ -132,6 +120,7 @@ hyscan_gtk_map_set_property (GObject      *object,
     case PROP_PROJECTION:
       priv->projection = g_value_dup_object (value);
       break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -145,10 +134,6 @@ hyscan_gtk_map_object_constructed (GObject *object)
   HyScanGtkMapPrivate *priv = gtk_map->priv;
 
   G_OBJECT_CLASS (hyscan_gtk_map_parent_class)->constructed (object);
-
-  /* Обработчики сигналов GtkWidget. */
-  /*g_signal_connect_swapped (gtk_map, "motion-notify-event",
-                            G_CALLBACK (hyscan_gtk_layer_container_propagate), priv->container);*/
 }
 
 static void
@@ -203,6 +188,14 @@ hyscan_gtk_map_get_limits (GtkCifroArea *carea,
   hyscan_geo_projection_get_limits (priv->projection, min_x, max_x, min_y, max_y);
 }
 
+/**
+ * hyscan_gtk_map_new:
+ * @projection: указатель на картографическую проекцию #HyScanGeoProjection
+ *
+ * Создаёт новый виджет #HyScanGtkMap для отображения географической карты.
+ *
+ * Returns: указатель на #HyScanGtkMap
+ */
 GtkWidget *
 hyscan_gtk_map_new (HyScanGeoProjection *projection)
 {
@@ -284,28 +277,6 @@ hyscan_gtk_map_get_scale (HyScanGtkMap *map)
   return dist_pixels / dist_metres;
 }
 
-void
-hyscan_gtk_map_release_input (HyScanGtkMap  *map,
-                              gconstpointer  howner)
-{
-  g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
-
-  if (howner == map->priv->howner)
-    map->priv->howner = NULL;
-}
-
-gboolean
-hyscan_gtk_map_grab_input (HyScanGtkMap  *map,
-                           gconstpointer  howner)
-{
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), FALSE);
-
-  if (map->priv->howner == NULL)
-    map->priv->howner = howner;
-
-  return howner == map->priv->howner;
-}
-
 /**
  * hyscan_gtk_map_point_to_geo:
  * @map: указатель на #HyScanGtkMap
@@ -317,10 +288,10 @@ hyscan_gtk_map_grab_input (HyScanGtkMap  *map,
  * координаты.
  */
 void
-hyscan_gtk_map_point_to_geo (HyScanGtkMap        *map,
-                             HyScanGeoGeodetic   *coords,
-                             gdouble              x,
-                             gdouble              y)
+hyscan_gtk_map_point_to_geo (HyScanGtkMap      *map,
+                             HyScanGeoGeodetic *coords,
+                             gdouble            x,
+                             gdouble            y)
 {
   HyScanGtkMapPrivate *priv;
   gdouble x_val;
@@ -333,7 +304,16 @@ hyscan_gtk_map_point_to_geo (HyScanGtkMap        *map,
   hyscan_geo_projection_value_to_geo (priv->projection, coords, x_val, y_val);
 }
 
-/* Переводит координаты логической СК в географическую. */
+/**
+ * hyscan_gtk_map_point_to_geo:
+ * @map: указатель на #HyScanGtkMap
+ * @coords: географические координаты
+ * @x: координата x на плоскости
+ * @y: координата y на плоскости
+ *
+ * Преобразовывает координаты из картографической проекции в географические
+ * координаты.
+ */
 void
 hyscan_gtk_map_value_to_geo (HyScanGtkMap       *map,
                              HyScanGeoGeodetic  *coords,
@@ -348,6 +328,16 @@ hyscan_gtk_map_value_to_geo (HyScanGtkMap       *map,
   hyscan_geo_projection_value_to_geo (priv->projection, coords, x_val, y_val);
 }
 
+/**
+ * hyscan_gtk_map_geo_to_value:
+ * @map: указатель на #HyScanGtkMap
+ * @coords: географические координаты
+ * @x: координата x в системе координат виджета
+ * @y: координата y в системе координат виджета
+ *
+ * Преобразовывает координаты из географических в координаты на плоскости
+ * картографической проекции.
+ */
 void
 hyscan_gtk_map_geo_to_value (HyScanGtkMap        *map,
                              HyScanGeoGeodetic    coords,
@@ -362,7 +352,15 @@ hyscan_gtk_map_geo_to_value (HyScanGtkMap        *map,
   hyscan_geo_projection_geo_to_value (priv->projection, coords, x_val, y_val);
 }
 
-/* Копирует структуру HyScanGtkMapPoint. */
+/**
+ * hyscan_gtk_map_point_copy:
+ * @point: указатель на #HyScanGtkMapPoint
+ *
+ * Создаёт копию структуры точки @point.
+ *
+ * Returns: указатель на новую структуру #HyScanGtkMapPoint.
+ * Для удаления hyscan_gtk_map_point_free()
+ */
 HyScanGtkMapPoint *
 hyscan_gtk_map_point_copy (HyScanGtkMapPoint *point)
 {
@@ -375,7 +373,12 @@ hyscan_gtk_map_point_copy (HyScanGtkMapPoint *point)
   return new_point;
 }
 
-/* Освобождает память из-под структуры HyScanGtkMapPoint. */
+/**
+ * hyscan_gtk_map_point_free:
+ * @point: указатель на #HyScanGtkMapPoint
+ *
+ * Освобождает память из-под структуры HyScanGtkMapPoint.
+ */
 void
 hyscan_gtk_map_point_free (HyScanGtkMapPoint *point)
 {

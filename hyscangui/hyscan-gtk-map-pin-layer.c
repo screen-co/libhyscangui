@@ -88,7 +88,7 @@ hyscan_gtk_map_pin_layer_class_init (HyScanGtkMapPinLayerClass *klass)
 
   g_object_class_install_property (object_class, PROP_COLOR,
     g_param_spec_boxed ("color", "Color", "GdkRGBA", GDK_TYPE_RGBA,
-                         G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+                        G_PARAM_READWRITE));
 }
 
 static void
@@ -479,12 +479,17 @@ hyscan_gtk_map_pin_layer_get_point_at (HyScanGtkMapPinLayer *pin_layer,
  * Returns: новый объект #HyScanGtkMapPinLayer. Для удаления g_object_unref().
  */
 HyScanGtkMapPinLayer *
-hyscan_gtk_map_pin_layer_new (GdkRGBA     *color)
+hyscan_gtk_map_pin_layer_new (void)
 {
-  return g_object_new (HYSCAN_TYPE_GTK_MAP_PIN_LAYER,
-                       "color", color, NULL);
+  return g_object_new (HYSCAN_TYPE_GTK_MAP_PIN_LAYER, NULL);
 }
 
+/**
+ * hyscan_gtk_map_pin_layer_clear:
+ * @pin_layer: указатель на #HyScanGtkMapPinLayer
+ *
+ * Удаляет все точки на слое.
+ */
 void
 hyscan_gtk_map_pin_layer_clear (HyScanGtkMapPinLayer *pin_layer)
 {
@@ -501,6 +506,14 @@ hyscan_gtk_map_pin_layer_clear (HyScanGtkMapPinLayer *pin_layer)
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }
 
+/**
+ * hyscan_gtk_map_pin_layer_get_points:
+ * @pin_layer: указатель на #HyScanGtkMapPinLayer
+ *
+ * Возвращает список точек #HyScanGtkMapPoint в слое.
+ *
+ * Returns: (transfer none): (element-type HyScanGtkMapPoint): список точек
+ */
 GList *
 hyscan_gtk_map_pin_layer_get_points (HyScanGtkMapPinLayer *pin_layer)
 {
@@ -520,7 +533,7 @@ hyscan_gtk_map_pin_layer_get_map (HyScanGtkMapPinLayer *pin_layer)
 /**
  * hyscan_gtk_map_pin_layer_get_color:
  * @pin_layer
- * Returns: (transfer-none):
+ * Returns: (transfer none):
  */
 GdkRGBA *
 hyscan_gtk_map_pin_layer_get_color (HyScanGtkMapPinLayer *pin_layer)
@@ -538,7 +551,7 @@ hyscan_gtk_map_pin_layer_get_color (HyScanGtkMapPinLayer *pin_layer)
  *
  * Добавляет @point в список точек слоя, помещая её перед указанной позицией @sibling.
  *
- * Returns: (transfer-none): указатель на добавленную точку.
+ * Returns: (transfer none): указатель на добавленную точку.
  */
 HyScanGtkMapPoint *
 hyscan_gtk_map_pin_layer_insert_before  (HyScanGtkMapPinLayer *pin_layer,
@@ -556,8 +569,8 @@ hyscan_gtk_map_pin_layer_insert_before  (HyScanGtkMapPinLayer *pin_layer,
 
 /**
  * hyscan_gtk_map_pin_layer_start_drag:
- * @layer:
- * @handle_point:
+ * @layer: указатель на #HyScanGtkMapPinLayer
+ * @handle_point: указатель на точку #HyScanGtkMapPoint на слое @layer
  *
  * Начинает перетаскивание точки @handle_point.
  */
@@ -572,6 +585,7 @@ hyscan_gtk_map_pin_layer_start_drag (HyScanGtkMapPinLayer *layer,
   container = HYSCAN_GTK_LAYER_CONTAINER (priv->map);
   howner = hyscan_gtk_layer_container_get_handle_grabbed (container);
 
+  /* Проверяем, что хэндл у нас, но мы ещё не в режиме перемещения. */
   if (howner != layer || priv->mode != MODE_NONE)
     return;
 

@@ -28,6 +28,7 @@ struct _HyScanGtkMapControlClass
   GObjectClass parent_class;
 };
 
+HYSCAN_API
 GType                  hyscan_gtk_map_control_get_type         (void);
 
 HYSCAN_API

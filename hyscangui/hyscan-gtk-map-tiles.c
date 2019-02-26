@@ -1,12 +1,14 @@
 /** Слой карт, загружает данные из тайлов. */
 
 #include "hyscan-gtk-map-tiles.h"
-#include <hyscan-gtk-map-tile-source.h>
 #include <hyscan-task-queue.h>
 #include <hyscan-gtk-map.h>
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
+
+/* Раскомментируйте следующую строку для вывода отладочной информации. */
+/* #define HYSCAN_GTK_MAP_TILES_DEBUG */
 
 #define CACHE_HEADER_MAGIC     0x308d32d9    /* Идентификатор заголовка кэша. */
 #define ZOOM_THRESHOLD         .3            /* Зум округляется вверх, если его дробная часть больше этого значения. */
@@ -17,9 +19,9 @@
 enum
 {
   PROP_O,
-  PROP_MAP,
   PROP_CACHE,
-  PROP_SOURCE
+  PROP_SOURCE,
+  PROP_PRELOAD_MARGIN,
 };
 
 /* Структруа заголовка кэша: содержит данные для gdk_pixbuf_new_from_data(). */
@@ -129,13 +131,16 @@ hyscan_gtk_map_tiles_class_init (HyScanGtkMapTilesClass *klass)
   object_class->finalize = hyscan_gtk_map_tiles_object_finalize;
 
   g_object_class_install_property (object_class, PROP_CACHE,
-                                   g_param_spec_object ("cache", "Cache", "Cache object",
-                                                        HYSCAN_TYPE_CACHE,
-                                                        G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+    g_param_spec_object ("cache", "Cache", "Cache object",
+                         HYSCAN_TYPE_CACHE,
+                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_SOURCE,
-                                   g_param_spec_object ("source", "Tile source", "GtkMapTileSource object",
-                                                        HYSCAN_TYPE_GTK_MAP_TILE_SOURCE,
-                                                        G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+    g_param_spec_object ("source", "Tile source", "GtkMapTileSource object",
+                         HYSCAN_TYPE_GTK_MAP_TILE_SOURCE,
+                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+  g_object_class_install_property (object_class, PROP_PRELOAD_MARGIN,
+    g_param_spec_uint ("preload-margin", "Preload margin", "GtkMapTileSource object", 0, G_MAXUINT, 0,
+                       G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
@@ -163,6 +168,10 @@ hyscan_gtk_map_tiles_set_property (GObject      *object,
       priv->cache = g_value_dup_object (value);
       break;
 
+    case PROP_PRELOAD_MARGIN:
+      priv->preload_margin = g_value_get_uint (value);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -185,7 +194,6 @@ hyscan_gtk_map_tiles_object_constructed (GObject *object)
   priv->cache_buffer = hyscan_buffer_new ();
   priv->tile_buffer = hyscan_buffer_new ();
 
-  priv->preload_margin = 3;
   g_mutex_init (&priv->filled_lock);
 }
 
@@ -817,9 +825,11 @@ hyscan_gtk_map_tiles_draw (HyScanGtkMapTiles *layer,
   gint x0, xn, y0, yn;
   guint zoom;
 
+#ifdef HYSCAN_GTK_MAP_TILES_DEBUG
   gdouble time;
 
   g_test_timer_start ();
+#endif
 
   /* Устанавливаем подходящий zoom для видимой области. */
   zoom = hyscan_gtk_map_tiles_get_optimal_zoom (priv);
@@ -844,8 +854,10 @@ hyscan_gtk_map_tiles_draw (HyScanGtkMapTiles *layer,
     cairo_paint (cairo);
   }
 
+#ifdef HYSCAN_GTK_MAP_TILES_DEBUG
   time = g_test_timer_elapsed ();
-  // g_message ("Draw tiles fps %.1f", 1.0 / time);
+  g_message ("Draw tiles fps %.1f", 1.0 / time);
+#endif
 }
 
 /**
@@ -869,10 +881,10 @@ hyscan_gtk_map_tiles_new (HyScanCache             *cache,
 /**
  * hyscan_gtk_map_set_zoom:
  * @map: указатель на #HyScanGtkMap
- * @zoom: масштаб карты
+ * @zoom: степень детализации карты
  *
- * Устанавливает новый масштаб карты. Допустимые значение масштаба определяются
- * используемым источником тайлов.
+ * Устанавливает новый уровень детализации карты. Допустимые значения @zoom определяются
+ * используемым источником тайлов hyscan_gtk_map_tile_source_get_zoom_limits().
  */
 void
 hyscan_gtk_map_tiles_set_zoom (HyScanGtkMapTiles *layer,

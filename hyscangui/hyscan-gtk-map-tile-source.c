@@ -29,6 +29,14 @@ hyscan_gtk_map_tile_source_fill (HyScanGtkMapTileSource *source,
   return FALSE;
 }
 
+/**
+ * hyscan_gtk_map_tile_source_get_zoom_limits:
+ * @source: указатель на #HyScanGtkMapTileSource
+ * @min_zoom: (out): минимальный уровень детализации
+ * @max_zoom: (out): максимальный уровень детализации
+ *
+ * Возвращает уровни детализации, доступные в указанном источнике.
+ */
 void
 hyscan_gtk_map_tile_source_get_zoom_limits (HyScanGtkMapTileSource *source,
                                             guint                  *min_zoom,
@@ -44,6 +52,14 @@ hyscan_gtk_map_tile_source_get_zoom_limits (HyScanGtkMapTileSource *source,
   (* iface->get_zoom_limits) (source, min_zoom, max_zoom);
 }
 
+/**
+ * hyscan_gtk_map_tile_source_get_tile_size:
+ * @source: указатель на #HyScanGtkMapTileSource
+ *
+ * Возвращает размер тайла по высоте и ширине. Тайлы квадратные.
+ *
+ * Returns: размер тайла в пикселах
+ */
 guint
 hyscan_gtk_map_tile_source_get_tile_size (HyScanGtkMapTileSource *source)
 {

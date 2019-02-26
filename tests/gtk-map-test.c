@@ -263,6 +263,7 @@ create_control_box (HyScanGtkMap         *map,
   /* Текущие координаты. */
   gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Координаты"));
   ctrl_widget = gtk_label_new ("-, -");
+  g_object_set (ctrl_widget, "width-chars", 24, NULL);
   g_signal_connect (map, "motion-notify-event", G_CALLBACK (on_motion_show_coords), ctrl_widget);
   gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
 
@@ -334,10 +335,26 @@ int main (int     argc,
     g_clear_object (&fs_source);
 
     control = hyscan_gtk_map_control_new ();
+
     map_grid = hyscan_gtk_map_grid_new ();
+    gdk_rgba_parse (&color, "rgba(255, 255, 255, 0.5)");
+    g_object_set (G_OBJECT (map_grid),
+                  "line-color", &color,
+                  "line-width", 0.5,
+                  NULL);
+
     ruler = hyscan_gtk_map_ruler_new ();
-    gdk_rgba_parse (&color, "#dd5555");
-    pin_layer = hyscan_gtk_map_pin_layer_new (&color);
+    gdk_rgba_parse (&color, "#dd4444");
+    g_object_set (G_OBJECT (ruler),
+                  "color", &color,
+                  "line-width", 2.0,
+                  NULL);
+
+    pin_layer = hyscan_gtk_map_pin_layer_new ();
+    gdk_rgba_parse (&color, "#dd55dd");
+    g_object_set (G_OBJECT (pin_layer),
+                  "color", &color,
+                  NULL);
 
     /* Слой управления первый, чтобы обрабатывать все взаимодействия. */
     hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (control));

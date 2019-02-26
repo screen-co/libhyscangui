@@ -35,7 +35,7 @@ HYSCAN_API
 GType                  hyscan_gtk_map_pin_layer_get_type       (void);
 
 HYSCAN_API
-HyScanGtkMapPinLayer * hyscan_gtk_map_pin_layer_new            (GdkRGBA              *color);
+HyScanGtkMapPinLayer * hyscan_gtk_map_pin_layer_new            (void);
 
 HYSCAN_API
 void                   hyscan_gtk_map_pin_layer_clear          (HyScanGtkMapPinLayer *pin_layer);
