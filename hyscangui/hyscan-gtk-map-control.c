@@ -38,7 +38,7 @@ static gboolean hyscan_gtk_map_control_motion_notify        (HyScanGtkMapControl
                                                              GdkEventMotion             *event);
 static gboolean hyscan_gtk_map_control_scroll               (HyScanGtkMapControl        *control,
                                                              GdkEventScroll             *event);
-static void     hyscan_gtk_map_control_set_mode             (HyScanGtkMapControlPrivate *priv,
+static void     hyscan_gtk_map_control_set_mode             (HyScanGtkMapControl        *priv,
                                                              gint                        mode);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapControl, hyscan_gtk_map_control, G_TYPE_OBJECT,
@@ -136,9 +136,10 @@ hyscan_gtk_map_control_scroll (HyScanGtkMapControl *control,
 
 /* Установка нового режима работы слоя управления. */
 static void
-hyscan_gtk_map_control_set_mode (HyScanGtkMapControlPrivate *priv,
-                                 gint                        mode)
+hyscan_gtk_map_control_set_mode (HyScanGtkMapControl *control,
+                                 gint                 mode)
 {
+  HyScanGtkMapControlPrivate *priv = control->priv;
   GdkWindow *window;
   GdkCursor *cursor = NULL;
 
@@ -148,9 +149,15 @@ hyscan_gtk_map_control_set_mode (HyScanGtkMapControlPrivate *priv,
   if (priv->mode == MODE_MOVE)
     {
       GdkDisplay *display;
+      gconstpointer howner;
 
       display = gdk_window_get_display (window);
       cursor = gdk_cursor_new_from_name (display, "grabbing");
+
+      /* Если никакой хэндл не взят, то сами его берём, а вернём на отжатие мыши. */
+      howner = hyscan_gtk_layer_container_get_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map));
+      if (howner == NULL)
+        hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), control);
     }
 
   gdk_window_set_cursor (window, cursor);
@@ -171,7 +178,7 @@ hyscan_gtk_map_control_motion_notify (HyScanGtkMapControl *control,
     {
       if (fabs (priv->move_from_x - event->x) + fabs (priv->move_from_y - event->y) > MOVE_THRESHOLD)
         {
-          hyscan_gtk_map_control_set_mode (priv, MODE_MOVE);
+          hyscan_gtk_map_control_set_mode (control, MODE_MOVE);
 
           gtk_cifro_area_get_view (carea, &priv->start_from_x, &priv->start_to_x,
                                           &priv->start_from_y, &priv->start_to_y);
@@ -231,7 +238,7 @@ hyscan_gtk_map_control_button_press_release (HyScanGtkMapControl *control,
       if ((event->x > border_left) && (event->x < (border_left + clip_width)) &&
           (event->y > border_top) && (event->y < (border_top + clip_height)))
         {
-          hyscan_gtk_map_control_set_mode (priv, MODE_AWAIT);
+          hyscan_gtk_map_control_set_mode (control, MODE_AWAIT);
           priv->move_from_x = (gint) event->x;
           priv->move_from_y = (gint) event->y;
         }
@@ -240,12 +247,21 @@ hyscan_gtk_map_control_button_press_release (HyScanGtkMapControl *control,
   /* Клавиша мышки отжата - завершаем перемещение. */
   if (event->type == GDK_BUTTON_RELEASE)
     {
-      gboolean stop_propagation;
+      gboolean stop_propagation = GDK_EVENT_PROPAGATE;
 
-      /* Если ввод был захвачен нами, то не передаём это событие дальше. */
-      stop_propagation = (priv->mode == MODE_MOVE) ? GDK_EVENT_STOP : GDK_EVENT_PROPAGATE;
+      if (priv->mode == MODE_MOVE) /* priv->mode != MODE_AWAIT */
+        {
+          gconstpointer howner;
 
-      hyscan_gtk_map_control_set_mode (priv, MODE_NONE);
+          /* Отпускаем хэндл, если он был захвачен нами. */
+          howner = hyscan_gtk_layer_container_get_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map));
+          if (howner == control)
+            hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);
+
+          stop_propagation = GDK_EVENT_STOP;
+        }
+
+      hyscan_gtk_map_control_set_mode (control, MODE_NONE);
 
       return stop_propagation;
     }
