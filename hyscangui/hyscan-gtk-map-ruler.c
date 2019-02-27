@@ -267,7 +267,10 @@ hyscan_gtk_map_ruler_draw_label (HyScanGtkMapRuler *ruler,
   gdouble distance;
 
   gchar label[255];
+
   gint height;
+  gint width;
+  gdouble margin = 5.0;
 
   gdouble x;
   gdouble y;
@@ -286,13 +289,28 @@ hyscan_gtk_map_ruler_draw_label (HyScanGtkMapRuler *ruler,
     g_snprintf (label, sizeof (label), "%.2f km", distance / 1000.0);
 
   pango_layout_set_text (priv->pango_layout, label, -1);
-  pango_layout_get_size (priv->pango_layout, NULL, &height);
+  pango_layout_get_size (priv->pango_layout, &width, &height);
   height /= PANGO_SCALE;
+  width /= PANGO_SCALE;
 
   last_point = g_list_last (points)->data;
   gtk_cifro_area_visible_value_to_point (carea, &x, &y, last_point->x, last_point->y);
-  cairo_move_to (cairo, x + priv->radius, y - height - priv->radius);
+
+  cairo_save (cairo);
+  cairo_translate (cairo, x + priv->radius + margin, y - height - priv->radius - margin);
+
+  cairo_rectangle (cairo, 0 - margin, 0 - margin, width + 2 * margin, height+ 2 * margin);
+  cairo_set_source_rgba (cairo, 1.0, 1.0, 1.0, 0.95);
+  cairo_fill_preserve (cairo);
+
+  cairo_set_line_width (cairo, .5);
+  cairo_set_source_rgba (cairo, 0, 0, 0, 0.1);
+  cairo_stroke (cairo);
+
+  gdk_cairo_set_source_rgba (cairo, hyscan_gtk_map_pin_layer_get_color (HYSCAN_GTK_MAP_PIN_LAYER (ruler)));
+  cairo_move_to (cairo, 0, 0);
   pango_cairo_show_layout (cairo, priv->pango_layout);
+  cairo_restore (cairo);
 }
 
 /* Рисует точку над звеном ломаной, если звено под курсором мыши. */
@@ -361,13 +379,14 @@ hyscan_gtk_map_ruler_draw_impl (HyScanGtkMapPinLayer *layer,
 {
   HyScanGtkMapRuler *ruler = HYSCAN_GTK_MAP_RULER (layer);
 
-  /* Родительский класс рисует сами метки. */
-  HYSCAN_GTK_MAP_PIN_LAYER_CLASS (hyscan_gtk_map_ruler_parent_class)->draw (layer, cairo);
-
-  /* Дальше рисуем соединения между метками и прочее. */
+  /* Рисуем соединения между метками и прочее. */
   hyscan_gtk_map_ruler_draw_line (ruler, cairo);
   hyscan_gtk_map_ruler_draw_label (ruler, cairo);
   hyscan_gtk_map_ruler_draw_hover_section (ruler, cairo);
+
+  /* Родительский класс рисует сами метки. */
+  HYSCAN_GTK_MAP_PIN_LAYER_CLASS (hyscan_gtk_map_ruler_parent_class)->draw (layer, cairo);
+
 }
 
 /* Определяет расстояние от точки (x0, y0) до прямой через точки p1 и p2
