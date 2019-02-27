@@ -146,7 +146,7 @@ hyscan_gtk_map_ruler_handle (HyScanGtkLayerContainer *container,
                              GdkEventMotion          *event,
                              HyScanGtkMapPinLayer    *layer)
 {
-  if (hyscan_gtk_map_ruler_get_segment_under_cursor (HYSCAN_GTK_MAP_RULER (layer), event))
+  if (hyscan_gtk_map_ruler_get_segment_under_cursor (HYSCAN_GTK_MAP_RULER (layer), event) != NULL)
     return layer;
 
   return NULL;
@@ -381,12 +381,12 @@ hyscan_gtk_map_ruler_draw_impl (HyScanGtkMapPinLayer *layer,
 
   /* Рисуем соединения между метками и прочее. */
   hyscan_gtk_map_ruler_draw_line (ruler, cairo);
-  hyscan_gtk_map_ruler_draw_label (ruler, cairo);
   hyscan_gtk_map_ruler_draw_hover_section (ruler, cairo);
 
   /* Родительский класс рисует сами метки. */
   HYSCAN_GTK_MAP_PIN_LAYER_CLASS (hyscan_gtk_map_ruler_parent_class)->draw (layer, cairo);
 
+  hyscan_gtk_map_ruler_draw_label (ruler, cairo);
 }
 
 /* Определяет расстояние от точки (x0, y0) до прямой через точки p1 и p2
@@ -428,6 +428,15 @@ hyscan_gtk_map_ruler_get_segment_under_cursor (HyScanGtkMapRuler *ruler,
 
   gdouble cur_x, cur_y;
   gdouble scale_x, scale_y;
+
+  gconstpointer howner;
+
+  /* Если какой-то хэндл захвачен или редактирование запрещено, то не реагируем на точки. */
+  howner = hyscan_gtk_layer_container_get_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (map));
+  if (howner != NULL)
+    return NULL;
+  if (!hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (map)))
+    return NULL;
 
   carea = GTK_CIFRO_AREA (map);
   gtk_cifro_area_get_scale (carea, &scale_x, &scale_y);
