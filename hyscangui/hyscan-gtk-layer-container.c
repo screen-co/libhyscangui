@@ -180,6 +180,10 @@ hyscan_gtk_layer_container_apply_handle (GtkWidget               *widget,
 {
   gconstpointer handle = NULL;
 
+  /* Обрабатываем только нажатия левой клавишей мыши. */
+  if (event->button != GDK_BUTTON_PRIMARY)
+    return GDK_EVENT_PROPAGATE;
+
   /* Нам нужно выяснить, кто имеет право отреагировать на это воздействие.
    * Возможны следующие ситуации:
    * - handle_owner != NULL - значит, этот слой уже обрабатывает взаимодействия,
