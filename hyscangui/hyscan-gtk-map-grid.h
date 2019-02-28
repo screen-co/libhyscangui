@@ -29,8 +29,31 @@ struct _HyScanGtkMapGridClass
 };
 
 HYSCAN_API
-HyScanGtkMapGrid *     hyscan_gtk_map_grid_new        (void);
+HyScanGtkMapGrid *     hyscan_gtk_map_grid_new                (void);
 
+HYSCAN_API
+void                   hyscan_gtk_map_grid_set_scale_width    (HyScanGtkMapGrid *grid,
+                                                               gdouble           width);
+
+HYSCAN_API
+void                   hyscan_gtk_map_grid_set_line_color     (HyScanGtkMapGrid *grid,
+                                                               GdkRGBA           color);
+
+HYSCAN_API
+void                   hyscan_gtk_map_grid_set_line_width     (HyScanGtkMapGrid *grid,
+                                                               gdouble           width);
+
+HYSCAN_API
+void                   hyscan_gtk_map_grid_set_label_color    (HyScanGtkMapGrid *grid,
+                                                               GdkRGBA           color);
+
+HYSCAN_API
+void                   hyscan_gtk_map_grid_set_bg_color       (HyScanGtkMapGrid *grid,
+                                                               GdkRGBA           color);
+
+HYSCAN_API
+void                   hyscan_gtk_map_grid_set_step_width     (HyScanGtkMapGrid *grid,
+                                                               guint             width);
 
 G_END_DECLS
 

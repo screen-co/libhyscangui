@@ -25,12 +25,6 @@ enum
   PROP_PROJECTION,
 };
 
-enum
-{
-  SIGNAL_BORDER_SIZE,
-  SIGNAL_LAST
-};
-
 struct _HyScanGtkMapPrivate
 {
   HyScanGeoProjection     *projection;           /* Картографическая проекция поверхности Земли на плоскость карты. */
@@ -56,8 +50,6 @@ static void     hyscan_gtk_map_check_scale              (GtkCifroArea          *
                                                          gdouble               *scale_x,
                                                          gdouble               *scale_y);
 
-static guint    hyscan_gtk_map_signals [SIGNAL_LAST] = {0};
-
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMap, hyscan_gtk_map, HYSCAN_TYPE_GTK_LAYER_CONTAINER)
 
 static void
@@ -79,25 +71,6 @@ hyscan_gtk_map_class_init (HyScanGtkMapClass *klass)
     g_param_spec_object ("projection", "Projection", "HyScanGeoProjection", HYSCAN_TYPE_GEO_PROJECTION,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 
-  /**
-   * HyScanGtkMap::border-size:
-   * @map: объект получивший сигнал
-   * @border-top: (out):
-   * @border-right: (out):
-   * @border-bottom: (out):
-   * @border-left: (out):
-   *
-   * Сигнал отправляется при запросе размера границ окантовки видимой области.
-   *
-   */
-  hyscan_gtk_map_signals[SIGNAL_BORDER_SIZE] =
-    g_signal_new ("border-size",
-                  HYSCAN_TYPE_GTK_MAP,
-                  G_SIGNAL_RUN_FIRST | G_SIGNAL_ACTION,
-                  0,
-                  NULL, NULL,
-                  hyscan_gui_marshal_VOID__POINTER_POINTER_POINTER_POINTER,
-                  G_TYPE_NONE, 4, G_TYPE_POINTER, G_TYPE_POINTER, G_TYPE_POINTER, G_TYPE_POINTER);
 }
 
 static void
@@ -169,10 +142,6 @@ hyscan_gtk_map_get_border (GtkCifroArea *carea,
   (border_top != NULL) ? *border_top = 0 : 0;
   (border_left != NULL) ? *border_left = 0 : 0;
   (border_right != NULL) ? *border_right = 0 : 0;
-
-  /* Узнаём у слоёв, надо ли кому-то изменить размеры окантковки. */
-  g_signal_emit (carea, hyscan_gtk_map_signals[SIGNAL_BORDER_SIZE], 0,
-                 border_top, border_bottom, border_left, border_right);
 }
 
 /* Границы системы координат карты. */

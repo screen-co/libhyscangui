@@ -37,7 +37,7 @@ const gchar *url_presets_yandex[] = {
   "https://sat02.maps.yandex.net/tiles?l=sat&v=3.455.0&x={x}&y={y}&z={z}&lang=ru_RU"       /* -p 1: Yandex спутник. */
 };
 
-static HyScanGeoGeodetic center = {.lat = 52.36, .lon = 4.9};
+static HyScanGeoGeodetic center = {.lat = 55.69, .lon = 12.60};
 
 void
 destroy_callback (GtkWidget *widget,
@@ -357,37 +357,16 @@ int main (int     argc,
     g_clear_object (&fs_source);
 
     control = hyscan_gtk_map_control_new ();
-
     map_grid = hyscan_gtk_map_grid_new ();
-    gdk_rgba_parse (&color, "rgba(255, 255, 255, 0.5)");
-    g_object_set (G_OBJECT (map_grid),
-                  "line-color", &color,
-                  "line-width", 0.5,
-                  NULL);
-
     ruler = hyscan_gtk_map_ruler_new ();
-    gdk_rgba_parse (&color, "#dd5555");
-    g_object_set (G_OBJECT (ruler),
-                  "shape", HYSCAN_GTK_MAP_PIN_LAYER_SHAPE_CIRCLE,
-                  "radius", 4,
-                  "color", &color,
-                  "line-width", 1.5,
-                  NULL);
-
     pin_layer = hyscan_gtk_map_pin_layer_new ();
-    gdk_rgba_parse (&color, "#dd55dd");
-    g_object_set (G_OBJECT (pin_layer),
-                  "shape", HYSCAN_GTK_MAP_PIN_LAYER_SHAPE_PIN,
-                  "radius", 10,
-                  "color", &color,
-                  NULL);
 
     /* Слой управления первый, чтобы обрабатывать все взаимодействия. */
     hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (control));
     hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (tiles));
-    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (map_grid));
     hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (pin_layer));
     hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (ruler));
+    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (map_grid));
   }
 
   grid = gtk_grid_new ();

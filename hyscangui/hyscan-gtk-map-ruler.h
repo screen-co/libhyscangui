@@ -28,11 +28,27 @@ struct _HyScanGtkMapRulerClass
   HyScanGtkMapPinLayerClass parent_class;
 };
 
-
+HYSCAN_API
 GType                  hyscan_gtk_map_ruler_get_type         (void);
 
 HYSCAN_API
-HyScanGtkMapRuler *    hyscan_gtk_map_ruler_new              ();
+HyScanGtkMapRuler *    hyscan_gtk_map_ruler_new              (void);
+
+HYSCAN_API
+void                   hyscan_gtk_map_ruler_set_line_width   (HyScanGtkMapRuler *ruler,
+                                                              gdouble            width);
+
+HYSCAN_API
+void                   hyscan_gtk_map_ruler_set_label_color  (HyScanGtkMapRuler *ruler,
+                                                              GdkRGBA            color);
+
+HYSCAN_API
+void                   hyscan_gtk_map_ruler_set_line_color   (HyScanGtkMapRuler *ruler,
+                                                              GdkRGBA            color);
+
+HYSCAN_API
+void                   hyscan_gtk_map_ruler_set_bg_color     (HyScanGtkMapRuler *ruler,
+                                                              GdkRGBA            color);
 
 G_END_DECLS
 
