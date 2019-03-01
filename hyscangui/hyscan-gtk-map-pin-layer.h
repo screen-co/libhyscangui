@@ -59,7 +59,7 @@ void                   hyscan_gtk_map_pin_layer_set_pin_size     (HyScanGtkMapPi
                                                                   guint                         size);
 
 HYSCAN_API
-void                   hyscan_gtk_map_pin_layer_start_drag       (HyScanGtkMapPinLayer         *layer,
+gconstpointer          hyscan_gtk_map_pin_layer_start_drag       (HyScanGtkMapPinLayer         *layer,
                                                                   HyScanGtkMapPoint            *handle_point);
 
 HYSCAN_API

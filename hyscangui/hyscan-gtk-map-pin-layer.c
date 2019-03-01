@@ -80,8 +80,9 @@ static void          hyscan_gtk_map_pin_layer_object_finalize           (GObject
 static void          hyscan_gtk_map_pin_layer_interface_init            (HyScanGtkLayerInterface     *iface);
 static void          hyscan_gtk_map_pin_layer_draw                      (HyScanGtkMapPinLayer        *pin_layer,
                                                                          cairo_t                     *cairo);
-static gboolean      hyscan_gtk_map_pin_layer_button_release            (HyScanGtkLayer              *layer,
-                                                                         GdkEventButton              *event);
+static gboolean      hyscan_gtk_map_pin_layer_button_release            (GtkWidget                   *widget,
+                                                                         GdkEventButton              *event,
+                                                                         HyScanGtkLayer              *layer);
 static gboolean      hyscan_gtk_map_pin_layer_motion_notify             (HyScanGtkMapPinLayer        *pin_layer,
                                                                          GdkEventMotion              *event);
 static void          hyscan_gtk_map_pin_layer_motion_hover              (HyScanGtkMapPinLayer        *pin_layer,
@@ -100,7 +101,7 @@ static void          hyscan_gtk_map_pin_layer_draw_pins                 (HyScanG
 static HyScanGtkMapPoint *   hyscan_gtk_map_pin_layer_get_point_at      (HyScanGtkMapPinLayer        *pin_layer,
                                                                          gdouble                      x,
                                                                          gdouble                      y);
-static gpointer      hyscan_gtk_map_pin_layer_handle                    (HyScanGtkLayerContainer     *container,
+static gconstpointer hyscan_gtk_map_pin_layer_handle                    (HyScanGtkLayerContainer     *container,
                                                                          GdkEventMotion              *event,
                                                                          HyScanGtkMapPinLayer        *layer);
 static void          hyscan_gtk_map_pin_layer_update_marker             (HyScanGtkMapPinLayer        *layer);
@@ -313,16 +314,39 @@ hyscan_gtk_map_pin_layer_object_constructed (GObject *object)
   hyscan_gtk_layer_set_visible (HYSCAN_GTK_LAYER (gtk_map_pin_layer), TRUE);
 }
 
-/* Обработчик сигнала "handle". Определяет, есть ли под указателем мыши хэндл. */
-static gpointer
+/* Обработчик сигнала "handle". Захватывает хэндл под указателем мыши. */
+static gconstpointer
 hyscan_gtk_map_pin_layer_handle (HyScanGtkLayerContainer *container,
                                  GdkEventMotion          *event,
                                  HyScanGtkMapPinLayer    *layer)
 {
-  if (hyscan_gtk_map_pin_layer_get_point_at (layer, event->x, event->y) != NULL)
-    return layer;
+  HyScanGtkMapPoint *point;
+
+  point = hyscan_gtk_map_pin_layer_get_point_at (layer, event->x, event->y);
+  if (point != NULL)
+    return hyscan_gtk_map_pin_layer_start_drag (layer, point);
 
   return NULL;
+}
+
+/* Обработчик сигнала "handle-release".
+ * Возвращает %TRUE, если мы разрешаем отпустить хэндл. */
+static gboolean
+hyscan_gtk_map_pin_layer_handle_release (HyScanGtkLayerContainer *container,
+                                         GdkEventMotion          *event,
+                                         HyScanGtkMapPinLayer    *layer)
+{
+  HyScanGtkMapPinLayerPrivate *priv = layer->priv;
+
+  if (hyscan_gtk_layer_container_get_handle_grabbed (container) != layer)
+    return FALSE;
+
+  if (priv->mode != MODE_DRAG)
+    return FALSE;
+
+  priv->mode = MODE_NONE;
+
+  return TRUE;
 }
 
 static void
@@ -338,16 +362,17 @@ hyscan_gtk_map_pin_layer_added (HyScanGtkLayer          *gtk_layer,
 
   /* Сигналы контейнера. */
   g_signal_connect (container, "handle", G_CALLBACK (hyscan_gtk_map_pin_layer_handle), gtk_layer);
+  g_signal_connect (container, "handle-release", G_CALLBACK (hyscan_gtk_map_pin_layer_handle_release), gtk_layer);
 
   /* Подключаемся к сигналам перерисовки видимой области карты. */
   g_signal_connect_swapped (container, "visible-draw",
                             G_CALLBACK (hyscan_gtk_map_pin_layer_draw), gtk_layer);
 
   /* Сигналы GtkWidget. */
+  g_signal_connect_after (container, "button-release-event",
+                          G_CALLBACK (hyscan_gtk_map_pin_layer_button_release), gtk_layer);
   g_signal_connect_swapped (container, "configure-event",
                             G_CALLBACK (hyscan_gtk_map_pin_layer_configure), gtk_layer);
-  g_signal_connect_swapped (container, "button-release-event",
-                            G_CALLBACK (hyscan_gtk_map_pin_layer_button_release), gtk_layer);
   g_signal_connect_swapped (container, "key-press-event",
                              G_CALLBACK (hyscan_gtk_map_pin_layer_key_press), gtk_layer);
   g_signal_connect_swapped (container, "motion-notify-event",
@@ -535,24 +560,18 @@ hyscan_gtk_map_pin_layer_key_press (HyScanGtkMapPinLayer *pin_layer,
   return GDK_EVENT_PROPAGATE;
 }
 
-static void
-hyscan_gtk_map_pin_layer_stop_drag (HyScanGtkMapPinLayerPrivate *priv)
-{
-  priv->mode = MODE_NONE;
-  hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);
-}
-
-/* Обработка "button-release-event" на слое. */
+/* Обработка "button-release-event" на слое.
+ * Создаёт новую точку в том месте, где пользователь кликнул мышью. */
 static gboolean
-hyscan_gtk_map_pin_layer_button_release (HyScanGtkLayer *layer,
-                                         GdkEventButton *event)
+hyscan_gtk_map_pin_layer_button_release (GtkWidget      *widget,
+                                         GdkEventButton *event,
+                                         HyScanGtkLayer *layer)
 {
   HyScanGtkMapPinLayer *pin_layer = HYSCAN_GTK_MAP_PIN_LAYER (layer);
   HyScanGtkMapPinLayerPrivate *priv = pin_layer->priv;
 
   HyScanGtkLayerContainer *container;
-  gconstpointer iowner;
-  gconstpointer howner;
+  HyScanGtkMapPoint point;
 
   /* Обрабатываем только нажатия левой кнопки. */
   if (event->button != GDK_BUTTON_PRIMARY)
@@ -563,39 +582,18 @@ hyscan_gtk_map_pin_layer_button_release (HyScanGtkLayer *layer,
   if (!hyscan_gtk_layer_container_get_changes_allowed (container))
     return GDK_EVENT_PROPAGATE;
 
-  iowner = hyscan_gtk_layer_container_get_input_owner (container);
-  howner = hyscan_gtk_layer_container_get_handle_grabbed (container);
-
-  if ((howner != layer) && (howner != NULL || iowner != layer))
+  /* Проверяем, что у нас есть право ввода. */
+  if (hyscan_gtk_layer_container_get_input_owner (container) != layer)
     return GDK_EVENT_PROPAGATE;
 
-  if (priv->mode == MODE_NONE && priv->hover_point == NULL && howner == NULL && iowner == layer)
-    /* Курсор над пустым местом - добавляем новую точку. */
-    {
-      HyScanGtkMapPoint point;
+  if (priv->mode != MODE_NONE)
+    return GDK_EVENT_PROPAGATE;
 
-      gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &point.x, &point.y);
-      hyscan_gtk_map_pin_layer_insert_before (pin_layer, &point, NULL);
-      gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+  gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &point.x, &point.y);
+  hyscan_gtk_map_pin_layer_insert_before (pin_layer, &point, NULL);
+  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 
-      return GDK_EVENT_STOP;
-    }
-  else if (priv->mode == MODE_NONE && priv->hover_point != NULL && howner == layer)
-    /* Курсор над точкой - начинаем её перетаскивать. */
-    {
-      hyscan_gtk_map_pin_layer_start_drag (pin_layer, priv->hover_point);
-
-      return GDK_EVENT_STOP;
-    }
-  else if (priv->mode == MODE_DRAG)
-    /* Мышь тянет точку - заканчиваем перетаскивать. */
-    {
-      hyscan_gtk_map_pin_layer_stop_drag (priv);
-
-      return GDK_EVENT_STOP;
-    }
-
-  return GDK_EVENT_PROPAGATE;
+  return GDK_EVENT_STOP;
 }
 
 /* Возвращает маркер, соответствующий точке point. */
@@ -739,8 +737,10 @@ hyscan_gtk_map_pin_layer_insert_before  (HyScanGtkMapPinLayer *pin_layer,
  * @handle_point: указатель на точку #HyScanGtkMapPoint на слое @layer
  *
  * Начинает перетаскивание точки @handle_point.
+ *
+ * Returns: указатель на хэндл, если началось перетаскивание; иначе %NULL
  */
-void
+gconstpointer
 hyscan_gtk_map_pin_layer_start_drag (HyScanGtkMapPinLayer *layer,
                                      HyScanGtkMapPoint    *handle_point)
 {
@@ -751,16 +751,25 @@ hyscan_gtk_map_pin_layer_start_drag (HyScanGtkMapPinLayer *layer,
   container = HYSCAN_GTK_LAYER_CONTAINER (priv->map);
   howner = hyscan_gtk_layer_container_get_handle_grabbed (container);
 
-  /* Проверяем, что хэндл у нас, но мы ещё не в режиме перемещения. */
-  if (howner != layer || priv->mode != MODE_NONE)
-    return;
+  /* Проверяем, что хэндл свободен и мы ещё не в режиме перемещения. */
+  if (howner != NULL)
+    {
+      g_warning ("HyScanGtkMapPinLayer: failed to start drag - handle is grabbed");
+      return NULL;
+    }
+  if (priv->mode == MODE_DRAG)
+    {
+      g_warning ("HyScanGtkMapPinLayer: failed to start drag - already in drag mode");
+      return NULL;
+    }
 
   priv->mode = MODE_DRAG;
   priv->drag_point = handle_point;
-  hyscan_gtk_layer_container_set_handle_grabbed (container, layer);
 
   gtk_widget_grab_focus (GTK_WIDGET (priv->map));
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+  return layer;
 }
 
 void

@@ -42,10 +42,9 @@ static void                     hyscan_gtk_map_ruler_object_finalize          (G
 static void                     hyscan_gtk_map_ruler_interface_init           (HyScanGtkLayerInterface  *iface);
 static GList *                  hyscan_gtk_map_ruler_get_segment_under_cursor (HyScanGtkMapRuler        *ruler,
                                                                                GdkEventMotion           *event);
-static void                     hyscan_gtk_map_ruler_motion_notify            (HyScanGtkMapRuler        *ruler,
-                                                                               GdkEventMotion           *event);
-static gboolean                 hyscan_gtk_map_ruler_btn_click_add            (HyScanGtkMapRuler        *ruler,
-                                                                               GdkEventButton           *event);
+static void                     hyscan_gtk_map_ruler_motion_notify            (GtkWidget                *widget,
+                                                                               GdkEventMotion           *event,
+                                                                               HyScanGtkMapRuler        *ruler);
 static gdouble                  hyscan_gtk_map_ruler_measure                  (HyScanGeoGeodetic         coord1,
                                                                                HyScanGeoGeodetic         coord2);
 static gdouble                  hyscan_gtk_map_ruler_get_distance             (HyScanGtkMap             *map,
@@ -129,15 +128,27 @@ hyscan_gtk_map_ruler_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_ruler_parent_class)->finalize (object);
 }
 
-static gpointer
+/* Захватывает хэндл (если такой есть) по сигналу #HyScanGtkLayerContainer::handle.
+ *
+ * Если указатель мыши над одним из отрезков, то помещает новую точку в это место и
+ * начинает ее перетаскивать. */
+static gconstpointer
 hyscan_gtk_map_ruler_handle (HyScanGtkLayerContainer *container,
                              GdkEventMotion          *event,
-                             HyScanGtkMapPinLayer    *layer)
+                             HyScanGtkMapRuler       *ruler)
 {
-  if (hyscan_gtk_map_ruler_get_segment_under_cursor (HYSCAN_GTK_MAP_RULER (layer), event) != NULL)
-    return layer;
+  GList *section;
+  HyScanGtkMapPoint *new_point;
+  HyScanGtkMapRulerPrivate *priv = ruler->priv;
+  HyScanGtkMapPinLayer *pin_layer = HYSCAN_GTK_MAP_PIN_LAYER (ruler);
 
-  return NULL;
+  section = hyscan_gtk_map_ruler_get_segment_under_cursor (ruler, event);
+  if (section == NULL)
+    return NULL;
+
+  new_point = hyscan_gtk_map_pin_layer_insert_before (pin_layer, &priv->section_point, section);
+
+  return hyscan_gtk_map_pin_layer_start_drag (pin_layer, new_point);;
 }
 
 static void
@@ -155,10 +166,8 @@ hyscan_gtk_map_ruler_added (HyScanGtkLayer          *gtk_layer,
 
   g_signal_connect (priv->map, "configure-event",
                     G_CALLBACK (hyscan_gtk_map_ruler_configure), gtk_layer);
-  g_signal_connect_swapped (priv->map, "button-release-event",
-                            G_CALLBACK (hyscan_gtk_map_ruler_btn_click_add), gtk_layer);
-  g_signal_connect_swapped (priv->map, "motion-notify-event",
-                            G_CALLBACK (hyscan_gtk_map_ruler_motion_notify), gtk_layer);
+  g_signal_connect (priv->map, "motion-notify-event",
+                    G_CALLBACK (hyscan_gtk_map_ruler_motion_notify), gtk_layer);
   g_signal_connect (priv->map, "handle",
                     G_CALLBACK (hyscan_gtk_map_ruler_handle), gtk_layer);
 }
@@ -258,7 +267,6 @@ hyscan_gtk_map_ruler_draw_label (HyScanGtkMapRuler *ruler,
 
   gint height;
   gint width;
-  gdouble margin = 5.0;
 
   gdouble x;
   gdouble y;
@@ -469,8 +477,9 @@ hyscan_gtk_map_ruler_get_segment_under_cursor (HyScanGtkMapRuler *ruler,
 
 /* Выделяет точку под курсором мыши, если она находится на отрезке. */
 static void
-hyscan_gtk_map_ruler_motion_notify (HyScanGtkMapRuler *ruler,
-                                    GdkEventMotion *event)
+hyscan_gtk_map_ruler_motion_notify (GtkWidget         *widget,
+                                    GdkEventMotion    *event,
+                                    HyScanGtkMapRuler *ruler)
 {
   HyScanGtkMapRulerPrivate *priv = ruler->priv;
   GList *hover_section;
@@ -482,44 +491,6 @@ hyscan_gtk_map_ruler_motion_notify (HyScanGtkMapRuler *ruler,
       priv->hover_section = hover_section;
       gtk_widget_queue_draw (GTK_WIDGET (priv->map));
     }
-}
-
-/* Обработчик "button-release-event". Добавляет новый узел ломаной при отпускании кнопкой мыши. */
-static gboolean
-hyscan_gtk_map_ruler_btn_click_add (HyScanGtkMapRuler *ruler,
-                                    GdkEventButton    *event)
-{
-  HyScanGtkMapRulerPrivate *priv = ruler->priv;
-  HyScanGtkMapPinLayer *pin_layer = HYSCAN_GTK_MAP_PIN_LAYER (ruler);
-
-  HyScanGtkLayerContainer *container;
-  gconstpointer howner;
-
-  /* Обрабатываем только нажатия левой кнопки. */
-  if (event->button != GDK_BUTTON_PRIMARY)
-    return GDK_EVENT_PROPAGATE;
-
-  container = HYSCAN_GTK_LAYER_CONTAINER (priv->map);
-  howner = hyscan_gtk_layer_container_get_handle_grabbed (container);
-
-  if (howner != ruler)
-    return GDK_EVENT_PROPAGATE;
-
-  /* Мышь зажата между концами одного из отрезков.
-   * Создаём точку и начинаем ее перетаскивать. */
-  if (priv->hover_section != NULL)
-    {
-      HyScanGtkMapPoint *new_point;
-
-      new_point = hyscan_gtk_map_pin_layer_insert_before (pin_layer, &priv->section_point, priv->hover_section);
-      hyscan_gtk_map_pin_layer_start_drag (pin_layer, new_point);
-
-      priv->hover_section = NULL;
-
-      return GDK_EVENT_STOP;
-    }
-
-  return GDK_EVENT_PROPAGATE;
 }
 
 static void
