@@ -1,4 +1,9 @@
 /**
+ * SECTION: hyscan-gtk-layer-container
+ * @Short_description: Контейнер слоёв виджета #GtkCifroArea
+ * @Title: HyScanGtkLayerContainer
+ * @See_also: #GtkCifroArea, #HyScanGtkLayer
+ *
  * Класс представляет из себя контейнер слоёв #HyScanGtkLayer и служит для
  * управление пользовательским вводом в слои внутри контейнера.
  *
@@ -35,13 +40,13 @@
  * изменение уже существующих. Чтобы слои могли понимать, кто имеет право обработать ввод,
  * введены следующие ограничения.
  *
- * - editable - режим просмотра или редактирования
+ * - changes_allowed - режим просмотра или редактирования
  *
  *   Это первое разграничение, самое глобальное. Оно означает режим просмотра или
  *   режим редактирования. В режиме просмотра слои не имеют права обрабатывать
  *   никакой пользовательский ввод.
- *   - hyscan_gtk_layer_container_set_editable() - разрешает или запрещает изменения
- *   - hyscan_gtk_layer_container_get_editable() - позволяет определнить, разрешены ли изменения
+ *   - hyscan_gtk_layer_container_set_changes_allowed() - разрешает или запрещает изменения
+ *   - hyscan_gtk_layer_container_get_changes_allowed() - позволяет определнить, разрешены ли изменения
  *
  * - handle_grabbed - хэндл уже захвачен
  *
@@ -230,10 +235,10 @@ hyscan_gtk_layer_container_resolve_handle (GtkWidget               *widget,
 
 /**
  * hyscan_gtk_layer_container_add:
- * @container:
- * @layer:
+ * @container: указатель на #HyScanGtkLayerContainer
+ * @layer: слой #HyScanGtkLayer
  *
- * Добавляет в контейнер новый слой.
+ * Добавляет в контейнер новый слой @layer.
  */
 void
 hyscan_gtk_layer_container_add (HyScanGtkLayerContainer *container,
@@ -251,8 +256,9 @@ hyscan_gtk_layer_container_add (HyScanGtkLayerContainer *container,
 
 /**
  * hyscan_gtk_layer_container_get_input_owner:
- * @container:
- * Returns:
+ * @container: указатель на #HyScanGtkLayerContainer
+ *
+ * Returns: текущий владелец ввода
  */
 gconstpointer
 hyscan_gtk_layer_container_get_input_owner (HyScanGtkLayerContainer *container)
@@ -264,8 +270,8 @@ hyscan_gtk_layer_container_get_input_owner (HyScanGtkLayerContainer *container)
 
 /**
  * hyscan_gtk_layer_container_set_input_owner:
- * @container:
- * @instance:
+ * @container: указатель на #HyScanGtkLayerContainer
+ * @instance: новый владелц ввода или %NULL
  */
 void
 hyscan_gtk_layer_container_set_input_owner (HyScanGtkLayerContainer *container,
@@ -278,8 +284,10 @@ hyscan_gtk_layer_container_set_input_owner (HyScanGtkLayerContainer *container,
 
 /**
  * hyscan_gtk_layer_container_set_handle_grabbed:
- * @container:
- * @instance:
+ * @container: указатель на #HyScanGtkLayerContainer
+ * @instance: новый владеле хэндла или %NULL
+ *
+ * Устанавливает нового владельца хэндла.
  */
 void
 hyscan_gtk_layer_container_set_handle_grabbed (HyScanGtkLayerContainer *container,
@@ -292,8 +300,9 @@ hyscan_gtk_layer_container_set_handle_grabbed (HyScanGtkLayerContainer *containe
 
 /**
  * hyscan_gtk_layer_container_get_handle_grabbed:
- * @container
- * Returns:
+ * @container: указатель на #HyScanGtkLayerContainer
+ *
+ * Returns: текущий владелец хэндла или %NULL
  */
 gconstpointer
 hyscan_gtk_layer_container_get_handle_grabbed (HyScanGtkLayerContainer *container)
@@ -305,8 +314,9 @@ hyscan_gtk_layer_container_get_handle_grabbed (HyScanGtkLayerContainer *containe
 
 /**
  * hyscan_gtk_layer_container_get_changes_allowed:
- * @container:
- * Returns:
+ * @container: указатель на #HyScanGtkLayerContainer
+ *
+ * Returns: %TRUE, если редактирование слоёв разрешено
  */
 gboolean
 hyscan_gtk_layer_container_get_changes_allowed (HyScanGtkLayerContainer *container)
@@ -318,8 +328,10 @@ hyscan_gtk_layer_container_get_changes_allowed (HyScanGtkLayerContainer *contain
 
 /**
  * hyscan_gtk_layer_container_set_changes_allowed:
- * @container:
- * @changes_allowed:
+ * @container: указатель на #HyScanGtkLayerContainer
+ * @changes_allowed: %TRUE, если редактирование разрешено; иначе %FALSE
+ *
+ * Устанавливает, разрешено ли редактирование слоёв или нет.
  */
 void
 hyscan_gtk_layer_container_set_changes_allowed (HyScanGtkLayerContainer *container,

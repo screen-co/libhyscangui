@@ -376,10 +376,28 @@ hyscan_gtk_map_pin_layer_get_visible (HyScanGtkLayer *layer)
   return priv->visible;
 }
 
+static gboolean
+hyscan_gtk_map_pin_layer_grab_input (HyScanGtkLayer *layer)
+{
+  HyScanGtkMapPinLayer *pin_layer = HYSCAN_GTK_MAP_PIN_LAYER (layer);
+  HyScanGtkMapPinLayerPrivate *priv =pin_layer->priv;
+
+  if (priv->map == NULL)
+    return FALSE;
+
+  if (!hyscan_gtk_layer_get_visible (layer))
+    return FALSE;
+
+  hyscan_gtk_layer_container_set_input_owner (HYSCAN_GTK_LAYER_CONTAINER (priv->map), layer);
+
+  return TRUE;
+}
+
 static void
 hyscan_gtk_map_pin_layer_interface_init (HyScanGtkLayerInterface *iface)
 {
   iface->added = hyscan_gtk_map_pin_layer_added;
+  iface->grab_input = hyscan_gtk_map_pin_layer_grab_input;
   iface->set_visible = hyscan_gtk_map_pin_layer_set_visible;
   iface->get_visible = hyscan_gtk_map_pin_layer_get_visible;
 }

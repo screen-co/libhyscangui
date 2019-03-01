@@ -38,10 +38,6 @@ void                      hyscan_gtk_layer_container_add                 (HyScan
                                                                           HyScanGtkLayer          *layer);
 
 HYSCAN_API
-void                      hyscan_gtk_layer_container_remove              (HyScanGtkLayerContainer *container,
-                                                                          HyScanGtkLayer          *layer);
-
-HYSCAN_API
 void                      hyscan_gtk_layer_container_set_input_owner     (HyScanGtkLayerContainer *container,
                                                                           gconstpointer            instance);
 

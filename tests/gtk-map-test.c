@@ -120,16 +120,26 @@ on_move_to_click (HyScanGtkMap *map)
 
 /* Переключение активного слоя. */
 void
-on_row_activate (GtkListBox    *box,
-                 GtkListBoxRow *row,
-                 gpointer       user_data)
+on_row_select (GtkListBox    *box,
+               GtkListBoxRow *row,
+               gpointer       user_data)
 {
   HyScanGtkLayer *layer;
 
   gtk_container_foreach (layer_toolbox, (GtkCallback) gtk_widget_destroy, NULL);
 
+  if (row == NULL)
+    {
+      hyscan_gtk_layer_container_set_input_owner (HYSCAN_GTK_LAYER_CONTAINER (map), NULL);
+      return;
+    }
+
   layer = g_object_get_data (G_OBJECT (row), "layer");
-  hyscan_gtk_layer_container_set_input_owner (HYSCAN_GTK_LAYER_CONTAINER (map), layer);
+  if (!hyscan_gtk_layer_grab_input (layer))
+    {
+      gtk_list_box_unselect_row (box, row);
+      return;
+    }
 
   layer_toolbox_cb = g_object_get_data (G_OBJECT (layer), "toolbox-cb");
   if (layer_toolbox_cb != NULL)
@@ -185,6 +195,7 @@ add_layer_row (GtkListBox     *list_box,
   gtk_box_pack_end (GTK_BOX (box), gtk_label_new (title), TRUE, TRUE, 0);
 
   row = gtk_list_box_row_new ();
+  gtk_list_box_row_set_activatable (GTK_LIST_BOX_ROW (row), FALSE);
   g_object_set_data (G_OBJECT (row), "layer", layer);
   gtk_container_add (GTK_CONTAINER (row), box);
 
@@ -240,7 +251,7 @@ create_control_box (HyScanGtkMap         *map,
     add_layer_row (GTK_LIST_BOX (list_box), "Коорд. сетка", HYSCAN_GTK_LAYER (grid));
     add_layer_row (GTK_LIST_BOX (list_box), "Линейка", HYSCAN_GTK_LAYER (ruler));
     add_layer_row (GTK_LIST_BOX (list_box), "Булавка", HYSCAN_GTK_LAYER (pin_layer));
-    g_signal_connect (list_box, "row-activated", G_CALLBACK (on_row_activate), NULL);
+    g_signal_connect (list_box, "row-selected", G_CALLBACK (on_row_select), NULL);
 
     gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Слои"));
     gtk_container_add (GTK_CONTAINER (ctrl_box), list_box);
@@ -346,7 +357,6 @@ int main (int     argc,
   {
     HyScanGtkMapTileSource *nw_source;
     HyScanGtkMapFsTileSource *fs_source;
-    GdkRGBA color;
 
     /* Создаём виджет карты и соответствующий network-источник тайлов. */
     map = HYSCAN_GTK_MAP (create_map (&nw_source));

@@ -242,7 +242,7 @@ hyscan_gtk_map_tiles_interface_init (HyScanGtkLayerInterface *iface)
   iface->set_visible = NULL;
   iface->added = hyscan_gtk_map_tiles_added;
   iface->grab_input = NULL;
-  iface->get_icon = NULL;
+  iface->get_icon_name = NULL;
 }
 
 /* Помещает в кэш информацию о тайле. */

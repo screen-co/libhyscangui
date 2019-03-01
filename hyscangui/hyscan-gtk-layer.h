@@ -16,17 +16,26 @@ typedef struct _HyScanGtkLayer HyScanGtkLayer;
 typedef struct _HyScanGtkLayerInterface HyScanGtkLayerInterface;
 typedef struct _HyScanGtkLayerContainer HyScanGtkLayerContainer;
 
+/**
+ * HyScanGtkLayerInterface:
+ * @g_iface: Базовый интерфейс.
+ * @added: Регистрирует слой в контейнере @container.
+ * @grab_input: Захватывает пользовательский ввод в своём контейнере.
+ * @set_visible: Устанавливает, видно ли пользователю слой.
+ * @get_visible: Возвращает, видно ли пользователю слой.
+ * @get_icon_name: Возвращает имя иконки для слоя (см. #GtkIconTheme для подробностей).
+ */
 struct _HyScanGtkLayerInterface
 {
   GTypeInterface       g_iface;
 
   void               (*added)            (HyScanGtkLayer          *gtk_layer,
                                           HyScanGtkLayerContainer *container);
-  void               (*grab_input)       (HyScanGtkLayer          *layer);
+  gboolean           (*grab_input)       (HyScanGtkLayer          *layer);
   void               (*set_visible)      (HyScanGtkLayer          *layer,
                                           gboolean                 visible);
   gboolean           (*get_visible)      (HyScanGtkLayer          *layer);
-  const gchar *      (*get_icon)         (HyScanGtkLayer          *layer);
+  const gchar *      (*get_icon_name)    (HyScanGtkLayer          *layer);
 };
 
 HYSCAN_API
@@ -34,7 +43,10 @@ GType         hyscan_gtk_layer_get_type               (void);
 
 HYSCAN_API
 void          hyscan_gtk_layer_added                  (HyScanGtkLayer          *layer,
-                                                       HyScanGtkLayerContainer *event);
+                                                       HyScanGtkLayerContainer *container);
+
+HYSCAN_API
+gboolean      hyscan_gtk_layer_grab_input             (HyScanGtkLayer          *layer);
 
 HYSCAN_API
 void          hyscan_gtk_layer_set_visible            (HyScanGtkLayer          *layer,
@@ -44,7 +56,7 @@ HYSCAN_API
 gboolean      hyscan_gtk_layer_get_visible            (HyScanGtkLayer          *layer);
 
 HYSCAN_API
-const gchar * hyscan_gtk_layer_get_icon (HyScanGtkLayer *layer);
+const gchar * hyscan_gtk_layer_get_icon_name          (HyScanGtkLayer          *layer);
 
 G_END_DECLS
 
