@@ -101,7 +101,7 @@ static void          hyscan_gtk_map_pin_layer_draw_pins                 (HyScanG
 static HyScanGtkMapPoint *   hyscan_gtk_map_pin_layer_get_point_at      (HyScanGtkMapPinLayer        *pin_layer,
                                                                          gdouble                      x,
                                                                          gdouble                      y);
-static gconstpointer hyscan_gtk_map_pin_layer_handle                    (HyScanGtkLayerContainer     *container,
+static gconstpointer hyscan_gtk_map_pin_layer_handle_grab               (HyScanGtkLayerContainer     *container,
                                                                          GdkEventMotion              *event,
                                                                          HyScanGtkMapPinLayer        *layer);
 static void          hyscan_gtk_map_pin_layer_update_marker             (HyScanGtkMapPinLayer        *layer);
@@ -314,11 +314,11 @@ hyscan_gtk_map_pin_layer_object_constructed (GObject *object)
   hyscan_gtk_layer_set_visible (HYSCAN_GTK_LAYER (gtk_map_pin_layer), TRUE);
 }
 
-/* Обработчик сигнала "handle". Захватывает хэндл под указателем мыши. */
+/* Обработчик сигнала "handle-grab". Захватывает хэндл под указателем мыши. */
 static gconstpointer
-hyscan_gtk_map_pin_layer_handle (HyScanGtkLayerContainer *container,
-                                 GdkEventMotion          *event,
-                                 HyScanGtkMapPinLayer    *layer)
+hyscan_gtk_map_pin_layer_handle_grab (HyScanGtkLayerContainer *container,
+                                      GdkEventMotion          *event,
+                                      HyScanGtkMapPinLayer    *layer)
 {
   HyScanGtkMapPoint *point;
 
@@ -361,7 +361,7 @@ hyscan_gtk_map_pin_layer_added (HyScanGtkLayer          *gtk_layer,
   priv->map = g_object_ref (container);
 
   /* Сигналы контейнера. */
-  g_signal_connect (container, "handle", G_CALLBACK (hyscan_gtk_map_pin_layer_handle), gtk_layer);
+  g_signal_connect (container, "handle-grab", G_CALLBACK (hyscan_gtk_map_pin_layer_handle_grab), gtk_layer);
   g_signal_connect (container, "handle-release", G_CALLBACK (hyscan_gtk_map_pin_layer_handle_release), gtk_layer);
 
   /* Подключаемся к сигналам перерисовки видимой области карты. */

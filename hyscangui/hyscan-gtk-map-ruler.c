@@ -168,7 +168,7 @@ hyscan_gtk_map_ruler_added (HyScanGtkLayer          *gtk_layer,
                     G_CALLBACK (hyscan_gtk_map_ruler_configure), gtk_layer);
   g_signal_connect (priv->map, "motion-notify-event",
                     G_CALLBACK (hyscan_gtk_map_ruler_motion_notify), gtk_layer);
-  g_signal_connect (priv->map, "handle",
+  g_signal_connect (priv->map, "handle-grab",
                     G_CALLBACK (hyscan_gtk_map_ruler_handle), gtk_layer);
 }
 

@@ -16,21 +16,21 @@
  * Хэндл - это некий элемент интерфейса, за который пользователь может "схватиться"
  * и что-то поменять. Например, взять метку и перенести ее на новое место.
  *
- * Сигнал #HyScanGtkLayerContainer::handle жизненно необходим всем желающим
+ * Сигнал #HyScanGtkLayerContainer::handle-grab жизненно необходим всем желающим
  * реагировать на действия пользователя. Контейнер эмитирует этот сигнал, когда
  * пользователь отпускает кнопку мыши ("button-release-event") и никто не держит
  * хэндл. В обработчике сигнала можно определить, есть ли под указателем хэндл
  * и вернуть идентификатор класса (указатель на себя) если хэндл найден или
  * %NULL в противном случае.
  *
- * Эмиссия сигнала "handle" прекращается, как только кто-то вернул отличное от
+ * Эмиссия сигнала "handle-grab" прекращается, как только кто-то вернул отличное от
  * %NULL значение. В этом случае также прекращается и эмиссия сигнала "button-release-event".
  *
  * Хэндл отпускается в момент следующего клика мыши. Для этого контейнер эмитирует
  * сигнал "handle-release". В обработчике сигнала можно определить, принадлежит
  * ли текущий хэндл слою и вернуть %TRUE, если слой отпускает хэндл.
  *
- * Чтобы перехватить "button-release-event" до сигналов "handle" и "handle-release",
+ * Чтобы перехватить "button-release-event" до сигналов "handle-grab" и "handle-release",
  * необходимо подключиться к нему с помощью функции g_signal_connect(). Чтобы поймать
  * сигнал при отсутствии хэндла - g_signal_connect_after() (см. схему ниже).
  *
@@ -43,9 +43,9 @@
  *                                         + +
  *                                     yes | | no
  *                     v-------------------+ +----------------------v
- *               emit "handle"                              emit "handle-release"
+ *              emit "handle-grab"                       emit "handle-release"
  *                    + +                                          + +
- *              found | | not found                       released | | not release
+ *              found | | not found                       released | | not released
  *         v----------+ +----------+                    v----------+ +----------v
  *  handle = h_found;              |                 handle = NULL;       STOP EMISSION
  *  STOP EMISSION                  |                 STOP EMISSION
@@ -149,7 +149,7 @@ hyscan_gtk_layer_container_class_init (HyScanGtkLayerContainerClass *klass)
   widget_class->button_release_event = hyscan_gtk_layer_container_button_release;
 
   /**
-   * HyScanGtkLayerContainer::handle:
+   * HyScanGtkLayerContainer::handle-grab:
    * @container: объект, получивший сигнал
    * @event: #GdkEventButton оригинального события "button-release-event"
    *
@@ -161,7 +161,7 @@ hyscan_gtk_layer_container_class_init (HyScanGtkLayerContainerClass *klass)
    *          нет хэндла под указателем мыши.
    */
   hyscan_gtk_layer_container_signals[SIGNAL_HANDLE] =
-    g_signal_new ("handle", HYSCAN_TYPE_GTK_LAYER_CONTAINER,
+    g_signal_new ("handle-grab", HYSCAN_TYPE_GTK_LAYER_CONTAINER,
                   G_SIGNAL_RUN_LAST,
                   0, hyscan_gtk_layer_container_grab_accu, NULL,
                   hyscan_gui_marshal_POINTER__POINTER,
@@ -233,7 +233,7 @@ hyscan_gtk_layer_container_release_accu (GSignalInvocationHint *ihint,
   return handle_released ? FALSE : TRUE;
 }
 
-/* Аккумулятор эмиссии сигнала "handle". */
+/* Аккумулятор эмиссии сигнала "handle-grab". */
 static gboolean
 hyscan_gtk_layer_container_grab_accu (GSignalInvocationHint *ihint,
                                       GValue                *return_accu,
@@ -267,7 +267,7 @@ hyscan_gtk_layer_container_release_handle (HyScanGtkLayerContainer *container,
   return GDK_EVENT_STOP;
 }
 
-/* Пытается захватить хэндл, эмитируя сигнал "handle". */
+/* Пытается захватить хэндл, эмитируя сигнал "handle-grab". */
 static gboolean
 hyscan_gtk_layer_container_grab_handle (HyScanGtkLayerContainer *container,
                                         GdkEventButton          *event)
