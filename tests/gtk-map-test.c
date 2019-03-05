@@ -19,25 +19,10 @@ static guint tile_url_preset = 0;
 static gchar *tile_url_format;
 
 static HyScanGtkMap *map;
-static HyScanMapProfile *profiles[3];
+static HyScanMapProfile *profiles[8];
 static GtkContainer *layer_toolbox;
 void   (*layer_toolbox_cb) (GtkContainer   *container,
                             HyScanGtkLayer *layer);
-
-/* Пресеты URL серверов. */
-const gchar *url_presets[] = {
-  "https://tile.thunderforest.com/landscape/%d/%d/%d.png?apikey=03fb8295553d4a2eaacc64d7dd88e3b9",
-  "http://a.tile.openstreetmap.org/{z}/{x}/{y}.png",                                       /* -p 1: OSM. */
-  "https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png",                                   /* -p 2: Wikimedia. */
-  "http://c.tile.stamen.com/watercolor/{z}/{x}/{y}.jpg",                                   /* -p 3: Watercolor. */
-  "http://www.google.cn/maps/vt?lyrs=s@189&gl=cn&x={x}&y={y}&z={z}",                       /* -p 4: Google спутник. */
-  "http://ecn.t0.tiles.virtualearth.net/tiles/a{quadkey}.jpeg?g=6897"                      /* -p 5: Bing спутник. */
-};
-
-const gchar *url_presets_yandex[] = {
-  "http://vec02.maps.yandex.net/tiles?l=map&v=2.2.3&z={z}&x={x}&y={y}",                    /* -p 0: Yandex вектор. */
-  "https://sat02.maps.yandex.net/tiles?l=sat&v=3.455.0&x={x}&y={y}&z={z}&lang=ru_RU"       /* -p 1: Yandex спутник. */
-};
 
 static HyScanGeoGeodetic center = {.lat = 55.69, .lon = 12.60};
 
@@ -46,27 +31,6 @@ destroy_callback (GtkWidget *widget,
                   gpointer   user_data)
 {
   gtk_main_quit ();
-}
-
-HyScanMapProfile *
-create_profile ()
-{
-  HyScanMapProfile *profile;
-
-  if (yandex_projection)
-    {
-      profile = hyscan_map_profile_new (tile_url_format ? tile_url_format : url_presets_yandex[tile_url_preset],
-                                        tiles_dir,
-                                        "merc", 0, 19);
-    }
-  else
-    {
-      profile = hyscan_map_profile_new (tile_url_format ? tile_url_format : url_presets[tile_url_preset],
-                                        tiles_dir,
-                                        "webmerc", 0, 19);
-    }
-
-  return profile;
 }
 
 void
@@ -220,7 +184,7 @@ create_control_box (HyScanGtkMap         *map,
   {
     ctrl_widget = gtk_combo_box_text_new ();
 
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "Yandex");
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "Yandex Vector");
     profiles[0] = hyscan_map_profile_new ("http://vec02.maps.yandex.net/tiles?l=map&v=2.2.3&z={z}&x={x}&y={y}",
                                          "/tmp/tiles/yandex",
                                          "merc", 0, 19);
@@ -233,8 +197,33 @@ create_control_box (HyScanGtkMap         *map,
 
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "Wikipedia");
     profiles[2] = hyscan_map_profile_new ("https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png",
-                                           "/tmp/tiles/wiki",
-                                           "webmerc", 0, 19);
+                                          "/tmp/tiles/wiki",
+                                          "webmerc", 0, 19);
+
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "Yandex Satellite");
+    profiles[3] = hyscan_map_profile_new ("https://sat02.maps.yandex.net/tiles?l=sat&v=3.455.0&x={x}&y={y}&z={z}&lang=ru_RU",
+                                          "/tmp/tiles/yandex_sat",
+                                          "merc", 0, 19);
+
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "Bing Satellite");
+    profiles[4] = hyscan_map_profile_new ("http://ecn.t0.tiles.virtualearth.net/tiles/a{quadkey}.jpeg?g=6897",
+                                          "/tmp/tiles/bing",
+                                          "webmerc", 1, 19);
+
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "Google Satellite");
+    profiles[5] = hyscan_map_profile_new ("http://www.google.cn/maps/vt?lyrs=s@189&gl=cn&x={x}&y={y}&z={z}",
+                                          "/tmp/tiles/bing",
+                                          "webmerc", 1, 19);
+
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "Thunderforest Landscape");
+    profiles[6] = hyscan_map_profile_new ("https://tile.thunderforest.com/landscape/%d/%d/%d.png?apikey=03fb8295553d4a2eaacc64d7dd88e3b9",
+                                          "/tmp/tiles/thunder_landscape",
+                                          "webmerc", 0, 19);
+
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "Watercolor");
+    profiles[7] = hyscan_map_profile_new ("http://c.tile.stamen.com/watercolor/{z}/{x}/{y}.jpg",
+                                          "/tmp/tiles/watercolor",
+                                          "webmerc", 0, 19);
 
 
     g_signal_connect (ctrl_widget, "changed", G_CALLBACK (on_profile_change), NULL);
