@@ -166,7 +166,8 @@ hyscan_gtk_param_tree_object_constructed (GObject *object)
 
   /* Текстовое поле для поиска. */
   filter_entry = gtk_search_entry_new ();
-  g_signal_connect (filter_entry, "search-changed", hyscan_gtk_param_search_changed, priv);
+  g_signal_connect (filter_entry, "search-changed",
+                    G_CALLBACK (hyscan_gtk_param_search_changed), priv);
 
   tree_scroll = g_object_new (GTK_TYPE_SCROLLED_WINDOW,
                               "vadjustment", NULL,

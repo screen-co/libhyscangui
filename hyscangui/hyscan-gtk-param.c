@@ -170,10 +170,9 @@ hyscan_gtk_param_set_property (GObject      *object,
 
     case PROP_ROOT:
       string = g_value_get_string (value);
-      /* Специальный случай. "/" это как бы корень, но корень у нас -- это
-       * на самом деле пустая строка. */
-      if (string == NULL || g_str_equal (string, "/"))
-        priv->root = g_strdup ("");
+      /* Корень это "/", но я позволяю использовать NULL и пустую строку. */
+      if (string == NULL || g_str_equal (string, ""))
+        priv->root = g_strdup ("/");
       else
         priv->root = g_strdup (string);
       break;
