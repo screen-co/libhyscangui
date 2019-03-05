@@ -20,6 +20,7 @@ typedef struct _HyScanGtkLayerContainer HyScanGtkLayerContainer;
  * HyScanGtkLayerInterface:
  * @g_iface: Базовый интерфейс.
  * @added: Регистрирует слой в контейнере @container.
+ * @removed: Удаляет слой из контейнера @container.
  * @grab_input: Захватывает пользовательский ввод в своём контейнере.
  * @set_visible: Устанавливает, видно ли пользователю слой.
  * @get_visible: Возвращает, видно ли пользователю слой.
@@ -31,6 +32,7 @@ struct _HyScanGtkLayerInterface
 
   void               (*added)            (HyScanGtkLayer          *gtk_layer,
                                           HyScanGtkLayerContainer *container);
+  void               (*removed)          (HyScanGtkLayer          *gtk_layer);
   gboolean           (*grab_input)       (HyScanGtkLayer          *layer);
   void               (*set_visible)      (HyScanGtkLayer          *layer,
                                           gboolean                 visible);
@@ -44,6 +46,9 @@ GType         hyscan_gtk_layer_get_type               (void);
 HYSCAN_API
 void          hyscan_gtk_layer_added                  (HyScanGtkLayer          *layer,
                                                        HyScanGtkLayerContainer *container);
+
+HYSCAN_API
+void          hyscan_gtk_layer_removed                (HyScanGtkLayer          *layer);
 
 HYSCAN_API
 gboolean      hyscan_gtk_layer_grab_input             (HyScanGtkLayer          *layer);

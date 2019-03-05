@@ -23,7 +23,8 @@ static void       hyscan_gtk_map_fs_tile_source_object_finalize          (GObjec
 static gboolean   hyscan_gtk_map_fs_tile_source_fill_from_file           (HyScanGtkMapTile                *tile,
                                                                           const gchar                     *tile_path);
 static gboolean   hyscan_gtk_map_fs_tile_source_fill_tile                (HyScanGtkMapTileSource          *source,
-                                                                          HyScanGtkMapTile                *tile);
+                                                                          HyScanGtkMapTile                *tile,
+                                                                          GCancellable                    *cancellable);
 static gboolean   hyscan_gtk_map_fs_tile_source_save                     (HyScanGtkMapTile                *tile,
                                                                           const gchar                     *tile_path);
 
@@ -156,13 +157,17 @@ hyscan_gtk_map_fs_tile_source_save (HyScanGtkMapTile *tile,
 /* Ищет указанный тайл и загружает его изображение. */
 static gboolean
 hyscan_gtk_map_fs_tile_source_fill_tile (HyScanGtkMapTileSource *source,
-                                         HyScanGtkMapTile       *tile)
+                                         HyScanGtkMapTile       *tile,
+                                         GCancellable           *cancellable)
 {
   HyScanGtkMapFsTileSource *fsource = HYSCAN_GTK_MAP_FS_TILE_SOURCE (source);
   HyScanGtkMapFsTileSourcePrivate *priv = fsource->priv;
 
   gboolean success;
   gchar *tile_path;
+
+  if (g_cancellable_is_cancelled (cancellable))
+    return FALSE;
 
   /* Путь к файлу с тайлом. */
   tile_path = g_strdup_printf ("%s/%d/%d/%d.png",
@@ -177,7 +182,7 @@ hyscan_gtk_map_fs_tile_source_fill_tile (HyScanGtkMapTileSource *source,
   /* Если файл отсутствует, то загружаем поверхность из запасного источника. */
   if (!success && priv->fallback_source != NULL)
     {
-      success = hyscan_gtk_map_tile_source_fill (priv->fallback_source, tile);
+      success = hyscan_gtk_map_tile_source_fill (priv->fallback_source, tile, cancellable);
       if (success)
         hyscan_gtk_map_fs_tile_source_save (tile, tile_path);
     }

@@ -1,8 +1,8 @@
 #ifndef __HYSCAN_TASK_QUEUE_H__
 #define __HYSCAN_TASK_QUEUE_H__
 
-#include <glib-object.h>
 #include <hyscan-api.h>
+#include <gio/gio.h>
 
 G_BEGIN_DECLS
 
@@ -16,6 +16,9 @@ G_BEGIN_DECLS
 typedef struct _HyScanTaskQueue HyScanTaskQueue;
 typedef struct _HyScanTaskQueuePrivate HyScanTaskQueuePrivate;
 typedef struct _HyScanTaskQueueClass HyScanTaskQueueClass;
+typedef void (*HyScanTaskQueueFunc) (gpointer      data,
+                                     gpointer      user_data,
+                                     GCancellable *cancellable);
 
 struct _HyScanTaskQueue
 {
@@ -33,17 +36,20 @@ HYSCAN_API
 GType                  hyscan_task_queue_get_type         (void);
 
 HYSCAN_API
-HyScanTaskQueue *      hyscan_task_queue_new              (GFunc             task_func,
-                                                           gpointer          user_data,
-                                                           GDestroyNotify    free_func,
-                                                           GCompareFunc      cmp_func);
+HyScanTaskQueue *      hyscan_task_queue_new              (HyScanTaskQueueFunc   task_func,
+                                                           gpointer              user_data,
+                                                           GDestroyNotify        free_func,
+                                                           GCompareFunc          cmp_func);
 
 HYSCAN_API
-void                   hyscan_task_queue_push             (HyScanTaskQueue  *queue,
-                                                           gpointer          task);
+void                   hyscan_task_queue_push             (HyScanTaskQueue      *queue,
+                                                           gpointer              task);
 
 HYSCAN_API
-void                   hyscan_task_queue_clear            (HyScanTaskQueue  *queue);
+void                   hyscan_task_queue_clear            (HyScanTaskQueue      *queue);
+
+HYSCAN_API
+void                   hyscan_task_queue_shutdown         (HyScanTaskQueue      *queue);
 
 G_END_DECLS
 

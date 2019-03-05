@@ -37,8 +37,9 @@ struct _HyScanGtkMapGridPrivate
 static void     hyscan_gtk_map_grid_object_constructed      (GObject                 *object);
 static void     hyscan_gtk_map_grid_object_finalize         (GObject                 *object);
 static void     hyscan_gtk_map_grid_interface_init          (HyScanGtkLayerInterface *iface);
-static void     hyscan_gtk_map_grid_draw                    (HyScanGtkMapGrid        *grid,
-                                                             cairo_t                 *cairo);
+static void     hyscan_gtk_map_grid_draw                    (HyScanGtkMap            *map,
+                                                             cairo_t                 *cairo,
+                                                             HyScanGtkMapGrid        *grid);
 static gboolean hyscan_gtk_map_grid_configure               (HyScanGtkMapGrid        *grid,
                                                              GdkEvent                *screen);
 static void     hyscan_gtk_map_grid_draw_grid               (HyScanGtkMapGrid        *grid,
@@ -125,8 +126,8 @@ hyscan_gtk_map_grid_added (HyScanGtkLayer          *gtk_layer,
 
   priv->map = g_object_ref (container);
 
-  g_signal_connect_swapped (priv->map, "visible-draw",
-                            G_CALLBACK (hyscan_gtk_map_grid_draw), gtk_layer);
+  g_signal_connect_after (priv->map, "visible-draw",
+                          G_CALLBACK (hyscan_gtk_map_grid_draw), gtk_layer);
   g_signal_connect_swapped (priv->map, "configure-event",
                             G_CALLBACK (hyscan_gtk_map_grid_configure), gtk_layer);
 }
@@ -373,8 +374,9 @@ hyscan_gtk_map_grid_adjust_step (gdouble  step_length,
 
 /* Рисует координатную сетку и масштаб по сигналу "area-draw". */
 static void
-hyscan_gtk_map_grid_draw (HyScanGtkMapGrid *grid,
-                          cairo_t          *cairo)
+hyscan_gtk_map_grid_draw (HyScanGtkMap     *map,
+                          cairo_t          *cairo,
+                          HyScanGtkMapGrid *grid)
 {
   if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (grid)))
     return;

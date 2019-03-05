@@ -111,6 +111,7 @@ enum
 struct _HyScanGtkLayerContainerPrivate
 {
   GList                       *layers;            /* Упорядоченный список зарегистрированных слоёв. */
+  GHashTable                  *layers_table;      /* Таблица для хранения ИД слоёв. */
 
   /* Хэндл — это интерактивный элемент слоя, который можно "взять" кликом мыши. */
   gconstpointer                howner;            /* Текущий активный хэндл, с которым взаимодействует пользователь. */
@@ -123,6 +124,7 @@ static void         hyscan_gtk_layer_container_object_constructed      (GObject 
 static void         hyscan_gtk_layer_container_object_finalize         (GObject                 *object);
 static gboolean     hyscan_gtk_layer_container_button_release          (GtkWidget               *widget,
                                                                         GdkEventButton          *event);
+static void         hyscan_gtk_layer_container_unrealize               (GtkWidget               *widget);
 static gboolean     hyscan_gtk_layer_container_grab_accu               (GSignalInvocationHint   *ihint,
                                                                         GValue                  *return_accu,
                                                                         const GValue            *handler_return,
@@ -147,6 +149,7 @@ hyscan_gtk_layer_container_class_init (HyScanGtkLayerContainerClass *klass)
   object_class->finalize = hyscan_gtk_layer_container_object_finalize;
 
   widget_class->button_release_event = hyscan_gtk_layer_container_button_release;
+  widget_class->unrealize = hyscan_gtk_layer_container_unrealize;
 
   /**
    * HyScanGtkLayerContainer::handle-grab:
@@ -198,9 +201,11 @@ static void
 hyscan_gtk_layer_container_object_constructed (GObject *object)
 {
   HyScanGtkLayerContainer *container = HYSCAN_GTK_LAYER_CONTAINER (object);
+  HyScanGtkLayerContainerPrivate *priv = container->priv;
 
   G_OBJECT_CLASS (hyscan_gtk_layer_container_parent_class)->constructed (object);
 
+  priv->layers_table = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
   hyscan_gtk_layer_container_set_changes_allowed (container, TRUE);
 }
 
@@ -211,6 +216,7 @@ hyscan_gtk_layer_container_object_finalize (GObject *object)
   HyScanGtkLayerContainerPrivate *priv = gtk_layer_container->priv;
 
   g_list_free_full (priv->layers, g_object_unref);
+  g_hash_table_destroy (priv->layers_table);
   g_signal_handlers_disconnect_by_data (object, object);
 
   G_OBJECT_CLASS (hyscan_gtk_layer_container_parent_class)->finalize (object);
@@ -280,6 +286,15 @@ hyscan_gtk_layer_container_grab_handle (HyScanGtkLayerContainer *container,
   return handle_owner != NULL ? GDK_EVENT_STOP : GDK_EVENT_PROPAGATE;
 }
 
+/* Обработчик "unrealize-event".
+ * Удаляет все слои. */
+static void
+hyscan_gtk_layer_container_unrealize (GtkWidget *widget)
+{
+  HyScanGtkLayerContainer *container = HYSCAN_GTK_LAYER_CONTAINER (widget);
+
+  hyscan_gtk_layer_container_remove_all (container);
+}
 
 /* Обработчик "button-release-event". */
 static gboolean
@@ -311,16 +326,40 @@ hyscan_gtk_layer_container_button_release (GtkWidget       *widget,
 
 }
 
+/* Коллбэк для g_hash_table_foreach_remove.
+ * Просит удалить из таблицы все слои remove_layer. */
+static gboolean
+hyscan_gtk_layer_hash_table_remove (gpointer key,
+                                    gpointer layer,
+                                    gpointer remove_layer)
+{
+  return layer == remove_layer;
+}
+
+/* Удаляет слой из контейнера.
+ * Предварительно слой должен быть удалён из списка priv->layers. */
+static inline void
+hyscan_gtk_layer_container_layer_removed (HyScanGtkLayerContainerPrivate *priv,
+                                          HyScanGtkLayer                 *layer)
+{
+  g_hash_table_foreach_remove (priv->layers_table, hyscan_gtk_layer_hash_table_remove, layer);
+  hyscan_gtk_layer_removed (layer);
+  g_object_unref (layer);
+}
+
 /**
  * hyscan_gtk_layer_container_add:
  * @container: указатель на #HyScanGtkLayerContainer
+ * @key: уникальный идентификатор слоя
  * @layer: слой #HyScanGtkLayer
  *
- * Добавляет в контейнер новый слой @layer.
+ * Добавляет в контейнер новый слой @layer. Если слой с таким идентификатором уже
+ * существует, то ключ @key теперь будет связан с новым слоем @layer.
  */
 void
 hyscan_gtk_layer_container_add (HyScanGtkLayerContainer *container,
-                                HyScanGtkLayer          *layer)
+                                HyScanGtkLayer          *layer,
+                                const gchar             *key)
 {
   HyScanGtkLayerContainerPrivate *priv;
 
@@ -329,7 +368,81 @@ hyscan_gtk_layer_container_add (HyScanGtkLayerContainer *container,
 
   priv = container->priv;
   priv->layers = g_list_append (priv->layers, g_object_ref (layer));
+  if (key != NULL)
+    g_hash_table_insert (priv->layers_table, g_strdup (key), layer);
+
   hyscan_gtk_layer_added (layer, container);
+}
+
+/**
+ * hyscan_gtk_layer_container_remove:
+ * @container
+ * @layer
+ *
+ * Удаляет слой из контейнера.
+ */
+void
+hyscan_gtk_layer_container_remove (HyScanGtkLayerContainer *container,
+                                   HyScanGtkLayer          *layer)
+{
+  HyScanGtkLayerContainerPrivate *priv;
+  GList *found;
+
+  g_return_if_fail (HYSCAN_IS_GTK_LAYER_CONTAINER (container));
+  g_return_if_fail (HYSCAN_IS_GTK_LAYER (layer));
+
+  priv = container->priv;
+
+  /* Ищем слой в контейнере. */
+  found = g_list_find (priv->layers, layer);
+  if (found == NULL)
+    return;
+
+  /* Удаляем слой. */
+  priv->layers = g_list_delete_link (priv->layers, found);
+  hyscan_gtk_layer_container_layer_removed (priv, layer);
+}
+
+/**
+ * hyscan_gtk_layer_container_remove:
+ * @container
+ * @layer
+ *
+ * Удаляет все слои из контейнера.
+ */
+void
+hyscan_gtk_layer_container_remove_all (HyScanGtkLayerContainer *container)
+{
+  HyScanGtkLayerContainerPrivate *priv;
+  GList *layer_l;
+
+  g_return_if_fail (HYSCAN_IS_GTK_LAYER_CONTAINER (container));
+
+  priv = container->priv;
+
+  for (layer_l = priv->layers; layer_l != NULL; layer_l = layer_l->next)
+    hyscan_gtk_layer_container_layer_removed (priv, layer_l->data);
+
+  g_list_free (priv->layers);
+  priv->layers = NULL;
+}
+
+/**
+ * hyscan_gtk_layer_container_lookup:
+ * @container
+ * @key
+ *
+ * Ищет в контейнере слой, соответствующий ключу @key.
+ *
+ * Returns: (transfer none): указатель на найденный слой или %NULL, если слой не найден.
+ */
+HyScanGtkLayer *
+hyscan_gtk_layer_container_lookup (HyScanGtkLayerContainer *container,
+                                   const gchar             *key)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_LAYER_CONTAINER (container), NULL);
+
+  return g_hash_table_lookup (container->priv->layers_table, key);
 }
 
 /**

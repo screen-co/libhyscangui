@@ -78,8 +78,9 @@ struct _HyScanGtkMapPinLayerPrivate
 static void          hyscan_gtk_map_pin_layer_object_constructed        (GObject                     *object);
 static void          hyscan_gtk_map_pin_layer_object_finalize           (GObject                     *object);
 static void          hyscan_gtk_map_pin_layer_interface_init            (HyScanGtkLayerInterface     *iface);
-static void          hyscan_gtk_map_pin_layer_draw                      (HyScanGtkMapPinLayer        *pin_layer,
-                                                                         cairo_t                     *cairo);
+static void          hyscan_gtk_map_pin_layer_draw                      (HyScanGtkMap                *map,
+                                                                         cairo_t                     *cairo,
+                                                                         HyScanGtkMapPinLayer        *pin_layer);
 static gboolean      hyscan_gtk_map_pin_layer_button_release            (GtkWidget                   *widget,
                                                                          GdkEventButton              *event,
                                                                          HyScanGtkLayer              *layer);
@@ -94,9 +95,7 @@ static gboolean      hyscan_gtk_map_pin_layer_key_press                 (HyScanG
                                                                          GdkEventKey                 *event);
 static gboolean      hyscan_gtk_map_pin_layer_configure                 (HyScanGtkMapPinLayer        *pin_layer,
                                                                          GdkEvent                    *event);
-static void          hyscan_gtk_map_pin_layer_draw_vertices             (HyScanGtkMapPinLayerPrivate *priv,
-                                                                         cairo_t                     *cairo);
-static void          hyscan_gtk_map_pin_layer_draw_pins                 (HyScanGtkMapPinLayer        *pin_layer,
+static void          hyscan_gtk_map_pin_layer_draw_vertices             (HyScanGtkMapPinLayer        *pin_layer,
                                                                          cairo_t                     *cairo);
 static HyScanGtkMapPoint *   hyscan_gtk_map_pin_layer_get_point_at      (HyScanGtkMapPinLayer        *pin_layer,
                                                                          gdouble                      x,
@@ -134,7 +133,7 @@ hyscan_gtk_map_pin_layer_class_init (HyScanGtkMapPinLayerClass *klass)
   object_class->constructed = hyscan_gtk_map_pin_layer_object_constructed;
   object_class->finalize = hyscan_gtk_map_pin_layer_object_finalize;
 
-  klass->draw = hyscan_gtk_map_pin_layer_draw_pins;
+  klass->draw = hyscan_gtk_map_pin_layer_draw_vertices;
 }
 
 static void
@@ -337,6 +336,7 @@ hyscan_gtk_map_pin_layer_handle_release (HyScanGtkLayerContainer *container,
                                          HyScanGtkMapPinLayer    *layer)
 {
   HyScanGtkMapPinLayerPrivate *priv = layer->priv;
+  HyScanGtkMapPoint *drag_point;
 
   if (hyscan_gtk_layer_container_get_handle_grabbed (container) != layer)
     return FALSE;
@@ -345,10 +345,42 @@ hyscan_gtk_map_pin_layer_handle_release (HyScanGtkLayerContainer *container,
     return FALSE;
 
   priv->mode = MODE_NONE;
+  drag_point = priv->drag_point;
+  hyscan_gtk_map_value_to_geo (priv->map, &drag_point->geo, drag_point->x, drag_point->y);
 
   return TRUE;
 }
 
+static void
+hyscan_gtk_map_pin_layer_point_update (HyScanGtkMapPoint *point,
+                                       HyScanGtkMap      *map)
+{
+  hyscan_gtk_map_geo_to_value (map, point->geo, &point->x, &point->y);
+}
+
+/* Обновляет координаты точек при смене картографической проекции. */
+static void
+hyscan_gtk_map_pin_layer_projection_notify (HyScanGtkMap         *map,
+                                            GParamSpec           *pspec,
+                                            HyScanGtkMapPinLayer *layer)
+{
+  HyScanGtkMapPinLayerPrivate *priv = layer->priv;
+
+  g_list_foreach (priv->points, (GFunc) hyscan_gtk_map_pin_layer_point_update, map);
+}
+
+static void
+hyscan_gtk_map_pin_layer_removed (HyScanGtkLayer *gtk_layer)
+{
+  HyScanGtkMapPinLayerPrivate *priv = HYSCAN_GTK_MAP_PIN_LAYER (gtk_layer)->priv;
+
+  g_return_if_fail (priv->map != NULL);
+
+  g_signal_handlers_disconnect_by_data (priv->map, gtk_layer);
+  g_clear_object (&priv->map);
+}
+
+/* Регистрирует слой в карте. */
 static void
 hyscan_gtk_map_pin_layer_added (HyScanGtkLayer          *gtk_layer,
                                 HyScanGtkLayerContainer *container)
@@ -357,6 +389,7 @@ hyscan_gtk_map_pin_layer_added (HyScanGtkLayer          *gtk_layer,
 
   /* Проверяем, что контенейнер - это карта. */
   g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
+  g_return_if_fail (priv->map == NULL);
 
   priv->map = g_object_ref (container);
 
@@ -364,9 +397,12 @@ hyscan_gtk_map_pin_layer_added (HyScanGtkLayer          *gtk_layer,
   g_signal_connect (container, "handle-grab", G_CALLBACK (hyscan_gtk_map_pin_layer_handle_grab), gtk_layer);
   g_signal_connect (container, "handle-release", G_CALLBACK (hyscan_gtk_map_pin_layer_handle_release), gtk_layer);
 
+  /* Сигналы карты. */
+  g_signal_connect (container, "notify::projection", G_CALLBACK (hyscan_gtk_map_pin_layer_projection_notify), gtk_layer);
+
   /* Подключаемся к сигналам перерисовки видимой области карты. */
-  g_signal_connect_swapped (container, "visible-draw",
-                            G_CALLBACK (hyscan_gtk_map_pin_layer_draw), gtk_layer);
+  g_signal_connect_after (container, "visible-draw",
+                          G_CALLBACK (hyscan_gtk_map_pin_layer_draw), gtk_layer);
 
   /* Сигналы GtkWidget. */
   g_signal_connect_after (container, "button-release-event",
@@ -379,6 +415,8 @@ hyscan_gtk_map_pin_layer_added (HyScanGtkLayer          *gtk_layer,
                             G_CALLBACK (hyscan_gtk_map_pin_layer_motion_notify), gtk_layer);
 }
 
+/* Устанавливает видимость слоя.
+ * Реализация HyScanGtkLayerInterface.set_visible().*/
 static void
 hyscan_gtk_map_pin_layer_set_visible (HyScanGtkLayer *layer,
                                       gboolean        visible)
@@ -392,6 +430,8 @@ hyscan_gtk_map_pin_layer_set_visible (HyScanGtkLayer *layer,
     gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }
 
+/* Возвращает %TRUE, если слой видимый.
+ * Реализация HyScanGtkLayerInterface.get_visible(). */
 static gboolean
 hyscan_gtk_map_pin_layer_get_visible (HyScanGtkLayer *layer)
 {
@@ -401,6 +441,8 @@ hyscan_gtk_map_pin_layer_get_visible (HyScanGtkLayer *layer)
   return priv->visible;
 }
 
+/* Захватывает пользовательский ввод в контейнере.
+ * Реализация HyScanGtkLayerInterface.grab_input(). */
 static gboolean
 hyscan_gtk_map_pin_layer_grab_input (HyScanGtkLayer *layer)
 {
@@ -418,10 +460,12 @@ hyscan_gtk_map_pin_layer_grab_input (HyScanGtkLayer *layer)
   return TRUE;
 }
 
+/* Реализация интерфейса HyScanGtkLayerInterface. */
 static void
 hyscan_gtk_map_pin_layer_interface_init (HyScanGtkLayerInterface *iface)
 {
   iface->added = hyscan_gtk_map_pin_layer_added;
+  iface->removed = hyscan_gtk_map_pin_layer_removed;
   iface->grab_input = hyscan_gtk_map_pin_layer_grab_input;
   iface->set_visible = hyscan_gtk_map_pin_layer_set_visible;
   iface->get_visible = hyscan_gtk_map_pin_layer_get_visible;
@@ -435,7 +479,8 @@ hyscan_gtk_map_pin_layer_object_finalize (GObject *object)
 
   g_list_free_full (priv->points, (GDestroyNotify) hyscan_gtk_map_point_free);
   g_clear_object (&priv->pango_layout);
-  g_clear_object (&priv->map);
+  g_clear_pointer (&priv->pin, hyscan_gtk_map_pin_layer_pin_free);
+  g_clear_pointer (&priv->pin_hover, hyscan_gtk_map_pin_layer_pin_free);
 
   G_OBJECT_CLASS (hyscan_gtk_map_pin_layer_parent_class)->finalize (object);
 }
@@ -453,12 +498,14 @@ hyscan_gtk_map_pin_layer_configure (HyScanGtkMapPinLayer *pin_layer,
   return FALSE;
 }
 
-/* Рисует узлы ломаной линии. */
+/* Рисует отметки на карте.
+ * Реализация HyScanGtkMapPinLayerClass.draw().*/
 static void
-hyscan_gtk_map_pin_layer_draw_vertices (HyScanGtkMapPinLayerPrivate *priv,
-                                        cairo_t                     *cairo)
+hyscan_gtk_map_pin_layer_draw_vertices (HyScanGtkMapPinLayer *pin_layer,
+                                        cairo_t              *cairo)
 {
   GList *point_l;
+  HyScanGtkMapPinLayerPrivate *priv = pin_layer->priv;
   GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
   HyScanGtkMapPinLayerPin *pin;
 
@@ -475,18 +522,11 @@ hyscan_gtk_map_pin_layer_draw_vertices (HyScanGtkMapPinLayerPrivate *priv,
     }
 }
 
-/* Рисует элементы линейки по сигналу "visible-draw". */
+/* Рисует элементы слоя по сигналу "visible-draw". */
 static void
-hyscan_gtk_map_pin_layer_draw_pins (HyScanGtkMapPinLayer *pin_layer,
-                                    cairo_t              *cairo)
-{
-  hyscan_gtk_map_pin_layer_draw_vertices (pin_layer->priv, cairo);
-}
-
-/* Рисует элементы линейки по сигналу "visible-draw". */
-static void
-hyscan_gtk_map_pin_layer_draw (HyScanGtkMapPinLayer *pin_layer,
-                               cairo_t              *cairo)
+hyscan_gtk_map_pin_layer_draw (HyScanGtkMap         *map,
+                               cairo_t              *cairo,
+                               HyScanGtkMapPinLayer *pin_layer)
 {
   if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (pin_layer)))
     return;
@@ -726,6 +766,7 @@ hyscan_gtk_map_pin_layer_insert_before  (HyScanGtkMapPinLayer *pin_layer,
   HyScanGtkMapPoint *new_point;
 
   new_point = hyscan_gtk_map_point_copy (point);
+  hyscan_gtk_map_value_to_geo (priv->map, &new_point->geo, new_point->x, new_point->y);
   priv->points = g_list_insert_before (priv->points, sibling, new_point);
 
   return new_point;

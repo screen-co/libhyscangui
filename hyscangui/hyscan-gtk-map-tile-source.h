@@ -21,7 +21,8 @@ struct _HyScanGtkMapTileSourceInterface
   GTypeInterface       g_iface;
 
   gboolean             (*fill_tile)               (HyScanGtkMapTileSource        *source,
-                                                   HyScanGtkMapTile              *tile);
+                                                   HyScanGtkMapTile              *tile,
+                                                   GCancellable                  *cancellable);
 
   void                 (*get_zoom_limits)         (HyScanGtkMapTileSource        *source,
                                                    guint                         *min_zoom,
@@ -42,7 +43,8 @@ guint      hyscan_gtk_map_tile_source_get_tile_size             (HyScanGtkMapTil
 
 HYSCAN_API
 gboolean   hyscan_gtk_map_tile_source_fill                      (HyScanGtkMapTileSource *source,
-                                                                 HyScanGtkMapTile       *tile);
+                                                                 HyScanGtkMapTile       *tile,
+                                                                 GCancellable           *cancellable);
 
 
 G_END_DECLS

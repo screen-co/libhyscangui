@@ -75,12 +75,23 @@ hyscan_gtk_map_control_object_finalize (GObject *object)
   HyScanGtkMapControl *gtk_map_control = HYSCAN_GTK_MAP_CONTROL (object);
   HyScanGtkMapControlPrivate *priv = gtk_map_control->priv;
 
-  g_clear_object (&priv->map);
-
   G_OBJECT_CLASS (hyscan_gtk_map_control_parent_class)->finalize (object);
 }
 
-/* Регистрация слоя при добавлении в контейнер #HyScanGtkLayerContainer. */
+/* Отключается от контейнера #HyScanGtkLayerContainer. */
+void
+hyscan_gtk_map_control_removed (HyScanGtkLayer *gtk_layer)
+{
+  HyScanGtkMapControl *gtk_map_control = HYSCAN_GTK_MAP_CONTROL (gtk_layer);
+  HyScanGtkMapControlPrivate *priv = gtk_map_control->priv;
+
+  g_return_if_fail (priv->map != NULL);
+
+  g_signal_handlers_disconnect_by_data (priv->map, gtk_layer);
+  g_clear_object (&priv->map);
+}
+
+/* Регистрирует слой при добавлении в контейнер #HyScanGtkLayerContainer. */
 void
 hyscan_gtk_map_control_added (HyScanGtkLayer          *gtk_layer,
                               HyScanGtkLayerContainer *container)
@@ -89,6 +100,7 @@ hyscan_gtk_map_control_added (HyScanGtkLayer          *gtk_layer,
   HyScanGtkMapControlPrivate *priv = gtk_map_control->priv;
 
   g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
+  g_return_if_fail (priv->map == NULL);
 
   priv->map = g_object_ref (container);
 
@@ -103,6 +115,7 @@ static void
 hyscan_gtk_map_control_interface_init (HyScanGtkLayerInterface *iface)
 {
   iface->added = hyscan_gtk_map_control_added;
+  iface->removed = hyscan_gtk_map_control_removed;
 }
 
 /* Обработчик событий прокрутки колёсика мышки "scroll-event". */

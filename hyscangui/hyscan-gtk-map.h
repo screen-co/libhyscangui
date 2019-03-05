@@ -20,8 +20,9 @@ typedef struct _HyScanGtkMapClass HyScanGtkMapClass;
 /* Координаты точки. */
 typedef struct
 {
-  gdouble x;
-  gdouble y;
+  HyScanGeoGeodetic geo;
+  gdouble           x;
+  gdouble           y;
 } HyScanGtkMapPoint;
 
 struct _HyScanGtkMap
@@ -40,38 +41,46 @@ HYSCAN_API
 GType                  hyscan_gtk_map_get_type         (void);
 
 HYSCAN_API
-GtkWidget *            hyscan_gtk_map_new              (HyScanGeoProjection *projection);
+GtkWidget *            hyscan_gtk_map_new              (HyScanGeoProjection    *projection);
 
 HYSCAN_API
-void                   hyscan_gtk_map_move_to          (HyScanGtkMap        *map,
-                                                        HyScanGeoGeodetic    center);
+void                   hyscan_gtk_map_set_projection   (HyScanGtkMap           *map,
+                                                        HyScanGeoProjection    *projection);
 
 HYSCAN_API
-gdouble                hyscan_gtk_map_get_scale        (HyScanGtkMap        *map);
+void                   hyscan_gtk_map_move_to          (HyScanGtkMap           *map,
+                                                        HyScanGeoGeodetic       center);
 
 HYSCAN_API
-void                   hyscan_gtk_map_point_to_geo     (HyScanGtkMap        *map,
-                                                        HyScanGeoGeodetic   *coords,
-                                                        gdouble              x,
-                                                        gdouble              y);
+void                   hyscan_gtk_map_set_scale        (HyScanGtkMap           *map,
+                                                        gdouble                 scale);
 
 HYSCAN_API
-void                   hyscan_gtk_map_value_to_geo     (HyScanGtkMap        *map,
-                                                        HyScanGeoGeodetic   *coords,
-                                                        gdouble              x_val,
-                                                        gdouble              y_val);
+gdouble                hyscan_gtk_map_get_scale        (HyScanGtkMap           *map);
 
 HYSCAN_API
-void                   hyscan_gtk_map_geo_to_value     (HyScanGtkMap        *map,
-                                                        HyScanGeoGeodetic    coords,
-                                                        gdouble             *x_val,
-                                                        gdouble             *y_val);
+void                   hyscan_gtk_map_point_to_geo     (HyScanGtkMap           *map,
+                                                        HyScanGeoGeodetic      *coords,
+                                                        gdouble                 x,
+                                                        gdouble                 y);
 
 HYSCAN_API
-HyScanGtkMapPoint *    hyscan_gtk_map_point_copy       (HyScanGtkMapPoint   *point);
+void                   hyscan_gtk_map_value_to_geo     (HyScanGtkMap           *map,
+                                                        HyScanGeoGeodetic      *coords,
+                                                        gdouble                 x_val,
+                                                        gdouble                 y_val);
 
 HYSCAN_API
-void                   hyscan_gtk_map_point_free       (HyScanGtkMapPoint   *point);
+void                   hyscan_gtk_map_geo_to_value     (HyScanGtkMap           *map,
+                                                        HyScanGeoGeodetic       coords,
+                                                        gdouble                *x_val,
+                                                        gdouble                *y_val);
+
+HYSCAN_API
+HyScanGtkMapPoint *    hyscan_gtk_map_point_copy       (HyScanGtkMapPoint      *point);
+
+HYSCAN_API
+void                   hyscan_gtk_map_point_free       (HyScanGtkMapPoint      *point);
 
 G_END_DECLS
 

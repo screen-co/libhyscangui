@@ -35,7 +35,19 @@ GType                     hyscan_gtk_layer_container_get_type            (void);
 
 HYSCAN_API
 void                      hyscan_gtk_layer_container_add                 (HyScanGtkLayerContainer *container,
+                                                                          HyScanGtkLayer          *layer,
+                                                                          const gchar             *key);
+
+HYSCAN_API
+void                      hyscan_gtk_layer_container_remove              (HyScanGtkLayerContainer *container,
                                                                           HyScanGtkLayer          *layer);
+
+HYSCAN_API
+void                     hyscan_gtk_layer_container_remove_all           (HyScanGtkLayerContainer *container);
+
+HYSCAN_API
+HyScanGtkLayer *          hyscan_gtk_layer_container_lookup              (HyScanGtkLayerContainer *container,
+                                                                          const gchar             *key);
 
 HYSCAN_API
 void                      hyscan_gtk_layer_container_set_input_owner     (HyScanGtkLayerContainer *container,

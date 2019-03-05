@@ -123,7 +123,6 @@ hyscan_gtk_map_ruler_object_finalize (GObject *object)
 
   g_list_free_full (priv->points, (GDestroyNotify) hyscan_gtk_map_point_free);
   g_clear_object (&priv->pango_layout);
-  g_clear_object (&priv->map);
 
   G_OBJECT_CLASS (hyscan_gtk_map_ruler_parent_class)->finalize (object);
 }
@@ -152,17 +151,29 @@ hyscan_gtk_map_ruler_handle (HyScanGtkLayerContainer *container,
 }
 
 static void
+hyscan_gtk_map_ruler_removed (HyScanGtkLayer *gtk_layer)
+{
+  HyScanGtkMapRulerPrivate *priv = HYSCAN_GTK_MAP_RULER (gtk_layer)->priv;
+
+  g_return_if_fail (priv->map != NULL);
+
+  g_signal_handlers_disconnect_by_data (priv->map, gtk_layer);
+  g_clear_object (&priv->map);
+}
+
+static void
 hyscan_gtk_map_ruler_added (HyScanGtkLayer          *gtk_layer,
                             HyScanGtkLayerContainer *container)
 {
   HyScanGtkMapRulerPrivate *priv = HYSCAN_GTK_MAP_RULER (gtk_layer)->priv;
 
   g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
+  g_return_if_fail (priv->map == NULL);
 
   /* Выполняем реализацию в родительском классе. */
   hyscan_gtk_layer_parent_interface->added (gtk_layer, container);
 
-  priv->map = HYSCAN_GTK_MAP (container);
+  priv->map = g_object_ref (container);
 
   g_signal_connect (priv->map, "configure-event",
                     G_CALLBACK (hyscan_gtk_map_ruler_configure), gtk_layer);
@@ -178,6 +189,7 @@ hyscan_gtk_map_ruler_interface_init (HyScanGtkLayerInterface *iface)
   hyscan_gtk_layer_parent_interface = g_type_interface_peek_parent (iface);
 
   iface->added = hyscan_gtk_map_ruler_added;
+  iface->removed = hyscan_gtk_map_ruler_removed;
 }
 
 /* Обработка сигнала "configure-event" виджета карты. */

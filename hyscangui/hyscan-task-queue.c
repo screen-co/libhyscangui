@@ -11,20 +11,21 @@ enum
 
 struct _HyScanTaskQueuePrivate
 {
-  GFunc           task_func;            /* Функция выполнения задачи. */
-  GCompareFunc    cmp_func;             /* Функция сравнения двух задач. */
-  GDestroyNotify  task_free_func;       /* Функция удаления задачи. */
-  guint           max_concurrent;       /* Максимальное количество задач, выполняемых одновременно. */
+  HyScanTaskQueueFunc task_func;            /* Функция выполнения задачи. */
+  GCompareFunc        cmp_func;             /* Функция сравнения двух задач. */
+  GDestroyNotify      task_free_func;       /* Функция удаления задачи. */
+  guint               max_concurrent;       /* Максимальное количество задач, выполняемых одновременно. */
 
   /* Состояние очереди задач. */
-  GQueue         *queue;                /* Очередь задач, ожидающих обработки. */
-  GList          *processing_tasks;     /* Список задач, находящихся в обработке. */
-  guint           processing_count;     /* Длина списка processing_tasks. */
-  GMutex          queue_lock;           /* Мутекс для ограничения доступа к редактиронию переменных состояния очереди. */
+  GQueue             *queue;                /* Очередь задач, ожидающих обработки. */
+  GList              *processing_tasks;     /* Список задач, находящихся в обработке. */
+  guint               processing_count;     /* Длина списка processing_tasks. */
+  GMutex              queue_lock;           /* Мутекс для ограничения доступа к редактиронию переменных состояния очереди. */
 
-  GThreadPool    *pool;                 /* Пул обработки задач. */
-  gpointer        user_data;            /* Пользовательские данные для пула задач. */
-  gboolean        shutdown;
+  GThreadPool        *pool;                 /* Пул обработки задач. */
+  gpointer            user_data;            /* Пользовательские данные для пула задач. */
+  gboolean            shutdown;
+  GCancellable       *cancellable;          /* Объект для отмены текущих задач. */
 };
 
 static void    hyscan_task_queue_set_property             (GObject               *object,
@@ -115,6 +116,7 @@ hyscan_task_queue_object_constructed (GObject *object)
   priv->pool = g_thread_pool_new ((GFunc) hyscan_task_queue_process, task_queue,
                                   priv->max_concurrent, FALSE, NULL);
   priv->queue = g_queue_new ();
+  priv->cancellable = g_cancellable_new ();
 
   g_mutex_init (&priv->queue_lock);
 }
@@ -125,11 +127,11 @@ hyscan_task_queue_object_finalize (GObject *object)
   HyScanTaskQueue *task_queue = HYSCAN_TASK_QUEUE (object);
   HyScanTaskQueuePrivate *priv = task_queue->priv;
 
-  /* Освобождаем память. */
-  g_mutex_lock (&priv->queue_lock);
+  if (!g_atomic_int_get (&priv->shutdown))
+    g_warning ("HyScanTaskQueue: hyscan_task_queue_shutdown() must be called before finalize");
 
-  /* Ставим флаг о завершении работы. */
-  g_atomic_int_set (&priv->shutdown, TRUE);
+  /* Блокируем очередь и освобождаем память. */
+  g_mutex_lock (&priv->queue_lock);
 
   if (priv->task_free_func != NULL)
     g_queue_free_full (priv->queue, priv->task_free_func);
@@ -138,8 +140,10 @@ hyscan_task_queue_object_finalize (GObject *object)
 
   g_mutex_unlock (&priv->queue_lock);
   g_mutex_clear (&priv->queue_lock);
-  
+
+  /* Придётся подождать, пока не завершится выполнение уже отправленных задач. */
   g_thread_pool_free (priv->pool, FALSE, TRUE);
+  g_object_unref (priv->cancellable);
 
   G_OBJECT_CLASS (hyscan_task_queue_parent_class)->finalize (object);
 }
@@ -152,7 +156,7 @@ hyscan_task_queue_process (gpointer         task,
   HyScanTaskQueuePrivate *priv = queue->priv;
 
   /* Выполняем задачу. */
-  priv->task_func (task, priv->user_data);
+  priv->task_func (task, priv->user_data, priv->cancellable);
 
   /* Удаляем задачу из очереди. */
   g_mutex_lock (&priv->queue_lock);
@@ -212,13 +216,14 @@ hyscan_task_queue_try_next (HyScanTaskQueue *queue)
  *
  * Создает новый объект #HyScanTaskQueue.
  *
- * Returns: Для удаления g_object_unref().
+ * Returns: Перед удалением необходимо завершить работу очереди с помощью
+ *    hyscan_task_queue_shutdown() и затем удалить через g_object_unref().
  */
 HyScanTaskQueue *
-hyscan_task_queue_new (GFunc          task_func,
-                       gpointer       user_data,
-                       GDestroyNotify free_func,
-                       GCompareFunc   cmp_func)
+hyscan_task_queue_new (HyScanTaskQueueFunc task_func,
+                       gpointer            user_data,
+                       GDestroyNotify      free_func,
+                       GCompareFunc        cmp_func)
 {
   return g_object_new (HYSCAN_TYPE_TASK_QUEUE,
                        "task-func", task_func,
@@ -299,4 +304,26 @@ hyscan_task_queue_clear (HyScanTaskQueue  *queue)
 
   /* Операции с очередью сделаны — разблокируем доступ. */
   g_mutex_unlock (&priv->queue_lock);
+}
+
+/**
+ * hyscan_task_queue_shutdown:
+ * @queue
+ *
+ * Останавливает выполнение задач в очереди. Должна быть вызвана перед
+ * удаление объекта g_object_unref().
+ */
+void
+hyscan_task_queue_shutdown (HyScanTaskQueue *queue)
+{
+  HyScanTaskQueuePrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_TASK_QUEUE (queue));
+  priv = queue->priv;
+
+  /* Ставим флаг о завершении работы. */
+  g_atomic_int_set (&priv->shutdown, TRUE);
+
+  /* Отменяем все задачи. */
+  g_cancellable_cancel (priv->cancellable);
 }

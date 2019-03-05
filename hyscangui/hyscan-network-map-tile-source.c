@@ -65,7 +65,8 @@ static void           hyscan_network_map_tile_source_set_property        (GObjec
 static void           hyscan_network_map_tile_source_object_constructed  (GObject                           *object);
 static void           hyscan_network_map_tile_source_object_finalize     (GObject                           *object);
 static gboolean       hyscan_network_map_tile_source_fill_tile           (HyScanGtkMapTileSource            *source,
-                                                                          HyScanGtkMapTile                  *tile);
+                                                                          HyScanGtkMapTile                  *tile,
+                                                                          GCancellable                      *cancellable);
 static void           hyscan_network_map_tile_source_get_zoom_limits     (HyScanGtkMapTileSource            *source,
                                                                           guint                             *min_zoom,
                                                                           guint                             *max_zoom);
@@ -312,10 +313,19 @@ hyscan_network_map_tile_source_make_url (HyScanNetworkMapTileSourcePrivate *priv
     }
 }
 
+/* Обработчик сигнала "cancelled" у @cancellable. */
+static void
+hyscan_network_map_tile_source_propagate_cancel (GCancellable *cancellable,
+                                                 GCancellable *soup_cancellable)
+{
+  g_cancellable_cancel (soup_cancellable);
+}
+
 /* Ищет указанный тайл и загружает его. */
 static gboolean
 hyscan_network_map_tile_source_fill_tile (HyScanGtkMapTileSource *source,
-                                          HyScanGtkMapTile       *tile)
+                                          HyScanGtkMapTile       *tile,
+                                          GCancellable           *cancellable)
 {
   HyScanNetworkMapTileSource *nw_source = HYSCAN_NETWORK_MAP_TILE_SOURCE (source);
   HyScanNetworkMapTileSourcePrivate *priv = nw_source->priv;
@@ -329,32 +339,50 @@ hyscan_network_map_tile_source_fill_tile (HyScanGtkMapTileSource *source,
 
   gboolean status_ok = FALSE;
 
+  if (g_cancellable_is_cancelled (cancellable))
+    return FALSE;
+
   /* Отправляем HTTP-запрос на получение тайла. */
   if (!hyscan_network_map_tile_source_make_url (priv, tile, url, sizeof (url)))
     goto exit;
 
-  soup_msg = soup_message_new ("GET", url);
-  input_stream = soup_session_send (priv->session, soup_msg, NULL, &error);
-  if (error != NULL)
-    {
-      g_warning ("HyScanNetworkMapTileSource: failed to get \"%s\" (%s)", url, error->message);
-      g_clear_error (&error);
+  /* Делаем HTTP-запрос с отдельным GCancellable,
+   * потому что soup_session_send() может сделать g_cancellable_reset(). */
+  {
+    GCancellable *soup_cancellable;
+    gulong id;
 
-      goto exit;
-    }
+    soup_cancellable = g_cancellable_new ();
+
+    id = g_cancellable_connect (cancellable, G_CALLBACK (hyscan_network_map_tile_source_propagate_cancel),
+                                soup_cancellable, NULL);
+
+    soup_msg = soup_message_new ("GET", url);
+    input_stream = soup_session_send (priv->session, soup_msg, soup_cancellable, &error);
+
+    g_cancellable_disconnect (cancellable, id);
+    g_object_unref (soup_cancellable);
+
+    if (error != NULL)
+      goto error;
+  }
 
   /* Из тела ответа формируем изображение pixbuf. */
-  pixbuf = gdk_pixbuf_new_from_stream (input_stream, NULL, &error);
+  pixbuf = gdk_pixbuf_new_from_stream (input_stream, cancellable, &error);
   if (error != NULL)
-    {
-      g_warning ("HyScanNetworkMapTileSource: failed to read \"%s\" (%s)", url, error->message);
-      g_clear_error (&error);
-
-      goto exit;
-    }
+    goto error;
 
   /* Устанавливаем загруженную поверхность в тайл. */
   status_ok = hyscan_gtk_map_tile_set_pixbuf (tile, pixbuf);
+
+error:
+  if (error != NULL)
+    {
+      if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
+        g_warning ("HyScanNetworkMapTileSource: failed to read \"%s\" (%s)", url, error->message);
+
+      g_clear_error (&error);
+    }
 
 exit:
   g_clear_object (&pixbuf);
@@ -406,8 +434,13 @@ hyscan_network_map_tile_source_interface_init (HyScanGtkMapTileSourceInterface *
  * Returns: новый объект #HyScanNetworkMapTileSource. Для удаления g_object_unref()
  */
 HyScanNetworkMapTileSource *
-hyscan_network_map_tile_source_new (const gchar *url_format)
+hyscan_network_map_tile_source_new (const gchar *url_format,
+                                    guint        min_zoom,
+                                    guint        max_zoom)
 {
   return g_object_new (HYSCAN_TYPE_NETWORK_MAP_TILE_SOURCE,
-                       "url-format", url_format, NULL);
+                       "url-format", url_format,
+                       "min-zoom", min_zoom,
+                       "max-zoom", max_zoom,
+                       NULL);
 }

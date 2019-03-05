@@ -39,6 +39,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-map-ruler.c
              hyscan-gtk-map-grid.c
              hyscan-gtk-map-pin-layer.c
+             hyscan-map-profile.c
              hyscan-geo-projection.c
              hyscan-gtk-layer.c
              hyscan-gtk-layer-container.c

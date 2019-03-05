@@ -60,6 +60,24 @@ hyscan_gtk_layer_added (HyScanGtkLayer          *layer,
 }
 
 /**
+ * hyscan_gtk_layer_removed:
+ * @layer: указатель на слой #HyScanGtkLayer
+ *
+ * Удаляет слой из контейнера
+ */
+void
+hyscan_gtk_layer_removed (HyScanGtkLayer *layer)
+{
+  HyScanGtkLayerInterface *iface;
+
+  g_return_if_fail (HYSCAN_IS_GTK_LAYER (layer));
+
+  iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
+  if (iface->removed != NULL)
+    (*iface->removed) (layer);
+}
+
+/**
  * hyscan_gtk_layer_set_visible:
  * @layer: указатель на слой #HyScanGtkLayer
  * @visible: %TRUE, если слой должен быть видимым

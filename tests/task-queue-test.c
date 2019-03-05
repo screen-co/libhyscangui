@@ -4,8 +4,9 @@ static gchar *test_user_data = "user data";
 static guint  created_tasks = 0;
 
 void
-task_func (gpointer task,
-           gpointer user_data)
+task_func (gpointer      task,
+           gpointer      user_data,
+           GCancellable *cancellable)
 {
   g_assert_true (test_user_data == user_data);
   g_message ("Processing task %s", task);

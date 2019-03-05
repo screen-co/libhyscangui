@@ -11,6 +11,7 @@
 #include <hyscan-gtk-map-ruler.h>
 #include <hyscan-gtk-map-grid.h>
 #include <hyscan-gtk-map-pin-layer.h>
+#include <hyscan-map-profile.h>
 
 static gchar *tiles_dir;                     /* Путь к каталогу, где хранятся тайлы. */
 static gboolean yandex_projection = FALSE;   /* Использовать карту яндекса. */
@@ -18,6 +19,7 @@ static guint tile_url_preset = 0;
 static gchar *tile_url_format;
 
 static HyScanGtkMap *map;
+static HyScanMapProfile *profiles[3];
 static GtkContainer *layer_toolbox;
 void   (*layer_toolbox_cb) (GtkContainer   *container,
                             HyScanGtkLayer *layer);
@@ -46,54 +48,25 @@ destroy_callback (GtkWidget *widget,
   gtk_main_quit ();
 }
 
-/* Создаёт яндекс карту и источник тайлов к ней. */
-GtkWidget *
-create_map_yandex (HyScanGtkMapTileSource **source)
+HyScanMapProfile *
+create_profile ()
 {
-  GtkWidget *map;
-  HyScanGeoProjection *projection;
-  HyScanGeoEllipsoidParam p;
-  HyScanNetworkMapTileSource *nw_source;
+  HyScanMapProfile *profile;
 
-  /* Проекция Яндекса - эллипсоид WGS84 с указанными границами по широте. */
-  hyscan_geo_init_ellipsoid (&p, HYSCAN_GEO_ELLIPSOID_WGS84);
-  projection = hyscan_mercator_new (p, -85.08405905010976, 85.08405905010976);
-  map = hyscan_gtk_map_new (projection);
-  g_object_unref (projection);
-
-  nw_source = hyscan_network_map_tile_source_new (tile_url_format ? tile_url_format : url_presets_yandex[tile_url_preset]);
-  *source = HYSCAN_GTK_MAP_TILE_SOURCE (nw_source);
-
-  return map;
-}
-
-/* Создаёт OSM карту. */
-GtkWidget *
-create_map_user (HyScanGtkMapTileSource **source)
-{
-  GtkWidget *map;
-  HyScanGeoProjection *projection;
-  HyScanNetworkMapTileSource *nw_source;
-
-  projection = hyscan_pseudo_mercator_new ();
-  
-  map = hyscan_gtk_map_new (projection);
-  g_object_unref (projection);
-
-  nw_source = hyscan_network_map_tile_source_new (tile_url_format ? tile_url_format : url_presets[tile_url_preset]);
-
-  *source = HYSCAN_GTK_MAP_TILE_SOURCE (nw_source);
-
-  return map;
-}
-
-GtkWidget *
-create_map (HyScanGtkMapTileSource **source)
-{
   if (yandex_projection)
-    return create_map_yandex (source);
+    {
+      profile = hyscan_map_profile_new (tile_url_format ? tile_url_format : url_presets_yandex[tile_url_preset],
+                                        tiles_dir,
+                                        "merc", 0, 19);
+    }
   else
-    return create_map_user (source);
+    {
+      profile = hyscan_map_profile_new (tile_url_format ? tile_url_format : url_presets[tile_url_preset],
+                                        tiles_dir,
+                                        "webmerc", 0, 19);
+    }
+
+  return profile;
 }
 
 void
@@ -217,6 +190,20 @@ create_ruler_toolbox (GtkContainer   *container,
   gtk_container_add (container, ctrl_widget);
 }
 
+void
+on_profile_change (GtkComboBoxText *widget,
+                   gpointer         user_data)
+{
+  gint index;
+
+  index = gtk_combo_box_get_active (GTK_COMBO_BOX (widget));
+
+  if (index < 0)
+    return;
+
+  hyscan_map_profile_apply (profiles[index], map);
+}
+
 /* Кнопки управления виджетом. */
 GtkWidget *
 create_control_box (HyScanGtkMap         *map,
@@ -228,6 +215,33 @@ create_control_box (HyScanGtkMap         *map,
   GtkWidget *ctrl_widget;
 
   ctrl_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
+
+  /* Выбор профиля. */
+  {
+    ctrl_widget = gtk_combo_box_text_new ();
+
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "Yandex");
+    profiles[0] = hyscan_map_profile_new ("http://vec02.maps.yandex.net/tiles?l=map&v=2.2.3&z={z}&x={x}&y={y}",
+                                         "/tmp/tiles/yandex",
+                                         "merc", 0, 19);
+
+
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "OSM");
+    profiles[1] = hyscan_map_profile_new ("http://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+                                          "/tmp/tiles/osm",
+                                          "webmerc", 0, 19);
+
+    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "Wikipedia");
+    profiles[2] = hyscan_map_profile_new ("https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png",
+                                           "/tmp/tiles/wiki",
+                                           "webmerc", 0, 19);
+
+
+    g_signal_connect (ctrl_widget, "changed", G_CALLBACK (on_profile_change), NULL);
+    gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
+
+    gtk_combo_box_set_active (GTK_COMBO_BOX (ctrl_widget), 0);
+  }
 
   /* Блокировка редактирования. */
   {
@@ -313,11 +327,6 @@ int main (int     argc,
   HyScanGtkMapRuler *ruler;
   HyScanGtkMapPinLayer *pin_layer;
   HyScanGtkMapGrid *map_grid;
-  HyScanCache *cache = HYSCAN_CACHE (hyscan_cached_new (64));
-
-  HyScanGtkMapTiles *tiles;
-
-  guint zoom = 12;
 
   gtk_init (&argc, &argv);
 
@@ -355,28 +364,17 @@ int main (int     argc,
 
   /* Добавляем слои. */
   {
-    HyScanGtkMapTileSource *nw_source;
-    HyScanGtkMapFsTileSource *fs_source;
-
-    /* Создаём виджет карты и соответствующий network-источник тайлов. */
-    map = HYSCAN_GTK_MAP (create_map (&nw_source));
-
-    fs_source = hyscan_gtk_map_fs_tile_source_new (tiles_dir, HYSCAN_GTK_MAP_TILE_SOURCE(nw_source));
-    tiles = hyscan_gtk_map_tiles_new (cache, HYSCAN_GTK_MAP_TILE_SOURCE (fs_source));
-    g_clear_object (&nw_source);
-    g_clear_object (&fs_source);
+    map = g_object_new (HYSCAN_TYPE_GTK_MAP, NULL);
 
     control = hyscan_gtk_map_control_new ();
     map_grid = hyscan_gtk_map_grid_new ();
     ruler = hyscan_gtk_map_ruler_new ();
     pin_layer = hyscan_gtk_map_pin_layer_new ();
 
-    /* Слой управления первый, чтобы обрабатывать все взаимодействия. */
-    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (control));
-    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (tiles));
-    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (pin_layer));
-    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (ruler));
-    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (map_grid));
+    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (control),   "control");
+    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (pin_layer), "pin");
+    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (ruler),     "ruler");
+    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (map_grid),  "grid");
   }
 
   grid = gtk_grid_new ();
@@ -403,8 +401,8 @@ int main (int     argc,
   gtk_widget_show_all (window);
 
   gtk_cifro_area_set_view (GTK_CIFRO_AREA (map), 0, 10, 0, 10);
-  hyscan_gtk_map_tiles_set_zoom (tiles, zoom);
-  hyscan_gtk_map_move_to (HYSCAN_GTK_MAP (map), center);
+  hyscan_gtk_map_set_scale (map, 0.01);
+  hyscan_gtk_map_move_to (map, center);
 
   /* Main loop. */
   gtk_main ();
@@ -414,8 +412,6 @@ int main (int     argc,
   g_clear_object (&ruler);
   g_clear_object (&control);
   g_clear_object (&pin_layer);
-  g_clear_object (&tiles);
-  g_clear_object (&cache);
   g_free (tiles_dir);
 
   return 0;

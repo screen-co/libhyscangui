@@ -16,7 +16,8 @@ hyscan_gtk_map_tile_source_default_init (HyScanGtkMapTileSourceInterface *iface)
  */
 gboolean
 hyscan_gtk_map_tile_source_fill (HyScanGtkMapTileSource *source,
-                                 HyScanGtkMapTile       *tile)
+                                 HyScanGtkMapTile       *tile,
+                                 GCancellable           *cancellable)
 {
   HyScanGtkMapTileSourceInterface *iface;
 
@@ -24,7 +25,7 @@ hyscan_gtk_map_tile_source_fill (HyScanGtkMapTileSource *source,
 
   iface = HYSCAN_GTK_MAP_TILE_SOURCE_GET_IFACE (source);
   if (iface->fill_tile != NULL)
-    return (* iface->fill_tile) (source, tile);
+    return (* iface->fill_tile) (source, tile, cancellable);
 
   return FALSE;
 }

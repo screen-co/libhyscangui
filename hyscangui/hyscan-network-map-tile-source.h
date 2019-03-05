@@ -32,7 +32,9 @@ HYSCAN_API
 GType                          hyscan_network_map_tile_source_get_type         (void);
 
 HYSCAN_API
-HyScanNetworkMapTileSource *   hyscan_network_map_tile_source_new              (const gchar *url_format);
+HyScanNetworkMapTileSource *   hyscan_network_map_tile_source_new              (const gchar *url_format,
+                                                                                guint        min_zoom,
+                                                                                guint        max_zoom);
 
 G_END_DECLS
 

@@ -13,7 +13,7 @@
 #define CACHE_HEADER_MAGIC     0x308d32d9    /* Идентификатор заголовка кэша. */
 #define ZOOM_THRESHOLD         .3            /* Зум округляется вверх, если его дробная часть больше этого значения. */
 
-#define TOTAL_TILES(zoom)      ((zoom) == 0 ? 1 : 2u << (zoom - 1)) - 1
+#define TOTAL_TILES(zoom)      (((zoom) == 0 ? 1 : 2u << ((zoom) - 1)) - 1)
 #define CLAMP_TILE(val, zoom)  CLAMP((gint)(val), 0, (gint)TOTAL_TILES ((zoom)))
 
 enum
@@ -74,7 +74,8 @@ static void                 hyscan_gtk_map_tiles_object_finalize          (GObje
 static void                 hyscan_gtk_map_tiles_draw                     (HyScanGtkMapTiles        *layer,
                                                                            cairo_t                  *cairo);
 static void                 hyscan_gtk_map_tiles_load                     (HyScanGtkMapTile         *tile,
-                                                                           HyScanGtkMapTiles        *layer);
+                                                                           HyScanGtkMapTiles        *layer,
+                                                                           GCancellable             *cancellable);
 static gboolean             hyscan_gtk_map_tiles_filled_buffer_flush      (HyScanGtkMapTiles        *layer);
 static gboolean             hyscan_gtk_map_tiles_buffer_is_visible        (HyScanGtkMapTiles        *layer);
 static void                 hyscan_gtk_map_tiles_get_cache_key            (HyScanGtkMapTile         *tile,
@@ -178,6 +179,33 @@ hyscan_gtk_map_tiles_set_property (GObject      *object,
     }
 }
 
+/* Завершает работу очереди задач по загрузке тайлов и удаляет очередь. */
+static void
+hyscan_gtk_map_tiles_shutdown_queue (HyScanGtkMapTiles *tiles)
+{
+  HyScanGtkMapTilesPrivate *priv = tiles->priv;
+
+  if (priv->task_queue == NULL)
+    return;
+
+  hyscan_task_queue_shutdown (priv->task_queue);
+  g_clear_object (&priv->task_queue);
+}
+
+/* Создаёт очередь задач и запускает работу по загрузке тайлов. */
+static void
+hyscan_gtk_map_tiles_run_queue (HyScanGtkMapTiles *tiles)
+{
+  HyScanGtkMapTilesPrivate *priv = tiles->priv;
+
+  if (priv->task_queue != NULL)
+    return;
+
+  priv->task_queue = hyscan_task_queue_new ((HyScanTaskQueueFunc) hyscan_gtk_map_tiles_load, tiles,
+                                            (GDestroyNotify) g_object_unref,
+                                            (GCompareFunc) hyscan_gtk_map_tile_compare);
+}
+
 static void
 hyscan_gtk_map_tiles_object_constructed (GObject *object)
 {
@@ -187,9 +215,7 @@ hyscan_gtk_map_tiles_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_tiles_parent_class)->constructed (object);
 
   /* Создаём очередь задач по поиску тайлов. */
-  priv->task_queue = hyscan_task_queue_new ((GFunc) hyscan_gtk_map_tiles_load, gtk_map_tiles,
-                                            (GDestroyNotify) g_object_unref ,
-                                            (GCompareFunc) hyscan_gtk_map_tile_compare);
+  hyscan_gtk_map_tiles_run_queue (gtk_map_tiles);
 
   priv->cache_buffer = hyscan_buffer_new ();
   priv->tile_buffer = hyscan_buffer_new ();
@@ -203,13 +229,9 @@ hyscan_gtk_map_tiles_object_finalize (GObject *object)
   HyScanGtkMapTiles *gtk_map_tiles = HYSCAN_GTK_MAP_TILES (object);
   HyScanGtkMapTilesPrivate *priv = gtk_map_tiles->priv;
 
-  /* Отключаемся от сигналов. */
-  g_signal_handlers_disconnect_by_data (priv->map, gtk_map_tiles);
-
   /* Освобождаем память. */
   g_clear_pointer (&priv->surface, cairo_surface_destroy);
   g_clear_object (&priv->map);
-  g_object_unref (priv->task_queue);
   g_object_unref (priv->source);
   g_object_unref (priv->cache);
   g_object_unref (priv->cache_buffer);
@@ -219,16 +241,41 @@ hyscan_gtk_map_tiles_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_tiles_parent_class)->finalize (object);
 }
 
-/* Реализация HyScanGtlLayerInterface.added() - подключается к сигналам виджета карты. */
+/* Реализация HyScanGtlLayerInterface.removed().
+ * Отключается от сигналов виджета карты. */
+static void
+hyscan_gtk_map_tiles_removed (HyScanGtkLayer *gtk_layer)
+{
+  HyScanGtkMapTiles *tiles = HYSCAN_GTK_MAP_TILES (gtk_layer);
+  HyScanGtkMapTilesPrivate *priv = tiles->priv;
+
+  g_return_if_fail (priv->map != NULL);
+
+  /* Завершаем работу очереди. */
+  hyscan_gtk_map_tiles_shutdown_queue (tiles);
+
+  /* Отключаемся от сигналов. */
+  g_signal_handlers_disconnect_by_data (priv->map, gtk_layer);
+
+  g_clear_object (&priv->map);
+}
+
+/* Реализация HyScanGtlLayerInterface.added().
+ * Подключается к сигналам виджета карты. */
 static void
 hyscan_gtk_map_tiles_added (HyScanGtkLayer          *gtk_layer,
                             HyScanGtkLayerContainer *container)
 {
-  HyScanGtkMapTilesPrivate *priv = HYSCAN_GTK_MAP_TILES (gtk_layer)->priv;
+  HyScanGtkMapTiles *tiles = HYSCAN_GTK_MAP_TILES (gtk_layer);
+  HyScanGtkMapTilesPrivate *priv = tiles->priv;
 
   g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
+  g_return_if_fail (priv->map == NULL);
 
   priv->map = g_object_ref (container);
+
+  /* Запускаем очередь задач. */
+  hyscan_gtk_map_tiles_run_queue (tiles);
 
   /* Подключаемся к сигналу обновления видимой области карты. */
   g_signal_connect_swapped (priv->map, "visible-draw",
@@ -241,6 +288,7 @@ hyscan_gtk_map_tiles_interface_init (HyScanGtkLayerInterface *iface)
   iface->get_visible = NULL;
   iface->set_visible = NULL;
   iface->added = hyscan_gtk_map_tiles_added;
+  iface->removed = hyscan_gtk_map_tiles_removed;
   iface->grab_input = NULL;
   iface->get_icon_name = NULL;
 }
@@ -349,6 +397,7 @@ hyscan_gtk_map_tiles_filled_buffer_flush (HyScanGtkMapTiles *layer)
   priv->filled_buffer = NULL;
 
   g_mutex_unlock (&priv->filled_lock);
+  g_object_unref (layer);
 
   return G_SOURCE_REMOVE;
 }
@@ -356,13 +405,14 @@ hyscan_gtk_map_tiles_filled_buffer_flush (HyScanGtkMapTiles *layer)
 /* Заполняет запрошенный тайл из источника тайлов (выполняется в отдельном потоке). */
 static void
 hyscan_gtk_map_tiles_load (HyScanGtkMapTile  *tile,
-                           HyScanGtkMapTiles *layer)
+                           HyScanGtkMapTiles *layer,
+                           GCancellable       *cancellable)
 {
   HyScanGtkMapTilesPrivate *priv = layer->priv;
 
   /* Если удалось заполнить новый тайл, то запрашиваем обновление области
    * виджета с новым тайлом. */
-  if (hyscan_gtk_map_tile_source_fill (priv->source, tile))
+  if (hyscan_gtk_map_tile_source_fill (priv->source, tile, cancellable))
     {
       hyscan_gtk_map_tiles_cache_set (priv, tile);
 
@@ -371,7 +421,8 @@ hyscan_gtk_map_tiles_load (HyScanGtkMapTile  *tile,
       priv->filled_buffer = g_list_append (priv->filled_buffer, g_object_ref (tile));
       g_mutex_unlock (&priv->filled_lock);
 
-      gdk_threads_add_idle ((GSourceFunc) hyscan_gtk_map_tiles_filled_buffer_flush, layer);
+      gdk_threads_add_idle ((GSourceFunc) hyscan_gtk_map_tiles_filled_buffer_flush,
+                            g_object_ref (layer));
     }
 }
 
