@@ -62,6 +62,9 @@ struct _HyScanGtkMapTilesPrivate
   gdouble                      scale;               /* Масштаб отрисованных тайлов. */
   guint                        preload_margin;      /* Количество дополнительно загружаемых тайлов за пределами
                                                      * видимой области с каждой стороны. */
+
+  GdkPixbuf                   *dummy_tile;          /* Тайл-заглушка. Рисуется, когда настоящий тайл еще не загружен. */
+  guint                        tile_size;           /* Размер тайла в пикселах. */
 };
 
 static void                 hyscan_gtk_map_tiles_set_property             (GObject                  *object,
@@ -71,6 +74,9 @@ static void                 hyscan_gtk_map_tiles_set_property             (GObje
 static void                 hyscan_gtk_map_tiles_interface_init           (HyScanGtkLayerInterface  *iface);
 static void                 hyscan_gtk_map_tiles_object_constructed       (GObject                  *object);
 static void                 hyscan_gtk_map_tiles_object_finalize          (GObject                  *object);
+static void                 hyscan_gtk_map_tiles_queue_start              (HyScanGtkMapTiles        *tiles);
+static void                 hyscan_gtk_map_tiles_queue_shutdown           (HyScanGtkMapTiles        *tiles);
+static GdkPixbuf*           hyscan_gtk_map_tiles_create_dummy_tile        (HyScanGtkMapTilesPrivate *priv);
 static void                 hyscan_gtk_map_tiles_draw                     (HyScanGtkMapTiles        *layer,
                                                                            cairo_t                  *cairo);
 static void                 hyscan_gtk_map_tiles_load                     (HyScanGtkMapTile         *tile,
@@ -179,35 +185,6 @@ hyscan_gtk_map_tiles_set_property (GObject      *object,
     }
 }
 
-/* Завершает работу очереди задач по загрузке тайлов и удаляет очередь. */
-static void
-hyscan_gtk_map_tiles_shutdown_queue (HyScanGtkMapTiles *tiles)
-{
-  HyScanGtkMapTilesPrivate *priv = tiles->priv;
-
-  if (priv->task_queue == NULL)
-    return;
-
-  /* todo: этот shutdown иногда надолго блокирует GUI
-   * Связано с тем, что долго слой tiles не сразу реагирует на сигнал отмены загрузки. */
-  hyscan_task_queue_shutdown (priv->task_queue);
-  g_clear_object (&priv->task_queue);
-}
-
-/* Создаёт очередь задач и запускает работу по загрузке тайлов. */
-static void
-hyscan_gtk_map_tiles_run_queue (HyScanGtkMapTiles *tiles)
-{
-  HyScanGtkMapTilesPrivate *priv = tiles->priv;
-
-  if (priv->task_queue != NULL)
-    return;
-
-  priv->task_queue = hyscan_task_queue_new ((HyScanTaskQueueFunc) hyscan_gtk_map_tiles_load, tiles,
-                                            (GDestroyNotify) g_object_unref,
-                                            (GCompareFunc) hyscan_gtk_map_tile_compare);
-}
-
 static void
 hyscan_gtk_map_tiles_object_constructed (GObject *object)
 {
@@ -217,7 +194,10 @@ hyscan_gtk_map_tiles_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_tiles_parent_class)->constructed (object);
 
   /* Создаём очередь задач по поиску тайлов. */
-  hyscan_gtk_map_tiles_run_queue (gtk_map_tiles);
+  hyscan_gtk_map_tiles_queue_start (gtk_map_tiles);
+
+  priv->tile_size = hyscan_gtk_map_tile_source_get_tile_size (priv->source);
+  priv->dummy_tile = hyscan_gtk_map_tiles_create_dummy_tile (priv);
 
   priv->cache_buffer = hyscan_buffer_new ();
   priv->tile_buffer = hyscan_buffer_new ();
@@ -238,6 +218,7 @@ hyscan_gtk_map_tiles_object_finalize (GObject *object)
   g_object_unref (priv->cache);
   g_object_unref (priv->cache_buffer);
   g_object_unref (priv->tile_buffer);
+  g_object_unref (priv->dummy_tile);
   g_mutex_clear (&priv->filled_lock);
 
   G_OBJECT_CLASS (hyscan_gtk_map_tiles_parent_class)->finalize (object);
@@ -254,7 +235,7 @@ hyscan_gtk_map_tiles_removed (HyScanGtkLayer *gtk_layer)
   g_return_if_fail (priv->map != NULL);
 
   /* Завершаем работу очереди. */
-  hyscan_gtk_map_tiles_shutdown_queue (tiles);
+  hyscan_gtk_map_tiles_queue_shutdown (tiles);
 
   /* Отключаемся от сигналов. */
   g_signal_handlers_disconnect_by_data (priv->map, gtk_layer);
@@ -277,7 +258,7 @@ hyscan_gtk_map_tiles_added (HyScanGtkLayer          *gtk_layer,
   priv->map = g_object_ref (container);
 
   /* Запускаем очередь задач. */
-  hyscan_gtk_map_tiles_run_queue (tiles);
+  hyscan_gtk_map_tiles_queue_start (tiles);
 
   /* Подключаемся к сигналу обновления видимой области карты. */
   g_signal_connect_swapped (priv->map, "visible-draw",
@@ -293,6 +274,85 @@ hyscan_gtk_map_tiles_interface_init (HyScanGtkLayerInterface *iface)
   iface->removed = hyscan_gtk_map_tiles_removed;
   iface->grab_input = NULL;
   iface->get_icon_name = NULL;
+}
+
+/* Завершает работу очереди задач по загрузке тайлов и удаляет очередь. */
+static void
+hyscan_gtk_map_tiles_queue_shutdown (HyScanGtkMapTiles *tiles)
+{
+  HyScanGtkMapTilesPrivate *priv = tiles->priv;
+
+  if (priv->task_queue == NULL)
+    return;
+
+  /* todo: этот shutdown иногда надолго блокирует GUI
+   * Связано с тем, что долго слой tiles не сразу реагирует на сигнал отмены загрузки. */
+  hyscan_task_queue_shutdown (priv->task_queue);
+  g_clear_object (&priv->task_queue);
+}
+
+/* Создаёт очередь задач и запускает работу по загрузке тайлов. */
+static void
+hyscan_gtk_map_tiles_queue_start (HyScanGtkMapTiles *tiles)
+{
+  HyScanGtkMapTilesPrivate *priv = tiles->priv;
+
+  if (priv->task_queue != NULL)
+    return;
+
+  priv->task_queue = hyscan_task_queue_new ((HyScanTaskQueueFunc) hyscan_gtk_map_tiles_load, tiles,
+                                            (GDestroyNotify) g_object_unref,
+                                            (GCompareFunc) hyscan_gtk_map_tile_compare);
+}
+
+/* Создаёт изображений тайла заглушки в клеточку. */
+static GdkPixbuf*
+hyscan_gtk_map_tiles_create_dummy_tile (HyScanGtkMapTilesPrivate *priv)
+{
+  GdkPixbuf *dummy_tile;
+  cairo_surface_t *surface;
+  cairo_t *cairo;
+
+  gdouble x = 0, y = 0;
+  gdouble cell_size;
+
+  surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, priv->tile_size, priv->tile_size);
+  cairo = cairo_create (surface);
+
+  /* Фон. */
+  cairo_set_source_rgba (cairo, 0.9, 0.9, 0.9, 1.0);
+  cairo_fill (cairo);
+
+  /* Клетка. */
+  cairo_set_line_width (cairo, 2.0);
+  cairo_set_source_rgba (cairo, 1.0, 1.0, 1.0, 1.0);
+  cell_size = priv->tile_size / 5.0;
+
+  while (y < priv->tile_size)
+    {
+      cairo_line_to (cairo, 0, y);
+      cairo_line_to (cairo, priv->tile_size, y);
+      cairo_stroke (cairo);
+
+      y += cell_size;
+    }
+
+  while (x < priv->tile_size)
+    {
+      cairo_line_to (cairo, x, 0);
+      cairo_line_to (cairo, x, priv->tile_size);
+      cairo_stroke (cairo);
+
+      x += cell_size;
+    }
+
+  /* Копируем в pixbuf. */
+  dummy_tile = gdk_pixbuf_get_from_surface (surface, 0, 0, priv->tile_size, priv->tile_size);
+
+  cairo_destroy (cairo);
+  cairo_surface_destroy (surface);
+
+  return dummy_tile;
 }
 
 /* Помещает в кэш информацию о тайле. */
@@ -687,6 +747,7 @@ hyscan_gtk_map_tiles_draw_tile (HyScanGtkMapTilesPrivate *priv,
                                 guint                     y)
 {
   HyScanGtkMapTile *tile;
+  GdkPixbuf *pixbuf;
 
   guint tile_size;
   gboolean filled;
@@ -704,14 +765,10 @@ hyscan_gtk_map_tiles_draw_tile (HyScanGtkMapTilesPrivate *priv,
 
   /* Если получилось заполнить тайл, то рисуем его в буфер. */
   filled = hyscan_gtk_map_tiles_fill_tile (priv, tile);
-  if (filled)
-    {
-      GdkPixbuf *pixbuf;
 
-      pixbuf = hyscan_gtk_map_tile_get_pixbuf (tile);
-      gdk_cairo_set_source_pixbuf (cairo, pixbuf, (x - x0) * tile_size, (y - y0) * tile_size);
-      cairo_paint (cairo);
-    }
+  pixbuf = filled ? hyscan_gtk_map_tile_get_pixbuf (tile) : priv->dummy_tile;
+  gdk_cairo_set_source_pixbuf (cairo, pixbuf, (x - x0) * tile_size, (y - y0) * tile_size);
+  cairo_paint (cairo);
 
 #ifdef HYSCAN_GTK_MAP_TILES_DEBUG
   /* Номер тайла для отладки. */
