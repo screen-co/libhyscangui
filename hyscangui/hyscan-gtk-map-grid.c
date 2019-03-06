@@ -405,7 +405,7 @@ hyscan_gtk_map_grid_draw_scale (HyScanGtkMapGrid *grid,
   y0 = height - priv->label_padding;
 
   /* Определяем размер линейки, чтобы он был круглым числом метров. */
-  scale = hyscan_gtk_map_get_scale (priv->map);
+  scale = hyscan_gtk_map_get_pixel_scale (priv->map);
   metres = .8 * MAX_SCALE_SIZE_PX / scale;
   metres = pow (10, floor (log10 (metres)));
   while (metres * scale < MAX_SCALE_SIZE_PX / 2.0)
@@ -422,11 +422,15 @@ hyscan_gtk_map_grid_draw_scale (HyScanGtkMapGrid *grid,
 
     gdouble spacing;
 
+    gdouble real_scale;
+
+    real_scale = 1.0 / hyscan_gtk_map_get_scale (priv->map);
+
     /* Формируем текст надписи и вычисляем её размер. */
     if (metres < 1000.0)
-      g_snprintf (label, sizeof (label), "%.0f m", metres);
+      g_snprintf (label, sizeof (label), "1:%.0f, %.0f m", real_scale, metres);
     else
-      g_snprintf (label, sizeof (label), "%.0f km", metres / 1000.0);
+      g_snprintf (label, sizeof (label), "1:%.0f, %.0f km", real_scale, metres / 1000.0);
     pango_layout_set_text (priv->pango_layout, label, -1);
     pango_layout_get_pixel_extents (priv->pango_layout, &inc_rect, &logical_rect);
     text_width = logical_rect.width;

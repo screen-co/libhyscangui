@@ -212,11 +212,11 @@ create_control_box (HyScanGtkMap         *map,
 
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "Google Satellite");
     profiles[5] = hyscan_map_profile_new ("http://www.google.cn/maps/vt?lyrs=s@189&gl=cn&x={x}&y={y}&z={z}",
-                                          "/tmp/tiles/bing",
+                                          "/tmp/tiles/google-sat",
                                           "webmerc", 1, 19);
 
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "Thunderforest Landscape");
-    profiles[6] = hyscan_map_profile_new ("https://tile.thunderforest.com/landscape/%d/%d/%d.png?apikey=03fb8295553d4a2eaacc64d7dd88e3b9",
+    profiles[6] = hyscan_map_profile_new ("https://tile.thunderforest.com/landscape/{z}/{x}/{y}.png?apikey=03fb8295553d4a2eaacc64d7dd88e3b9",
                                           "/tmp/tiles/thunder_landscape",
                                           "webmerc", 0, 19);
 
@@ -390,7 +390,7 @@ int main (int     argc,
   gtk_widget_show_all (window);
 
   gtk_cifro_area_set_view (GTK_CIFRO_AREA (map), 0, 10, 0, 10);
-  hyscan_gtk_map_set_scale (map, 0.01);
+  hyscan_gtk_map_set_pixel_scale (map, 0.01);
   hyscan_gtk_map_move_to (map, center);
 
   /* Main loop. */

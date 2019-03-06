@@ -20,6 +20,9 @@
 #include "hyscan-gtk-map.h"
 #include <math.h>
 
+#define DEFAULT_PPI 96.0
+#define MM_PER_INCH 25.4
+
 enum
 {
   PROP_O,
@@ -30,6 +33,7 @@ enum
 struct _HyScanGtkMapPrivate
 {
   HyScanGeoProjection     *projection;           /* Картографическая проекция поверхности Земли на плоскость карты. */
+  gfloat                   ppi;                  /* PPI экрана. */
 };
 
 static void     hyscan_gtk_map_set_property             (GObject               *object,
@@ -38,6 +42,8 @@ static void     hyscan_gtk_map_set_property             (GObject               *
                                                          GParamSpec            *pspec);
 static void     hyscan_gtk_map_object_constructed       (GObject               *object);
 static void     hyscan_gtk_map_object_finalize          (GObject               *object);
+static gboolean hyscan_gtk_map_configure                (GtkWidget             *widget,
+                                                         GdkEventConfigure     *event);
 static void     hyscan_gtk_map_get_limits               (GtkCifroArea          *carea,
                                                          gdouble               *min_x,
                                                          gdouble               *max_x,
@@ -80,6 +86,7 @@ hyscan_gtk_map_class_init (HyScanGtkMapClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
   GtkCifroAreaClass *carea_class = GTK_CIFRO_AREA_CLASS (klass);
+  GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
   GParamSpec *pspec;
 
   object_class->set_property = hyscan_gtk_map_set_property;
@@ -92,12 +99,50 @@ hyscan_gtk_map_class_init (HyScanGtkMapClass *klass)
   carea_class->get_border = hyscan_gtk_map_get_border;
   carea_class->check_scale = hyscan_gtk_map_check_scale;
 
+  /* Сигналы GTKWidget. */
+  widget_class->configure_event = hyscan_gtk_map_configure;
+
 
   pspec = g_param_spec_object ("projection", "Projection", "HyScanGeoProjection", HYSCAN_TYPE_GEO_PROJECTION,
                                G_PARAM_WRITABLE | G_PARAM_READABLE);
   g_object_class_install_property (object_class, PROP_PROJECTION, pspec);
   hyscan_gtk_map_properties[PROP_PROJECTION] = pspec;
 
+}
+
+static gboolean
+hyscan_gtk_map_configure (GtkWidget         *widget,
+                          GdkEventConfigure *event)
+{
+  HyScanGtkMap *map = HYSCAN_GTK_MAP (widget);
+  HyScanGtkMapPrivate *priv = map->priv;
+  GdkScreen *gdkscreen;
+  GdkRectangle mon_geom;
+
+  gint monitor_num, monitor_h, monitor_w;
+  gfloat ppi, diagonal_mm, diagonal_pix;
+
+  /* Получаем монитор, на котором расположено окно. */
+  gdkscreen = gdk_window_get_screen (event->window);
+  monitor_num = gdk_screen_get_monitor_at_window (gdkscreen, event->window);
+
+  /* Диагональ в пикселях. */
+  gdk_screen_get_monitor_geometry (gdkscreen, monitor_num, &mon_geom);
+  diagonal_pix = sqrt (mon_geom.width * mon_geom.width + mon_geom.height * mon_geom.height);
+
+  /* Диагональ в миллиметрах. */
+  monitor_h = gdk_screen_get_monitor_height_mm (gdkscreen, monitor_num);
+  monitor_w = gdk_screen_get_monitor_width_mm (gdkscreen, monitor_num);
+  diagonal_mm = sqrt (monitor_w * monitor_w + monitor_h * monitor_h) / MM_PER_INCH;
+
+  /* Вычисляем PPI. */
+  ppi = diagonal_pix / diagonal_mm;
+  if (isnan (ppi) || isinf(ppi) || ppi <= 0.0 || monitor_h <= 0 || monitor_w <= 0)
+    ppi = DEFAULT_PPI;
+
+  priv->ppi = ppi;
+
+  return GTK_WIDGET_CLASS (hyscan_gtk_map_parent_class)->configure_event (widget, event);
 }
 
 static void
@@ -282,7 +327,7 @@ hyscan_gtk_map_move_to (HyScanGtkMap      *map,
 }
 
 /**
- * hyscan_gtk_map_get_scale:
+ * hyscan_gtk_map_get_pixel_scale:
  * @map: указатель на #HyScanGtkMap
  *
  * Определяет масштаб в центре карты.
@@ -290,7 +335,7 @@ hyscan_gtk_map_move_to (HyScanGtkMap      *map,
  * Returns: количество пикселов в одном метре вдоль ширины виджета
  */
 gdouble
-hyscan_gtk_map_get_scale (HyScanGtkMap *map)
+hyscan_gtk_map_get_pixel_scale (HyScanGtkMap *map)
 {
   HyScanGtkMapPrivate *priv;
   gdouble scale;
@@ -321,13 +366,38 @@ hyscan_gtk_map_get_scale (HyScanGtkMap *map)
 /**
  * hyscan_gtk_map_get_scale:
  * @map: указатель на #HyScanGtkMap
+ *
+ * Определяет маштаб карты с учетом разрешающей способности монитора: во сколько
+ * раз изображение на карте меньше по сравнению с его реальным размером.
+ *
+ * Returns: масштаб карты с учетом PPI-монитора или отрицательное число в случае
+ *    ошибки.
+ */
+gdouble
+hyscan_gtk_map_get_scale (HyScanGtkMap *map)
+{
+  HyScanGtkMapPrivate *priv;
+  gdouble ppm;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), -1.0);
+  priv = map->priv;
+
+  /* Pixels per meter. */
+  ppm = priv->ppi / (1e-3 * MM_PER_INCH);
+
+  return hyscan_gtk_map_get_pixel_scale (map) / ppm;
+}
+
+/**
+ * hyscan_gtk_map_set_pixel_scale:
+ * @map: указатель на #HyScanGtkMap
  * @scale: масштаб (количество пикселов в одном метре вдоль ширины виджета)
  *
  * Устанавливает указанный масштаб в центре карты.
  */
 void
-hyscan_gtk_map_set_scale (HyScanGtkMap *map,
-                          gdouble       scale)
+hyscan_gtk_map_set_pixel_scale (HyScanGtkMap *map,
+                                gdouble       scale)
 {
   HyScanGtkMapPrivate *priv;
   gdouble scale_px;

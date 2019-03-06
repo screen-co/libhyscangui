@@ -52,11 +52,14 @@ void                   hyscan_gtk_map_move_to          (HyScanGtkMap           *
                                                         HyScanGeoGeodetic       center);
 
 HYSCAN_API
-void                   hyscan_gtk_map_set_scale        (HyScanGtkMap           *map,
-                                                        gdouble                 scale);
+void                   hyscan_gtk_map_set_pixel_scale (HyScanGtkMap            *map,
+                                                       gdouble                  scale);
 
 HYSCAN_API
-gdouble                hyscan_gtk_map_get_scale        (HyScanGtkMap           *map);
+gdouble                hyscan_gtk_map_get_pixel_scale (HyScanGtkMap            *map);
+
+HYSCAN_API
+gdouble                hyscan_gtk_map_get_scale       (HyScanGtkMap            *map);
 
 HYSCAN_API
 void                   hyscan_gtk_map_point_to_geo     (HyScanGtkMap           *map,
