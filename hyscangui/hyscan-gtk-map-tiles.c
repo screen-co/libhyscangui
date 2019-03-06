@@ -371,10 +371,13 @@ hyscan_gtk_map_tiles_cache_set (HyScanGtkMapTilesPrivate *priv,
 
   GdkPixbuf *pixbuf;
 
+  if (priv->cache == NULL)
+    return;
+
   /* Будем помещать в кэш изображение pixbuf. */
   pixbuf = hyscan_gtk_map_tile_get_pixbuf (tile);
 
-  /* Не получится использовать буферы объекта, т.к. к ним идёт доступ из разных потоков. */
+  /* Не получится использовать буферы priv->{tile|cache}_buffer, т.к. к ним идёт доступ из разных потоков. */
   data_buffer = hyscan_buffer_new ();
   header_buffer = hyscan_buffer_new ();
 

@@ -238,7 +238,7 @@ hyscan_network_map_tile_source_set_format (HyScanNetworkMapTileSourcePrivate *pr
     }
 
   priv->url_type = URL_FORMAT_INVALID;
-  g_warning ("HyScanNetworkMapTileSource: wrong URL template");
+  g_warning ("HyScanNetworkMapTileSource: wrong URL format");
 }
 
 /* Гененрирует quadkey для bing maps. Для удаления g_free.
@@ -333,8 +333,8 @@ hyscan_network_map_tile_source_fill_tile (HyScanGtkMapTileSource *source,
   gchar url[MAX_URL_LENGTH];
   GError *error = NULL;
 
-  SoupMessage *soup_msg;
-  GInputStream *input_stream;
+  SoupMessage *soup_msg = NULL;
+  GInputStream *input_stream = NULL;
   GdkPixbuf *pixbuf = NULL;
 
   gboolean status_ok = FALSE;
@@ -349,19 +349,21 @@ hyscan_network_map_tile_source_fill_tile (HyScanGtkMapTileSource *source,
   /* Делаем HTTP-запрос с отдельным GCancellable,
    * потому что soup_session_send() может сделать g_cancellable_reset(). */
   {
-    GCancellable *soup_cancellable;
-    gulong id;
+    GCancellable *soup_cancellable = NULL;
+    gulong id = 0;
 
-    soup_cancellable = g_cancellable_new ();
-
-    id = g_cancellable_connect (cancellable, G_CALLBACK (hyscan_network_map_tile_source_propagate_cancel),
-                                soup_cancellable, NULL);
+    if (cancellable != NULL)
+      {
+        soup_cancellable = g_cancellable_new ();
+        id = g_cancellable_connect (cancellable, G_CALLBACK (hyscan_network_map_tile_source_propagate_cancel),
+                                    soup_cancellable, NULL);
+      }
 
     soup_msg = soup_message_new ("GET", url);
     input_stream = soup_session_send (priv->session, soup_msg, soup_cancellable, &error);
 
     g_cancellable_disconnect (cancellable, id);
-    g_object_unref (soup_cancellable);
+    g_clear_object (&soup_cancellable);
 
     if (error != NULL)
       goto error;
@@ -427,11 +429,14 @@ hyscan_network_map_tile_source_interface_init (HyScanGtkMapTileSourceInterface *
 
 /**
  * hyscan_network_map_tile_source_new:
- * @url_format: формат URL тайла с парамтерами (zoom, x, y)
+ * @url_format: формат URL тайла с плейсхолдерами
+ * @min_zoom: минимальный доступный уровень детализации
+ * @max_zoom: максимальный доступный уровень детализации
  *
- * Создаёт новый источник тайлов из сервера тайлов.
+ * Создаёт новый источник тайлов из сервера тайлов. Подробнее о плейсхолдерах в
+ * описании класса #HyScanNetworkMapTileSource.
  *
- * Returns: новый объект #HyScanNetworkMapTileSource. Для удаления g_object_unref()
+ * Returns: новый объект #HyScanNetworkMapTileSource. Для удаления g_object_unref().
  */
 HyScanNetworkMapTileSource *
 hyscan_network_map_tile_source_new (const gchar *url_format,
