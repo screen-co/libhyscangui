@@ -59,9 +59,11 @@ else ()
   include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscantypes/hyscantypes")
   include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancore/hyscancore")
   include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancache/hyscancache")
+  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscandriver/hyscandriver")
   link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscantypes/bin")
   link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancore/bin")
   link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancache/bin")
+  link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscandriver/bin")
   set (HYSCAN_LIBRARIES "hyscantypes-${HYSCAN_MAJOR_VERSION}"
                         "hyscancore-${HYSCAN_MAJOR_VERSION}"
                         "hyscancache-${HYSCAN_MAJOR_VERSION}")
