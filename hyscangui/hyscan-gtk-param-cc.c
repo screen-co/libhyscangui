@@ -179,6 +179,7 @@ hyscan_gtk_param_cc_row_activated (GtkListBox    *box,
 {
   gint row_index;
   gchar *path;
+  HyScanParamList *plist;
   HyScanGtkParamCC *self = udata;
   HyScanGtkParamCCPrivate *priv = self->priv;
 
@@ -186,7 +187,7 @@ hyscan_gtk_param_cc_row_activated (GtkListBox    *box,
 
   row_index = gtk_list_box_row_get_index (row);
   path = g_ptr_array_index (priv->paths, row_index);
-  HyScanParamList *plist = g_ptr_array_index (priv->plists, row_index);
+  plist = g_ptr_array_index (priv->plists, row_index);
 
   gtk_stack_set_visible_child_name (priv->stack, path);
 

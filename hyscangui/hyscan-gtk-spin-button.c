@@ -80,6 +80,9 @@ static void     hyscan_gtk_spin_button_set_property       (GObject          *obj
 static void     hyscan_gtk_spin_button_object_constructed (GObject          *object);
 static void     hyscan_gtk_spin_button_buffer_changed     (GtkEntry         *self,
                                                            GParamSpec       *pspec);
+static void     hyscan_gtk_spin_button_swap_base          (GtkEntry         *self,
+                                                           GtkEntryIconPosition icon_pos,
+                                                           GdkEvent         *event);
 static gint     hyscan_gtk_spin_button_input              (GtkSpinButton    *self,
                                                            gdouble          *new_val);
 static gboolean hyscan_gtk_spin_button_output             (GtkSpinButton    *self);
@@ -147,8 +150,13 @@ hyscan_gtk_spin_button_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_gtk_spin_button_parent_class)->constructed (object);
 
+  gtk_entry_set_icon_from_icon_name (GTK_ENTRY (self),
+                                     GTK_ENTRY_ICON_SECONDARY, "gtk-refresh");
+
   g_signal_connect (self, "notify::buffer",
                     G_CALLBACK (hyscan_gtk_spin_button_buffer_changed), NULL);
+  g_signal_connect (self, "icon-release",
+                    G_CALLBACK (hyscan_gtk_spin_button_swap_base), NULL);
 }
 
 static void
@@ -160,6 +168,22 @@ hyscan_gtk_spin_button_buffer_changed (GtkEntry   *self,
   entry_buffer = gtk_entry_get_buffer (GTK_ENTRY (self));
   g_signal_connect (entry_buffer, "notify::text",
                     G_CALLBACK (hyscan_gtk_spin_button_text_changed), self);
+}
+
+/* Функция циклически меняет основание системы счисления. */
+static void
+hyscan_gtk_spin_button_swap_base (GtkEntry             *entry,
+                                  GtkEntryIconPosition  icon_pos,
+                                  GdkEvent             *event)
+{
+  HyScanGtkSpinButton *self = HYSCAN_GTK_SPIN_BUTTON (entry);
+
+  if (self->base == 2)
+    hyscan_gtk_spin_button_set_base (self, 10);
+  else if (self->base == 10)
+    hyscan_gtk_spin_button_set_base (self, 16);
+  else if (self->base == 16)
+    hyscan_gtk_spin_button_set_base (self, 2);
 }
 
 /* Функция отлавливает сигнал "input" и превращает текст в значение. */
@@ -441,7 +465,11 @@ void
 hyscan_gtk_spin_button_set_base (HyScanGtkSpinButton *self,
                                  guint                base)
 {
+  gdouble value;
   g_return_if_fail (HYSCAN_IS_GTK_SPIN_BUTTON (self));
+
+  /* Запоминаем предыдущее значение. */
+  value = gtk_spin_button_get_value (GTK_SPIN_BUTTON (self));
 
   if (base == 16)
     {
@@ -470,6 +498,9 @@ hyscan_gtk_spin_button_set_base (HyScanGtkSpinButton *self,
                  "Defaulting to 10.", base);
       hyscan_gtk_spin_button_set_base (self, 10);
     }
+
+  /* Восстанавливаем значение, т.к. тот же текст распарсится по-другому. */
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON (self), value);
 }
 
 /**
