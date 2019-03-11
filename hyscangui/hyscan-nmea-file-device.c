@@ -190,6 +190,9 @@ hyscan_nmea_file_device_object_finalize (GObject *object)
   HyScanNmeaFileDevice *nf_device = HYSCAN_NMEA_FILE_DEVICE (object);
   HyScanNmeaFileDevicePrivate *priv= nf_device->priv;
 
+  if (g_atomic_int_compare_and_exchange (&priv->shutdown, FALSE, TRUE))
+    g_warning ("HyScanNmeaFileDevice: hyscan_device_disconnect() MUST BE called before finalize");
+
   g_free (priv->filename);
   g_free (priv->name);
 
@@ -308,6 +311,8 @@ hyscan_nmea_file_device_process (HyScanNmeaFileDevice *device)
 exit:
   g_signal_emit (device, hyscan_nmea_file_device_signals[SIGNAL_FINISH], 0);
 
+  g_string_free (priv->sensor_data, TRUE);
+  g_clear_pointer (&priv->line, g_free);
   g_clear_pointer (&priv->timer, g_timer_destroy);
   g_clear_pointer (&priv->fp, fclose);
   g_clear_object (&priv->data_buffer);

@@ -198,6 +198,22 @@ hyscan_navigation_model_parse_lat_lon (const gchar *sentence,
   return TRUE;
 }
 
+static gboolean
+hyscan_navigation_model_parse_value (const gchar *sentence,
+                                     gdouble     *_val)
+{
+  gchar *end;
+  gdouble val;
+
+  val = g_ascii_strtod (sentence, &end);
+
+  if (val == 0 && end == sentence)
+    return FALSE;
+
+  *_val = val;
+  return TRUE;
+}
+
 /* Парсит GGA-строку. */
 static void
 hyscan_navigation_model_read_gga (HyScanNavigationModel  *model,
@@ -244,6 +260,9 @@ hyscan_navigation_model_read_rmc (HyScanNavigationModel  *model,
   if (!hyscan_navigation_model_parse_lat_lon (words[5], &geo.lon))
     return;
 
+  if (!hyscan_navigation_model_parse_value (words[8], &geo.h))
+    return;
+
   g_signal_emit (model, hyscan_navigation_model_signals[SIGNAL_CHANGED], 0, time, &geo);
 }
 
@@ -258,9 +277,10 @@ hyscan_navigation_model_read_sentence (HyScanNavigationModel *model,
 
   words = g_strsplit (sentence, ",", -1);
 
-  if (g_str_equal (words[0], "$GPGGA"))
-    hyscan_navigation_model_read_gga (model, words);
-  else if (g_str_equal (words[0], "$GNRMC"))
+  // if (g_str_equal (words[0], "$GPGGA"))
+  //   hyscan_navigation_model_read_gga (model, words);
+  // else
+  if (g_str_equal (words[0], "$GNRMC"))
     hyscan_navigation_model_read_rmc (model, words);
 
   g_strfreev (words);
