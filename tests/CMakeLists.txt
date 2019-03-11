@@ -12,7 +12,8 @@ add_executable (gtk-map-test gtk-map-test.c)
 add_executable (task-queue-test task-queue-test.c)
 add_executable (mercator-test mercator-test.c)
 add_executable (tile-source-test tile-source-test.c)
-add_executable (nmea-device-virtual-test nmea-device-virtual-test.c)
+add_executable (nmea-file-device-test nmea-file-device-test.c)
+add_executable (navigation-model-test navigation-model-test.c)
 
 target_link_libraries (gtk-area-test ${TEST_LIBRARIES})
 target_link_libraries (gtk-param-test ${TEST_LIBRARIES})
@@ -22,7 +23,8 @@ target_link_libraries (gtk-map-test ${TEST_LIBRARIES})
 target_link_libraries (task-queue-test ${TEST_LIBRARIES})
 target_link_libraries (mercator-test ${TEST_LIBRARIES})
 target_link_libraries (tile-source-test ${TEST_LIBRARIES})
-target_link_libraries (nmea-device-virtual-test ${TEST_LIBRARIES})
+target_link_libraries (nmea-file-device-test ${TEST_LIBRARIES})
+target_link_libraries (navigation-model-test ${TEST_LIBRARIES})
 
 install (TARGETS gtk-area-test
          COMPONENT test

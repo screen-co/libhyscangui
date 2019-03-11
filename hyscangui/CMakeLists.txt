@@ -45,7 +45,8 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-layer-container.c
              hyscan-mercator.c
              hyscan-pseudo-mercator.c
-        hyscan-nmea-file-device.c
+             hyscan-nmea-file-device.c
+             hyscan-navigation-model.c
              ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c)
 
 target_link_libraries (${HYSCAN_GUI_LIBRARY}

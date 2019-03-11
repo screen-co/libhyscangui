@@ -1,4 +1,4 @@
-/* nmea-device-virtual-test.c
+/* navigation-model-test.c
  *
  * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *
@@ -32,82 +32,74 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
+#include <hyscan-navigation-model.h>
 #include <hyscan-nmea-file-device.h>
-#include <hyscan-buffer.h>
 
-#define DEVICE_NAME "nmea-test-device"
+#define DEVICE_NAME "nav-device"
 
 GCond cond;
 GMutex mutex;
-gboolean eof_reached;
+gboolean device_done;
 
-/* Обработчик сигнала "sensor-data". */
-void
-on_data_received (HyScanNmeaFileDevice *device,
-                  const gchar          *name,
-                  HyScanSourceType      source,
-                  gint64                time,
-                  HyScanBuffer         *data,
-                  guint                *count)
+int usage (const gchar *prg_name)
 {
-  const gchar *nmea_string;
-  guint32 size;
-
-  g_assert (hyscan_buffer_get_data_type (data) == HYSCAN_DATA_STRING);
-
-  nmea_string = hyscan_buffer_get_data (data, &size);
-
-  g_print ("%14" G_GINT64_FORMAT " %s", time, nmea_string);
-
-  ++(*count);
+  g_print ("Usage: %s filename\n", prg_name);
+  return -1;
 }
 
-/* Обработчик сигнала "eof". */
+/* Обработчик сигнала "finish". */
 void
-on_eof (HyScanNmeaFileDevice *device,
-        gpointer              user_data)
+on_finish (HyScanNmeaFileDevice *device,
+           gpointer              user_data)
 {
   g_mutex_lock (&mutex);
-  eof_reached = TRUE;
+  device_done = TRUE;
   g_cond_signal (&cond);
   g_mutex_unlock (&mutex);
 }
 
-/* Создает виртуальный девайс и эмитит сигнал c NMEA строками раз в секунду. */
-int main (int argc,
+void
+on_model_changed (HyScanNavigationModel *model,
+                  gdouble                time,
+                  HyScanGeoGeodetic     *geo)
+{
+  g_print ("Model changed: %12.2f sec: %10.6f, %10.6f\n", time, geo->lat, geo->lon);
+}
+
+int main (int    argc,
           char **argv)
 {
-  HyScanNmeaFileDevice *device = NULL;
+  HyScanNmeaFileDevice *device;
+  HyScanNavigationModel *model;
 
-  const gchar *file_name;
-  guint received_lines = 0;
+  const gchar *filename;
 
   if (argc < 2)
-    {
-      g_warning ("Usage: %s file_name", argv[0]);
-      return -1;
-    }
+    return usage (argv[0]);
 
-  file_name = argv[1];
+  filename = argv[1];
+
   g_cond_init (&cond);
   g_mutex_init (&mutex);
-
-  device = hyscan_nmea_file_device_new (DEVICE_NAME, file_name);
-
-  g_signal_connect (device, "sensor-data", G_CALLBACK (on_data_received), &received_lines);
-  g_signal_connect (device, "eof", G_CALLBACK (on_eof), NULL);
-
-  g_assert_true (hyscan_sensor_set_enable (HYSCAN_SENSOR (device), DEVICE_NAME, TRUE));
-
   g_mutex_lock (&mutex);
-  while (!eof_reached)
+
+  device = hyscan_nmea_file_device_new (DEVICE_NAME, filename);
+  model = hyscan_navigation_model_new (HYSCAN_SENSOR (device));
+
+  g_signal_connect (device, "finish", G_CALLBACK (on_finish), NULL);
+  g_signal_connect (model, "changed", G_CALLBACK (on_model_changed), NULL);
+
+  hyscan_sensor_set_enable (HYSCAN_SENSOR (device), DEVICE_NAME, TRUE);
+
+  /* Ждем, пока device не выдаст все строки. */
+  while (!device_done)
     g_cond_wait (&cond, &mutex);
   g_mutex_unlock (&mutex);
 
   hyscan_device_disconnect (HYSCAN_DEVICE (device));
-  g_object_unref (device);
 
-  g_assert (received_lines > 0);
+  g_object_unref (device);
+  g_object_unref (model);
 
   return 0;
 }

@@ -45,12 +45,12 @@
  * и эмитирует сигналы #HyScanSensor::sensor-data с этими строками каждую секунду.
  * Если данных для отправки за текущий промежуток нет, то сигнал не отправляется.
  *
- * Как только объект достигнет конца файла, будет отправлен сигнал #HyScanNmeaFileDevice::eof.
+ * Как только объект достигнет конца файла, будет отправлен сигнал #HyScanNmeaFileDevice::finish.
  *
  * - Проигрывание файла начинается сразу после создания объекта с помощью функции
  *   hyscan_nmea_file_device_new().
  *
- * - Отправка сигналов "sensor-data" и "eof" по умолчанию отключена и включается
+ * - Отправка сигналов "sensor-data" и "finish" по умолчанию отключена и включается
  *   функцией hyscan_sensor_set_enable()
  *
  * - Для завершения проигрывания необходимо вызвать hyscan_device_disconnect().
@@ -71,7 +71,7 @@ enum
 
 enum
 {
-  SIGNAL_EOF,
+  SIGNAL_FINISH,
   SIGNAL_LAST,
 };
 
@@ -132,13 +132,13 @@ hyscan_nmea_file_device_class_init (HyScanNmeaFileDeviceClass *klass)
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 
   /**
-   * HyScanNmeaFileDevice::eof:
+   * HyScanNmeaFileDevice::finish:
    * @device: указатель на #HyScanNmeaFileDevice
    *
    * Сигнал отправляется, когда @device достиг конца файла
    */
-  hyscan_nmea_file_device_signals[SIGNAL_EOF] =
-    g_signal_new ("eof", HYSCAN_TYPE_NMEA_FILE_DEVICE, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+  hyscan_nmea_file_device_signals[SIGNAL_FINISH] =
+    g_signal_new ("finish", HYSCAN_TYPE_NMEA_FILE_DEVICE, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
                   g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
 }
 
@@ -262,10 +262,7 @@ hyscan_nmea_file_device_read (HyScanNmeaFileDevice *device)
 
   /* Если дошли до конца файла, то по-тихому завершаем свою работу. */
   if (feof (priv->fp))
-    {
-      g_signal_emit_by_name (device, "eof");
-      g_atomic_int_set (&priv->shutdown, TRUE);
-    }
+    g_atomic_int_set (&priv->shutdown, TRUE);
 
   g_string_truncate (priv->sensor_data, 0);
   priv->next_tick = ceil (priv->line_time);
@@ -287,7 +284,7 @@ hyscan_nmea_file_device_process (HyScanNmeaFileDevice *device)
   /* Открываем файл. */
   priv->fp = g_fopen (priv->filename, "r");
   if (priv->fp == NULL)
-    return NULL;
+    goto exit;
 
   /* Определяем начальную метку времени. */
   while (priv->line_time < 0 && fgets (priv->line, priv->line_length, priv->fp) != NULL)
@@ -309,6 +306,8 @@ hyscan_nmea_file_device_process (HyScanNmeaFileDevice *device)
     }
 
 exit:
+  g_signal_emit (device, hyscan_nmea_file_device_signals[SIGNAL_FINISH], 0);
+
   g_clear_pointer (&priv->timer, g_timer_destroy);
   g_clear_pointer (&priv->fp, fclose);
   g_clear_object (&priv->data_buffer);
