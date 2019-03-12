@@ -69,7 +69,8 @@ struct _HyScanGtkMapTrackLayerPrivate
   gboolean                   visible;          /* Признак видимости слоя. */
 
   GList                      *track;           /* Список точек трека. */
-  GMutex                      track_lock;      /* Блокировка доступа к точкам трека. */
+  GMutex                      track_lock;      /* Блокировка доступа к точкам трека.
+                                                * todo: убрать его, если все в одном потоке */
 
   cairo_surface_t            *arrow_surface;   /* Поверхность с изображением маркера. */
   gdouble                     arrow_x;         /* Координата x нулевой точки на поверхности маркера. */
@@ -206,7 +207,7 @@ hyscan_gtk_map_track_layer_model_changed (HyScanGtkMapTrackLayer *track_layer,
   priv->track = g_list_append (priv->track, hyscan_gtk_map_point_copy (&point));
   g_mutex_unlock (&priv->track_lock);
 
-  g_idle_add ((GSourceFunc) gtk_widget_queue_draw, priv->map);
+  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }
 
 /* Создаёт cairo-поверхность с изображением объекта. */
@@ -322,7 +323,7 @@ hyscan_gtk_map_track_layer_draw (HyScanGtkMap           *map,
   /* Рисуем маркер движущегося объекта. */
   cairo_save (cairo);
   cairo_translate (cairo, x, y);
-  cairo_rotate (cairo, angle / 180.0 * G_PI);
+  cairo_rotate (cairo, angle);
   cairo_set_source_surface (cairo, priv->arrow_surface, priv->arrow_x, priv->arrow_y);
   cairo_paint (cairo);
   cairo_restore (cairo);
