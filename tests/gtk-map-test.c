@@ -16,6 +16,7 @@
 #include <hyscan-nmea-file-device.h>
 
 static gchar *tiles_dir;                     /* Путь к каталогу, где хранятся тайлы. */
+static gchar *track_file;                    /* Путь к файлу с NMEA-строками. */
 static gboolean yandex_projection = FALSE;   /* Использовать карту яндекса. */
 static guint tile_url_preset = 0;
 static gchar *tile_url_format;
@@ -172,11 +173,11 @@ on_profile_change (GtkComboBoxText *widget,
 
 /* Кнопки управления виджетом. */
 GtkWidget *
-create_control_box (HyScanGtkMap          *map,
-                    HyScanGtkMapRuler     *ruler,
-                    HyScanGtkMapPinLayer  *pin_layer,
-                    HyScanGtkMapTrackLayer *path_layer,
-                    HyScanGtkMapGrid      *grid)
+create_control_box (HyScanGtkMap           *map,
+                    HyScanGtkMapRuler      *ruler,
+                    HyScanGtkMapPinLayer   *pin_layer,
+                    HyScanGtkMapTrackLayer *track_layer,
+                    HyScanGtkMapGrid       *grid)
 {
   GtkWidget *ctrl_box;
   GtkWidget *ctrl_widget;
@@ -257,7 +258,8 @@ create_control_box (HyScanGtkMap          *map,
     add_layer_row (GTK_LIST_BOX (list_box), "Коорд. сетка", HYSCAN_GTK_LAYER (grid));
     add_layer_row (GTK_LIST_BOX (list_box), "Линейка", HYSCAN_GTK_LAYER (ruler));
     add_layer_row (GTK_LIST_BOX (list_box), "Булавка", HYSCAN_GTK_LAYER (pin_layer));
-    add_layer_row (GTK_LIST_BOX (list_box), "Трек", HYSCAN_GTK_LAYER (path_layer));
+    if (track_layer != NULL)
+      add_layer_row (GTK_LIST_BOX (list_box), "Трек", HYSCAN_GTK_LAYER (track_layer));
     g_signal_connect (list_box, "row-selected", G_CALLBACK (on_row_select), NULL);
 
     gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Слои"));
@@ -312,14 +314,17 @@ create_control_box (HyScanGtkMap          *map,
 
 /* Слой с треком движения. */
 HyScanGtkMapTrackLayer *
-create_path_layer ()
+create_track_layer ()
 {
   HyScanNavigationModel *model;
   HyScanNmeaFileDevice *device;
   HyScanGtkMapTrackLayer *layer;
   HyScanCached *cache;
 
-  device = hyscan_nmea_file_device_new ("my-device", "/home/alex/move.nmea");
+  if (track_file == NULL)
+    return NULL;
+
+  device = hyscan_nmea_file_device_new ("my-device", track_file);
   model = hyscan_navigation_model_new (HYSCAN_SENSOR (device));
   hyscan_sensor_set_enable (HYSCAN_SENSOR (device), "my-device", TRUE);
 
@@ -342,7 +347,7 @@ int main (int     argc,
   HyScanGtkMapControl *control;
   HyScanGtkMapRuler *ruler;
   HyScanGtkMapPinLayer *pin_layer;
-  HyScanGtkMapTrackLayer *path_layer;
+  HyScanGtkMapTrackLayer *track_layer;
   HyScanGtkMapGrid *map_grid;
 
   gtk_init (&argc, &argv);
@@ -353,6 +358,7 @@ int main (int     argc,
     GOptionContext *context;
     GOptionEntry entries[] =
       {
+        { "track-file",      't', 0, G_OPTION_ARG_STRING, &track_file,        "GPS-track file with NMEA-sentences", NULL },
         { "tile-dir",        'd', 0, G_OPTION_ARG_STRING, &tiles_dir,         "Path to dir containing tiles", NULL },
         { "yandex",          'y', 0, G_OPTION_ARG_NONE,   &yandex_projection, "Use yandex projection", NULL },
         { "tile-url-preset", 'p', 0, G_OPTION_ARG_INT,    &tile_url_preset,   "Use one of preset tile source", NULL },
@@ -387,13 +393,16 @@ int main (int     argc,
     map_grid = hyscan_gtk_map_grid_new ();
     ruler = hyscan_gtk_map_ruler_new ();
     pin_layer = hyscan_gtk_map_pin_layer_new ();
-    path_layer = create_path_layer ();
+    track_layer = create_track_layer ();
 
-    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (control),    "control");
-    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (pin_layer),  "pin");
-    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (ruler),      "ruler");
-    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (path_layer), "path");
-    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (map_grid),   "grid");
+    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (control),     "control");
+
+    if (track_layer != NULL)
+      hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (track_layer), "track");
+
+    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (pin_layer),   "pin");
+    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (ruler),       "ruler");
+    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (map_grid),    "grid");
   }
 
   grid = gtk_grid_new ();
@@ -412,7 +421,7 @@ int main (int     argc,
   gtk_window_set_default_size (GTK_WINDOW (window), 800, 600);
 
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (map), 0, 0, 1, 1);
-  gtk_grid_attach (GTK_GRID (grid), create_control_box (map, ruler, pin_layer, path_layer, map_grid), 1, 0, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), create_control_box (map, ruler, pin_layer, track_layer, map_grid), 1, 0, 1, 1);
 
   gtk_container_add (GTK_CONTAINER (window), grid);
   g_signal_connect (G_OBJECT (window), "destroy", G_CALLBACK (destroy_callback), NULL);
@@ -441,7 +450,7 @@ int main (int     argc,
   g_clear_object (&ruler);
   g_clear_object (&control);
   g_clear_object (&pin_layer);
-  g_clear_object (&path_layer);
+  g_clear_object (&track_layer);
   g_free (tiles_dir);
 
   return 0;
