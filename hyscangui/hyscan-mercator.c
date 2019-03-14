@@ -39,8 +39,6 @@ struct _HyScanMercatorPrivate
 };
 
 static void          hyscan_mercator_interface_init       (HyScanGeoProjectionInterface *iface);
-static void          hyscan_mercator_object_constructed   (GObject                      *object);
-static void          hyscan_mercator_object_finalize      (GObject                      *object);
 static void          hyscan_mercator_set_ellipsoid        (HyScanMercator               *mercator,
                                                            HyScanGeoEllipsoidParam       p);
 static gdouble       hyscan_mercator_ellipsoid_y          (HyScanMercatorPrivate        *priv,
@@ -74,10 +72,6 @@ G_DEFINE_TYPE_WITH_CODE (HyScanMercator, hyscan_mercator, G_TYPE_OBJECT,
 static void
 hyscan_mercator_class_init (HyScanMercatorClass *klass)
 {
-  GObjectClass *object_class = G_OBJECT_CLASS (klass);
-
-  object_class->constructed = hyscan_mercator_object_constructed;
-  object_class->finalize = hyscan_mercator_object_finalize;
 }
 
 static void
@@ -93,24 +87,6 @@ hyscan_mercator_interface_init (HyScanGeoProjectionInterface  *iface)
   iface->value_to_geo = hyscan_mercator_value_to_geo;
   iface->get_limits = hyscan_mercator_get_limits;
   iface->get_scale = hyscan_mercator_get_scale;
-}
-
-static void
-hyscan_mercator_object_constructed (GObject *object)
-{
-  HyScanMercator *mercator = HYSCAN_MERCATOR (object);
-  HyScanMercatorPrivate *priv = mercator->priv;
-
-  G_OBJECT_CLASS (hyscan_mercator_parent_class)->constructed (object);
-}
-
-static void
-hyscan_mercator_object_finalize (GObject *object)
-{
-  HyScanMercator *mercator = HYSCAN_MERCATOR (object);
-  HyScanMercatorPrivate *priv = mercator->priv;
-
-  G_OBJECT_CLASS (hyscan_mercator_parent_class)->finalize (object);
 }
 
 /* Установка парметров эллипсоида проекции. */

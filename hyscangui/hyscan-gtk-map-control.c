@@ -30,15 +30,13 @@ struct _HyScanGtkMapControlPrivate
 };
 
 static void     hyscan_gtk_map_control_interface_init       (HyScanGtkLayerInterface    *iface);
-static void     hyscan_gtk_map_control_object_constructed   (GObject                    *object);
-static void     hyscan_gtk_map_control_object_finalize      (GObject                    *object);
 static gboolean hyscan_gtk_map_control_button_press_release (HyScanGtkMapControl        *control,
                                                              GdkEventButton             *event);
 static gboolean hyscan_gtk_map_control_motion_notify        (HyScanGtkMapControl        *control,
                                                              GdkEventMotion             *event);
 static gboolean hyscan_gtk_map_control_scroll               (HyScanGtkMapControl        *control,
                                                              GdkEventScroll             *event);
-static void     hyscan_gtk_map_control_set_mode             (HyScanGtkMapControl        *priv,
+static void     hyscan_gtk_map_control_set_mode             (HyScanGtkMapControl        *control,
                                                              gint                        mode);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapControl, hyscan_gtk_map_control, G_TYPE_OBJECT,
@@ -48,34 +46,12 @@ G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapControl, hyscan_gtk_map_control, G_TYPE_OBJ
 static void
 hyscan_gtk_map_control_class_init (HyScanGtkMapControlClass *klass)
 {
-  GObjectClass *object_class = G_OBJECT_CLASS (klass);
-
-  object_class->constructed = hyscan_gtk_map_control_object_constructed;
-  object_class->finalize = hyscan_gtk_map_control_object_finalize;
 }
 
 static void
 hyscan_gtk_map_control_init (HyScanGtkMapControl *gtk_map_control)
 {
   gtk_map_control->priv = hyscan_gtk_map_control_get_instance_private (gtk_map_control);
-}
-
-static void
-hyscan_gtk_map_control_object_constructed (GObject *object)
-{
-  HyScanGtkMapControl *gtk_map_control = HYSCAN_GTK_MAP_CONTROL (object);
-  HyScanGtkMapControlPrivate *priv = gtk_map_control->priv;
-
-  G_OBJECT_CLASS (hyscan_gtk_map_control_parent_class)->constructed (object);
-}
-
-static void
-hyscan_gtk_map_control_object_finalize (GObject *object)
-{
-  HyScanGtkMapControl *gtk_map_control = HYSCAN_GTK_MAP_CONTROL (object);
-  HyScanGtkMapControlPrivate *priv = gtk_map_control->priv;
-
-  G_OBJECT_CLASS (hyscan_gtk_map_control_parent_class)->finalize (object);
 }
 
 /* Отключается от контейнера #HyScanGtkLayerContainer. */
@@ -125,8 +101,8 @@ hyscan_gtk_map_control_scroll (HyScanGtkMapControl *control,
 {
   HyScanGtkMap *map = control->priv->map;
 
-  gdouble dscale;
-  gdouble scale;
+  gint dscale;
+  gint scale_idx;
 
   gdouble center_x, center_y;
 
@@ -137,12 +113,11 @@ hyscan_gtk_map_control_scroll (HyScanGtkMapControl *control,
   else
     return FALSE;
 
-  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (map), &scale, NULL);
-  /* За 4 колесика изменяем масштаб в 2 раза. */
-  scale *= pow (2, dscale * .25);
+  scale_idx = hyscan_gtk_map_get_scale_idx (map);
+  scale_idx += dscale;
 
   gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (map), event->x, event->y, &center_x, &center_y);
-  gtk_cifro_area_set_scale (GTK_CIFRO_AREA (map), scale, scale, center_x, center_y);
+  hyscan_gtk_map_set_scale_idx (map, scale_idx < 0 ? 0 : scale_idx, center_x, center_y);
 
   return FALSE;
 }

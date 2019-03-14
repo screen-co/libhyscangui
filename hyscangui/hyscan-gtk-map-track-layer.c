@@ -49,21 +49,35 @@
  *
  */
 
+#include <hyscan-cache.h>
 #include "hyscan-gtk-map-track-layer.h"
 #include "hyscan-gtk-map.h"
 #include "hyscan-navigation-model.h"
 
 #define ARROW_SIZE (32)      /* Размер маркера, изображающего движущийся объект. */
 
+/* Раскомментируйте строку ниже для вывода отладочной информации о скорости отрисовки слоя. */
+#define HYSCAN_GTK_MAP_DEBUG_FPS
+
 enum
 {
   PROP_O,
-  PROP_NAV_MODEL
+  PROP_NAV_MODEL,
+  PROP_CACHE,
 };
+
+typedef struct
+{
+  guint            x;
+  guint            y;
+  gdouble          scale;
+  cairo_surface_t *surface;
+} HyScanGtkMapTrackLayerTile;
 
 struct _HyScanGtkMapTrackLayerPrivate
 {
   HyScanGtkMap               *map;             /* Виджет карты, на котором размещен слой. */
+  HyScanCache                *cache;           /* Кэш отрисованных тайлов трека. */
   HyScanNavigationModel      *nav_model;       /* Модель навигационных данных, которые отображаются. */
 
   gboolean                   visible;          /* Признак видимости слоя. */
@@ -118,6 +132,10 @@ hyscan_gtk_map_track_layer_class_init (HyScanGtkMapTrackLayerClass *klass)
     g_param_spec_object ("nav-model", "Navigation model", "HyScanNavigationModel",
                           HYSCAN_TYPE_NAVIGATION_MODEL,
                           G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+  g_object_class_install_property (object_class, PROP_CACHE,
+    g_param_spec_object ("cache", "Tile cache", "HyScanCache",
+                          HYSCAN_TYPE_CACHE,
+                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
@@ -139,6 +157,10 @@ hyscan_gtk_map_track_layer_set_property (GObject     *object,
     {
     case PROP_NAV_MODEL:
       priv->nav_model = g_value_dup_object (value);
+      break;
+
+    case PROP_CACHE:
+      priv->cache = g_value_dup_object (value);
       break;
 
     default:
@@ -168,6 +190,7 @@ hyscan_gtk_map_track_layer_object_finalize (GObject *object)
 
   g_signal_handlers_disconnect_by_data (priv->nav_model, track_layer);
   g_clear_object (&priv->nav_model);
+  g_clear_object (&priv->cache);
   g_clear_pointer (&priv->arrow_surface, cairo_surface_destroy);
 
   g_mutex_lock (&priv->track_lock);
@@ -253,6 +276,9 @@ hyscan_gtk_map_track_layer_set_visible (HyScanGtkLayer *layer,
   HyScanGtkMapTrackLayerPrivate *priv = track_layer->priv;
 
   priv->visible = visible;
+
+  if (priv->map != NULL)
+    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }
 
 /* Реализация HyScanGtkLayerInterface.get_visible.
@@ -278,23 +304,45 @@ hyscan_gtk_map_track_layer_removed (HyScanGtkLayer *layer)
   g_clear_object (&priv->map);
 }
 
-/* Обработчик сигнала "visible-draw".
- * Рисует на карте движение объекта. */
+/* Рисует кусок трека от chunk_start до chunk_end. */
 static void
-hyscan_gtk_map_track_layer_draw (HyScanGtkMap           *map,
-                                 cairo_t                *cairo,
-                                 HyScanGtkMapTrackLayer *track_layer)
+hyscan_gtk_map_track_layer_draw_chunk (HyScanGtkMapTrackLayer *track_layer,
+                                       cairo_t                *cairo,
+                                       GList                  *chunk_start,
+                                       GList                  *chunk_end)
 {
+  GList *chunk_l;
   HyScanGtkMapTrackLayerPrivate *priv = track_layer->priv;
-  GList *path_l;
-
-  gdouble x = -1e4, y = -1e4;
-  gdouble angle = 0;
-
-  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (track_layer)))
-    return;
 
   cairo_new_path (cairo);
+  for (chunk_l = chunk_start; chunk_l != chunk_end; chunk_l = chunk_l->next)
+  {
+    HyScanGtkMapPoint *point = chunk_l->data;
+    gdouble x, y;
+
+    gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y, point->x, point->y);
+    cairo_line_to (cairo, x, y);
+  }
+
+  cairo_set_line_width (cairo, 2.0);
+  cairo_set_source_rgb (cairo, 0, 0, 0);
+  cairo_stroke (cairo);
+}
+
+/* Рисует трек в указанном регионе. */
+static void
+hyscan_gtk_map_track_layer_draw_region (HyScanGtkMapTrackLayer *track_layer,
+                                        cairo_t                *cairo,
+                                        gdouble                 from_x,
+                                        gdouble                 to_x,
+                                        gdouble                 from_y,
+                                        gdouble                 to_y)
+{
+  HyScanGtkMapTrackLayerPrivate *priv = track_layer->priv;
+  GList *track_l;
+
+  GList *chunk_start = NULL;
+  GList *chunk_end = NULL;
 
   /* Стараемся минимально блокировать мутекс и рисуем уже после разблокировки. */
   g_mutex_lock (&priv->track_lock);
@@ -304,31 +352,99 @@ hyscan_gtk_map_track_layer_draw (HyScanGtkMap           *map,
       return;
     }
 
-  for (path_l = priv->track; path_l != NULL; path_l = path_l->next)
+  /* Ищем куски трека, которые полностью попадают в указанный регион и рисуем покусочно. */
+  for (track_l = priv->track; track_l != NULL; track_l = track_l->next)
     {
-      HyScanGtkMapPoint *point = path_l->data;
+      HyScanGtkMapPoint *point = track_l->data;
+      gboolean is_inside;
 
-      gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y, point->x, point->y);
+      is_inside = from_x <= point->x && point->x <= to_x && from_y <= point->y && point->y <= to_y;
+      if (is_inside && chunk_start == NULL)
+        {
+          chunk_start = track_l->prev == NULL ? track_l->prev : track_l;
+        }
+      else if (!is_inside && chunk_start != NULL)
+        {
+          chunk_end = track_l->next != NULL ? track_l->next : track_l;
+          hyscan_gtk_map_track_layer_draw_chunk (track_layer, cairo, chunk_start, chunk_end);
 
-      cairo_line_to (cairo, x, y);
-      angle = point->geo.h;
+          chunk_start = NULL;
+          chunk_end = NULL;
+        }
     }
-  g_mutex_unlock (&priv->track_lock);
 
-  /* Рисуем линию всего трека. */
-  cairo_set_line_width (cairo, 2.0);
-  cairo_set_source_rgb (cairo, 0, 0, 0);
-  cairo_stroke (cairo);
+  /* Рисуем последний кусок. */
+  if (chunk_start != NULL)
+    hyscan_gtk_map_track_layer_draw_chunk (track_layer, cairo, chunk_start, chunk_end);
+  g_mutex_unlock (&priv->track_lock);
+}
+
+/* Обработчик сигнала "visible-draw".
+ * Рисует на карте движение объекта. */
+static void
+hyscan_gtk_map_track_layer_draw (HyScanGtkMap           *map,
+                                 cairo_t                *cairo,
+                                 HyScanGtkMapTrackLayer *track_layer)
+{
+  HyScanGtkMapTrackLayerPrivate *priv = track_layer->priv;
+
+  gdouble from_x, to_x, from_y, to_y;
+
+  gdouble x, y;
+  gdouble bearing;
+
+#ifdef HYSCAN_GTK_MAP_DEBUG_FPS
+  static GTimer *debug_timer;
+
+  if (debug_timer == NULL)
+    debug_timer = g_timer_new ();
+  g_timer_start (debug_timer);
+#endif
+
+  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (track_layer)))
+    return;
+
+  /* Получаем координаты последней точки - маркера текущего местоположения. */
+  {
+    GList *path_l;
+    HyScanGtkMapPoint *last_point;
+
+    g_mutex_lock (&priv->track_lock);
+
+    if (priv->track == NULL)
+      {
+        g_mutex_unlock (&priv->track_lock);
+        return;
+      }
+
+    path_l = g_list_last (priv->track);
+    last_point = path_l->data;
+    gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y, last_point->x, last_point->y);
+    bearing = last_point->geo.h;
+
+    g_mutex_unlock (&priv->track_lock);
+  }
+
+  /* Рисуем трек. */
+  gtk_cifro_area_get_view (GTK_CIFRO_AREA (priv->map), &from_x, &to_x, &from_y, &to_y);
+  hyscan_gtk_map_track_layer_draw_region (track_layer, cairo, from_x, to_x, from_y, to_y);
 
   /* Рисуем маркер движущегося объекта. */
   cairo_save (cairo);
   cairo_translate (cairo, x, y);
-  cairo_rotate (cairo, angle);
+  cairo_rotate (cairo, bearing);
   cairo_set_source_surface (cairo, priv->arrow_surface, priv->arrow_x, priv->arrow_y);
   cairo_paint (cairo);
   cairo_restore (cairo);
+
+#ifdef HYSCAN_GTK_MAP_DEBUG_FPS
+  g_message ("hyscan_gtk_map_track_layer_draw: %.2f fps; length = %d",
+             1.0 / g_timer_elapsed (debug_timer, NULL),
+             g_list_length (priv->track));
+#endif
 }
 
+/* Переводит координаты путевых точек трека из географичекских в СК проекции карты. */
 static void
 hyscan_gtk_map_track_layer_update_points (HyScanGtkMapTrackLayerPrivate *priv)
 {
@@ -374,14 +490,18 @@ hyscan_gtk_map_track_layer_added (HyScanGtkLayer          *layer,
 /**
  * hyscan_gtk_map_track_layer_new:
  * @nav_model: указатель на модель навигационных данных #HyScanNavigationModel
+ * @cache: указатель на кэш #HyScanCache
  *
  * Создает новый слой с треком движения объекта.
  *
  * Returns: указатель на #HyScanGtkMapTrackLayer. Для удаления g_object_unref()
  */
 HyScanGtkMapTrackLayer *
-hyscan_gtk_map_track_layer_new (HyScanNavigationModel *nav_model)
+hyscan_gtk_map_track_layer_new (HyScanNavigationModel *nav_model,
+                                HyScanCache           *cache)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_TRACK_LAYER,
-                       "nav-model", nav_model, NULL);
+                       "nav-model", nav_model,
+                       "cache", cache,
+                       NULL);
 }

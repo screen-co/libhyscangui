@@ -34,6 +34,9 @@ struct _HyScanGtkMapPrivate
 {
   HyScanGeoProjection     *projection;           /* Картографическая проекция поверхности Земли на плоскость карты. */
   gfloat                   ppi;                  /* PPI экрана. */
+
+  gdouble                 *scales;               /* Массив доступных масштабов, упорядоченный по возрастанию. */
+  gsize                    scales_len;           /* Длина массива scales. */
 };
 
 static void     hyscan_gtk_map_set_property             (GObject               *object,
@@ -76,6 +79,7 @@ hyscan_gtk_map_get_property (GObject    *object,
     case PROP_PROJECTION:
       g_value_set_object (value, priv->projection);
       break;
+
     default:
       break;
     }
@@ -176,9 +180,10 @@ static void
 hyscan_gtk_map_object_constructed (GObject *object)
 {
   HyScanGtkMap *gtk_map = HYSCAN_GTK_MAP (object);
-  HyScanGtkMapPrivate *priv = gtk_map->priv;
+  gdouble scales[] = { 1.0 };
 
   G_OBJECT_CLASS (hyscan_gtk_map_parent_class)->constructed (object);
+  hyscan_gtk_map_set_scales (gtk_map, scales, G_N_ELEMENTS (scales));
 }
 
 static void
@@ -188,19 +193,72 @@ hyscan_gtk_map_object_finalize (GObject *object)
   HyScanGtkMapPrivate *priv = gtk_map->priv;
 
   g_object_unref (priv->projection);
+  g_free (priv->scales);
 
   G_OBJECT_CLASS (hyscan_gtk_map_parent_class)->finalize (object);
 }
 
-/* Реализация функции check_scale GtkCifroArea.
+/* Ищет ближайший по значению допустимый масштаб. */
+static gdouble
+hyscan_gtk_map_find_closest_scale (HyScanGtkMap *map,
+                                   gdouble       scale,
+                                   gint         *found_idx)
+{
+  HyScanGtkMapPrivate *priv = map->priv;
+
+  gint l, r;
+  gint found_idx_ret = -1;
+
+  if (priv->scales_len <= 0)
+    {
+      *found_idx = -1;
+      return scale;
+    }
+
+  l = 0;
+  r = priv->scales_len - 1;
+
+  while (l <= r && found_idx_ret < 0)
+    {
+      gint mid;
+
+      mid = (l + r) / 2;
+      if (scale < priv->scales[mid])
+        r = mid - 1;
+      else if (scale > priv->scales[mid])
+        l = mid + 1;
+      else
+        found_idx_ret = mid;
+    }
+
+  if (found_idx_ret < 0)
+    {
+      l = CLAMP (l, 0, (gint) (priv->scales_len - 1));
+      r = CLAMP (r, 0, (gint) (priv->scales_len - 1));
+
+      found_idx_ret = (priv->scales[l] - scale) < (scale - priv->scales[r]) ? l : r;
+    }
+
+  (found_idx != NULL) ? *found_idx = found_idx_ret : 0;
+
+  return priv->scales[found_idx_ret];
+}
+
+/* Реализация функции GtkCifroAreaClass.check_scale.
  * Сохраняет одинаковый масштаб по обеим осям. */
 static void
 hyscan_gtk_map_check_scale (GtkCifroArea *carea,
                             gdouble      *scale_x,
                             gdouble      *scale_y)
 {
-  // todo: check min scale, max scale
-  *scale_y = *scale_x;
+  HyScanGtkMap *map = HYSCAN_GTK_MAP (carea);
+
+  gdouble scale;
+
+  scale = hyscan_gtk_map_find_closest_scale (map, *scale_x, NULL);
+
+  *scale_x = scale;
+  *scale_y = scale;
 }
 
 static void
@@ -244,6 +302,40 @@ hyscan_gtk_map_new (HyScanGeoProjection *projection)
                        "projection", projection, NULL);
 }
 
+/* Определяет размер карты в единицах проекции. */
+static gdouble
+hyscan_gtk_map_get_logic_size (HyScanGtkMapPrivate *priv)
+{
+  gdouble min_x, max_x;
+
+  if (priv->projection == NULL)
+    return 1.0;
+
+  hyscan_geo_projection_get_limits (priv->projection, &min_x, &max_x, NULL, NULL);
+  return max_x - min_x;
+}
+
+/* Устанавливает проекцию на самом деле. */
+static void
+hyscan_gtk_map_set_projection_real (HyScanGtkMapPrivate *priv,
+                                    HyScanGeoProjection *projection)
+{
+  gdouble prev_size;
+  gdouble size;
+  guint i;
+
+  /* Размер проекции в логических единицах, чтобы сохранить доступные масштабы. */
+  prev_size = hyscan_gtk_map_get_logic_size (priv);
+
+  g_clear_object (&priv->projection);
+  priv->projection = g_object_ref (projection);
+
+  /* Обновляем доступные масштабы. */
+  size = hyscan_gtk_map_get_logic_size (priv);
+  for (i = 0; i < priv->scales_len; ++i)
+    priv->scales[i] *= size / prev_size;
+}
+
 /**
  * hyscan_gtk_map_set_projection:
  * @map:
@@ -274,15 +366,14 @@ hyscan_gtk_map_set_projection (HyScanGtkMap        *map,
       hyscan_gtk_map_value_to_geo (map, &to_geo, to_x, to_y);
 
       /* Меняем проекцию и восстанавливаем границы просмотра. */
-      g_object_unref (priv->projection);
-      priv->projection = g_object_ref (projection);
+      hyscan_gtk_map_set_projection_real (priv, projection);
       hyscan_gtk_map_geo_to_value (map, from_geo, &from_x, &from_y);
       hyscan_gtk_map_geo_to_value (map, to_geo, &to_x, &to_y);
       gtk_cifro_area_set_view (GTK_CIFRO_AREA (map), from_x, to_x, from_y, to_y);
     }
   else
     {
-      priv->projection = g_object_ref (projection);
+      hyscan_gtk_map_set_projection_real (priv, projection);
     }
 
   /* Оповещаем подписчиков об изменении проекции. */
@@ -494,6 +585,136 @@ hyscan_gtk_map_geo_to_value (HyScanGtkMap        *map,
 
   priv = map->priv;
   hyscan_geo_projection_geo_to_value (priv->projection, coords, x_val, y_val);
+}
+
+/**
+ * hyscan_gtk_map_set_scales:
+ * @map: указатель на карту #HyScanGtkMap
+ * @scales: (array length=scales_len): допустимые масштабы в метр на пиксель
+ *          на экваторе
+ * @scales_len:
+ *
+ * Устанавливает допустимые масштабы карты. Сгенерировать масштабы можно с
+ * помощью функции hyscan_gtk_map_create_scales2().
+ */
+void
+hyscan_gtk_map_set_scales (HyScanGtkMap  *map,
+                           const gdouble *scales,
+                           gsize          scales_len)
+{
+  HyScanGtkMapPrivate *priv;
+
+  guint i = 0;
+  gdouble size;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
+  g_return_if_fail (scales_len > 0);
+
+  priv = map->priv;
+
+  /* Делаем поправку на размер проекции. */
+  size = hyscan_gtk_map_get_logic_size (priv);
+
+  priv->scales_len = scales_len;
+
+  g_free (priv->scales);
+  priv->scales = g_malloc (priv->scales_len * sizeof (*priv->scales));
+  for (i = 0; i < priv->scales_len; i++)
+    priv->scales[i] = scales[i] * size / HYSCAN_GTK_MAP_EQUATOR_LENGTH;
+}
+
+/**
+ * hyscan_gtk_map_get_scale_idx:
+ * @map: указатель на виджет карты #HyScanGtkMap
+ *
+ * Определяет индекс текущего масштаба карта. См. hyscan_gtk_map_set_scale_idx().
+ *
+ * Returns: индекс текущего масштаба или -1 в случае ошибки
+ */
+gint
+hyscan_gtk_map_get_scale_idx (HyScanGtkMap *map)
+{
+  gdouble scale;
+  gint idx;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), -1);
+
+  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (map), &scale, NULL);
+  hyscan_gtk_map_find_closest_scale (map, scale, &idx);
+
+  return idx;
+}
+
+/**
+ * hyscan_gtk_map_set_scale_idx:
+ * @map: указатель на #HyScanGtkMap
+ * @idx: индекс масштаба
+ * @center_x: центр изменения масштаба по оси X
+ * @center_y: центр изменения масштаба по оси Y
+ *
+ * Устанавливает один из допустимых масштабов карты по его индексу @idx. Чтобы
+ * установить допустимые масштабы используйте hyscan_gtk_map_set_scales().
+ */
+void
+hyscan_gtk_map_set_scale_idx (HyScanGtkMap *map,
+                              guint         idx,
+                              gdouble       center_x,
+                              gdouble       center_y)
+{
+  gdouble scale;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
+
+  idx = MIN (idx, map->priv->scales_len - 1);
+
+  scale = map->priv->scales[idx];
+  gtk_cifro_area_set_scale (GTK_CIFRO_AREA (map), scale, scale, center_x, center_y);
+}
+
+/**
+ * hyscan_gtk_map_create_scales2:
+ * @min_scale: минимальный желаемый масштаб, метр на пиксель на экваторе
+ * @max_scale: максимальный желаемый масштаб, метр на пиксель на экваторе
+ * @steps: количество шагов масштаба между увеличением в 2 раза
+ * @scales_len: длина массива масштабов
+ *
+ * Составляет массив допустимых масштабов от @min_scale до @max_scale в виде
+ * степеней двойки.
+ *
+ * Такой набор масштабов наиболее соответствует тайловым картам web-сервисов,
+ * где доступны масштабы 2ᶻ * %HYSCAN_GTK_MAP_EQUATOR_LENGTH / 256px, z = 0..19.
+ *
+ * Returns: (array length=scales_len): массив из допустимых масштабов. Для удаления
+ *    g_free().
+ */
+gdouble *
+hyscan_gtk_map_create_scales2 (gdouble min_scale,
+                               gdouble max_scale,
+                               gint    steps,
+                               gint   *scales_len)
+{
+  gint exp_start;
+  gint exp_end;
+
+  gint i;
+
+  gint len;
+  gdouble *scales;
+
+  g_return_val_if_fail (min_scale < max_scale, NULL);
+
+  /* Приводим масштабы к степени двойки. */
+  exp_start = (gint) round (log2 (min_scale));
+  exp_end   = (gint) round (log2 (max_scale));
+
+  len = (exp_end - exp_start) * steps + 1;
+  scales = g_new (gdouble, len);
+  for (i = 0; i < len; i++)
+    scales[i] = pow (2, exp_start + (gdouble) i / steps);
+
+  *scales_len = len;
+
+  return scales;
 }
 
 /**

@@ -67,7 +67,8 @@ HYSCAN_API
 GType                    hyscan_gtk_map_track_layer_get_type  (void);
 
 HYSCAN_API
-HyScanGtkMapTrackLayer * hyscan_gtk_map_track_layer_new       (HyScanNavigationModel *nav_model);
+HyScanGtkMapTrackLayer * hyscan_gtk_map_track_layer_new       (HyScanNavigationModel *nav_model,
+                                                               HyScanCache           *cache);
 
 G_END_DECLS
 

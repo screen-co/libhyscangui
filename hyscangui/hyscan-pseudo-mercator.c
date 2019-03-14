@@ -34,7 +34,6 @@ struct _HyScanPseudoMercatorPrivate
 
 static void    hyscan_pseudo_mercator_interface_init     (HyScanGeoProjectionInterface *iface);
 static void    hyscan_pseudo_mercator_object_constructed (GObject                      *object);
-static void    hyscan_pseudo_mercator_object_finalize    (GObject                      *object);
 
 static void    hyscan_pseudo_mercator_value_to_geo       (HyScanGeoProjection          *projection,
                                                           HyScanGeoGeodetic            *coords,
@@ -65,7 +64,6 @@ hyscan_pseudo_mercator_class_init (HyScanPseudoMercatorClass *klass)
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
   object_class->constructed = hyscan_pseudo_mercator_object_constructed;
-  object_class->finalize = hyscan_pseudo_mercator_object_finalize;
 }
 
 static void
@@ -94,15 +92,6 @@ hyscan_pseudo_mercator_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_pseudo_mercator_parent_class)->constructed (object);
 
   priv->equator_length = 2.0 * M_PI * EARTH_RADIUS;
-}
-
-static void
-hyscan_pseudo_mercator_object_finalize (GObject *object)
-{
-  HyScanPseudoMercator *pseudo_mercator = HYSCAN_PSEUDO_MERCATOR (object);
-  HyScanPseudoMercatorPrivate *priv = pseudo_mercator->priv;
-
-  G_OBJECT_CLASS (hyscan_pseudo_mercator_parent_class)->finalize (object);
 }
 
 /* Переводит географические координаты @coords в координаты (@x, @y) проекции. */

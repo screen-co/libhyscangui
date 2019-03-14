@@ -317,15 +317,18 @@ create_path_layer ()
   HyScanNavigationModel *model;
   HyScanNmeaFileDevice *device;
   HyScanGtkMapTrackLayer *layer;
+  HyScanCached *cache;
 
   device = hyscan_nmea_file_device_new ("my-device", "/home/alex/move.nmea");
   model = hyscan_navigation_model_new (HYSCAN_SENSOR (device));
   hyscan_sensor_set_enable (HYSCAN_SENSOR (device), "my-device", TRUE);
 
-  layer = hyscan_gtk_map_track_layer_new (model);
+  cache = hyscan_cached_new (100);
+  layer = hyscan_gtk_map_track_layer_new (model, HYSCAN_CACHE (cache));
 
   g_object_unref (device);
   g_object_unref (model);
+  g_object_unref (cache);
 
   return layer;
 }
@@ -378,7 +381,7 @@ int main (int     argc,
 
   /* Добавляем слои. */
   {
-    map = g_object_new (HYSCAN_TYPE_GTK_MAP, NULL);
+    map = HYSCAN_GTK_MAP (hyscan_gtk_map_new (NULL));
 
     control = hyscan_gtk_map_control_new ();
     map_grid = hyscan_gtk_map_grid_new ();
@@ -417,7 +420,17 @@ int main (int     argc,
   gtk_widget_show_all (window);
 
   gtk_cifro_area_set_view (GTK_CIFRO_AREA (map), 0, 10, 0, 10);
-  hyscan_gtk_map_set_pixel_scale (map, 0.01);
+
+  /* Устанавливаем допустимые масштабы. */
+  {
+    gdouble *scales;
+    gint scales_len;
+
+    scales = hyscan_gtk_map_create_scales2 (1.0 / 10, HYSCAN_GTK_MAP_EQUATOR_LENGTH / 1000, 4, &scales_len);
+    hyscan_gtk_map_set_scales (map, scales, scales_len);
+    g_free (scales);
+  }
+
   hyscan_gtk_map_move_to (map, center);
 
   /* Main loop. */

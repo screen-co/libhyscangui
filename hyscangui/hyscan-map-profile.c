@@ -67,7 +67,7 @@ hyscan_map_profile_create_projection (HyScanMapProfilePrivate *priv)
       return hyscan_mercator_new (p, -MERCATOR_MAX_LAT, MERCATOR_MAX_LAT);
     }
 
-  g_warning ("HyScanMapProfile: unknown projection %d", priv->projection);
+  g_warning ("HyScanMapProfile: unknown projection %s", priv->projection);
   return FALSE;
 }
 

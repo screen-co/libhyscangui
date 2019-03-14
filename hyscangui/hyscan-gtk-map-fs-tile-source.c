@@ -18,7 +18,6 @@ static void       hyscan_gtk_map_fs_tile_source_set_property             (GObjec
                                                                           guint                            prop_id,
                                                                           const GValue                    *value,
                                                                           GParamSpec                      *pspec);
-static void       hyscan_gtk_map_fs_tile_source_object_constructed       (GObject                         *object);
 static void       hyscan_gtk_map_fs_tile_source_object_finalize          (GObject                         *object);
 static gboolean   hyscan_gtk_map_fs_tile_source_fill_from_file           (HyScanGtkMapTile                *tile,
                                                                           const gchar                     *tile_path);
@@ -39,7 +38,6 @@ hyscan_gtk_map_fs_tile_source_class_init (HyScanGtkMapFsTileSourceClass *klass)
 
   object_class->set_property = hyscan_gtk_map_fs_tile_source_set_property;
 
-  object_class->constructed = hyscan_gtk_map_fs_tile_source_object_constructed;
   object_class->finalize = hyscan_gtk_map_fs_tile_source_object_finalize;
 
   g_object_class_install_property (object_class, PROP_FALLBACK_SOURCE,
@@ -80,14 +78,6 @@ hyscan_gtk_map_fs_tile_source_set_property (GObject      *object,
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
     }
-}
-
-static void
-hyscan_gtk_map_fs_tile_source_object_constructed (GObject *object)
-{
-  HyScanGtkMapFsTileSource *gtk_map_fs_tile_source = HYSCAN_GTK_MAP_FS_TILE_SOURCE (object);
-
-  G_OBJECT_CLASS (hyscan_gtk_map_fs_tile_source_parent_class)->constructed (object);
 }
 
 static void

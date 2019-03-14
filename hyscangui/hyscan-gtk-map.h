@@ -4,6 +4,12 @@
 #include <hyscan-geo-projection.h>
 #include <hyscan-gtk-layer-container.h>
 
+/**
+ * HYSCAN_GTK_MAP_EQUATOR_LENGTH: (value 40075696)
+ * Длина экватора в метрах
+ */
+#define HYSCAN_GTK_MAP_EQUATOR_LENGTH 40075696.0
+
 G_BEGIN_DECLS
 
 #define HYSCAN_TYPE_GTK_MAP             (hyscan_gtk_map_get_type ())
@@ -56,10 +62,30 @@ void                   hyscan_gtk_map_set_pixel_scale (HyScanGtkMap            *
                                                        gdouble                  scale);
 
 HYSCAN_API
+gdouble *              hyscan_gtk_map_create_scales2  (gdouble                  min_scale,
+                                                       gdouble                  max_scale,
+                                                       gint                     steps,
+                                                       gint                    *scales_len);
+
+HYSCAN_API
 gdouble                hyscan_gtk_map_get_pixel_scale (HyScanGtkMap            *map);
 
 HYSCAN_API
 gdouble                hyscan_gtk_map_get_scale       (HyScanGtkMap            *map);
+
+HYSCAN_API
+void                   hyscan_gtk_map_set_scales      (HyScanGtkMap            *map,
+                                                       const gdouble           *scales,
+                                                       gsize                    scales_len);
+
+HYSCAN_API
+gint                   hyscan_gtk_map_get_scale_idx   (HyScanGtkMap            *map);
+
+HYSCAN_API
+void                   hyscan_gtk_map_set_scale_idx   (HyScanGtkMap            *map,
+                                                       guint                    idx,
+                                                       gdouble                  center_x,
+                                                       gdouble                  center_y);
 
 HYSCAN_API
 void                   hyscan_gtk_map_point_to_geo     (HyScanGtkMap           *map,

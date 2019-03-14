@@ -25,7 +25,6 @@ static void    hyscan_gtk_map_tile_set_property             (GObject            
                                                              guint                  prop_id,
                                                              const GValue          *value,
                                                              GParamSpec            *pspec);
-static void    hyscan_gtk_map_tile_object_constructed       (GObject               *object);
 static void    hyscan_gtk_map_tile_object_finalize          (GObject               *object);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMapTile, hyscan_gtk_map_tile, G_TYPE_OBJECT)
@@ -37,7 +36,6 @@ hyscan_gtk_map_tile_class_init (HyScanGtkMapTileClass *klass)
 
   object_class->set_property = hyscan_gtk_map_tile_set_property;
 
-  object_class->constructed = hyscan_gtk_map_tile_object_constructed;
   object_class->finalize = hyscan_gtk_map_tile_object_finalize;
 
   g_object_class_install_property (object_class, PROP_X,
@@ -91,15 +89,6 @@ hyscan_gtk_map_tile_set_property (GObject      *object,
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
     }
-}
-
-static void
-hyscan_gtk_map_tile_object_constructed (GObject *object)
-{
-  HyScanGtkMapTile *gtk_map_tile = HYSCAN_GTK_MAP_TILE (object);
-  HyScanGtkMapTilePrivate *priv = gtk_map_tile->priv;
-
-  G_OBJECT_CLASS (hyscan_gtk_map_tile_parent_class)->constructed (object);
 }
 
 static void
