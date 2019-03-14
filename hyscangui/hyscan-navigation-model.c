@@ -102,7 +102,9 @@ typedef struct
 
 struct _HyScanNavigationModelPrivate
 {
-  HyScanSensor           *sensor;         /* Датчик навигационных данных (GPS-приёмник). */
+  HyScanSensor           *sensor;         /* Система датчиков HyScanSensor. */
+  gchar                  *sensor_name;    /* Название датчика GPS-приёмника. */
+  GMutex                  sensor_lock;    /* Блокировка доступа к полям sensor_. */
 
   guint                   interval;       /* Желаемая частота эмитирования сигналов "changed", милисекунды. */
 
@@ -404,7 +406,7 @@ hyscan_navigation_model_read_sentence (HyScanNavigationModel *model,
 }
 
 /* Обработчик сигнала "sensor-data".
- * Парсит полученное от датчика @sensor сообщение. */
+ * Парсит полученное от датчика @sensor сообщение. Может выполняться не в MainLoop. */
 static void
 hyscan_navigation_model_sensor_data (HyScanSensor          *sensor,
                                      const gchar           *name,
@@ -413,10 +415,21 @@ hyscan_navigation_model_sensor_data (HyScanSensor          *sensor,
                                      HyScanBuffer          *data,
                                      HyScanNavigationModel *model)
 {
+  HyScanNavigationModelPrivate *priv = model->priv;
+
   const gchar *msg;
   guint32 msg_size;
   gchar **sentences;
   gint i;
+
+  gboolean is_target_sensor;
+
+  g_mutex_lock (&priv->sensor_lock);
+  is_target_sensor = (g_strcmp0 (name, priv->sensor_name) == 0);
+  g_mutex_unlock (&priv->sensor_lock);
+
+  if (!is_target_sensor)
+    return;
 
   msg = hyscan_buffer_get_data (data, &msg_size);
 
@@ -599,12 +612,12 @@ hyscan_navigation_model_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_navigation_model_parent_class)->constructed (object);
 
+  g_mutex_init (&priv->sensor_lock);
   g_mutex_init (&priv->fixes_lock);
   priv->timer = g_timer_new ();
   priv->fixes_max_len = 10;
 
   g_timeout_add (priv->interval, (GSourceFunc) hyscan_navigation_model_process, model);
-  g_signal_connect (priv->sensor, "sensor-data", G_CALLBACK (hyscan_navigation_model_sensor_data), model);
 }
 
 static void
@@ -617,10 +630,16 @@ hyscan_navigation_model_object_finalize (GObject *object)
 
   g_mutex_lock (&priv->fixes_lock);
   g_list_free_full (priv->fixes, (GDestroyNotify) hyscan_navigation_model_fix_free);
+  g_list_free_full (priv->param_list, g_free);
   g_mutex_unlock (&priv->fixes_lock);
-
   g_mutex_clear (&priv->fixes_lock);
+
+  g_mutex_lock (&priv->sensor_lock);
   g_clear_object (&priv->sensor);
+  g_free (priv->sensor_name);
+  g_mutex_unlock (&priv->sensor_lock);
+  g_mutex_clear (&priv->sensor_lock);
+
   g_timer_destroy (priv->timer);
 
   G_OBJECT_CLASS (hyscan_navigation_model_parent_class)->finalize (object);
@@ -628,16 +647,67 @@ hyscan_navigation_model_object_finalize (GObject *object)
 
 /**
  * hyscan_navigation_model_new:
- * @sensor: указатель на #HyScanSensor
  *
  * Создает модель навигационных данных, которая обрабатывает NMEA-строки
- * датчика @sensor.
+ * из GPS-датчика. Установить целевой датчик можно функциями
+ * hyscan_navigation_model_set_sensor() и hyscan_navigation_model_set_sensor_name().
  *
  * Returns: указатель на #HyScanNavigationModel. Для удаления g_object_unref()
  */
 HyScanNavigationModel *
-hyscan_navigation_model_new (HyScanSensor *sensor)
+hyscan_navigation_model_new ()
 {
-  return g_object_new (HYSCAN_TYPE_NAVIGATION_MODEL,
-                       "sensor", sensor, NULL);
+  return g_object_new (HYSCAN_TYPE_NAVIGATION_MODEL, NULL);
+}
+
+/**
+ * hyscan_navigation_model_set_sensor:
+ * @model: указатель на #HyScanNavigationModel
+ * @sensor: указатель на #HyScanSensor
+ *
+ * Устанавливает используемую систему датчиков #HyScanSensor. Чтобы установить
+ * имя датчика используйте hyscan_navigation_model_set_sensor_name().
+ */
+void
+hyscan_navigation_model_set_sensor (HyScanNavigationModel *model,
+                                    HyScanSensor          *sensor)
+{
+  HyScanNavigationModelPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_NAVIGATION_MODEL (model));
+  priv = model->priv;
+
+  g_mutex_lock (&priv->sensor_lock);
+  if (priv->sensor != NULL)
+    {
+      g_signal_handlers_disconnect_by_func (priv->sensor, hyscan_navigation_model_sensor_data, model);
+      g_object_unref (priv->sensor);
+    }
+
+  priv->sensor = g_object_ref (sensor);
+  g_signal_connect (priv->sensor, "sensor-data", G_CALLBACK (hyscan_navigation_model_sensor_data), model);
+  g_mutex_unlock (&priv->sensor_lock);
+}
+
+/**
+ * hyscan_navigation_model_set_sensor_name:
+ * @model: указатель на #HyScanNavigationModel
+ * @name: имя датчика
+ *
+ * Устанавливает имя используемого датчика текущей системы датчиков. Чтобы
+ * установить другую систему используйте hyscan_navigation_model_set_sensor().
+ */
+void
+hyscan_navigation_model_set_sensor_name (HyScanNavigationModel *model,
+                                         const gchar           *name)
+{
+  HyScanNavigationModelPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_NAVIGATION_MODEL (model));
+  priv = model->priv;
+
+  g_mutex_lock (&priv->sensor_lock);
+  g_free (priv->sensor_name);
+  priv->sensor_name = g_strdup (name);
+  g_mutex_unlock (&priv->sensor_lock);
 }

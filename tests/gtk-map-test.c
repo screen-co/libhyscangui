@@ -15,6 +15,8 @@
 #include <hyscan-gtk-map-track-layer.h>
 #include <hyscan-nmea-file-device.h>
 
+#define GPS_SENSOR_NAME "my-nmea-sensor"
+
 static gchar *tiles_dir;                     /* Путь к каталогу, где хранятся тайлы. */
 static gchar *track_file;                    /* Путь к файлу с NMEA-строками. */
 static gboolean yandex_projection = FALSE;   /* Использовать карту яндекса. */
@@ -324,9 +326,12 @@ create_track_layer ()
   if (track_file == NULL)
     return NULL;
 
-  device = hyscan_nmea_file_device_new ("my-device", track_file);
-  model = hyscan_navigation_model_new (HYSCAN_SENSOR (device));
-  hyscan_sensor_set_enable (HYSCAN_SENSOR (device), "my-device", TRUE);
+  device = hyscan_nmea_file_device_new (GPS_SENSOR_NAME, track_file);
+  hyscan_sensor_set_enable (HYSCAN_SENSOR (device), GPS_SENSOR_NAME, TRUE);
+
+  model = hyscan_navigation_model_new ();
+  hyscan_navigation_model_set_sensor (model, HYSCAN_SENSOR (device));
+  hyscan_navigation_model_set_sensor_name (model, GPS_SENSOR_NAME);
 
   cache = hyscan_cached_new (100);
   layer = hyscan_gtk_map_track_layer_new (model, HYSCAN_CACHE (cache));

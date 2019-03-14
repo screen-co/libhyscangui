@@ -191,7 +191,10 @@ hyscan_nmea_file_device_object_finalize (GObject *object)
   HyScanNmeaFileDevicePrivate *priv= nf_device->priv;
 
   if (g_atomic_int_compare_and_exchange (&priv->shutdown, FALSE, TRUE))
-    g_warning ("HyScanNmeaFileDevice: hyscan_device_disconnect() MUST BE called before finalize");
+    {
+      g_warning ("HyScanNmeaFileDevice: hyscan_device_disconnect() MUST BE called before finalize");
+      g_thread_join (priv->thread);
+    }
 
   g_free (priv->filename);
   g_free (priv->name);
@@ -265,7 +268,10 @@ hyscan_nmea_file_device_read (HyScanNmeaFileDevice *device)
 
   /* Если дошли до конца файла, то по-тихому завершаем свою работу. */
   if (feof (priv->fp))
-    g_atomic_int_set (&priv->shutdown, TRUE);
+    {
+      g_signal_emit (device, hyscan_nmea_file_device_signals[SIGNAL_FINISH], 0);
+      g_atomic_int_set (&priv->shutdown, TRUE);
+    }
 
   g_string_truncate (priv->sensor_data, 0);
   priv->next_tick = ceil (priv->line_time);
@@ -309,8 +315,6 @@ hyscan_nmea_file_device_process (HyScanNmeaFileDevice *device)
     }
 
 exit:
-  g_signal_emit (device, hyscan_nmea_file_device_signals[SIGNAL_FINISH], 0);
-
   g_string_free (priv->sensor_data, TRUE);
   g_clear_pointer (&priv->line, g_free);
   g_clear_pointer (&priv->timer, g_timer_destroy);
@@ -345,8 +349,8 @@ hyscan_nmea_file_device_disconnect (HyScanDevice *device)
   HyScanNmeaFileDevice *nf_device = HYSCAN_NMEA_FILE_DEVICE (device);
   HyScanNmeaFileDevicePrivate *priv = nf_device->priv;
 
-  g_atomic_int_set (&priv->shutdown, TRUE);
-  g_thread_join (priv->thread);
+  if (g_atomic_int_compare_and_exchange (&priv->shutdown, FALSE, TRUE))
+    g_thread_join (priv->thread);
 
   return TRUE;
 }

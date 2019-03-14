@@ -37,25 +37,10 @@
 
 #define DEVICE_NAME "nav-device"
 
-GCond cond;
-GMutex mutex;
-gboolean device_done;
-
 int usage (const gchar *prg_name)
 {
   g_print ("Usage: %s filename\n", prg_name);
   return -1;
-}
-
-/* Обработчик сигнала "finish". */
-void
-on_finish (HyScanNmeaFileDevice *device,
-           gpointer              user_data)
-{
-  g_mutex_lock (&mutex);
-  device_done = TRUE;
-  g_cond_signal (&cond);
-  g_mutex_unlock (&mutex);
 }
 
 void
@@ -69,6 +54,8 @@ on_model_changed (HyScanNavigationModel *model,
 int main (int    argc,
           char **argv)
 {
+  GMainLoop *loop;
+
   HyScanNmeaFileDevice *device;
   HyScanNavigationModel *model;
 
@@ -79,27 +66,26 @@ int main (int    argc,
 
   filename = argv[1];
 
-  g_cond_init (&cond);
-  g_mutex_init (&mutex);
-  g_mutex_lock (&mutex);
+  loop = g_main_loop_new (NULL, FALSE);
 
   device = hyscan_nmea_file_device_new (DEVICE_NAME, filename);
-  model = hyscan_navigation_model_new (HYSCAN_SENSOR (device));
+  model = hyscan_navigation_model_new ();
+  hyscan_navigation_model_set_sensor (model, HYSCAN_SENSOR (device));
+  hyscan_navigation_model_set_sensor_name (model, DEVICE_NAME);
 
-  g_signal_connect (device, "finish", G_CALLBACK (on_finish), NULL);
+  g_signal_connect_swapped (device, "finish", g_main_loop_quit, loop);
   g_signal_connect (model, "changed", G_CALLBACK (on_model_changed), NULL);
 
   hyscan_sensor_set_enable (HYSCAN_SENSOR (device), DEVICE_NAME, TRUE);
 
-  /* Ждем, пока device не выдаст все строки. */
-  while (!device_done)
-    g_cond_wait (&cond, &mutex);
-  g_mutex_unlock (&mutex);
+  g_main_loop_run (loop);
 
   hyscan_device_disconnect (HYSCAN_DEVICE (device));
 
   g_object_unref (device);
   g_object_unref (model);
+
+  g_main_loop_unref (loop);
 
   return 0;
 }

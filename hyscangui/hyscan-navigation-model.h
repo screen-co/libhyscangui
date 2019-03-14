@@ -67,7 +67,15 @@ HYSCAN_API
 GType                    hyscan_navigation_model_get_type         (void);
 
 HYSCAN_API
-HyScanNavigationModel *  hyscan_navigation_model_new             (HyScanSensor *sensor);
+HyScanNavigationModel *  hyscan_navigation_model_new              (void);
+
+HYSCAN_API
+void hyscan_navigation_model_set_sensor                           (HyScanNavigationModel *model,
+                                                                   HyScanSensor          *sensor);
+
+HYSCAN_API
+void hyscan_navigation_model_set_sensor_name                      (HyScanNavigationModel *model,
+                                                                   const gchar           *name);
 
 G_END_DECLS
 
