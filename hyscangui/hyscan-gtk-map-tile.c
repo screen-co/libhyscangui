@@ -102,6 +102,24 @@ hyscan_gtk_map_tile_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_tile_parent_class)->finalize (object);
 }
 
+/* Переводит из логической СК в СК тайлов. */
+static void
+hyscan_gtk_map_tile_grid_point_to_tile (HyScanGtkMapTileGrid *grid,
+                                        HyScanGtkMapPoint    *point,
+                                        gdouble              *x_tile,
+                                        gdouble              *y_tile)
+{
+  gdouble tile_size_x;
+  gdouble tile_size_y;
+
+  /* Размер тайла в логических единицах. */
+  tile_size_x = (grid->max_x - grid->min_x) / grid->tiles_num;
+  tile_size_y = (grid->max_y - grid->min_y) / grid->tiles_num;
+
+  (y_tile != NULL) ? *y_tile = (grid->max_y - point->y) / tile_size_y : 0;
+  (x_tile != NULL) ? *x_tile = (point->x - grid->min_x) / tile_size_x : 0;
+}
+
 HyScanGtkMapTile *
 hyscan_gtk_map_tile_new (guint x,
                          guint y,
@@ -197,4 +215,37 @@ hyscan_gtk_map_tile_compare (HyScanGtkMapTile *a,
     return 0;
   else
     return 1;
+}
+
+/**
+ * hyscan_gtk_map_tile_grid_bound:
+ * @grid
+ * @region
+ * @to_tile_x
+ * @from_tile_x
+ * @to_tile_y
+ * @from_tile_y
+ *
+ * Определяет координаты тайлов сетки grid, полностью покрывающих область @region.
+ */
+void
+hyscan_gtk_map_tile_grid_bound (HyScanGtkMapTileGrid *grid,
+                                HyScanGtkMapRect     *region,
+                                gint                 *to_tile_x,
+                                gint                 *from_tile_x,
+                                gint                 *to_tile_y,
+                                gint                 *from_tile_y)
+{
+  gdouble from_tile_x_d, from_tile_y_d, to_tile_x_d, to_tile_y_d;
+
+  /* Получаем тайлы, соответствующие границам видимой части карты. */
+  hyscan_gtk_map_tile_grid_point_to_tile (grid, &region->from, &from_tile_x_d, &from_tile_y_d);
+  hyscan_gtk_map_tile_grid_point_to_tile (grid, &region->to, &to_tile_x_d, &to_tile_y_d);
+
+  /* Устанавливаем границы так, чтобы выполнялось from_* < to_*. */
+  (to_tile_y != NULL) ? *to_tile_y = (gint) MAX (from_tile_y_d, to_tile_y_d) : 0;
+  (from_tile_y != NULL) ? *from_tile_y = (gint) MIN (from_tile_y_d, to_tile_y_d) : 0;
+
+  (to_tile_x != NULL) ? *to_tile_x = (gint) MAX (from_tile_x_d, to_tile_x_d) : 0;
+  (from_tile_x != NULL) ? *from_tile_x = (gint) MIN (from_tile_x_d, to_tile_x_d) : 0;
 }

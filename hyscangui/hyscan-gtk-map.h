@@ -31,6 +31,12 @@ typedef struct
   gdouble           y;
 } HyScanGtkMapPoint;
 
+typedef struct
+{
+  HyScanGtkMapPoint from;
+  HyScanGtkMapPoint to;
+} HyScanGtkMapRect;
+
 struct _HyScanGtkMap
 {
   HyScanGtkLayerContainer parent_instance;

@@ -627,20 +627,21 @@ hyscan_gtk_map_tiles_get_view (HyScanGtkMapTiles *layer,
                                gint              *to_tile_y)
 {
   HyScanGtkMapTilesPrivate *priv = layer->priv;
-  gdouble from_x, to_x, from_y, to_y;
-  gdouble from_tile_x_d, from_tile_y_d, to_tile_x_d, to_tile_y_d;
+  HyScanGtkMapTileGrid tile_grid;
+  HyScanGtkMapRect view;
+
+  gtk_cifro_area_get_limits (GTK_CIFRO_AREA (priv->map),
+                             &tile_grid.min_x, &tile_grid.max_x,
+                             &tile_grid.min_y, &tile_grid.max_y);
+  tile_grid.tiles_num = (gint) pow (2, zoom);
+
 
   /* Получаем тайлы, соответствующие границам видимой части карты. */
-  gtk_cifro_area_get_view (GTK_CIFRO_AREA (priv->map), &from_x, &to_x, &from_y, &to_y);
-  hyscan_gtk_map_tiles_value_to_tile (layer, zoom, from_x, from_y, &from_tile_x_d, &from_tile_y_d);
-  hyscan_gtk_map_tiles_value_to_tile (layer, zoom, to_x, to_y, &to_tile_x_d, &to_tile_y_d);
+  gtk_cifro_area_get_view (GTK_CIFRO_AREA (priv->map),
+                           &view.from.x, &view.to.x,
+                           &view.from.y, &view.to.y);
 
-  /* Устанавливаем границы так, чтобы выполнялось from_* < to_*. */
-  (to_tile_y != NULL) ? *to_tile_y = (gint) MAX (from_tile_y_d, to_tile_y_d) : 0;
-  (from_tile_y != NULL) ? *from_tile_y = (gint) MIN (from_tile_y_d, to_tile_y_d) : 0;
-
-  (to_tile_x != NULL) ? *to_tile_x = (gint) MAX (from_tile_x_d, to_tile_x_d) : 0;
-  (from_tile_x != NULL) ? *from_tile_x = (gint) MIN (from_tile_x_d, to_tile_x_d) : 0;
+  hyscan_gtk_map_tile_grid_bound (&tile_grid, &view, to_tile_x, from_tile_x, to_tile_y, from_tile_y);
 }
 
 /* Растяжение тайла при текущем масштабе карты и указанном зуме. */

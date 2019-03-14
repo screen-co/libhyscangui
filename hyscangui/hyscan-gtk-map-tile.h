@@ -5,6 +5,7 @@
 #include <hyscan-api.h>
 #include <cairo.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
+#include <hyscan-gtk-map.h>
 
 G_BEGIN_DECLS
 
@@ -18,6 +19,15 @@ G_BEGIN_DECLS
 typedef struct _HyScanGtkMapTile HyScanGtkMapTile;
 typedef struct _HyScanGtkMapTilePrivate HyScanGtkMapTilePrivate;
 typedef struct _HyScanGtkMapTileClass HyScanGtkMapTileClass;
+
+typedef struct
+{
+  gdouble min_x;
+  gdouble min_y;
+  gdouble max_x;
+  gdouble max_y;
+  gdouble tiles_num;
+} HyScanGtkMapTileGrid;
 
 struct _HyScanGtkMapTile
 {
@@ -63,6 +73,13 @@ HYSCAN_API
 gint                   hyscan_gtk_map_tile_compare          (HyScanGtkMapTile *a,
                                                              HyScanGtkMapTile *b);
 
+HYSCAN_API
+void                   hyscan_gtk_map_tile_grid_bound       (HyScanGtkMapTileGrid *grid,
+                                                             HyScanGtkMapRect     *region,
+                                                             gint                 *to_tile_x,
+                                                             gint                 *from_tile_x,
+                                                             gint                 *to_tile_y,
+                                                             gint                 *from_tile_y);
 
 G_END_DECLS
 
