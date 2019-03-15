@@ -188,9 +188,7 @@ hyscan_gtk_waterfall_grid_object_constructed (GObject *object)
   priv->hadjustment = gtk_adjustment_new (0, 0, 0, 0, 1, 1);
   priv->vadjustment = gtk_adjustment_new (0, 0, 0, 0, 1, 1);
 
-  g_signal_connect_swapped (priv->hadjustment, "changed", G_CALLBACK (hyscan_gtk_waterfall_grid_changed), self);
   g_signal_connect_swapped (priv->hadjustment, "value-changed", G_CALLBACK (hyscan_gtk_waterfall_grid_changed), self);
-  g_signal_connect_swapped (priv->vadjustment, "changed", G_CALLBACK (hyscan_gtk_waterfall_grid_changed), self);
   g_signal_connect_swapped (priv->vadjustment, "value-changed", G_CALLBACK (hyscan_gtk_waterfall_grid_changed), self);
 
   /* Включаем видимость слоя. */
@@ -349,6 +347,9 @@ hyscan_gtk_waterfall_grid_draw (GtkWidget *widget,
     gtk_cifro_area_get_view (GTK_CIFRO_AREA (widget), &from_x, &to_x, &from_y, &to_y);
     gtk_cifro_area_get_limits (GTK_CIFRO_AREA (widget), &min_x, &max_x, &min_y, &max_y);
 
+    g_signal_handlers_block_by_func (priv->hadjustment, hyscan_gtk_waterfall_grid_changed, self);
+    g_signal_handlers_block_by_func (priv->vadjustment, hyscan_gtk_waterfall_grid_changed, self);
+
     gtk_adjustment_set_lower (priv->hadjustment, min_x);
     gtk_adjustment_set_upper (priv->hadjustment, max_x);
     gtk_adjustment_set_value (priv->hadjustment, from_x);
@@ -358,6 +359,9 @@ hyscan_gtk_waterfall_grid_draw (GtkWidget *widget,
     gtk_adjustment_set_upper (priv->vadjustment, max_y);
     gtk_adjustment_set_value (priv->vadjustment, from_y);
     gtk_adjustment_set_page_size (priv->vadjustment, ABS (to_y - from_y));
+
+    g_signal_handlers_unblock_by_func (priv->hadjustment, hyscan_gtk_waterfall_grid_changed, self);
+    g_signal_handlers_unblock_by_func (priv->vadjustment, hyscan_gtk_waterfall_grid_changed, self);
   }
 }
 

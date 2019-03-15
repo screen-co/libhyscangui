@@ -387,9 +387,8 @@ hyscan_gtk_waterfall_control_mouse_wheel (GtkWidget                 *widget,
   guint width, height;
   gboolean do_scroll;
 
-  /* Проверяем, есть ли у нас право обработки ввода. */
-  // if (GTK_WATERFALL_CONTROL_INPUT_ID != hyscan_gtk_waterfall_get_input_owner (HYSCAN_GTK_WATERFALL (widget)))
-    // return FALSE;
+  /* Не проверяем, есть ли у нас право обработки ввода.
+   * У control оно есть всегда. */
 
   gtk_cifro_area_get_size (carea, &width, &height);
   do_scroll = priv->scroll_without_ctrl == !(event->state & GDK_CONTROL_MASK);
