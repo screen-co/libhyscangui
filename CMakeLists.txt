@@ -49,17 +49,6 @@ add_definitions (${GTK3_CFLAGS} ${LIBXML2_CFLAGS})
 link_directories (${GTK3_LIBRARY_DIRS} ${LIBXML2_LIBRARY_DIRS})
 
 if (HYSCAN_USE_SYS_LIBS)
-  pkg_check_modules (HYSCAN REQUIRED "hyscantypes-${HYSCAN_MAJOR_VERSION}")
-
-  link_directories (${HYSCAN_LIBRARY_DIRS})
-  add_definitions (${HYSCAN_CFLAGS})
-else ()
-  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscantypes/hyscantypes")
-  link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscantypes/bin")
-  set (HYSCAN_LIBRARIES "hyscantypes-${HYSCAN_MAJOR_VERSION}")
-endif ()
-
-if (HYSCAN_USE_SYS_LIBS)
   pkg_check_modules (HYSCAN REQUIRED "hyscantypes-${HYSCAN_MAJOR_VERSION}"
                                      "hyscancache-${HYSCAN_MAJOR_VERSION}"
                                      "hyscancore-${HYSCAN_MAJOR_VERSION}"
