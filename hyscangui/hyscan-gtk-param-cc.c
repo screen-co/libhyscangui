@@ -62,12 +62,9 @@ struct _HyScanGtkParamCCPrivate
 {
   GtkStack   *stack;  /* Стек со всеми страницами. */
   GtkListBox *lbox;   /* Виджет списка страниц. */
-  GPtrArray  *paths;  /* Названия страниц. */
-  GPtrArray  *plists; /* ParamList'ы для страниц. */
 };
 
 static void        hyscan_gtk_param_cc_object_constructed   (GObject                     *object);
-static void        hyscan_gtk_param_cc_object_finalize      (GObject                     *object);
 static void        hyscan_gtk_param_cc_plist_adder          (gpointer                     data,
                                                              gpointer                     udata);
 static void        hyscan_gtk_param_cc_row_activated        (GtkListBox                  *box,
@@ -96,7 +93,6 @@ hyscan_gtk_param_cc_class_init (HyScanGtkParamCCClass *klass)
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
   object_class->constructed = hyscan_gtk_param_cc_object_constructed;
-  object_class->finalize = hyscan_gtk_param_cc_object_finalize;
 }
 
 static void
@@ -114,10 +110,6 @@ hyscan_gtk_param_cc_object_constructed (GObject *object)
   HyScanGtkParamCCPrivate *priv = self->priv;
 
   G_OBJECT_CLASS (hyscan_gtk_param_cc_parent_class)->constructed (object);
-
-  /* */
-  priv->paths = g_ptr_array_new_full (1, g_free);
-  priv->plists = g_ptr_array_new_full (1, g_object_unref);
 
   /* Переключатели. */
   priv->lbox = GTK_LIST_BOX (gtk_list_box_new ());
@@ -149,17 +141,6 @@ hyscan_gtk_param_cc_object_constructed (GObject *object)
   gtk_grid_attach (GTK_GRID (self), GTK_WIDGET (priv->stack), 1, 0, 1, 1);
 }
 
-static void
-hyscan_gtk_param_cc_object_finalize (GObject *object)
-{
-  HyScanGtkParamCC *self = HYSCAN_GTK_PARAM_CC (object);
-  HyScanGtkParamCCPrivate *priv = self->priv;
-  g_ptr_array_unref (priv->paths);
-  g_ptr_array_unref (priv->plists);
-
-  G_OBJECT_CLASS (hyscan_gtk_param_cc_parent_class)->finalize (object);
-}
-
 /* Функция добавляет идентификаторы ключей в HyScanParamList. */
 static void
 hyscan_gtk_param_cc_plist_adder (gpointer data,
@@ -177,27 +158,24 @@ hyscan_gtk_param_cc_row_activated (GtkListBox    *box,
                                    GtkListBoxRow *row,
                                    gpointer       udata)
 {
-  gint row_index;
-  gchar *path;
-  HyScanParamList *plist;
+  /* const */ gchar *path;
+  /* const */ HyScanParamList *plist;
   HyScanGtkParamCC *self = udata;
   HyScanGtkParamCCPrivate *priv = self->priv;
 
   g_return_if_fail (row != NULL);
 
-  row_index = gtk_list_box_row_get_index (row);
-  path = g_ptr_array_index (priv->paths, row_index);
-  plist = g_ptr_array_index (priv->plists, row_index);
+  path = g_object_get_data (G_OBJECT (row), "hyscan-gtk-param-cc-path");
+  plist = g_object_get_data (G_OBJECT (row), "hyscan-gtk-param-cc-plist");
 
   gtk_stack_set_visible_child_name (priv->stack, path);
-
   hyscan_gtk_param_set_watch_list (HYSCAN_GTK_PARAM (self), plist);
 }
 
 /* Функция создает виджет нулевого уровня (ключи + все виджеты 1 уровня). */
 static void
-hyscan_gtk_param_cc_make_level0 (HyScanGtkParamCC           *self,
-                                 GHashTable                 *widgets)
+hyscan_gtk_param_cc_make_level0 (HyScanGtkParamCC *self,
+                                 GHashTable       *widgets)
 {
   HyScanGtkParamCCPrivate *priv = self->priv;
   const HyScanDataSchemaNode *node;
@@ -270,7 +248,7 @@ hyscan_gtk_param_cc_make_level1 (const HyScanDataSchemaNode *node,
 
       widget = hyscan_gtk_param_cc_make_level2 (subnode, widgets, plist, TRUE, show_hidden);
 
-      if (!widget)
+      if (widget == NULL)
         continue;
 
       gtk_box_pack_start (GTK_BOX (box), widget, FALSE, FALSE, 0);
@@ -338,7 +316,7 @@ hyscan_gtk_param_cc_make_level2 (const HyScanDataSchemaNode *node,
     return box;
 
   frame = gtk_frame_new (node->name);
-  g_object_set (frame, "shadow-type", GTK_SHADOW_NONE, NULL);
+  gtk_frame_set_shadow_type (GTK_FRAME (frame), GTK_SHADOW_NONE);
 
   gtk_container_add (GTK_CONTAINER (frame), box);
   return frame;
@@ -351,7 +329,7 @@ hyscan_gtk_param_cc_add_row (HyScanGtkParamCC           *self,
                              HyScanParamList            *plist)
 {
   HyScanGtkParamCCPrivate *priv = self->priv;
-  GtkWidget *box, *title, *subtitle;
+  GtkWidget *box, *title, *subtitle, *row;
   gchar *markup, *name;
   const gchar *desc;
 
@@ -386,10 +364,12 @@ hyscan_gtk_param_cc_add_row (HyScanGtkParamCC           *self,
   gtk_box_pack_start (GTK_BOX (box), title, FALSE, FALSE, 0);
   gtk_box_pack_end (GTK_BOX (box), subtitle, FALSE, FALSE, 0);
 
-  gtk_list_box_insert (GTK_LIST_BOX (priv->lbox), box, -1);
+  row = gtk_list_box_row_new ();
+  g_object_set_data_full (G_OBJECT (row), "hyscan-gtk-param-cc-path", g_strdup (node->path), g_free);
+  g_object_set_data_full (G_OBJECT (row), "hyscan-gtk-param-cc-plist", g_object_ref (plist), g_object_unref);
+  gtk_container_add (GTK_CONTAINER (row), box);
 
-  g_ptr_array_add (priv->paths, (gpointer)g_strdup (node->path));
-  g_ptr_array_add (priv->plists, g_object_ref (plist));
+  gtk_list_box_insert (GTK_LIST_BOX (priv->lbox), row, -1);
 
   g_free (markup);
   g_free (name);
