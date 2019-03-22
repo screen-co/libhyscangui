@@ -641,7 +641,7 @@ hyscan_gtk_map_tiles_get_view (HyScanGtkMapTiles *layer,
                            &view.from.x, &view.to.x,
                            &view.from.y, &view.to.y);
 
-  hyscan_gtk_map_tile_grid_bound (&tile_grid, &view, to_tile_x, from_tile_x, to_tile_y, from_tile_y);
+  hyscan_gtk_map_tile_grid_bound (&tile_grid, &view, from_tile_x, to_tile_x, from_tile_y, to_tile_y);
 }
 
 /* Растяжение тайла при текущем масштабе карты и указанном зуме. */

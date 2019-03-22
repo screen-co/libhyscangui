@@ -20,6 +20,17 @@ typedef struct _HyScanGtkMapTile HyScanGtkMapTile;
 typedef struct _HyScanGtkMapTilePrivate HyScanGtkMapTilePrivate;
 typedef struct _HyScanGtkMapTileClass HyScanGtkMapTileClass;
 
+/**
+ * HyScanGtkMapTileGrid:
+ * @min_x: минимальное значение координаты x
+ * @max_x: максимальное значение координаты x
+ * @min_y: минимальное значение координаты y
+ * @max_y: максимальное значение координаты y
+ * @tiles_num: число тайлов вдоль каждой из осей
+ *
+ * Структура с информацией о квадратной тайловой сетке размера @tiles_num.
+ * Используется для перевода логических координат в тайловую СК и обратно.
+ */
 typedef struct
 {
   gdouble min_x;
@@ -42,44 +53,58 @@ struct _HyScanGtkMapTileClass
 };
 
 HYSCAN_API
-GType                  hyscan_gtk_map_tile_get_type         (void);
+GType                  hyscan_gtk_map_tile_get_type           (void);
 
 HYSCAN_API
-HyScanGtkMapTile *     hyscan_gtk_map_tile_new              (guint              x,
-                                                             guint              y,
-                                                             guint              z,
-                                                             guint              size);
+HyScanGtkMapTile *     hyscan_gtk_map_tile_new                (guint                 x,
+                                                               guint                 y,
+                                                               guint                 z,
+                                                               guint                 size);
 
 HYSCAN_API
-guint                  hyscan_gtk_map_tile_get_x            (HyScanGtkMapTile *tile);
+guint                  hyscan_gtk_map_tile_get_x              (HyScanGtkMapTile     *tile);
 
 HYSCAN_API
-guint                  hyscan_gtk_map_tile_get_y            (HyScanGtkMapTile *tile);
+guint                  hyscan_gtk_map_tile_get_y              (HyScanGtkMapTile     *tile);
 
 HYSCAN_API
-guint                  hyscan_gtk_map_tile_get_zoom         (HyScanGtkMapTile *tile);
+guint                  hyscan_gtk_map_tile_get_zoom           (HyScanGtkMapTile     *tile);
 
 HYSCAN_API
-guint                  hyscan_gtk_map_tile_get_size         (HyScanGtkMapTile *tile);
+guint                  hyscan_gtk_map_tile_get_size           (HyScanGtkMapTile     *tile);
 
 HYSCAN_API
-gboolean               hyscan_gtk_map_tile_set_pixbuf       (HyScanGtkMapTile *tile,
-                                                             GdkPixbuf        *pixbuf);
+gboolean               hyscan_gtk_map_tile_set_pixbuf         (HyScanGtkMapTile     *tile,
+                                                               GdkPixbuf            *pixbuf);
 
 HYSCAN_API
-GdkPixbuf *            hyscan_gtk_map_tile_get_pixbuf       (HyScanGtkMapTile *tile);
+GdkPixbuf *            hyscan_gtk_map_tile_get_pixbuf         (HyScanGtkMapTile     *tile);
 
 HYSCAN_API
-gint                   hyscan_gtk_map_tile_compare          (HyScanGtkMapTile *a,
-                                                             HyScanGtkMapTile *b);
+gint                   hyscan_gtk_map_tile_compare            (HyScanGtkMapTile     *a,
+                                                               HyScanGtkMapTile     *b);
 
 HYSCAN_API
-void                   hyscan_gtk_map_tile_grid_bound       (HyScanGtkMapTileGrid *grid,
-                                                             HyScanGtkMapRect     *region,
-                                                             gint                 *to_tile_x,
-                                                             gint                 *from_tile_x,
-                                                             gint                 *to_tile_y,
-                                                             gint                 *from_tile_y);
+void                   hyscan_gtk_map_tile_grid_bound         (HyScanGtkMapTileGrid *grid,
+                                                               HyScanGtkMapRect     *region,
+                                                               gint                 *from_tile_x,
+                                                               gint                 *to_tile_x,
+                                                               gint                 *from_tile_y,
+                                                               gint                 *to_tile_y);
+
+HYSCAN_API
+void                   hyscan_gtk_map_tile_grid_tile_to_value (HyScanGtkMapTileGrid *grid,
+                                                               gdouble               tile_x,
+                                                               gdouble               tile_y,
+                                                               gdouble              *x_val,
+                                                               gdouble              *y_val);
+
+HYSCAN_API
+void                   hyscan_gtk_map_tile_grid_value_to_tile (HyScanGtkMapTileGrid *grid,
+                                                               gdouble               x_val,
+                                                               gdouble               y_val,
+                                                               gdouble              *x_tile,
+                                                               gdouble              *y_tile);
 
 G_END_DECLS
 

@@ -334,11 +334,12 @@ create_track_layer ()
   hyscan_navigation_model_set_sensor_name (model, GPS_SENSOR_NAME);
 
   cache = hyscan_cached_new (100);
+  // cache = NULL;
   layer = hyscan_gtk_map_track_layer_new (model, HYSCAN_CACHE (cache));
 
   g_object_unref (device);
   g_object_unref (model);
-  g_object_unref (cache);
+  g_clear_object (&cache);
 
   return layer;
 }

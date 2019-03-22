@@ -113,7 +113,7 @@ hyscan_gtk_map_control_scroll (HyScanGtkMapControl *control,
   else
     return FALSE;
 
-  scale_idx = hyscan_gtk_map_get_scale_idx (map);
+  scale_idx = hyscan_gtk_map_get_scale_idx (map, NULL);
   scale_idx += dscale;
 
   gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (map), event->x, event->y, &center_x, &center_y);

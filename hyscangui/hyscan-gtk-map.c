@@ -624,6 +624,35 @@ hyscan_gtk_map_set_scales (HyScanGtkMap  *map,
 }
 
 /**
+ * hyscan_gtk_map_get_scales:
+ * @map: указатель на виджет карты #HyScanGtkMap
+ * @scales_len: длина массива масштабов
+ *
+ * Возвращает массив допустимых масштабов.
+ *
+ * Returns: (array length=scales_len): массив масштабов. Для удаления g_free()
+ */
+gdouble *
+hyscan_gtk_map_get_scales (HyScanGtkMap *map,
+                           guint        *scales_len)
+{
+  HyScanGtkMapPrivate *priv;
+  gdouble *scales;
+  guint i;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), NULL);
+  priv = map->priv;
+
+  scales = g_new (gdouble, map->priv->scales_len);
+  for (i = 0; i < priv->scales_len; ++i)
+    scales[i] = priv->scales[i];
+
+  *scales_len = priv->scales_len;
+
+  return scales;
+}
+
+/**
  * hyscan_gtk_map_get_scale_idx:
  * @map: указатель на виджет карты #HyScanGtkMap
  *
@@ -632,15 +661,18 @@ hyscan_gtk_map_set_scales (HyScanGtkMap  *map,
  * Returns: индекс текущего масштаба или -1 в случае ошибки
  */
 gint
-hyscan_gtk_map_get_scale_idx (HyScanGtkMap *map)
+hyscan_gtk_map_get_scale_idx (HyScanGtkMap *map,
+                              gdouble      *scale)
 {
-  gdouble scale;
+  gdouble _scale;
   gint idx;
 
   g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), -1);
 
-  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (map), &scale, NULL);
-  hyscan_gtk_map_find_closest_scale (map, scale, &idx);
+  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (map), &_scale, NULL);
+  hyscan_gtk_map_find_closest_scale (map, _scale, &idx);
+
+  (scale != NULL) ? *scale = _scale : 0;
 
   return idx;
 }

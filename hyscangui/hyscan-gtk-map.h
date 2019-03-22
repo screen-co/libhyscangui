@@ -85,13 +85,18 @@ void                   hyscan_gtk_map_set_scales      (HyScanGtkMap            *
                                                        gsize                    scales_len);
 
 HYSCAN_API
-gint                   hyscan_gtk_map_get_scale_idx   (HyScanGtkMap            *map);
+gint                   hyscan_gtk_map_get_scale_idx   (HyScanGtkMap            *map,
+                                                       gdouble                 *scale);
 
 HYSCAN_API
 void                   hyscan_gtk_map_set_scale_idx   (HyScanGtkMap            *map,
                                                        guint                    idx,
                                                        gdouble                  center_x,
                                                        gdouble                  center_y);
+
+HYSCAN_API
+gdouble *              hyscan_gtk_map_get_scales      (HyScanGtkMap            *map,
+                                                       guint                   *scales_len);
 
 HYSCAN_API
 void                   hyscan_gtk_map_point_to_geo     (HyScanGtkMap           *map,
