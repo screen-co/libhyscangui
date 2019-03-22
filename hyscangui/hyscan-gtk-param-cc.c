@@ -70,7 +70,7 @@ static void        hyscan_gtk_param_cc_plist_adder          (gpointer           
 static void        hyscan_gtk_param_cc_row_activated        (GtkListBox                  *box,
                                                              GtkListBoxRow               *row,
                                                              gpointer                     udata);
-static void        hyscan_gtk_param_cc_make_level0          (HyScanGtkParamCC            *self,
+static gboolean    hyscan_gtk_param_cc_make_level0          (HyScanGtkParamCC            *self,
                                                              GHashTable                  *widgets);
 static GtkWidget * hyscan_gtk_param_cc_make_level1          (const HyScanDataSchemaNode  *node,
                                                              GHashTable                  *widgets,
@@ -126,7 +126,8 @@ hyscan_gtk_param_cc_object_constructed (GObject *object)
 
   widgets = hyscan_gtk_param_get_widgets (HYSCAN_GTK_PARAM (self));
 
-  hyscan_gtk_param_cc_make_level0 (self, widgets);
+  if (!hyscan_gtk_param_cc_make_level0 (self, widgets))
+    return;
 
   {
     GtkListBoxRow *row;
@@ -173,9 +174,9 @@ hyscan_gtk_param_cc_row_activated (GtkListBox    *box,
 }
 
 /* Функция создает виджет нулевого уровня (ключи + все виджеты 1 уровня). */
-static void
-hyscan_gtk_param_cc_make_level0 (HyScanGtkParamCC *self,
-                                 GHashTable       *widgets)
+static gboolean
+hyscan_gtk_param_cc_make_level0 (HyScanGtkParamCC           *self,
+                                 GHashTable                 *widgets)
 {
   HyScanGtkParamCCPrivate *priv = self->priv;
   const HyScanDataSchemaNode *node;
@@ -186,6 +187,12 @@ hyscan_gtk_param_cc_make_level0 (HyScanGtkParamCC *self,
 
   node = hyscan_gtk_param_get_nodes (HYSCAN_GTK_PARAM (self));
   show_hidden = hyscan_gtk_param_get_show_hidden (HYSCAN_GTK_PARAM (self));
+
+  if (node == NULL)
+    {
+      g_warning ("HyScanGtkParamCC: nothing to show.");
+      return FALSE;
+    }
 
   /* Ключи этого уровня. */
   plist = hyscan_param_list_new ();
@@ -218,6 +225,7 @@ hyscan_gtk_param_cc_make_level0 (HyScanGtkParamCC *self,
       g_clear_object (&plist);
     }
 
+  return TRUE;
 }
 
 /* Функция создает виджет 1 уровня (текущие ключи + ключи 2 уровня). */
