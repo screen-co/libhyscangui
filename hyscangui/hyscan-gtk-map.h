@@ -53,7 +53,7 @@ HYSCAN_API
 GType                  hyscan_gtk_map_get_type         (void);
 
 HYSCAN_API
-GtkWidget *            hyscan_gtk_map_new              (HyScanGeoProjection    *projection);
+GtkWidget *            hyscan_gtk_map_new              (HyScanGeoGeodetic      *center);
 
 HYSCAN_API
 void                   hyscan_gtk_map_set_projection   (HyScanGtkMap           *map,

@@ -23,7 +23,6 @@ static gboolean yandex_projection = FALSE;   /* Использовать кар�
 static guint tile_url_preset = 0;
 static gchar *tile_url_format;
 
-static HyScanGtkMap *map;
 static HyScanMapProfile *profiles[8];
 static GtkContainer *layer_toolbox;
 void   (*layer_toolbox_cb) (GtkContainer   *container,
@@ -66,6 +65,7 @@ on_row_select (GtkListBox    *box,
                GtkListBoxRow *row,
                gpointer       user_data)
 {
+  HyScanGtkMap *map = HYSCAN_GTK_MAP (user_data);
   HyScanGtkLayer *layer;
 
   gtk_container_foreach (layer_toolbox, (GtkCallback) gtk_widget_destroy, NULL);
@@ -163,6 +163,7 @@ void
 on_profile_change (GtkComboBoxText *widget,
                    gpointer         user_data)
 {
+  HyScanGtkMap *map = HYSCAN_GTK_MAP (user_data);
   gint index;
 
   index = gtk_combo_box_get_active (GTK_COMBO_BOX (widget));
@@ -171,6 +172,82 @@ on_profile_change (GtkComboBoxText *widget,
     return;
 
   hyscan_map_profile_apply (profiles[index], map);
+}
+
+/* Слой с треком движения. */
+HyScanGtkMapTrackLayer *
+create_track_layer ()
+{
+  HyScanNavigationModel *model;
+  HyScanNmeaFileDevice *device;
+  HyScanGtkMapTrackLayer *layer;
+  HyScanCached *cache;
+
+  if (track_file == NULL)
+    return NULL;
+
+  device = hyscan_nmea_file_device_new (GPS_SENSOR_NAME, track_file);
+  hyscan_sensor_set_enable (HYSCAN_SENSOR (device), GPS_SENSOR_NAME, TRUE);
+
+  model = hyscan_navigation_model_new ();
+  hyscan_navigation_model_set_sensor (model, HYSCAN_SENSOR (device));
+  hyscan_navigation_model_set_sensor_name (model, GPS_SENSOR_NAME);
+
+  cache = hyscan_cached_new (100);
+  // cache = NULL;
+  layer = hyscan_gtk_map_track_layer_new (model, HYSCAN_CACHE (cache));
+
+  g_object_unref (device);
+  g_object_unref (model);
+  g_clear_object (&cache);
+
+  return layer;
+}
+
+HyScanGtkMap *
+create_map (HyScanGtkMapRuler      **ruler,
+            HyScanGtkMapPinLayer   **pin_layer,
+            HyScanGtkMapTrackLayer **track_layer,
+            HyScanGtkMapGrid       **map_grid)
+{
+  HyScanGtkMap *map;
+  gdouble *scales;
+  gint scales_len;
+
+  map = HYSCAN_GTK_MAP (hyscan_gtk_map_new (&center));
+
+  /* Устанавливаем допустимые масштабы. */
+  scales = hyscan_gtk_map_create_scales2 (1.0 / 10, HYSCAN_GTK_MAP_EQUATOR_LENGTH / 1000, 4, &scales_len);
+  hyscan_gtk_map_set_scales (map, scales, scales_len);
+  g_free (scales);
+
+  /* Добавляем слои. */
+  {
+    HyScanGtkMapControl *control;
+
+    control = hyscan_gtk_map_control_new ();
+    *map_grid = hyscan_gtk_map_grid_new ();
+    *ruler = hyscan_gtk_map_ruler_new ();
+    *pin_layer = hyscan_gtk_map_pin_layer_new ();
+    *track_layer = create_track_layer ();
+
+    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (control),     "control");
+
+    if (*track_layer != NULL)
+      hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (*track_layer), "track");
+
+    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (*pin_layer),   "pin");
+    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (*ruler),       "ruler");
+    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (*map_grid),    "grid");
+
+    g_object_unref (control);
+  }
+
+  /* Чтобы виджет карты занял всё доступное место. */
+  gtk_widget_set_hexpand (GTK_WIDGET(map), TRUE);
+  gtk_widget_set_vexpand (GTK_WIDGET(map), TRUE);
+
+  return map;
 }
 
 /* Кнопки управления виджетом. */
@@ -232,7 +309,7 @@ create_control_box (HyScanGtkMap           *map,
                                           "webmerc", 0, 19);
 
 
-    g_signal_connect (ctrl_widget, "changed", G_CALLBACK (on_profile_change), NULL);
+    g_signal_connect (ctrl_widget, "changed", G_CALLBACK (on_profile_change), map);
     gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
 
     gtk_combo_box_set_active (GTK_COMBO_BOX (ctrl_widget), 0);
@@ -262,7 +339,7 @@ create_control_box (HyScanGtkMap           *map,
     add_layer_row (GTK_LIST_BOX (list_box), "Булавка", HYSCAN_GTK_LAYER (pin_layer));
     if (track_layer != NULL)
       add_layer_row (GTK_LIST_BOX (list_box), "Трек", HYSCAN_GTK_LAYER (track_layer));
-    g_signal_connect (list_box, "row-selected", G_CALLBACK (on_row_select), NULL);
+    g_signal_connect (list_box, "row-selected", G_CALLBACK (on_row_select), map);
 
     gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Слои"));
     gtk_container_add (GTK_CONTAINER (ctrl_box), list_box);
@@ -314,43 +391,13 @@ create_control_box (HyScanGtkMap           *map,
   return ctrl_box;
 }
 
-/* Слой с треком движения. */
-HyScanGtkMapTrackLayer *
-create_track_layer ()
-{
-  HyScanNavigationModel *model;
-  HyScanNmeaFileDevice *device;
-  HyScanGtkMapTrackLayer *layer;
-  HyScanCached *cache;
-
-  if (track_file == NULL)
-    return NULL;
-
-  device = hyscan_nmea_file_device_new (GPS_SENSOR_NAME, track_file);
-  hyscan_sensor_set_enable (HYSCAN_SENSOR (device), GPS_SENSOR_NAME, TRUE);
-
-  model = hyscan_navigation_model_new ();
-  hyscan_navigation_model_set_sensor (model, HYSCAN_SENSOR (device));
-  hyscan_navigation_model_set_sensor_name (model, GPS_SENSOR_NAME);
-
-  cache = hyscan_cached_new (100);
-  // cache = NULL;
-  layer = hyscan_gtk_map_track_layer_new (model, HYSCAN_CACHE (cache));
-
-  g_object_unref (device);
-  g_object_unref (model);
-  g_clear_object (&cache);
-
-  return layer;
-}
-
 int main (int     argc,
           gchar **argv)
 {
   GtkWidget *window;
   GtkWidget *grid;
 
-  HyScanGtkMapControl *control;
+  HyScanGtkMap *map;
   HyScanGtkMapRuler *ruler;
   HyScanGtkMapPinLayer *pin_layer;
   HyScanGtkMapTrackLayer *track_layer;
@@ -391,26 +438,7 @@ int main (int     argc,
     g_option_context_free (context);
   }
 
-  /* Добавляем слои. */
-  {
-    map = HYSCAN_GTK_MAP (hyscan_gtk_map_new (NULL));
-
-    control = hyscan_gtk_map_control_new ();
-    map_grid = hyscan_gtk_map_grid_new ();
-    ruler = hyscan_gtk_map_ruler_new ();
-    pin_layer = hyscan_gtk_map_pin_layer_new ();
-    track_layer = create_track_layer ();
-
-    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (control),     "control");
-
-    if (track_layer != NULL)
-      hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (track_layer), "track");
-
-    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (pin_layer),   "pin");
-    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (ruler),       "ruler");
-    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (map_grid),    "grid");
-  }
-
+  /* Grid-виджет. */
   grid = gtk_grid_new ();
   gtk_grid_set_row_spacing (GTK_GRID (grid), 20);
   gtk_grid_set_column_spacing (GTK_GRID (grid), 20);
@@ -419,13 +447,11 @@ int main (int     argc,
   gtk_widget_set_margin_top (grid, 20);
   gtk_widget_set_margin_bottom (grid, 20);
 
-  gtk_widget_set_hexpand (GTK_WIDGET(map), TRUE);
-  gtk_widget_set_vexpand (GTK_WIDGET(map), TRUE);
-
   /* Добавляем виджет карты в окно. */
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_window_set_default_size (GTK_WINDOW (window), 800, 600);
 
+  map = create_map (&ruler, &pin_layer, &track_layer, &map_grid);
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (map), 0, 0, 1, 1);
   gtk_grid_attach (GTK_GRID (grid), create_control_box (map, ruler, pin_layer, track_layer, map_grid), 1, 0, 1, 1);
 
@@ -434,27 +460,12 @@ int main (int     argc,
 
   gtk_widget_show_all (window);
 
-  gtk_cifro_area_set_view (GTK_CIFRO_AREA (map), 0, 10, 0, 10);
-
-  /* Устанавливаем допустимые масштабы. */
-  {
-    gdouble *scales;
-    gint scales_len;
-
-    scales = hyscan_gtk_map_create_scales2 (1.0 / 10, HYSCAN_GTK_MAP_EQUATOR_LENGTH / 1000, 4, &scales_len);
-    hyscan_gtk_map_set_scales (map, scales, scales_len);
-    g_free (scales);
-  }
-
-  hyscan_gtk_map_move_to (map, center);
-
   /* Main loop. */
   gtk_main ();
 
   /* Освобождаем память. */
   g_clear_object (&map_grid);
   g_clear_object (&ruler);
-  g_clear_object (&control);
   g_clear_object (&pin_layer);
   g_clear_object (&track_layer);
   g_free (tiles_dir);

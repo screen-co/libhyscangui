@@ -18,6 +18,7 @@
  */
 
 #include "hyscan-gtk-map.h"
+#include <hyscan-pseudo-mercator.h>
 #include <math.h>
 
 #define DEFAULT_PPI 96.0
@@ -26,6 +27,7 @@
 enum
 {
   PROP_O,
+  PROP_INIT_CENTER,
   PROP_PROJECTION,
   PROP_LAST
 };
@@ -34,6 +36,8 @@ struct _HyScanGtkMapPrivate
 {
   HyScanGeoProjection     *projection;           /* Картографическая проекция поверхности Земли на плоскость карты. */
   gfloat                   ppi;                  /* PPI экрана. */
+
+  HyScanGeoGeodetic       init_center;           /* Географическая координата центра карты при инициализации. */
 
   gdouble                 *scales;               /* Массив доступных масштабов, упорядоченный по возрастанию. */
   gsize                    scales_len;           /* Длина массива scales. */
@@ -106,12 +110,14 @@ hyscan_gtk_map_class_init (HyScanGtkMapClass *klass)
   /* Сигналы GTKWidget. */
   widget_class->configure_event = hyscan_gtk_map_configure;
 
-
   pspec = g_param_spec_object ("projection", "Projection", "HyScanGeoProjection", HYSCAN_TYPE_GEO_PROJECTION,
                                G_PARAM_WRITABLE | G_PARAM_READABLE);
   g_object_class_install_property (object_class, PROP_PROJECTION, pspec);
   hyscan_gtk_map_properties[PROP_PROJECTION] = pspec;
 
+  pspec = g_param_spec_pointer ("init-center", "Initial Center", "HyScanGeoGeodetic",
+                                G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY);
+  g_object_class_install_property (object_class, PROP_INIT_CENTER, pspec);
 }
 
 static gboolean
@@ -155,6 +161,18 @@ hyscan_gtk_map_init (HyScanGtkMap *gtk_map)
   gtk_map->priv = hyscan_gtk_map_get_instance_private (gtk_map);
 }
 
+/* Устанавливает координаты центра карты при ее загрузке. */
+static void
+hyscan_gtk_map_set_init_center (HyScanGtkMapPrivate *priv,
+                                HyScanGeoGeodetic   *center)
+{
+  if (center == NULL)
+    return;
+
+  priv->init_center.lat = center->lat;
+  priv->init_center.lon = center->lon;
+}
+
 static void
 hyscan_gtk_map_set_property (GObject      *object,
                              guint         prop_id,
@@ -167,7 +185,11 @@ hyscan_gtk_map_set_property (GObject      *object,
   switch (prop_id)
     {
     case PROP_PROJECTION:
-      priv->projection = g_value_dup_object (value);
+      hyscan_gtk_map_set_projection (gtk_map, g_value_get_object (value));
+      break;
+
+    case PROP_INIT_CENTER:
+      hyscan_gtk_map_set_init_center (priv, g_value_get_pointer (value));
       break;
 
     default:
@@ -176,13 +198,54 @@ hyscan_gtk_map_set_property (GObject      *object,
     }
 }
 
+/* Инициализирует область просмотра карты и, следовательно, масштаб. */
+static gboolean
+hyscan_gtk_map_init_view (GtkWidget         *widget,
+                          GdkEventConfigure *event)
+{
+  HyScanGtkMap *map = HYSCAN_GTK_MAP (widget);
+  HyScanGtkMapPrivate *priv = map->priv;
+
+  guint width, height;
+
+  HyScanGeoGeodetic coord;
+  gdouble from_x, to_x, from_y, to_y;
+  gdouble view_size = .005;
+
+  /* При нулевых размерах виджета инициализироваться не выйдет. */
+  gtk_cifro_area_get_visible_size (GTK_CIFRO_AREA (map), &width, &height);
+  if (width == 0 || height == 0)
+    return FALSE;
+
+  coord = priv->init_center;
+  coord.lat -= view_size;
+  coord.lon -= view_size;
+  hyscan_gtk_map_geo_to_value (map, coord, &from_x, &from_y);
+
+  coord = priv->init_center;
+  coord.lat += view_size;
+  coord.lon += view_size;
+  hyscan_gtk_map_geo_to_value (map, coord, &to_x, &to_y);
+  gtk_cifro_area_set_view (GTK_CIFRO_AREA (map), from_x, to_x, from_y, to_y);
+
+  /* Отключаем этот обработчик, т.к. инициализируемся только раз. */
+  g_signal_handlers_disconnect_by_func (widget, hyscan_gtk_map_init_view, NULL);
+
+  return FALSE;
+}
+
 static void
 hyscan_gtk_map_object_constructed (GObject *object)
 {
   HyScanGtkMap *gtk_map = HYSCAN_GTK_MAP (object);
+  HyScanGtkMapPrivate *priv = gtk_map->priv;
   gdouble scales[] = { 1.0 };
 
   G_OBJECT_CLASS (hyscan_gtk_map_parent_class)->constructed (object);
+
+  g_signal_connect_after (gtk_map, "configure-event", G_CALLBACK (hyscan_gtk_map_init_view), NULL);
+
+  priv->projection = hyscan_pseudo_mercator_new ();
   hyscan_gtk_map_set_scales (gtk_map, scales, G_N_ELEMENTS (scales));
 }
 
@@ -289,17 +352,17 @@ hyscan_gtk_map_get_limits (GtkCifroArea *carea,
 
 /**
  * hyscan_gtk_map_new:
- * @projection: указатель на картографическую проекцию #HyScanGeoProjection
+ * @center: (nullable): указатель на структуру с геокоординатами центра карты
  *
  * Создаёт новый виджет #HyScanGtkMap для отображения географической карты.
  *
  * Returns: указатель на #HyScanGtkMap
  */
 GtkWidget *
-hyscan_gtk_map_new (HyScanGeoProjection *projection)
+hyscan_gtk_map_new (HyScanGeoGeodetic   *center)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP,
-                       "projection", projection, NULL);
+                       "init-center", center, NULL);
 }
 
 /* Определяет размер карты в единицах проекции. */
@@ -307,9 +370,6 @@ static gdouble
 hyscan_gtk_map_get_logic_size (HyScanGtkMapPrivate *priv)
 {
   gdouble min_x, max_x;
-
-  if (priv->projection == NULL)
-    return 1.0;
 
   hyscan_geo_projection_get_limits (priv->projection, &min_x, &max_x, NULL, NULL);
   return max_x - min_x;
@@ -343,38 +403,31 @@ hyscan_gtk_map_set_projection_real (HyScanGtkMapPrivate *priv,
  *
  * Устанавливает новую проекцию в карте, сохраняя географические координаты
  * видимой области карты. Все слои будут оповещены об этом событии с помощью
- * сигнала
+ * сигнала "notify::projection".
  */
 void
 hyscan_gtk_map_set_projection (HyScanGtkMap        *map,
                                HyScanGeoProjection *projection)
 {
   HyScanGtkMapPrivate *priv;
+  gdouble from_x, to_x, from_y, to_y;
+  HyScanGeoGeodetic from_geo, to_geo;
 
   g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
+  g_return_if_fail (projection != NULL);
   priv = map->priv;
 
-  /* Если уже установлена какая-то проекция, то надо сохранить область просмотра. */
-  if (priv->projection != NULL)
-    {
-      gdouble from_x, to_x, from_y, to_y;
-      HyScanGeoGeodetic from_geo, to_geo;
+  /* Получаем текущие границы просмотра в географических координатах. */
+  gtk_cifro_area_get_view (GTK_CIFRO_AREA (map), &from_x, &to_x, &from_y, &to_y);
+  hyscan_gtk_map_value_to_geo (map, &from_geo, from_x, from_y);
+  hyscan_gtk_map_value_to_geo (map, &to_geo, to_x, to_y);
 
-      /* Получаем текущие границы просмотра в географических координатах. */
-      gtk_cifro_area_get_view (GTK_CIFRO_AREA (map), &from_x, &to_x, &from_y, &to_y);
-      hyscan_gtk_map_value_to_geo (map, &from_geo, from_x, from_y);
-      hyscan_gtk_map_value_to_geo (map, &to_geo, to_x, to_y);
+  /* Меняем проекцию и восстанавливаем границы просмотра. */
+  hyscan_gtk_map_set_projection_real (priv, projection);
 
-      /* Меняем проекцию и восстанавливаем границы просмотра. */
-      hyscan_gtk_map_set_projection_real (priv, projection);
-      hyscan_gtk_map_geo_to_value (map, from_geo, &from_x, &from_y);
-      hyscan_gtk_map_geo_to_value (map, to_geo, &to_x, &to_y);
-      gtk_cifro_area_set_view (GTK_CIFRO_AREA (map), from_x, to_x, from_y, to_y);
-    }
-  else
-    {
-      hyscan_gtk_map_set_projection_real (priv, projection);
-    }
+  hyscan_gtk_map_geo_to_value (map, from_geo, &from_x, &from_y);
+  hyscan_gtk_map_geo_to_value (map, to_geo, &to_x, &to_y);
+  gtk_cifro_area_set_view (GTK_CIFRO_AREA (map), from_x, to_x, from_y, to_y);
 
   /* Оповещаем подписчиков об изменении проекции. */
   g_object_notify_by_pspec (G_OBJECT (map), hyscan_gtk_map_properties[PROP_PROJECTION]);
