@@ -243,7 +243,7 @@ hyscan_navigation_model_parse_lat_lon (const gchar *sentence,
   min = val - deg * 100;     /* 30.671 */
   min /= 60.0;               /* 30.671 -> 0.5111 */
   val = deg + min;           /* 55.511 */
-
+g_message ("Sentence: %s end %s", sentence, end);
   side = *(end + 1);
 
   /* Южное и западное полушарие со знаком минус. */
