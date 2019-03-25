@@ -415,10 +415,18 @@ hyscan_gtk_waterfall_control_mouse_wheel (GtkWidget                 *widget,
       gint step = height / 10;
       step *= (event->direction == GDK_SCROLL_UP) ? 1 : -1;
 
-      if (priv->display_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN)
-        gtk_cifro_area_move (carea, 0, step);
-      else /*if (priv->display_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER)*/
-        gtk_cifro_area_move (carea, -step, 0);
+      if (priv->display_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN ||
+          (priv->display_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER &&
+          (event->state & GDK_SHIFT_MASK)))
+        {
+          gtk_cifro_area_move (carea, 0, step);
+        }
+      else if (priv->display_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER ||
+               (priv->display_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN &&
+               (event->state & GDK_SHIFT_MASK)))
+        {
+          gtk_cifro_area_move (carea, -step, 0);
+        }
 
       if (IS_TO_START_SCROLL (event->direction, priv->display_type))
         hyscan_gtk_waterfall_automove (priv->wfall, FALSE);
