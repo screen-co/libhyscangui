@@ -56,9 +56,16 @@
 #include "hyscan-navigation-model.h"
 #include "hyscan-gui-marshallers.h"
 
-#define FIX_MIN_DELTA       0.1    /* Минимальное время между двумя фиксациями положения. */
-#define SMOOTHING_TIME      1.5    /* Время сглаживаения ошибок экстраполяции. */
-#define MAX_EXTRAPOLATE     3.0    /* Время отсутствия сигнала, после которого движение останавливается. */
+#define FIX_MIN_DELTA              0.1    /* Минимальное время между двумя фиксациями положения. */
+#define DELAY_TIME                 1.0    /* Время задержки вывода данных. */
+
+#define MERIDIAN_LENGTH            20003930                                     /* Длина меридиана, метры. */
+#define NAUTICAL_MILE              1852                                         /* Морская миля, метры. */
+
+#define DEG2RAD(deg) (deg / 180.0 * G_PI)
+#define KNOTS2ANGLE(knots, arc)  (180.0 / (arc) * (knots) * NAUTICAL_MILE / 3600)
+#define KNOTS2LAT(knots)       KNOTS2ANGLE (knots, MERIDIAN_LENGTH)
+#define KNOTS2LON(knots, lat)  KNOTS2ANGLE (knots, MERIDIAN_LENGTH * cos (DEG2RAD (lat)))
 
 enum
 {
@@ -76,15 +83,11 @@ enum
 /* Параметры экстраполяции. */
 typedef struct
 {
-  gdouble s0;         /* Начальное значение. */
-  gdouble v0;         /* Скорость - первая производная. */
-  gdouble a0;         /* Ускорение - вторая производная. */
-
-  /* Коэффициенты функции коррекции ошибки. */
-  gdouble c0;         /* Коэффициент C0. */
-  gdouble c1;         /* Коэффициент C1. */
-  gdouble c2;         /* Коэффициент C2. */
-  gdouble c3;         /* Коэффициент C3. */
+  gdouble a;
+  gdouble b;
+  gdouble c;
+  gdouble d;
+  gdouble c_speed;
 } HyScanNavigationModelExParams;
 
 typedef struct
@@ -97,6 +100,9 @@ typedef struct
 typedef struct
 {
   HyScanGeoGeodetic  coord;              /* Зафиксированные географические координаты. */
+  gdouble            speed;              /* Скорость движения. */
+  gdouble            speed_lat;          /* Скорость движения по широте. */
+  gdouble            speed_lon;          /* Скорость движения по долготе. */
   gdouble            time;               /* Время фиксации (по датчику). */
 } HyScanNavigationModelFix;
 
@@ -281,6 +287,9 @@ hyscan_navigation_model_fix_copy (HyScanNavigationModelFix *fix)
   copy->coord.lon = fix->coord.lon;
   copy->coord.lat = fix->coord.lat;
   copy->coord.h = fix->coord.h;
+  copy->speed = fix->speed;
+  copy->speed_lon = fix->speed_lon;
+  copy->speed_lat = fix->speed_lat;
   copy->time = fix->time;
 
   return copy;
@@ -336,6 +345,9 @@ hyscan_navigation_model_read_rmc (HyScanNavigationModel      *model,
   if (!hyscan_navigation_model_parse_lat_lon (words[5], &fix->coord.lon))
     return FALSE;
 
+  if (!hyscan_navigation_model_parse_value (words[7], &fix->speed))
+    return FALSE;
+
   if (!hyscan_navigation_model_parse_value (words[8], &fix->coord.h))
     return FALSE;
 
@@ -368,6 +380,20 @@ hyscan_navigation_model_read_sentence (HyScanNavigationModel *model,
       GList *last_fix_l;
       HyScanNavigationModelFix *last_fix = NULL;
 
+      /* Расчитываем скорости по широте и долготе. */
+      if (fix.speed > 0)
+        {
+          gdouble bearing = DEG2RAD (fix.coord.h);
+
+          fix.speed_lat = KNOTS2LAT (fix.speed * cos (bearing));
+          fix.speed_lon = KNOTS2LON (fix.speed * sin (bearing), fix.coord.lat);
+        }
+      else
+        {
+          fix.speed_lat = 0;
+          fix.speed_lon = 0;
+        }
+
       g_mutex_lock (&priv->fixes_lock);
 
       /* Находим последний фикс. */
@@ -383,7 +409,7 @@ hyscan_navigation_model_read_sentence (HyScanNavigationModel *model,
 
           /* При поступлении первого фикса запоминаем timer_offset. */
           if (last_fix == NULL)
-            priv->timer_offset = fix.time - g_timer_elapsed (priv->timer, NULL);
+            priv->timer_offset = fix.time - g_timer_elapsed (priv->timer, NULL) - DELAY_TIME;
         }
 
       /* Удаляем из списка старые данные. */
@@ -443,69 +469,18 @@ hyscan_navigation_model_sensor_data (HyScanSensor          *sensor,
 /* Рассчитывает значения параметров экстраполяции. */
 static void
 hyscan_navigation_model_update_expn_params (HyScanNavigationModelExParams *params0,
-                                            HyScanNavigationModelExParams *params1,
-                                            gdouble                        value,
+                                            gdouble                        value0,
+                                            gdouble                        d_value0,
+                                            gdouble                        value_next,
+                                            gdouble                        d_value_next,
                                             gdouble                        dt)
 {
-  gdouble e_s, e_v;
+  params0->a = value0;
+  params0->b = d_value0;
+  params0->d = dt * dt * (d_value0 + d_value_next) - 2 * dt * (value_next - value0);
+  params0->c = 1 / (dt * dt) * (value_next - value0 - d_value0 * dt) - params0->d * dt;
 
-  params0->s0 = value;
-
-  if (params1 == NULL)
-    return;
-
-  params0->v0 = (params0->s0 - params1->s0) / dt;
-  params0->a0 = (params0->v0 - params1->v0) / dt;
-
-  e_s = hyscan_navigation_model_extrapolate_value (params1, MIN (MAX_EXTRAPOLATE, dt), &e_v);
-  e_s = e_s - params0->s0;
-  e_v = e_v - params0->v0;
-
-  params0->c0 = e_s;
-  params0->c1 = e_v;
-  params0->c2 = - (2 * e_v * SMOOTHING_TIME + 3 * e_s) / pow (SMOOTHING_TIME, 2);
-  params0->c3 = (e_v * SMOOTHING_TIME + 2 * e_s) / pow (SMOOTHING_TIME, 3);
-}
-
-/* В момент вызова функции поток должен владеть мутексом fix_lock. */
-static void
-hyscan_navigation_model_update_params (HyScanNavigationModel *model)
-{
-  GList *fix_l;
-  HyScanNavigationModelFix *fix0;
-  HyScanNavigationModelPrivate *priv = model->priv;
-  HyScanNavigationModelParams *params0;
-
-  GList *list_param_l;
-  HyScanNavigationModelParams *params1 = NULL;
-
-  if (priv->fixes_len < 3)
-    return;
-
-  list_param_l = g_list_last (priv->param_list);
-  if (list_param_l != NULL)
-    params1 = list_param_l->data;
-
-  fix_l = g_list_last (priv->fixes);
-  fix0 = fix_l->data;
-
-  /* Считаем производные через конечные разности. Брать большое количество предыдущих точек
-   * и считать больше производныех не имеет смысла, т.к. старые данные менее актуальные. */
-  params0 = g_new0 (HyScanNavigationModelParams, 1);
-  params0->t0 = fix0->time;
-  gdouble dt;
-
-  dt = (params1 == NULL ? 0 : params0->t0 - params1->t0);
-  hyscan_navigation_model_update_expn_params (&params0->lat_params,
-                                              params1 == NULL ? NULL : &params1->lat_params,
-                                              fix0->coord.lat,
-                                              dt);
-  hyscan_navigation_model_update_expn_params (&params0->lon_params,
-                                              params1 == NULL ? NULL : &params1->lon_params,
-                                              fix0->coord.lon,
-                                              dt);
-
-  priv->param_list = g_list_append (priv->param_list, params0);
+  params0->c_speed = (d_value_next - params0->b) / (2 * dt);
 }
 
 /* Экстраполирует значение ex_params на время dt.
@@ -515,28 +490,15 @@ hyscan_navigation_model_extrapolate_value (HyScanNavigationModelExParams *ex_par
                                            gdouble                        dt,
                                            gdouble                       *v)
 {
-  gdouble e_s, e_v;
   gdouble s;
 
-  /* s   - экстраполирует значение по его первой и второй производной на текущем шаге;
-   * e_s - сглаживает значение при переходе с последнего на текущий шаг. */
-  s = ex_params->s0 + ex_params->v0 * dt + 0.5 * ex_params->a0 * dt * dt;
+  s = ex_params->a + ex_params->b * dt + ex_params->c * pow (dt, 2) + ex_params->d * pow (dt, 3);
 
-  if (dt > SMOOTHING_TIME)
-    {
-      e_s = 0;
-      e_v = 0;
-    }
-  else
-    {
-      e_s = ex_params->c3 * dt * dt * dt + ex_params->c2 * dt * dt + ex_params->c1 * dt + ex_params->c0;
-      e_v = 3 * ex_params->c3 * dt * dt + 2 * ex_params->c2 * dt + ex_params->c1;
-    }
+  if (v != NULL)
+    *v = ex_params->b + 2 * ex_params->c * dt + 3 * ex_params->d * pow (dt, 2);
+    // *v = ex_params->b + 2 * ex_params->c_speed * dt;
 
-  /* Производная d(s(t) + e(t)) / dt. */
-  *v = ex_params->v0 + ex_params->a0 * dt + e_v;
-
-  return s + e_s;
+  return s;
 }
 
 /* Экстраполирует реальные данные на указанный момент времени. */
@@ -549,16 +511,22 @@ hyscan_navigation_model_extrapolate (HyScanNavigationModel *model,
   GList *last_params_l;
   HyScanNavigationModelExParams lat_params;
   HyScanNavigationModelExParams lon_params;
+
+  gdouble v_lat, v_lon;
   gdouble dt;
+  gdouble time_end;
 
   /* Получаем актуальные параметры модели. */
   {
     HyScanNavigationModelParams *params;
+    GList *last_fix_l;
+    HyScanNavigationModelFix *last_fix;
 
     g_mutex_lock (&priv->fixes_lock);
 
+    last_fix_l = g_list_last (priv->fixes);
     last_params_l = g_list_last (priv->param_list);
-    if (last_params_l == NULL)
+    if (last_params_l == NULL || last_fix_l == NULL)
       {
         g_mutex_unlock (&priv->fixes_lock);
         return FALSE;
@@ -568,18 +536,21 @@ hyscan_navigation_model_extrapolate (HyScanNavigationModel *model,
     lat_params = params->lat_params;
     lon_params = params->lon_params;
     dt = time - params->t0;
+
+    last_fix = last_fix_l->data;
+    time_end = last_fix->time;
+
     g_mutex_unlock (&priv->fixes_lock);
   }
 
-  if (dt > MAX_EXTRAPOLATE)
+  if (time > time_end)
     return FALSE;
 
   /* При относительно малых расстояних (V * dt << R_{Земли}), чтобы облегчить вычисления,
    * можем использовать (lon, lat) в качестве декартовых координат (x, y). */
-  gdouble v_lat, v_lon;
   geo->lat = hyscan_navigation_model_extrapolate_value (&lat_params, dt, &v_lat);
   geo->lon = hyscan_navigation_model_extrapolate_value (&lon_params, dt, &v_lon);
-  geo->h = atan2 (v_lon, v_lat / cos (geo->lat / 180 * G_PI));
+  geo->h = atan2 (v_lon, v_lat / cos (DEG2RAD (geo->lat)));
 
 
   return TRUE;
@@ -602,6 +573,46 @@ hyscan_navigation_model_process (HyScanNavigationModel *model)
     }
 
   return TRUE;
+}
+
+/* В момент вызова функции поток должен владеть мутексом fix_lock. */
+static void
+hyscan_navigation_model_update_params (HyScanNavigationModel *model)
+{
+  GList *fix_l;
+  HyScanNavigationModelFix *fix_next, *fix0;
+  HyScanNavigationModelPrivate *priv = model->priv;
+  HyScanNavigationModelParams *params0;
+
+  gdouble dt;
+
+  if (priv->fixes_len < 2)
+    return;
+
+  fix_l = g_list_last (priv->fixes);
+  fix_next = fix_l->data;
+  fix0 = fix_l->prev->data;
+
+  /* Считаем производные через конечные разности. Брать большое количество предыдущих точек
+   * и считать больше производных не имеет смысла, т.к. старые данные менее актуальные. */
+  params0 = g_new0 (HyScanNavigationModelParams, 1);
+  params0->t0 = fix0->time;
+
+  dt = fix_next->time - fix0->time;
+  hyscan_navigation_model_update_expn_params (&params0->lat_params,
+                                              fix0->coord.lat,
+                                              fix0->speed_lat,
+                                              fix_next->coord.lat,
+                                              fix_next->speed_lat,
+                                              dt);
+  hyscan_navigation_model_update_expn_params (&params0->lon_params,
+                                              fix0->coord.lon,
+                                              fix0->speed_lon,
+                                              fix_next->coord.lon,
+                                              fix_next->speed_lon,
+                                              dt);
+
+  priv->param_list = g_list_append (priv->param_list, params0);
 }
 
 static void
