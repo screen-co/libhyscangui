@@ -57,6 +57,7 @@
 #include "hyscan-gui-marshallers.h"
 
 #define FIX_MIN_DELTA              0.1    /* Минимальное время между двумя фиксациями положения. */
+#define FIX_MAX_DELTA              2.0    /* Время между двумя фиксами, которое считается обрывом. */
 #define DELAY_TIME                 1.0    /* Время задержки вывода данных. */
 
 #define MERIDIAN_LENGTH            20003930                                     /* Длина меридиана, метры. */
@@ -108,20 +109,22 @@ typedef struct
 
 struct _HyScanNavigationModelPrivate
 {
-  HyScanSensor           *sensor;         /* Система датчиков HyScanSensor. */
-  gchar                  *sensor_name;    /* Название датчика GPS-приёмника. */
-  GMutex                  sensor_lock;    /* Блокировка доступа к полям sensor_. */
+  HyScanSensor                *sensor;         /* Система датчиков HyScanSensor. */
+  gchar                       *sensor_name;    /* Название датчика GPS-приёмника. */
+  GMutex                       sensor_lock;    /* Блокировка доступа к полям sensor_. */
 
-  guint                   interval;       /* Желаемая частота эмитирования сигналов "changed", милисекунды. */
+  guint                        interval;       /* Желаемая частота эмитирования сигналов "changed", милисекунды. */
 
-  GTimer                 *timer;          /* Внутренний таймер. */
-  gdouble                 timer_offset;   /* Разница во времени между таймером и датчиком. */
+  GTimer                      *timer;          /* Внутренний таймер. */
+  gdouble                      timer_offset;   /* Разница во времени между таймером и датчиком. */
+  gboolean                     timer_set;      /* Признак того, что timer_offset установлен. */
 
-  GList                  *fixes;          /* Список последних положений объекта, зафиксированных датчиком. */
-  guint                   fixes_len;      /* Количество элементов в списке. */
-  guint                   fixes_max_len;  /* Сколько последних фиксов необходимо хранить в fixes. */
-  GList                  *param_list;     /* Параметры модели для экстраполяции на каждом участке между фиксами. */
-  GMutex                  fixes_lock;     /* Блокировка доступа к перемееным этой группы. */
+  GList                       *fixes;          /* Список последних положений объекта, зафиксированных датчиком. */
+  guint                        fixes_len;      /* Количество элементов в списке. */
+  guint                        fixes_max_len;  /* Сколько последних фиксов необходимо хранить в fixes. */
+  HyScanNavigationModelParams  params;         /* Параметры модели для экстраполяции на последнем участке. */
+  gboolean                     params_set;     /* Признак того, что параметры установлены. */
+  GMutex                       fixes_lock;     /* Блокировка доступа к перемееным этой группы. */
 };
 
 static void    hyscan_navigation_model_set_property             (GObject               *object,
@@ -401,15 +404,27 @@ hyscan_navigation_model_read_sentence (HyScanNavigationModel *model,
       if (last_fix_l != NULL)
         last_fix = last_fix_l->data;
 
+      /* Обрыв: удаляем из списка старые данные. */
+      if (last_fix != NULL && fix.time - last_fix->time > FIX_MAX_DELTA)
+        {
+          g_list_free_full (priv->fixes, (GDestroyNotify) hyscan_navigation_model_fix_free);
+          priv->fixes_len = 0;
+          priv->fixes = NULL;
+          priv->params_set = FALSE;
+          last_fix = NULL;
+        }
+
       /* Фиксируем данные только если они для нового момента времени. */
-      if (last_fix == NULL || fix.time > last_fix->time + FIX_MIN_DELTA)
+      if (last_fix == NULL || fix.time - last_fix->time > FIX_MIN_DELTA)
         {
           priv->fixes = g_list_append (priv->fixes, hyscan_navigation_model_fix_copy (&fix));
           priv->fixes_len++;
 
           /* При поступлении первого фикса запоминаем timer_offset. */
-          if (last_fix == NULL)
+          if (!priv->timer_set) {
             priv->timer_offset = fix.time - g_timer_elapsed (priv->timer, NULL) - DELAY_TIME;
+            priv->timer_set = TRUE;
+          }
         }
 
       /* Удаляем из списка старые данные. */
@@ -505,10 +520,10 @@ hyscan_navigation_model_extrapolate_value (HyScanNavigationModelExParams *ex_par
 static gboolean
 hyscan_navigation_model_extrapolate (HyScanNavigationModel *model,
                                      gdouble                time,
-                                     HyScanGeoGeodetic     *geo)
+                                     HyScanGeoGeodetic     *geo,
+                                     gdouble               *time_delta)
 {
   HyScanNavigationModelPrivate *priv = model->priv;
-  GList *last_params_l;
   HyScanNavigationModelExParams lat_params;
   HyScanNavigationModelExParams lon_params;
 
@@ -518,30 +533,30 @@ hyscan_navigation_model_extrapolate (HyScanNavigationModel *model,
 
   /* Получаем актуальные параметры модели. */
   {
-    HyScanNavigationModelParams *params;
     GList *last_fix_l;
     HyScanNavigationModelFix *last_fix;
 
     g_mutex_lock (&priv->fixes_lock);
 
     last_fix_l = g_list_last (priv->fixes);
-    last_params_l = g_list_last (priv->param_list);
-    if (last_params_l == NULL || last_fix_l == NULL)
+    if (!priv->params_set || last_fix_l == NULL)
       {
         g_mutex_unlock (&priv->fixes_lock);
+        *time_delta = 0;
         return FALSE;
       }
 
-    params = last_params_l->data;
-    lat_params = params->lat_params;
-    lon_params = params->lon_params;
-    dt = time - params->t0;
+    lat_params = priv->params.lat_params;
+    lon_params = priv->params.lon_params;
+    dt = time - priv->params.t0;
 
     last_fix = last_fix_l->data;
     time_end = last_fix->time;
 
     g_mutex_unlock (&priv->fixes_lock);
   }
+
+  *time_delta = dt;
 
   if (time > time_end)
     return FALSE;
@@ -564,13 +579,23 @@ hyscan_navigation_model_process (HyScanNavigationModel *model)
   HyScanGeoGeodetic geo;
 
   gdouble time;
+  gdouble time_delta;
+
+  gboolean extrapolated;
 
   time = g_timer_elapsed (priv->timer, NULL) + priv->timer_offset;
-  if (hyscan_navigation_model_extrapolate (model, time, &geo))
+  extrapolated = hyscan_navigation_model_extrapolate (model, time, &geo, &time_delta);
+  if (extrapolated)
     {
       g_signal_emit (model, hyscan_navigation_model_signals[SIGNAL_CHANGED], 0,
                      time, &geo);
     }
+  else if (time_delta > FIX_MAX_DELTA)
+    {
+      g_signal_emit (model, hyscan_navigation_model_signals[SIGNAL_CHANGED], 0,
+                     time, NULL);
+    }
+
 
   return TRUE;
 }
@@ -582,7 +607,6 @@ hyscan_navigation_model_update_params (HyScanNavigationModel *model)
   GList *fix_l;
   HyScanNavigationModelFix *fix_next, *fix0;
   HyScanNavigationModelPrivate *priv = model->priv;
-  HyScanNavigationModelParams *params0;
 
   gdouble dt;
 
@@ -595,24 +619,22 @@ hyscan_navigation_model_update_params (HyScanNavigationModel *model)
 
   /* Считаем производные через конечные разности. Брать большое количество предыдущих точек
    * и считать больше производных не имеет смысла, т.к. старые данные менее актуальные. */
-  params0 = g_new0 (HyScanNavigationModelParams, 1);
-  params0->t0 = fix0->time;
+  priv->params.t0 = fix0->time;
 
   dt = fix_next->time - fix0->time;
-  hyscan_navigation_model_update_expn_params (&params0->lat_params,
+  hyscan_navigation_model_update_expn_params (&priv->params.lat_params,
                                               fix0->coord.lat,
                                               fix0->speed_lat,
                                               fix_next->coord.lat,
                                               fix_next->speed_lat,
                                               dt);
-  hyscan_navigation_model_update_expn_params (&params0->lon_params,
+  hyscan_navigation_model_update_expn_params (&priv->params.lon_params,
                                               fix0->coord.lon,
                                               fix0->speed_lon,
                                               fix_next->coord.lon,
                                               fix_next->speed_lon,
                                               dt);
-
-  priv->param_list = g_list_append (priv->param_list, params0);
+  priv->params_set = TRUE;
 }
 
 static void
@@ -641,7 +663,6 @@ hyscan_navigation_model_object_finalize (GObject *object)
 
   g_mutex_lock (&priv->fixes_lock);
   g_list_free_full (priv->fixes, (GDestroyNotify) hyscan_navigation_model_fix_free);
-  g_list_free_full (priv->param_list, g_free);
   g_mutex_unlock (&priv->fixes_lock);
   g_mutex_clear (&priv->fixes_lock);
 
