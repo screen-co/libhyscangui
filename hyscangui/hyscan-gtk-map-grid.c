@@ -302,16 +302,32 @@ hyscan_gtk_map_grid_draw_lon (HyScanGtkMapGrid *grid,
   cairo_restore (cairo);
 }
 
-/* Подстройка шага и начала координатной сетки.
- * На основе gtk_cifro_area_get_axis_step(). */
+/* Выравнивает шаги координатной сетки при больших значениях шага. */
 static void
-hyscan_gtk_map_grid_adjust_step (gdouble  step_length,
-                                 gdouble *from,
-                                 gdouble *step,
-                                 gint    *power)
+hyscan_gtk_map_grid_adjust_step_big (gdouble  step_length,
+                                     gdouble *step,
+                                     gint    *power)
+{
+  gdouble steps[]       = { 60.0, 45.0, 30.0, 15.0};
+  gdouble step_limits[] = { 52.5, 37.5, 22.5};
+
+  guint i = 0;
+
+  /* Выбираем один из шагов согласно step_limits. */
+  while (i < G_N_ELEMENTS (step_limits) && step_length < step_limits[i])
+    i++;
+
+  *step = steps[i];
+  *power = 1;
+}
+
+/* Выравнивает шаги координатной сетки при малых значениях шага. */
+static void
+hyscan_gtk_map_grid_adjust_step_small (gdouble  step_length,
+                                       gdouble *step,
+                                       gint    *power)
 {
   gint power_ret;
-  gdouble from_ret;
   gdouble step_ret;
 
   gdouble axis_1_width_delta;
@@ -337,7 +353,7 @@ hyscan_gtk_map_grid_adjust_step (gdouble  step_length,
         }
     }
 
-  if (step_length > 5)
+  if (step_length > 7.5)
     {
       step_length /= 10.0;
       power_ret = power_ret + 1;
@@ -345,16 +361,16 @@ hyscan_gtk_map_grid_adjust_step (gdouble  step_length,
 
   /* Выбираем с каким шагом рисовать сетку: 1, 2 или 5 (плюс их степени). */
 
-  /* Расчитываем разность между размером ячейки для трёх возможных вариантов сетки и
-   * предпочтительным размером ячейки определённым пользователем. */
-  axis_1_width_delta = 1.0 - step_length;
-  axis_2_width_delta = 2.0 - step_length;
-  axis_5_width_delta = 5.0 - step_length;
+  /* Расчитываем отношение размера ячейки для трёх возможных вариантов сетки к
+   * предпочтительному размеру ячейки определённым пользователем. */
+  axis_1_width_delta = 1.0 / step_length;
+  axis_2_width_delta = 2.0 / step_length;
+  axis_5_width_delta = 5.0 / step_length;
 
   /* Расчитываем "вес" каждого варианта. */
-  axis_1_score = (axis_1_width_delta >= 0.0) ? 1.0 / axis_1_width_delta : -0.1 / axis_1_width_delta;
-  axis_2_score = (axis_2_width_delta >= 0.0) ? 1.0 / axis_2_width_delta : -0.1 / axis_2_width_delta;
-  axis_5_score = (axis_5_width_delta >= 0.0) ? 1.0 / axis_5_width_delta : -0.1 / axis_5_width_delta;
+  axis_1_score = (axis_1_width_delta >= 1.0) ? 1.0 / axis_1_width_delta : axis_1_width_delta;
+  axis_2_score = (axis_2_width_delta >= 1.0) ? 1.0 / axis_2_width_delta : axis_2_width_delta;
+  axis_5_score = (axis_5_width_delta >= 1.0) ? 1.0 / axis_5_width_delta : axis_5_width_delta;
 
   if ((axis_1_score > axis_2_score) && (axis_1_score > axis_5_score))
     step_ret = 1.0 * pow (10, power_ret);
@@ -362,6 +378,28 @@ hyscan_gtk_map_grid_adjust_step (gdouble  step_length,
     step_ret = 2.0 * pow (10, power_ret);
   else
     step_ret = 5.0 * pow (10, power_ret);
+
+  *step = step_ret;
+  *power = power_ret;
+}
+
+/* Подстройка шага и начала координатной сетки.
+ * На основе gtk_cifro_area_get_axis_step(). */
+static void
+hyscan_gtk_map_grid_adjust_step (gdouble  step_length,
+                                 gdouble *from,
+                                 gdouble *step,
+                                 gint    *power)
+{
+  gint power_ret;
+  gdouble from_ret;
+  gdouble step_ret;
+
+  /* Для больших шагов делаем естественную для карт разбивку, кратную 15. */
+  if (step_length > 12.5)
+    hyscan_gtk_map_grid_adjust_step_big (step_length, &step_ret, &power_ret);
+  else
+    hyscan_gtk_map_grid_adjust_step_small (step_length, &step_ret, &power_ret);
 
   from_ret = step_ret * floor (*from / step_ret);
   if (from_ret < *from)
@@ -502,7 +540,7 @@ hyscan_gtk_map_grid_draw_grid (HyScanGtkMapGrid *grid,
     gdouble lat_step;
     gdouble lat;
 
-    steps = width / priv->step_width;
+    steps = MAX(1, height / priv->step_width);
 
     /* Определяем границу видимой области по широте. */
     hyscan_gtk_map_value_to_geo (priv->map, &coords1, (from_x + to_x) / 2.0, from_y);
@@ -527,7 +565,7 @@ hyscan_gtk_map_grid_draw_grid (HyScanGtkMapGrid *grid,
     gdouble lon_step;
     gdouble lon;
 
-    steps = height / priv->step_width;
+    steps = MAX (1, width / priv->step_width);
 
     /* Определяем границу видимой области по долготе. */
     hyscan_gtk_map_value_to_geo (priv->map, &coords1, from_x, (from_y + to_y) / 2.0);

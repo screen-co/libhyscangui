@@ -413,7 +413,8 @@ hyscan_gtk_map_track_layer_model_changed (HyScanGtkMapTrackLayer *track_layer,
   hyscan_gtk_map_track_layer_invalidate_cache (track_layer);
   g_mutex_unlock (&priv->track_lock);
 
-  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+  if (hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (track_layer)))
+    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }
 
 /* Создаёт cairo-поверхность с изображением объекта. */
