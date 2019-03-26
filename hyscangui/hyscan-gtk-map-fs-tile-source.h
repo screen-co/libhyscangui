@@ -28,11 +28,12 @@ struct _HyScanGtkMapFsTileSourceClass
   GObjectClass parent_class;
 };
 
-GType hyscan_gtk_map_fs_tile_source_get_type (void);
+HYSCAN_API
+GType                      hyscan_gtk_map_fs_tile_source_get_type (void);
 
 HYSCAN_API
-HyScanGtkMapFsTileSource * hyscan_gtk_map_fs_tile_source_new (const gchar            *dir,
-                                                              HyScanGtkMapTileSource *fb_source);
+HyScanGtkMapFsTileSource * hyscan_gtk_map_fs_tile_source_new      (const gchar            *dir,
+                                                                   HyScanGtkMapTileSource *fb_source);
 
 G_END_DECLS
 

@@ -31,6 +31,7 @@ struct _HyScanGtkLayerContainerClass
   GtkCifroAreaClass parent_class;
 };
 
+HYSCAN_API
 GType                     hyscan_gtk_layer_container_get_type            (void);
 
 HYSCAN_API

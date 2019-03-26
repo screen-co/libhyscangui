@@ -39,7 +39,8 @@ struct _HyScanGeoProjectionInterface
                                                 HyScanGeoGeodetic       coords);
 };
 
-GType hyscan_geo_projection_get_type                  (void);
+HYSCAN_API
+GType                  hyscan_geo_projection_get_type         (void);
 
 
 

@@ -137,13 +137,15 @@ hyscan_task_queue_object_finalize (GObject *object)
     g_queue_free_full (priv->queue, priv->task_free_func);
   else
     g_queue_free (priv->queue);
+  priv->queue = NULL;
 
   g_mutex_unlock (&priv->queue_lock);
-  g_mutex_clear (&priv->queue_lock);
 
   /* Придётся подождать, пока не завершится выполнение уже отправленных задач. */
   g_thread_pool_free (priv->pool, FALSE, TRUE);
   g_object_unref (priv->cancellable);
+
+  g_mutex_clear (&priv->queue_lock);
 
   G_OBJECT_CLASS (hyscan_task_queue_parent_class)->finalize (object);
 }
