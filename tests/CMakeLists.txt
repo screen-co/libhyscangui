@@ -14,6 +14,7 @@ add_executable (mercator-test mercator-test.c)
 add_executable (tile-source-test tile-source-test.c)
 add_executable (nmea-file-device-test nmea-file-device-test.c)
 add_executable (navigation-model-test navigation-model-test.c)
+add_executable (nmea-file2udp nmea-file2udp.c)
 
 target_link_libraries (gtk-area-test ${TEST_LIBRARIES})
 target_link_libraries (gtk-param-test ${TEST_LIBRARIES})
@@ -25,6 +26,7 @@ target_link_libraries (mercator-test ${TEST_LIBRARIES})
 target_link_libraries (tile-source-test ${TEST_LIBRARIES})
 target_link_libraries (nmea-file-device-test ${TEST_LIBRARIES})
 target_link_libraries (navigation-model-test ${TEST_LIBRARIES})
+target_link_libraries (nmea-file2udp ${TEST_LIBRARIES})
 
 install (TARGETS gtk-area-test
          COMPONENT test
