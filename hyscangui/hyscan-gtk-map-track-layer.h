@@ -64,11 +64,15 @@ struct _HyScanGtkMapTrackLayerClass
 };
 
 HYSCAN_API
-GType                    hyscan_gtk_map_track_layer_get_type  (void);
+GType                    hyscan_gtk_map_track_layer_get_type     (void);
 
 HYSCAN_API
-HyScanGtkMapTrackLayer * hyscan_gtk_map_track_layer_new       (HyScanNavigationModel *nav_model,
-                                                               HyScanCache           *cache);
+HyScanGtkMapTrackLayer * hyscan_gtk_map_track_layer_new          (HyScanNavigationModel *nav_model,
+                                                                  HyScanCache           *cache);
+
+HYSCAN_API
+void                     hyscan_gtk_map_track_layer_set_lifetime (HyScanGtkMapTrackLayer *track_layer,
+                                                                  guint64                 lifetime);
 
 G_END_DECLS
 
