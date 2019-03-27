@@ -14,11 +14,14 @@
 #include <hyscan-map-profile.h>
 #include <hyscan-gtk-map-track-layer.h>
 #include <hyscan-nmea-file-device.h>
+#include <hyscan-driver.h>
 
 #define GPS_SENSOR_NAME "my-nmea-sensor"
 
 static gchar *tiles_dir;                     /* Путь к каталогу, где хранятся тайлы. */
 static gchar *track_file;                    /* Путь к файлу с NMEA-строками. */
+static gchar *udp_host;                      /* Хост для подключения к GPS-приемнику. */
+static gint udp_port;                        /* Порт для подключения к GPS-приемнику. */
 static gboolean yandex_projection = FALSE;   /* Использовать карту яндекса. */
 static guint tile_url_preset = 0;
 static gchar *tile_url_format;
@@ -174,19 +177,88 @@ on_profile_change (GtkComboBoxText *widget,
   hyscan_map_profile_apply (profiles[index], map);
 }
 
+/* Подключается к GPS-приемнику по UDP. */
+HyScanDevice *
+load_nmea_udp_device (const gchar *nmea_udp_host,
+                      gint         nmea_udp_port)
+{
+  const gchar *uri = "nmea://udp";
+
+  HyScanDevice *device;
+
+  HyScanDriver *nmea_driver;
+  HyScanDataSchema *connect;
+  HyScanParamList *params;
+
+  const gchar *address_enum_id;
+  GList *addresses, *address;
+
+  nmea_driver = hyscan_driver_new (".", "nmea");
+  if (nmea_driver == NULL)
+    return NULL;
+
+  /* Устанавливаем параметры подключения.  */
+  params = hyscan_param_list_new ();
+
+  /* 1. Адрес. */
+  connect = hyscan_discover_config (HYSCAN_DISCOVER (nmea_driver), uri);
+  address_enum_id = hyscan_data_schema_key_get_enum_id (connect, "/udp/address");
+  addresses = address = hyscan_data_schema_enum_get_values (connect, address_enum_id);
+  while (address != NULL)
+    {
+      HyScanDataSchemaEnumValue *value = address->data;
+
+      if (g_strcmp0 (value->name, nmea_udp_host) == 0)
+        hyscan_param_list_set_enum (params, "/udp/address", value->value);
+
+      address = g_list_next (address);
+    }
+  g_list_free (addresses);
+
+  /* 2. Порт. */
+  if (nmea_udp_port != 0)
+    hyscan_param_list_set_integer (params, "/udp/port", nmea_udp_port);
+
+  /* 3. Имя датчика. */
+  hyscan_param_list_set_string (params, "/name", GPS_SENSOR_NAME);
+
+  g_message ("Connecting to %s:%d", nmea_udp_host, nmea_udp_port);
+
+  device = hyscan_discover_connect (HYSCAN_DISCOVER (nmea_driver), uri, params);
+  if (device == NULL)
+    {
+      g_warning ("NMEA device: connection failed");
+    }
+  else if (!HYSCAN_IS_SENSOR (device))
+    {
+      g_clear_object (&device);
+      g_warning ("NMEA device is not a HyScanSensor");
+    }
+
+  g_object_unref (connect);
+  g_object_unref (params);
+  g_object_unref (nmea_driver);
+
+  return device;
+}
+
 /* Слой с треком движения. */
 HyScanGtkMapTrackLayer *
 create_track_layer ()
 {
   HyScanNavigationModel *model;
-  HyScanNmeaFileDevice *device;
+  HyScanDevice *device = NULL;
   HyScanGtkMapTrackLayer *layer;
   HyScanCached *cache;
 
-  if (track_file == NULL)
+  if (track_file != NULL)
+    device = HYSCAN_DEVICE (hyscan_nmea_file_device_new (GPS_SENSOR_NAME, track_file));
+  else if (udp_host != NULL && udp_port > 0)
+    device = load_nmea_udp_device (udp_host, udp_port);
+
+  if (device == NULL)
     return NULL;
 
-  device = hyscan_nmea_file_device_new (GPS_SENSOR_NAME, track_file);
   hyscan_sensor_set_enable (HYSCAN_SENSOR (device), GPS_SENSOR_NAME, TRUE);
 
   model = hyscan_navigation_model_new ();
@@ -411,6 +483,8 @@ int main (int     argc,
     GOptionContext *context;
     GOptionEntry entries[] =
       {
+        { "udp-host",        'h', 0, G_OPTION_ARG_STRING, &udp_host,          "Listen to UDP host", NULL},
+        { "udp-port",        'P', 0, G_OPTION_ARG_INT,    &udp_port,          "Listen to UDP port", NULL},
         { "track-file",      't', 0, G_OPTION_ARG_STRING, &track_file,        "GPS-track file with NMEA-sentences", NULL },
         { "tile-dir",        'd', 0, G_OPTION_ARG_STRING, &tiles_dir,         "Path to dir containing tiles", NULL },
         { "yandex",          'y', 0, G_OPTION_ARG_NONE,   &yandex_projection, "Use yandex projection", NULL },
@@ -426,8 +500,15 @@ int main (int     argc,
 
     if (!g_option_context_parse (context, &argc, &argv, &error))
       {
-        g_message( error->message);
+        g_message (error->message);
         return -1;
+      }
+
+    if (udp_host != NULL && track_file != NULL)
+      {
+        g_warning ("udp-host and track-file are mutually exclusive options.");
+        g_print ("%s", g_option_context_get_help (context, FALSE, NULL));
+        return 0;
       }
 
     if (tiles_dir == NULL)

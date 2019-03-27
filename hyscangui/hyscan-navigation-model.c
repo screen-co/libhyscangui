@@ -57,7 +57,7 @@
 #include "hyscan-gui-marshallers.h"
 
 #define FIX_MIN_DELTA              0.1    /* Минимальное время между двумя фиксациями положения. */
-#define FIX_MAX_DELTA              2.0    /* Время между двумя фиксами, которое считается обрывом. */
+#define FIX_MAX_DELTA              1.3    /* Время между двумя фиксами, которое считается обрывом. */
 #define DELAY_TIME                 1.0    /* Время задержки вывода данных. */
 
 #define MERIDIAN_LENGTH            20003930                                     /* Длина меридиана, метры. */
