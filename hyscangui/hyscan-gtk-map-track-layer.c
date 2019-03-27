@@ -289,6 +289,7 @@ hyscan_gtk_map_track_layer_object_finalize (GObject *object)
 
   g_mutex_lock (&priv->track_lock);
   g_list_free_full (priv->track, (GDestroyNotify) hyscan_gtk_map_track_layer_point_free);
+  g_clear_pointer (&priv->track_end, hyscan_gtk_map_track_layer_point_free);
   g_mutex_unlock (&priv->track_lock);
 
   g_mutex_clear (&priv->track_lock);
