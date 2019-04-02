@@ -69,9 +69,6 @@
 
 /* Раскомментируйте строку ниже для вывода отладочной информации о скорости отрисовки слоя. */
 // #define HYSCAN_GTK_MAP_DEBUG_FPS
-#ifdef HYSCAN_GTK_MAP_DEBUG_FPS
-#include <stdlib.h>
-#endif
 
 enum
 {
@@ -784,13 +781,22 @@ hyscan_gtk_map_track_layer_fill_tile (HyScanGtkMapTrackLayer     *track_layer,
   tile->params.y_val = y_val;
 
 #ifdef HYSCAN_GTK_MAP_DEBUG_FPS
-  gchar tile_num[100];
-  g_snprintf (tile_num, sizeof (tile_num), "tile %d, %d", tile->x, tile->y);
-  cairo_move_to (tile_cairo, TILE_SIZE / 2.0, TILE_SIZE / 2.0);
-  cairo_set_source_rgba (tile_cairo, (gdouble) rand () / RAND_MAX, (gdouble) rand () / RAND_MAX, (gdouble) rand () / RAND_MAX, 0.1);
-  cairo_paint (tile_cairo);
-  cairo_set_source_rgb (tile_cairo, 0.2, 0.2, 0);
-  cairo_show_text (tile_cairo, tile_num);
+  {
+    GRand *rand;
+    gchar tile_num[100];
+
+    rand = g_rand_new ();
+    g_snprintf (tile_num, sizeof (tile_num), "tile %d, %d", tile->x, tile->y);
+    cairo_move_to (tile_cairo, TILE_SIZE / 2.0, TILE_SIZE / 2.0);
+    cairo_set_source_rgba (tile_cairo,
+                           g_rand_double_range (rand, 0.0, 1.0),
+                           g_rand_double_range (rand, 0.0, 1.0),
+                           g_rand_double_range (rand, 0.0, 1.0),
+                           0.1);
+    cairo_paint (tile_cairo);
+    cairo_set_source_rgb (tile_cairo, 0.2, 0.2, 0);
+    cairo_show_text (tile_cairo, tile_num);
+  }
 #endif
 
   cairo_destroy (tile_cairo);
