@@ -262,6 +262,15 @@ hyscan_nmea_file_device_read (HyScanNmeaFileDevice *device)
       g_string_append (priv->sensor_data, priv->line);
     }
 
+  /* Вносим помехи в данные. */
+  // GRand *rand;
+  // gint rand_i;
+  // rand = g_rand_new ();
+  // rand_i = g_rand_int_range (rand, 0, priv->sensor_data->len * 2);
+  // if ((gint) priv->sensor_data->len > rand_i)
+  //   g_string_overwrite (priv->sensor_data, rand_i, "0");
+  // g_rand_free (rand);
+
   /* Отправляем сигнал с данными. */
   hyscan_buffer_wrap_data (priv->data_buffer, HYSCAN_DATA_STRING, priv->sensor_data->str, priv->sensor_data->len);
   g_signal_emit_by_name (device, "sensor-data", priv->name, HYSCAN_SOURCE_NMEA, (gint64) (time * 1e6), priv->data_buffer);

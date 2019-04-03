@@ -364,9 +364,13 @@ hyscan_navigation_model_read_sentence (HyScanNavigationModel *model,
 {
   HyScanNavigationModelPrivate *priv = model->priv;
 
-  gboolean parsed = FALSE;
+  gboolean parsed;
   gchar **words;
   HyScanNavigationModelFix fix;
+
+  GList *last_fix_l;
+  HyScanNavigationModelFix *last_fix;
+  HyScanNmeaDataType nmea_type;
 
   g_return_if_fail (sentence != NULL);
 
@@ -375,74 +379,92 @@ hyscan_navigation_model_read_sentence (HyScanNavigationModel *model,
   // if (g_str_equal (words[0], "$GPGGA"))
   //   hyscan_navigation_model_read_gga (model, words);
   // else
-  if (g_str_equal (words[0], "$GNRMC"))
+  nmea_type = hyscan_nmea_data_check_sentence (sentence);
+  if (nmea_type == HYSCAN_NMEA_DATA_RMC)
     parsed = hyscan_navigation_model_read_rmc (model, words, &fix);
-
-  if (parsed)
+  else if (nmea_type == HYSCAN_NMEA_DATA_INVALID)
     {
-      GList *last_fix_l;
-      HyScanNavigationModelFix *last_fix = NULL;
+      g_message ("Invalid sentence: %s", sentence);
+      parsed = FALSE;
+    }
+  else
+    parsed = FALSE;
 
-      /* Расчитываем скорости по широте и долготе. */
-      if (fix.speed > 0)
-        {
-          gdouble bearing = DEG2RAD (fix.coord.h);
 
-          fix.speed_lat = KNOTS2LAT (fix.speed * cos (bearing));
-          fix.speed_lon = KNOTS2LON (fix.speed * sin (bearing), fix.coord.lat);
-        }
-      else
-        {
-          fix.speed_lat = 0;
-          fix.speed_lon = 0;
-        }
+  if (!parsed)
+    goto exit;
 
-      g_mutex_lock (&priv->fixes_lock);
+  // GRand *rand;
+  // rand = g_rand_new ();
+  // if (g_rand_int_range (rand, 0, 10) < 5)
+  //   {
+  //     fix.coord.lon = 0;
+  //     fix.coord.lat = 0;
+  //   }
+  // g_rand_free (rand);
 
-      /* Находим последний фикс. */
-      last_fix_l = g_list_last (priv->fixes);
-      if (last_fix_l != NULL)
-        last_fix = last_fix_l->data;
+  /* Расчитываем скорости по широте и долготе. */
+  if (fix.speed > 0)
+    {
+      gdouble bearing = DEG2RAD (fix.coord.h);
 
-      /* Обрыв: удаляем из списка старые данные. */
-      if (last_fix != NULL && fix.time - last_fix->time > FIX_MAX_DELTA)
-        {
-          g_list_free_full (priv->fixes, (GDestroyNotify) hyscan_navigation_model_fix_free);
-          priv->fixes_len = 0;
-          priv->fixes = NULL;
-          priv->params_set = FALSE;
-          last_fix = NULL;
-        }
-
-      /* Фиксируем данные только если они для нового момента времени. */
-      if (last_fix == NULL || fix.time - last_fix->time > FIX_MIN_DELTA)
-        {
-          priv->fixes = g_list_append (priv->fixes, hyscan_navigation_model_fix_copy (&fix));
-          priv->fixes_len++;
-
-          /* При поступлении первого фикса запоминаем timer_offset. */
-          if (!priv->timer_set) {
-            priv->timer_offset = fix.time - g_timer_elapsed (priv->timer, NULL) - DELAY_TIME;
-            priv->timer_set = TRUE;
-          }
-        }
-
-      /* Удаляем из списка старые данные. */
-      if (priv->fixes_len > priv->fixes_max_len)
-        {
-          GList *first_fix_l = priv->fixes;
-
-          priv->fixes = g_list_remove_link (priv->fixes, first_fix_l);
-          priv->fixes_len--;
-
-          hyscan_navigation_model_fix_free (first_fix_l->data);
-          g_list_free (first_fix_l);
-        }
-
-      hyscan_navigation_model_update_params (model);
-      g_mutex_unlock (&priv->fixes_lock);
+      fix.speed_lat = KNOTS2LAT (fix.speed * cos (bearing));
+      fix.speed_lon = KNOTS2LON (fix.speed * sin (bearing), fix.coord.lat);
+    }
+  else
+    {
+      fix.speed_lat = 0;
+      fix.speed_lon = 0;
     }
 
+  g_mutex_lock (&priv->fixes_lock);
+
+  /* Находим последний фикс. */
+  last_fix_l = g_list_last (priv->fixes);
+  if (last_fix_l != NULL)
+    last_fix = last_fix_l->data;
+  else
+    last_fix = NULL;
+
+  /* Обрыв: удаляем из списка старые данные. */
+  if (last_fix != NULL && fix.time - last_fix->time > FIX_MAX_DELTA)
+    {
+      g_list_free_full (priv->fixes, (GDestroyNotify) hyscan_navigation_model_fix_free);
+      priv->fixes_len = 0;
+      priv->fixes = NULL;
+      priv->params_set = FALSE;
+      last_fix = NULL;
+    }
+
+  /* Фиксируем данные только если они для нового момента времени. */
+  if (last_fix == NULL || fix.time - last_fix->time > FIX_MIN_DELTA)
+    {
+      priv->fixes = g_list_append (priv->fixes, hyscan_navigation_model_fix_copy (&fix));
+      priv->fixes_len++;
+
+      /* При поступлении первого фикса запоминаем timer_offset. */
+      if (!priv->timer_set) {
+        priv->timer_offset = fix.time - g_timer_elapsed (priv->timer, NULL) - DELAY_TIME;
+        priv->timer_set = TRUE;
+      }
+    }
+
+  /* Удаляем из списка старые данные. */
+  if (priv->fixes_len > priv->fixes_max_len)
+    {
+      GList *first_fix_l = priv->fixes;
+
+      priv->fixes = g_list_remove_link (priv->fixes, first_fix_l);
+      priv->fixes_len--;
+
+      hyscan_navigation_model_fix_free (first_fix_l->data);
+      g_list_free (first_fix_l);
+    }
+
+  hyscan_navigation_model_update_params (model);
+  g_mutex_unlock (&priv->fixes_lock);
+
+exit:
   g_strfreev (words);
 }
 
@@ -473,6 +495,14 @@ hyscan_navigation_model_sensor_data (HyScanSensor          *sensor,
     return;
 
   msg = hyscan_buffer_get_data (data, &msg_size);
+
+  /* Имитируем задержку.  */
+  // GRand *rand;
+  // gint delay;
+  // rand = g_rand_new ();
+  // delay = g_rand_int_range (rand, 0, G_USEC_PER_SEC);
+  // g_message ("Delay %.2f", (gdouble) delay / G_USEC_PER_SEC);
+  // g_usleep (delay);
 
   sentences = hyscan_nmea_data_split_sentence (msg, msg_size);
   for (i = 0; sentences[i] != NULL; i++)
