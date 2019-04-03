@@ -262,7 +262,7 @@ hyscan_gtk_map_track_layer_object_constructed (GObject *object)
   gdk_rgba_parse (&priv->line_lost_color, LINE_LOST_COLOR);
   hyscan_gtk_map_track_create_arrow (priv, &priv->arrow_default, ARROW_DEFAULT);
   hyscan_gtk_map_track_create_arrow (priv, &priv->arrow_lost, ARROW_LOST);
-  hyscan_gtk_map_track_layer_set_lifetime (track_layer, 30);
+  hyscan_gtk_map_track_layer_set_lifetime (track_layer, 600);
 
   g_signal_connect_swapped (priv->nav_model, "changed", G_CALLBACK (hyscan_gtk_map_track_layer_model_changed), track_layer);
 }
