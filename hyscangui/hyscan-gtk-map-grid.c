@@ -47,7 +47,7 @@ static void     hyscan_gtk_map_grid_draw_grid               (HyScanGtkMapGrid   
 static void     hyscan_gtk_map_grid_draw_scale              (HyScanGtkMapGrid        *grid,
                                                              cairo_t                 *cairo);
 
-G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapGrid, hyscan_gtk_map_grid, G_TYPE_OBJECT,
+G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapGrid, hyscan_gtk_map_grid, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapGrid)
                          G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_LAYER, hyscan_gtk_map_grid_interface_init))
 
@@ -592,7 +592,7 @@ hyscan_gtk_map_grid_queue_draw (HyScanGtkMapGrid *grid)
     gtk_widget_queue_draw (GTK_WIDGET (grid->priv->map));
 }
 
-HyScanGtkMapGrid *
+HyScanGtkLayer *
 hyscan_gtk_map_grid_new (void)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_GRID, NULL);

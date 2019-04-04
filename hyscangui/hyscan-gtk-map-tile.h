@@ -42,14 +42,14 @@ typedef struct
 
 struct _HyScanGtkMapTile
 {
-  GObject parent_instance;
+  GInitiallyUnowned parent_instance;
 
   HyScanGtkMapTilePrivate *priv;
 };
 
 struct _HyScanGtkMapTileClass
 {
-  GObjectClass parent_class;
+  GInitiallyUnownedClass parent_class;
 };
 
 HYSCAN_API

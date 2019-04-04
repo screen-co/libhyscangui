@@ -121,7 +121,7 @@ static inline HyScanGtkMapPinLayerPin *
                      hyscan_gtk_map_pin_layer_get_pin                   (HyScanGtkMapPinLayerPrivate *priv,
                                                                          HyScanGtkMapPoint           *point);
 
-G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapPinLayer, hyscan_gtk_map_pin_layer, G_TYPE_OBJECT,
+G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapPinLayer, hyscan_gtk_map_pin_layer, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapPinLayer)
                          G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_LAYER, hyscan_gtk_map_pin_layer_interface_init))
 
@@ -701,9 +701,9 @@ hyscan_gtk_map_grid_queue_draw (HyScanGtkMapPinLayer *layer)
  * Создаёт новый слой с булавками. На слое размещаются отметки различных
  * местоположений.
  *
- * Returns: новый объект #HyScanGtkMapPinLayer. Для удаления g_object_unref().
+ * Returns: новый объект #HyScanGtkMapPinLayer.
  */
-HyScanGtkMapPinLayer *
+HyScanGtkLayer *
 hyscan_gtk_map_pin_layer_new (void)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_PIN_LAYER, NULL);

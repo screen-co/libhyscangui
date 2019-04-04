@@ -123,7 +123,7 @@ static void                 hyscan_gtk_map_tiles_value_to_tile            (HySca
 static gboolean             hyscan_gtk_map_tiles_cache_get                (HyScanGtkMapTilesPrivate *priv,
                                                                            HyScanGtkMapTile         *tile);
 
-G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapTiles, hyscan_gtk_map_tiles, G_TYPE_OBJECT,
+G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapTiles, hyscan_gtk_map_tiles, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapTiles)
                          G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_LAYER, hyscan_gtk_map_tiles_interface_init))
 
@@ -990,9 +990,9 @@ hyscan_gtk_map_tiles_draw (HyScanGtkMapTiles *layer,
  * Создаёт новый объект #HyScanGtkMapTiles, который рисует слой тайлов на карте
  * @map.
  *
- * Returns: указатель на #HyScanGtkMapTiles. Для удаления g_object_unref().
+ * Returns: указатель на #HyScanGtkMapTiles
  */
-HyScanGtkMapTiles *
+HyScanGtkLayer *
 hyscan_gtk_map_tiles_new (HyScanCache             *cache,
                           HyScanGtkMapTileSource  *source)
 {

@@ -53,21 +53,21 @@ typedef struct _HyScanGtkMapTrackLayerClass HyScanGtkMapTrackLayerClass;
 
 struct _HyScanGtkMapTrackLayer
 {
-  GObject parent_instance;
+  GInitiallyUnowned parent_instance;
 
   HyScanGtkMapTrackLayerPrivate *priv;
 };
 
 struct _HyScanGtkMapTrackLayerClass
 {
-  GObjectClass parent_class;
+  GInitiallyUnownedClass parent_class;
 };
 
 HYSCAN_API
 GType                    hyscan_gtk_map_track_layer_get_type     (void);
 
 HYSCAN_API
-HyScanGtkMapTrackLayer * hyscan_gtk_map_track_layer_new          (HyScanNavigationModel *nav_model,
+HyScanGtkLayer *         hyscan_gtk_map_track_layer_new          (HyScanNavigationModel *nav_model,
                                                                   HyScanCache           *cache);
 
 HYSCAN_API

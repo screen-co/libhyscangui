@@ -187,7 +187,7 @@ static void     hyscan_gtk_map_track_layer_update_cache_key        (HyScanGtkMap
                                                                     HyScanGtkMapTrackLayerTile    *tile);
 static void     hyscan_gtk_map_track_layer_point_free              (HyScanGtkMapTrackLayerPoint   *point);
 
-G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapTrackLayer, hyscan_gtk_map_track_layer, G_TYPE_OBJECT,
+G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapTrackLayer, hyscan_gtk_map_track_layer, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapTrackLayer)
                          G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_LAYER, hyscan_gtk_map_track_layer_interface_init))
 
@@ -1134,9 +1134,9 @@ hyscan_gtk_map_track_layer_added (HyScanGtkLayer          *layer,
  *
  * Создает новый слой с треком движения объекта.
  *
- * Returns: указатель на #HyScanGtkMapTrackLayer. Для удаления g_object_unref()
+ * Returns: указатель на #HyScanGtkMapTrackLayer
  */
-HyScanGtkMapTrackLayer *
+HyScanGtkLayer *
 hyscan_gtk_map_track_layer_new (HyScanNavigationModel *nav_model,
                                 HyScanCache           *cache)
 {

@@ -24,14 +24,14 @@ typedef enum
 
 struct _HyScanGtkMapPinLayer
 {
-  GObject parent_instance;
+  GInitiallyUnowned parent_instance;
 
   HyScanGtkMapPinLayerPrivate *priv;
 };
 
 struct _HyScanGtkMapPinLayerClass
 {
-  GObjectClass parent_class;
+  GInitiallyUnownedClass parent_class;
 
   void       (*draw)                     (HyScanGtkMapPinLayer *layer,
                                           cairo_t              *cairo);
@@ -41,7 +41,7 @@ HYSCAN_API
 GType                  hyscan_gtk_map_pin_layer_get_type         (void);
 
 HYSCAN_API
-HyScanGtkMapPinLayer * hyscan_gtk_map_pin_layer_new              (void);
+HyScanGtkLayer *       hyscan_gtk_map_pin_layer_new              (void);
 
 HYSCAN_API
 void                   hyscan_gtk_map_pin_layer_clear            (HyScanGtkMapPinLayer         *layer);

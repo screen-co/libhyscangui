@@ -18,21 +18,21 @@ typedef struct _HyScanGtkMapControlClass HyScanGtkMapControlClass;
 
 struct _HyScanGtkMapControl
 {
-  GObject parent_instance;
+  GInitiallyUnowned parent_instance;
 
   HyScanGtkMapControlPrivate *priv;
 };
 
 struct _HyScanGtkMapControlClass
 {
-  GObjectClass parent_class;
+  GInitiallyUnownedClass parent_class;
 };
 
 HYSCAN_API
 GType                  hyscan_gtk_map_control_get_type         (void);
 
 HYSCAN_API
-HyScanGtkMapControl *  hyscan_gtk_map_control_new              (void);
+HyScanGtkLayer *       hyscan_gtk_map_control_new              (void);
 
 G_END_DECLS
 

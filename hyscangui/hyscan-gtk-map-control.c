@@ -39,7 +39,7 @@ static gboolean hyscan_gtk_map_control_scroll               (HyScanGtkMapControl
 static void     hyscan_gtk_map_control_set_mode             (HyScanGtkMapControl        *control,
                                                              gint                        mode);
 
-G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapControl, hyscan_gtk_map_control, G_TYPE_OBJECT,
+G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapControl, hyscan_gtk_map_control, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapControl)
                          G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_LAYER, hyscan_gtk_map_control_interface_init))
 
@@ -265,7 +265,7 @@ hyscan_gtk_map_control_button_press_release (HyScanGtkMapControl *control,
  *
  * Returns: новый объект #HyScanGtkMapControl. Для удаления g_object_unref()
  */
-HyScanGtkMapControl *
+HyScanGtkLayer *
 hyscan_gtk_map_control_new (void)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_CONTROL, NULL);

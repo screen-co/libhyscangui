@@ -75,7 +75,7 @@ hyscan_map_profile_create_projection (HyScanMapProfilePrivate *priv)
 static HyScanGtkLayer *
 hyscan_map_profile_create_tiles (HyScanMapProfilePrivate *priv)
 {
-  HyScanGtkMapTiles *tiles;
+  HyScanGtkLayer *tiles;
 
   HyScanCache *cache;
 
@@ -156,7 +156,6 @@ hyscan_map_profile_apply (HyScanMapProfile *profile,
   HyScanGtkLayerContainer *container;
   HyScanGeoProjection *projection;
 
-  HyScanGtkLayer *tiles;
   HyScanGtkLayer *tiles_old;
 
   g_return_val_if_fail (HYSCAN_IS_MAP_PROFILE (profile), FALSE);
@@ -177,13 +176,11 @@ hyscan_map_profile_apply (HyScanMapProfile *profile,
   hyscan_gtk_map_set_projection (map, projection);
 
   /* Устанавливаем новый слой тайлов в самый низ. */
-  tiles = hyscan_map_profile_create_tiles (priv);
-  hyscan_gtk_layer_container_add (container, tiles, TILES_LAYER_ID);
+  hyscan_gtk_layer_container_add (container, hyscan_map_profile_create_tiles (priv), TILES_LAYER_ID);
 
   gtk_widget_queue_draw (GTK_WIDGET (map));
 
   g_object_unref (projection);
-  g_object_unref (tiles);
 
   return TRUE;
 }

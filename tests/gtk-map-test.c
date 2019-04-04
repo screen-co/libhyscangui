@@ -124,6 +124,7 @@ on_motion_show_coords (HyScanGtkMap   *map,
   return FALSE;
 }
 
+/* Добавляет @layer в виджет со списком слоев. */
 void
 add_layer_row (GtkListBox     *list_box,
                const gchar    *title,
@@ -133,20 +134,26 @@ add_layer_row (GtkListBox     *list_box,
   GtkWidget *vsbl_chkbx;
   GtkWidget *row;
 
-  box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 2);
+  /* Строка состоит из галочки и текста. */
+
+  /* По галочке устанавливаем видимость слоя. */
   vsbl_chkbx = gtk_check_button_new ();
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (vsbl_chkbx), hyscan_gtk_layer_get_visible (layer));
+  g_signal_connect (vsbl_chkbx, "notify::active", G_CALLBACK (on_change_layer_visibility), layer);
+
+  box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 2);
   gtk_box_pack_start (GTK_BOX (box), vsbl_chkbx, FALSE, TRUE, 0);
   gtk_box_pack_end (GTK_BOX (box), gtk_label_new (title), TRUE, TRUE, 0);
 
   row = gtk_list_box_row_new ();
   gtk_list_box_row_set_activatable (GTK_LIST_BOX_ROW (row), FALSE);
-  g_object_set_data (G_OBJECT (row), "layer", layer);
   gtk_container_add (GTK_CONTAINER (row), box);
 
-  gtk_list_box_insert (list_box, row, 0);
+  /* Каждая строка хранит в себе указатель на слой. При удалении строки делаем unref слоя. */
+  g_object_set_data (G_OBJECT (row), "layer", g_object_ref (layer));
+  g_signal_connect_swapped (row, "destroy", G_CALLBACK (g_object_unref), layer);
 
-  g_signal_connect (vsbl_chkbx, "notify::active", G_CALLBACK (on_change_layer_visibility), layer);
+  gtk_list_box_insert (list_box, row, 0);
 }
 
 /* Создаёт панель инструментов для слоя булавок и линейки. */
@@ -243,12 +250,12 @@ load_nmea_udp_device (const gchar *nmea_udp_host,
 }
 
 /* Слой с треком движения. */
-HyScanGtkMapTrackLayer *
+HyScanGtkLayer *
 create_track_layer ()
 {
   HyScanNavigationModel *model;
   HyScanDevice *device = NULL;
-  HyScanGtkMapTrackLayer *layer;
+  HyScanGtkLayer *layer;
   HyScanCached *cache;
 
   if (track_file != NULL)
@@ -277,10 +284,10 @@ create_track_layer ()
 }
 
 HyScanGtkMap *
-create_map (HyScanGtkMapRuler      **ruler,
-            HyScanGtkMapPinLayer   **pin_layer,
-            HyScanGtkMapTrackLayer **track_layer,
-            HyScanGtkMapGrid       **map_grid)
+create_map (HyScanGtkLayer **ruler,
+            HyScanGtkLayer **pin_layer,
+            HyScanGtkLayer **track_layer,
+            HyScanGtkLayer **map_grid)
 {
   HyScanGtkMap *map;
   gdouble *scales;
@@ -295,15 +302,12 @@ create_map (HyScanGtkMapRuler      **ruler,
 
   /* Добавляем слои. */
   {
-    HyScanGtkMapControl *control;
-
-    control = hyscan_gtk_map_control_new ();
     *map_grid = hyscan_gtk_map_grid_new ();
     *ruler = hyscan_gtk_map_ruler_new ();
     *pin_layer = hyscan_gtk_map_pin_layer_new ();
     *track_layer = create_track_layer ();
 
-    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (control),     "control");
+    hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), hyscan_gtk_map_control_new (), "control");
 
     if (*track_layer != NULL)
       hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (*track_layer), "track");
@@ -311,8 +315,6 @@ create_map (HyScanGtkMapRuler      **ruler,
     hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (*pin_layer),   "pin");
     hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (*ruler),       "ruler");
     hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (*map_grid),    "grid");
-
-    g_object_unref (control);
   }
 
   /* Чтобы виджет карты занял всё доступное место. */
@@ -324,11 +326,11 @@ create_map (HyScanGtkMapRuler      **ruler,
 
 /* Кнопки управления виджетом. */
 GtkWidget *
-create_control_box (HyScanGtkMap           *map,
-                    HyScanGtkMapRuler      *ruler,
-                    HyScanGtkMapPinLayer   *pin_layer,
-                    HyScanGtkMapTrackLayer *track_layer,
-                    HyScanGtkMapGrid       *grid)
+create_control_box (HyScanGtkMap   *map,
+                    HyScanGtkLayer *ruler,
+                    HyScanGtkLayer *pin_layer,
+                    HyScanGtkLayer *track_layer,
+                    HyScanGtkLayer *grid)
 {
   GtkWidget *ctrl_box;
   GtkWidget *ctrl_widget;
@@ -406,11 +408,11 @@ create_control_box (HyScanGtkMap           *map,
 
     list_box = gtk_list_box_new ();
 
-    add_layer_row (GTK_LIST_BOX (list_box), "Коорд. сетка", HYSCAN_GTK_LAYER (grid));
-    add_layer_row (GTK_LIST_BOX (list_box), "Линейка", HYSCAN_GTK_LAYER (ruler));
-    add_layer_row (GTK_LIST_BOX (list_box), "Булавка", HYSCAN_GTK_LAYER (pin_layer));
+    add_layer_row (GTK_LIST_BOX (list_box), "Коорд. сетка", grid);
+    add_layer_row (GTK_LIST_BOX (list_box), "Линейка", ruler);
+    add_layer_row (GTK_LIST_BOX (list_box), "Булавка", pin_layer);
     if (track_layer != NULL)
-      add_layer_row (GTK_LIST_BOX (list_box), "Трек", HYSCAN_GTK_LAYER (track_layer));
+      add_layer_row (GTK_LIST_BOX (list_box), "Трек", track_layer);
     g_signal_connect (list_box, "row-selected", G_CALLBACK (on_row_select), map);
 
     gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Слои"));
@@ -470,10 +472,7 @@ int main (int     argc,
   GtkWidget *grid;
 
   HyScanGtkMap *map;
-  HyScanGtkMapRuler *ruler;
-  HyScanGtkMapPinLayer *pin_layer;
-  HyScanGtkMapTrackLayer *track_layer;
-  HyScanGtkMapGrid *map_grid;
+  HyScanGtkLayer *ruler, *pin_layer, *track_layer, *map_grid;
 
   gtk_init (&argc, &argv);
 
@@ -545,10 +544,6 @@ int main (int     argc,
   gtk_main ();
 
   /* Освобождаем память. */
-  g_clear_object (&map_grid);
-  g_clear_object (&ruler);
-  g_clear_object (&pin_layer);
-  g_clear_object (&track_layer);
   g_free (tiles_dir);
 
   return 0;

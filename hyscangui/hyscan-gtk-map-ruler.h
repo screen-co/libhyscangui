@@ -32,7 +32,7 @@ HYSCAN_API
 GType                  hyscan_gtk_map_ruler_get_type         (void);
 
 HYSCAN_API
-HyScanGtkMapRuler *    hyscan_gtk_map_ruler_new              (void);
+HyScanGtkLayer *       hyscan_gtk_map_ruler_new              (void);
 
 HYSCAN_API
 void                   hyscan_gtk_map_ruler_set_line_width   (HyScanGtkMapRuler *ruler,

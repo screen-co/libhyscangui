@@ -367,7 +367,7 @@ hyscan_gtk_layer_container_add (HyScanGtkLayerContainer *container,
   g_return_if_fail (HYSCAN_IS_GTK_LAYER (layer));
 
   priv = container->priv;
-  priv->layers = g_list_append (priv->layers, g_object_ref (layer));
+  priv->layers = g_list_append (priv->layers, g_object_ref_sink (layer));
   if (key != NULL)
     g_hash_table_insert (priv->layers_table, g_strdup (key), layer);
 

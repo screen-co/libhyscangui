@@ -33,7 +33,7 @@ HYSCAN_API
 GType               hyscan_gtk_map_tiles_get_type (void);
 
 HYSCAN_API
-HyScanGtkMapTiles * hyscan_gtk_map_tiles_new      (HyScanCache             *cache,
+HyScanGtkLayer *    hyscan_gtk_map_tiles_new      (HyScanCache             *cache,
                                                    HyScanGtkMapTileSource  *source);
 
 HYSCAN_API

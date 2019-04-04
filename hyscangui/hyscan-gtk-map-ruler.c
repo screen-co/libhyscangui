@@ -518,9 +518,9 @@ hyscan_gtk_map_grid_queue_draw (HyScanGtkMapRuler *ruler)
  *
  * Создаёт новый слой с линейкой.
  *
- * Returns: новый объект #HyScanGtkMapRuler. Для удаления g_object_unref().
+ * Returns: новый объект #HyScanGtkMapRuler
  */
-HyScanGtkMapRuler *
+HyScanGtkLayer *
 hyscan_gtk_map_ruler_new ()
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_RULER, NULL);

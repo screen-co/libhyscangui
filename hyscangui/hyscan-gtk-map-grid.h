@@ -18,18 +18,18 @@ typedef struct _HyScanGtkMapGridClass HyScanGtkMapGridClass;
 
 struct _HyScanGtkMapGrid
 {
-  GObject parent_instance;
+  GInitiallyUnowned parent_instance;
 
   HyScanGtkMapGridPrivate *priv;
 };
 
 struct _HyScanGtkMapGridClass
 {
-  GObjectClass parent_class;
+  GInitiallyUnownedClass parent_class;
 };
 
 HYSCAN_API
-HyScanGtkMapGrid *     hyscan_gtk_map_grid_new                (void);
+HyScanGtkLayer *       hyscan_gtk_map_grid_new                (void);
 
 HYSCAN_API
 void                   hyscan_gtk_map_grid_set_scale_width    (HyScanGtkMapGrid *grid,
