@@ -16,7 +16,6 @@ typedef struct _HyScanMapProfile HyScanMapProfile;
 typedef struct _HyScanMapProfilePrivate HyScanMapProfilePrivate;
 typedef struct _HyScanMapProfileClass HyScanMapProfileClass;
 
-/* !!! Change GObject to type of the base class. !!! */
 struct _HyScanMapProfile
 {
   GObject parent_instance;
@@ -24,7 +23,6 @@ struct _HyScanMapProfile
   HyScanMapProfilePrivate *priv;
 };
 
-/* !!! Change GObjectClass to type of the base class. !!! */
 struct _HyScanMapProfileClass
 {
   GObjectClass parent_class;
@@ -34,15 +32,29 @@ HYSCAN_API
 GType                  hyscan_map_profile_get_type         (void);
 
 HYSCAN_API
-HyScanMapProfile *     hyscan_map_profile_new              (const gchar   *url_format,
-                                                            const gchar   *cache_dir,
-                                                            const gchar   *projection,
-                                                            guint          min_zoom,
-                                                            guint          max_zoom);
+HyScanMapProfile *     hyscan_map_profile_new              (void);
 
 HYSCAN_API
-gboolean               hyscan_map_profile_apply            (HyScanMapProfile *profile,
-                                                            HyScanGtkMap     *map);
+HyScanMapProfile *     hyscan_map_profile_new_default      (void);
+
+HYSCAN_API
+HyScanMapProfile *     hyscan_map_profile_new_full         (const gchar        *title,
+                                                            const gchar        *url_format,
+                                                            const gchar        *cache_dir,
+                                                            const gchar        *projection,
+                                                            guint               min_zoom,
+                                                            guint               max_zoom);
+
+HYSCAN_API
+gchar *                hyscan_map_profile_get_title        (HyScanMapProfile   *profile);
+
+HYSCAN_API
+gboolean               hyscan_map_profile_read             (HyScanMapProfile   *serializable,
+                                                            const gchar        *name);
+
+HYSCAN_API
+gboolean               hyscan_map_profile_apply            (HyScanMapProfile   *profile,
+                                                            HyScanGtkMap       *map);
 
 G_END_DECLS
 

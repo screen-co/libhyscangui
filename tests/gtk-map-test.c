@@ -18,15 +18,11 @@
 
 #define GPS_SENSOR_NAME "my-nmea-sensor"
 
-static gchar *tiles_dir;                     /* Путь к каталогу, где хранятся тайлы. */
+static gchar *profile_dir;                   /* Путь к каталогу, где хранятся профили карты. */
 static gchar *track_file;                    /* Путь к файлу с NMEA-строками. */
 static gchar *udp_host;                      /* Хост для подключения к GPS-приемнику. */
 static gint udp_port;                        /* Порт для подключения к GPS-приемнику. */
-static gboolean yandex_projection = FALSE;   /* Использовать карту яндекса. */
-static guint tile_url_preset = 0;
-static gchar *tile_url_format;
 
-static HyScanMapProfile *profiles[8];
 static GtkContainer *layer_toolbox;
 void   (*layer_toolbox_cb) (GtkContainer   *container,
                             HyScanGtkLayer *layer);
@@ -174,14 +170,25 @@ on_profile_change (GtkComboBoxText *widget,
                    gpointer         user_data)
 {
   HyScanGtkMap *map = HYSCAN_GTK_MAP (user_data);
+  GPtrArray *profiles_array;
   gint index;
+
+  profiles_array = g_object_get_data (G_OBJECT (widget), "profiles");
+  if (profiles_array == NULL)
+    return;
 
   index = gtk_combo_box_get_active (GTK_COMBO_BOX (widget));
 
-  if (index < 0)
+  if (index < 0 || index >= (gint) profiles_array->len)
     return;
 
-  hyscan_map_profile_apply (profiles[index], map);
+  hyscan_map_profile_apply (profiles_array->pdata[index], map);
+}
+
+void
+free_profiles (GPtrArray *profiles_array)
+{
+  g_ptr_array_free (profiles_array, TRUE);
 }
 
 /* Подключается к GPS-приемнику по UDP. */
@@ -324,6 +331,106 @@ create_map (HyScanGtkLayer **ruler,
   return map;
 }
 
+/* Получает NULL-терминированный массив названий профилей.
+ * Скопировано почти без изменений из hyscan_profile_common_list_profiles. */
+gchar **
+list_profiles (const gchar *profiles_path)
+{
+  guint nprofiles = 0;
+  gchar **profiles = NULL;
+  GError *error = NULL;
+  GDir *dir;
+
+  dir = g_dir_open (profiles_path, 0, &error);
+  if (error == NULL)
+    {
+      const gchar *filename;
+
+      while ((filename = g_dir_read_name (dir)) != NULL)
+        {
+          gchar *fullname;
+
+          fullname = g_build_path (G_DIR_SEPARATOR_S, profiles_path, filename, NULL);
+          if (g_file_test (fullname, G_FILE_TEST_IS_REGULAR))
+            {
+              profiles = g_realloc (profiles, ++nprofiles * sizeof (gchar **));
+              profiles[nprofiles - 1] = g_strdup (fullname);
+            }
+          g_free (fullname);
+        }
+    }
+  else
+    {
+      g_warning ("%s", error->message);
+      g_error_free (error);
+    }
+
+  profiles = g_realloc (profiles, ++nprofiles * sizeof (gchar **));
+  profiles[nprofiles - 1] = NULL;
+
+  return profiles;
+}
+
+void
+combo_box_add_profile (GtkComboBoxText  *combo_box,
+                       HyScanMapProfile *profile)
+{
+  gchar *profile_title;
+  GPtrArray *profiles_array;
+
+  profiles_array = g_object_get_data (G_OBJECT (combo_box), "profiles");
+
+  profile_title = hyscan_map_profile_get_title (profile);
+  gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (combo_box), profile_title);
+  g_ptr_array_add (profiles_array, g_object_ref (profile));
+  g_free (profile_title);
+}
+
+/* Создает выпадающий список с профилями. */
+GtkWidget *
+create_profile_switch (HyScanGtkMap *map)
+{
+  GtkWidget *combo_box;
+  GPtrArray *profiles_array;
+
+  gchar **config_files;
+  guint conf_i;
+
+  profiles_array = g_ptr_array_new_with_free_func (g_object_unref);
+  combo_box = gtk_combo_box_text_new ();
+  g_object_set_data_full (G_OBJECT (combo_box), "profiles", profiles_array, (GDestroyNotify) free_profiles);
+
+  /* Считываем профили карты из всех файлов в папке. */
+  config_files = list_profiles (profile_dir);
+  for (conf_i = 0; config_files[conf_i] != NULL; ++conf_i)
+    {
+      HyScanMapProfile *profile;
+      profile = hyscan_map_profile_new ();
+
+      if (hyscan_map_profile_read (profile, config_files[conf_i]))
+        combo_box_add_profile (GTK_COMBO_BOX_TEXT (combo_box), profile);
+
+      g_object_unref (profile);
+    }
+  g_strfreev (config_files);
+
+  /* Если не добавили не один профиль, то добавим хотя бы дефолтный. */
+  if (profiles_array->len == 0)
+    {
+      HyScanMapProfile *profile;
+
+      profile = hyscan_map_profile_new_default ();
+      combo_box_add_profile (GTK_COMBO_BOX_TEXT (combo_box), profile);
+
+      g_object_unref (profile);
+    }
+
+  gtk_combo_box_set_active (GTK_COMBO_BOX (combo_box), 0);
+  g_signal_connect (combo_box, "changed", G_CALLBACK (on_profile_change), map);
+
+  return combo_box;
+}
+
 /* Кнопки управления виджетом. */
 GtkWidget *
 create_control_box (HyScanGtkMap   *map,
@@ -337,57 +444,8 @@ create_control_box (HyScanGtkMap   *map,
 
   ctrl_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
 
-  /* Выбор профиля. */
-  {
-    ctrl_widget = gtk_combo_box_text_new ();
-
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "Yandex Vector");
-    profiles[0] = hyscan_map_profile_new ("http://vec02.maps.yandex.net/tiles?l=map&v=2.2.3&z={z}&x={x}&y={y}",
-                                         "/tmp/tiles/yandex",
-                                         "merc", 0, 19);
-
-
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "OSM");
-    profiles[1] = hyscan_map_profile_new ("http://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
-                                          "/tmp/tiles/osm",
-                                          "webmerc", 0, 19);
-
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "Wikipedia");
-    profiles[2] = hyscan_map_profile_new ("https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png",
-                                          "/tmp/tiles/wiki",
-                                          "webmerc", 0, 19);
-
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "Yandex Satellite");
-    profiles[3] = hyscan_map_profile_new ("https://sat02.maps.yandex.net/tiles?l=sat&v=3.455.0&x={x}&y={y}&z={z}&lang=ru_RU",
-                                          "/tmp/tiles/yandex_sat",
-                                          "merc", 0, 19);
-
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "Bing Satellite");
-    profiles[4] = hyscan_map_profile_new ("http://ecn.t0.tiles.virtualearth.net/tiles/a{quadkey}.jpeg?g=6897",
-                                          "/tmp/tiles/bing",
-                                          "webmerc", 1, 19);
-
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "Google Satellite");
-    profiles[5] = hyscan_map_profile_new ("http://www.google.cn/maps/vt?lyrs=s@189&gl=cn&x={x}&y={y}&z={z}",
-                                          "/tmp/tiles/google-sat",
-                                          "webmerc", 1, 19);
-
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "Thunderforest Landscape");
-    profiles[6] = hyscan_map_profile_new ("https://tile.thunderforest.com/landscape/{z}/{x}/{y}.png?apikey=03fb8295553d4a2eaacc64d7dd88e3b9",
-                                          "/tmp/tiles/thunder_landscape",
-                                          "webmerc", 0, 19);
-
-    gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (ctrl_widget), "Watercolor");
-    profiles[7] = hyscan_map_profile_new ("http://c.tile.stamen.com/watercolor/{z}/{x}/{y}.jpg",
-                                          "/tmp/tiles/watercolor",
-                                          "webmerc", 0, 19);
-
-
-    g_signal_connect (ctrl_widget, "changed", G_CALLBACK (on_profile_change), map);
-    gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
-
-    gtk_combo_box_set_active (GTK_COMBO_BOX (ctrl_widget), 0);
-  }
+  /* Выпадающий список с профилями. */
+  gtk_container_add (GTK_CONTAINER (ctrl_box), create_profile_switch (map));
 
   /* Блокировка редактирования. */
   {
@@ -485,10 +543,7 @@ int main (int     argc,
         { "udp-host",        'h', 0, G_OPTION_ARG_STRING, &udp_host,          "Listen to UDP host", NULL},
         { "udp-port",        'P', 0, G_OPTION_ARG_INT,    &udp_port,          "Listen to UDP port", NULL},
         { "track-file",      't', 0, G_OPTION_ARG_STRING, &track_file,        "GPS-track file with NMEA-sentences", NULL },
-        { "tile-dir",        'd', 0, G_OPTION_ARG_STRING, &tiles_dir,         "Path to dir containing tiles", NULL },
-        { "yandex",          'y', 0, G_OPTION_ARG_NONE,   &yandex_projection, "Use yandex projection", NULL },
-        { "tile-url-preset", 'p', 0, G_OPTION_ARG_INT,    &tile_url_preset,   "Use one of preset tile source", NULL },
-        { "tile-url-format", 'u', 0, G_OPTION_ARG_NONE,   &tile_url_format,   "User defined tile source", NULL },
+        { "profile-dir",     'd', 0, G_OPTION_ARG_STRING, &profile_dir,       "Path to dir with map profiles", NULL },
         { NULL }
       };
 
@@ -509,11 +564,6 @@ int main (int     argc,
         g_print ("%s", g_option_context_get_help (context, FALSE, NULL));
         return 0;
       }
-
-    if (tiles_dir == NULL)
-      tiles_dir = g_dir_make_tmp ("tilesXXXXXX", NULL);
-    else
-      tiles_dir = g_strdup (tiles_dir);
 
     g_option_context_free (context);
   }
@@ -542,9 +592,6 @@ int main (int     argc,
 
   /* Main loop. */
   gtk_main ();
-
-  /* Освобождаем память. */
-  g_free (tiles_dir);
 
   return 0;
 }
