@@ -6,6 +6,7 @@
 #define MAX_SCALE_SIZE_PX   100.0     /* Максимальная длина линейки масштаба. */
 #define LINE_POINTS_NUM     5         /* Количество точек, по которым строится линия сетки. */
 
+#define LINE_WIDTH          0.5
 #define LINE_COLOR_DEFAULT  "rgba( 80, 120, 180, 0.5)"   /* Цвет линий по умолчанию. */
 #define LABEL_COLOR_DEFAULT "rgba( 33,  33,  33, 1.0)"   /* Цвет текста подписей по умолчанию. */
 #define BG_COLOR_DEFAULT    "rgba(255, 255, 255, 0.6)"   /* Цвет фона подписей по умолчанию. */
@@ -83,7 +84,7 @@ hyscan_gtk_map_grid_object_constructed (GObject *object)
   gdk_rgba_parse (&color, BG_COLOR_DEFAULT);
   hyscan_gtk_map_grid_set_bg_color (gtk_map_grid, color);
 
-  hyscan_gtk_map_grid_set_line_width (gtk_map_grid, 0.5);
+  hyscan_gtk_map_grid_set_line_width (gtk_map_grid, LINE_WIDTH);
   hyscan_gtk_map_grid_set_scale_width (gtk_map_grid, 2.0);
 
   hyscan_gtk_map_grid_set_step_width (gtk_map_grid, 200);
@@ -132,12 +133,42 @@ hyscan_gtk_map_grid_added (HyScanGtkLayer          *gtk_layer,
                             G_CALLBACK (hyscan_gtk_map_grid_configure), gtk_layer);
 }
 
+static gboolean
+hyscan_gtk_map_grid_load_key_file (HyScanGtkLayer          *gtk_layer,
+                                   GKeyFile                *key_file,
+                                   const gchar             *group)
+{
+  HyScanGtkMapGrid *grid_layer = HYSCAN_GTK_MAP_GRID (gtk_layer);
+  HyScanGtkMapGridPrivate *priv = grid_layer->priv;
+
+  gdouble width;
+  GdkRGBA color;
+
+  width = g_key_file_get_double (key_file, group, "line-width", NULL);
+  hyscan_gtk_map_grid_set_line_width (grid_layer, width > 0 ? width : LINE_WIDTH);
+
+  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "color-bg", BG_COLOR_DEFAULT);
+  hyscan_gtk_map_grid_set_bg_color (grid_layer, color);
+
+  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "color-label", LABEL_COLOR_DEFAULT);
+  hyscan_gtk_map_grid_set_label_color (grid_layer, color);
+
+  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "color-line", LINE_COLOR_DEFAULT);
+  hyscan_gtk_map_grid_set_line_color (grid_layer, color);
+
+  if (priv->map != NULL)
+    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+  return TRUE;
+}
+
 static void
 hyscan_gtk_map_grid_interface_init (HyScanGtkLayerInterface *iface)
 {
   iface->set_visible = hyscan_gtk_map_grid_set_visible;
   iface->get_visible = hyscan_gtk_map_grid_get_visible;
   iface->added = hyscan_gtk_map_grid_added;
+  iface->load_key_file = hyscan_gtk_map_grid_load_key_file;
 }
 
 /* Обновление раскладки шрифта по сигналу "configure-event". */
