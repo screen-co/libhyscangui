@@ -5,18 +5,24 @@ enum
   PROP_O,
   PROP_TASK_FUNC,
   PROP_USER_DATA,
-  PROP_TASK_FREE_FUNC,
   PROP_CMP_FUNC
 };
+
+/* Обертка для пользовательской задачи. */
+typedef struct {
+  GObject            *task;                 /* Объект задачи. */
+  GCompareFunc        cmp_func;             /* Функция для сравнения двух объектов. */
+  GCancellable       *cancellable;          /* Объект для отмены этой задачи. */
+} HyScanTaskQueueWrap;
 
 struct _HyScanTaskQueuePrivate
 {
   HyScanTaskQueueFunc task_func;            /* Функция выполнения задачи. */
   GCompareFunc        cmp_func;             /* Функция сравнения двух задач. */
-  GDestroyNotify      task_free_func;       /* Функция удаления задачи. */
   guint               max_concurrent;       /* Максимальное количество задач, выполняемых одновременно. */
 
   /* Состояние очереди задач. */
+  GQueue             *prequeue;             /* Предварительная очередь. */
   GQueue             *queue;                /* Очередь задач, ожидающих обработки. */
   GList              *processing_tasks;     /* Список задач, находящихся в обработке. */
   guint               processing_count;     /* Длина списка processing_tasks. */
@@ -24,19 +30,19 @@ struct _HyScanTaskQueuePrivate
 
   GThreadPool        *pool;                 /* Пул обработки задач. */
   gpointer            user_data;            /* Пользовательские данные для пула задач. */
-  gboolean            shutdown;
-  GCancellable       *cancellable;          /* Объект для отмены текущих задач. */
+  gboolean            shutdown;             /* Признак завершения работы. */
 };
 
-static void    hyscan_task_queue_set_property             (GObject               *object,
-                                                           guint                  prop_id,
-                                                           const GValue          *value,
-                                                           GParamSpec            *pspec);
-static void    hyscan_task_queue_object_constructed       (GObject               *object);
-static void    hyscan_task_queue_object_finalize          (GObject               *object);
-static void    hyscan_task_queue_process                  (gpointer               task,
-                                                           HyScanTaskQueue       *queue);
-static void    hyscan_task_queue_try_next                 (HyScanTaskQueue       *queue);
+static void     hyscan_task_queue_set_property             (GObject               *object,
+                                                            guint                  prop_id,
+                                                            const GValue          *value,
+                                                            GParamSpec            *pspec);
+static void     hyscan_task_queue_object_constructed       (GObject               *object);
+static void     hyscan_task_queue_object_finalize          (GObject               *object);
+static void     hyscan_task_queue_free_wrap                (gpointer               data);
+static void     hyscan_task_queue_process                  (HyScanTaskQueueWrap   *wrap,
+                                                            HyScanTaskQueue       *queue);
+static gboolean hyscan_task_queue_try_next                 (HyScanTaskQueue       *queue);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanTaskQueue, hyscan_task_queue, G_TYPE_OBJECT)
 
@@ -58,9 +64,6 @@ hyscan_task_queue_class_init (HyScanTaskQueueClass *klass)
                                    G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_CMP_FUNC,
                                    g_param_spec_pointer ("cmp-func", "Compare function", "GCompareFunc",
-                                   G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-  g_object_class_install_property (object_class, PROP_TASK_FREE_FUNC,
-                                   g_param_spec_pointer ("free-func", "Task free function", "GDestroyNotify",
                                    G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -93,10 +96,6 @@ hyscan_task_queue_set_property (GObject      *object,
       priv->cmp_func = g_value_get_pointer (value);
       break;
 
-    case PROP_TASK_FREE_FUNC:
-      priv->task_free_func = g_value_get_pointer (value);
-      break;
-
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -115,8 +114,8 @@ hyscan_task_queue_object_constructed (GObject *object)
   priv->max_concurrent = 3;
   priv->pool = g_thread_pool_new ((GFunc) hyscan_task_queue_process, task_queue,
                                   priv->max_concurrent, FALSE, NULL);
+  priv->prequeue = g_queue_new ();
   priv->queue = g_queue_new ();
-  priv->cancellable = g_cancellable_new ();
 
   g_mutex_init (&priv->queue_lock);
 }
@@ -133,87 +132,107 @@ hyscan_task_queue_object_finalize (GObject *object)
   /* Блокируем очередь и освобождаем память. */
   g_mutex_lock (&priv->queue_lock);
 
-  if (priv->task_free_func != NULL)
-    g_queue_free_full (priv->queue, priv->task_free_func);
-  else
-    g_queue_free (priv->queue);
-  priv->queue = NULL;
+  g_queue_free_full (priv->prequeue, hyscan_task_queue_free_wrap);
+  g_queue_free_full (priv->queue, hyscan_task_queue_free_wrap);
 
   g_mutex_unlock (&priv->queue_lock);
 
   /* Придётся подождать, пока не завершится выполнение уже отправленных задач. */
+  guint64 _start = g_get_monotonic_time ();
   g_thread_pool_free (priv->pool, FALSE, TRUE);
-  g_object_unref (priv->cancellable);
+  g_message ("Waited for %.3f", (gdouble)(g_get_monotonic_time () - _start) / G_USEC_PER_SEC);
 
   g_mutex_clear (&priv->queue_lock);
 
   G_OBJECT_CLASS (hyscan_task_queue_parent_class)->finalize (object);
 }
 
+static void
+hyscan_task_queue_free_wrap (gpointer data)
+{
+  HyScanTaskQueueWrap *wrap = data;
+
+  g_object_unref (wrap->task);
+  g_object_unref (wrap->cancellable);
+  g_free (wrap);
+}
+
 /* Обработка задачи из очереди. */
 static void
-hyscan_task_queue_process (gpointer         task,
-                           HyScanTaskQueue *queue)
+hyscan_task_queue_process (HyScanTaskQueueWrap *wrap,
+                           HyScanTaskQueue     *queue)
 {
   HyScanTaskQueuePrivate *priv = queue->priv;
 
   /* Выполняем задачу. */
-  priv->task_func (task, priv->user_data, priv->cancellable);
+  priv->task_func (wrap->task, priv->user_data, wrap->cancellable);
 
   /* Удаляем задачу из очереди. */
   g_mutex_lock (&priv->queue_lock);
-  priv->processing_tasks = g_list_remove (priv->processing_tasks, task);
+  priv->processing_tasks = g_list_remove (priv->processing_tasks, wrap);
   g_atomic_int_add (&priv->processing_count, -1);
   g_mutex_unlock (&priv->queue_lock);
 
   /* Освобождаем память от задачи. */
-  if (priv->task_free_func != NULL)
-    priv->task_free_func (task);
+  hyscan_task_queue_free_wrap (wrap);
 
   /* Пробуем обработать следующую задачу. */
   hyscan_task_queue_try_next (queue);
 }
 
-/* Пробует отправить на обработку следующую задачу. */
-static void
+/* Пробует отправить на обработку следующую задачу. Возвращает %TRUE, если отправила. */
+static gboolean
 hyscan_task_queue_try_next (HyScanTaskQueue *queue)
 {
   HyScanTaskQueuePrivate *priv = queue->priv;
   GError *error = NULL;
-  gpointer task;
+  HyScanTaskQueueWrap *wrap;
 
   /* Объект находится в стадии завершения, больше не добавляем задачи. */
   if (g_atomic_int_get (&priv->shutdown))
-    return;
+    return FALSE;
 
   /* Не обрабатываем одновременно более n задач. */
   if (g_atomic_int_get (&priv->processing_count) > (gint) priv->max_concurrent)
-    return;
+    return FALSE;
 
   /* Блокируем другим потокам доступ к очереди задач. */
   g_mutex_lock (&priv->queue_lock);
 
   /* Добавляем задачу task из начала очереди в обработку. */
-  task = g_queue_pop_head (priv->queue);
-  if (task != NULL)
+  wrap = g_queue_pop_head (priv->queue);
+  if (wrap == NULL)
     {
-      g_thread_pool_push (priv->pool, task, &error);
-      priv->processing_tasks = g_list_append (priv->processing_tasks, task);
-      g_atomic_int_inc (&priv->processing_count);
-      if (error != NULL)
-        {
-          g_warning ("HyScanTaskQueue: %s", error->message);
-          g_clear_error (&error);
-        }
+      g_mutex_unlock (&priv->queue_lock);
+      return FALSE;
+    }
+
+  priv->processing_tasks = g_list_append (priv->processing_tasks, wrap);
+  g_atomic_int_inc (&priv->processing_count);
+  if (!g_thread_pool_push (priv->pool, wrap, &error))
+    {
+      g_warning ("HyScanTaskQueue: %s", error->message);
+      g_clear_error (&error);
     }
 
   /* Операции с очередью сделаны — разблокируем доступ. */
   g_mutex_unlock (&priv->queue_lock);
+
+  return TRUE;
+}
+
+/* Сравнивает таски a и b. */
+static gint
+hyscan_task_queue_cmp (HyScanTaskQueueWrap *a,
+                       HyScanTaskQueueWrap *b)
+{
+  return a->cmp_func (a->task, b->task);
 }
 
 /**
  * hyscan_task_queue_push:
  * @task_func:
+ * @user_data:
  * @cmp_func:
  *
  * Создает новый объект #HyScanTaskQueue.
@@ -224,88 +243,87 @@ hyscan_task_queue_try_next (HyScanTaskQueue *queue)
 HyScanTaskQueue *
 hyscan_task_queue_new (HyScanTaskQueueFunc task_func,
                        gpointer            user_data,
-                       GDestroyNotify      free_func,
                        GCompareFunc        cmp_func)
 {
   return g_object_new (HYSCAN_TYPE_TASK_QUEUE,
                        "task-func", task_func,
                        "task-data", user_data,
-                       "free-func", free_func,
                        "cmp-func", cmp_func,
                        NULL);
 }
 
 /**
- * hyscan_task_queue_push:
- * \param queue
- * \param task
+ * hyscan_task_queue_push_end:
+ * @queue
+ * @view_id
  *
- * Добавляет задачу в очередь.
+ * Завершает добавление в очередь.
  */
 void
-hyscan_task_queue_push (HyScanTaskQueue *queue,
-                        gpointer         task)
+hyscan_task_queue_push_end (HyScanTaskQueue *queue)
 {
   HyScanTaskQueuePrivate *priv;
+  GList *wrap_l;
+  HyScanTaskQueueWrap *wrap;
 
   g_return_if_fail (HYSCAN_IS_TASK_QUEUE (queue));
-
   priv = queue->priv;
 
   /* Блокируем другим потокам доступ к очереди задач. */
   g_mutex_lock (&priv->queue_lock);
 
-  /* Проверяем, есть ли уже такая задача в очереди или в обработке. */
-  if (!g_queue_find_custom (priv->queue, task, priv->cmp_func) &&
-      !g_list_find_custom (priv->processing_tasks, task, priv->cmp_func))
-
-    /* Если задачи ещё нет в очереди, то добавляем её. */
+  /* Отменяем задачи в обработке, которых нет в новой очереди, и оставляем те, что есть. */
+  for (wrap_l = priv->processing_tasks; wrap_l != NULL; wrap_l = wrap_l->next)
     {
-      g_queue_push_tail (priv->queue, task);
-    }
-  else
+      GList *found;
+      wrap = wrap_l->data;
 
-    /* Если такая же задача уже есть, то удаляем её. */
-    {
-      if (priv->task_free_func)
-        priv->task_free_func (task);
+      found = g_queue_find_custom (priv->prequeue, wrap, (GCompareFunc) hyscan_task_queue_cmp);
+      if (found)
+        g_queue_delete_link (priv->prequeue, found);
+      else
+        g_cancellable_cancel (wrap->cancellable);
     }
+
+  /* Копируем всё остальное из предварительной очереди в настоящую. */
+  g_queue_free_full (priv->queue, hyscan_task_queue_free_wrap);
+  priv->queue = g_queue_copy (priv->prequeue);
+
+  /* Очищаем предварительную очередь. */
+  g_queue_free (priv->prequeue);
+  priv->prequeue = g_queue_new ();
 
   /* Операции с очередью сделаны — разблокируем доступ. */
   g_mutex_unlock (&priv->queue_lock);
 
-  hyscan_task_queue_try_next (queue);
+  /* Запускаем задачи, пока есть что запускать. */
+  while (hyscan_task_queue_try_next (queue))
+    ;
 }
 
 /**
- * hyscan_task_queue_clear:
+ * hyscan_task_queue_push:
  * @queue
+ * @task
  *
- * Очищает очередь задач. Те задачи, которые уже поступили в обработку, будут
- * всё равно обработаны.
+ * Добавляет задачу в предварительную очередь.
  */
 void
-hyscan_task_queue_clear (HyScanTaskQueue  *queue)
+hyscan_task_queue_push (HyScanTaskQueue *queue,
+                        GObject         *task)
 {
+  HyScanTaskQueueWrap *wrapper;
   HyScanTaskQueuePrivate *priv;
-  gpointer task;
 
   g_return_if_fail (HYSCAN_IS_TASK_QUEUE (queue));
-
   priv = queue->priv;
 
-  /* Блокируем другим потокам доступ к очереди задач. */
-  g_mutex_lock (&priv->queue_lock);
+  wrapper = g_new (HyScanTaskQueueWrap, 1);
+  wrapper->cancellable = g_cancellable_new ();
+  wrapper->cmp_func = priv->cmp_func;
+  wrapper->task = g_object_ref (task);
 
-  /* Удаляем все задачи. */
-  while ((task = g_queue_pop_tail (priv->queue)) != NULL)
-    {
-      if (priv->task_free_func)
-        priv->task_free_func (task);
-    }
-
-  /* Операции с очередью сделаны — разблокируем доступ. */
-  g_mutex_unlock (&priv->queue_lock);
+  g_queue_push_tail (queue->priv->prequeue, wrapper);
 }
 
 /**
@@ -319,13 +337,21 @@ void
 hyscan_task_queue_shutdown (HyScanTaskQueue *queue)
 {
   HyScanTaskQueuePrivate *priv;
+  GList *task_l;
+  HyScanTaskQueueWrap *wrap;
 
   g_return_if_fail (HYSCAN_IS_TASK_QUEUE (queue));
   priv = queue->priv;
 
-  /* Ставим флаг о завершении работы. */
+  /* Ставим флаг о завершении работы; после этого новые задачи поступать не будут. */
   g_atomic_int_set (&priv->shutdown, TRUE);
 
-  /* Отменяем все задачи. */
-  g_cancellable_cancel (priv->cancellable);
+  /* Отменяем все текущие задачи. */
+  g_mutex_lock (&priv->queue_lock);
+  for (task_l = priv->processing_tasks; task_l != NULL; task_l = task_l->next)
+    {
+      wrap = task_l->data;
+      g_cancellable_cancel (wrap->cancellable);
+    }
+  g_mutex_unlock (&priv->queue_lock);
 }

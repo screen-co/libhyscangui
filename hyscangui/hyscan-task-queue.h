@@ -16,7 +16,7 @@ G_BEGIN_DECLS
 typedef struct _HyScanTaskQueue HyScanTaskQueue;
 typedef struct _HyScanTaskQueuePrivate HyScanTaskQueuePrivate;
 typedef struct _HyScanTaskQueueClass HyScanTaskQueueClass;
-typedef void (*HyScanTaskQueueFunc) (gpointer      data,
+typedef void (*HyScanTaskQueueFunc) (GObject      *task,
                                      gpointer      user_data,
                                      GCancellable *cancellable);
 
@@ -38,15 +38,14 @@ GType                  hyscan_task_queue_get_type         (void);
 HYSCAN_API
 HyScanTaskQueue *      hyscan_task_queue_new              (HyScanTaskQueueFunc   task_func,
                                                            gpointer              user_data,
-                                                           GDestroyNotify        free_func,
                                                            GCompareFunc          cmp_func);
 
 HYSCAN_API
 void                   hyscan_task_queue_push             (HyScanTaskQueue      *queue,
-                                                           gpointer              task);
+                                                           GObject              *task);
 
 HYSCAN_API
-void                   hyscan_task_queue_clear            (HyScanTaskQueue      *queue);
+void                   hyscan_task_queue_push_end         (HyScanTaskQueue      *queue);
 
 HYSCAN_API
 void                   hyscan_task_queue_shutdown         (HyScanTaskQueue      *queue);

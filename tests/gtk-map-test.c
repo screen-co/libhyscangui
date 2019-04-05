@@ -403,18 +403,21 @@ create_profile_switch (HyScanGtkMap *map)
   g_object_set_data_full (G_OBJECT (combo_box), "profiles", profiles_array, (GDestroyNotify) free_profiles);
 
   /* Считываем профили карты из всех файлов в папке. */
-  config_files = list_profiles (profile_dir);
-  for (conf_i = 0; config_files[conf_i] != NULL; ++conf_i)
+  if (profile_dir != NULL)
     {
-      HyScanMapProfile *profile;
-      profile = hyscan_map_profile_new ();
+      config_files = list_profiles (profile_dir);
+      for (conf_i = 0; config_files[conf_i] != NULL; ++conf_i)
+        {
+          HyScanMapProfile *profile;
+          profile = hyscan_map_profile_new ();
 
-      if (hyscan_map_profile_read (profile, config_files[conf_i]))
-        combo_box_add_profile (GTK_COMBO_BOX_TEXT (combo_box), profile);
+          if (hyscan_map_profile_read (profile, config_files[conf_i]))
+            combo_box_add_profile (GTK_COMBO_BOX_TEXT (combo_box), profile);
 
-      g_object_unref (profile);
+          g_object_unref (profile);
+        }
+      g_strfreev (config_files);
     }
-  g_strfreev (config_files);
 
   /* Если не добавили не один профиль, то добавим хотя бы дефолтный. */
   if (profiles_array->len == 0)
