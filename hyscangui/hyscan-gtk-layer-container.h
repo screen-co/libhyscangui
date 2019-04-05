@@ -51,6 +51,10 @@ HyScanGtkLayer *          hyscan_gtk_layer_container_lookup              (HyScan
                                                                           const gchar             *key);
 
 HYSCAN_API
+void                      hyscan_gtk_layer_container_load_key_file       (HyScanGtkLayerContainer *container,
+                                                                          GKeyFile                *key_file);
+
+HYSCAN_API
 void                      hyscan_gtk_layer_container_set_input_owner     (HyScanGtkLayerContainer *container,
                                                                           gconstpointer            instance);
 

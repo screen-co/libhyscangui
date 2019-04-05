@@ -60,6 +60,8 @@
 #define CACHE_HEADER_MAGIC     0xcfadec2d    /* Идентификатор заголовка кэша. */
 #define TILE_SIZE              256           /* Размер тайла. */
 #define ARROW_SIZE             (32)          /* Размер маркера, изображающего движущийся объект. */
+#define LIFETIME              600
+#define LINE_WIDTH            2.0
 #define LINE_COLOR            "rgba(20,  40,  100, 0.9)"
 #define LINE_LOST_COLOR       "rgba(20,  40,  100, 0.2)"
 #define ARROW_DEFAULT_STROKE  LINE_COLOR
@@ -77,11 +79,17 @@ enum
   PROP_CACHE,
 };
 
-enum
+typedef struct
 {
-  ARROW_DEFAULT,
-  ARROW_LOST,
-};
+  gchar                        *arrow_default_stroke;
+  gchar                        *arrow_default_fill;
+  gchar                        *arrow_lost_stroke;
+  gchar                        *arrow_lost_fill;
+  gchar                        *line_color;      /* Цвет линии трека. */
+  gchar                        *line_lost_color; /* Цвет линии при обрыве связи. */
+  gdouble                       line_width;      /* Ширина линии трека. */
+  guint64                       lifetime;
+} HyScanGtkMapTrackLayerConfig;
 
 typedef struct
 {
@@ -166,6 +174,9 @@ static void    hyscan_gtk_map_track_layer_set_property             (GObject     
                                                                     GParamSpec                    *pspec);
 static void     hyscan_gtk_map_track_layer_object_constructed      (GObject                       *object);
 static void     hyscan_gtk_map_track_layer_object_finalize         (GObject                       *object);
+static gboolean hyscan_gtk_map_track_layer_load_key_file           (HyScanGtkLayer                *layer,
+                                                                    GKeyFile                      *key_file,
+                                                                    const gchar                   *group);
 static void     hyscan_gtk_map_track_layer_removed                 (HyScanGtkLayer                *layer);
 static void     hyscan_gtk_map_track_layer_draw                    (HyScanGtkMap                  *map,
                                                                     cairo_t                       *cairo,
@@ -177,9 +188,9 @@ static void     hyscan_gtk_map_track_layer_added                   (HyScanGtkLay
 static gboolean hyscan_gtk_map_track_layer_get_visible             (HyScanGtkLayer                *layer);
 static void     hyscan_gtk_map_track_layer_set_visible             (HyScanGtkLayer                *layer,
                                                                     gboolean                       visible);
-static void     hyscan_gtk_map_track_create_arrow                  (HyScanGtkMapTrackLayerPrivate *priv,
-                                                                    HyScanGtkMapTrackLayerArrow   *arrow,
-                                                                    guint                          type);
+static void     hyscan_gtk_map_track_create_arrow                  (HyScanGtkMapTrackLayerArrow   *arrow,
+                                                                    GdkRGBA                       *color_fill,
+                                                                    GdkRGBA                       *color_stroke);
 static void     hyscan_gtk_map_track_layer_model_changed           (HyScanGtkMapTrackLayer        *track_layer,
                                                                     gdouble                        time,
                                                                     HyScanGeoGeodetic             *coord);
@@ -241,12 +252,21 @@ hyscan_gtk_map_track_layer_set_property (GObject     *object,
       break;
     }
 }
+static void
+hyscan_gtk_map_track_layer_parse_rgba (GdkRGBA *rgba,
+                                       const gchar *color_spec,
+                                       const gchar *default_spec)
+{
+  if (!gdk_rgba_parse (rgba, color_spec))
+    gdk_rgba_parse (rgba, default_spec);
+}
 
 static void
 hyscan_gtk_map_track_layer_object_constructed (GObject *object)
 {
   HyScanGtkMapTrackLayer *track_layer = HYSCAN_GTK_MAP_TRACK_LAYER (object);
   HyScanGtkMapTrackLayerPrivate *priv = track_layer->priv;
+  HyScanGtkMapTrackLayerConfig *default_config;
 
   G_OBJECT_CLASS (hyscan_gtk_map_track_layer_parent_class)->constructed (object);
 
@@ -257,12 +277,24 @@ hyscan_gtk_map_track_layer_object_constructed (GObject *object)
 
   g_mutex_init (&priv->track_lock);
 
-  priv->line_width = 2.0;
-  gdk_rgba_parse (&priv->line_color, LINE_COLOR);
-  gdk_rgba_parse (&priv->line_lost_color, LINE_LOST_COLOR);
-  hyscan_gtk_map_track_create_arrow (priv, &priv->arrow_default, ARROW_DEFAULT);
-  hyscan_gtk_map_track_create_arrow (priv, &priv->arrow_lost, ARROW_LOST);
-  hyscan_gtk_map_track_layer_set_lifetime (track_layer, 600);
+  /* Настройки внешнего вида по умолчанию. */
+  {
+    GdkRGBA color_fill, color_stroke;
+
+    hyscan_gtk_map_track_layer_set_lifetime (track_layer, 600);
+    priv->line_width = 2.0;
+
+    gdk_rgba_parse (&priv->line_color, LINE_COLOR);
+    gdk_rgba_parse (&priv->line_lost_color, LINE_LOST_COLOR);
+
+    gdk_rgba_parse (&color_fill, ARROW_DEFAULT_FILL);
+    gdk_rgba_parse (&color_stroke, ARROW_DEFAULT_STROKE);
+    hyscan_gtk_map_track_create_arrow (&priv->arrow_default, &color_fill, &color_stroke);
+
+    gdk_rgba_parse (&color_fill, ARROW_LOST_FILL);
+    gdk_rgba_parse (&color_stroke, ARROW_LOST_STROKE);
+    hyscan_gtk_map_track_create_arrow (&priv->arrow_lost, &color_fill, &color_stroke);
+  }
 
   g_signal_connect_swapped (priv->nav_model, "changed", G_CALLBACK (hyscan_gtk_map_track_layer_model_changed), track_layer);
 }
@@ -301,6 +333,47 @@ hyscan_gtk_map_track_layer_interface_init (HyScanGtkLayerInterface *iface)
   iface->removed = hyscan_gtk_map_track_layer_removed;
   iface->set_visible = hyscan_gtk_map_track_layer_set_visible;
   iface->get_visible = hyscan_gtk_map_track_layer_get_visible;
+  iface->load_key_file = hyscan_gtk_map_track_layer_load_key_file;
+}
+
+/* Загружает настройки слоя из ini-файла. */
+static gboolean
+hyscan_gtk_map_track_layer_load_key_file (HyScanGtkLayer *layer,
+                                          GKeyFile       *key_file,
+                                          const gchar    *group)
+{
+  HyScanGtkMapTrackLayer *track_layer = HYSCAN_GTK_MAP_TRACK_LAYER (layer);
+  HyScanGtkMapTrackLayerPrivate *priv = track_layer->priv;
+
+  gdouble line_width;
+  GdkRGBA color_fill, color_stroke;
+
+  g_mutex_lock (&priv->track_lock);
+
+  /* Внешний вид линии. */
+  line_width = g_key_file_get_double (key_file, group, "line-width", NULL);
+  priv->line_width = line_width > 0 ? line_width : LINE_WIDTH ;
+  hyscan_gtk_layer_load_key_file_rgba (&priv->line_color, key_file, group, "line-color", LINE_COLOR);
+  hyscan_gtk_layer_load_key_file_rgba (&priv->line_lost_color, key_file, group, "line-lost-color", LINE_LOST_COLOR);
+
+  /* Маркер в обычном состоянии. */
+  hyscan_gtk_layer_load_key_file_rgba (&color_fill, key_file, group, "arrow-default-fill", ARROW_DEFAULT_FILL);
+  hyscan_gtk_layer_load_key_file_rgba (&color_stroke, key_file, group, "arrow-default-stroke", ARROW_DEFAULT_STROKE);
+  hyscan_gtk_map_track_create_arrow (&priv->arrow_default, &color_fill, &color_stroke);
+
+  /* Маркер при потери сигнала. */
+  hyscan_gtk_layer_load_key_file_rgba (&color_fill, key_file, group, "arrow-lost-fill", ARROW_LOST_FILL);
+  hyscan_gtk_layer_load_key_file_rgba (&color_stroke, key_file, group, "arrow-lost-stroke", ARROW_LOST_STROKE);
+  hyscan_gtk_map_track_create_arrow (&priv->arrow_lost, &color_fill, &color_stroke);
+
+  ++priv->mod_count;
+
+  g_mutex_unlock (&priv->track_lock);
+
+  if (priv->map != NULL)
+    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+  return TRUE;
 }
 
 /* Удаляет из кэша тайлы, содержащие указанный отрезок point0 - point1. */
@@ -498,25 +571,12 @@ hyscan_gtk_map_track_layer_model_changed (HyScanGtkMapTrackLayer *track_layer,
 
 /* Создаёт cairo-поверхность с изображением объекта. */
 static void
-hyscan_gtk_map_track_create_arrow (HyScanGtkMapTrackLayerPrivate *priv,
-                                   HyScanGtkMapTrackLayerArrow   *arrow,
-                                   guint                          type)
+hyscan_gtk_map_track_create_arrow (HyScanGtkMapTrackLayerArrow   *arrow,
+                                   GdkRGBA                       *color_fill,
+                                   GdkRGBA                       *color_stroke)
 {
   cairo_t *cairo;
   guint line_width = 1;
-  GdkRGBA color_fill;
-  GdkRGBA color_stroke;
-
-  if (type == ARROW_LOST)
-    {
-      gdk_rgba_parse (&color_fill, ARROW_LOST_FILL);
-      gdk_rgba_parse (&color_stroke, ARROW_LOST_STROKE);
-    }
-  else
-    {
-      gdk_rgba_parse (&color_fill, ARROW_DEFAULT_FILL);
-      gdk_rgba_parse (&color_stroke, ARROW_DEFAULT_STROKE);
-    }
 
   g_clear_pointer (&arrow->surface, cairo_surface_destroy);
 
@@ -532,11 +592,11 @@ hyscan_gtk_map_track_create_arrow (HyScanGtkMapTrackLayerPrivate *priv,
   cairo_line_to (cairo, .5 * ARROW_SIZE, .8 * ARROW_SIZE);
   cairo_close_path (cairo);
 
-  gdk_cairo_set_source_rgba (cairo, &color_fill);
+  gdk_cairo_set_source_rgba (cairo, color_fill);
   cairo_fill_preserve (cairo);
 
   cairo_set_line_width (cairo, line_width);
-  gdk_cairo_set_source_rgba (cairo, &color_stroke);
+  gdk_cairo_set_source_rgba (cairo, color_stroke);
   cairo_stroke (cairo);
 
   cairo_destroy (cairo);

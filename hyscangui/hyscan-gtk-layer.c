@@ -137,6 +137,58 @@ hyscan_gtk_layer_get_visible (HyScanGtkLayer *layer)
 }
 
 /**
+ * hyscan_gtk_layer_load_key_file:
+ * @layer: указатель на слой #HyScanGtkLayer
+ * @key_file: указатель на #GKeyFile
+ * @group: название группы, относящейся к данному слою
+ *
+ * Загружает конфигурацию слоя из группы @group в ini-файле.
+ *
+ * Returns: %TRUE, если слой сконфигурировался; иначе %FALSE.
+ */
+gboolean
+hyscan_gtk_layer_load_key_file (HyScanGtkLayer          *layer,
+                                GKeyFile                *key_file,
+                                const gchar             *group)
+{
+  HyScanGtkLayerInterface *iface;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_LAYER (layer), TRUE);
+
+  iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
+  if (iface->load_key_file != NULL)
+    return (*iface->load_key_file) (layer, key_file, group);
+
+  return FALSE;
+}
+
+/**
+ * hyscan_gtk_layer_load_key_file_color:
+ * @color
+ * @key_file
+ * @group_name
+ * @key
+ * @default_spec
+ *
+ * Парсит цвет из конфигурационного файла.
+ */
+void
+hyscan_gtk_layer_load_key_file_rgba (GdkRGBA     *color,
+                                     GKeyFile    *key_file,
+                                     const gchar *group_name,
+                                     const gchar *key,
+                                     const gchar *default_spec)
+{
+  gchar *color_spec;
+
+  color_spec = g_key_file_get_string (key_file, group_name, key, NULL);
+  if (color_spec == NULL || !gdk_rgba_parse (color, color_spec))
+    gdk_rgba_parse (color, default_spec);
+
+  g_free (color_spec);
+}
+
+/**
  * hyscan_gtk_layer_get_icon_name:
  * @layer: указатель на слой #HyScanGtkLayer
  *

@@ -445,6 +445,24 @@ hyscan_gtk_layer_container_lookup (HyScanGtkLayerContainer *container,
   return g_hash_table_lookup (container->priv->layers_table, key);
 }
 
+void          
+hyscan_gtk_layer_container_load_key_file (HyScanGtkLayerContainer *container,
+                                          GKeyFile                *key_file)
+{
+  HyScanGtkLayerContainerPrivate *priv;
+  GHashTableIter iter;
+  gchar *key;
+  HyScanGtkLayer *layer;
+  
+  g_return_if_fail (HYSCAN_IS_GTK_LAYER_CONTAINER (container));
+  priv = container->priv;
+
+  g_hash_table_iter_init (&iter, priv->layers_table);
+  
+  while (g_hash_table_iter_next (&iter, (gpointer) &key, (gpointer) &layer))
+    hyscan_gtk_layer_load_key_file (layer, key_file, key);
+}
+
 /**
  * hyscan_gtk_layer_container_get_input_owner:
  * @container: указатель на #HyScanGtkLayerContainer

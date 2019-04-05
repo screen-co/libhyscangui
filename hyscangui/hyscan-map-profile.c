@@ -21,9 +21,12 @@ struct _HyScanMapProfilePrivate
 
   guint                        min_zoom;    /* Минимальный доступный уровень детализации. */
   guint                        max_zoom;    /* Максимальный доступный уровень детализации. */
+
+  GKeyFile                    *key_file;
 };
 
 static void    hyscan_map_profile_object_finalize          (GObject                     *object);
+static void    hyscan_map_profile_object_constructed       (GObject                     *object);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanMapProfile, hyscan_map_profile, G_TYPE_OBJECT)
 
@@ -32,6 +35,7 @@ hyscan_map_profile_class_init (HyScanMapProfileClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
+  object_class->constructed = hyscan_map_profile_object_constructed;
   object_class->finalize = hyscan_map_profile_object_finalize;
 }
 
@@ -42,11 +46,23 @@ hyscan_map_profile_init (HyScanMapProfile *map_profile)
 }
 
 static void
+hyscan_map_profile_object_constructed (GObject *object)
+{
+  HyScanMapProfile *map_profile = HYSCAN_MAP_PROFILE (object);
+  HyScanMapProfilePrivate *priv = map_profile->priv;
+
+  G_OBJECT_CLASS (hyscan_map_profile_parent_class)->constructed (object);
+
+  priv->key_file = g_key_file_new ();
+}
+
+static void
 hyscan_map_profile_object_finalize (GObject *object)
 {
   HyScanMapProfile *map_profile = HYSCAN_MAP_PROFILE (object);
   HyScanMapProfilePrivate *priv = map_profile->priv;
 
+  g_key_file_free (priv->key_file);
   g_free (priv->title);
   g_free (priv->url_format);
   g_free (priv->tiles_dir);
@@ -209,46 +225,45 @@ hyscan_map_profile_new (void)
  *
  */
 gboolean
-hyscan_map_profile_read (HyScanMapProfile    *serializable,
+hyscan_map_profile_read (HyScanMapProfile    *profile,
                          const gchar         *name)
 {
-  HyScanMapProfile *profile;
+  HyScanMapProfilePrivate *priv;
   gboolean result = FALSE;
 
   guint max_zoom, min_zoom;
   gchar *title = NULL, *url_format = NULL, *cache_dir = NULL, *projection = NULL;
 
-  GKeyFile *key_file;
   GError *error = NULL;
 
   // TODO: эту функцию можно использовать в HyScanSerializable
 
-  profile = HYSCAN_MAP_PROFILE (serializable);
-  key_file = g_key_file_new ();
+  g_return_val_if_fail (HYSCAN_IS_MAP_PROFILE (profile), FALSE);
+  priv = profile->priv;
 
-  g_key_file_load_from_file (key_file, name, G_KEY_FILE_NONE, &error);
+  g_key_file_load_from_file (priv->key_file, name, G_KEY_FILE_NONE, &error);
   if (error != NULL)
     goto exit;
 
-  title = g_key_file_get_string (key_file, "global", "title", &error);
+  title = g_key_file_get_string (priv->key_file, "global", "title", &error);
   if (error != NULL)
     goto exit;
 
-  url_format = g_key_file_get_string (key_file, "global", "url", &error);
+  url_format = g_key_file_get_string (priv->key_file, "global", "url", &error);
   if (error != NULL)
     goto exit;
 
-  projection = g_key_file_get_string (key_file, "global", "proj", &error);
+  projection = g_key_file_get_string (priv->key_file, "global", "proj", &error);
   if (error != NULL)
     goto exit;
 
-  cache_dir = g_key_file_get_string (key_file, "global", "dir", NULL);
+  cache_dir = g_key_file_get_string (priv->key_file, "global", "dir", NULL);
 
-  min_zoom = g_key_file_get_uint64 (key_file, "global", "min_zoom", &error);
+  min_zoom = g_key_file_get_uint64 (priv->key_file, "global", "min_zoom", &error);
   if (error != NULL)
     goto exit;
 
-  max_zoom = g_key_file_get_uint64 (key_file, "global", "max_zoom", &error);
+  max_zoom = g_key_file_get_uint64 (priv->key_file, "global", "max_zoom", &error);
   if (error != NULL)
     goto exit;
 
@@ -262,7 +277,6 @@ exit:
       g_clear_error (&error);
     }
 
-  g_key_file_free (key_file);
   g_free (title);
   g_free (url_format);
   g_free (cache_dir);
@@ -321,6 +335,9 @@ hyscan_map_profile_apply (HyScanMapProfile *profile,
 
   /* Устанавливаем новый слой тайлов в самый низ. */
   hyscan_gtk_layer_container_add (container, hyscan_map_profile_create_tiles (priv), TILES_LAYER_ID);
+
+  /* Конфигурируем остальные слои. */
+  hyscan_gtk_layer_container_load_key_file (container, priv->key_file);
 
   gtk_widget_queue_draw (GTK_WIDGET (map));
 

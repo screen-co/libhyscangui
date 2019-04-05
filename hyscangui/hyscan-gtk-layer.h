@@ -19,6 +19,7 @@ typedef struct _HyScanGtkLayerContainer HyScanGtkLayerContainer;
 /**
  * HyScanGtkLayerInterface:
  * @g_iface: Базовый интерфейс.
+ * @load_key_file: Загружает конфигурацию слоя из указанной группы в GKeyFile.
  * @added: Регистрирует слой в контейнере @container.
  * @removed: Удаляет слой из контейнера @container.
  * @grab_input: Захватывает пользовательский ввод в своём контейнере.
@@ -30,6 +31,9 @@ struct _HyScanGtkLayerInterface
 {
   GTypeInterface       g_iface;
 
+  gboolean           (*load_key_file)    (HyScanGtkLayer          *gtk_layer,
+                                          GKeyFile                *key_file,
+                                          const gchar             *group);
   void               (*added)            (HyScanGtkLayer          *gtk_layer,
                                           HyScanGtkLayerContainer *container);
   void               (*removed)          (HyScanGtkLayer          *gtk_layer);
@@ -59,6 +63,18 @@ void          hyscan_gtk_layer_set_visible            (HyScanGtkLayer          *
 
 HYSCAN_API
 gboolean      hyscan_gtk_layer_get_visible            (HyScanGtkLayer          *layer);
+
+HYSCAN_API
+gboolean      hyscan_gtk_layer_load_key_file          (HyScanGtkLayer          *layer,
+                                                       GKeyFile                *key_file,
+                                                       const gchar             *group);
+
+HYSCAN_API
+void          hyscan_gtk_layer_load_key_file_rgba     (GdkRGBA                 *color,
+                                                       GKeyFile                *key_file,
+                                                       const gchar             *group_name,
+                                                       const gchar             *key,
+                                                       const gchar             *default_spec);
 
 HYSCAN_API
 const gchar * hyscan_gtk_layer_get_icon_name          (HyScanGtkLayer          *layer);

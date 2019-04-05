@@ -4,6 +4,7 @@
 #define SNAP_DISTANCE       6.0           /* Максимальное расстояние прилипания курсора мыши к звену ломаной. */
 #define EARTH_RADIUS        6378137.0     /* Радиус Земли. */
 
+#define LINE_WIDTH_DEFAULT  2.0
 #define LINE_COLOR_DEFAULT  "rgba( 80, 120, 180, 0.5)"
 #define LABEL_COLOR_DEFAULT "rgba( 33,  33,  33, 1.0)"
 #define BG_COLOR_DEFAULT    "rgba(255, 255, 255, 0.6)"
@@ -102,7 +103,7 @@ hyscan_gtk_map_ruler_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_gtk_map_ruler_parent_class)->constructed (object);
 
-  hyscan_gtk_map_ruler_set_line_width (gtk_map_ruler, 2.0);
+  hyscan_gtk_map_ruler_set_line_width (gtk_map_ruler, LINE_WIDTH_DEFAULT);
   gdk_rgba_parse (&color, LINE_COLOR_DEFAULT);
   hyscan_gtk_map_ruler_set_line_color (gtk_map_ruler, color);
   gdk_rgba_parse (&color, BG_COLOR_DEFAULT);
@@ -183,6 +184,32 @@ hyscan_gtk_map_ruler_added (HyScanGtkLayer          *gtk_layer,
                     G_CALLBACK (hyscan_gtk_map_ruler_handle), gtk_layer);
 }
 
+static gboolean
+hyscan_gtk_map_ruler_load_key_file (HyScanGtkLayer *gtk_layer,
+                                    GKeyFile       *key_file,
+                                    const gchar    *group)
+{
+  HyScanGtkMapRuler *ruler = HYSCAN_GTK_MAP_RULER (gtk_layer);
+  GdkRGBA color;
+  gdouble width;
+
+  hyscan_gtk_layer_parent_interface->load_key_file (gtk_layer, key_file, group);
+
+  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "color-bg", BG_COLOR_DEFAULT);
+  hyscan_gtk_map_ruler_set_bg_color (ruler, color);
+
+  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "color-label", LABEL_COLOR_DEFAULT);
+  hyscan_gtk_map_ruler_set_label_color (ruler, color);
+
+  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "color-line", LINE_COLOR_DEFAULT);
+  hyscan_gtk_map_ruler_set_line_color (ruler, color);
+
+  width = g_key_file_get_double (key_file, group, "line-width", NULL);
+  hyscan_gtk_map_ruler_set_line_width (ruler, width > 0 ? width : LINE_WIDTH_DEFAULT);
+
+  return TRUE;
+}
+
 static void
 hyscan_gtk_map_ruler_interface_init (HyScanGtkLayerInterface *iface)
 {
@@ -190,6 +217,7 @@ hyscan_gtk_map_ruler_interface_init (HyScanGtkLayerInterface *iface)
 
   iface->added = hyscan_gtk_map_ruler_added;
   iface->removed = hyscan_gtk_map_ruler_removed;
+  iface->load_key_file = hyscan_gtk_map_ruler_load_key_file;
 }
 
 /* Обработка сигнала "configure-event" виджета карты. */

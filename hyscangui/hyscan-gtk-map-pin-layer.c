@@ -9,6 +9,7 @@
 #include <hyscan-gtk-layer.h>
 #include <math.h>
 
+#define DEFAULT_SIZE          8
 #define DEFAULT_COLOR_PRIME   "#995599"
 #define DEFAULT_COLOR_STROKE  "#884488"
 #define DEFAULT_COLOR_SECOND  "#ffffff"
@@ -302,7 +303,7 @@ hyscan_gtk_map_pin_layer_object_constructed (GObject *object)
   gtk_map_pin_layer->priv->pin_stroke_width = 1.0;
 
   hyscan_gtk_map_pin_layer_set_pin_shape (gtk_map_pin_layer, HYSCAN_GTK_MAP_PIN_LAYER_SHAPE_PIN);
-  hyscan_gtk_map_pin_layer_set_pin_size (gtk_map_pin_layer, 8);
+  hyscan_gtk_map_pin_layer_set_pin_size (gtk_map_pin_layer, DEFAULT_SIZE);
   gdk_rgba_parse (&color, DEFAULT_COLOR_PRIME);
   hyscan_gtk_map_pin_layer_set_color_prime (gtk_map_pin_layer, color);
   gdk_rgba_parse (&color, DEFAULT_COLOR_STROKE);
@@ -460,6 +461,26 @@ hyscan_gtk_map_pin_layer_grab_input (HyScanGtkLayer *layer)
   return TRUE;
 }
 
+static gboolean
+hyscan_gtk_map_pin_layer_load_key_file (HyScanGtkLayer *gtk_layer,
+                                        GKeyFile       *key_file,
+                                        const gchar    *group)
+{
+  HyScanGtkMapPinLayer *pin_layer = HYSCAN_GTK_MAP_PIN_LAYER (gtk_layer);
+  GdkRGBA color;
+
+  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "color-stroke", DEFAULT_COLOR_STROKE);
+  hyscan_gtk_map_pin_layer_set_color_stroke (pin_layer, color);
+
+  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "color-prime", DEFAULT_COLOR_PRIME);
+  hyscan_gtk_map_pin_layer_set_color_prime (pin_layer, color);
+
+  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "color-second", DEFAULT_COLOR_SECOND);
+  hyscan_gtk_map_pin_layer_set_color_second (pin_layer, color);
+
+  return TRUE;
+}
+
 /* Реализация интерфейса HyScanGtkLayerInterface. */
 static void
 hyscan_gtk_map_pin_layer_interface_init (HyScanGtkLayerInterface *iface)
@@ -469,6 +490,7 @@ hyscan_gtk_map_pin_layer_interface_init (HyScanGtkLayerInterface *iface)
   iface->grab_input = hyscan_gtk_map_pin_layer_grab_input;
   iface->set_visible = hyscan_gtk_map_pin_layer_set_visible;
   iface->get_visible = hyscan_gtk_map_pin_layer_get_visible;
+  iface->load_key_file = hyscan_gtk_map_pin_layer_load_key_file;
 }
 
 static void
