@@ -114,6 +114,7 @@ struct _HyScanNavigationModelPrivate
   GMutex                       sensor_lock;    /* Блокировка доступа к полям sensor_. */
 
   guint                        interval;       /* Желаемая частота эмитирования сигналов "changed", милисекунды. */
+  guint                        process_tag;    /* ID таймера отправки сигналов "changed". */
 
   GTimer                      *timer;          /* Внутренний таймер. */
   gdouble                      timer_offset;   /* Разница во времени между таймером и датчиком. */
@@ -680,7 +681,7 @@ hyscan_navigation_model_object_constructed (GObject *object)
   priv->timer = g_timer_new ();
   priv->fixes_max_len = 10;
 
-  g_timeout_add (priv->interval, (GSourceFunc) hyscan_navigation_model_process, model);
+  priv->process_tag = g_timeout_add (priv->interval, (GSourceFunc) hyscan_navigation_model_process, model);
 }
 
 static void
@@ -690,6 +691,8 @@ hyscan_navigation_model_object_finalize (GObject *object)
   HyScanNavigationModelPrivate *priv = model->priv;
 
   g_signal_handlers_disconnect_by_data (priv->sensor, model);
+
+  g_source_remove (priv->process_tag);
 
   g_mutex_lock (&priv->fixes_lock);
   g_list_free_full (priv->fixes, (GDestroyNotify) hyscan_navigation_model_fix_free);

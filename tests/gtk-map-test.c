@@ -365,6 +365,8 @@ list_profiles (const gchar *profiles_path)
       g_error_free (error);
     }
 
+  g_dir_close (dir);
+
   profiles = g_realloc (profiles, ++nprofiles * sizeof (gchar **));
   profiles[nprofiles - 1] = NULL;
 
@@ -425,8 +427,8 @@ create_profile_switch (HyScanGtkMap *map)
       g_object_unref (profile);
     }
 
-  gtk_combo_box_set_active (GTK_COMBO_BOX (combo_box), 0);
   g_signal_connect (combo_box, "changed", G_CALLBACK (on_profile_change), map);
+  gtk_combo_box_set_active (GTK_COMBO_BOX (combo_box), 0);
 
   return combo_box;
 }
