@@ -1,4 +1,39 @@
-/**
+/* hyscan-gtk-layer-container.c
+ *
+ * Copyright 2017 Screen LLC, Alexander Dmitriev <m1n7@yandex.ru>
+ * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
+ *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+ /**
  * SECTION: hyscan-gtk-layer-container
  * @Short_description: Контейнер слоёв виджета #GtkCifroArea
  * @Title: HyScanGtkLayerContainer
@@ -376,10 +411,10 @@ hyscan_gtk_layer_container_add (HyScanGtkLayerContainer *container,
 
 /**
  * hyscan_gtk_layer_container_remove:
- * @container
- * @layer
+ * @container: указатель на контейнер
+ * @layer: указатель на слой #HyScanGtkLayer
  *
- * Удаляет слой из контейнера.
+ * Удаляет слой @layer из контейнера.
  */
 void
 hyscan_gtk_layer_container_remove (HyScanGtkLayerContainer *container,
@@ -404,9 +439,8 @@ hyscan_gtk_layer_container_remove (HyScanGtkLayerContainer *container,
 }
 
 /**
- * hyscan_gtk_layer_container_remove:
- * @container
- * @layer
+ * hyscan_gtk_layer_container_remove_all:
+ * @container: указатель на #HyScanGtkLayerContainer
  *
  * Удаляет все слои из контейнера.
  */
@@ -420,17 +454,20 @@ hyscan_gtk_layer_container_remove_all (HyScanGtkLayerContainer *container)
 
   priv = container->priv;
 
-  for (layer_l = priv->layers; layer_l != NULL; layer_l = layer_l->next)
-    hyscan_gtk_layer_container_layer_removed (priv, layer_l->data);
+  layer_l = priv->layers;
+  while (layer_l != NULL)
+    {
+      GList *next_l = layer_l->next;
 
-  g_list_free (priv->layers);
-  priv->layers = NULL;
+      hyscan_gtk_layer_container_remove (container, layer_l->data);
+      layer_l = next_l;
+    }
 }
 
 /**
  * hyscan_gtk_layer_container_lookup:
- * @container
- * @key
+ * @container: указатель на #HyScanGtkLayerContainer
+ * @key: ключ для поиска
  *
  * Ищет в контейнере слой, соответствующий ключу @key.
  *
@@ -445,7 +482,19 @@ hyscan_gtk_layer_container_lookup (HyScanGtkLayerContainer *container,
   return g_hash_table_lookup (container->priv->layers_table, key);
 }
 
-void          
+/**
+ * hyscan_gtk_layer_container_load_key_file:
+ * @container: указатель на #HyScanGtkLayerContainer
+ * @key_file: указатель на #GKeyFile
+ *
+ * Загружает конфигурацию слоев из файла @key_file. Каждому слою передается
+ * конфигурация из группы с именем, соответствующем ключу слоя, назначенном в
+ * hyscan_gtk_layer_container_add().
+ *
+ * Внутри функция вызывает hyscan_gtk_layer_load_key_file() на каждом слое.
+ *
+ */
+void
 hyscan_gtk_layer_container_load_key_file (HyScanGtkLayerContainer *container,
                                           GKeyFile                *key_file)
 {

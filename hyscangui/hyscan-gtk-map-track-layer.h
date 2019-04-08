@@ -2,14 +2,14 @@
  *
  * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *
- * This file is part of HyScanCore library.
+ * This file is part of HyScanGui library.
  *
- * HyScanCore is dual-licensed: you can redistribute it and/or modify
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
  *
- * HyScanCore is distributed in the hope that it will be useful,
+ * HyScanGui is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -21,9 +21,9 @@
  * Contact the Screen LLC in this case - <info@screen-co.ru>.
  */
 
-/* HyScanCore имеет двойную лицензию.
+/* HyScanGui имеет двойную лицензию.
  *
- * Во-первых, вы можете распространять HyScanCore на условиях Стандартной
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
  * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
  * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
  * <http://www.gnu.org/licenses/>.
