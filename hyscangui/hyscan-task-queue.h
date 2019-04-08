@@ -16,6 +16,15 @@ G_BEGIN_DECLS
 typedef struct _HyScanTaskQueue HyScanTaskQueue;
 typedef struct _HyScanTaskQueuePrivate HyScanTaskQueuePrivate;
 typedef struct _HyScanTaskQueueClass HyScanTaskQueueClass;
+
+/**
+ * HyScanTaskQueueFunc:
+ * @task: указатель на объект задачи
+ * @user_data: пользовательские данные
+ * @cancellable: объект для отмены задачи
+ *
+ * Функция обработки задачи.
+ */
 typedef void (*HyScanTaskQueueFunc) (GObject      *task,
                                      gpointer      user_data,
                                      GCancellable *cancellable);

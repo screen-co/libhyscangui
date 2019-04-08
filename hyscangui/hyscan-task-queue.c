@@ -1,3 +1,30 @@
+/**
+ * SECTION: hyscan-task-queue
+ * @Short_description: Очередь задач
+ * @Title: HyScanTaskQueue
+ *
+ * HyScanTaskQueue позволяет выполнять последовательную обработку задач в порядке
+ * очереди. Работа с очередью сводится к следующим шагам.
+ *
+ * 1. Функция hyscan_task_queue_new() создает новый объек очереди.
+ * 1. Задачи сначала по одной регистрируются в очередь с помощью функции
+ *    hyscan_task_queue_push(). В этот момент они еще не поступают в обработку.
+ * 2. Чтобы передать группу зарегистрированных задач в обработку, необходимо
+ *    вызвать функцию hyscan_task_queue_push_end().
+ * 3. Перед началом обработки отменяются все текущие задачи, которых не оказалось
+ *    в новой группе. Идентичность задач определяется функцией #GCompareFunc,
+ *    переданной при создании очереди.
+ * 4. Шаги 1-3 повторяются.
+ * 5. Для завершения работы очереди необходимо вызвать hyscan_task_queue_shutdown().
+ *
+ * В функции обработки задачи #HyScanTaskQueueFunc рекомендуется реализовать
+ * возможность отмены обработки при помощи объекта #GCancellable. Это сделает
+ * работу очереди более отзывчивой.
+ *
+ * Сама задача, передаваемая в #HyScanTaskQueue, должна наследовать класс #GObject.
+ *
+ */
+
 #include "hyscan-task-queue.h"
 
 enum
@@ -110,8 +137,7 @@ hyscan_task_queue_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_task_queue_parent_class)->constructed (object);
 
-  /* todo: сколько надо потоков? */
-  priv->max_concurrent = 3;
+  priv->max_concurrent = g_get_num_processors ();
   priv->pool = g_thread_pool_new ((GFunc) hyscan_task_queue_process, task_queue,
                                   priv->max_concurrent, FALSE, NULL);
   priv->prequeue = g_queue_new ();
@@ -147,6 +173,7 @@ hyscan_task_queue_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_task_queue_parent_class)->finalize (object);
 }
 
+/* Освобождает память, занятую структурой HyScanTaskQueueWrap. */
 static void
 hyscan_task_queue_free_wrap (gpointer data)
 {
@@ -221,7 +248,7 @@ hyscan_task_queue_try_next (HyScanTaskQueue *queue)
   return TRUE;
 }
 
-/* Сравнивает таски a и b. */
+/* Сравнивает задачи a и b. Возвращает 0, если они одинаковые. */
 static gint
 hyscan_task_queue_cmp (HyScanTaskQueueWrap *a,
                        HyScanTaskQueueWrap *b)
@@ -254,8 +281,7 @@ hyscan_task_queue_new (HyScanTaskQueueFunc task_func,
 
 /**
  * hyscan_task_queue_push_end:
- * @queue
- * @view_id
+ * @queue: указатель на #HyScanTaskQueue
  *
  * Завершает добавление в очередь.
  */
@@ -296,15 +322,15 @@ hyscan_task_queue_push_end (HyScanTaskQueue *queue)
   /* Операции с очередью сделаны — разблокируем доступ. */
   g_mutex_unlock (&priv->queue_lock);
 
-  /* Запускаем задачи, пока есть что запускать. */
+  /* Запускаем задачи, пока они запускаются. */
   while (hyscan_task_queue_try_next (queue))
     ;
 }
 
 /**
  * hyscan_task_queue_push:
- * @queue
- * @task
+ * @queue: указатель на #HyScanTaskQueue
+ * @task: указатель на объект задачи #GObject
  *
  * Добавляет задачу в предварительную очередь.
  */
@@ -328,7 +354,7 @@ hyscan_task_queue_push (HyScanTaskQueue *queue,
 
 /**
  * hyscan_task_queue_shutdown:
- * @queue
+ * @queue: указатель на #HyScanTaskQueue
  *
  * Останавливает выполнение задач в очереди. Должна быть вызвана перед
  * удаление объекта g_object_unref().
