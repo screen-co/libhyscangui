@@ -153,10 +153,9 @@ static gboolean
 hyscan_gtk_map_fs_tile_source_save (HyScanGtkMapTile *tile,
                                     const gchar      *tile_path)
 {
-  GError *write_error = NULL;
-  GdkPixbuf *pixbuf;
-
   gchar *tile_dir;
+  cairo_surface_t *surface;
+  cairo_status_t status;
 
   /* Создаём подкаталог для записи тайла. */
   tile_dir = g_path_get_dirname (tile_path);
@@ -164,14 +163,13 @@ hyscan_gtk_map_fs_tile_source_save (HyScanGtkMapTile *tile,
   g_free (tile_dir);
 
   /* Записываем PNG-файл с тайлом. */
-  pixbuf = hyscan_gtk_map_tile_get_pixbuf (tile);
-  gdk_pixbuf_save (pixbuf, tile_path, "png", &write_error, NULL);
+  surface = hyscan_gtk_map_tile_get_surface (tile);
+  status = cairo_surface_write_to_png (surface, tile_path);
+  cairo_surface_destroy (surface);
 
-  if (write_error != NULL)
+  if (status != CAIRO_STATUS_SUCCESS)
     {
-      g_warning ("HyScanGtkMapFsTileSource: failed to save tile, %s", write_error->message);
-      g_clear_error (&write_error);
-
+      g_warning ("HyScanGtkMapFsTileSource: failed to save tile, %s", cairo_status_to_string (status));
       return FALSE;
     }
 

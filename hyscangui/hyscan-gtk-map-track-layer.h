@@ -36,6 +36,7 @@
 #define __HYSCAN_GTK_MAP_TRACK_LAYER_H__
 
 #include <hyscan-gtk-layer.h>
+#include <hyscan-cache.h>
 #include <hyscan-navigation-model.h>
 
 G_BEGIN_DECLS

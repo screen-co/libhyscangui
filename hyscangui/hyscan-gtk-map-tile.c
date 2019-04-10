@@ -43,6 +43,17 @@ enum
   PROP_Y,
   PROP_ZOOM,
   PROP_SIZE,
+  PROP_GRID,
+};
+
+struct _HyScanGtkMapTileGridPrivate
+{
+  gdouble                      min_x;          /* Минимальное значение координаты x. */
+  gdouble                      min_y;          /* Минимальное значение координаты y. */
+  gdouble                      max_x;          /* Максимальное значение координаты x. */
+  gdouble                      max_y;          /* Максимальное значение координаты y. */
+  gdouble                      tiles_num;      /* Число тайлов вдоль каждой из осей. */
+  guint                        tile_size;      /* Размер тайла в пикселах. */
 };
 
 struct _HyScanGtkMapTilePrivate
@@ -52,7 +63,9 @@ struct _HyScanGtkMapTilePrivate
   guint                        zoom;           /* Масштаб. */
   guint                        size;           /* Размер тайла size x size - тайлы квадратные. */
 
-  GdkPixbuf                   *pixbuf;         /* Изображение тайла. */
+  HyScanGtkMapTileGrid        *grid;           /* Параметры сетки тайла. */
+
+  cairo_surface_t             *surface;        /* Изображение тайла. */
 };
 
 static void    hyscan_gtk_map_tile_set_property             (GObject               *object,
@@ -62,6 +75,19 @@ static void    hyscan_gtk_map_tile_set_property             (GObject            
 static void    hyscan_gtk_map_tile_object_finalize          (GObject               *object);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMapTile, hyscan_gtk_map_tile, G_TYPE_OBJECT)
+G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMapTileGrid, hyscan_gtk_map_tile_grid, G_TYPE_OBJECT)
+
+static void
+hyscan_gtk_map_tile_grid_class_init (HyScanGtkMapTileGridClass *klass)
+{
+
+}
+
+static void
+hyscan_gtk_map_tile_grid_init (HyScanGtkMapTileGrid *gtk_map_tile_grid)
+{
+  gtk_map_tile_grid->priv = hyscan_gtk_map_tile_grid_get_instance_private (gtk_map_tile_grid);
+}
 
 static void
 hyscan_gtk_map_tile_class_init (HyScanGtkMapTileClass *klass)
@@ -72,6 +98,9 @@ hyscan_gtk_map_tile_class_init (HyScanGtkMapTileClass *klass)
 
   object_class->finalize = hyscan_gtk_map_tile_object_finalize;
 
+  g_object_class_install_property (object_class, PROP_GRID,
+    g_param_spec_object ("grid", "Grid", "HyScanGtkMapTileGrid", HYSCAN_TYPE_GTK_MAP_TILE_GRID,
+                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_X,
     g_param_spec_uint ("x", "X", "X coordinate", 0, G_MAXUINT32, 0,
                        G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
@@ -79,7 +108,7 @@ hyscan_gtk_map_tile_class_init (HyScanGtkMapTileClass *klass)
     g_param_spec_uint ("y", "Y", "Y coordinate", 0, G_MAXUINT32, 0,
                        G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_ZOOM,
-    g_param_spec_uint ("z", "Z", "Zoom", 0, 19, 1,
+    g_param_spec_uint ("z", "Z", "Zoom", 0, G_MAXUINT, 0,
                        G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_SIZE,
     g_param_spec_uint ("size", "Size", "Tile size, px", 0, G_MAXUINT, 256,
@@ -119,6 +148,10 @@ hyscan_gtk_map_tile_set_property (GObject      *object,
       priv->size = g_value_get_uint (value);
       break;
 
+    case PROP_GRID:
+      priv->grid = g_value_dup_object (value);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -131,24 +164,119 @@ hyscan_gtk_map_tile_object_finalize (GObject *object)
   HyScanGtkMapTile *gtk_map_tile = HYSCAN_GTK_MAP_TILE (object);
   HyScanGtkMapTilePrivate *priv = gtk_map_tile->priv;
 
-  g_clear_object (&priv->pixbuf);
+  g_clear_object (&priv->grid);
+  g_clear_pointer (&priv->surface, cairo_surface_destroy);
+  
 
   G_OBJECT_CLASS (hyscan_gtk_map_tile_parent_class)->finalize (object);
 }
 
+/**
+ * hyscan_gtk_map_tile_new:
+ * @grid
+ * @x
+ * @y
+ * @z
+ * @size
+ *
+ * Returns: указатель на #HyScanGtkMapTile. Для удаления g_object_unref().
+ */
 HyScanGtkMapTile *
-hyscan_gtk_map_tile_new (guint x,
-                         guint y,
-                         guint z,
-                         guint size)
+hyscan_gtk_map_tile_new (HyScanGtkMapTileGrid *grid,
+                         guint                 x,
+                         guint                 y,
+                         guint                 z,
+                         guint                 size)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_TILE,
+                       "grid", grid,
                        "x", x,
                        "y", y,
                        "z", z,
                        "size", size, NULL);
 }
 
+/**
+ * hyscan_gtk_map_tile_grid_new:
+ * @min_x
+ * @max_x
+ * @min_y
+ * @max_y
+ * @tile_size
+ * @tiles_num
+ *
+ * Создает тайловую сетку по указанным границам, размеру тайла и числу тайлов
+ * вдоль каждой стороны.
+ *
+ * Returns: указатель на #HyScanGtkMapTileGrid
+ */
+HyScanGtkMapTileGrid *
+hyscan_gtk_map_tile_grid_new (gdouble min_x,
+                              gdouble max_x,
+                              gdouble min_y,
+                              gdouble max_y,
+                              guint   tile_size,
+                              gdouble tiles_num)
+{
+  HyScanGtkMapTileGrid *grid;
+  HyScanGtkMapTileGridPrivate *priv;
+
+  grid = g_object_new (HYSCAN_TYPE_GTK_MAP_TILE_GRID, NULL);
+  priv = grid->priv;
+
+  priv->min_x = min_x;
+  priv->max_x = max_x;
+  priv->min_y = min_y;
+  priv->max_y = max_y;
+  priv->tile_size = tile_size;
+  priv->tiles_num = tiles_num;
+
+  return grid;
+}
+
+/**
+ * hyscan_gtk_map_tile_grid_new_from_scale:
+ * @min_x
+ * @max_x
+ * @min_y
+ * @max_y
+ * @tile_size
+ * @scale
+ *
+ * Создает тайловую сетку по указанными границами, размеру и маштабу тайла.
+ *
+ * Returns: указатель на #HyScanGtkMapTileGrid.
+ */
+HyScanGtkMapTileGrid *
+hyscan_gtk_map_tile_grid_new_from_scale (gdouble min_x,
+                                         gdouble max_x,
+                                         gdouble min_y,
+                                         gdouble max_y,
+                                         guint   tile_size,
+                                         gdouble scale)
+{
+  HyScanGtkMapTileGrid *grid;
+  HyScanGtkMapTileGridPrivate *priv;
+
+  grid = g_object_new (HYSCAN_TYPE_GTK_MAP_TILE_GRID, NULL);
+  priv = grid->priv;
+
+  priv->min_x = min_x;
+  priv->max_x = max_x;
+  priv->min_y = min_y;
+  priv->max_y = max_y;
+  priv->tile_size = tile_size;
+  priv->tiles_num = (max_x - min_x) / scale / priv->tile_size;
+
+  return grid;
+}
+
+/**
+ * hyscan_gtk_map_tile_get_x:
+ * @tile
+ *
+ * Returns: координата x тайла.
+ */
 guint
 hyscan_gtk_map_tile_get_x (HyScanGtkMapTile *tile)
 {
@@ -157,6 +285,12 @@ hyscan_gtk_map_tile_get_x (HyScanGtkMapTile *tile)
   return tile->priv->x;
 }
 
+/**
+ * hyscan_gtk_map_tile_get_y:
+ * @tile
+ *
+ * Returns: координата y тайла.
+ */
 guint
 hyscan_gtk_map_tile_get_y (HyScanGtkMapTile *tile)
 {
@@ -165,6 +299,38 @@ hyscan_gtk_map_tile_get_y (HyScanGtkMapTile *tile)
   return tile->priv->y;
 }
 
+/**
+ * hyscan_gtk_map_tile_get_bounds:
+ * @tile
+ * @from_x
+ * @to_x
+ * @from_y
+ * @to_y
+ *
+ * Определяет область в логических координатах, которую покрывает тайл @tile.
+ */
+void
+hyscan_gtk_map_tile_get_bounds (HyScanGtkMapTile *tile,
+                                gdouble          *from_x,
+                                gdouble          *to_x,
+                                gdouble          *from_y,
+                                gdouble          *to_y)
+{
+  HyScanGtkMapTilePrivate *priv;
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile));
+
+  priv = tile->priv;
+
+  hyscan_gtk_map_tile_grid_tile_to_value (priv->grid, priv->x, priv->y, from_x, from_y);
+  hyscan_gtk_map_tile_grid_tile_to_value (priv->grid, priv->x + 1, priv->y + 1, to_x, to_y);
+}
+
+/**
+ * hyscan_gtk_map_tile_get_zoom:
+ * @tile:
+ *
+ * Returns: номер масштаба тайла
+ */
 guint
 hyscan_gtk_map_tile_get_zoom (HyScanGtkMapTile *tile)
 {
@@ -173,6 +339,12 @@ hyscan_gtk_map_tile_get_zoom (HyScanGtkMapTile *tile)
   return tile->priv->zoom;
 }
 
+/**
+ * hyscan_gtk_map_tile_get_size:
+ * @tile: указатель на #HyScanGtkMapTile
+ *
+ * Returns: размер стороны тайла в пикселах.
+ */
 guint
 hyscan_gtk_map_tile_get_size (HyScanGtkMapTile *tile)
 {
@@ -181,11 +353,72 @@ hyscan_gtk_map_tile_get_size (HyScanGtkMapTile *tile)
   return tile->priv->size;
 }
 
+/**
+ * hyscan_gtk_map_tile_get_scale:
+ * @tile: указатель на #HyScanGtkMapTile
+ *
+ * Returns: масштаб тайла или -1.0 в случае ошибки
+ */
+gdouble
+hyscan_gtk_map_tile_get_scale (HyScanGtkMapTile *tile)
+{
+  HyScanGtkMapTileGridPrivate *priv;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile), -1.0);
+  priv = tile->priv->grid->priv;
+
+  return (priv->max_x - priv->min_x) / priv->tiles_num / priv->tile_size;
+}
+
+/**
+ * hyscan_gtk_map_tile_set_surface_data:
+ * @tile
+ * @data
+ * @size
+ *
+ * Устанавливает поверхность данные @data в качестве поверхности тайла.
+ *
+ * Область памяти @data должна существовать, пока не будет установлена другая
+ * поверхность или пока тайл не будет уничтожен. Поэтому после использования
+ * поверхности рекомендуется установить %NULL в hyscan_gtk_map_tile_set_surface().
+ */
+void
+hyscan_gtk_map_tile_set_surface_data (HyScanGtkMapTile *tile,
+                                      gpointer          data,
+                                      guint32           size)
+{
+  HyScanGtkMapTilePrivate *priv;
+  cairo_surface_t *surface;
+  gint stride;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile));
+  priv = tile->priv;
+
+  stride = cairo_format_stride_for_width (CAIRO_FORMAT_ARGB32, priv->size);
+  g_return_if_fail (size == priv->size * stride);
+
+  surface = cairo_image_surface_create_for_data (data, CAIRO_FORMAT_ARGB32, priv->size, priv->size, stride);
+  hyscan_gtk_map_tile_set_surface (tile, surface);
+
+  cairo_surface_destroy (surface);
+}
+
+/**
+ * hyscan_gtk_map_tile_set_pixbuf:
+ * @tile
+ * @pixbuf
+ *
+ * Устанавливает изображение @pixbuf на поверхность тайла.
+ *
+ * Returns: %TRUE в случае успеха.
+ */
 gboolean 
 hyscan_gtk_map_tile_set_pixbuf (HyScanGtkMapTile *tile,
                                 GdkPixbuf        *pixbuf)
 {
   HyScanGtkMapTilePrivate *priv;
+  cairo_t *cairo;
+  cairo_surface_t *surface;
 
   g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile), FALSE);
   g_return_val_if_fail (pixbuf != NULL, FALSE);
@@ -198,18 +431,63 @@ hyscan_gtk_map_tile_set_pixbuf (HyScanGtkMapTile *tile,
       return FALSE;
     }
 
-  g_clear_object (&priv->pixbuf);
-  priv->pixbuf = g_object_ref (pixbuf);
+  surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, priv->size, priv->size);
+  cairo = cairo_create (surface);
+  gdk_cairo_set_source_pixbuf (cairo, pixbuf, 0, 0);
+  cairo_paint (cairo);
+
+  hyscan_gtk_map_tile_set_surface (tile, surface);
+
+  cairo_surface_destroy (surface);
+  cairo_destroy (cairo);
 
   return TRUE;
 }
 
-GdkPixbuf *
-hyscan_gtk_map_tile_get_pixbuf (HyScanGtkMapTile *tile)
+/**
+ * hyscan_gtk_map_tile_set_surface:
+ * @tile:
+ * @surface: (nullable):
+ *
+ * Устанавливает поверхность тайла.
+ */
+void
+hyscan_gtk_map_tile_set_surface (HyScanGtkMapTile *tile,
+                                 cairo_surface_t  *surface)
+{
+  HyScanGtkMapTilePrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile));
+
+  priv = tile->priv;
+
+  g_clear_pointer (&priv->surface, cairo_surface_destroy);
+
+  if (surface == NULL)
+    return;
+
+  if (cairo_image_surface_get_width (surface) == (gint) priv->size ||
+      cairo_image_surface_get_height (surface) == (gint) priv->size)
+    {
+      priv->surface = cairo_surface_reference (surface);
+    }
+}
+
+/**
+ * hyscan_gtk_map_tile_get_surface:
+ * @tile
+ *
+ * Returns: (nullable): поверхность тайла
+ */
+cairo_surface_t *
+hyscan_gtk_map_tile_get_surface (HyScanGtkMapTile *tile)
 {
   g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile), NULL);
 
-  return tile->priv->pixbuf;
+  if (tile->priv->surface == NULL)
+    return NULL;
+
+  return cairo_surface_reference (tile->priv->surface);
 }
 
 /**
@@ -283,15 +561,24 @@ hyscan_gtk_map_tile_grid_tile_to_value (HyScanGtkMapTileGrid *grid,
                                         gdouble              *x_val,
                                         gdouble              *y_val)
 {
+  HyScanGtkMapTileGridPrivate *priv;
   gdouble tile_size_x;
   gdouble tile_size_y;
 
-  /* Размер тайла в логических единицах. */
-  tile_size_x = (grid->max_x - grid->min_x) / grid->tiles_num;
-  tile_size_y = (grid->max_y - grid->min_y) / grid->tiles_num;
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_TILE_GRID (grid));
+  priv = grid->priv;
 
-  (y_val != NULL) ? *y_val = grid->max_y - y_tile * tile_size_y : 0;
-  (x_val != NULL) ? *x_val = grid->min_x + x_tile * tile_size_x : 0;
+  if (x_val != NULL)
+    {
+      tile_size_x = (priv->max_x - priv->min_x) / priv->tiles_num;
+      *x_val = priv->min_x + x_tile * tile_size_x;
+    }
+
+  if (y_val != NULL)
+    {
+      tile_size_y = (priv->max_y - priv->min_y) / priv->tiles_num;
+      *y_val = priv->max_y - y_tile * tile_size_y;
+    }
 }
 
 /**
@@ -311,13 +598,17 @@ hyscan_gtk_map_tile_grid_value_to_tile (HyScanGtkMapTileGrid *grid,
                                         gdouble              *x_tile,
                                         gdouble              *y_tile)
 {
+  HyScanGtkMapTileGridPrivate *priv;
   gdouble tile_size_x;
   gdouble tile_size_y;
 
-  /* Размер тайла в логических единицах. */
-  tile_size_x = (grid->max_x - grid->min_x) / grid->tiles_num;
-  tile_size_y = (grid->max_y - grid->min_y) / grid->tiles_num;
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_TILE_GRID (grid));
+  priv = grid->priv;
 
-  (y_tile != NULL) ? *y_tile = (grid->max_y - y_val) / tile_size_y : 0;
-  (x_tile != NULL) ? *x_tile = (x_val - grid->min_x) / tile_size_x : 0;
+  /* Размер тайла в логических единицах. */
+  tile_size_x = (priv->max_x - priv->min_x) / priv->tiles_num;
+  tile_size_y = (priv->max_y - priv->min_y) / priv->tiles_num;
+
+  (y_tile != NULL) ? *y_tile = (priv->max_y - y_val) / tile_size_y : 0;
+  (x_tile != NULL) ? *x_tile = (x_val - priv->min_x) / tile_size_x : 0;
 }

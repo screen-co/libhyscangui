@@ -22,7 +22,7 @@ int main (int    argc,
     {
       gboolean result;
 
-      tile = hyscan_gtk_map_tile_new (10, 10, 5, 256);
+      tile = hyscan_gtk_map_tile_new (NULL, 10, 10, 5, 256);
 
       g_message ("Test data %d: %s", i, test_data[i].url_format);
 

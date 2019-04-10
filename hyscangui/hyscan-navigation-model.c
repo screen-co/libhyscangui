@@ -631,7 +631,7 @@ hyscan_navigation_model_process (HyScanNavigationModel *model)
   return TRUE;
 }
 
-/* В момент вызова функции поток должен владеть мутексом fix_lock. */
+/* Вызывать за мьютексом fix_lock! */
 static void
 hyscan_navigation_model_update_params (HyScanNavigationModel *model)
 {
