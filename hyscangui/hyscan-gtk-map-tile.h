@@ -100,20 +100,16 @@ HyScanGtkMapTile *     hyscan_gtk_map_tile_new                (HyScanGtkMapTileG
                                                                guint                 size);
 
 HYSCAN_API
-HyScanGtkMapTileGrid * hyscan_gtk_map_tile_grid_new           (gdouble               min_x,
-                                                               gdouble               max_x,
-                                                               gdouble               min_y,
-                                                               gdouble               max_y,
+HyScanGtkMapTileGrid * hyscan_gtk_map_tile_grid_new           (GtkCifroArea         *carea,
                                                                guint                 tile_size,
                                                                gdouble               tiles_num);
 HYSCAN_API
-HyScanGtkMapTileGrid * hyscan_gtk_map_tile_grid_new_from_scale(gdouble               min_x,
-                                                               gdouble               max_x,
-                                                               gdouble               min_y,
-                                                               gdouble               max_y,
+HyScanGtkMapTileGrid * hyscan_gtk_map_tile_grid_new_from_scale(GtkCifroArea         *carea,
                                                                guint                 tile_size,
                                                                gdouble               scale);
 
+HYSCAN_API
+gdouble                hyscan_gtk_map_tile_grid_get_scale     (HyScanGtkMapTileGrid *grid);
 
 HYSCAN_API
 guint                  hyscan_gtk_map_tile_get_x              (HyScanGtkMapTile     *tile);
@@ -158,8 +154,8 @@ gint                   hyscan_gtk_map_tile_compare            (HyScanGtkMapTile 
                                                                HyScanGtkMapTile     *b);
 
 HYSCAN_API
-void                   hyscan_gtk_map_tile_grid_bound         (HyScanGtkMapTileGrid *grid,
-                                                               HyScanGtkMapRect     *region,
+void                   hyscan_gtk_map_tile_grid_get_view      (HyScanGtkMapTileGrid *grid,
+                                                               GtkCifroArea         *carea,
                                                                gint                 *from_tile_x,
                                                                gint                 *to_tile_x,
                                                                gint                 *from_tile_y,

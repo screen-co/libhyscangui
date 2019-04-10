@@ -555,22 +555,14 @@ hyscan_gtk_map_tiles_get_view (HyScanGtkMapTiles *layer,
 {
   HyScanGtkMapTilesPrivate *priv = layer->priv;
   HyScanGtkMapTileGrid *tile_grid;
-  HyScanGtkMapRect view;
 
-  gdouble min_x, max_x, min_y, max_y;
-
-  gtk_cifro_area_get_limits (GTK_CIFRO_AREA (priv->map), &min_x, &max_x, &min_y, &max_y);
-
-  tile_grid = hyscan_gtk_map_tile_grid_new (min_x, max_x, min_y, max_y,
+  tile_grid = hyscan_gtk_map_tile_grid_new (GTK_CIFRO_AREA (priv->map),
                                             hyscan_gtk_map_tile_source_get_tile_size (priv->source),
                                             pow (2, zoom));
 
   /* Получаем тайлы, соответствующие границам видимой части карты. */
-  gtk_cifro_area_get_view (GTK_CIFRO_AREA (priv->map),
-                           &view.from.x, &view.to.x,
-                           &view.from.y, &view.to.y);
-
-  hyscan_gtk_map_tile_grid_bound (tile_grid, &view, from_tile_x, to_tile_x, from_tile_y, to_tile_y);
+  hyscan_gtk_map_tile_grid_get_view (tile_grid, GTK_CIFRO_AREA (priv->map),
+                                    from_tile_x, to_tile_x, from_tile_y, to_tile_y);
   g_object_unref (tile_grid);
 }
 
@@ -579,22 +571,22 @@ static gdouble
 hyscan_gtk_map_tiles_get_scaling (HyScanGtkMapTilesPrivate *priv,
                                   gdouble                   zoom)
 {
-  gdouble pixel_size;
-  gdouble tile_size;
-  guint tile_size_px;
-  gdouble min_x, max_x;
+  HyScanGtkMapTileGrid *tile_grid;
+  gdouble scale;
 
   /* Размер тайла в логических единицах. */
-  gtk_cifro_area_get_limits (GTK_CIFRO_AREA (priv->map), &min_x, &max_x, NULL, NULL);
-  tile_size = (max_x - min_x) / pow (2, zoom);
-
-  /* Размер тайла в пикселах. */
-  tile_size_px = hyscan_gtk_map_tile_source_get_tile_size (priv->source);
+  tile_grid = hyscan_gtk_map_tile_grid_new (GTK_CIFRO_AREA (priv->map),
+                                            hyscan_gtk_map_tile_source_get_tile_size (priv->source),
+                                            pow (2, zoom));
 
   /* Размер пиксела в логических единицах. */
-  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &pixel_size, NULL);
+  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &scale, NULL);
 
-  return tile_size / (tile_size_px * pixel_size);
+  scale = hyscan_gtk_map_tile_grid_get_scale (tile_grid) / scale;
+
+  g_object_unref (tile_grid);
+
+  return scale;
 }
 
 /* Устанавливает подходящий zoom в зависимости от выбранного масштаба. */

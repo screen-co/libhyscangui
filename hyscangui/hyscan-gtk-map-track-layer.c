@@ -421,7 +421,6 @@ hyscan_gtk_map_track_layer_set_section_mod (HyScanGtkMapTrackLayer *track_layer,
                                             HyScanGtkMapPoint      *point1)
 {
   HyScanGtkMapTrackLayerPrivate *priv = track_layer->priv;
-  gdouble min_x, max_x, min_y, max_y;
 
   gdouble *scales;
   guint scales_len;
@@ -437,7 +436,6 @@ hyscan_gtk_map_track_layer_set_section_mod (HyScanGtkMapTrackLayer *track_layer,
   hyscan_buffer_wrap_data (buffer, HYSCAN_DATA_BLOB, &track_mod, sizeof (track_mod));
 
   /* Для каждого масштаба определяем тайлы, на которых лежит этот отрезок. */
-  gtk_cifro_area_get_limits (GTK_CIFRO_AREA (priv->map), &min_x, &max_x, &min_y, &max_y);
   scales = hyscan_gtk_map_get_scales (priv->map, &scales_len);
   for (scale_idx = 0; scale_idx < scales_len; scale_idx++)
     {
@@ -447,7 +445,7 @@ hyscan_gtk_map_track_layer_set_section_mod (HyScanGtkMapTrackLayer *track_layer,
       gdouble x0, y0, x1, y1;
 
       /* Определяем на каких тайлах лежат концы отрезка. */
-      grid = hyscan_gtk_map_tile_grid_new_from_scale (min_x, max_x, min_y, max_y, TILE_SIZE, scales[scale_idx]);
+      grid = hyscan_gtk_map_tile_grid_new_from_scale (GTK_CIFRO_AREA (priv->map), TILE_SIZE, scales[scale_idx]);
       hyscan_gtk_map_tile_grid_value_to_tile (grid, point0->x, point0->y, &x0, &y0);
       hyscan_gtk_map_tile_grid_value_to_tile (grid, point1->x, point1->y, &x1, &y1);
 
@@ -1150,22 +1148,19 @@ hyscan_gtk_map_track_layer_draw_tiles (HyScanGtkMapTrackLayer *track_layer,
   HyScanGtkMapTrackLayerPrivate *priv = track_layer->priv;
 
   HyScanGtkMapTileGrid *grid;
-  HyScanGtkMapRect rect;
   gint scale_idx;
   gdouble scale;
 
-  gdouble min_x, max_x, min_y, max_y;
   gint x, y;
   gint from_tile_x, to_tile_x, from_tile_y, to_tile_y;
 
   /* Инициализируем тайловую сетку grid. */
-  gtk_cifro_area_get_limits (GTK_CIFRO_AREA (priv->map), &min_x, &max_x, &min_y, &max_y);
   scale_idx = hyscan_gtk_map_get_scale_idx (priv->map, &scale);
-  grid = hyscan_gtk_map_tile_grid_new_from_scale (min_x, max_x, min_y, max_y, TILE_SIZE, scale);
+  grid = hyscan_gtk_map_tile_grid_new_from_scale (GTK_CIFRO_AREA (priv->map), TILE_SIZE, scale);
 
   /* Определяем область рисования. */
-  gtk_cifro_area_get_view (GTK_CIFRO_AREA (priv->map), &rect.from.x, &rect.to.x, &rect.from.y, &rect.to.y);
-  hyscan_gtk_map_tile_grid_bound (grid, &rect, &from_tile_x, &to_tile_x, &from_tile_y, &to_tile_y);
+  hyscan_gtk_map_tile_grid_get_view (grid, GTK_CIFRO_AREA (priv->map),
+                                     &from_tile_x, &to_tile_x, &from_tile_y, &to_tile_y);
 
   /* Рисуем тайлы по очереди. */
   for (x = from_tile_x; x <= to_tile_x; x++)
@@ -1214,7 +1209,7 @@ hyscan_gtk_map_track_layer_draw_tiles (HyScanGtkMapTrackLayer *track_layer,
 
   /* Отправляем на заполнение все тайлы. */
   hyscan_task_queue_push_end (priv->task_queue);
-  
+
   g_object_unref (grid);
 }
 
