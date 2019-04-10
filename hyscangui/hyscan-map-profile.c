@@ -40,8 +40,7 @@
 #include <hyscan-gtk-map-fs-tile-source.h>
 #include <hyscan-network-map-tile-source.h>
 
-#define MERCATOR_MAX_LAT 85.08405905010976
-#define CACHE_SIZE 256
+#define CACHE_SIZE     256
 #define TILES_LAYER_ID "tiles-layer"
 #define PROJ_MERC      "merc"
 #define PROJ_WEBMERC   "webmerc"
@@ -139,7 +138,7 @@ hyscan_map_profile_create_projection (HyScanMapProfilePrivate *priv)
       HyScanGeoEllipsoidParam p;
 
       hyscan_geo_init_ellipsoid (&p, HYSCAN_GEO_ELLIPSOID_WGS84);
-      return hyscan_mercator_new (p, -MERCATOR_MAX_LAT, MERCATOR_MAX_LAT);
+      return hyscan_mercator_new (p);
     }
 
   g_warning ("HyScanMapProfile: unknown projection %s", priv->projection);

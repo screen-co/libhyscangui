@@ -135,20 +135,20 @@ hyscan_mercator_set_ellipsoid (HyScanMercator          *mercator,
 
 /* Устанавливает границы определения проекции по широте. */
 static void
-hyscan_mercator_set_limits (HyScanMercator *mercator,
-                            gdouble         min_lat,
-                            gdouble         max_lat)
+hyscan_mercator_set_limits (HyScanMercator *mercator)
 {
   HyScanMercatorPrivate *priv = mercator->priv;
   HyScanGeoGeodetic coord;
 
-  coord.lat = min_lat;
+  coord.lat = 0;
   coord.lon = -180.0;
-  hyscan_geo_projection_geo_to_value (HYSCAN_GEO_PROJECTION (mercator), coord, &priv->min_x, &priv->min_y);
+  hyscan_geo_projection_geo_to_value (HYSCAN_GEO_PROJECTION (mercator), coord, &priv->min_x, NULL);
+  priv->min_y = priv->min_x;
 
-  coord.lat = max_lat;
+  coord.lat = 0;
   coord.lon = 180.0;
-  hyscan_geo_projection_geo_to_value (HYSCAN_GEO_PROJECTION (mercator), coord, &priv->max_x, &priv->max_y);
+  hyscan_geo_projection_geo_to_value (HYSCAN_GEO_PROJECTION (mercator), coord, &priv->max_x, NULL);
+  priv->max_y = priv->max_x;
 }
 
 /* Определение координаты Y по широте для проекции произвольного эллипсоида вращения.
@@ -254,30 +254,20 @@ hyscan_mercator_get_scale (HyScanGeoProjection *mercator,
 /**
  * hyscan_mercator_new:
  * @p: параметры земного эллипсоида
- * @min_lat: минимальная широта в градусах
- * @max_lat: максимальная широта в градусах
  *
  * Создаёт объект картографической проекции Меркатора, которая определяет связь
  * географических координат поверхности Земли с координатами на карте.
  *
- * Границы проекции по широте можно задать парметрами @min_lat и @max_lat.
- *
  * Returns: новый объект #HyScanMercator. Для удаления g_object_unref().
  */
 HyScanGeoProjection *
-hyscan_mercator_new (HyScanGeoEllipsoidParam p,
-                     gdouble                 min_lat,
-                     gdouble                 max_lat)
+hyscan_mercator_new (HyScanGeoEllipsoidParam p)
 {
   HyScanMercator *mercator;
 
-  g_return_val_if_fail (!LAT_OUT_OF_RANGE (min_lat), NULL);
-  g_return_val_if_fail (!LAT_OUT_OF_RANGE (max_lat), NULL);
-  g_return_val_if_fail (max_lat > min_lat, NULL);
-
   mercator = g_object_new (HYSCAN_TYPE_MERCATOR, NULL);
   hyscan_mercator_set_ellipsoid (mercator, p);
-  hyscan_mercator_set_limits (mercator, min_lat, max_lat);
+  hyscan_mercator_set_limits (mercator);
 
   return HYSCAN_GEO_PROJECTION (mercator);
 }

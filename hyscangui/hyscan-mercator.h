@@ -66,9 +66,7 @@ HYSCAN_API
 GType                  hyscan_mercator_get_type         (void);
 
 HYSCAN_API
-HyScanGeoProjection *  hyscan_mercator_new              (HyScanGeoEllipsoidParam p,
-                                                         gdouble                 min_lat,
-                                                         gdouble                 max_lat);
+HyScanGeoProjection *  hyscan_mercator_new              (HyScanGeoEllipsoidParam p);
 
 G_END_DECLS
 

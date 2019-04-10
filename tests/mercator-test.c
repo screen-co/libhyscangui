@@ -58,13 +58,13 @@ int main (int argc,
 
   g_message ("EPSG:3857: WGS84 pseudo-Mercator (sphere) [https://epsg.io/3857]");
   hyscan_geo_init_ellipsoid_user (&p, 6378137.0, 0.0);
-  projection = HYSCAN_GEO_PROJECTION (hyscan_mercator_new (p, -85.06, 85.06));
+  projection = HYSCAN_GEO_PROJECTION (hyscan_mercator_new (p));
   test_projection (projection, data_sphere, G_N_ELEMENTS (data_sphere), 1e-2);
   g_object_unref (projection);
 
   g_message ("EPSG:3395: WGS84 Mercator projection (spheroid) [https://epsg.io/3395]");
   hyscan_geo_init_ellipsoid (&p, HYSCAN_GEO_ELLIPSOID_WGS84);
-  projection = HYSCAN_GEO_PROJECTION (hyscan_mercator_new (p, -80, 84));
+  projection = HYSCAN_GEO_PROJECTION (hyscan_mercator_new (p));
   test_projection (projection, data_spheroid, G_N_ELEMENTS (data_spheroid), 1e-2);
   g_object_unref (projection);
 
