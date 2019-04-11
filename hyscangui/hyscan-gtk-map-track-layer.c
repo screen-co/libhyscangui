@@ -1330,7 +1330,8 @@ hyscan_gtk_map_track_layer_update_grid (HyScanGtkMapTrackLayerPrivate *priv)
 
   // todo: lock mutex when use/update tile_grid?
   g_clear_object (&priv->tile_grid);
-  priv->tile_grid = hyscan_gtk_map_tile_grid_new (GTK_CIFRO_AREA (priv->map), 0, TILE_SIZE, scales, scales_len);
+  priv->tile_grid = hyscan_gtk_map_tile_grid_new_from_cifro (GTK_CIFRO_AREA (priv->map), 0, TILE_SIZE);
+  hyscan_gtk_map_tile_grid_set_scales (priv->tile_grid, scales, scales_len);
   g_free (scales);
 }
 
