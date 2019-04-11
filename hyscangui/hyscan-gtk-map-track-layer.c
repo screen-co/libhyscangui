@@ -59,13 +59,13 @@
  */
 
 #include "hyscan-gtk-map-track-layer.h"
-#include <hyscan-cache.h>
 #include <hyscan-gtk-map.h>
 #include <hyscan-navigation-model.h>
 #include <hyscan-gtk-map-tile.h>
+#include <hyscan-task-queue.h>
+#include <hyscan-cache.h>
 #include <string.h>
 #include <math.h>
-#include <hyscan-task-queue.h>
 
 #define CACHE_TRACK_MOD_MAGIC  0x4d546d64    /* Идентификатор заголовка кэша. */
 #define CACHE_HEADER_MAGIC     0xcfadec2d    /* Идентификатор заголовка кэша. */
@@ -141,12 +141,10 @@ struct _HyScanGtkMapTrackLayerPrivate
   guint                         redraw_tag;                 /* Тэг функции, которая запрашивает перерисовку. */
 
   /* Информация о треке. */
-  GList                        *track;                      /* Список точек трека. В местах обрыва находится NULL. */
+  GQueue                       *track;                      /* Список точек трека. */
   guint                         track_mod_count;            /* Номер изменения точек трека. */
   guint                         param_mod_count;            /* Номер изменений параметров трека (цвета, проекция). */
-  HyScanGtkMapTrackLayerPoint  *track_end;                  /* Указатель на последнюю точку трека. */
-  gboolean                      track_lost;                 /* Признак того, что сигнал потерян:
-                                                             * g_list_last (priv->track_end) == NULL. */
+  gboolean                      track_lost;                 /* Признак того, что сигнал потерян. */
   GMutex                        track_lock;                 /* Блокировка доступа к точкам трека.  */
 
   /* Кэширование - переменные для чтения кэша в _cache_get(). */
@@ -294,6 +292,7 @@ hyscan_gtk_map_track_layer_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_gtk_map_track_layer_parent_class)->constructed (object);
 
+  priv->track = g_queue_new ();
   priv->tile_buffer = hyscan_buffer_new ();
   priv->cache_buffer = hyscan_buffer_new ();
 
@@ -336,8 +335,7 @@ hyscan_gtk_map_track_layer_object_finalize (GObject *object)
   g_clear_object (&priv->cache_buffer);
 
   g_mutex_lock (&priv->track_lock);
-  g_list_free_full (priv->track, (GDestroyNotify) hyscan_gtk_map_track_layer_point_free);
-  g_clear_pointer (&priv->track_end, hyscan_gtk_map_track_layer_point_free);
+  g_queue_free_full (priv->track, (GDestroyNotify) hyscan_gtk_map_track_layer_point_free);
   g_mutex_unlock (&priv->track_lock);
 
   g_mutex_clear (&priv->track_lock);
@@ -482,12 +480,12 @@ hyscan_gtk_map_track_layer_set_expired_mod (HyScanGtkMapTrackLayer *track_layer,
 
   gdouble delete_time;
 
-  if (priv->track == NULL)
+  if (g_queue_is_empty (priv->track))
     return;
 
   /* 1. Находим new_tail - последнюю актуальную точку трека. */
   delete_time = time - priv->life_time;
-  for (new_tail = priv->track; new_tail != NULL; new_tail = new_tail->next)
+  for (new_tail = priv->track->tail; new_tail != NULL; new_tail = new_tail->prev)
     {
       HyScanGtkMapTrackLayerPoint *cur_point = new_tail->data;
 
@@ -496,29 +494,29 @@ hyscan_gtk_map_track_layer_set_expired_mod (HyScanGtkMapTrackLayer *track_layer,
     }
 
   /* 2. Делаем недействительными всё тайлы, которые содержат устаревшие точки. */
-  for (track_l = priv->track; track_l != new_tail; track_l = track_l->next)
+  for (track_l = priv->track->tail; track_l != new_tail; track_l = track_l->prev)
     {
-      HyScanGtkMapTrackLayerPoint *next_point;
+      HyScanGtkMapTrackLayerPoint *prev_point;
       HyScanGtkMapTrackLayerPoint *cur_point;
 
-      if (track_l->next == NULL)
+      if (track_l->prev == NULL)
         continue;
 
-      next_point = track_l->next->data;
+      prev_point = track_l->prev->data;
       cur_point  = track_l->data;
-      hyscan_gtk_map_track_layer_set_section_mod (track_layer, mod_count, &cur_point->coord, &next_point->coord);
+      hyscan_gtk_map_track_layer_set_section_mod (track_layer, mod_count, &cur_point->coord, &prev_point->coord);
     }
 
   /* 3. Удаляем устаревшие точки. */
-  for (track_l = priv->track; track_l != new_tail; )
+  for (track_l = priv->track->tail; track_l != new_tail; )
     {
-      GList *next_l = track_l->next;
+      GList *prev_l = track_l->prev;
       HyScanGtkMapTrackLayerPoint *cur_point = track_l->data;
 
-      priv->track = g_list_delete_link (priv->track, track_l);
+      g_queue_delete_link (priv->track, track_l);
       hyscan_gtk_map_track_layer_point_free (cur_point);
 
-      track_l = next_l;
+      track_l = prev_l;
     }
 }
 
@@ -532,19 +530,19 @@ hyscan_gtk_map_track_layer_set_head_mod (HyScanGtkMapTrackLayer *track_layer,
 {
   HyScanGtkMapTrackLayerPrivate *priv = track_layer->priv;
 
-  GList *list_end;
+  GList *head_l;
   HyScanGtkMapTrackLayerPoint *track_point0, *track_point1 = NULL;
 
   if (priv->cache == NULL || priv->map == NULL)
     return;
 
   /* Определяем концы последнего отрезка: point0 и point1. */
-  list_end = g_list_last (priv->track);
-  if (list_end == NULL || list_end->prev == NULL)
+  head_l = priv->track->head;
+  if (head_l == NULL || head_l->next == NULL)
     return;
 
-  track_point0 = list_end->data;
-  track_point1 = list_end->prev->data;
+  track_point0 = head_l->data;
+  track_point1 = head_l->next->data;
 
   /* Актуализируем тайлы, содержащие найденный отрезок. */
   hyscan_gtk_map_track_layer_set_section_mod (track_layer, mod_count, &track_point0->coord, &track_point1->coord);
@@ -597,10 +595,7 @@ hyscan_gtk_map_track_layer_model_changed (HyScanGtkMapTrackLayer *track_layer,
       if (priv->map != NULL)
         hyscan_gtk_map_geo_to_value (priv->map, point.coord.geo, &point.coord.x, &point.coord.y);
 
-      priv->track = g_list_append (priv->track, hyscan_gtk_map_track_layer_point_copy (&point));
-
-      g_clear_pointer (&priv->track_end, hyscan_gtk_map_track_layer_point_free);
-      priv->track_end = hyscan_gtk_map_track_layer_point_copy (&point);
+      g_queue_push_head (priv->track, hyscan_gtk_map_track_layer_point_copy (&point));
 
       hyscan_gtk_map_track_layer_set_head_mod (track_layer, priv->track_mod_count);
     }
@@ -810,14 +805,14 @@ hyscan_gtk_map_track_layer_draw_region (HyScanGtkMapTrackLayer *track_layer,
   g_mutex_lock (&priv->track_lock);
 
   mod_count = priv->track_mod_count;
-  if (priv->track == NULL)
+  if (g_queue_is_empty (priv->track))
     {
       g_mutex_unlock (&priv->track_lock);
       return mod_count;
     }
 
   /* Ищем куски трека, которые полностью попадают в указанный регион и рисуем покусочно. */
-  for (track_l = priv->track; track_l != NULL; track_l = track_l->next, point1_l = point0_l)
+  for (track_l = priv->track->head; track_l != NULL; track_l = track_l->next, point1_l = point0_l)
     {
       HyScanGtkMapTrackLayerPoint *track_point0, *track_point1;
       HyScanGtkMapPoint *point0, *point1;
@@ -1241,13 +1236,13 @@ hyscan_gtk_map_track_layer_draw (HyScanGtkMap           *map,
 
     g_mutex_lock (&priv->track_lock);
 
-    last_track_point = priv->track_end;
-    if (last_track_point == NULL)
+    if (priv->track->head == NULL)
       {
         g_mutex_unlock (&priv->track_lock);
         return;
       }
 
+    last_track_point = priv->track->head->data;
     last_point = &last_track_point->coord;
 
     gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y, last_point->x, last_point->y);
@@ -1303,13 +1298,7 @@ hyscan_gtk_map_track_layer_update_points (HyScanGtkMapTrackLayerPrivate *priv)
 
   ++priv->param_mod_count;
 
-  if (priv->track_end != NULL)
-    {
-      hyscan_gtk_map_geo_to_value (priv->map, priv->track_end->coord.geo,
-                                   &priv->track_end->coord.x, &priv->track_end->coord.y);
-    }
-
-  for (track_l = priv->track; track_l != NULL; track_l = track_l->next)
+  for (track_l = priv->track->head; track_l != NULL; track_l = track_l->next)
     {
       point = track_l->data;
       hyscan_gtk_map_geo_to_value (priv->map, point->coord.geo, &point->coord.x, &point->coord.y);
