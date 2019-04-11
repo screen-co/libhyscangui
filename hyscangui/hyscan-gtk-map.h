@@ -114,7 +114,7 @@ HYSCAN_API
 gdouble                hyscan_gtk_map_get_scale       (HyScanGtkMap            *map);
 
 HYSCAN_API
-void                   hyscan_gtk_map_set_scales      (HyScanGtkMap            *map,
+void                   hyscan_gtk_map_set_scales_meter(HyScanGtkMap            *map,
                                                        const gdouble           *scales,
                                                        gsize                    scales_len);
 
@@ -129,7 +129,7 @@ void                   hyscan_gtk_map_set_scale_idx   (HyScanGtkMap            *
                                                        gdouble                  center_y);
 
 HYSCAN_API
-gdouble *              hyscan_gtk_map_get_scales      (HyScanGtkMap            *map,
+gdouble *              hyscan_gtk_map_get_scales_cifro(HyScanGtkMap            *map,
                                                        guint                   *scales_len);
 
 HYSCAN_API

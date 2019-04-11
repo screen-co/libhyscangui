@@ -280,7 +280,7 @@ hyscan_gtk_map_object_constructed (GObject *object)
   g_signal_connect_after (gtk_map, "configure-event", G_CALLBACK (hyscan_gtk_map_init_view), NULL);
 
   priv->projection = hyscan_pseudo_mercator_new ();
-  hyscan_gtk_map_set_scales (gtk_map, scales, G_N_ELEMENTS (scales));
+  hyscan_gtk_map_set_scales_meter (gtk_map, scales, G_N_ELEMENTS (scales));
 }
 
 static void
@@ -685,9 +685,9 @@ hyscan_gtk_map_geo_to_value (HyScanGtkMap        *map,
  * помощью функции hyscan_gtk_map_create_scales2().
  */
 void
-hyscan_gtk_map_set_scales (HyScanGtkMap  *map,
-                           const gdouble *scales,
-                           gsize          scales_len)
+hyscan_gtk_map_set_scales_meter (HyScanGtkMap  *map,
+                                 const gdouble *scales,
+                                 gsize          scales_len)
 {
   HyScanGtkMapPrivate *priv;
 
@@ -711,17 +711,17 @@ hyscan_gtk_map_set_scales (HyScanGtkMap  *map,
 }
 
 /**
- * hyscan_gtk_map_get_scales:
+ * hyscan_gtk_map_get_scales_cifro:
  * @map: указатель на виджет карты #HyScanGtkMap
  * @scales_len: длина массива масштабов
  *
- * Возвращает массив допустимых масштабов.
+ * Возвращает массив допустимых масштабов #GtkCifroArea.
  *
  * Returns: (array length=scales_len): массив масштабов. Для удаления g_free()
  */
 gdouble *
-hyscan_gtk_map_get_scales (HyScanGtkMap *map,
-                           guint        *scales_len)
+hyscan_gtk_map_get_scales_cifro (HyScanGtkMap *map,
+                                 guint        *scales_len)
 {
   HyScanGtkMapPrivate *priv;
   gdouble *scales;

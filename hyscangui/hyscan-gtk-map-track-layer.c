@@ -131,6 +131,7 @@ struct _HyScanGtkMapTrackLayerPrivate
   HyScanGtkMap                 *map;                        /* Виджет карты, на котором размещен слой. */
   HyScanCache                  *cache;                      /* Кэш отрисованных тайлов трека. */
   HyScanNavigationModel        *nav_model;                  /* Модель навигационных данных, которые отображаются. */
+  HyScanGtkMapTileGrid         *tile_grid;                  /* Тайловая сетка. */
   guint64                       life_time;                  /* Время жизни точки трека, секунды. */
 
   HyScanTaskQueue              *task_queue;                 /* Очередь по загрузке тайлов. */
@@ -436,18 +437,15 @@ hyscan_gtk_map_track_layer_set_section_mod (HyScanGtkMapTrackLayer *track_layer,
   hyscan_buffer_wrap_data (buffer, HYSCAN_DATA_BLOB, &track_mod, sizeof (track_mod));
 
   /* Для каждого масштаба определяем тайлы, на которых лежит этот отрезок. */
-  scales = hyscan_gtk_map_get_scales (priv->map, &scales_len);
+  scales = hyscan_gtk_map_get_scales_cifro (priv->map, &scales_len);
   for (scale_idx = 0; scale_idx < scales_len; scale_idx++)
     {
-      HyScanGtkMapTileGrid *grid;
-
       gint x, y, to_x, to_y;
       gdouble x0, y0, x1, y1;
 
       /* Определяем на каких тайлах лежат концы отрезка. */
-      grid = hyscan_gtk_map_tile_grid_new_from_scale (GTK_CIFRO_AREA (priv->map), TILE_SIZE, scales[scale_idx]);
-      hyscan_gtk_map_tile_grid_value_to_tile (grid, point0->x, point0->y, &x0, &y0);
-      hyscan_gtk_map_tile_grid_value_to_tile (grid, point1->x, point1->y, &x1, &y1);
+      hyscan_gtk_map_tile_grid_value_to_tile (priv->tile_grid, scale_idx, point0->x, point0->y, &x0, &y0);
+      hyscan_gtk_map_tile_grid_value_to_tile (priv->tile_grid, scale_idx, point1->x, point1->y, &x1, &y1);
 
       /* Проходим все тайлы внутри найденной области и обновляем номер изменения трека. */
       to_x = MAX (x0, x1);
@@ -461,8 +459,6 @@ hyscan_gtk_map_track_layer_set_section_mod (HyScanGtkMapTrackLayer *track_layer,
             hyscan_gtk_map_track_layer_mod_cache_key (track_layer, x, y, scale_idx, cache_key, sizeof (cache_key));
             hyscan_cache_set (priv->cache, cache_key, NULL, buffer);
           }
-
-      g_object_unref (grid);
     }
 
   g_object_unref (buffer);
@@ -702,6 +698,7 @@ hyscan_gtk_map_track_layer_removed (HyScanGtkLayer *layer)
   /* Отключаемся от карты. */
   g_signal_handlers_disconnect_by_data (priv->map, layer);
   g_clear_object (&priv->map);
+  g_clear_object (&priv->tile_grid);
 }
 
 /* Рисует кусок трека от chunk_start до chunk_end. */
@@ -1147,7 +1144,6 @@ hyscan_gtk_map_track_layer_draw_tiles (HyScanGtkMapTrackLayer *track_layer,
 {
   HyScanGtkMapTrackLayerPrivate *priv = track_layer->priv;
 
-  HyScanGtkMapTileGrid *grid;
   gint scale_idx;
   gdouble scale;
 
@@ -1156,10 +1152,9 @@ hyscan_gtk_map_track_layer_draw_tiles (HyScanGtkMapTrackLayer *track_layer,
 
   /* Инициализируем тайловую сетку grid. */
   scale_idx = hyscan_gtk_map_get_scale_idx (priv->map, &scale);
-  grid = hyscan_gtk_map_tile_grid_new_from_scale (GTK_CIFRO_AREA (priv->map), TILE_SIZE, scale);
 
   /* Определяем область рисования. */
-  hyscan_gtk_map_tile_grid_get_view (grid, GTK_CIFRO_AREA (priv->map),
+  hyscan_gtk_map_tile_grid_get_view (priv->tile_grid, GTK_CIFRO_AREA (priv->map), scale_idx,
                                      &from_tile_x, &to_tile_x, &from_tile_y, &to_tile_y);
 
   /* Рисуем тайлы по очереди. */
@@ -1173,7 +1168,7 @@ hyscan_gtk_map_track_layer_draw_tiles (HyScanGtkMapTrackLayer *track_layer,
         gboolean found;
 
         /* Заполняем тайл. */
-        tile = hyscan_gtk_map_tile_new (grid, x, y, scale_idx, TILE_SIZE);
+        tile = hyscan_gtk_map_tile_new (priv->tile_grid, x, y, scale_idx);
         found = hyscan_gtk_map_track_layer_cache_get (track_layer, tile, priv->tile_buffer, &refill);
 
         /* Если надо, отправляем тайл на перерисовку. */
@@ -1209,8 +1204,6 @@ hyscan_gtk_map_track_layer_draw_tiles (HyScanGtkMapTrackLayer *track_layer,
 
   /* Отправляем на заполнение все тайлы. */
   hyscan_task_queue_push_end (priv->task_queue);
-
-  g_object_unref (grid);
 }
 
 /* Обработчик сигнала "visible-draw".
@@ -1325,6 +1318,23 @@ hyscan_gtk_map_track_layer_update_points (HyScanGtkMapTrackLayerPrivate *priv)
   g_mutex_unlock (&priv->track_lock);
 }
 
+static void
+hyscan_gtk_map_track_layer_update_grid (HyScanGtkMapTrackLayerPrivate *priv)
+{
+  guint scales_len, i;
+  gdouble *scales;
+
+  scales = hyscan_gtk_map_get_scales_cifro (priv->map, &scales_len);
+  for (i = 0; i < scales_len; ++i)
+    scales[i] *= TILE_SIZE;
+
+  // todo: lock mutex when use/update tile_grid?
+  g_clear_object (&priv->tile_grid);
+  priv->tile_grid = hyscan_gtk_map_tile_grid_new (GTK_CIFRO_AREA (priv->map), 0, TILE_SIZE, scales, scales_len);
+  g_free (scales);
+}
+
+
 /* Обработчик сигнала "notify::projection".
  * Пересчитывает координаты точек, если изменяется картографическая проекция. */
 static void
@@ -1333,6 +1343,7 @@ hyscan_gtk_map_track_layer_proj_notify (HyScanGtkMapTrackLayer *track_layer,
 {
   HyScanGtkMapTrackLayerPrivate *priv = track_layer->priv;
 
+  hyscan_gtk_map_track_layer_update_grid (priv);
   hyscan_gtk_map_track_layer_update_points (priv);
 }
 
@@ -1353,6 +1364,7 @@ hyscan_gtk_map_track_layer_added (HyScanGtkLayer          *layer,
 
   /* Подключаемся к карте. */
   priv->map = g_object_ref (container);
+  hyscan_gtk_map_track_layer_update_grid (track_layer->priv);
   hyscan_gtk_map_track_layer_update_points (track_layer->priv);
   g_signal_connect_after (priv->map, "visible-draw", G_CALLBACK (hyscan_gtk_map_track_layer_draw), track_layer);
   g_signal_connect_swapped (priv->map, "notify::projection", G_CALLBACK (hyscan_gtk_map_track_layer_proj_notify), track_layer);

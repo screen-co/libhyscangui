@@ -69,6 +69,7 @@ struct _HyScanGtkMapTilesPrivate
   HyScanGtkMap                *map;                 /* Виджет карты, на котором показываются тайлы. */
   HyScanTaskQueue             *task_queue;          /* Очередь задач по созданию тайлов. */
   HyScanGtkMapTileSource      *source;              /* Источник тайлов. */
+  HyScanGtkMapTileGrid        *tile_grid;           /* Тайловая сетка. */
 
   /* Кэш. */
   HyScanCache                 *cache;               /* Кэш тайлов. */
@@ -131,7 +132,7 @@ static cairo_surface_t *    hyscan_gtk_map_tile_surface_scale             (cairo
                                                                            gdouble                   scale);
 static guint                hyscan_gtk_map_tiles_get_optimal_zoom         (HyScanGtkMapTilesPrivate *priv);
 static gdouble              hyscan_gtk_map_tiles_get_scaling              (HyScanGtkMapTilesPrivate *priv,
-                                                                           gdouble                   zoom);
+                                                                           guint                     zoom);
 static void                 hyscan_gtk_map_tiles_get_view                 (HyScanGtkMapTiles        *layer,
                                                                            guint                     zoom,
                                                                            gint                     *from_tile_x,
@@ -259,7 +260,28 @@ hyscan_gtk_map_tiles_removed (HyScanGtkLayer *gtk_layer)
   /* Отключаемся от сигналов. */
   g_signal_handlers_disconnect_by_data (priv->map, gtk_layer);
 
+  g_clear_object (&priv->tile_grid);
   g_clear_object (&priv->map);
+}
+
+/* Создаёт тайловую сетку. */
+static HyScanGtkMapTileGrid *
+hyscan_gtk_map_tiles_update_grid (HyScanGtkMapTilesPrivate *priv)
+{
+  gdouble *nums;
+  gint nums_len;
+  guint min_zoom, max_zoom, zoom;
+
+  hyscan_gtk_map_tile_source_get_zoom_limits (priv->source, &min_zoom, &max_zoom);
+
+  nums_len = max_zoom - min_zoom + 1;
+  nums = g_newa (gdouble, nums_len);
+  for (zoom = min_zoom; zoom < max_zoom + 1; zoom++)
+    nums[zoom - min_zoom] = pow (2, zoom);
+
+  return hyscan_gtk_map_tile_grid_new_from_num (GTK_CIFRO_AREA (priv->map), min_zoom,
+                                                hyscan_gtk_map_tile_source_get_tile_size (priv->source),
+                                                nums, nums_len);
 }
 
 /* Реализация HyScanGtlLayerInterface.added().
@@ -275,6 +297,7 @@ hyscan_gtk_map_tiles_added (HyScanGtkLayer          *gtk_layer,
   g_return_if_fail (priv->map == NULL);
 
   priv->map = g_object_ref (container);
+  priv->tile_grid = hyscan_gtk_map_tiles_update_grid (priv);
 
   /* Запускаем очередь задач. */
   hyscan_gtk_map_tiles_queue_start (tiles);
@@ -554,37 +577,22 @@ hyscan_gtk_map_tiles_get_view (HyScanGtkMapTiles *layer,
                                gint              *to_tile_y)
 {
   HyScanGtkMapTilesPrivate *priv = layer->priv;
-  HyScanGtkMapTileGrid *tile_grid;
-
-  tile_grid = hyscan_gtk_map_tile_grid_new (GTK_CIFRO_AREA (priv->map),
-                                            hyscan_gtk_map_tile_source_get_tile_size (priv->source),
-                                            pow (2, zoom));
 
   /* Получаем тайлы, соответствующие границам видимой части карты. */
-  hyscan_gtk_map_tile_grid_get_view (tile_grid, GTK_CIFRO_AREA (priv->map),
-                                    from_tile_x, to_tile_x, from_tile_y, to_tile_y);
-  g_object_unref (tile_grid);
+  hyscan_gtk_map_tile_grid_get_view (priv->tile_grid, GTK_CIFRO_AREA (priv->map), zoom,
+                                     from_tile_x, to_tile_x, from_tile_y, to_tile_y);
 }
 
 /* Растяжение тайла при текущем масштабе карты и указанном зуме. */
 static gdouble
 hyscan_gtk_map_tiles_get_scaling (HyScanGtkMapTilesPrivate *priv,
-                                  gdouble                   zoom)
+                                  guint                     zoom)
 {
-  HyScanGtkMapTileGrid *tile_grid;
   gdouble scale;
-
-  /* Размер тайла в логических единицах. */
-  tile_grid = hyscan_gtk_map_tile_grid_new (GTK_CIFRO_AREA (priv->map),
-                                            hyscan_gtk_map_tile_source_get_tile_size (priv->source),
-                                            pow (2, zoom));
 
   /* Размер пиксела в логических единицах. */
   gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &scale, NULL);
-
-  scale = hyscan_gtk_map_tile_grid_get_scale (tile_grid) / scale;
-
-  g_object_unref (tile_grid);
+  scale = hyscan_gtk_map_tile_grid_get_scale (priv->tile_grid, zoom) / scale;
 
   return scale;
 }
@@ -775,7 +783,7 @@ hyscan_gtk_map_tile_surface_make (HyScanGtkMapTilesPrivate *priv,
                 if (abs (x - xc) != r && abs (y - yc) != r)
                   continue;
 
-                tile = hyscan_gtk_map_tile_new (NULL, x, y, priv->zoom, tile_size);
+                tile = hyscan_gtk_map_tile_new (priv->tile_grid, x, y, priv->zoom);
 
                 /* Тайл не найден, добавляем его в очередь на загрузку. */
                 tile_filled = hyscan_gtk_map_tiles_draw_tile (priv, cairo, tile);

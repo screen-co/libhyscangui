@@ -304,7 +304,7 @@ create_map (HyScanGtkLayer **ruler,
 
   /* Устанавливаем допустимые масштабы. */
   scales = hyscan_gtk_map_create_scales2 (1.0 / 10, HYSCAN_GTK_MAP_EQUATOR_LENGTH / 1000, 4, &scales_len);
-  hyscan_gtk_map_set_scales (map, scales, scales_len);
+  hyscan_gtk_map_set_scales_meter (map, scales, scales_len);
   g_free (scales);
 
   /* Добавляем слои. */
