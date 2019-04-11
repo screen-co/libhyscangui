@@ -113,13 +113,13 @@ HyScanGtkMapTileGrid * hyscan_gtk_map_tile_grid_new            (gdouble         
 
 HYSCAN_API
 void                   hyscan_gtk_map_tile_grid_set_xnums     (HyScanGtkMapTileGrid *grid,
-                                                               const gdouble       *xnums,
-                                                               gsize                xnums_len);
+                                                               const gdouble        *xnums,
+                                                               gsize                 xnums_len);
 
 HYSCAN_API
 void                   hyscan_gtk_map_tile_grid_set_scales    (HyScanGtkMapTileGrid *grid,
-                                                               const gdouble       *scales,
-                                                               gsize                scales_len);
+                                                               const gdouble        *scales,
+                                                               gsize                 scales_len);
 
 HYSCAN_API
 gdouble                hyscan_gtk_map_tile_grid_get_scale     (HyScanGtkMapTileGrid *grid,
@@ -148,9 +148,9 @@ HYSCAN_API
 gdouble                hyscan_gtk_map_tile_get_scale          (HyScanGtkMapTile     *tile);
 
 HYSCAN_API
-void                   hyscan_gtk_map_tile_set_surface_data   (HyScanGtkMapTile *tile,
-                                                               gpointer          data,
-                                                               guint32           size);
+void                   hyscan_gtk_map_tile_set_surface_data   (HyScanGtkMapTile     *tile,
+                                                               gpointer              data,
+                                                               guint32               size);
 
 HYSCAN_API
 gboolean               hyscan_gtk_map_tile_set_pixbuf         (HyScanGtkMapTile     *tile,
@@ -161,7 +161,7 @@ void                   hyscan_gtk_map_tile_set_surface        (HyScanGtkMapTile 
                                                                cairo_surface_t      *surface);
 
 HYSCAN_API
-cairo_surface_t *      hyscan_gtk_map_tile_get_surface        (HyScanGtkMapTile *tile);
+cairo_surface_t *      hyscan_gtk_map_tile_get_surface        (HyScanGtkMapTile     *tile);
 
 HYSCAN_API
 gint                   hyscan_gtk_map_tile_compare            (HyScanGtkMapTile     *a,
