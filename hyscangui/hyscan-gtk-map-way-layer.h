@@ -1,4 +1,4 @@
-/* hyscan-gtk-map-track-layer.h
+/* hyscan-gtk-map-way-layer.h
  *
  * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *
@@ -32,8 +32,8 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
-#ifndef __HYSCAN_GTK_MAP_TRACK_LAYER_H__
-#define __HYSCAN_GTK_MAP_TRACK_LAYER_H__
+#ifndef __HYSCAN_GTK_MAP_WAY_LAYER_H__
+#define __HYSCAN_GTK_MAP_WAY_LAYER_H__
 
 #include <hyscan-gtk-layer.h>
 #include <hyscan-cache.h>
@@ -41,40 +41,40 @@
 
 G_BEGIN_DECLS
 
-#define HYSCAN_TYPE_GTK_MAP_TRACK_LAYER             (hyscan_gtk_map_track_layer_get_type ())
-#define HYSCAN_GTK_MAP_TRACK_LAYER(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_MAP_TRACK_LAYER, HyScanGtkMapTrackLayer))
-#define HYSCAN_IS_GTK_MAP_TRACK_LAYER(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_MAP_TRACK_LAYER))
-#define HYSCAN_GTK_MAP_TRACK_LAYER_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_MAP_TRACK_LAYER, HyScanGtkMapTrackLayerClass))
-#define HYSCAN_IS_GTK_MAP_TRACK_LAYER_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_MAP_TRACK_LAYER))
-#define HYSCAN_GTK_MAP_TRACK_LAYER_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_MAP_TRACK_LAYER, HyScanGtkMapTrackLayerClass))
+#define HYSCAN_TYPE_GTK_MAP_WAY_LAYER             (hyscan_gtk_map_way_layer_get_type ())
+#define HYSCAN_GTK_MAP_WAY_LAYER(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_MAP_WAY_LAYER, HyScanGtkMapWayLayer))
+#define HYSCAN_IS_GTK_MAP_WAY_LAYER(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_MAP_WAY_LAYER))
+#define HYSCAN_GTK_MAP_WAY_LAYER_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_MAP_WAY_LAYER, HyScanGtkMapWayLayerClass))
+#define HYSCAN_IS_GTK_MAP_WAY_LAYER_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_MAP_WAY_LAYER))
+#define HYSCAN_GTK_MAP_WAY_LAYER_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_MAP_WAY_LAYER, HyScanGtkMapWayLayerClass))
 
-typedef struct _HyScanGtkMapTrackLayer HyScanGtkMapTrackLayer;
-typedef struct _HyScanGtkMapTrackLayerPrivate HyScanGtkMapTrackLayerPrivate;
-typedef struct _HyScanGtkMapTrackLayerClass HyScanGtkMapTrackLayerClass;
+typedef struct _HyScanGtkMapWayLayer HyScanGtkMapWayLayer;
+typedef struct _HyScanGtkMapWayLayerPrivate HyScanGtkMapWayLayerPrivate;
+typedef struct _HyScanGtkMapWayLayerClass HyScanGtkMapWayLayerClass;
 
-struct _HyScanGtkMapTrackLayer
+struct _HyScanGtkMapWayLayer
 {
   GInitiallyUnowned parent_instance;
 
-  HyScanGtkMapTrackLayerPrivate *priv;
+  HyScanGtkMapWayLayerPrivate *priv;
 };
 
-struct _HyScanGtkMapTrackLayerClass
+struct _HyScanGtkMapWayLayerClass
 {
   GInitiallyUnownedClass parent_class;
 };
 
 HYSCAN_API
-GType                    hyscan_gtk_map_track_layer_get_type     (void);
+GType                    hyscan_gtk_map_way_layer_get_type     (void);
 
 HYSCAN_API
-HyScanGtkLayer *         hyscan_gtk_map_track_layer_new          (HyScanNavigationModel *nav_model,
+HyScanGtkLayer *         hyscan_gtk_map_way_layer_new          (HyScanNavigationModel *nav_model,
                                                                   HyScanCache           *cache);
 
 HYSCAN_API
-void                     hyscan_gtk_map_track_layer_set_lifetime (HyScanGtkMapTrackLayer *track_layer,
+void                     hyscan_gtk_map_way_layer_set_lifetime (HyScanGtkMapWayLayer *way_layer,
                                                                   guint64                 lifetime);
 
 G_END_DECLS
 
-#endif /* __HYSCAN_GTK_MAP_TRACK_LAYER_H__ */
+#endif /* __HYSCAN_GTK_MAP_WAY_LAYER_H__ */

@@ -12,12 +12,13 @@
 #include <hyscan-gtk-map-grid.h>
 #include <hyscan-gtk-map-pin-layer.h>
 #include <hyscan-map-profile.h>
-#include <hyscan-gtk-map-track-layer.h>
+#include <hyscan-gtk-map-way-layer.h>
 #include <hyscan-nmea-file-device.h>
 #include <hyscan-driver.h>
 
 #define GPS_SENSOR_NAME "my-nmea-sensor"
 
+static gchar *db_uri;                        /* Ссылка на базу данных. */
 static gchar *profile_dir;                   /* Путь к каталогу, где хранятся профили карты. */
 static gchar *track_file;                    /* Путь к файлу с NMEA-строками. */
 static gchar *udp_host;                      /* Хост для подключения к GPS-приемнику. */
@@ -258,7 +259,7 @@ load_nmea_udp_device (const gchar *nmea_udp_host,
 
 /* Слой с треком движения. */
 HyScanGtkLayer *
-create_track_layer ()
+create_way_layer ()
 {
   HyScanNavigationModel *model;
   HyScanDevice *device = NULL;
@@ -281,7 +282,7 @@ create_track_layer ()
 
   cache = hyscan_cached_new (100);
   // cache = NULL;
-  layer = hyscan_gtk_map_track_layer_new (model, HYSCAN_CACHE (cache));
+  layer = hyscan_gtk_map_way_layer_new (model, HYSCAN_CACHE (cache));
 
   g_object_unref (device);
   g_object_unref (model);
@@ -293,7 +294,7 @@ create_track_layer ()
 HyScanGtkMap *
 create_map (HyScanGtkLayer **ruler,
             HyScanGtkLayer **pin_layer,
-            HyScanGtkLayer **track_layer,
+            HyScanGtkLayer **way_layer,
             HyScanGtkLayer **map_grid)
 {
   HyScanGtkMap *map;
@@ -312,12 +313,12 @@ create_map (HyScanGtkLayer **ruler,
     *map_grid = hyscan_gtk_map_grid_new ();
     *ruler = hyscan_gtk_map_ruler_new ();
     *pin_layer = hyscan_gtk_map_pin_layer_new ();
-    *track_layer = create_track_layer ();
+    *way_layer = create_way_layer ();
 
     hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), hyscan_gtk_map_control_new (), "control");
 
-    if (*track_layer != NULL)
-      hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (*track_layer), "track");
+    if (*way_layer != NULL)
+      hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (*way_layer), "track");
 
     hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (*pin_layer),   "pin");
     hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (*ruler),       "ruler");
@@ -441,7 +442,7 @@ GtkWidget *
 create_control_box (HyScanGtkMap   *map,
                     HyScanGtkLayer *ruler,
                     HyScanGtkLayer *pin_layer,
-                    HyScanGtkLayer *track_layer,
+                    HyScanGtkLayer *way_layer,
                     HyScanGtkLayer *grid)
 {
   GtkWidget *ctrl_box;
@@ -474,8 +475,8 @@ create_control_box (HyScanGtkMap   *map,
     add_layer_row (GTK_LIST_BOX (list_box), "Коорд. сетка", grid);
     add_layer_row (GTK_LIST_BOX (list_box), "Линейка", ruler);
     add_layer_row (GTK_LIST_BOX (list_box), "Булавка", pin_layer);
-    if (track_layer != NULL)
-      add_layer_row (GTK_LIST_BOX (list_box), "Трек", track_layer);
+    if (way_layer != NULL)
+      add_layer_row (GTK_LIST_BOX (list_box), "Трек", way_layer);
     g_signal_connect (list_box, "row-selected", G_CALLBACK (on_row_select), map);
 
     gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Слои"));
@@ -535,7 +536,7 @@ int main (int     argc,
   GtkWidget *grid;
 
   HyScanGtkMap *map;
-  HyScanGtkLayer *ruler, *pin_layer, *track_layer, *map_grid;
+  HyScanGtkLayer *ruler, *pin_layer, *way_layer, *map_grid;
 
   gtk_init (&argc, &argv);
 
@@ -549,6 +550,7 @@ int main (int     argc,
         { "udp-port",        'P', 0, G_OPTION_ARG_INT,    &udp_port,          "Listen to UDP port", NULL},
         { "track-file",      't', 0, G_OPTION_ARG_STRING, &track_file,        "GPS-track file with NMEA-sentences", NULL },
         { "profile-dir",     'd', 0, G_OPTION_ARG_STRING, &profile_dir,       "Path to dir with map profiles", NULL },
+        { "db-uri",          'D', 0, G_OPTION_ARG_STRING, &db_uri,            "Database uri", NULL},
         { NULL }
       };
 
@@ -586,9 +588,9 @@ int main (int     argc,
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_window_set_default_size (GTK_WINDOW (window), 800, 600);
 
-  map = create_map (&ruler, &pin_layer, &track_layer, &map_grid);
+  map = create_map (&ruler, &pin_layer, &way_layer, &map_grid);
   gtk_grid_attach (GTK_GRID (grid), GTK_WIDGET (map), 0, 0, 1, 1);
-  gtk_grid_attach (GTK_GRID (grid), create_control_box (map, ruler, pin_layer, track_layer, map_grid), 1, 0, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), create_control_box (map, ruler, pin_layer, way_layer, map_grid), 1, 0, 1, 1);
 
   gtk_container_add (GTK_CONTAINER (window), grid);
   g_signal_connect (G_OBJECT (window), "destroy", G_CALLBACK (destroy_callback), NULL);
