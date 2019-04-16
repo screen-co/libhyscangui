@@ -26,9 +26,7 @@ static gchar *track_file;                    /* Путь к файлу с NMEA-�
 static gchar *udp_host;                      /* Хост для подключения к GPS-приемнику. */
 static gint udp_port;                        /* Порт для подключения к GPS-приемнику. */
 
-static GtkContainer *layer_toolbox;
-void   (*layer_toolbox_cb) (GtkContainer   *container,
-                            HyScanGtkLayer *layer);
+static GtkWidget *layer_tool_stack;          /* GtkStack с панелями опций по каждому слою. */
 
 static HyScanGeoGeodetic center = {.lat = 55.571, .lon = 38.103};
 
@@ -68,32 +66,26 @@ on_row_select (GtkListBox    *box,
                gpointer       user_data)
 {
   HyScanGtkMap *map = HYSCAN_GTK_MAP (user_data);
-  HyScanGtkLayer *layer;
+  HyScanGtkLayer *layer = NULL;
+  GtkWidget *layer_tools = NULL;
 
-  gtk_container_foreach (layer_toolbox, (GtkCallback) gtk_widget_destroy, NULL);
+  if (row != NULL)
+    layer = g_object_get_data (G_OBJECT (row), "layer");
 
-  if (row == NULL)
+  if (layer != NULL)
+    layer_tools = g_object_get_data (G_OBJECT (layer), "toolbox-cb");
+
+  if (layer == NULL || !hyscan_gtk_layer_grab_input (layer))
+    hyscan_gtk_layer_container_set_input_owner (HYSCAN_GTK_LAYER_CONTAINER (map), NULL);
+
+  if (layer_tools != NULL && GTK_IS_WIDGET (layer_tools))
     {
-      hyscan_gtk_layer_container_set_input_owner (HYSCAN_GTK_LAYER_CONTAINER (map), NULL);
-      return;
-    }
-
-  layer = g_object_get_data (G_OBJECT (row), "layer");
-  if (!hyscan_gtk_layer_grab_input (layer))
-    {
-      gtk_list_box_unselect_row (box, row);
-      return;
-    }
-
-  layer_toolbox_cb = g_object_get_data (G_OBJECT (layer), "toolbox-cb");
-  if (layer_toolbox_cb != NULL)
-    {
-      layer_toolbox_cb (layer_toolbox, layer);
-      gtk_widget_show_all (GTK_WIDGET (layer_toolbox));
+      gtk_stack_set_visible_child (GTK_STACK (layer_tool_stack), layer_tools);
+      gtk_widget_show_all (GTK_WIDGET (layer_tool_stack));
     }
   else
     {
-      gtk_widget_hide (GTK_WIDGET (layer_toolbox));
+      gtk_widget_hide (GTK_WIDGET (layer_tool_stack));
     }
 }
 
@@ -170,16 +162,22 @@ add_layer_row (GtkListBox     *list_box,
 }
 
 /* Создаёт панель инструментов для слоя булавок и линейки. */
-void
-create_ruler_toolbox (GtkContainer   *container,
-                      HyScanGtkLayer *layer)
+GtkWidget *
+create_ruler_toolbox (HyScanGtkLayer *layer,
+                      const gchar    *label)
 {
+  GtkWidget *box;
   GtkWidget *ctrl_widget;
 
+  box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
+
   ctrl_widget = gtk_button_new ();
-  gtk_button_set_label (GTK_BUTTON (ctrl_widget), "Очистить");
+  gtk_button_set_label (GTK_BUTTON (ctrl_widget), label);
   g_signal_connect_swapped (ctrl_widget, "clicked", G_CALLBACK (hyscan_gtk_map_pin_layer_clear), layer);
-  gtk_container_add (container, ctrl_widget);
+
+  gtk_box_pack_start (GTK_BOX (box), ctrl_widget, TRUE, FALSE, 10);
+
+  return box;
 }
 
 void
@@ -477,55 +475,79 @@ add_track_row (HyScanGtkMapTrackLayer *track_layer,
                GtkListBox             *list_box,
                const gchar            *track_name)
 {
-  GtkWidget *vsbl_chkbx;
+  GtkWidget *track_checkbox;
   GtkWidget *row;
 
   /* По галочке устанавливаем видимость слоя. */
-  vsbl_chkbx = gtk_check_button_new_with_label (track_name);
-  // gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (vsbl_chkbx), hyscan_gtk_layer_get_visible (layer));
-  g_signal_connect (vsbl_chkbx, "notify::active", G_CALLBACK (on_enable_track), track_layer);
+  track_checkbox = gtk_check_button_new_with_label (track_name);
+  g_signal_connect (track_checkbox, "notify::active", G_CALLBACK (on_enable_track), track_layer);
 
   row = gtk_list_box_row_new ();
-  gtk_container_add (GTK_CONTAINER (row), vsbl_chkbx);
-
-  /* Каждая строка хранит в себе указатель на слой. При удалении строки делаем unref слоя. */
-  // g_object_set_data (G_OBJECT (row), "layer", g_object_ref (layer));
-  // g_signal_connect_swapped (row, "destroy", G_CALLBACK (g_object_unref), layer);
+  gtk_list_box_row_set_activatable (GTK_LIST_BOX_ROW (row), FALSE);
+  gtk_list_box_row_set_activatable (GTK_LIST_BOX_ROW (row), FALSE);
+  gtk_container_add (GTK_CONTAINER (row), track_checkbox);
 
   gtk_list_box_insert (GTK_LIST_BOX (list_box), row, 0);
 }
 
+/* Выбор галсов проекта. */
 GtkWidget *
 create_track_box (HyScanGtkMapTrackLayer *track_layer,
                   HyScanDB               *db,
                   const gchar            *project_name)
 {
-  GtkListBox *list_box;
-  gint32 project_id;
-  gchar **track_list;
-  guint i;
+  GtkWidget *box;
+  GtkWidget *label;
 
-  list_box = GTK_LIST_BOX (gtk_list_box_new ());
-  gtk_widget_set_size_request (GTK_WIDGET (list_box), 150, -1);
+  gint32 project_id;
+  gchar **track_list = NULL;
+  guint i;
+  gchar *title;
+
+  box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
+
+  /* Название проекта. */
+  title = g_strdup_printf ("Галсы %s", project_name);
+  label = gtk_label_new (title);
+  gtk_label_set_max_width_chars (GTK_LABEL (label), 1);
+  gtk_label_set_ellipsize (GTK_LABEL (label), PANGO_ELLIPSIZE_END);
+  gtk_box_pack_start (GTK_BOX (box), gtk_label_new (title), FALSE, FALSE, 0);
+  g_free (title);
 
   project_id = hyscan_db_project_open (db, project_name);
-  if (project_id < 0)
-    goto exit;
+  if (project_id > 0)
+    track_list = hyscan_db_track_list (db, project_id);
 
-  track_list = hyscan_db_track_list (db, project_id);
-  if (track_list == NULL)
-    goto exit;
+  /* Список галсов. */
+  if (track_list != NULL)
+    {
+      GtkWidget *list_box;
+      GtkWidget *scrolled_window;
 
-  for (i = 0; track_list[i] != NULL; ++i)
-    add_track_row (track_layer, list_box, track_list[i]);
+      list_box = gtk_list_box_new ();
 
-  g_strfreev (track_list);
+      for (i = 0; track_list[i] != NULL; ++i)
+        add_track_row (track_layer, GTK_LIST_BOX (list_box), track_list[i]);
 
-exit:
+      scrolled_window = gtk_scrolled_window_new (NULL, NULL);
+      gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled_window),
+                                      GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+      gtk_scrolled_window_set_min_content_height (GTK_SCROLLED_WINDOW (scrolled_window), 200);
+      gtk_container_add (GTK_CONTAINER (scrolled_window), list_box);
+
+      gtk_box_pack_end (GTK_BOX (box), scrolled_window, FALSE, TRUE, 0);
+
+      g_strfreev (track_list);
+    }
+  else
+    {
+      gtk_box_pack_end (GTK_BOX (box), gtk_label_new ("Галсы не найдены"), TRUE, FALSE, 0);
+    }
+
   if (project_id > 0)
     hyscan_db_close (db, project_id);
 
-  return GTK_WIDGET (list_box);
+  return box;
 }
 
 /* Кнопки управления виджетом. */
@@ -581,23 +603,28 @@ create_control_box (HyScanGtkMap   *map,
 
   /* Контейнер для панели инструментов каждого слоя. */
   {
-    layer_toolbox = GTK_CONTAINER (gtk_box_new (GTK_ORIENTATION_VERTICAL, 10));
-    gtk_container_add (GTK_CONTAINER (ctrl_box), GTK_WIDGET (layer_toolbox));
+    GtkWidget *layer_tools;
 
-    /* Устаналиваем коллбэки для создания панели инструментов слоя. */
-    g_object_set_data (G_OBJECT (ruler), "toolbox-cb", create_ruler_toolbox);
-    g_object_set_data (G_OBJECT (pin_layer), "toolbox-cb", create_ruler_toolbox);
+    layer_tool_stack = gtk_stack_new ();
+    gtk_stack_set_homogeneous (GTK_STACK (layer_tool_stack), FALSE);
+    gtk_container_add (GTK_CONTAINER (ctrl_box), GTK_WIDGET (layer_tool_stack));
+
+    /* Устаналиваем виджеты с инструментами для каждого слоя. */
+    layer_tools = create_ruler_toolbox (ruler, "Удалить линейку");
+    g_object_set_data (G_OBJECT (ruler), "toolbox-cb", layer_tools);
+    gtk_stack_add_titled (GTK_STACK (layer_tool_stack), layer_tools, "ruler", "Ruler");
+
+    layer_tools = create_ruler_toolbox (pin_layer, "Удалить все метки");
+    g_object_set_data (G_OBJECT (pin_layer), "toolbox-cb", layer_tools);
+    gtk_stack_add_titled (GTK_STACK (layer_tool_stack), layer_tools, "pin", "Pin");
+
+    if (track_layer != NULL)
+      {
+        layer_tools = create_track_box (HYSCAN_GTK_MAP_TRACK_LAYER (track_layer), db, project_name);
+        g_object_set_data (G_OBJECT (track_layer), "toolbox-cb", layer_tools);
+        gtk_stack_add_titled (GTK_STACK (layer_tool_stack), layer_tools, "track", "Track");
+      }
   }
-
-  gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
-
-  /* Список галсов. */
-  if (track_layer != NULL)
-    {
-      gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Галсы"));
-      gtk_container_add (GTK_CONTAINER (ctrl_box),
-                         create_track_box (HYSCAN_GTK_MAP_TRACK_LAYER (track_layer), db, project_name));
-    }
 
   gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
 
