@@ -505,6 +505,25 @@ hyscan_gtk_map_move_to (HyScanGtkMap      *map,
 }
 
 /**
+ * hyscan_gtk_map_get_value_scale:
+ * @map:
+ * @coord:
+ *
+ * Определяет размер единичного отрезка на проекции в метрах в точке с
+ * координатами @coord.
+ *
+ * Returns: размер единичного отрезка на проекции в метрах
+ */
+gdouble
+hyscan_gtk_map_get_value_scale (HyScanGtkMap      *map,
+                                HyScanGeoGeodetic *coord)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), -1.0);
+
+  return hyscan_geo_projection_get_scale (map->priv->projection, *coord);
+}
+
+/**
  * hyscan_gtk_map_get_pixel_scale:
  * @map: указатель на #HyScanGtkMap
  *

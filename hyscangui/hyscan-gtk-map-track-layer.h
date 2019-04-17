@@ -54,14 +54,14 @@ typedef struct _HyScanGtkMapTrackLayerClass HyScanGtkMapTrackLayerClass;
 
 struct _HyScanGtkMapTrackLayer
 {
-  GObject parent_instance;
+  GInitiallyUnowned parent_instance;
 
   HyScanGtkMapTrackLayerPrivate *priv;
 };
 
 struct _HyScanGtkMapTrackLayerClass
 {
-  GObjectClass parent_class;
+  GInitiallyUnownedClass parent_class;
 };
 
 HYSCAN_API

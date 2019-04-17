@@ -41,9 +41,12 @@
  */
 
 #include "hyscan-gtk-map-track-layer.h"
-#include <hyscan-nmea-data.h>
 #include <hyscan-gtk-map.h>
 #include <hyscan-nmea-parser.h>
+#include <hyscan-projector.h>
+#include <hyscan-acoustic-data.h>
+#include <hyscan-depthometer.h>
+#include <math.h>
 
 enum
 {
@@ -54,8 +57,34 @@ enum
 };
 
 typedef struct {
-  HyScanNavData            *lat_data;         /* Навигационные данные - широта. */
-  HyScanNavData            *lon_data;         /* Навигационные данные - долгота. */
+  HyScanGeoGeodetic               geo;              /* Географические координаты точки. */
+  gdouble                         l_width;          /* Дальность по левому борту. */
+  gdouble                         r_width;          /* Дальность по правому борту. */
+
+  /* Координаты на картографической проекции (зависят от текущей проекции). */
+  gdouble                         x;                /* Координата X путевой точки. */
+  gdouble                         y;                /* Координата Y путевой точки. */
+  gdouble                         l_x;              /* Координата X дальности по левому борту. */
+  gdouble                         l_y;              /* Координата Y дальности по левому борту. */
+  gdouble                         r_x;              /* Координата X дальности по правому борту. */
+  gdouble                         r_y;              /* Координата Y дальности по правому борту. */
+
+} HyScanGtkMapTrackLayerPoint;
+
+typedef struct {
+  HyScanAmplitude                *amplitude;        /* Амплитудные данные трека. */
+  HyScanProjector                *projector;        /* Сопоставления индексов и отсчётов реальным координатам. */
+} HyScanGtkMapTrackLayerBoard;
+
+typedef struct {
+  HyScanGtkMapTrackLayerBoard     port;             /* Данные левого борта. */
+  HyScanGtkMapTrackLayerBoard     starboard;        /* Данные правого борта. */
+  HyScanDepthometer              *depthometer;      /* Определение глубины. */
+  HyScanNavData                  *lat_data;         /* Навигационные данные - широта. */
+  HyScanNavData                  *lon_data;         /* Навигационные данные - долгота. */
+  HyScanNavData                  *bearing_data;     /* Навигационные данные - курс. */
+
+  GList                          *points;           /* Список точек трека HyScanGtkMapTrackLayerPoint. */
 } HyScanGtkMapTrackLayerTrack;
 
 struct _HyScanGtkMapTrackLayerPrivate
@@ -64,7 +93,7 @@ struct _HyScanGtkMapTrackLayerPrivate
   gboolean                   visible;         /* Признак видимости слоя. */
 
   HyScanDB                  *db;              /* База данных. */
-  const gchar               *project;         /* Название проекта. */
+  gchar                     *project;         /* Название проекта. */
   HyScanCache               *cache;           /* Кэш для навигационных данных. */
 
   GHashTable                *tracks;          /* Таблица отображаемых галсов:
@@ -79,7 +108,7 @@ static void    hyscan_gtk_map_track_layer_set_property             (GObject     
 static void    hyscan_gtk_map_track_layer_object_constructed       (GObject                *object);
 static void    hyscan_gtk_map_track_layer_object_finalize          (GObject                *object);
 
-G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapTrackLayer, hyscan_gtk_map_track_layer, G_TYPE_OBJECT,
+G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapTrackLayer, hyscan_gtk_map_track_layer, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapTrackLayer)
                          G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_LAYER, hyscan_gtk_map_track_layer_interface_init))
 
@@ -147,6 +176,13 @@ hyscan_gtk_map_track_layer_track_free (gpointer data)
 
   g_object_unref (track->lat_data);
   g_object_unref (track->lon_data);
+  g_object_unref (track->bearing_data);
+  g_object_unref (track->starboard.amplitude);
+  g_object_unref (track->starboard.projector);
+  g_object_unref (track->port.amplitude);
+  g_object_unref (track->port.projector);
+  g_object_unref (track->depthometer);
+  g_list_free_full (track->points, g_free);
   g_free (track);
 }
 
@@ -168,6 +204,8 @@ hyscan_gtk_map_track_layer_object_finalize (GObject *object)
   HyScanGtkMapTrackLayerPrivate *priv = gtk_map_track_layer->priv;
 
   g_clear_object (&priv->db);
+  g_clear_object (&priv->cache);
+  g_free (priv->project);
   g_hash_table_destroy (priv->tracks);
 
   G_OBJECT_CLASS (hyscan_gtk_map_track_layer_parent_class)->finalize (object);
@@ -180,33 +218,48 @@ hyscan_gtk_map_track_layer_draw_track (HyScanGtkMapTrackLayer      *track_layer,
                                        cairo_t                     *cairo)
 {
   HyScanGtkMapTrackLayerPrivate *priv = track_layer->priv;
-  guint32 index, rindex;
+  GList *point_l;
 
-  if (!hyscan_nav_data_get_range (track->lat_data, &index, &rindex))
-    return;
-
+  /* Рисуем линию движения. */
   cairo_new_path (cairo);
-  for (; index < rindex; ++index)
+  for (point_l = track->points; point_l != NULL; point_l = point_l->next)
     {
-      gdouble x_val, y_val;
+      HyScanGtkMapTrackLayerPoint *point = point_l->data;
       gdouble x, y;
-      gint64 time;
-      HyScanGeoGeodetic coords;
 
-      if (!hyscan_nav_data_get (track->lat_data, index, &time, &coords.lat))
-        continue;
-      
-      if (!hyscan_nav_data_get (track->lon_data, index, &time, &coords.lon))
-        continue;
-
-      hyscan_gtk_map_geo_to_value (priv->map, coords, &x_val, &y_val);
-      gtk_cifro_area_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y, x_val, y_val);
+      gtk_cifro_area_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y, point->x, point->y);
       cairo_line_to (cairo, x, y);
     }
-
   cairo_set_line_width (cairo, 2);
   cairo_set_source_rgb (cairo, 0, 0, 0);
   cairo_stroke (cairo);
+
+  /* Рисуем левый борт. */
+  cairo_new_path (cairo);
+  for (point_l = track->points; point_l != NULL; point_l = point_l->next)
+    {
+      HyScanGtkMapTrackLayerPoint *point = point_l->data;
+      gdouble x, y, x0, y0;
+
+      // Правый борт
+      gtk_cifro_area_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y, point->x, point->y);
+      cairo_line_to (cairo, x, y);
+
+      gtk_cifro_area_value_to_point (GTK_CIFRO_AREA (priv->map), &x0, &y0, point->r_x, point->r_y);
+      cairo_line_to (cairo, x0, y0);
+      cairo_set_source_rgba (cairo, 0, .73, 0, .2);
+      cairo_stroke (cairo);
+
+      // Левый борт
+      gtk_cifro_area_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y, point->x, point->y);
+      cairo_line_to (cairo, x, y);
+
+      gtk_cifro_area_value_to_point (GTK_CIFRO_AREA (priv->map), &x0, &y0, point->l_x, point->l_y);
+      cairo_line_to (cairo, x0, y0);
+      cairo_set_source_rgba (cairo, 0.73, 0, 0, .2);
+      cairo_stroke (cairo);
+    }
+
 }
 
 /* Рисует слой по сигналу "visible-draw". */
@@ -229,6 +282,55 @@ hyscan_gtk_map_track_layer_draw (HyScanGtkMap            *map,
     hyscan_gtk_map_track_layer_draw_track (track_layer, track, cairo);
 }
 
+/* Переводит координаты трека из географических в проекцию карты. */
+static void
+hyscan_gtk_map_track_layer_track_points (HyScanGtkMapTrackLayer      *layer,
+                                         HyScanGtkMapTrackLayerTrack *track)
+{
+  HyScanGtkMapTrackLayerPrivate *priv = layer->priv;
+  GList *point_l;
+
+  for (point_l = track->points; point_l != NULL; point_l = point_l->next)
+    {
+      HyScanGtkMapTrackLayerPoint *point = point_l->data;
+      gdouble scale;
+      gdouble cos_bearing, sin_bearing;
+
+      hyscan_gtk_map_geo_to_value (priv->map, point->geo, &point->x, &point->y);
+
+      cos_bearing = cos (point->geo.h / 180.0 * G_PI);
+      sin_bearing = sin (point->geo.h / 180.0 * G_PI);
+
+      /* Масштаб перевода из метров в логические координаты. */
+      scale = hyscan_gtk_map_get_value_scale (priv->map, &point->geo);
+
+      /* Правый борт. */
+      point->r_x = point->x + point->r_width * cos_bearing / scale;
+      point->r_y = point->y - point->r_width * sin_bearing / scale;
+
+      /* Левый борт. */
+      point->l_x = point->x - point->l_width * cos_bearing / scale;
+      point->l_y = point->y + point->l_width * sin_bearing / scale;
+    }
+}
+
+/* Обрабатывает сигнал об изменении картографической проекции. */
+static void
+hyscan_gtk_map_track_layer_projection_notify (HyScanGtkMap           *map,
+                                              GParamSpec             *pspec,
+                                              HyScanGtkMapTrackLayer *layer)
+{
+  HyScanGtkMapTrackLayerPrivate *priv = layer->priv;
+  GHashTableIter iter;
+
+  gchar *track_name;
+  HyScanGtkMapTrackLayerTrack *track;
+
+  g_hash_table_iter_init (&iter, priv->tracks);
+  while (g_hash_table_iter_next (&iter, (gpointer *) &track_name, (gpointer *) &track))
+    hyscan_gtk_map_track_layer_track_points (layer, track);
+}
+
 /* Реализация HyScanGtkLayerInterface.added.
  * Обрабатывает добавление слой на карту. */
 static void
@@ -242,7 +344,10 @@ hyscan_gtk_map_track_layer_added (HyScanGtkLayer          *gtk_layer,
   g_return_if_fail (priv->map == NULL);
 
   priv->map = g_object_ref (container);
-  g_signal_connect_after (priv->map, "visible-draw", G_CALLBACK (hyscan_gtk_map_track_layer_draw), track_layer);
+  g_signal_connect_after (priv->map, "visible-draw", 
+                          G_CALLBACK (hyscan_gtk_map_track_layer_draw), track_layer);
+  g_signal_connect (priv->map, "notify::projection",
+                    G_CALLBACK (hyscan_gtk_map_track_layer_projection_notify), track_layer);
 }
 
 /* Реализация HyScanGtkLayerInterface.removed.
@@ -294,6 +399,76 @@ hyscan_gtk_map_track_layer_interface_init (HyScanGtkLayerInterface *iface)
   iface->get_visible = hyscan_gtk_map_track_layer_get_visible;
 }
 
+/* Определяет ширину трека в момент времени time по борту board. */
+static gdouble
+hyscan_gtk_map_track_layer_track_width (HyScanGtkMapTrackLayerBoard *board,
+                                        HyScanDepthometer           *depthometer,
+                                        gint64                       time)
+{
+  guint32 amp_rindex, amp_lindex;
+  guint32 nvals;
+  gdouble depth;
+  gdouble distance;
+
+  HyScanDBFindStatus find_status;
+
+  if (board->amplitude == NULL)
+    return 0.0;
+
+  find_status = hyscan_amplitude_find_data (board->amplitude, time, &amp_lindex, &amp_rindex, NULL, NULL);
+
+  if (find_status != HYSCAN_DB_FIND_OK)
+    return 0.0;
+
+  depth = (depthometer != NULL) ? hyscan_depthometer_get (depthometer, time) : 0;
+
+  hyscan_amplitude_get_size_time (board->amplitude, amp_lindex, &nvals, NULL);
+  hyscan_projector_count_to_coord (board->projector, nvals, &distance, depth);
+
+  g_print ("Idx %6d Depth %8.2f N %8d Dist %8.2f\n", amp_lindex, depth, nvals, distance);
+
+  return distance;
+}
+
+/* Загружает путевые точки трека и его ширину. */
+static void
+hyscan_gtk_map_track_layer_track_load (HyScanGtkMapTrackLayer      *track_layer,
+                                       HyScanGtkMapTrackLayerTrack *track)
+{
+  guint32 index, rindex;
+
+  if (!hyscan_nav_data_get_range (track->lat_data, &index, &rindex))
+    return;
+
+  for (; index < rindex; ++index)
+    {
+      gint64 time;
+      HyScanGeoGeodetic coords;
+      HyScanGtkMapTrackLayerPoint *point;
+
+      if (!hyscan_nav_data_get (track->lat_data, index, &time, &coords.lat))
+        continue;
+
+      if (!hyscan_nav_data_get (track->lon_data, index, &time, &coords.lon))
+        continue;
+
+      if (!hyscan_nav_data_get (track->bearing_data, index, &time, &coords.h))
+        continue;
+
+      point = g_new (HyScanGtkMapTrackLayerPoint, 1);
+      point->geo = coords;
+
+      /* Определяем ширину отснятых данных в этот момент. */
+      point->r_width = hyscan_gtk_map_track_layer_track_width (&track->starboard, track->depthometer, time);
+      point->l_width = hyscan_gtk_map_track_layer_track_width (&track->port,      track->depthometer, time);
+
+      track->points = g_list_append (track->points, point);
+    }
+
+   /* Переводим географические координаты в логические. */
+   hyscan_gtk_map_track_layer_track_points (track_layer, track);
+}
+
 /**
  * hyscan_gtk_map_track_layer_new:
  * @db
@@ -339,12 +514,30 @@ hyscan_gtk_map_track_layer_track_enable (HyScanGtkMapTrackLayer *track_layer,
 
   if (enable)
     {
-      track = g_new (HyScanGtkMapTrackLayerTrack, 1);
+      HyScanNMEAParser *dpt_parser;
+
+      track = g_new0 (HyScanGtkMapTrackLayerTrack, 1);
+      track->starboard.amplitude = HYSCAN_AMPLITUDE (hyscan_acoustic_data_new (priv->db, priv->cache, priv->project, track_name,
+                                                                     HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, 1, TRUE));
+      track->starboard.projector = hyscan_projector_new (track->starboard.amplitude);
+      track->port.amplitude = HYSCAN_AMPLITUDE (hyscan_acoustic_data_new (priv->db, priv->cache, priv->project, track_name,
+                                                                     HYSCAN_SOURCE_SIDE_SCAN_PORT, 1, TRUE));
+      track->port.projector = hyscan_projector_new (track->port.amplitude);
       track->lat_data = HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache, priv->project,
                                                                 track_name, 1, HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_LAT));
       track->lon_data = HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache, priv->project,
                                                                 track_name, 1, HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_LON));
+      track->bearing_data = HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache, priv->project,
+                                                                     track_name, 1, HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_TRACK));
+      dpt_parser = hyscan_nmea_parser_new (priv->db, priv->cache,
+                                           priv->project, track_name, 1,
+                                           HYSCAN_NMEA_DATA_DPT, HYSCAN_NMEA_FIELD_DEPTH);
+      track->depthometer = hyscan_depthometer_new (HYSCAN_NAV_DATA (dpt_parser), priv->cache);
+      g_message ("Load track %s", track_name);
+      hyscan_gtk_map_track_layer_track_load (track_layer, track);
       g_hash_table_insert (priv->tracks, g_strdup (track_name), track);
+
+      g_object_unref (dpt_parser);
     }
   else
     {
