@@ -23,6 +23,7 @@ static gchar *db_uri;                        /* Ссылка на базу да�
 static gchar *project_name;                  /* Ссылка на базу данных. */
 static gchar *profile_dir;                   /* Путь к каталогу, где хранятся профили карты. */
 static gchar *track_file;                    /* Путь к файлу с NMEA-строками. */
+static gchar *origin;                        /* Координаты центра карты. */
 static gchar *udp_host;                      /* Хост для подключения к GPS-приемнику. */
 static gint udp_port;                        /* Порт для подключения к GPS-приемнику. */
 
@@ -687,6 +688,7 @@ int main (int     argc,
         { "profile-dir",     'd', 0, G_OPTION_ARG_STRING, &profile_dir,       "Path to dir with map profiles", NULL },
         { "db-uri",          'D', 0, G_OPTION_ARG_STRING, &db_uri,            "Database uri", NULL},
         { "project-name",    'p', 0, G_OPTION_ARG_STRING, &project_name,      "Project name", NULL},
+        { "origin",          '0', 0, G_OPTION_ARG_STRING, &origin,            "Map origin, lat,lon", NULL},
         { NULL }
       };
 
@@ -706,6 +708,17 @@ int main (int     argc,
         g_warning ("udp-host and track-file are mutually exclusive options.");
         g_print ("%s", g_option_context_get_help (context, FALSE, NULL));
         return 0;
+      }
+
+    if (origin != NULL)
+      {
+        gdouble lat, lon;
+
+        if (sscanf (origin, "%lf,%lf", &lat, &lon) == 2)
+          {
+            center.lat = lat;
+            center.lon = lon;
+          }
       }
 
     g_option_context_free (context);
