@@ -64,18 +64,42 @@ struct _HyScanGtkMapTrackLayerClass
   GInitiallyUnownedClass parent_class;
 };
 
-HYSCAN_API
-GType                  hyscan_gtk_map_track_layer_get_type     (void);
+enum
+{
+  HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_NMEA_RMC,
+  HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_NMEA_DPT,
+  HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_PORT,
+  HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_STARBOARD,
+};
 
 HYSCAN_API
-HyScanGtkLayer *       hyscan_gtk_map_track_layer_new          (HyScanDB               *db,
-                                                                const gchar            *project,
-                                                                HyScanCache            *cache);
+GType                  hyscan_gtk_map_track_layer_get_type          (void);
 
 HYSCAN_API
-void                   hyscan_gtk_map_track_layer_track_enable (HyScanGtkMapTrackLayer *track_layer,
-                                                                const gchar            *track_name,
-                                                                gboolean                enable);
+HyScanGtkLayer *       hyscan_gtk_map_track_layer_new               (HyScanDB               *db,
+                                                                     const gchar            *project,
+                                                                     HyScanCache            *cache);
+
+HYSCAN_API
+void                   hyscan_gtk_map_track_layer_track_enable      (HyScanGtkMapTrackLayer *track_layer,
+                                                                     const gchar            *track_name,
+                                                                     gboolean                enable);
+
+HYSCAN_API
+guint                  hyscan_gtk_map_track_layer_track_get_channel (HyScanGtkMapTrackLayer *track_layer,
+                                                                     const gchar            *track_name,
+                                                                     guint                   channel);
+
+HYSCAN_API
+guint                  hyscan_gtk_map_track_layer_track_max_channel (HyScanGtkMapTrackLayer *track_layer,
+                                                                     const gchar            *track_name,
+                                                                     guint                   channel);
+
+HYSCAN_API
+void                   hyscan_gtk_map_track_layer_track_set_channel (HyScanGtkMapTrackLayer *track_layer,
+                                                                     const gchar            *track_name,
+                                                                     guint                   channel,
+                                                                     guint                   channel_num);
 
 G_END_DECLS
 

@@ -471,24 +471,127 @@ create_profile_switch (HyScanGtkMap *map)
   return combo_box;
 }
 
+/* Обрабатывает изменение настроек галса в слое HyScanGtkMapTrackLayer. */
 void
-add_track_row (HyScanGtkMapTrackLayer *track_layer,
-               GtkListBox             *list_box,
+track_settings_changed (GtkSpinButton *spin_button,
+                        gpointer       user_data)
+{
+  HyScanGtkMapTrackLayer *layer = HYSCAN_GTK_MAP_TRACK_LAYER (user_data);
+  gint channel_num;
+  gchar *track_name;
+  guint channel;
+
+  channel_num = (gint) gtk_spin_button_get_value (spin_button);
+  track_name = g_object_get_data (G_OBJECT (spin_button), "track-name");
+  channel = GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (spin_button), "channel"));
+
+  hyscan_gtk_map_track_layer_track_set_channel (layer, track_name, channel, channel_num);
+}
+
+/* Виджет переключения номера канала. */
+GtkWidget *
+channel_spin_new (HyScanGtkMapTrackLayer *track_layer,
+                  const gchar            *track_name,
+                  guint                   channel)
+{
+  GtkWidget *spin_button;
+  guint max_channel;
+
+  max_channel = hyscan_gtk_map_track_layer_track_max_channel (track_layer, track_name, channel);
+  spin_button = gtk_spin_button_new_with_range (0, max_channel, 1);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON (spin_button),
+                             hyscan_gtk_map_track_layer_track_get_channel (track_layer, track_name, channel));
+  g_object_set_data_full (G_OBJECT (spin_button), "track-name", g_strdup (track_name), g_free);
+  g_object_set_data (G_OBJECT (spin_button), "channel", GUINT_TO_POINTER (channel));
+  g_signal_connect (spin_button, "value-changed", G_CALLBACK (track_settings_changed), track_layer);
+
+  return spin_button;
+}
+
+/* Виджет с выбором каналов источников данных для отдельного трека. */
+GtkWidget *
+track_settings_new (HyScanGtkMapTrackLayer *track_layer,
+                    const gchar *track_name)
+{
+  GtkWidget *form;
+  GtkWidget *rmc_channel, *dpt_channel, *port_channel, *starboard_channel;
+
+  form = gtk_box_new (GTK_ORIENTATION_VERTICAL, 4);
+
+  rmc_channel = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
+  dpt_channel = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
+  port_channel = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
+  starboard_channel = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
+
+  gtk_box_pack_start (GTK_BOX (rmc_channel), gtk_label_new ("nmea (rmc)"), TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (rmc_channel),
+                      channel_spin_new (track_layer, track_name, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_NMEA_RMC),
+                      FALSE, FALSE, 0);
+
+  gtk_box_pack_start (GTK_BOX (dpt_channel), gtk_label_new ("nmea (dpt)"), TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (dpt_channel),
+                      channel_spin_new (track_layer, track_name, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_NMEA_DPT),
+                      FALSE, FALSE, 0);
+
+  gtk_box_pack_start (GTK_BOX (port_channel), gtk_label_new ("ss-port"), TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (port_channel),
+                      channel_spin_new (track_layer, track_name, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_PORT),
+                      FALSE, FALSE, 0);
+
+  gtk_box_pack_start (GTK_BOX (starboard_channel), gtk_label_new ("ss-starboard"), TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (starboard_channel),
+                      channel_spin_new (track_layer, track_name, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_STARBOARD),
+                      FALSE, FALSE, 0);
+
+  gtk_box_pack_start (GTK_BOX (form), gtk_label_new ("Выбор каналов данных"), FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (form), rmc_channel, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (form), dpt_channel, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (form), port_channel, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (form), starboard_channel, FALSE, FALSE, 0);
+
+  return form;
+}
+
+/* Виджет отдельной строки в списке галсов. */
+GtkWidget *
+track_row_new (HyScanGtkMapTrackLayer *track_layer,
                const gchar            *track_name)
 {
+  GtkWidget *box;
   GtkWidget *track_checkbox;
+  GtkWidget *locate_button;
+  GtkWidget *settings_button;
   GtkWidget *row;
+  GtkWidget *settings;
+  GtkWidget *settings_popover;
 
-  /* По галочке устанавливаем видимость слоя. */
+  /* Галочка установки видимости слоя. */
   track_checkbox = gtk_check_button_new_with_label (track_name);
   g_signal_connect (track_checkbox, "notify::active", G_CALLBACK (on_enable_track), track_layer);
 
-  row = gtk_list_box_row_new ();
-  gtk_list_box_row_set_activatable (GTK_LIST_BOX_ROW (row), FALSE);
-  gtk_list_box_row_set_activatable (GTK_LIST_BOX_ROW (row), FALSE);
-  gtk_container_add (GTK_CONTAINER (row), track_checkbox);
+  /* Кнопка поиска галса на карте. */
+  locate_button = gtk_button_new_from_icon_name ("zoom-fit-best", GTK_ICON_SIZE_MENU);
 
-  gtk_list_box_insert (GTK_LIST_BOX (list_box), row, 0);
+  /* Кнопка переход к настройкам галса. */
+  settings_button = gtk_menu_button_new ();
+  settings_popover = gtk_popover_new (settings_button);
+  settings = track_settings_new (track_layer, track_name);
+  gtk_widget_show_all (settings);
+  gtk_container_add (GTK_CONTAINER (settings_popover), settings);
+  gtk_menu_button_set_popover (GTK_MENU_BUTTON (settings_button), settings_popover);
+
+  /* Строка галса. */
+  box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 3);
+  gtk_box_pack_start (GTK_BOX (box), track_checkbox, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), locate_button, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (box), settings_button, FALSE, FALSE, 0);
+
+  row = gtk_list_box_row_new ();
+  g_object_set (row, "margin-bottom", 6,   "margin-top", 6,
+                     "activatable", FALSE, "selectable", FALSE, NULL);
+  gtk_container_add (GTK_CONTAINER (row), box);
+
+  return row;
 }
 
 /* Выбор галсов проекта. */
@@ -528,7 +631,7 @@ create_track_box (HyScanGtkMapTrackLayer *track_layer,
       list_box = gtk_list_box_new ();
 
       for (i = 0; track_list[i] != NULL; ++i)
-        add_track_row (track_layer, GTK_LIST_BOX (list_box), track_list[i]);
+        gtk_list_box_insert (GTK_LIST_BOX (list_box), track_row_new (track_layer, track_list[i]), 0);
 
       scrolled_window = gtk_scrolled_window_new (NULL, NULL);
       gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled_window),
@@ -536,7 +639,7 @@ create_track_box (HyScanGtkMapTrackLayer *track_layer,
       gtk_scrolled_window_set_min_content_height (GTK_SCROLLED_WINDOW (scrolled_window), 200);
       gtk_container_add (GTK_CONTAINER (scrolled_window), list_box);
 
-      gtk_box_pack_end (GTK_BOX (box), scrolled_window, FALSE, TRUE, 0);
+      gtk_box_pack_end (GTK_BOX (box), scrolled_window, FALSE, FALSE, 0);
 
       g_strfreev (track_list);
     }

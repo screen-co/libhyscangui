@@ -87,14 +87,24 @@ typedef struct {
 } HyScanGtkMapTrackLayerBoard;
 
 typedef struct {
-  HyScanGtkMapTrackLayerBoard     port;             /* Данные левого борта. */
-  HyScanGtkMapTrackLayerBoard     starboard;        /* Данные правого борта. */
-  HyScanDepthometer              *depthometer;      /* Определение глубины. */
-  HyScanNavData                  *lat_data;         /* Навигационные данные - широта. */
-  HyScanNavData                  *lon_data;         /* Навигационные данные - долгота. */
-  HyScanNavData                  *bearing_data;     /* Навигационные данные - курс. */
+  gboolean                        enabled;           /* Признак того, что галс необходимо показать. */
+  gboolean                        loaded;            /* Признак того, что данные галса загружены. */
+  gchar                           *name;             /* Название галса. */
 
-  GList                          *points;           /* Список точек трека HyScanGtkMapTrackLayerPoint. */
+  /* Каналы данных. */
+  guint                           channel_starboard; /* Номер канала правого борта. */
+  guint                           channel_port;      /* Номер канала левого борта. */
+  guint                           channel_rmc;       /* Номер канала nmea с RMC. */
+  guint                           channel_dpt;       /* Номер канала nmea с DPT. */
+
+  HyScanGtkMapTrackLayerBoard     port;              /* Данные левого борта. */
+  HyScanGtkMapTrackLayerBoard     starboard;         /* Данные правого борта. */
+  HyScanDepthometer              *depthometer;       /* Определение глубины. */
+  HyScanNavData                  *lat_data;          /* Навигационные данные - широта. */
+  HyScanNavData                  *lon_data;          /* Навигационные данные - долгота. */
+  HyScanNavData                  *angle_data;        /* Навигационные данные - курс в градусах. */
+
+  GList                          *points;            /* Список точек трека HyScanGtkMapTrackLayerPoint. */
 } HyScanGtkMapTrackLayerTrack;
 
 struct _HyScanGtkMapTrackLayerPrivate
@@ -195,9 +205,10 @@ hyscan_gtk_map_track_layer_track_free (gpointer data)
 {
   HyScanGtkMapTrackLayerTrack *track = data;
 
+  g_free (track->name);
   g_clear_object (&track->lat_data);
   g_clear_object (&track->lon_data);
-  g_clear_object (&track->bearing_data);
+  g_clear_object (&track->angle_data);
   g_clear_object (&track->starboard.amplitude);
   g_clear_object (&track->starboard.projector);
   g_clear_object (&track->port.amplitude);
@@ -258,7 +269,7 @@ hyscan_gtk_map_track_layer_draw_track (HyScanGtkMapTrackLayer      *track_layer,
   gdouble threshold;
   gdouble dist;
 
-  if (track->points == NULL)
+  if (track->points == NULL || !track->enabled)
     return;
 
   /* Минимальное расстояние между двумя полосками. */
@@ -524,6 +535,13 @@ hyscan_gtk_map_track_layer_track_load (HyScanGtkMapTrackLayer      *track_layer,
 {
   guint32 index, rindex;
 
+  /* Очищаем список точек. */
+  g_list_free_full (track->points, g_free);
+  track->points = NULL;
+
+  if (track->lat_data == NULL)
+    return;
+
   if (!hyscan_nav_data_get_range (track->lat_data, &index, &rindex))
     return;
 
@@ -539,7 +557,7 @@ hyscan_gtk_map_track_layer_track_load (HyScanGtkMapTrackLayer      *track_layer,
       if (!hyscan_nav_data_get (track->lon_data, index, &time, &coords.lon))
         continue;
 
-      if (!hyscan_nav_data_get (track->bearing_data, index, &time, &coords.h))
+      if (!hyscan_nav_data_get (track->angle_data, index, &time, &coords.h))
         continue;
 
       point = g_new (HyScanGtkMapTrackLayerPoint, 1);
@@ -554,6 +572,8 @@ hyscan_gtk_map_track_layer_track_load (HyScanGtkMapTrackLayer      *track_layer,
 
    /* Переводим географические координаты в логические. */
    hyscan_gtk_map_track_layer_track_points (track_layer, track);
+
+   track->loaded = TRUE;
 }
 
 /**
@@ -575,11 +595,151 @@ hyscan_gtk_map_track_layer_new (HyScanDB    *db,
                        "cache", cache, NULL);
 }
 
+/* Открывает (или переоткрывает) каналы данных в указанном галсе. */
+static void
+hyscan_gtk_map_track_layer_track_open (HyScanGtkMapTrackLayer      *track_layer,
+                                       HyScanGtkMapTrackLayerTrack *track)
+{
+  HyScanGtkMapTrackLayerPrivate *priv = track_layer->priv;
+  HyScanNMEAParser *dpt_parser;
+
+  g_clear_object (&track->starboard.amplitude);
+  g_clear_object (&track->starboard.projector);
+  g_clear_object (&track->port.amplitude);
+  g_clear_object (&track->port.projector);
+  g_clear_object (&track->lat_data);
+  g_clear_object (&track->lon_data);
+  g_clear_object (&track->angle_data);
+  g_clear_object (&track->depthometer);
+
+
+  if (track->channel_starboard > 0)
+    {
+      track->starboard.amplitude = HYSCAN_AMPLITUDE (hyscan_acoustic_data_new (priv->db, priv->cache, priv->project,
+                                                                               track->name,
+                                                                               HYSCAN_SOURCE_SIDE_SCAN_STARBOARD,
+                                                                               track->channel_starboard, FALSE));
+      track->starboard.projector = hyscan_projector_new (track->starboard.amplitude);
+    }
+  if (track->channel_port > 0)
+    {
+      track->port.amplitude = HYSCAN_AMPLITUDE (hyscan_acoustic_data_new (priv->db, priv->cache, priv->project,
+                                                                          track->name,
+                                                                          HYSCAN_SOURCE_SIDE_SCAN_PORT,
+                                                                          track->channel_port, FALSE));
+      track->port.projector = hyscan_projector_new (track->port.amplitude);
+    }
+
+
+  if (track->channel_rmc > 0)
+    {
+      track->lat_data = HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache, priv->project,
+                                                                 track->name, track->channel_rmc,
+                                                                 HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_LAT));
+      track->lon_data = HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache, priv->project,
+                                                                track->name, track->channel_rmc,
+                                                                HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_LON));
+      track->angle_data = HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache, priv->project,
+                                                                   track->name, track->channel_rmc,
+                                                                   HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_TRACK));
+    }
+
+  if (track->channel_dpt > 0)
+    {
+      dpt_parser = hyscan_nmea_parser_new (priv->db, priv->cache,
+                                           priv->project, track->name, track->channel_dpt,
+                                           HYSCAN_NMEA_DATA_DPT, HYSCAN_NMEA_FIELD_DEPTH);
+      if (dpt_parser != NULL)
+        track->depthometer = hyscan_depthometer_new (HYSCAN_NAV_DATA (dpt_parser), priv->cache);
+
+      g_clear_object (&dpt_parser);
+    }
+
+  track->loaded = FALSE;
+}
+
+/* Устанавливает номер канала для указанного трека. */
+static void
+hyscan_gtk_map_track_layer_track_set_channel_real (HyScanGtkMapTrackLayer      *track_layer,
+                                                   HyScanGtkMapTrackLayerTrack *track,
+                                                   guint                        channel,
+                                                   guint                        channel_num)
+{
+  guint max_channel;
+
+  max_channel = hyscan_gtk_map_track_layer_track_max_channel (track_layer, track->name, channel);
+  channel_num = CLAMP (channel_num, 0, max_channel);
+
+  switch (channel)
+    {
+    case HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_NMEA_DPT:
+      track->channel_dpt = channel_num;
+      break;
+
+    case HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_NMEA_RMC:
+      track->channel_rmc = channel_num;
+      break;
+
+    case HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_STARBOARD:
+      track->channel_starboard = channel_num;
+      break;
+
+    case HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_PORT:
+      track->channel_port = channel_num;
+      break;
+
+    default:
+      g_warning ("HyScanGtkMapTrackLayer: invalid channel");
+    }
+}
+
+/* Создаёт галс с параметрами по умолчанию. */
+static HyScanGtkMapTrackLayerTrack *
+hyscan_gtk_map_track_layer_track_new (HyScanGtkMapTrackLayer *track_layer,
+                                      const gchar            *track_name)
+{
+  HyScanGtkMapTrackLayerTrack *track;
+
+  /* Создаём новый галс. */
+  track = g_new0 (HyScanGtkMapTrackLayerTrack, 1);
+  track->name = g_strdup (track_name);
+
+  /* Устанавливаем номера каналов по умолчанию. */
+  hyscan_gtk_map_track_layer_track_set_channel_real (track_layer, track, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_NMEA_RMC, 1);
+  hyscan_gtk_map_track_layer_track_set_channel_real (track_layer, track, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_NMEA_DPT, 2);
+  hyscan_gtk_map_track_layer_track_set_channel_real (track_layer, track, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_STARBOARD, 1);
+  hyscan_gtk_map_track_layer_track_set_channel_real (track_layer, track, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_PORT, 1);
+
+  /* Открываем каналы данных. */
+  hyscan_gtk_map_track_layer_track_open (track_layer, track);
+
+  return track;
+}
+
+/* Ищет галс в хэш-таблице; если галс не найден, то создает новый и добавляет
+ * его в таблицу. */
+static HyScanGtkMapTrackLayerTrack *
+hyscan_gtk_map_track_layer_get_track (HyScanGtkMapTrackLayer *track_layer,
+                                      const gchar            *track_name)
+{
+  HyScanGtkMapTrackLayerPrivate *priv = track_layer->priv;
+  HyScanGtkMapTrackLayerTrack *track;
+
+  track = g_hash_table_lookup (priv->tracks, track_name);
+  if (track == NULL)
+    {
+      track = hyscan_gtk_map_track_layer_track_new (track_layer, track_name);
+      g_hash_table_insert (priv->tracks, g_strdup (track_name), track);
+    }
+
+  return track;
+}
+
 /**
  * hyscan_gtk_map_track_layer_track_enable:
- * @track_layer
- * @track_name
- * @enable
+ * @track_layer: указатель на #HyScanGtkMapTrackLayer
+ * @track_name: название галса
+ * @enable: %TRUE, если галс надо показать; иначе %FALSE
  *
  * Включает или отключает показ галса с названием @track_name.
  */
@@ -592,46 +752,163 @@ hyscan_gtk_map_track_layer_track_enable (HyScanGtkMapTrackLayer *track_layer,
   HyScanGtkMapTrackLayerTrack *track;
   
   g_return_if_fail (HYSCAN_IS_GTK_MAP_TRACK_LAYER (track_layer));
+  g_return_if_fail (track_name != NULL);
   priv = track_layer->priv;
 
-  track = g_hash_table_lookup (priv->tracks, track_name);
+  track = hyscan_gtk_map_track_layer_get_track (track_layer, track_name);
+  track->enabled = enable;
 
-  if ((enable && track != NULL) || (!enable && track == NULL))
-    return;
-
-  if (enable)
-    {
-      HyScanNMEAParser *dpt_parser;
-
-      track = g_new0 (HyScanGtkMapTrackLayerTrack, 1);
-      track->starboard.amplitude = HYSCAN_AMPLITUDE (hyscan_acoustic_data_new (priv->db, priv->cache, priv->project,
-                                                                               track_name,
-                                                                               HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, 1,
-                                                                               FALSE));
-      track->starboard.projector = hyscan_projector_new (track->starboard.amplitude);
-      track->port.amplitude = HYSCAN_AMPLITUDE (hyscan_acoustic_data_new (priv->db, priv->cache, priv->project, track_name,
-                                                                          HYSCAN_SOURCE_SIDE_SCAN_PORT, 1, FALSE));
-      track->port.projector = hyscan_projector_new (track->port.amplitude);
-      track->lat_data = HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache, priv->project,
-                                                                track_name, 1, HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_LAT));
-      track->lon_data = HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache, priv->project,
-                                                                track_name, 1, HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_LON));
-      track->bearing_data = HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache, priv->project,
-                                                                     track_name, 1, HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_TRACK));
-      dpt_parser = hyscan_nmea_parser_new (priv->db, priv->cache,
-                                           priv->project, track_name, 2,
-                                           HYSCAN_NMEA_DATA_DPT, HYSCAN_NMEA_FIELD_DEPTH);
-      if (dpt_parser != NULL)
-        track->depthometer = hyscan_depthometer_new (HYSCAN_NAV_DATA (dpt_parser), priv->cache);
+  if (track->enabled && !track->loaded)
       hyscan_gtk_map_track_layer_track_load (track_layer, track);
-      g_hash_table_insert (priv->tracks, g_strdup (track_name), track);
 
-      g_clear_object (&dpt_parser);
-    }
-  else
+  if (priv->map != NULL)
+    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+}
+
+/**
+ * hyscan_gtk_map_track_layer_track_max_channel:
+ * @track_layer: указатель на #HyScanGtkMapTrackLayer
+ * @track_name: название галса
+ * @channel: источник данных
+ *
+ * Returns: максимальный доступный номер канала для указанного источника данных
+ *          @channel.
+ */
+guint
+hyscan_gtk_map_track_layer_track_max_channel (HyScanGtkMapTrackLayer *track_layer,
+                                              const gchar            *track_name,
+                                              guint                   channel)
+{
+  HyScanGtkMapTrackLayerPrivate *priv;
+  guint max_channel_num = 0;
+  gint i;
+  gchar **channel_list;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TRACK_LAYER (track_layer), 0);
+  g_return_val_if_fail (track_name != NULL, 0);
+  priv = track_layer->priv;
+
+  gint32 project_id, track_id;
+  
+  project_id = hyscan_db_project_open (priv->db, priv->project);
+  track_id = hyscan_db_track_open (priv->db, project_id, track_name);
+  channel_list = hyscan_db_channel_list (priv->db, track_id);
+  
+  if (channel_list == 0)
+    goto exit;
+  
+  for (i = 0; channel_list[i] != NULL; ++i)
     {
-      g_hash_table_remove (priv->tracks, track_name);
+      guint channel_num;
+      HyScanSourceType source;
+      HyScanChannelType type;
+
+      hyscan_channel_get_types_by_name (channel_list[i], &source, &type, &channel_num);
+
+      /* Отфильтровываем каналы по типу данных. */
+      switch (channel)
+        {
+        case HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_NMEA_RMC:
+        case HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_NMEA_DPT:
+          if (source != HYSCAN_SOURCE_NMEA)
+            continue;
+          break;
+
+        case HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_PORT:
+          if (source != HYSCAN_SOURCE_SIDE_SCAN_PORT)
+            continue;
+          break;
+
+        case HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_STARBOARD:
+          if (source != HYSCAN_SOURCE_SIDE_SCAN_STARBOARD)
+            continue;
+          break;
+
+        default:
+          continue;
+        }
+
+      max_channel_num = MAX (max_channel_num, channel_num);
     }
+  
+exit:
+  hyscan_db_close (priv->db, track_id);
+  hyscan_db_close (priv->db, project_id);
+
+  return max_channel_num;
+}
+
+/**
+ * hyscan_gtk_map_track_layer_track_get_channel:
+ * @track_layer: указатель на #HyScanGtkMapTrackLayer
+ * @track_name: название галса
+ * @channel: источник данных
+ *
+ * Returns: возвращает номер канала указанного источника или 0, если канал не
+ *          открыт или произошла ошибка.
+ */
+guint
+hyscan_gtk_map_track_layer_track_get_channel (HyScanGtkMapTrackLayer *track_layer,
+                                              const gchar            *track_name,
+                                              guint                   channel)
+{
+  HyScanGtkMapTrackLayerTrack *track;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TRACK_LAYER (track_layer), 0);
+  g_return_val_if_fail (track_name != NULL, 0);
+
+  track = hyscan_gtk_map_track_layer_get_track (track_layer, track_name);
+
+  switch (channel)
+    {
+    case HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_NMEA_DPT:
+      return track->channel_dpt;
+
+    case HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_NMEA_RMC:
+      return track->channel_rmc;
+
+    case HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_STARBOARD:
+      return track->channel_starboard;
+
+    case HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_PORT:
+      return track->channel_port;
+
+    default:
+      g_warning ("HyScanGtkMapTrackLayer: invalid channel");
+      return 0;
+    }
+}
+
+/**
+ * hyscan_gtk_map_track_layer_track_configure:
+ * @track_layer: указатель на слой
+ * @track_name: название трека
+ * @channel: источник данных
+ * @channel_num: номер канала или 0, чтобы отключить указанный источник
+ *
+ * Устанавливает номер канала для указанного трека.
+ */
+void
+hyscan_gtk_map_track_layer_track_set_channel (HyScanGtkMapTrackLayer *track_layer,
+                                              const gchar            *track_name,
+                                              guint                   channel,
+                                              guint                   channel_num)
+{
+  HyScanGtkMapTrackLayerPrivate *priv;
+  HyScanGtkMapTrackLayerTrack *track;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_TRACK_LAYER (track_layer));
+  g_return_if_fail (track_name != NULL);
+  priv = track_layer->priv;
+
+  track = hyscan_gtk_map_track_layer_get_track (track_layer, track_name);
+  hyscan_gtk_map_track_layer_track_set_channel_real (track_layer, track, channel, channel_num);
+
+  /* Переоткрываем трек с новыми номерами каналов. */
+  hyscan_gtk_map_track_layer_track_open (track_layer, track);
+
+  if (track->enabled && !track->loaded)
+    hyscan_gtk_map_track_layer_track_load (track_layer, track);
 
   if (priv->map != NULL)
     gtk_widget_queue_draw (GTK_WIDGET (priv->map));
