@@ -73,33 +73,53 @@ enum
 };
 
 HYSCAN_API
-GType                  hyscan_gtk_map_track_layer_get_type          (void);
+GType                  hyscan_gtk_map_track_layer_get_type            (void);
 
 HYSCAN_API
-HyScanGtkLayer *       hyscan_gtk_map_track_layer_new               (HyScanDB               *db,
-                                                                     const gchar            *project,
-                                                                     HyScanCache            *cache);
+HyScanGtkLayer *       hyscan_gtk_map_track_layer_new                 (HyScanDB               *db,
+                                                                       const gchar            *project,
+                                                                       HyScanCache            *cache);
 
 HYSCAN_API
-void                   hyscan_gtk_map_track_layer_track_enable      (HyScanGtkMapTrackLayer *track_layer,
-                                                                     const gchar            *track_name,
-                                                                     gboolean                enable);
+void                   hyscan_gtk_map_track_layer_track_enable        (HyScanGtkMapTrackLayer *track_layer,
+                                                                       const gchar            *track_name,
+                                                                       gboolean                enable);
 
 HYSCAN_API
-guint                  hyscan_gtk_map_track_layer_track_get_channel (HyScanGtkMapTrackLayer *track_layer,
-                                                                     const gchar            *track_name,
-                                                                     guint                   channel);
+guint                  hyscan_gtk_map_track_layer_track_get_channel   (HyScanGtkMapTrackLayer *track_layer,
+                                                                       const gchar            *track_name,
+                                                                       guint                   channel);
 
 HYSCAN_API
-guint                  hyscan_gtk_map_track_layer_track_max_channel (HyScanGtkMapTrackLayer *track_layer,
-                                                                     const gchar            *track_name,
-                                                                     guint                   channel);
+guint                  hyscan_gtk_map_track_layer_track_max_channel   (HyScanGtkMapTrackLayer *track_layer,
+                                                                       const gchar            *track_name,
+                                                                       guint                   channel);
 
 HYSCAN_API
-void                   hyscan_gtk_map_track_layer_track_set_channel (HyScanGtkMapTrackLayer *track_layer,
-                                                                     const gchar            *track_name,
-                                                                     guint                   channel,
-                                                                     guint                   channel_num);
+void                   hyscan_gtk_map_track_layer_track_set_channel   (HyScanGtkMapTrackLayer *track_layer,
+                                                                       const gchar            *track_name,
+                                                                       guint                   channel,
+                                                                       guint                   channel_num);
+
+HYSCAN_API
+void                   hyscan_gtk_map_track_layer_set_color_track     (HyScanGtkMapTrackLayer *track_layer,
+                                                                       GdkRGBA                 color);
+
+HYSCAN_API
+void                   hyscan_gtk_map_track_layer_set_color_port      (HyScanGtkMapTrackLayer *track_layer,
+                                                                       GdkRGBA                 color);
+
+HYSCAN_API
+void                   hyscan_gtk_map_track_layer_set_color_starboard (HyScanGtkMapTrackLayer *track_layer,
+                                                                       GdkRGBA                 color);
+
+HYSCAN_API
+void                   hyscan_gtk_map_track_layer_set_bar_width       (HyScanGtkMapTrackLayer *track_layer,
+                                                                       gboolean                 bar_width);
+
+HYSCAN_API
+void                   hyscan_gtk_map_track_layer_set_bar_margin      (HyScanGtkMapTrackLayer *track_layer,
+                                                                       gdouble                 bar_margin);
 
 G_END_DECLS
 
