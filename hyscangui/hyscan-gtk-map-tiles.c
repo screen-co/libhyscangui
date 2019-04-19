@@ -92,7 +92,7 @@ struct _HyScanGtkMapTilesPrivate
                                                      * видимой области с каждой стороны. */
 
   cairo_surface_t             *dummy_tile;          /* Тайл-заглушка. Рисуется, когда настоящий тайл еще не загружен. */
-  guint                        tile_size;           /* Размер тайла в пикселах. */
+  guint                        tile_size;           /* Размер тайла в пикселях. */
 };
 
 static void                 hyscan_gtk_map_tiles_set_property             (GObject                  *object,
@@ -594,7 +594,7 @@ hyscan_gtk_map_tiles_get_scaling (HyScanGtkMapTilesPrivate *priv,
 {
   gdouble scale;
 
-  /* Размер пиксела в логических единицах. */
+  /* Размер пикселя в логических единицах. */
   gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &scale, NULL);
   scale = hyscan_gtk_map_tile_grid_get_scale (priv->tile_grid, zoom) / scale;
 
@@ -994,7 +994,7 @@ hyscan_gtk_map_tiles_set_zoom (HyScanGtkMapTiles *layer,
   gtk_cifro_area_get_limits (GTK_CIFRO_AREA (priv->map), &min_x, &max_x, NULL, NULL);
   tile_size = (max_x - min_x) / pow (2, zoom);
 
-  /* Определяем размер тайла в пикселах. */
+  /* Определяем размер тайла в пикселях. */
   tile_size_real = hyscan_gtk_map_tile_source_get_tile_size (priv->source);
 
   /* Расcчитываем scale, чтобы тайлы не были растянутыми. */

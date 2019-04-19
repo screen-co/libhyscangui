@@ -93,7 +93,7 @@ hyscan_gtk_map_tile_source_get_zoom_limits (HyScanGtkMapTileSource *source,
  *
  * Возвращает размер тайла по высоте и ширине. Тайлы квадратные.
  *
- * Returns: размер тайла в пикселах
+ * Returns: размер тайла в пикселях
  */
 guint
 hyscan_gtk_map_tile_source_get_tile_size (HyScanGtkMapTileSource *source)

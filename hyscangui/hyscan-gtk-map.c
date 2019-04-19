@@ -553,7 +553,7 @@ hyscan_gtk_map_get_pixel_scale (HyScanGtkMap *map)
   /* Определяем размер единичного отрезка на проекции в метрах. */
   dist_metres = hyscan_geo_projection_get_scale (priv->projection, geo_center);
 
-  /* Определяем размер единичного отрезка на проекции в пикселах. */
+  /* Определяем размер единичного отрезка на проекции в пикселях. */
   gtk_cifro_area_get_scale (GTK_CIFRO_AREA (map), &scale, NULL);
   dist_pixels = 1 / scale;
 

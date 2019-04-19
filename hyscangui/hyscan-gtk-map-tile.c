@@ -60,7 +60,7 @@
  * пределов логической СК и видимой области.
  *
  * Чтобы создать тайловую сетку #HyScanGtkMapTileGrid необходимо указать ее
- * границы в логической СК и размер тайла в пикселах. Для этого доступны две
+ * границы в логической СК и размер тайла в пикселях. Для этого доступны две
  * функции:
  * - hyscan_gtk_map_tile_grid_new(),
  * - hyscan_gtk_map_tile_grid_new_from_cifro().
@@ -110,7 +110,7 @@ struct _HyScanGtkMapTileGridPrivate
   gdouble                      max_y;          /* Максимальное значение координаты y. */
 
   /* Размеры тайла. */
-  guint                        tile_size;      /* Размер тайла в пикселах. */
+  guint                        tile_size;      /* Размер тайла в пикселях. */
   gdouble                     *scales;         /* Доступные масштабы (размер стороны тайла в логических единицах). */
   gsize                        scales_len;     /* Длина массива scales. */
   guint                        min_zoom;       /* Зум, соответствующий нулевому индексу масштаба. */
@@ -267,7 +267,7 @@ hyscan_gtk_map_tile_new (HyScanGtkMapTileGrid *grid,
  * hyscan_gtk_map_tile_grid_new_from_cifro:
  * @carea: указатель на #GtkCifroArea
  * @min_zoom: зум, соответствующий минимальному масштабу
- * @tile_size: размер тайла в пикселах
+ * @tile_size: размер тайла в пикселях
  *
  * Создает тайловую сетку по границам @carea с указанным размером тайла.
  *
@@ -299,7 +299,7 @@ hyscan_gtk_map_tile_grid_new_from_cifro (GtkCifroArea  *carea,
  * @min_y: минимальное значение Y области логической СК
  * @max_y: максимальное значение Y области логической СК
  * @min_zoom: зум, соответствующий минимальному масштабу
- * @tile_size: размер тайла в пикселах
+ * @tile_size: размер тайла в пикселях
  *
  * Returns: указатель на #HyScanGtkMapTileGrid. Для удаления g_object_unref()
  */
@@ -386,7 +386,7 @@ hyscan_gtk_map_tile_grid_set_scales (HyScanGtkMapTileGrid *grid,
  * hyscan_gtk_map_tile_grid_get_scale:
  * @param grid
  *
- * Returns: размер одного пиксела тайла в логических единицах
+ * Returns: размер одного пикселя тайла в логических единицах
  */
 gdouble
 hyscan_gtk_map_tile_grid_get_scale (HyScanGtkMapTileGrid *grid,
@@ -472,7 +472,7 @@ hyscan_gtk_map_tile_get_zoom (HyScanGtkMapTile *tile)
  * hyscan_gtk_map_tile_get_size:
  * @tile: указатель на #HyScanGtkMapTile
  *
- * Returns: размер стороны тайла в пикселах.
+ * Returns: размер стороны тайла в пикселях.
  */
 guint
 hyscan_gtk_map_tile_get_size (HyScanGtkMapTile *tile)

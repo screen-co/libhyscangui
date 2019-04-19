@@ -84,7 +84,7 @@ struct _HyScanGtkMapGridPrivate
   guint                             label_padding;      /* Отступы подписей от края видимой области. */
   gdouble                           scale_width;        /* Ширина линии линейки масштаба. */
 
-  guint                             step_width;         /* Шаг сетки в пикселах. */
+  guint                             step_width;         /* Шаг сетки в пикселях. */
 
   gboolean                          visible;            /* Признак того, что сетка отображается. */
 
