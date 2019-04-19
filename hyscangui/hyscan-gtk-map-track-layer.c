@@ -95,15 +95,15 @@ enum
 typedef struct {
   HyScanGeoGeodetic               geo;              /* Географические координаты точки и курс движения. */
   gint64                          time;             /* Время фиксации. */
-  gdouble                         l_dist;           /* Дальность по левому борту, метры. */
-  gdouble                         r_dist;           /* Дальность по правому борту, метры. */
+  gdouble                         l_width;          /* Дальность по левому борту, метры. */
+  gdouble                         r_width;          /* Дальность по правому борту, метры. */
 
   /* Координаты на картографической проекции (зависят от текущей проекции). */
   gdouble                         x;                /* Координата X путевой точки. */
   gdouble                         y;                /* Координата Y путевой точки. */
   gdouble                         dist;             /* Расстояние до предыдущей точки. */
-  gdouble                         l_width;          /* Дальность по левому борту. */
-  gdouble                         r_width;          /* Дальность по правому борту. */
+  gdouble                         l_dist;           /* Дальность по левому борту, единицы проекции. */
+  gdouble                         r_dist;           /* Дальность по правому борту, единицы проекции. */
 } HyScanGtkMapTrackLayerPoint;
 
 typedef struct {
@@ -974,6 +974,76 @@ hyscan_gtk_map_track_layer_track_set_channel (HyScanGtkMapTrackLayer *track_laye
 
   if (priv->map != NULL)
     gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+}
+
+/**
+ * hyscan_gtk_map_track_layer_track_view:
+ * @track_layer: указатель на слой #HyScanGtkMapTrackLayer
+ * @track_name: название галса
+ * @from_x: (out): координата левой границы по оси X
+ * @to_x: (out): координата правой границы по оси X
+ * @from_y: (out): координата нижней границы по оси Y
+ * @to_y: (out): координата верхней границы по оси Y
+ *
+ * Показывает галс @track_name на карте. Функция устанавливает границы видимой
+ * области карты так, чтобы галс был виден полностью.
+ *
+ * Returns: %TRUE, если получилось определить границы галса; иначе %FALSE
+ */
+gboolean 
+hyscan_gtk_map_track_layer_track_view (HyScanGtkMapTrackLayer *track_layer,
+                                       const gchar            *track_name)
+{
+  HyScanGtkMapTrackLayerPrivate *priv;
+  HyScanGtkMapTrackLayerTrack *track;
+  HyScanGtkMapTrackLayerPoint *point;
+  GList *point_l;
+
+  gdouble max_margin = 0;
+  gdouble from_x = G_MAXDOUBLE;
+  gdouble to_x = G_MINDOUBLE;
+  gdouble from_y = G_MAXDOUBLE;
+  gdouble to_y = G_MINDOUBLE;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TRACK_LAYER (track_layer), FALSE);
+  g_return_val_if_fail (track_name != NULL, FALSE);
+  priv = track_layer->priv;
+  
+  g_return_val_if_fail (priv->map != NULL, FALSE);
+
+  /* Находим запрошенный галс. */
+  track = hyscan_gtk_map_track_layer_get_track (track_layer, track_name);
+
+  /* Если данные по галсу не загружен, то загружаем. */
+  if (!track->loaded)
+    hyscan_gtk_map_track_layer_track_load (track_layer, track);
+
+  if (track->points == NULL)
+    return FALSE;
+
+  /* Определеяем границы координат путевых точек галса. */
+  for (point_l = track->points; point_l != NULL; point_l = point_l->next)
+    {
+      point = point_l->data;
+      
+      from_x = MIN (from_x, point->x);
+      to_x = MAX (to_x, point->x);
+      from_y = MIN (from_y, point->y);
+      to_y = MAX (to_y, point->y);
+      
+      max_margin = MAX (max_margin, point->r_dist);
+      max_margin = MAX (max_margin, point->l_dist);
+    }
+
+  /* Добавим к границам отступы в размере длины максимальной дальности. */
+  from_x -= max_margin;
+  to_x += max_margin;
+  from_y -= max_margin;
+  to_y += max_margin;
+
+  gtk_cifro_area_set_view (GTK_CIFRO_AREA (priv->map), from_x, to_x, from_y, to_y);
+
+  return TRUE;
 }
 
 /**

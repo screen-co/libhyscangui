@@ -102,6 +102,10 @@ void                   hyscan_gtk_map_track_layer_track_set_channel   (HyScanGtk
                                                                        guint                   channel_num);
 
 HYSCAN_API
+gboolean               hyscan_gtk_map_track_layer_track_view          (HyScanGtkMapTrackLayer *track_layer,
+                                                                       const gchar            *track_name);
+
+HYSCAN_API
 void                   hyscan_gtk_map_track_layer_set_color_track     (HyScanGtkMapTrackLayer *track_layer,
                                                                        GdkRGBA                 color);
 

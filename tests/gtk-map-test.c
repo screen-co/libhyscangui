@@ -1,21 +1,16 @@
-#include <gtk/gtk.h>
+#include <hyscan-map-profile.h>
 #include <hyscan-gtk-map.h>
 #include <hyscan-gtk-map-tiles.h>
-#include <math.h>
-#include <hyscan-network-map-tile-source.h>
-#include <hyscan-cached.h>
-#include <hyscan-gtk-map-fs-tile-source.h>
-#include <hyscan-pseudo-mercator.h>
-#include <hyscan-mercator.h>
 #include <hyscan-gtk-map-control.h>
 #include <hyscan-gtk-map-ruler.h>
 #include <hyscan-gtk-map-grid.h>
 #include <hyscan-gtk-map-pin-layer.h>
-#include <hyscan-map-profile.h>
 #include <hyscan-gtk-map-way-layer.h>
-#include <hyscan-nmea-file-device.h>
-#include <hyscan-driver.h>
 #include <hyscan-gtk-map-track-layer.h>
+#include <hyscan-nmea-file-device.h>
+#include <hyscan-cached.h>
+#include <hyscan-driver.h>
+#include <math.h>
 
 #define GPS_SENSOR_NAME "my-nmea-sensor"
 
@@ -552,6 +547,17 @@ track_settings_new (HyScanGtkMapTrackLayer *track_layer,
   return form;
 }
 
+void
+on_locate_track_clicked (GtkButton *button,
+                         gpointer   user_data)
+{
+  HyScanGtkMapTrackLayer *track_layer = HYSCAN_GTK_MAP_TRACK_LAYER (user_data);
+  gchar *track_name;
+
+  track_name = g_object_get_data (G_OBJECT (button), "track-name");
+  hyscan_gtk_map_track_layer_track_view (track_layer, track_name);
+}
+
 /* Виджет отдельной строки в списке галсов. */
 GtkWidget *
 track_row_new (HyScanGtkMapTrackLayer *track_layer,
@@ -571,6 +577,8 @@ track_row_new (HyScanGtkMapTrackLayer *track_layer,
 
   /* Кнопка поиска галса на карте. */
   locate_button = gtk_button_new_from_icon_name ("zoom-fit-best", GTK_ICON_SIZE_MENU);
+  g_object_set_data_full (G_OBJECT (locate_button), "track-name", g_strdup (track_name), g_free);
+  g_signal_connect (locate_button, "clicked", G_CALLBACK (on_locate_track_clicked), track_layer);
 
   /* Кнопка переход к настройкам галса. */
   settings_button = gtk_menu_button_new ();
