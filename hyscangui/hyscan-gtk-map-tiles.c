@@ -259,30 +259,6 @@ hyscan_gtk_map_tiles_removed (HyScanGtkLayer *gtk_layer)
   g_clear_object (&priv->map);
 }
 
-/* Создаёт тайловую сетку. */
-static HyScanGtkMapTileGrid *
-hyscan_gtk_map_tiles_update_grid (HyScanGtkMapTilesPrivate *priv)
-{
-  HyScanGtkMapTileGrid *grid;
-  gdouble *nums;
-  gint nums_len;
-  guint min_zoom, max_zoom, zoom;
-
-  hyscan_gtk_map_tile_source_get_zoom_limits (priv->source, &min_zoom, &max_zoom);
-
-  nums_len = max_zoom - min_zoom + 1;
-  nums = g_newa (gdouble, nums_len);
-  for (zoom = min_zoom; zoom < max_zoom + 1; zoom++)
-    nums[zoom - min_zoom] = pow (2, zoom);
-
-  grid = hyscan_gtk_map_tile_grid_new_from_cifro (GTK_CIFRO_AREA (priv->map), min_zoom,
-                                                  hyscan_gtk_map_tile_source_get_tile_size (priv->source));
-
-  hyscan_gtk_map_tile_grid_set_xnums (grid, nums, nums_len);
-
-  return grid;
-}
-
 /* Реализация HyScanGtlLayerInterface.added().
  * Подключается к сигналам виджета карты. */
 static void

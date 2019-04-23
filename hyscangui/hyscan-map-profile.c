@@ -33,24 +33,29 @@
  */
 
 #include "hyscan-map-profile.h"
+#include <hyscan-merged-tile-source.h>
 #include <hyscan-pseudo-mercator.h>
 #include <hyscan-mercator.h>
 #include <hyscan-gtk-map-tiles.h>
 #include <hyscan-cached.h>
 #include <hyscan-gtk-map-fs-tile-source.h>
 #include <hyscan-network-map-tile-source.h>
+#include <string.h>
 
 #define CACHE_SIZE     256
 #define TILES_LAYER_ID "tiles-layer"
 #define PROJ_MERC      "merc"
 #define PROJ_WEBMERC   "webmerc"
+#define INI_PREFIX_URL "url"
+#define INI_PREFIX_DIR "dir"
+#define INI_GROUP      "global"
 
 struct _HyScanMapProfilePrivate
 {
   gchar                       *title;       /* Название профиля. */
   gchar                       *projection;  /* Название проекции. */
-  gchar                       *tiles_dir;   /* Папка для хранения загруженных тайлов. */
-  gchar                       *url_format;  /* Формат URL тайла. */
+  gchar                      **tiles_dir;   /* Папка для хранения загруженных тайлов. */
+  gchar                      **url_format;  /* Формат URL тайла. */
 
   guint                        min_zoom;    /* Минимальный доступный уровень детализации. */
   guint                        max_zoom;    /* Максимальный доступный уровень детализации. */
@@ -97,28 +102,31 @@ hyscan_map_profile_object_finalize (GObject *object)
 
   g_key_file_free (priv->key_file);
   g_free (priv->title);
-  g_free (priv->url_format);
-  g_free (priv->tiles_dir);
+  g_strfreev (priv->url_format);
+  g_strfreev (priv->tiles_dir);
   g_free (priv->projection);
 
   G_OBJECT_CLASS (hyscan_map_profile_parent_class)->finalize (object);
 }
 
-/* Устанавливает параметры профиля. */
+/* Устанавливает параметры профиля.
+ * url_format и cache_dir - нуль-терминированные массивы строк одинаковой длины;
+ * если для какого-то источника папка кэширования не указана, то указывается
+ * пустая строка "" != NULL. */
 static void
 hyscan_gtk_map_profile_set_params (HyScanMapProfile *profile,
-                                   const gchar   *title,
-                                   const gchar   *url_format,
-                                   const gchar   *cache_dir,
-                                   const gchar   *projection,
-                                   guint          min_zoom,
-                                   guint          max_zoom)
+                                   const gchar      *title,
+                                   gchar           **url_format,
+                                   gchar           **cache_dir,
+                                   const gchar      *projection,
+                                   guint             min_zoom,
+                                   guint             max_zoom)
 {
   HyScanMapProfilePrivate *priv = profile->priv;
 
   priv->title = g_strdup (title);
-  priv->url_format = g_strdup (url_format);
-  priv->tiles_dir = g_strdup (cache_dir);
+  priv->url_format = g_strdupv (url_format);
+  priv->tiles_dir = g_strdupv (cache_dir);
   priv->projection = g_strdup (projection);
   priv->min_zoom = min_zoom;
   priv->max_zoom = max_zoom;
@@ -154,31 +162,44 @@ hyscan_map_profile_create_tiles (HyScanMapProfilePrivate *priv,
   HyScanGtkLayer *tiles;
 
   HyScanCache *cache;
+  HyScanMergedTileSource *merged_source;
 
-  HyScanGtkMapTileSource *fs_source;
-  HyScanGtkMapTileSource *nw_source;
+  gint i;
 
-  gchar *tmp_dir = NULL;
-  gchar *cache_path;
+  merged_source = hyscan_merged_tile_source_new ();
+  for (i = 0; priv->url_format[i] != NULL; ++i)
+    {
+      HyScanGtkMapTileSource *fs_source;
+      HyScanGtkMapTileSource *nw_source;
 
-  /* Если папка для кэширования тайлов не указана, создаём свою. */
-  if (priv->tiles_dir != NULL)
-    cache_path = priv->tiles_dir;
-  else
-    cache_path = (tmp_dir = g_dir_make_tmp ("hyscan-map-XXXXXX", NULL));
+      gchar *cache_path;
+      gchar *tmp_dir = NULL;
 
-  nw_source = HYSCAN_GTK_MAP_TILE_SOURCE (hyscan_network_map_tile_source_new (priv->url_format,
-                                                                              projection,
-                                                                              priv->min_zoom,
-                                                                              priv->max_zoom));
-  fs_source = HYSCAN_GTK_MAP_TILE_SOURCE (hyscan_gtk_map_fs_tile_source_new (cache_path, nw_source));
+      nw_source = HYSCAN_GTK_MAP_TILE_SOURCE (hyscan_network_map_tile_source_new (priv->url_format[i],
+                                                                                  projection,
+                                                                                  priv->min_zoom,
+                                                                                  priv->max_zoom));
+
+      /* Если папка для кэширования тайлов не указана, создаём свою. */
+      if (!g_str_equal (priv->tiles_dir[i], ""))
+        cache_path = priv->tiles_dir[i];
+      else
+        cache_path = (tmp_dir = g_dir_make_tmp ("hyscan-map-XXXXXX", NULL));
+
+      fs_source = HYSCAN_GTK_MAP_TILE_SOURCE (hyscan_gtk_map_fs_tile_source_new (cache_path, nw_source));
+
+      hyscan_merged_tile_source_append (merged_source, fs_source);
+
+      g_object_unref (nw_source);
+      g_object_unref (fs_source);
+      g_free (tmp_dir);
+    }
+
   cache = HYSCAN_CACHE (hyscan_cached_new (CACHE_SIZE));
-  tiles = hyscan_gtk_map_tiles_new (cache, fs_source);
+  tiles = hyscan_gtk_map_tiles_new (cache, HYSCAN_GTK_MAP_TILE_SOURCE(merged_source));
 
-  g_free (tmp_dir);
-  g_object_unref (nw_source);
-  g_object_unref (fs_source);
   g_object_unref (cache);
+  g_object_unref (merged_source);
 
   return HYSCAN_GTK_LAYER (tiles);
 }
@@ -205,9 +226,17 @@ hyscan_map_profile_new_full (const gchar   *title,
                              guint          max_zoom)
 {
   HyScanMapProfile *profile;
+  gchar *url_formats[2];
+  gchar *cache_dirs[2];
+
+  url_formats[0] = (gchar *) url_format;
+  url_formats[1] = NULL;
+
+  cache_dirs[0] = cache_dir == NULL ? "" : (gchar *) cache_dir;
+  cache_dirs[1] = NULL;
 
   profile = hyscan_map_profile_new ();
-  hyscan_gtk_map_profile_set_params (profile, title, url_format, cache_dir, projection, min_zoom, max_zoom);
+  hyscan_gtk_map_profile_set_params (profile, title, url_formats, cache_dirs, projection, min_zoom, max_zoom);
 
   return profile;
 }
@@ -224,11 +253,11 @@ HyScanMapProfile *
 hyscan_map_profile_new_default (void)
 {
   HyScanMapProfile *profile;
+  gchar *url_formats[] = {"http://a.tile.openstreetmap.org/{z}/{x}/{y}.png", NULL};
+  gchar *cache_dirs[]  = {"", NULL};
 
   profile = hyscan_map_profile_new ();
-  hyscan_gtk_map_profile_set_params (profile, "Default",
-                                     "http://a.tile.openstreetmap.org/{z}/{x}/{y}.png", NULL,
-                                     PROJ_WEBMERC, 0, 19);
+  hyscan_gtk_map_profile_set_params (profile, "Default", url_formats, cache_dirs, PROJ_WEBMERC, 0, 19);
 
   return profile;
 }
@@ -267,42 +296,78 @@ hyscan_map_profile_read (HyScanMapProfile    *profile,
   gboolean result = FALSE;
 
   guint max_zoom, min_zoom;
-  gchar *title = NULL, *url_format = NULL, *cache_dir = NULL, *projection = NULL;
+  gchar *title = NULL, *projection = NULL;
 
   GError *error = NULL;
+  GArray *url_formats, *cache_dirs;
 
   // TODO: эту функцию можно использовать в HyScanSerializable
 
   g_return_val_if_fail (HYSCAN_IS_MAP_PROFILE (profile), FALSE);
   priv = profile->priv;
-
+  
+  url_formats = g_array_new (TRUE, FALSE, sizeof (gchar *));
+  cache_dirs = g_array_new (TRUE, FALSE, sizeof (gchar *));
+  
   g_key_file_load_from_file (priv->key_file, name, G_KEY_FILE_NONE, &error);
   if (error != NULL)
     goto exit;
 
-  title = g_key_file_get_string (priv->key_file, "global", "title", &error);
+  title = g_key_file_get_string (priv->key_file, INI_GROUP, "title", &error);
   if (error != NULL)
     goto exit;
 
-  url_format = g_key_file_get_string (priv->key_file, "global", "url", &error);
+  projection = g_key_file_get_string (priv->key_file, INI_GROUP, "proj", &error);
   if (error != NULL)
     goto exit;
 
-  projection = g_key_file_get_string (priv->key_file, "global", "proj", &error);
+  min_zoom = g_key_file_get_uint64 (priv->key_file, INI_GROUP, "min_zoom", &error);
   if (error != NULL)
     goto exit;
 
-  cache_dir = g_key_file_get_string (priv->key_file, "global", "dir", NULL);
-
-  min_zoom = g_key_file_get_uint64 (priv->key_file, "global", "min_zoom", &error);
+  max_zoom = g_key_file_get_uint64 (priv->key_file, INI_GROUP, "max_zoom", &error);
   if (error != NULL)
     goto exit;
 
-  max_zoom = g_key_file_get_uint64 (priv->key_file, "global", "max_zoom", &error);
-  if (error != NULL)
-    goto exit;
+  gchar **keys;
+  gint i;
 
-  hyscan_gtk_map_profile_set_params (profile, title, url_format, cache_dir, projection, min_zoom, max_zoom);
+  /* Ищем пары ключей url{suffix} и dir{suffix} - формат ссылки на тайл и папку кэширования.
+   * Например: url_osm - dir_osm, url1 - dir1.
+   * */
+  keys = g_key_file_get_keys (priv->key_file, INI_GROUP, NULL, NULL);
+  for (i = 0; keys[i] != NULL; ++i)
+    {
+      gchar *url_format, *cache_dir;
+      gchar *suffix;
+      gchar *dir_key;
+
+      if (g_strrstr (keys[i], INI_PREFIX_URL) != keys[i])
+        continue;
+      
+      suffix = keys[i] + strlen (INI_PREFIX_URL);
+
+      /* Получаем формат ссылки источника тайлов. */
+      url_format = g_key_file_get_string (priv->key_file, INI_GROUP, keys[i], NULL);
+      if (url_format == NULL)
+        continue;
+
+      /* Находим соответствующую папку для кэширования. */
+      dir_key = g_strdup_printf (INI_PREFIX_DIR"%s", suffix);
+      cache_dir = g_key_file_get_string (priv->key_file, INI_GROUP, dir_key, NULL);
+      if (cache_dir == NULL)
+        cache_dir = strdup ("");
+      
+      g_free (dir_key);
+
+      g_array_append_val (url_formats, url_format);
+      g_array_append_val (cache_dirs, cache_dir);
+    }
+  g_strfreev (keys);
+
+  hyscan_gtk_map_profile_set_params (profile, title, 
+                                     (gchar **) url_formats->data, (gchar **) cache_dirs->data,
+                                     projection, min_zoom, max_zoom);
   result = TRUE;
 
 exit:
@@ -312,9 +377,9 @@ exit:
       g_clear_error (&error);
     }
 
+  g_array_free (url_formats, TRUE);
+  g_array_free (cache_dirs, TRUE);
   g_free (title);
-  g_free (url_format);
-  g_free (cache_dir);
   g_free (projection);
 
   return result;
