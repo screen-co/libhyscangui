@@ -165,3 +165,17 @@ hyscan_geo_projection_get_scale (HyScanGeoProjection *geo_projection,
 
   return -1.0;
 }
+
+guint
+hyscan_geo_projection_hash (HyScanGeoProjection  *geo_projection)
+{
+  HyScanGeoProjectionInterface *iface;
+
+  g_return_val_if_fail (HYSCAN_IS_GEO_PROJECTION (geo_projection), 0);
+
+  iface = HYSCAN_GEO_PROJECTION_GET_IFACE (geo_projection);
+  if (iface->hash != NULL)
+    return (* iface->hash) (geo_projection);
+
+  return 0;
+}

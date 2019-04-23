@@ -106,6 +106,12 @@ hyscan_pseudo_mercator_init (HyScanPseudoMercator *pseudo_mercator)
   pseudo_mercator->priv = hyscan_pseudo_mercator_get_instance_private (pseudo_mercator);
 }
 
+static guint
+hyscan_pseudo_mercator_hash (HyScanGeoProjection *geo_projection)
+{
+  return g_str_hash ("pseudo_mercator");
+}
+
 
 /* Реализация интерфейса HyScanGeoProjectionInterface. */
 static void
@@ -115,6 +121,7 @@ hyscan_pseudo_mercator_interface_init (HyScanGeoProjectionInterface *iface)
   iface->value_to_geo = hyscan_pseudo_mercator_value_to_geo;
   iface->get_limits = hyscan_pseudo_mercator_get_limits;
   iface->get_scale = hyscan_pseudo_mercator_get_scale;
+  iface->hash = hyscan_pseudo_mercator_hash;
 }
 
 static void

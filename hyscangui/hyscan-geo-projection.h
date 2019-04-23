@@ -71,6 +71,8 @@ struct _HyScanGeoProjectionInterface
 
   gdouble              (*get_scale)            (HyScanGeoProjection    *geo_projection,
                                                 HyScanGeoGeodetic       coords);
+
+  guint               (*hash)                  (HyScanGeoProjection    *geo_projection);
 };
 
 HYSCAN_API
@@ -100,6 +102,9 @@ void                   hyscan_geo_projection_get_limits       (HyScanGeoProjecti
 HYSCAN_API
 gdouble                hyscan_geo_projection_get_scale        (HyScanGeoProjection    *geo_projection,
                                                                HyScanGeoGeodetic       coords);
+
+HYSCAN_API
+guint                  hyscan_geo_projection_hash             (HyScanGeoProjection    *geo_projection);
 
 G_END_DECLS
 
