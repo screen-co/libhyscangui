@@ -91,6 +91,7 @@
 #include "hyscan-gtk-map-tile.h"
 #include <cairo.h>
 #include <string.h>
+#include <math.h>
 
 enum
 {
@@ -103,7 +104,9 @@ enum
 
 struct _HyScanGtkMapTileGridPrivate
 {
-  /* Границы логической СК. */
+  /* Параметры логической СК. */
+  gboolean                     invert_ox;      /* Признак того, что ось OX направлена влево. */
+  gboolean                     invert_oy;      /* Признак того, что ось OY направлена вниз. */
   gdouble                      min_x;          /* Минимальное значение координаты x. */
   gdouble                      min_y;          /* Минимальное значение координаты y. */
   gdouble                      max_x;          /* Максимальное значение координаты x. */
@@ -112,7 +115,8 @@ struct _HyScanGtkMapTileGridPrivate
   /* Размеры тайла. */
   guint                        tile_size;      /* Размер тайла в пикселях. */
   gdouble                     *scales;         /* Доступные масштабы (размер стороны тайла в логических единицах). */
-  gsize                        scales_len;     /* Длина массива scales. */
+  guint                       *xnums;          /* Количество тайлов для каждого масштаба. */
+  gsize                        scales_len;     /* Длина массива scales и xnums. */
   guint                        min_zoom;       /* Зум, соответствующий нулевому индексу масштаба. */
 };
 
@@ -155,6 +159,10 @@ hyscan_gtk_map_tile_grid_init (HyScanGtkMapTileGrid *gtk_map_tile_grid)
   priv->scales_len = 1;
   priv->scales = g_new (gdouble, 1);
   priv->scales[0] = 1;
+
+  /* Устанавливаем направления осей координат по умолчанию. */
+  priv->invert_ox = FALSE;
+  priv->invert_oy = TRUE;
 }
 
 static void
@@ -226,6 +234,7 @@ hyscan_gtk_map_tile_grid_object_finalize (GObject *object)
   HyScanGtkMapTileGridPrivate *priv = grid->priv;
 
   g_free (priv->scales);
+  g_free (priv->xnums);
 }
 
 static void
@@ -238,6 +247,20 @@ hyscan_gtk_map_tile_object_finalize (GObject *object)
   g_clear_pointer (&priv->surface, cairo_surface_destroy);
 
   G_OBJECT_CLASS (hyscan_gtk_map_tile_parent_class)->finalize (object);
+}
+
+/* Возвращает количество тайлов вдоль оси X на масштабе zoom. */
+static guint
+hyscan_gtk_map_tile_grid_get_xnums (HyScanGtkMapTileGrid *grid,
+                                    guint                 zoom)
+{
+  HyScanGtkMapTileGridPrivate *priv;
+  gint index;
+
+  priv = grid->priv;
+  index = zoom - priv->min_zoom;
+
+  return priv->xnums[index];
 }
 
 /**
@@ -337,7 +360,7 @@ hyscan_gtk_map_tile_grid_new (gdouble min_x,
  */
 void
 hyscan_gtk_map_tile_grid_set_xnums (HyScanGtkMapTileGrid *grid,
-                                    const gdouble        *xnums,
+                                    const guint          *xnums,
                                     gsize                 xnums_len)
 {
   HyScanGtkMapTileGridPrivate *priv;
@@ -347,10 +370,17 @@ hyscan_gtk_map_tile_grid_set_xnums (HyScanGtkMapTileGrid *grid,
   priv = grid->priv;
 
   g_free (priv->scales);
+  g_free (priv->xnums);
+
   priv->scales = g_new (gdouble, xnums_len);
+  priv->xnums = g_new (guint , xnums_len);
+  priv->scales_len = xnums_len;
 
   for (i = 0; i < xnums_len; ++i)
-    priv->scales[i] = (priv->max_x - priv->min_x) / xnums[i];
+    {
+      priv->scales[i] = (priv->max_x - priv->min_x) / xnums[i];
+      priv->xnums[i] = xnums[i];
+    }
 }
 
 /**
@@ -375,11 +405,17 @@ hyscan_gtk_map_tile_grid_set_scales (HyScanGtkMapTileGrid *grid,
   priv = grid->priv;
 
   g_free (priv->scales);
+  g_free (priv->xnums);
 
   priv->scales = g_new (gdouble, scales_len);
+  priv->xnums = g_new (guint , scales_len);
+  priv->scales_len = scales_len;
 
   for (i = 0; i < scales_len; ++i)
-    priv->scales[i] = scales[i];
+    {
+      priv->scales[i] = scales[i];
+      priv->xnums[i] = lround ((priv->max_x - priv->min_x) / scales[i]);
+    }
 }
 
 /**
@@ -398,6 +434,39 @@ hyscan_gtk_map_tile_grid_get_scale (HyScanGtkMapTileGrid *grid,
   priv = grid->priv;
 
   return priv->scales[zoom - priv->min_zoom] / priv->tile_size;
+}
+
+guint
+hyscan_gtk_map_tile_grid_adjust_zoom (HyScanGtkMapTileGrid *grid,
+                                      gdouble               scale)
+{
+  HyScanGtkMapTileGridPrivate *priv;
+
+  guint optimal_zoom;
+  gdouble optimal_err = G_MAXDOUBLE;
+
+  guint i;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE_GRID (grid), 0);
+  priv = grid->priv;
+
+  optimal_zoom = priv->min_zoom;
+  for (i = 0; i < priv->scales_len; ++i)
+    {
+      gdouble tile_px;
+      gdouble err;
+
+      /* Размер тайла в пиксела  при масштабе i. */
+      tile_px = scale * priv->scales[i];
+      err = fabs (tile_px - priv->tile_size);
+      if (err < optimal_err)
+        {
+          optimal_zoom = priv->min_zoom + i;
+          optimal_err = err;
+        }
+    }
+
+  return optimal_zoom;
 }
 
 /**
@@ -426,6 +495,28 @@ hyscan_gtk_map_tile_get_y (HyScanGtkMapTile *tile)
   g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile), 0);
 
   return tile->priv->y;
+}
+
+/**
+ * hyscan_gtk_map_tile_inv_y:
+ * @tile: указатель на #HyScanGtkMapTile
+ *
+ * Возвращает координату тайла по оси OY, направленной в обратную сторону:
+ * inv_y = max_y - y. Функция полезна в случаях, когда отсчёт тайлов идёт не
+ * сверху вниз, а наоборот.
+ *
+ * Returns: возвращает координату Y тайла в системе координат с инвертированной
+ *          осью OY.
+ */
+guint
+hyscan_gtk_map_tile_inv_y (HyScanGtkMapTile *tile)
+{
+  HyScanGtkMapTilePrivate *priv;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile), 0);
+  priv= tile->priv;
+
+  return hyscan_gtk_map_tile_grid_get_xnums (priv->grid, priv->zoom) - 1 - priv->y;
 }
 
 /**
@@ -477,12 +568,9 @@ hyscan_gtk_map_tile_get_zoom (HyScanGtkMapTile *tile)
 guint
 hyscan_gtk_map_tile_get_size (HyScanGtkMapTile *tile)
 {
-  HyScanGtkMapTileGrid *grid;
-
   g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile), 0);
-  grid = tile->priv->grid;
 
-  return grid->priv->tile_size;
+  return hyscan_gtk_map_tile_grid_get_tile_size (tile->priv->grid);
 }
 
 /**
@@ -682,6 +770,14 @@ hyscan_gtk_map_tile_grid_get_view (HyScanGtkMapTileGrid *grid,
   (from_tile_x != NULL) ? *from_tile_x = (gint) MIN (from_tile_x_d, to_tile_x_d) : 0;
 }
 
+guint
+hyscan_gtk_map_tile_grid_get_tile_size (HyScanGtkMapTileGrid *grid)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE_GRID (grid), 0);
+
+  return grid->priv->tile_size;
+}
+
 /**
  * hyscan_gtk_map_tile_grid_tile_to_value:
  * @grid: указатель на #HyScanGtkMapTileGrid
@@ -709,10 +805,10 @@ hyscan_gtk_map_tile_grid_tile_to_value (HyScanGtkMapTileGrid *grid,
 
   scale = priv->scales[zoom-priv->min_zoom];
   if (x_val != NULL)
-    *x_val = priv->min_x + x_tile * scale;
+    *x_val = priv->invert_ox ? priv->max_x - x_tile * scale : priv->min_x + x_tile * scale;
 
   if (y_val != NULL)
-    *y_val = priv->max_y - y_tile * scale;
+    *y_val = priv->invert_oy ? priv->max_y - y_tile * scale : priv->min_y + y_tile * scale;
 }
 
 /**
@@ -744,6 +840,6 @@ hyscan_gtk_map_tile_grid_value_to_tile (HyScanGtkMapTileGrid *grid,
   tile_size_x = priv->scales[zoom - priv->min_zoom];
   tile_size_y = priv->scales[zoom - priv->min_zoom];
 
-  (y_tile != NULL) ? *y_tile = (priv->max_y - y_val) / tile_size_y : 0;
-  (x_tile != NULL) ? *x_tile = (x_val - priv->min_x) / tile_size_x : 0;
+  (y_tile != NULL) ? *y_tile = (priv->invert_oy ? priv->max_y - y_val : y_val - priv->min_x) / tile_size_y : 0;
+  (x_tile != NULL) ? *x_tile = (priv->invert_ox ? priv->max_x - x_val : x_val - priv->min_x) / tile_size_x : 0;
 }

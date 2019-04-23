@@ -1,5 +1,6 @@
 #include <hyscan-network-map-tile-source.h>
 #include <math.h>
+#include <hyscan-pseudo-mercator.h>
 
 struct
 {
@@ -12,49 +13,28 @@ struct
   { "https://c.tile.openstreetmap.org/12/{x}/{y}.png",   0, 19, FALSE},
 };
 
-/* Создает тайловую сетку для источника тайлов. */
-HyScanGtkMapTileGrid *
-grid_new (HyScanGtkMapTileSource *source)
-{
-  gdouble *nums;
-  gint nums_len;
-  guint min_zoom, max_zoom, zoom;
-  HyScanGtkMapTileGrid *grid;
-
-  hyscan_gtk_map_tile_source_get_zoom_limits (source, &min_zoom, &max_zoom);
-
-  nums_len = max_zoom - min_zoom + 1;
-  nums = g_newa (gdouble, nums_len);
-  for (zoom = min_zoom; zoom < max_zoom + 1; zoom++)
-    nums[zoom - min_zoom] = pow (2, zoom);
-
-  grid = hyscan_gtk_map_tile_grid_new (-1.0, 1.0, -1.0, 1.0, min_zoom,
-                                       hyscan_gtk_map_tile_source_get_tile_size (source));
-  hyscan_gtk_map_tile_grid_set_xnums (grid, nums, nums_len);
-
-  return grid;
-}
-
 int
 main (int    argc,
       char **argv)
 {
   HyScanNetworkMapTileSource *source;
+  HyScanGeoProjection *mercator;
   HyScanGtkMapTileGrid *grid;
   HyScanGtkMapTile *tile;
   guint i;
 
+  mercator = hyscan_pseudo_mercator_new ();
   for (i = 0; i < G_N_ELEMENTS (test_data); i++)
     {
       gboolean result;
 
       g_message ("Test data %d: %s", i, test_data[i].url_format);
 
-      source = hyscan_network_map_tile_source_new (test_data[i].url_format,
+      source = hyscan_network_map_tile_source_new (test_data[i].url_format, mercator,
                                                    test_data[i].min_zoom,
                                                    test_data[i].max_zoom);
 
-      grid = grid_new (HYSCAN_GTK_MAP_TILE_SOURCE (source));
+      grid = hyscan_gtk_map_tile_source_get_grid (HYSCAN_GTK_MAP_TILE_SOURCE (source));
       tile = hyscan_gtk_map_tile_new (grid, 10, 10, 5);
 
       result = hyscan_gtk_map_tile_source_fill (HYSCAN_GTK_MAP_TILE_SOURCE (source), tile, NULL);
@@ -65,6 +45,7 @@ main (int    argc,
       g_clear_object (&source);
     }
 
+  g_object_unref (mercator);
   g_message ("Tests done successfully!");
 
   return 0;

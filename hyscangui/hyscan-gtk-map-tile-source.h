@@ -52,33 +52,39 @@ typedef struct _HyScanGtkMapTileSourceInterface HyScanGtkMapTileSourceInterface;
 
 struct _HyScanGtkMapTileSourceInterface
 {
-  GTypeInterface       g_iface;
+  GTypeInterface           g_iface;
 
-  gboolean             (*fill_tile)               (HyScanGtkMapTileSource        *source,
-                                                   HyScanGtkMapTile              *tile,
-                                                   GCancellable                  *cancellable);
+  gboolean               (*fill_tile)               (HyScanGtkMapTileSource        *source,
+                                                     HyScanGtkMapTile              *tile,
+                                                     GCancellable                  *cancellable);
 
-  void                 (*get_zoom_limits)         (HyScanGtkMapTileSource        *source,
-                                                   guint                         *min_zoom,
-                                                   guint                         *max_zoom);
+  void                   (*get_zoom_limits)         (HyScanGtkMapTileSource        *source,
+                                                     guint                         *min_zoom,
+                                                     guint                         *max_zoom);
 
-  guint                (*get_tile_size)           (HyScanGtkMapTileSource        *source);
+  HyScanGtkMapTileGrid * (*get_grid)                (HyScanGtkMapTileSource        *source);
+
+  HyScanGeoProjection *  (*get_projection)          (HyScanGtkMapTileSource        *source);
 };
 
 HYSCAN_API
-GType      hyscan_gtk_map_tile_source_get_type                  (void);
+GType                   hyscan_gtk_map_tile_source_get_type                  (void);
 
 HYSCAN_API
-void       hyscan_gtk_map_tile_source_get_zoom_limits           (HyScanGtkMapTileSource *source,
-                                                                 guint                  *min_zoom,
-                                                                 guint                  *max_zoom);
-HYSCAN_API
-guint      hyscan_gtk_map_tile_source_get_tile_size             (HyScanGtkMapTileSource *source);
+void                    hyscan_gtk_map_tile_source_get_zoom_limits           (HyScanGtkMapTileSource *source,
+                                                                              guint                  *min_zoom,
+                                                                              guint                  *max_zoom);
 
 HYSCAN_API
-gboolean   hyscan_gtk_map_tile_source_fill                      (HyScanGtkMapTileSource *source,
-                                                                 HyScanGtkMapTile       *tile,
-                                                                 GCancellable           *cancellable);
+HyScanGtkMapTileGrid *  hyscan_gtk_map_tile_source_get_grid                  (HyScanGtkMapTileSource *source);
+
+HYSCAN_API
+HyScanGeoProjection *   hyscan_gtk_map_tile_source_get_projection            (HyScanGtkMapTileSource *source);
+
+HYSCAN_API
+gboolean                hyscan_gtk_map_tile_source_fill                      (HyScanGtkMapTileSource *source,
+                                                                              HyScanGtkMapTile       *tile,
+                                                                              GCancellable           *cancellable);
 
 
 G_END_DECLS

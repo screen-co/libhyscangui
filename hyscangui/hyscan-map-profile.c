@@ -148,7 +148,8 @@ hyscan_map_profile_create_projection (HyScanMapProfilePrivate *priv)
 
 /* Создаёт тайловый слой, соответствующий профилю. */
 static HyScanGtkLayer *
-hyscan_map_profile_create_tiles (HyScanMapProfilePrivate *priv)
+hyscan_map_profile_create_tiles (HyScanMapProfilePrivate *priv,
+                                 HyScanGeoProjection     *projection)
 {
   HyScanGtkLayer *tiles;
 
@@ -167,6 +168,7 @@ hyscan_map_profile_create_tiles (HyScanMapProfilePrivate *priv)
     cache_path = (tmp_dir = g_dir_make_tmp ("hyscan-map-XXXXXX", NULL));
 
   nw_source = HYSCAN_GTK_MAP_TILE_SOURCE (hyscan_network_map_tile_source_new (priv->url_format,
+                                                                              projection,
                                                                               priv->min_zoom,
                                                                               priv->max_zoom));
   fs_source = HYSCAN_GTK_MAP_TILE_SOURCE (hyscan_gtk_map_fs_tile_source_new (cache_path, nw_source));
@@ -367,7 +369,7 @@ hyscan_map_profile_apply (HyScanMapProfile *profile,
   hyscan_gtk_map_set_projection (map, projection);
 
   /* Устанавливаем новый слой тайлов в самый низ. */
-  hyscan_gtk_layer_container_add (container, hyscan_map_profile_create_tiles (priv), TILES_LAYER_ID);
+  hyscan_gtk_layer_container_add (container, hyscan_map_profile_create_tiles (priv, projection), TILES_LAYER_ID);
 
   /* Конфигурируем остальные слои. */
   hyscan_gtk_layer_container_load_key_file (container, priv->key_file);

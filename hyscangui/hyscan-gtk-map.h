@@ -94,6 +94,9 @@ void                   hyscan_gtk_map_set_projection   (HyScanGtkMap           *
                                                         HyScanGeoProjection    *projection);
 
 HYSCAN_API
+HyScanGeoProjection *  hyscan_gtk_map_get_projection   (HyScanGtkMap           *map);
+
+HYSCAN_API
 void                   hyscan_gtk_map_move_to          (HyScanGtkMap           *map,
                                                         HyScanGeoGeodetic       center);
 

@@ -45,7 +45,11 @@
  *
  * Поддерживается 2 формата URL-тайлов:
  *
- * 1. С плейсхолдерами {x}, {y}, {z}. Такой формат используется большинством тайловых серверов.
+ * 1. С плейсхолдерами {x}, {y}, {-y}, {z}. Такой формат используется большинством
+ *    тайловых серверов. Для координаты по Y следует выбирать плейсхолдер:
+ *    - {y}, если отсчет тайлов идёт сверху вниз (OpenStreetMap),
+ *    - {-y}, если отсчет тайлов идёт снизу вверх (TMS-совместимые сетки).
+ *
  *    Пример, https://a.tile.openstreetmap.org/{z}/{x}/{y}.png.
  *
  * 2. С плейсхолдером {quadkey}. Этот формат используется в Bing Maps (Microsoft).
@@ -54,13 +58,13 @@
  */
 
 #include "hyscan-network-map-tile-source.h"
+#include <math.h>
 #include <gio/gio.h>
 #include <string.h>
 #include <libsoup/soup.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <gdk/gdk.h>
 
-#define MAX_URL_LENGTH 2083                                               /* Максимальная длина URL. */
 #define USER_AGENT     "Mozilla/5.0 (X11; Linux x86_64; rv:60.0) " \
                        "Gecko/20100101 Firefox/60.0"                      /* Заголовок "User-agent" для HTTP-запросов. */
 
@@ -101,6 +105,7 @@ typedef struct
 enum
 {
   PROP_O,
+  PROP_PROJECTION,
   PROP_URL_FORMAT,
   PROP_MIN_ZOOM,
   PROP_MAX_ZOOM,
@@ -109,7 +114,7 @@ enum
 typedef enum
 {
   URL_FORMAT_INVALID,                          /* Неправильный формат. */
-  URL_FORMAT_XYZ,                              /* Формат с плейсхолдерами {x}, {y}, {z}. */
+  URL_FORMAT_XYZ,                              /* Формат с плейсхолдерами {x}, {y} / {-y}, {z}. */
   URL_FORMAT_QUAD,                             /* Формат с плейсхолдером {quadkey} (bing maps). */
 } HyScanNetworkMapTileSourceType;
 
@@ -117,10 +122,13 @@ struct _HyScanNetworkMapTileSourcePrivate
 {
   gchar                          *url_format;    /* Формат URL к изображению тайла. */
   HyScanNetworkMapTileSourceType  url_type;      /* Тип формата URL. */
+  gboolean                        inverse_y;     /* Признак того, что координаты по y должны быть инвертированны. */
 
   guint                           min_zoom;      /* Минимальный доступный зум (уровень детализации). */
   guint                           max_zoom;      /* Максимальный доступный зум (уровень детализации). */
   guint                           tile_size;     /* Размер тайла, пикселы. */
+  HyScanGtkMapTileGrid           *grid;          /* Параметры тайловой сетки. */
+  HyScanGeoProjection            *projection;    /* Картографическая проекция источника тайлов. */
 
   GThreadPool                    *thread_pool;   /* Пул потоков, обрабатывающих задачи по загрузке тайлов. */
 };
@@ -138,7 +146,6 @@ static gboolean       hyscan_network_map_tile_source_fill_tile           (HyScan
 static void           hyscan_network_map_tile_source_get_zoom_limits     (HyScanGtkMapTileSource            *source,
                                                                           guint                             *min_zoom,
                                                                           guint                             *max_zoom);
-static guint          hyscan_network_map_tile_source_get_tile_size       (HyScanGtkMapTileSource            *source);
 static void           hyscan_network_map_tile_source_set_format          (HyScanNetworkMapTileSourcePrivate *priv,
                                                                           const gchar                       *url_tpl);
 static gchar *        hyscan_network_map_tile_source_get_quad            (HyScanGtkMapTile                  *tile);
@@ -147,8 +154,7 @@ static HyScanNetworkMapTileSourceTask *
                                                                           HyScanGtkMapTile                  *tile,
                                                                           GCancellable                      *cancellable);
 static gchar *        hyscan_network_map_tile_source_replace             (const gchar                       *url_tpl,
-                                                                          gchar                            **find,
-                                                                          gchar                            **replace);
+                                                                          gchar                            **find_replace);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanNetworkMapTileSource, hyscan_network_map_tile_source, G_TYPE_OBJECT,
                          G_ADD_PRIVATE (HyScanNetworkMapTileSource)
@@ -205,6 +211,10 @@ hyscan_network_map_tile_source_class_init (HyScanNetworkMapTileSourceClass *klas
   g_object_class_install_property (object_class, PROP_URL_FORMAT,
     g_param_spec_string ("url-format", "URL Format", "Tile URL format with placeholders", NULL,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+  g_object_class_install_property (object_class, PROP_PROJECTION,
+    g_param_spec_object ("projection", "HyScanGeoProjection", "GeoProjection of tile source",
+                         HYSCAN_TYPE_GEO_PROJECTION,
+                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_MIN_ZOOM,
     g_param_spec_uint ("min-zoom", "Min zoom", "Minimal zoom", 0, G_MAXUINT, 0,
                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
@@ -230,6 +240,10 @@ hyscan_network_map_tile_source_set_property (GObject      *object,
 
   switch (prop_id)
     {
+    case PROP_PROJECTION:
+      priv->projection = g_value_dup_object (value);
+      break;
+
     case PROP_URL_FORMAT:
       hyscan_network_map_tile_source_set_format (priv, g_value_get_string (value));
       break;
@@ -314,6 +328,23 @@ hyscan_network_map_tile_source_object_constructed (GObject *object)
 
   priv->tile_size = 256;
 
+  /* Формируем тайловую сетку. */
+  {
+    gdouble min_x, max_x, min_y, max_y;
+    guint *nums;
+    gint nums_len;
+    guint min_zoom = priv->min_zoom, max_zoom = priv->max_zoom, zoom;
+
+    nums_len = max_zoom - min_zoom + 1;
+    nums = g_newa (guint , nums_len);
+    for (zoom = min_zoom; zoom < max_zoom + 1; zoom++)
+      nums[zoom - min_zoom] = 1u << zoom;
+
+    hyscan_geo_projection_get_limits (priv->projection, &min_x, &max_x, &min_y, &max_y);
+    priv->grid = hyscan_gtk_map_tile_grid_new (min_x, max_x, min_y, max_y, priv->min_zoom, priv->tile_size);
+    hyscan_gtk_map_tile_grid_set_xnums (priv->grid, nums, nums_len);
+  }
+
   priv->thread_pool = g_thread_pool_new (hyscan_network_map_tile_source_task_do, nw_source, -1, FALSE, NULL);
 }
 
@@ -325,6 +356,8 @@ hyscan_network_map_tile_source_object_finalize (GObject *object)
 
   g_free (priv->url_format);
   g_thread_pool_free (priv->thread_pool, FALSE, TRUE);
+  g_clear_object (&priv->grid);
+  g_clear_object (&priv->projection);
 
   G_OBJECT_CLASS (hyscan_network_map_tile_source_parent_class)->finalize (object);
 }
@@ -333,23 +366,26 @@ hyscan_network_map_tile_source_object_finalize (GObject *object)
  * Возвращает полученную строку, если все плейсхолдеры были найдены; иначе NULL. */
 static gchar *
 hyscan_network_map_tile_source_replace (const gchar  *url_tpl,
-                                        gchar       **find,
-                                        gchar       **replace)
+                                        gchar       **find_replace)
 {
   gchar *format;
 
   guint i;
 
   format = g_strdup (url_tpl);
-  for (i = 0; find[i] != NULL && replace[i] != NULL; ++i)
+  for (i = 0; find_replace[i] != NULL; ++i)
     {
       gchar **tokens;
+      gchar *find, *replace;
 
-      tokens = g_strsplit (format, find[i], 2);
+      find    = find_replace[i];
+      replace = find_replace[++i];
+
+      tokens = g_strsplit (format, find, 2);
       g_clear_pointer (&format, g_free);
 
       if (tokens[1] != NULL)
-        format = g_strconcat (tokens[0], replace[i], tokens[1], NULL);
+        format = g_strconcat (tokens[0], replace, tokens[1], NULL);
 
       g_strfreev (tokens);
 
@@ -365,20 +401,29 @@ static void
 hyscan_network_map_tile_source_set_format (HyScanNetworkMapTileSourcePrivate *priv,
                                            const gchar                       *url_tpl)
 {
+  gchar *replace_inv_y[] = {"{-y}", "{y}", NULL};
+  gchar *replace_xyz[] = {"{x}", "%1$d", "{y}", "%2$d", "{z}", "%3$d", NULL};
+  gchar *replace_quad[] = {"{quadkey}", "%s", NULL};
+  gchar *inverse_y = NULL;
   g_free (priv->url_format);
 
-  priv->url_format = hyscan_network_map_tile_source_replace (url_tpl,
-                                                             (gchar *[]){"{x}",  "{y}",  "{z}",  NULL},
-                                                             (gchar *[]){"%1$d", "%2$d", "%3$d", NULL});
+  /* Проверяем, не инвентированна ли ось Y у источника тайлов. */
+  inverse_y = hyscan_network_map_tile_source_replace (url_tpl, replace_inv_y);
+  priv->inverse_y = (inverse_y != NULL);
+  if (priv->inverse_y)
+    url_tpl = inverse_y;
+
+  /* Проверяем, подходит ли формат xyz. */
+  priv->url_format = hyscan_network_map_tile_source_replace (url_tpl, replace_xyz);
+  g_free (inverse_y);
   if (priv->url_format != NULL)
     {
       priv->url_type = URL_FORMAT_XYZ;
       return;
     }
 
-  priv->url_format = hyscan_network_map_tile_source_replace (url_tpl,
-                                                             (gchar *[]){"{quadkey}", NULL},
-                                                             (gchar *[]){"%s", NULL});
+  /* Проверяем, подходит ли формат quad. */
+  priv->url_format = hyscan_network_map_tile_source_replace (url_tpl, replace_quad);
   if (priv->url_format != NULL)
     {
       priv->url_type = URL_FORMAT_QUAD;
@@ -452,6 +497,7 @@ hyscan_network_map_tile_source_task_new (HyScanNetworkMapTileSourcePrivate *priv
                                          GCancellable                      *cancellable)
 {
   gchar *quad_key;
+  guint x, y, z;
   HyScanNetworkMapTileSourceTask *task;
 
   gchar *url;
@@ -459,10 +505,10 @@ hyscan_network_map_tile_source_task_new (HyScanNetworkMapTileSourcePrivate *priv
   switch (priv->url_type)
     {
     case URL_FORMAT_XYZ:
-      url = g_strdup_printf (priv->url_format,
-                             hyscan_gtk_map_tile_get_x (tile),
-                             hyscan_gtk_map_tile_get_y (tile),
-                             hyscan_gtk_map_tile_get_zoom (tile));
+      x = hyscan_gtk_map_tile_get_x (tile);
+      y = priv->inverse_y ? hyscan_gtk_map_tile_inv_y (tile) : hyscan_gtk_map_tile_get_y (tile);
+      z = hyscan_gtk_map_tile_get_zoom (tile);
+      url = g_strdup_printf (priv->url_format, x, y, z);
       break;
 
     case URL_FORMAT_QUAD:
@@ -553,15 +599,26 @@ hyscan_network_map_tile_source_get_zoom_limits (HyScanGtkMapTileSource *source,
   (min_zoom != NULL) ? *min_zoom = priv->min_zoom : 0;
 }
 
-/* Реализация функции get_tile_size интерфейса HyScanGtkMapTileSource.*/
-static guint
-hyscan_network_map_tile_source_get_tile_size (HyScanGtkMapTileSource *source)
+/* Реализация функции get_grid интерфейса HyScanGtkMapTileSource.*/
+static HyScanGtkMapTileGrid *
+hyscan_network_map_tile_source_get_grid (HyScanGtkMapTileSource *source)
 {
   HyScanNetworkMapTileSourcePrivate *priv;
 
   priv = HYSCAN_NETWORK_MAP_TILE_SOURCE (source)->priv;
 
-  return priv->tile_size;
+  return g_object_ref (priv->grid);
+}
+
+/* Реализация функции get_projection интерфейса HyScanGtkMapTileSource.*/
+static HyScanGeoProjection *
+hyscan_network_map_tile_source_get_projection (HyScanGtkMapTileSource *source)
+{
+  HyScanNetworkMapTileSourcePrivate *priv;
+
+  priv = HYSCAN_NETWORK_MAP_TILE_SOURCE (source)->priv;
+
+  return g_object_ref (priv->projection);
 }
 
 /* Реализация интерфейса HyScanGtkMapTileSource. */
@@ -570,7 +627,8 @@ hyscan_network_map_tile_source_interface_init (HyScanGtkMapTileSourceInterface *
 {
   iface->fill_tile = hyscan_network_map_tile_source_fill_tile;
   iface->get_zoom_limits = hyscan_network_map_tile_source_get_zoom_limits;
-  iface->get_tile_size = hyscan_network_map_tile_source_get_tile_size;
+  iface->get_grid = hyscan_network_map_tile_source_get_grid;
+  iface->get_projection = hyscan_network_map_tile_source_get_projection;
 }
 
 /**
@@ -585,12 +643,14 @@ hyscan_network_map_tile_source_interface_init (HyScanGtkMapTileSourceInterface *
  * Returns: новый объект #HyScanNetworkMapTileSource. Для удаления g_object_unref().
  */
 HyScanNetworkMapTileSource *
-hyscan_network_map_tile_source_new (const gchar *url_format,
-                                    guint        min_zoom,
-                                    guint        max_zoom)
+hyscan_network_map_tile_source_new (const gchar         *url_format,
+                                    HyScanGeoProjection *projection,
+                                    guint                min_zoom,
+                                    guint                max_zoom)
 {
   return g_object_new (HYSCAN_TYPE_NETWORK_MAP_TILE_SOURCE,
                        "url-format", url_format,
+                       "projection", projection,
                        "min-zoom", min_zoom,
                        "max-zoom", max_zoom,
                        NULL);

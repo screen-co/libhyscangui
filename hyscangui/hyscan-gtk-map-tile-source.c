@@ -87,23 +87,28 @@ hyscan_gtk_map_tile_source_get_zoom_limits (HyScanGtkMapTileSource *source,
   (* iface->get_zoom_limits) (source, min_zoom, max_zoom);
 }
 
-/**
- * hyscan_gtk_map_tile_source_get_tile_size:
- * @source: указатель на #HyScanGtkMapTileSource
- *
- * Возвращает размер тайла по высоте и ширине. Тайлы квадратные.
- *
- * Returns: размер тайла в пикселях
- */
-guint
-hyscan_gtk_map_tile_source_get_tile_size (HyScanGtkMapTileSource *source)
+HyScanGtkMapTileGrid *
+hyscan_gtk_map_tile_source_get_grid (HyScanGtkMapTileSource *source)
 {
   HyScanGtkMapTileSourceInterface *iface;
 
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE_SOURCE (source), 0);
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE_SOURCE (source), NULL);
 
   iface = HYSCAN_GTK_MAP_TILE_SOURCE_GET_IFACE (source);
-  g_return_val_if_fail (iface->get_tile_size != NULL, 0);
+  g_return_val_if_fail (iface->get_grid != NULL, NULL);
 
-  return (* iface->get_tile_size) (source);
+  return (* iface->get_grid) (source);
+}
+
+HyScanGeoProjection *
+hyscan_gtk_map_tile_source_get_projection (HyScanGtkMapTileSource *source)
+{
+  HyScanGtkMapTileSourceInterface *iface;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE_SOURCE (source), NULL);
+
+  iface = HYSCAN_GTK_MAP_TILE_SOURCE_GET_IFACE (source);
+  g_return_val_if_fail (iface->get_projection != NULL, NULL);
+
+  return (* iface->get_projection) (source);
 }

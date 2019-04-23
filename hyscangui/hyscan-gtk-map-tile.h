@@ -93,6 +93,9 @@ HYSCAN_API
 GType                  hyscan_gtk_map_tile_get_type           (void);
 
 HYSCAN_API
+GType                  hyscan_gtk_map_tile_grid_get_type      (void);
+
+HYSCAN_API
 HyScanGtkMapTile *     hyscan_gtk_map_tile_new                (HyScanGtkMapTileGrid *grid,
                                                                guint                 x,
                                                                guint                 y,
@@ -113,7 +116,7 @@ HyScanGtkMapTileGrid * hyscan_gtk_map_tile_grid_new            (gdouble         
 
 HYSCAN_API
 void                   hyscan_gtk_map_tile_grid_set_xnums     (HyScanGtkMapTileGrid *grid,
-                                                               const gdouble        *xnums,
+                                                               const guint          *xnums,
                                                                gsize                 xnums_len);
 
 HYSCAN_API
@@ -126,10 +129,17 @@ gdouble                hyscan_gtk_map_tile_grid_get_scale     (HyScanGtkMapTileG
                                                                guint                 zoom);
 
 HYSCAN_API
+guint                  hyscan_gtk_map_tile_grid_adjust_zoom   (HyScanGtkMapTileGrid *grid,
+                                                               gdouble               scale);
+
+HYSCAN_API
 guint                  hyscan_gtk_map_tile_get_x              (HyScanGtkMapTile     *tile);
 
 HYSCAN_API
 guint                  hyscan_gtk_map_tile_get_y              (HyScanGtkMapTile     *tile);
+
+HYSCAN_API
+guint                  hyscan_gtk_map_tile_inv_y              (HyScanGtkMapTile     *tile);
 
 HYSCAN_API
 void                   hyscan_gtk_map_tile_get_bounds         (HyScanGtkMapTile     *tile,
@@ -175,6 +185,9 @@ void                   hyscan_gtk_map_tile_grid_get_view      (HyScanGtkMapTileG
                                                                gint                 *to_tile_x,
                                                                gint                 *from_tile_y,
                                                                gint                 *to_tile_y);
+
+HYSCAN_API
+guint                  hyscan_gtk_map_tile_grid_get_tile_size (HyScanGtkMapTileGrid *grid);
 
 HYSCAN_API
 void                   hyscan_gtk_map_tile_grid_tile_to_value (HyScanGtkMapTileGrid *grid,

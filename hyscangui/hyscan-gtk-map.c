@@ -468,6 +468,20 @@ hyscan_gtk_map_set_projection (HyScanGtkMap        *map,
 }
 
 /**
+ * hyscan_gtk_map_get_projection:
+ * @map
+ *
+ * Returns: указатель на #HyScanGeoProjection. Для удаления g_object_unref().
+ */
+HyScanGeoProjection *
+hyscan_gtk_map_get_projection (HyScanGtkMap *map)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), NULL);
+
+  return g_object_ref (map->priv->projection);
+}
+
+/**
  * hyscan_gtk_map_move_to:
  * @map: указатель на объект #HyScanGtkMap
  * @center: новые координаты центра
