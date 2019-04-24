@@ -28,24 +28,32 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-param-list.c
              hyscan-gtk-param-cc.c
              hyscan-gtk-param-tree.c
-             hyscan-task-queue.c
+
+             #[[ Виджет карты ]]
              hyscan-gtk-map.c
-             hyscan-gtk-map-tile.c
+             hyscan-map-profile.c
+
+             #[[ Слои ]]
+             hyscan-gtk-layer-container.c
+             hyscan-gtk-layer.c
              hyscan-gtk-map-tiles.c
-             hyscan-gtk-map-tile-source.c
-             hyscan-network-map-tile-source.c
-             hyscan-gtk-map-fs-tile-source.c
-             hyscan-merged-tile-source.c
              hyscan-gtk-map-control.c
              hyscan-gtk-map-ruler.c
              hyscan-gtk-map-grid.c
              hyscan-gtk-map-pin-layer.c
              hyscan-gtk-map-way-layer.c
              hyscan-gtk-map-track-layer.c
-             hyscan-map-profile.c
+
+             #[[ Загрузка тайлов ]]
+             hyscan-task-queue.c
+             hyscan-gtk-map-tile.c
+             hyscan-gtk-map-tile-source.c
+             hyscan-network-map-tile-source.c
+             hyscan-gtk-map-fs-tile-source.c
+             hyscan-merged-tile-source.c
+
+             #[[ Проекции ]]
              hyscan-geo-projection.c
-             hyscan-gtk-layer.c
-             hyscan-gtk-layer-container.c
              hyscan-mercator.c
              hyscan-pseudo-mercator.c
              hyscan-nmea-file-device.c

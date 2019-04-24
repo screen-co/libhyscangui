@@ -63,6 +63,9 @@ struct _HyScanGtkMapGridClass
 };
 
 HYSCAN_API
+GType                  hyscan_gtk_map_grid_get_type           (void);
+
+HYSCAN_API
 HyScanGtkLayer *       hyscan_gtk_map_grid_new                (void);
 
 HYSCAN_API

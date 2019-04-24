@@ -198,9 +198,7 @@ hyscan_task_queue_object_finalize (GObject *object)
   g_mutex_unlock (&priv->queue_lock);
 
   /* Придётся подождать, пока не завершится выполнение уже отправленных задач. */
-  guint64 _start = g_get_monotonic_time ();
   g_thread_pool_free (priv->pool, FALSE, TRUE);
-  g_message ("Waited for %.3f", (gdouble) (g_get_monotonic_time () - _start) / G_USEC_PER_SEC);
 
   g_mutex_clear (&priv->queue_lock);
 

@@ -45,7 +45,6 @@
 /* #define HYSCAN_GTK_MAP_TILES_DEBUG */
 
 #define CACHE_HEADER_MAGIC     0x484d6170    /* Идентификатор заголовка кэша. */
-#define ZOOM_THRESHOLD         .3            /* Зум округляется вверх, если его дробная часть больше этого значения. */
 
 #define TOTAL_TILES(zoom)      (((zoom) == 0 ? 1 : 2u << ((zoom) - 1)) - 1)
 #define CLAMP_TILE(val, zoom)  CLAMP((gint)(val), 0, (gint)TOTAL_TILES ((zoom)))
@@ -904,11 +903,4 @@ hyscan_gtk_map_tiles_new (HyScanCache             *cache,
   return g_object_new (HYSCAN_TYPE_GTK_MAP_TILES,
                        "cache", cache,
                        "source", source, NULL);
-}
-
-void
-hyscan_gtk_map_tiles_set_foreground (HyScanGtkMapTiles *tiles,
-                                     gboolean           foreground)
-{
-  tiles->priv->foreground = foreground;
 }

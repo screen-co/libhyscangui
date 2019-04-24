@@ -70,9 +70,6 @@ HYSCAN_API
 HyScanGtkLayer *    hyscan_gtk_map_tiles_new      (HyScanCache             *cache,
                                                    HyScanGtkMapTileSource  *source);
 
-HYSCAN_API
-void                hyscan_gtk_map_tiles_set_foreground (HyScanGtkMapTiles *tiles,
-                                                         gboolean           foreground);
 
 G_END_DECLS
 
