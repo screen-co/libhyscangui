@@ -152,6 +152,7 @@ hyscan_gtk_param_tree_object_constructed (GObject *object)
   hyscan_gtk_param_tree_populate (nodes, GTK_TREE_VIEW (tview), NULL,
                                   priv->stack, widgets,priv->param_lists,
                                   show_hidden);
+  gtk_stack_set_visible_child_name (priv->stack, "/");
 
   /* Создаем фильтрацию полей.
    * TODO: сейчас нельзя создать вью без модели, т.к. функции наполнения
@@ -408,6 +409,7 @@ hyscan_gtk_param_tree_make_page (const HyScanDataSchemaNode *node,
                          "child", box,
                          NULL);
 
+  gtk_widget_set_name (scroll, node->path);
   gtk_widget_show_all (scroll);
 
   return scroll;
@@ -424,6 +426,7 @@ hyscan_gtk_param_tree_make_links (const HyScanDataSchemaNode *node,
   const HyScanDataSchemaNode *node_link;
   gchar *node_path;
   gchar *uri, *markup, *text;
+  GtkWidget *scroll;
   GtkWidget *label;
   GtkWidget *box;
 
@@ -465,7 +468,18 @@ hyscan_gtk_param_tree_make_links (const HyScanDataSchemaNode *node,
     }
 
   g_object_set (box, "margin", 18, NULL);
-  return box;
+
+  scroll = g_object_new (GTK_TYPE_SCROLLED_WINDOW,
+                         "vadjustment", NULL,
+                         "hadjustment", NULL,
+                         "vscrollbar-policy", GTK_POLICY_AUTOMATIC,
+                         "hscrollbar-policy", GTK_POLICY_NEVER,
+                         "child", box,
+                         NULL);
+  gtk_widget_set_name (scroll, node->path);
+  gtk_widget_show_all (scroll);
+
+  return scroll;
 }
 
 gboolean

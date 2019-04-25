@@ -237,6 +237,8 @@ hyscan_gtk_param_key_object_constructed (GObject *object)
   gtk_grid_attach (grid, priv->value, 1, 0, 1, 1);
 
   gtk_widget_set_hexpand (GTK_WIDGET (self), TRUE);
+
+  gtk_widget_set_name (GTK_WIDGET (self), priv->key->id);
 }
 
 static void

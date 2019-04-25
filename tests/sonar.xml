@@ -168,5 +168,9 @@
     <key id="L3_K4" name="(L3: K4) kid" type="string"><description>L3, K4 descr</description><default>L3; K4 def</default></key>
     <key id="L3_K5" name="(L3: K5) kid" type="string"><description>L3, K5 descr</description><default>L3; K5 def</default></key>
   </schema>
+  <schema id="level3-1" name="level 3-1"><description>Level3-1 schema description</description>
+    <node id="level2-0" schema="level2" name="Север"><description>Сверху</description></node>
+    <node id="level2-1" schema="level2" name="Юг"><description>Снизу</description></node>
+  </schema>
 
 </schemalist>
