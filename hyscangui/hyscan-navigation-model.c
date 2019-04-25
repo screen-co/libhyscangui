@@ -53,6 +53,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <hyscan-nmea-data.h>
+#include <hyscan-nmea-parser.h>
 #include "hyscan-navigation-model.h"
 #include "hyscan-gui-marshallers.h"
 
@@ -112,6 +113,12 @@ struct _HyScanNavigationModelPrivate
   HyScanSensor                *sensor;         /* Система датчиков HyScanSensor. */
   gchar                       *sensor_name;    /* Название датчика GPS-приёмника. */
   GMutex                       sensor_lock;    /* Блокировка доступа к полям sensor_. */
+
+  HyScanNMEAParser             *parser_time;   /* Парсер времени. */
+  HyScanNMEAParser             *parser_lat;    /* Парсер широты. */
+  HyScanNMEAParser             *parser_lon;    /* Парсер долготы. */
+  HyScanNMEAParser             *parser_track;  /* Парсер курса. */
+  HyScanNMEAParser             *parser_speed;  /* Парсер скорости. */
 
   guint                        interval;       /* Желаемая частота эмитирования сигналов "changed", милисекунды. */
   guint                        process_tag;    /* ID таймера отправки сигналов "changed". */
@@ -207,80 +214,6 @@ hyscan_navigation_model_set_property (GObject      *object,
     }
 }
 
-/* Парсит время из NMEA-строки. Получает время в секундах.
- * На основе libHyScanGui/HyScanGui/hyscan-nmea-parser.c */
-static gboolean
-hyscan_nmea_parser_parse_time (const gchar *sentence,
-                               gdouble     *_val)
-{
-  gchar *end;
-
-  gdouble hour, min;
-  gdouble sec, val;
-
-  val = g_ascii_strtod (sentence, &end);
-
-  if (val == 0 && end == sentence)
-    return FALSE;
-
-  /* Пусть на входе 094012.000 */
-  hour = floor (val / 1e4);        /* 9 */
-  val -= hour * 1e4;               /* 4012.000 */
-  min = floor (val / 1e2);         /* 40 */
-  sec = val - min * 1e2;           /* 12.000 */
-
-  *_val = 3600.0 * hour + 60.0 * min + sec;
-  return TRUE;
-}
-
-/* Парсит широту и долготу.
- * На основе libHyScanGui/HyScanGui/hyscan-nmea-parser.c */
-static gboolean
-hyscan_navigation_model_parse_lat_lon (const gchar *sentence,
-                                       gdouble     *_val)
-{
-  gchar *end, side;
-  gdouble val, deg, min;
-
-  val = g_ascii_strtod (sentence, &end);
-
-  if (val == 0 && end == sentence)
-    return FALSE;
-
-  /* Переводим в градусы десятичные. */
-                             /* Пусть на входе 5530.671 */
-  deg = floor (val / 100.0); /* 55 */
-  min = val - deg * 100;     /* 30.671 */
-  min /= 60.0;               /* 30.671 -> 0.5111 */
-  val = deg + min;           /* 55.511 */
-
-  side = *(end + 1);
-
-  /* Южное и западное полушарие со знаком минус. */
-  if (side == 'S' || side == 'W')
-    val *= -1;
-
-  *_val = val;
-  return TRUE;
-}
-
-/* Парсит дробное значение. */
-static gboolean
-hyscan_navigation_model_parse_value (const gchar *sentence,
-                                     gdouble     *_val)
-{
-  gchar *end;
-  gdouble val;
-
-  val = g_ascii_strtod (sentence, &end);
-
-  if (val == 0 && end == sentence)
-    return FALSE;
-
-  *_val = val;
-  return TRUE;
-}
-
 /* Копирует структуру HyScanNavigationModelFix. */
 static HyScanNavigationModelFix *
 hyscan_navigation_model_fix_copy (HyScanNavigationModelFix *fix)
@@ -306,58 +239,6 @@ hyscan_navigation_model_fix_free (HyScanNavigationModelFix *fix)
   g_slice_free (HyScanNavigationModelFix, fix);
 }
 
-/* Парсит GGA-строку. */
-static gboolean
-hyscan_navigation_model_read_gga (HyScanNavigationModel      *model,
-                                  gchar                     **words,
-                                  HyScanNavigationModelFix   *fix)
-{
-
-  if (g_strv_length (words) != 15)
-    return FALSE;
-
-  /* Время. */
-  if (!hyscan_nmea_parser_parse_time (words[1], &fix->time))
-    return FALSE;
-
-  /* Широта. */
-  if (!hyscan_navigation_model_parse_lat_lon (words[2], &fix->coord.lat))
-    return FALSE;
-
-  /* Долгота. */
-  if (!hyscan_navigation_model_parse_lat_lon (words[4], &fix->coord.lon))
-    return FALSE;
-
-  return TRUE;
-}
-
-/* Парсит RMC-строку. */
-static gboolean
-hyscan_navigation_model_read_rmc (HyScanNavigationModel      *model,
-                                  gchar                     **words,
-                                  HyScanNavigationModelFix   *fix)
-{
-  if (g_strv_length (words) != 13)
-    return FALSE;
-
-  if (!hyscan_nmea_parser_parse_time (words[1], &fix->time))
-    return FALSE;
-
-  if (!hyscan_navigation_model_parse_lat_lon (words[3], &fix->coord.lat))
-    return FALSE;
-
-  if (!hyscan_navigation_model_parse_lat_lon (words[5], &fix->coord.lon))
-    return FALSE;
-
-  if (!hyscan_navigation_model_parse_value (words[7], &fix->speed))
-    return FALSE;
-
-  if (!hyscan_navigation_model_parse_value (words[8], &fix->coord.h))
-    return FALSE;
-
-  return TRUE;
-}
-
 /* Парсит NMEA-строку. */
 static void
 hyscan_navigation_model_read_sentence (HyScanNavigationModel *model,
@@ -366,43 +247,21 @@ hyscan_navigation_model_read_sentence (HyScanNavigationModel *model,
   HyScanNavigationModelPrivate *priv = model->priv;
 
   gboolean parsed;
-  gchar **words;
   HyScanNavigationModelFix fix;
 
   GList *last_fix_l;
   HyScanNavigationModelFix *last_fix;
-  HyScanNmeaDataType nmea_type;
 
   g_return_if_fail (sentence != NULL);
 
-  words = g_strsplit (sentence, ",", -1);
-
-  // if (g_str_equal (words[0], "$GPGGA"))
-  //   hyscan_navigation_model_read_gga (model, words);
-  // else
-  nmea_type = hyscan_nmea_data_check_sentence (sentence);
-  if (nmea_type == HYSCAN_NMEA_DATA_RMC)
-    parsed = hyscan_navigation_model_read_rmc (model, words, &fix);
-  else if (nmea_type == HYSCAN_NMEA_DATA_INVALID)
-    {
-      g_message ("Invalid sentence: %s", sentence);
-      parsed = FALSE;
-    }
-  else
-    parsed = FALSE;
-
+  parsed  = hyscan_nmea_parser_parse_string (priv->parser_time, sentence, &fix.time);
+  parsed &= hyscan_nmea_parser_parse_string (priv->parser_lat, sentence, &fix.coord.lat);
+  parsed &= hyscan_nmea_parser_parse_string (priv->parser_lon, sentence, &fix.coord.lon);
+  parsed &= hyscan_nmea_parser_parse_string (priv->parser_track, sentence, &fix.coord.h);
+  parsed &= hyscan_nmea_parser_parse_string (priv->parser_speed, sentence, &fix.speed);
 
   if (!parsed)
-    goto exit;
-
-  // GRand *rand;
-  // rand = g_rand_new ();
-  // if (g_rand_int_range (rand, 0, 10) < 5)
-  //   {
-  //     fix.coord.lon = 0;
-  //     fix.coord.lat = 0;
-  //   }
-  // g_rand_free (rand);
+    return;
 
   /* Расчитываем скорости по широте и долготе. */
   if (fix.speed > 0)
@@ -464,9 +323,6 @@ hyscan_navigation_model_read_sentence (HyScanNavigationModel *model,
 
   hyscan_navigation_model_update_params (model);
   g_mutex_unlock (&priv->fixes_lock);
-
-exit:
-  g_strfreev (words);
 }
 
 /* Обработчик сигнала "sensor-data".
@@ -496,14 +352,6 @@ hyscan_navigation_model_sensor_data (HyScanSensor          *sensor,
     return;
 
   msg = hyscan_buffer_get_data (data, &msg_size);
-
-  /* Имитируем задержку.  */
-  // GRand *rand;
-  // gint delay;
-  // rand = g_rand_new ();
-  // delay = g_rand_int_range (rand, 0, G_USEC_PER_SEC);
-  // g_message ("Delay %.2f", (gdouble) delay / G_USEC_PER_SEC);
-  // g_usleep (delay);
 
   sentences = hyscan_nmea_data_split_sentence (msg, msg_size);
   for (i = 0; sentences[i] != NULL; i++)
@@ -681,6 +529,12 @@ hyscan_navigation_model_object_constructed (GObject *object)
   priv->timer = g_timer_new ();
   priv->fixes_max_len = 10;
 
+  priv->parser_time = hyscan_nmea_parser_new_empty (HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_TIME);
+  priv->parser_lat = hyscan_nmea_parser_new_empty (HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_LAT);
+  priv->parser_lon = hyscan_nmea_parser_new_empty (HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_LON);
+  priv->parser_track = hyscan_nmea_parser_new_empty (HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_TRACK);
+  priv->parser_speed = hyscan_nmea_parser_new_empty (HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_SPEED);
+
   priv->process_tag = g_timeout_add (priv->interval, (GSourceFunc) hyscan_navigation_model_process, model);
 }
 
@@ -706,6 +560,12 @@ hyscan_navigation_model_object_finalize (GObject *object)
   g_mutex_clear (&priv->sensor_lock);
 
   g_timer_destroy (priv->timer);
+
+  g_object_unref (priv->parser_time);
+  g_object_unref (priv->parser_lat);
+  g_object_unref (priv->parser_lon);
+  g_object_unref (priv->parser_track);
+  g_object_unref (priv->parser_speed);
 
   G_OBJECT_CLASS (hyscan_navigation_model_parent_class)->finalize (object);
 }
