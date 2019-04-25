@@ -94,6 +94,7 @@ enum
 
 typedef struct {
   HyScanGeoGeodetic               geo;              /* Географические координаты точки и курс движения. */
+  guint32                         index;            /* Индекс записи в канале данных. */
   gint64                          time;             /* Время фиксации. */
   gdouble                         l_width;          /* Дальность по левому борту, метры. */
   gdouble                         r_width;          /* Дальность по правому борту, метры. */
@@ -112,9 +113,11 @@ typedef struct {
 } HyScanGtkMapTrackLayerBoard;
 
 typedef struct {
-  gboolean                        enabled;           /* Признак того, что галс необходимо показать. */
-  gboolean                        loaded;            /* Признак того, что данные галса загружены. */
   gchar                           *name;             /* Название галса. */
+
+  gboolean                        opened;            /* Признак того, что каналы галса открыты. */
+  gboolean                        loaded;            /* Признак того, что данные галса загружены. */
+  gboolean                        enabled;           /* Признак того, что галс необходимо показать. */
 
   /* Каналы данных. */
   guint                           channel_starboard; /* Номер канала правого борта. */
@@ -128,6 +131,10 @@ typedef struct {
   HyScanNavData                  *lat_data;          /* Навигационные данные - широта. */
   HyScanNavData                  *lon_data;          /* Навигационные данные - долгота. */
   HyScanNavData                  *angle_data;        /* Навигационные данные - курс в градусах. */
+
+  guint32                         lat_mod_count;     /* Mod-count канала навигационных данных. */
+  guint32                         first_index;       /* Первый индекс в канале навигационных данных. */
+  guint32                         last_index;        /* Последний индекс в канале навигационных данных. */
 
   GList                          *points;            /* Список точек трека HyScanGtkMapTrackLayerPoint. */
 } HyScanGtkMapTrackLayerTrack;
@@ -156,13 +163,17 @@ struct _HyScanGtkMapTrackLayerPrivate
   gdouble                    stroke_width;    /* Толщина линии обводки. */
 };
 
-static void    hyscan_gtk_map_track_layer_interface_init           (HyScanGtkLayerInterface *iface);
-static void    hyscan_gtk_map_track_layer_set_property             (GObject                *object,
-                                                                    guint                   prop_id,
-                                                                    const GValue           *value,
-                                                                    GParamSpec             *pspec);
-static void    hyscan_gtk_map_track_layer_object_constructed       (GObject                *object);
-static void    hyscan_gtk_map_track_layer_object_finalize          (GObject                *object);
+static void    hyscan_gtk_map_track_layer_interface_init           (HyScanGtkLayerInterface        *iface);
+static void    hyscan_gtk_map_track_layer_set_property             (GObject                        *object,
+                                                                    guint                           prop_id,
+                                                                    const GValue                   *value,
+                                                                    GParamSpec                     *pspec);
+static void    hyscan_gtk_map_track_layer_track_open               (HyScanGtkMapTrackLayer         *track_layer,
+                                                                    HyScanGtkMapTrackLayerTrack    *track);
+static void    hyscan_gtk_map_track_layer_track_load               (HyScanGtkMapTrackLayer         *track_layer,
+                                                                    HyScanGtkMapTrackLayerTrack    *track);
+static void    hyscan_gtk_map_track_layer_object_constructed       (GObject                        *object);
+static void    hyscan_gtk_map_track_layer_object_finalize          (GObject                        *object);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapTrackLayer, hyscan_gtk_map_track_layer, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapTrackLayer)
@@ -294,7 +305,13 @@ hyscan_gtk_map_track_layer_draw_track (HyScanGtkMapTrackLayer      *track_layer,
   gdouble threshold;
   gdouble dist;
 
-  if (track->points == NULL || !track->enabled)
+  if (!track->enabled)
+    return;
+
+  /* Загружаем новый данные по треку (если что-то изменилось в канале данных). */
+  hyscan_gtk_map_track_layer_track_load (track_layer, track);
+
+  if (track->points == NULL)
     return;
 
   /* Минимальное расстояние между двумя полосками. */
@@ -397,13 +414,13 @@ hyscan_gtk_map_track_layer_draw (HyScanGtkMap            *map,
 
 /* Переводит координаты трека из географических в проекцию карты. */
 static void
-hyscan_gtk_map_track_layer_track_points (HyScanGtkMapTrackLayer      *layer,
-                                         HyScanGtkMapTrackLayerTrack *track)
+hyscan_gtk_map_track_layer_track_points (HyScanGtkMapTrackLayer *layer,
+                                         GList                  *points)
 {
   HyScanGtkMapTrackLayerPrivate *priv = layer->priv;
   GList *point_l;
 
-  for (point_l = track->points; point_l != NULL; point_l = point_l->next)
+  for (point_l = points; point_l != NULL; point_l = point_l->next)
     {
       HyScanGtkMapTrackLayerPoint *point = point_l->data;
       gdouble scale;
@@ -451,7 +468,7 @@ hyscan_gtk_map_track_layer_projection_notify (HyScanGtkMap           *map,
 
   g_hash_table_iter_init (&iter, priv->tracks);
   while (g_hash_table_iter_next (&iter, (gpointer *) &track_name, (gpointer *) &track))
-    hyscan_gtk_map_track_layer_track_points (layer, track);
+    hyscan_gtk_map_track_layer_track_points (layer, track->points);
 }
 
 /* Реализация HyScanGtkLayerInterface.added.
@@ -585,25 +602,16 @@ hyscan_gtk_map_track_layer_track_width (HyScanGtkMapTrackLayerBoard *board,
 
   return distance;
 }
-
-/* Загружает путевые точки трека и его ширину. */
-static void
-hyscan_gtk_map_track_layer_track_load (HyScanGtkMapTrackLayer      *track_layer,
-                                       HyScanGtkMapTrackLayerTrack *track)
+static GList *
+hyscan_gtk_map_track_layer_track_load_range (HyScanGtkMapTrackLayer      *track_layer,
+                                             HyScanGtkMapTrackLayerTrack *track,
+                                             guint32                      first,
+                                             guint32                      last)
 {
-  guint32 index, rindex;
+  GList *points = NULL;
+  guint32 index;
 
-  /* Очищаем список точек. */
-  g_list_free_full (track->points, g_free);
-  track->points = NULL;
-
-  if (track->lat_data == NULL)
-    return;
-
-  if (!hyscan_nav_data_get_range (track->lat_data, &index, &rindex))
-    return;
-
-  for (; index < rindex; ++index)
+  for (index = first; index <= last; ++index)
     {
       gint64 time;
       HyScanGeoGeodetic coords;
@@ -619,19 +627,93 @@ hyscan_gtk_map_track_layer_track_load (HyScanGtkMapTrackLayer      *track_layer,
         continue;
 
       point = g_new (HyScanGtkMapTrackLayerPoint, 1);
+      point->index = index;
       point->geo = coords;
 
       /* Определяем ширину отснятых данных в этот момент. */
       point->r_width = hyscan_gtk_map_track_layer_track_width (&track->starboard, track->depthometer, time);
       point->l_width = hyscan_gtk_map_track_layer_track_width (&track->port,      track->depthometer, time);
 
-      track->points = g_list_append (track->points, point);
+      points = g_list_append (points, point);
     }
 
-   /* Переводим географические координаты в логические. */
-   hyscan_gtk_map_track_layer_track_points (track_layer, track);
+  /* Переводим географические координаты в логические. */
+  hyscan_gtk_map_track_layer_track_points (track_layer, points);
 
-   track->loaded = TRUE;
+  return points;
+}
+
+/* Загружает путевые точки трека и его ширину. */
+static void
+hyscan_gtk_map_track_layer_track_load (HyScanGtkMapTrackLayer      *track_layer,
+                                       HyScanGtkMapTrackLayerTrack *track)
+{
+  guint32 first_index, last_index;
+  guint32 mod_count;
+  GList *points, *point_l;
+
+  /* Открываем каналы данных. */
+  if (!track->opened)
+    hyscan_gtk_map_track_layer_track_open (track_layer, track);
+
+  /* Без данных по координатам ничего не получится - выходим. */
+  if (track->lat_data == NULL)
+    return;
+
+  /* Если галс загружен и в актуальном состоянии, то выходим. */
+  mod_count = hyscan_nav_data_get_mod_count (track->lat_data);
+  if (track->loaded && mod_count == track->lat_mod_count)
+    return;
+
+  if (!hyscan_nav_data_get_range (track->lat_data, &first_index, &last_index))
+    return;
+
+  /* Приводим список точек в соответствие с флагом track->loaded. */
+  if (!track->loaded)
+    {
+      g_list_free_full (track->points, g_free);
+      track->points = NULL;
+    }
+
+  /* Удаляем точки, не попадающий в новый диапазон данных. */
+  for (point_l = track->points; point_l != NULL; point_l = point_l->next)
+    {
+      HyScanGtkMapTrackLayerPoint *point = point_l->data;
+
+      if (point->index >= first_index || point->index <= last_index)
+        continue;
+
+      g_free (point);
+      track->points = g_list_remove_link (track->points, point_l);
+    }
+
+  /* Добавляем точки из нового диапазона, которых ещё нет. */
+  if (track->points == NULL)
+    {
+      track->points = hyscan_gtk_map_track_layer_track_load_range (track_layer, track, first_index, last_index);
+    }
+  else
+    {
+      /* Добавляем точки в начало списка. */
+      if (track->first_index > first_index)
+        {
+          points = hyscan_gtk_map_track_layer_track_load_range (track_layer, track, first_index, track->first_index - 1);
+          track->points = g_list_concat (points, track->points);
+        }
+
+      /* Добавляем точки в конец списка. */
+      if (track->last_index < last_index)
+        {
+          points = hyscan_gtk_map_track_layer_track_load_range (track_layer, track, track->last_index + 1, last_index);
+          track->points = g_list_concat (track->points, points);
+        }
+    }
+
+  track->lat_mod_count = mod_count;
+  track->first_index = first_index;
+  track->last_index = last_index;
+
+  track->loaded = TRUE;
 }
 
 /**
@@ -669,7 +751,6 @@ hyscan_gtk_map_track_layer_track_open (HyScanGtkMapTrackLayer      *track_layer,
   g_clear_object (&track->lon_data);
   g_clear_object (&track->angle_data);
   g_clear_object (&track->depthometer);
-
 
   if (track->channel_starboard > 0)
     {
@@ -714,6 +795,7 @@ hyscan_gtk_map_track_layer_track_open (HyScanGtkMapTrackLayer      *track_layer,
     }
 
   track->loaded = FALSE;
+  track->opened = TRUE;
 }
 
 /* Устанавливает номер канала для указанного трека. */
@@ -768,9 +850,6 @@ hyscan_gtk_map_track_layer_track_new (HyScanGtkMapTrackLayer *track_layer,
   hyscan_gtk_map_track_layer_track_set_channel_real (track_layer, track, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_STARBOARD, 1);
   hyscan_gtk_map_track_layer_track_set_channel_real (track_layer, track, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_PORT, 1);
 
-  /* Открываем каналы данных. */
-  hyscan_gtk_map_track_layer_track_open (track_layer, track);
-
   return track;
 }
 
@@ -815,9 +894,6 @@ hyscan_gtk_map_track_layer_track_enable (HyScanGtkMapTrackLayer *track_layer,
 
   track = hyscan_gtk_map_track_layer_get_track (track_layer, track_name);
   track->enabled = enable;
-
-  if (track->enabled && !track->loaded)
-      hyscan_gtk_map_track_layer_track_load (track_layer, track);
 
   if (priv->map != NULL)
     gtk_widget_queue_draw (GTK_WIDGET (priv->map));
@@ -967,10 +1043,8 @@ hyscan_gtk_map_track_layer_track_set_channel (HyScanGtkMapTrackLayer *track_laye
   hyscan_gtk_map_track_layer_track_set_channel_real (track_layer, track, channel, channel_num);
 
   /* Переоткрываем трек с новыми номерами каналов. */
-  hyscan_gtk_map_track_layer_track_open (track_layer, track);
-
-  if (track->enabled && !track->loaded)
-    hyscan_gtk_map_track_layer_track_load (track_layer, track);
+  track->opened = FALSE;
+  track->loaded = FALSE;
 
   if (priv->map != NULL)
     gtk_widget_queue_draw (GTK_WIDGET (priv->map));
