@@ -1,4 +1,4 @@
-/* hyscan-gtk-mercator.c
+/* hyscan-map-tile-loader.c
  *
  * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *
@@ -83,8 +83,6 @@ G_DEFINE_TYPE_WITH_PRIVATE (HyScanMapTileLoader, hyscan_map_tile_loader, G_TYPE_
 static void
 hyscan_map_tile_loader_class_init (HyScanMapTileLoaderClass *klass)
 {
-  GObjectClass *object_class = G_OBJECT_CLASS (klass);
-
 
   /**
    * HyScanMapTileLoader::progress:
@@ -168,11 +166,7 @@ hyscan_gtk_map_tile_loader_func (gpointer data)
             if (g_atomic_int_get (&priv->stop))
               break;
 
-            g_signal_emit (loader, hyscan_map_tile_loader_signals[SIGNAL_PROGRESS], 0,
-                           (gdouble) processed / total);
-
             tile = hyscan_gtk_map_tile_new (grid, x, y, zoom);
-
             if (!hyscan_gtk_map_tile_source_fill (priv->source, tile, NULL))
               {
                 ++failed;
@@ -180,6 +174,8 @@ hyscan_gtk_map_tile_loader_func (gpointer data)
               }
 
             ++processed;
+            g_signal_emit (loader, hyscan_map_tile_loader_signals[SIGNAL_PROGRESS], 0,
+                           (gdouble) processed / total);
 
             g_object_unref (tile);
           }
