@@ -497,9 +497,6 @@ hyscan_gtk_map_pin_layer_grab_input (HyScanGtkLayer *layer)
   if (priv->map == NULL)
     return FALSE;
 
-  if (!hyscan_gtk_layer_get_visible (layer))
-    return FALSE;
-
   hyscan_gtk_layer_container_set_input_owner (HYSCAN_GTK_LAYER_CONTAINER (priv->map), layer);
 
   return TRUE;
