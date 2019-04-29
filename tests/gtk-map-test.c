@@ -195,7 +195,7 @@ int main (int     argc,
 
   /* Cleanup. */
   g_object_unref (db);
-  g_free (kit);
+  hyscan_gtk_map_kit_free (kit);
 
   return 0;
 }

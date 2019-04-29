@@ -1149,8 +1149,8 @@ hyscan_gtk_map_way_layer_draw_tiles (HyScanGtkMapWayLayer *way_layer,
   scale_idx = hyscan_gtk_map_get_scale_idx (priv->map, &scale);
 
   /* Определяем область рисования. */
-  hyscan_gtk_map_tile_grid_get_view (priv->tile_grid, GTK_CIFRO_AREA (priv->map), scale_idx,
-                                     &from_tile_x, &to_tile_x, &from_tile_y, &to_tile_y);
+  hyscan_gtk_map_tile_grid_get_view_cifro (priv->tile_grid, GTK_CIFRO_AREA (priv->map), scale_idx,
+                                           &from_tile_x, &to_tile_x, &from_tile_y, &to_tile_y);
 
   /* Рисуем тайлы по очереди. */
   for (x = from_tile_x; x <= to_tile_x; x++)

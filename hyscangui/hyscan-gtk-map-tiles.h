@@ -64,12 +64,14 @@ struct _HyScanGtkMapTilesClass
 };
 
 HYSCAN_API
-GType               hyscan_gtk_map_tiles_get_type (void);
+GType                    hyscan_gtk_map_tiles_get_type   (void);
 
 HYSCAN_API
-HyScanGtkLayer *    hyscan_gtk_map_tiles_new      (HyScanCache             *cache,
-                                                   HyScanGtkMapTileSource  *source);
+HyScanGtkLayer *         hyscan_gtk_map_tiles_new        (HyScanCache             *cache,
+                                                          HyScanGtkMapTileSource  *source);
 
+HYSCAN_API
+HyScanGtkMapTileSource * hyscan_gtk_map_tiles_get_source (HyScanGtkMapTiles       *tiles);
 
 G_END_DECLS
 

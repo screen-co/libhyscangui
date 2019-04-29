@@ -51,6 +51,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-network-map-tile-source.c
              hyscan-gtk-map-fs-tile-source.c
              hyscan-merged-tile-source.c
+             hyscan-map-tile-loader.c
 
              #[[ Проекции ]]
              hyscan-geo-projection.c

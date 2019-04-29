@@ -420,7 +420,7 @@ hyscan_gtk_map_tile_grid_set_scales (HyScanGtkMapTileGrid *grid,
 
 /**
  * hyscan_gtk_map_tile_grid_get_scale:
- * @param grid
+ * @grid: указатель на тайловую сетку #HyScanGtkMapTileGrid
  *
  * Returns: размер одного пикселя тайла в логических единицах
  */
@@ -436,6 +436,39 @@ hyscan_gtk_map_tile_grid_get_scale (HyScanGtkMapTileGrid *grid,
   return priv->scales[zoom - priv->min_zoom] / priv->tile_size;
 }
 
+/**
+ * hyscan_gtk_map_tile_grid_get_zoom_range:
+ * @grid: указатель на тайловую сетку #HyScanGtkMapTileGrid
+ * @min_zoom: (out): (nullable): минимальный номер масштаба
+ * @max_zoom: (out): (nullable): максимальный номер масштаба
+ */
+void
+hyscan_gtk_map_tile_grid_get_zoom_range(HyScanGtkMapTileGrid *grid,
+                                        guint                *min_zoom,
+                                        guint                *max_zoom)
+{
+  HyScanGtkMapTileGridPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_TILE_GRID (grid));
+
+  priv = grid->priv;
+
+  g_return_if_fail (priv->scales_len > 0);
+
+  (min_zoom != NULL) ? *min_zoom = priv->min_zoom : 0;
+  (max_zoom != NULL) ? *max_zoom = priv->min_zoom + priv->scales_len - 1 : 0;
+}
+
+/**
+ * hyscan_gtk_map_tile_grid_adjust_zoom:
+ * @grid: указатель на тайловую сетку #HyScanGtkMapTileGrid
+ * @scale: требуемый масштаб
+ *
+ * Выбирает допустимый масштаб, наиболее подходящий по значению к @scale, и
+ * возвращает его номер.
+ *
+ * Returns: номер масштаба, наиболее подходящий для заданного масштаба @scale.
+ */
 guint
 hyscan_gtk_map_tile_grid_adjust_zoom (HyScanGtkMapTileGrid *grid,
                                       gdouble               scale)
@@ -736,27 +769,33 @@ hyscan_gtk_map_tile_compare (HyScanGtkMapTile *a,
 /**
  * hyscan_gtk_map_tile_grid_get_view:
  * @grid: указатель на #HyScanGtkMapTileGrid
- * @carea: указатель на #GtkCifroArea
+ * @zoom: номер масштаба
+ * @from_x: минимальное значение координаты x интересующей области
+ * @to_x: минимальное значение координаты x интересующей области
+ * @from_y: минимальное значение координаты x интересующей области
+ * @to_y: максимально значение координаты y интересующей области
  * @from_tile_x: (nullable): минимальное значение координаты x тайла
  * @to_tile_x: (nullable): максимальное значение координаты x тайла
  * @from_tile_y: (nullable): минимальное значение координаты y тайла
  * @to_tile_y: (nullable): максимальное значение координаты y тайла
  *
- * Определяет координаты тайлов сетки @grid, полностью покрывающих область @region.
+ * Определяет координаты тайлов сетки @grid, полностью покрывающих интересующую область.
  */
 void
 hyscan_gtk_map_tile_grid_get_view (HyScanGtkMapTileGrid *grid,
-                                   GtkCifroArea         *carea,
                                    guint                 zoom,
+                                   gdouble               from_x,
+                                   gdouble               to_x,
+                                   gdouble               from_y,
+                                   gdouble               to_y,
                                    gint                 *from_tile_x,
                                    gint                 *to_tile_x,
                                    gint                 *from_tile_y,
                                    gint                 *to_tile_y)
 {
-  gdouble from_x, from_y, to_x, to_y;
   gdouble from_tile_x_d, from_tile_y_d, to_tile_x_d, to_tile_y_d;
 
-  gtk_cifro_area_get_view (carea, &from_x, &to_x, &from_y, &to_y);
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_TILE_GRID (grid));
 
   /* Получаем координаты тайлов, соответствующие границам запрошенной области. */
   hyscan_gtk_map_tile_grid_value_to_tile (grid, zoom, from_x, from_y, &from_tile_x_d, &from_tile_y_d);
@@ -768,6 +807,35 @@ hyscan_gtk_map_tile_grid_get_view (HyScanGtkMapTileGrid *grid,
 
   (to_tile_x != NULL) ? *to_tile_x = (gint) MAX (from_tile_x_d, to_tile_x_d) : 0;
   (from_tile_x != NULL) ? *from_tile_x = (gint) MIN (from_tile_x_d, to_tile_x_d) : 0;
+}
+
+/**
+ * hyscan_gtk_map_tile_grid_get_view_cifro:
+ * @grid: указатель на #HyScanGtkMapTileGrid
+ * @carea: указатель на #GtkCifroArea
+ * @from_tile_x: (nullable): минимальное значение координаты x тайла
+ * @to_tile_x: (nullable): максимальное значение координаты x тайла
+ * @from_tile_y: (nullable): минимальное значение координаты y тайла
+ * @to_tile_y: (nullable): максимальное значение координаты y тайла
+ *
+ * Определяет координаты тайлов сетки @grid, полностью покрывающих видимую область @carea.
+ */
+void
+hyscan_gtk_map_tile_grid_get_view_cifro (HyScanGtkMapTileGrid *grid,
+                                         GtkCifroArea         *carea,
+                                         guint                 zoom,
+                                         gint                 *from_tile_x,
+                                         gint                 *to_tile_x,
+                                         gint                 *from_tile_y,
+                                         gint                 *to_tile_y)
+{
+  gdouble from_x, from_y, to_x, to_y;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_TILE_GRID (grid));
+
+  gtk_cifro_area_get_view (carea, &from_x, &to_x, &from_y, &to_y);
+  hyscan_gtk_map_tile_grid_get_view (grid, zoom, from_x, to_x, from_y, to_y,
+                                     from_tile_x, to_tile_x, from_tile_y, to_tile_y);
 }
 
 guint

@@ -552,8 +552,8 @@ hyscan_gtk_map_tiles_get_view (HyScanGtkMapTiles *layer,
   HyScanGtkMapTilesPrivate *priv = layer->priv;
 
   /* Получаем тайлы, соответствующие границам видимой части карты. */
-  hyscan_gtk_map_tile_grid_get_view (priv->tile_grid, GTK_CIFRO_AREA (priv->map), zoom,
-                                     from_tile_x, to_tile_x, from_tile_y, to_tile_y);
+  hyscan_gtk_map_tile_grid_get_view_cifro (priv->tile_grid, GTK_CIFRO_AREA (priv->map), zoom,
+                                           from_tile_x, to_tile_x, from_tile_y, to_tile_y);
 }
 
 /* Растяжение тайла при текущем масштабе карты и указанном зуме. */
@@ -903,4 +903,20 @@ hyscan_gtk_map_tiles_new (HyScanCache             *cache,
   return g_object_new (HYSCAN_TYPE_GTK_MAP_TILES,
                        "cache", cache,
                        "source", source, NULL);
+}
+
+/**
+ * hyscan_gtk_map_tiles_get_source:
+ * @tiles: указатель на #HyScanGtkMapTiles
+ *
+ * Возвращает используемый источник тайлов слоя
+ *
+ * Returns: указатель на #HyScanGtkMapTileSource. Для удаления g_object_unref().
+ */
+HyScanGtkMapTileSource *
+hyscan_gtk_map_tiles_get_source (HyScanGtkMapTiles *tiles)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILES (tiles), NULL);
+
+  return g_object_ref (tiles->priv->source);
 }

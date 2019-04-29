@@ -9,6 +9,22 @@
 #include <hyscan-cached.h>
 #include <hyscan-driver.h>
 #include <hyscan-map-profile.h>
+#include <hyscan-map-tile-loader.h>
+
+#define PRELOAD_STATE_DONE 1000
+
+struct _HyScanGtkMapKitPrivate
+{
+  GtkButton             *preload_button;   /* Кнопка загрузки тайлов. */
+  GtkProgressBar        *preload_progress; /* Индикатор загрузки тайлов. */
+  HyScanMapTileLoader   *loader;
+  guint                  preload_tag;      /* Timeout-функция обновления виджета preload_progress. */
+  gint                   preload_state;    /* Статус загрузки тайлов.
+                                            * < 0                      - загрузка не началась,
+                                            * 0 - PRELOAD_STATE_DONE-1 - прогресс загрузки,
+                                            * >= PRELOAD_STATE_DONE    - загрузка завершена, не удалось загрузить
+                                            *                            PRELOAD_STATE_DONE - preload_state тайлов */
+};
 
 /* Слой с треком движения. */
 static HyScanGtkLayer *
@@ -545,6 +561,126 @@ on_motion_show_coords (HyScanGtkMap   *map,
   return FALSE;
 }
 
+static gboolean
+source_update_progress (gpointer data)
+{
+  HyScanGtkMapKit *kit = data;
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+  gint state;
+
+  state = g_atomic_int_get (&priv->preload_state);
+  gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (priv->preload_progress),
+                                 CLAMP ((gdouble) state / PRELOAD_STATE_DONE, 0.0, 1.0));
+
+  return G_SOURCE_CONTINUE;
+}
+
+static gboolean
+source_progress_done (gpointer data)
+{
+  HyScanGtkMapKit *kit = data;
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+
+  gint state;
+  gchar *text = NULL;
+
+  state = g_atomic_int_get (&priv->preload_state);
+
+  if (state == PRELOAD_STATE_DONE)
+    text = g_strdup ("Done!");
+  else if (state > PRELOAD_STATE_DONE)
+    text = g_strdup_printf ("Done! Failed to load %d tiles", state - PRELOAD_STATE_DONE);
+  else
+    g_warn_if_reached ();
+
+  gtk_button_set_label (priv->preload_button, "Начать загрузку");
+  gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (priv->preload_progress), 1.0);
+  gtk_progress_bar_set_text (GTK_PROGRESS_BAR (priv->preload_progress), text);
+  g_free (text);
+
+  g_signal_handlers_disconnect_by_data (priv->loader, kit);
+  g_clear_object (&priv->loader);
+
+  g_atomic_int_set (&priv->preload_state, -1);
+
+  return G_SOURCE_REMOVE;
+}
+
+static void
+on_preload_done (HyScanMapTileLoader *loader,
+                 guint                failed,
+                 HyScanGtkMapKit     *kit)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+  g_atomic_int_set (&priv->preload_state, PRELOAD_STATE_DONE + failed);
+
+  g_source_remove (priv->preload_tag);
+  g_idle_add (source_progress_done, kit);
+}
+
+static void
+on_preload_progress (HyScanMapTileLoader *loader,
+                     gdouble              fraction,
+                     HyScanGtkMapKit     *kit)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+
+  g_atomic_int_set (&priv->preload_state, CLAMP ((gint) (PRELOAD_STATE_DONE * fraction), 0, PRELOAD_STATE_DONE - 1));
+}
+
+static void
+preload_stop (HyScanGtkMapKit *kit)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+
+  hyscan_map_tile_loader_stop (priv->loader);
+}
+
+static void
+preload_start (HyScanGtkMapKit *kit)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+  HyScanGtkLayer *layer;
+  HyScanGtkMapTileSource *source;
+  gdouble from_x, to_x, from_y, to_y;
+  GThread *thread;
+
+  // todo: надо бы найти слой каким-то другим образом, а не по ключу "tiles-layer"
+  layer = hyscan_gtk_layer_container_lookup (HYSCAN_GTK_LAYER_CONTAINER (kit->map), "tiles-layer");
+  if (!HYSCAN_IS_GTK_MAP_TILES (layer))
+    return;
+
+  source = hyscan_gtk_map_tiles_get_source (HYSCAN_GTK_MAP_TILES (layer));
+  priv->loader = hyscan_map_tile_loader_new ();
+  g_object_unref (source);
+
+  gtk_button_set_label (priv->preload_button, "Остановить загрузку");
+  gtk_progress_bar_set_text (GTK_PROGRESS_BAR (priv->preload_progress), NULL);
+  gtk_progress_bar_set_fraction (GTK_PROGRESS_BAR (priv->preload_progress), 0.0);
+
+  /* Регистрируем обработчики сигналов для loader'а и обновление индикатора загрузки. */
+  g_signal_connect (priv->loader, "progress", G_CALLBACK (on_preload_progress), kit);
+  g_signal_connect (priv->loader, "done",     G_CALLBACK (on_preload_done),     kit);
+  priv->preload_tag = g_timeout_add (500, source_update_progress, kit);
+
+  /* Запускаем загрузку тайлов. */
+  gtk_cifro_area_get_view (GTK_CIFRO_AREA (kit->map), &from_x, &to_x, &from_y, &to_y);
+  thread = hyscan_map_tile_loader_start (priv->loader, source, from_x, to_x, from_y, to_y);
+  g_thread_unref (thread);
+}
+
+static void
+on_preload_click (GtkButton       *button,
+                  HyScanGtkMapKit *kit)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+
+  if (g_atomic_int_compare_and_exchange (&priv->preload_state, -1, 0))
+    preload_start (kit);
+  else
+    preload_stop (kit);
+}
+
 /* Создаёт панель инструментов для слоя булавок и линейки. */
 static GtkWidget *
 create_ruler_toolbox (HyScanGtkLayer *layer,
@@ -662,11 +798,31 @@ create_control_box (HyScanGtkMapKit *kit,
 
   /* Текущие координаты. */
   {
-    gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Координаты"));
     ctrl_widget = gtk_label_new ("-, -");
     g_object_set (ctrl_widget, "width-chars", 24, NULL);
     g_signal_connect (kit->map, "motion-notify-event", G_CALLBACK (on_motion_show_coords), ctrl_widget);
+
+    gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Координаты"));
     gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
+  }
+
+  gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
+
+  /* Загрузка тайлов. */
+  {
+    HyScanGtkMapKitPrivate *priv = kit->priv;
+
+    priv->preload_state = -1;
+
+    priv->preload_button = GTK_BUTTON (gtk_button_new_with_label ("Начать загрузку"));
+    g_signal_connect (priv->preload_button, "clicked", G_CALLBACK (on_preload_click), kit);
+
+    priv->preload_progress = GTK_PROGRESS_BAR (gtk_progress_bar_new ());
+    gtk_progress_bar_set_show_text (priv->preload_progress, TRUE);
+
+    gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Кэширование тайлов"));
+    gtk_container_add (GTK_CONTAINER (ctrl_box), GTK_WIDGET (priv->preload_progress));
+    gtk_container_add (GTK_CONTAINER (ctrl_box), GTK_WIDGET (priv->preload_button));
   }
 
   return ctrl_box;
@@ -681,7 +837,8 @@ create_control_box (HyScanGtkMapKit *kit,
  * @sensor: датчик GPS-ресивера
  * @sensor_name: имя датчика
  *
- * Returns: указатель на структуру #HyScanGtkMapKit, для удаления g_free().
+ * Returns: указатель на структуру #HyScanGtkMapKit, для удаления
+ *          hyscan_gtk_map_kit_free().
  */
 HyScanGtkMapKit *
 hyscan_gtk_map_kit_new (HyScanGeoGeodetic *center,
@@ -694,10 +851,22 @@ hyscan_gtk_map_kit_new (HyScanGeoGeodetic *center,
   HyScanGtkMapKit *kit;
 
   kit = g_new0 (HyScanGtkMapKit, 1);
+  kit->priv = g_new0 (HyScanGtkMapKitPrivate, 1);
 
   kit->center  = *center;
   kit->map     = create_map (db, kit, project_name, sensor, sensor_name);
   kit->control = create_control_box (kit, db, project_name, profile_dir);
 
   return kit;
+}
+
+/**
+ * hyscan_gtk_map_kit_free:
+ * @kit: указатель на структуру #HyScanGtkMapKit
+ */
+void
+hyscan_gtk_map_kit_free (HyScanGtkMapKit *kit)
+{
+  g_free (kit->priv);
+  g_free (kit);
 }

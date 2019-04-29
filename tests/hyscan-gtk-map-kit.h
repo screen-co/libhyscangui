@@ -5,6 +5,8 @@
 #include <hyscan-db.h>
 #include <hyscan-sensor.h>
 
+typedef struct _HyScanGtkMapKitPrivate HyScanGtkMapKitPrivate;
+
 typedef struct
 {
   /* Виджеты. */
@@ -12,6 +14,8 @@ typedef struct
   GtkWidget *control;             /* Виджет с кнопками управления карты. */
 
   /* ## Private. ## */
+  HyScanGtkMapKitPrivate *priv;
+
   HyScanGeoGeodetic center;       /* Географические координаты для виджета навигации. */
 
   GtkWidget *layer_tool_stack;    /* GtkStack с виджетами настроек каждого слоя. */
@@ -25,11 +29,13 @@ typedef struct
 
 } HyScanGtkMapKit;
 
-HyScanGtkMapKit * hyscan_gtk_map_kit_new (HyScanGeoGeodetic *center,
-                                          HyScanDB          *db,
-                                          const gchar       *project_name,
-                                          const gchar       *profile_dir,
-                                          HyScanSensor      *sensor,
-                                          const gchar       *sensor_name);
+HyScanGtkMapKit * hyscan_gtk_map_kit_new   (HyScanGeoGeodetic *center,
+                                            HyScanDB          *db,
+                                            const gchar       *project_name,
+                                            const gchar       *profile_dir,
+                                            HyScanSensor      *sensor,
+                                            const gchar       *sensor_name);
+
+void              hyscan_gtk_map_kit_free  (HyScanGtkMapKit   *kit);
 
 #endif /* __HYSCAN_GTK_MAP_KIT_H__ */

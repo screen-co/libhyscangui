@@ -333,7 +333,7 @@ main (int    argc,
 
   /* Cleanup. */
   g_clear_object (&db);
-  g_free (kit);
+  hyscan_gtk_map_kit_free (kit);
   translator_free (translator);
 
   return 0;
