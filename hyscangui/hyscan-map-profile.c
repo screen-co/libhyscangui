@@ -299,15 +299,16 @@ hyscan_map_profile_read (HyScanMapProfile    *profile,
   gchar *title = NULL, *projection = NULL;
 
   GError *error = NULL;
-  GArray *url_formats, *cache_dirs;
+  GArray *url_formats_arr, *cache_dirs_arr;
+  gchar **url_formats = NULL, **cache_dirs = NULL;
+
+  gchar **keys;
+  gint i;
 
   // TODO: эту функцию можно использовать в HyScanSerializable
 
   g_return_val_if_fail (HYSCAN_IS_MAP_PROFILE (profile), FALSE);
   priv = profile->priv;
-  
-  url_formats = g_array_new (TRUE, FALSE, sizeof (gchar *));
-  cache_dirs = g_array_new (TRUE, FALSE, sizeof (gchar *));
   
   g_key_file_load_from_file (priv->key_file, name, G_KEY_FILE_NONE, &error);
   if (error != NULL)
@@ -329,12 +330,11 @@ hyscan_map_profile_read (HyScanMapProfile    *profile,
   if (error != NULL)
     goto exit;
 
-  gchar **keys;
-  gint i;
-
   /* Ищем пары ключей url{suffix} и dir{suffix} - формат ссылки на тайл и папку кэширования.
    * Например: url_osm - dir_osm, url1 - dir1.
    * */
+  url_formats_arr = g_array_new (TRUE, FALSE, sizeof (gchar *));
+  cache_dirs_arr  = g_array_new (TRUE, FALSE, sizeof (gchar *));
   keys = g_key_file_get_keys (priv->key_file, INI_GROUP, NULL, NULL);
   for (i = 0; keys[i] != NULL; ++i)
     {
@@ -360,14 +360,19 @@ hyscan_map_profile_read (HyScanMapProfile    *profile,
       
       g_free (dir_key);
 
-      g_array_append_val (url_formats, url_format);
-      g_array_append_val (cache_dirs, cache_dir);
+      g_array_append_val (url_formats_arr, url_format);
+      g_array_append_val (cache_dirs_arr, cache_dir);
     }
+  url_formats = (gchar**) g_array_free (url_formats_arr, FALSE);
+  cache_dirs  = (gchar**) g_array_free (cache_dirs_arr, FALSE);
   g_strfreev (keys);
 
-  hyscan_gtk_map_profile_set_params (profile, title, 
-                                     (gchar **) url_formats->data, (gchar **) cache_dirs->data,
+  hyscan_gtk_map_profile_set_params (profile, title, url_formats, cache_dirs,
                                      projection, min_zoom, max_zoom);
+
+  g_strfreev (url_formats);
+  g_strfreev (cache_dirs);
+
   result = TRUE;
 
 exit:
@@ -377,8 +382,6 @@ exit:
       g_clear_error (&error);
     }
 
-  g_array_free (url_formats, TRUE);
-  g_array_free (cache_dirs, TRUE);
   g_free (title);
   g_free (projection);
 
