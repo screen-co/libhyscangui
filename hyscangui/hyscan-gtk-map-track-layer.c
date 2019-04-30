@@ -84,6 +84,8 @@
 #define DEFAULT_LINE_WIDTH            1                    /* Толщина линии движения. */
 #define DEFAULT_STROKE_WIDTH          0.5                  /* Толщина обводки. */
 
+#define REDRAW_INTERVAL               500                  /* Период перерисовки при изменении данных, мс. */
+
 enum
 {
   PROP_O,
@@ -117,7 +119,7 @@ typedef struct {
 
   gboolean                        opened;            /* Признак того, что каналы галса открыты. */
   gboolean                        loaded;            /* Признак того, что данные галса загружены. */
-  gboolean                        enabled;           /* Признак того, что галс необходимо показать. */
+  gboolean                        visible;           /* Признак того, что галс необходимо показать. */
 
   /* Каналы данных. */
   guint                           channel_starboard; /* Номер канала правого борта. */
@@ -143,6 +145,7 @@ struct _HyScanGtkMapTrackLayerPrivate
 {
   HyScanGtkMap              *map;             /* Карта. */
   gboolean                   visible;         /* Признак видимости слоя. */
+  guint                      draw_tag;        /* Тег функции перерисовки слоя. */
 
   HyScanDB                  *db;              /* База данных. */
   gchar                     *project;         /* Название проекта. */
@@ -305,10 +308,10 @@ hyscan_gtk_map_track_layer_draw_track (HyScanGtkMapTrackLayer      *track_layer,
   gdouble threshold;
   gdouble dist;
 
-  if (!track->enabled)
+  if (!track->visible)
     return;
 
-  /* Загружаем новый данные по треку (если что-то изменилось в канале данных). */
+  /* Загружаем новые данные по треку (если что-то изменилось в канале данных). */
   hyscan_gtk_map_track_layer_track_load (track_layer, track);
 
   if (track->points == NULL)
@@ -471,6 +474,48 @@ hyscan_gtk_map_track_layer_projection_notify (HyScanGtkMap           *map,
     hyscan_gtk_map_track_layer_track_points (layer, track->points);
 }
 
+/* Проверяет, изменились ли данные галса. */
+static gboolean
+hyscan_gtk_map_track_layer_track_has_changed (HyScanGtkMapTrackLayer      *track_layer,
+                                              HyScanGtkMapTrackLayerTrack *track)
+{
+  if (track->lat_data == NULL)
+    return FALSE;
+
+  if (!track->loaded)
+    return TRUE;
+
+  return track->lat_mod_count != hyscan_nav_data_get_mod_count (track->lat_data);
+}
+
+/* Запрашивает перерисовку слоя, если есть изменения в каналах данных. */
+static gboolean
+hyscan_gtk_map_track_layer_redraw (gpointer data)
+{
+  HyScanGtkMapTrackLayer *track_layer = HYSCAN_GTK_MAP_TRACK_LAYER (data);
+  HyScanGtkMapTrackLayerPrivate *priv = track_layer->priv;
+
+  GHashTableIter iter;
+  gboolean any_changes;
+
+  HyScanGtkMapTrackLayerTrack *track;
+  gchar *key;
+
+  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (track_layer)))
+    return G_SOURCE_CONTINUE;
+
+  /* Проверяем, есть ли изменения в данных какого-то из галсов. */
+  any_changes = FALSE;
+  g_hash_table_iter_init (&iter, priv->tracks);
+  while (g_hash_table_iter_next (&iter, (gpointer *) &key, (gpointer *) &track) && !any_changes)
+    any_changes = hyscan_gtk_map_track_layer_track_has_changed (track_layer, track);
+
+  if (any_changes)
+    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+  return G_SOURCE_CONTINUE;
+}
+
 /* Реализация HyScanGtkLayerInterface.added.
  * Обрабатывает добавление слой на карту. */
 static void
@@ -488,6 +533,8 @@ hyscan_gtk_map_track_layer_added (HyScanGtkLayer          *gtk_layer,
                           G_CALLBACK (hyscan_gtk_map_track_layer_draw), track_layer);
   g_signal_connect (priv->map, "notify::projection",
                     G_CALLBACK (hyscan_gtk_map_track_layer_projection_notify), track_layer);
+
+  priv->draw_tag = g_timeout_add (REDRAW_INTERVAL, hyscan_gtk_map_track_layer_redraw, track_layer);
 }
 
 /* Реализация HyScanGtkLayerInterface.removed.
@@ -500,6 +547,7 @@ hyscan_gtk_map_track_layer_removed (HyScanGtkLayer *gtk_layer)
 
   g_return_if_fail (priv->map != NULL);
 
+  g_source_remove (priv->draw_tag);
   g_signal_handlers_disconnect_by_data (priv->map, track_layer);
   g_clear_object (&priv->map);
 }
@@ -656,14 +704,12 @@ hyscan_gtk_map_track_layer_track_load (HyScanGtkMapTrackLayer      *track_layer,
   if (!track->opened)
     hyscan_gtk_map_track_layer_track_open (track_layer, track);
 
-  /* Без данных по координатам ничего не получится - выходим. */
-  if (track->lat_data == NULL)
+  /* Если уже загружены актуальные данные, то всё ок. */
+  if (!hyscan_gtk_map_track_layer_track_has_changed (track_layer, track))
     return;
 
-  /* Если галс загружен и в актуальном состоянии, то выходим. */
+  /* Запоминаем mod_count, по которому получаются данные. */
   mod_count = hyscan_nav_data_get_mod_count (track->lat_data);
-  if (track->loaded && mod_count == track->lat_mod_count)
-    return;
 
   if (!hyscan_nav_data_get_range (track->lat_data, &first_index, &last_index))
     return;
@@ -873,17 +919,17 @@ hyscan_gtk_map_track_layer_get_track (HyScanGtkMapTrackLayer *track_layer,
 }
 
 /**
- * hyscan_gtk_map_track_layer_track_enable:
+ * hyscan_gtk_map_track_layer_track_set_visible:
  * @track_layer: указатель на #HyScanGtkMapTrackLayer
  * @track_name: название галса
- * @enable: %TRUE, если галс надо показать; иначе %FALSE
+ * @visible: %TRUE, если галс надо показать; иначе %FALSE
  *
  * Включает или отключает показ галса с названием @track_name.
  */
 void
-hyscan_gtk_map_track_layer_track_enable (HyScanGtkMapTrackLayer *track_layer,
-                                         const gchar            *track_name,
-                                         gboolean                enable)
+hyscan_gtk_map_track_layer_track_set_visible (HyScanGtkMapTrackLayer *track_layer,
+                                              const gchar            *track_name,
+                                              gboolean                visible)
 {
   HyScanGtkMapTrackLayerPrivate *priv;
   HyScanGtkMapTrackLayerTrack *track;
@@ -893,7 +939,7 @@ hyscan_gtk_map_track_layer_track_enable (HyScanGtkMapTrackLayer *track_layer,
   priv = track_layer->priv;
 
   track = hyscan_gtk_map_track_layer_get_track (track_layer, track_name);
-  track->enabled = enable;
+  track->visible = visible;
 
   if (priv->map != NULL)
     gtk_widget_queue_draw (GTK_WIDGET (priv->map));

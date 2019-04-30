@@ -414,7 +414,7 @@ on_enable_track (GtkToggleButton        *widget,
   enable = gtk_toggle_button_get_active (widget);
   track_name = gtk_button_get_label (GTK_BUTTON (widget));
 
-  hyscan_gtk_map_track_layer_track_enable (track_layer, track_name, enable);
+  hyscan_gtk_map_track_layer_track_set_visible (track_layer, track_name, enable);
 }
 
 static void

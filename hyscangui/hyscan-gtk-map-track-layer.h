@@ -81,7 +81,7 @@ HyScanGtkLayer *       hyscan_gtk_map_track_layer_new                 (HyScanDB 
                                                                        HyScanCache            *cache);
 
 HYSCAN_API
-void                   hyscan_gtk_map_track_layer_track_enable        (HyScanGtkMapTrackLayer *track_layer,
+void                   hyscan_gtk_map_track_layer_track_set_visible   (HyScanGtkMapTrackLayer *track_layer,
                                                                        const gchar            *track_name,
                                                                        gboolean                enable);
 
