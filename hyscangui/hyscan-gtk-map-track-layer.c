@@ -120,6 +120,7 @@ typedef struct {
   gboolean                        opened;            /* Признак того, что каналы галса открыты. */
   gboolean                        loaded;            /* Признак того, что данные галса загружены. */
   gboolean                        visible;           /* Признак того, что галс необходимо показать. */
+  gboolean                        writeable;         /* Признак того, что галс открыт для записи. */
 
   /* Каналы данных. */
   guint                           channel_starboard; /* Номер канала правого борта. */
@@ -485,7 +486,7 @@ hyscan_gtk_map_track_layer_track_has_changed (HyScanGtkMapTrackLayer      *track
   if (!track->loaded)
     return TRUE;
 
-  return track->lat_mod_count != hyscan_nav_data_get_mod_count (track->lat_data);
+  return track->writeable && track->lat_mod_count != hyscan_nav_data_get_mod_count (track->lat_data);
 }
 
 /* Запрашивает перерисовку слоя, если есть изменения в каналах данных. */
@@ -827,6 +828,7 @@ hyscan_gtk_map_track_layer_track_open (HyScanGtkMapTrackLayer      *track_layer,
       track->angle_data = HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache, priv->project,
                                                                    track->name, track->channel_rmc,
                                                                    HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_TRACK));
+      track->writeable = hyscan_nav_data_is_writable (track->lat_data);
     }
 
   if (track->channel_dpt > 0)
@@ -891,10 +893,10 @@ hyscan_gtk_map_track_layer_track_new (HyScanGtkMapTrackLayer *track_layer,
   track->name = g_strdup (track_name);
 
   /* Устанавливаем номера каналов по умолчанию. */
-  hyscan_gtk_map_track_layer_track_set_channel_real (track_layer, track, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_NMEA_RMC, 1);
-  hyscan_gtk_map_track_layer_track_set_channel_real (track_layer, track, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_NMEA_DPT, 2);
+  hyscan_gtk_map_track_layer_track_set_channel_real (track_layer, track, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_NMEA_RMC,  1);
+  hyscan_gtk_map_track_layer_track_set_channel_real (track_layer, track, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_NMEA_DPT,  2);
   hyscan_gtk_map_track_layer_track_set_channel_real (track_layer, track, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_STARBOARD, 1);
-  hyscan_gtk_map_track_layer_track_set_channel_real (track_layer, track, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_PORT, 1);
+  hyscan_gtk_map_track_layer_track_set_channel_real (track_layer, track, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_PORT,      1);
 
   return track;
 }
