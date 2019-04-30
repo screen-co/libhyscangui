@@ -54,6 +54,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-map-tile-loader.c
 
              #[[ Проекции ]]
+             hyscan-cartesian.c
              hyscan-geo-projection.c
              hyscan-mercator.c
              hyscan-pseudo-mercator.c

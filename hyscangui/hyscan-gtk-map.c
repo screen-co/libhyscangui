@@ -885,8 +885,7 @@ hyscan_gtk_map_point_copy (HyScanGtkMapPoint *point)
 
   new_point = g_slice_new (HyScanGtkMapPoint);
   new_point->geo = point->geo;
-  new_point->x = point->x;
-  new_point->y = point->y;
+  new_point->c2d = point->c2d;
 
   return new_point;
 }

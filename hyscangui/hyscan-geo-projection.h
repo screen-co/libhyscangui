@@ -35,8 +35,6 @@
 #ifndef __HYSCAN_GEO_PROJECTION_H__
 #define __HYSCAN_GEO_PROJECTION_H__
 
-#include <glib-object.h>
-#include <hyscan-api.h>
 #include <hyscan-geo.h>
 
 G_BEGIN_DECLS
@@ -72,7 +70,7 @@ struct _HyScanGeoProjectionInterface
   gdouble              (*get_scale)            (HyScanGeoProjection    *geo_projection,
                                                 HyScanGeoGeodetic       coords);
 
-  guint               (*hash)                  (HyScanGeoProjection    *geo_projection);
+  guint                (*hash)                 (HyScanGeoProjection    *geo_projection);
 };
 
 HYSCAN_API

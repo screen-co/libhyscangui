@@ -391,7 +391,7 @@ hyscan_gtk_map_pin_layer_handle_release (HyScanGtkLayerContainer *container,
 
   priv->mode = MODE_NONE;
   drag_point = priv->drag_point;
-  hyscan_gtk_map_value_to_geo (priv->map, &drag_point->geo, drag_point->x, drag_point->y);
+  hyscan_gtk_map_value_to_geo (priv->map, &drag_point->geo, drag_point->c2d.x, drag_point->c2d.y);
 
   return TRUE;
 }
@@ -400,7 +400,7 @@ static void
 hyscan_gtk_map_pin_layer_point_update (HyScanGtkMapPoint *point,
                                        HyScanGtkMap      *map)
 {
-  hyscan_gtk_map_geo_to_value (map, point->geo, &point->x, &point->y);
+  hyscan_gtk_map_geo_to_value (map, point->geo, &point->c2d.x, &point->c2d.y);
 }
 
 /* Обновляет координаты точек при смене картографической проекции. */
@@ -577,7 +577,7 @@ hyscan_gtk_map_pin_layer_draw_vertices (HyScanGtkMapPinLayer *pin_layer,
       HyScanGtkMapPoint *point = point_l->data;
       gdouble x, y;
 
-      gtk_cifro_area_visible_value_to_point (carea, &x, &y, point->x, point->y);
+      gtk_cifro_area_visible_value_to_point (carea, &x, &y, point->c2d.x, point->c2d.y);
       pin = hyscan_gtk_map_pin_layer_get_pin (priv, point);
 
       cairo_set_source_surface (cairo, pin->surface, x - pin->offset_x, y - pin->offset_y);
@@ -605,7 +605,7 @@ hyscan_gtk_map_pin_layer_motion_drag (HyScanGtkMapPinLayerPrivate *priv,
 {
   GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
 
-  gtk_cifro_area_point_to_value (carea, event->x, event->y, &point->x, &point->y);
+  gtk_cifro_area_point_to_value (carea, event->x, event->y, &point->c2d.x, &point->c2d.y);
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }
 
@@ -692,7 +692,7 @@ hyscan_gtk_map_pin_layer_button_release (GtkWidget      *widget,
   if (priv->mode != MODE_NONE)
     return GDK_EVENT_PROPAGATE;
 
-  gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &point.x, &point.y);
+  gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &point.c2d.x, &point.c2d.y);
   hyscan_gtk_map_pin_layer_insert_before (pin_layer, &point, NULL);
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 
@@ -736,7 +736,7 @@ hyscan_gtk_map_pin_layer_get_point_at (HyScanGtkMapPinLayer *pin_layer,
       HyScanGtkMapPoint *point = point_l->data;
       gdouble x_point, y_point;
 
-      gtk_cifro_area_value_to_point (carea, &x_point, &y_point, point->x, point->y);
+      gtk_cifro_area_value_to_point (carea, &x_point, &y_point, point->c2d.x, point->c2d.y);
       pin = hyscan_gtk_map_pin_layer_get_pin (priv, point);
 
       if (x_point + pin->handle_x0 < x && x < x_point + pin->handle_x1 &&
@@ -829,7 +829,7 @@ hyscan_gtk_map_pin_layer_insert_before  (HyScanGtkMapPinLayer *pin_layer,
   HyScanGtkMapPoint *new_point;
 
   new_point = hyscan_gtk_map_point_copy (point);
-  hyscan_gtk_map_value_to_geo (priv->map, &new_point->geo, new_point->x, new_point->y);
+  hyscan_gtk_map_value_to_geo (priv->map, &new_point->geo, new_point->c2d.x, new_point->c2d.y);
   priv->points = g_list_insert_before (priv->points, sibling, new_point);
 
   return new_point;

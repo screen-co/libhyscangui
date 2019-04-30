@@ -50,6 +50,7 @@
  *
  */
 #include "hyscan-gtk-map-ruler.h"
+#include <hyscan-cartesian.h>
 #include <math.h>
 
 #define SNAP_DISTANCE       6.0           /* Максимальное расстояние прилипания курсора мыши к звену ломаной. */
@@ -101,12 +102,6 @@ static gdouble                  hyscan_gtk_map_ruler_measure                  (H
                                                                                HyScanGeoGeodetic         coord2);
 static gdouble                  hyscan_gtk_map_ruler_get_distance             (HyScanGtkMap             *map,
                                                                                GList                    *points);
-static gdouble                  hyscan_gtk_map_ruler_distance                 (HyScanGtkMapPoint   *p1,
-                                                                               HyScanGtkMapPoint   *p2,
-                                                                               gdouble                   x0,
-                                                                               gdouble                   y0,
-                                                                               gdouble                  *x,
-                                                                               gdouble                  *y);
 static gboolean                 hyscan_gtk_map_ruler_configure                (HyScanGtkMap *map,
                                                                                GdkEvent                 *event,
                                                                                HyScanGtkMapRuler        *ruler);
@@ -327,7 +322,7 @@ hyscan_gtk_map_ruler_get_distance (HyScanGtkMap *map,
 
   point_l = points;
   point = point_l->data;
-  hyscan_gtk_map_value_to_geo (map, &coord1, point->x, point->y);
+  hyscan_gtk_map_value_to_geo (map, &coord1, point->c2d.x, point->c2d.y);
 
   distance = 0.0;
   for (point_l = point_l->next; point_l != NULL; point_l = point_l->next)
@@ -335,7 +330,7 @@ hyscan_gtk_map_ruler_get_distance (HyScanGtkMap *map,
       point = point_l->data;
 
       coord0 = coord1;
-      hyscan_gtk_map_value_to_geo (map, &coord1, point->x, point->y);
+      hyscan_gtk_map_value_to_geo (map, &coord1, point->c2d.x, point->c2d.y);
       distance += hyscan_gtk_map_ruler_measure (coord0, coord1);
     }
 
@@ -381,7 +376,7 @@ hyscan_gtk_map_ruler_draw_label (HyScanGtkMapRuler *ruler,
   width /= PANGO_SCALE;
 
   last_point = g_list_last (points)->data;
-  gtk_cifro_area_visible_value_to_point (carea, &x, &y, last_point->x, last_point->y);
+  gtk_cifro_area_visible_value_to_point (carea, &x, &y, last_point->c2d.x, last_point->c2d.y);
 
   cairo_save (cairo);
   cairo_translate (cairo,
@@ -417,7 +412,7 @@ hyscan_gtk_map_ruler_draw_hover_section (HyScanGtkMapRuler *ruler,
 
   carea = GTK_CIFRO_AREA (priv->map);
 
-  gtk_cifro_area_visible_value_to_point (carea, &x, &y, priv->section_point.x, priv->section_point.y);
+  gtk_cifro_area_visible_value_to_point (carea, &x, &y, priv->section_point.c2d.x, priv->section_point.c2d.y);
 
   gdk_cairo_set_source_rgba (cairo, &priv->line_color);
   cairo_set_line_width (cairo, priv->line_width);
@@ -454,7 +449,7 @@ hyscan_gtk_map_ruler_draw_line (HyScanGtkMapRuler *ruler,
     {
       point = point_l->data;
 
-      gtk_cifro_area_visible_value_to_point (carea, &x, &y, point->x, point->y);
+      gtk_cifro_area_visible_value_to_point (carea, &x, &y, point->c2d.x, point->c2d.y);
       cairo_line_to (cairo, x, y);
     }
   cairo_stroke (cairo);
@@ -477,32 +472,6 @@ hyscan_gtk_map_ruler_draw_impl (HyScanGtkMapPinLayer *layer,
   hyscan_gtk_map_ruler_draw_label (ruler, cairo);
 }
 
-/* Определяет расстояние от точки (x0, y0) до прямой через точки p1 и p2
- * и координаты (x, y) ближайшей точки на этой прямой. */
-static gdouble
-hyscan_gtk_map_ruler_distance (HyScanGtkMapPoint *p1,
-                               HyScanGtkMapPoint *p2,
-                               gdouble            x0,
-                               gdouble            y0,
-                               gdouble           *x,
-                               gdouble           *y)
-{
-  gdouble dist;
-  gdouble a, b, c;
-  gdouble dist_ab2;
-
-  a = p1->y - p2->y;
-  b = p2->x - p1->x;
-  c = p1->x * p2->y - p2->x * p1->y;
-
-  dist_ab2 = pow (a, 2) + pow (b, 2);
-  dist = fabs (a * x0 + b * y0 + c) / sqrt (dist_ab2);
-  *x = (b * (b * x0 - a * y0) - a * c) / dist_ab2;
-  *y = (a * (-b * x0 + a * y0) - b * c) / dist_ab2;
-
-  return dist;
-}
-
 /* Находит звено ломаной в SNAP_DISTANCE-окрестности курсора мыши. */
 static GList *
 hyscan_gtk_map_ruler_get_segment_under_cursor (HyScanGtkMapRuler *ruler,
@@ -514,7 +483,7 @@ hyscan_gtk_map_ruler_get_segment_under_cursor (HyScanGtkMapRuler *ruler,
   GList *points;
   GList *point_l;
 
-  gdouble cur_x, cur_y;
+  HyScanGeoCartesian2D cursor;
   gdouble scale_x, scale_y;
 
   gconstpointer howner;
@@ -528,37 +497,42 @@ hyscan_gtk_map_ruler_get_segment_under_cursor (HyScanGtkMapRuler *ruler,
 
   carea = GTK_CIFRO_AREA (map);
   gtk_cifro_area_get_scale (carea, &scale_x, &scale_y);
-  gtk_cifro_area_point_to_value (carea, event->x, event->y, &cur_x, &cur_y);
+  gtk_cifro_area_point_to_value (carea, event->x, event->y, &cursor.x, &cursor.y);
   points = hyscan_gtk_map_pin_layer_get_points (HYSCAN_GTK_MAP_PIN_LAYER (ruler));
   for (point_l = points; point_l != NULL; point_l = point_l->next)
     {
-      HyScanGtkMapPoint *point = point_l->data;
-      HyScanGtkMapPoint *prev_point;
+      HyScanGeoCartesian2D *point = &((HyScanGtkMapPoint *) point_l->data)->c2d;
+      HyScanGeoCartesian2D *prev_point;
 
       gdouble distance;
-      gdouble nearest_x, nearest_y;
+      HyScanGeoCartesian2D nearest;
 
       if (point_l->prev == NULL)
         continue;
 
-      prev_point = point_l->prev->data;
+      prev_point = &((HyScanGtkMapPoint *) point_l->prev->data)->c2d;
 
       /* Надо, чтобы курсор мыши был между точками хотя бы по одной из осей. */
-      if (!IS_INSIDE (cur_x, point->x, prev_point->x) && !IS_INSIDE (cur_y, point->y, prev_point->y))
-        continue;
+      if (!IS_INSIDE (cursor.x, point->x, prev_point->x) &&
+          !IS_INSIDE (cursor.y, point->y, prev_point->y))
+        {
+          continue;
+        }
 
       /* Определяем расстояние от курсоры мыши до прямой между точками. */
-      distance = hyscan_gtk_map_ruler_distance (prev_point, point, cur_x, cur_y, &nearest_x, &nearest_y);
+      distance = hyscan_cartesian_distance_to_line (prev_point, point, &cursor, &nearest);
       distance /= scale_x;
       if (distance > SNAP_DISTANCE)
         continue;
 
       /* Проверяем, что ближайшая точка на прямой попала внутрь отрезка между точками. */
-      if (!IS_INSIDE (nearest_x, point->x, prev_point->x) || !IS_INSIDE (nearest_y, point->y, prev_point->y))
-        continue;
+      if (!IS_INSIDE (nearest.x, point->x, prev_point->x) ||
+          !IS_INSIDE (nearest.y, point->y, prev_point->y))
+        {
+          continue;
+        }
 
-      priv->section_point.x = nearest_x;
-      priv->section_point.y = nearest_y;
+      priv->section_point.c2d = nearest;
 
       return point_l;
     }

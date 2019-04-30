@@ -59,6 +59,7 @@
  */
 
 #include "hyscan-gtk-map-way-layer.h"
+#include <hyscan-cartesian.h>
 #include <hyscan-gtk-map.h>
 #include <hyscan-navigation-model.h>
 #include <hyscan-gtk-map-tile.h>
@@ -442,8 +443,8 @@ hyscan_gtk_map_way_layer_set_section_mod (HyScanGtkMapWayLayer *way_layer,
       gdouble x0, y0, x1, y1;
 
       /* Определяем на каких тайлах лежат концы отрезка. */
-      hyscan_gtk_map_tile_grid_value_to_tile (priv->tile_grid, scale_idx, point0->x, point0->y, &x0, &y0);
-      hyscan_gtk_map_tile_grid_value_to_tile (priv->tile_grid, scale_idx, point1->x, point1->y, &x1, &y1);
+      hyscan_gtk_map_tile_grid_value_to_tile (priv->tile_grid, scale_idx, point0->c2d.x, point0->c2d.y, &x0, &y0);
+      hyscan_gtk_map_tile_grid_value_to_tile (priv->tile_grid, scale_idx, point1->c2d.x, point1->c2d.y, &x1, &y1);
 
       /* Проходим все тайлы внутри найденной области и обновляем номер изменения трека. */
       to_x = MAX (x0, x1);
@@ -593,7 +594,7 @@ hyscan_gtk_map_way_layer_model_changed (HyScanGtkMapWayLayer *way_layer,
       point.coord.geo.lon = coord->lon;
       point.coord.geo.h = coord->h;
       if (priv->map != NULL)
-        hyscan_gtk_map_geo_to_value (priv->map, point.coord.geo, &point.coord.x, &point.coord.y);
+        hyscan_gtk_map_geo_to_value (priv->map, point.coord.geo, &point.coord.c2d.x, &point.coord.c2d.y);
 
       g_queue_push_head (priv->track, hyscan_gtk_map_way_layer_point_copy (&point));
 
@@ -723,7 +724,7 @@ hyscan_gtk_map_way_layer_draw_chunk (HyScanGtkMapWayLayer *way_layer,
   while (!finish)
     {
       HyScanGtkMapWayLayerPoint *track_point = chunk_l->data;
-      HyScanGtkMapPoint *point = &track_point->coord;
+      HyScanGeoCartesian2D *point = &track_point->coord.c2d;
       gdouble x, y;
 
       /* Координаты точки на поверхности. */
@@ -761,26 +762,6 @@ hyscan_gtk_map_way_layer_draw_chunk (HyScanGtkMapWayLayer *way_layer,
   cairo_stroke (cairo);
 }
 
-/* Проверяет, находится ли точка point внутри указанного региона. */
-static inline gboolean
-hyscan_gtk_map_way_layer_is_point_inside (HyScanGtkMapPoint *point,
-                                            gdouble            from_x,
-                                            gdouble            to_x,
-                                            gdouble            from_y,
-                                            gdouble            to_y)
-{
-  return point->x > from_x && point->x < to_x && point->y > from_y && point->y < to_y;
-}
-
-/* Возвращает TRUE, если значение boundary находится между val1 и val2. */
-static inline gboolean
-hyscan_gtk_map_way_layer_is_cross (gdouble val1,
-                                     gdouble val2,
-                                     gdouble boundary)
-{
-  return ((val1 < boundary) - (val2 > boundary) == 0);
-}
-
 /* Рисует трек в указанном регионе. Возвращает mod_count нарисованного трека.  */
 static guint
 hyscan_gtk_map_way_layer_draw_region (HyScanGtkMapWayLayer *way_layer,
@@ -800,6 +781,8 @@ hyscan_gtk_map_way_layer_draw_region (HyScanGtkMapWayLayer *way_layer,
   guint mod_count;
 
   GList *point1_l = NULL, *point0_l = NULL;
+  HyScanGeoCartesian2D area_from = {.x = from_x, .y = from_y};
+  HyScanGeoCartesian2D area_to   = {.x = to_x, .y = to_y};
 
   /* Блокируем доступ к треку на время прорисовки. */
   g_mutex_lock (&priv->track_lock);
@@ -815,7 +798,7 @@ hyscan_gtk_map_way_layer_draw_region (HyScanGtkMapWayLayer *way_layer,
   for (track_l = priv->track->head; track_l != NULL; track_l = track_l->next, point1_l = point0_l)
     {
       HyScanGtkMapWayLayerPoint *track_point0, *track_point1;
-      HyScanGtkMapPoint *point0, *point1;
+      HyScanGeoCartesian2D *point0, *point1;
       gboolean is_inside;
 
       point0_l = track_l;
@@ -826,25 +809,10 @@ hyscan_gtk_map_way_layer_draw_region (HyScanGtkMapWayLayer *way_layer,
       /* Проверяем, находится ли отрезок (point1, point0) в указанной области. */
       track_point0 = point0_l->data;
       track_point1 = point1_l->data;
-      point0 = &track_point0->coord;
-      point1 = &track_point1->coord;
+      point0 = &track_point0->coord.c2d;
+      point1 = &track_point1->coord.c2d;
 
-      /* Либо один из концов отрезка лежит внутри области... */
-      is_inside = hyscan_gtk_map_way_layer_is_point_inside (point0, from_x, to_x, from_y, to_y) ||
-                  hyscan_gtk_map_way_layer_is_point_inside (point1, from_x, to_x, from_y, to_y);
-
-      /* ... либо отрезок может пересекать эту область. */
-      if (!is_inside)
-        {
-          gboolean cross_x, cross_y;
-
-          cross_x = hyscan_gtk_map_way_layer_is_cross (point0->x, point1->x, from_x) ||
-                    hyscan_gtk_map_way_layer_is_cross (point0->x, point1->x, to_x);
-          cross_y = hyscan_gtk_map_way_layer_is_cross (point0->y, point1->y, from_y) ||
-                    hyscan_gtk_map_way_layer_is_cross (point0->y, point1->y, to_y);
-
-          is_inside = cross_x && cross_y;
-        }
+      is_inside = hyscan_cartesian_is_inside (point0, point1, &area_from, &area_to);
 
       if (is_inside && chunk_start == NULL)
         /* Фиксируем начало куска. */
@@ -1245,7 +1213,7 @@ hyscan_gtk_map_way_layer_draw (HyScanGtkMap           *map,
     last_track_point = priv->track->head->data;
     last_point = &last_track_point->coord;
 
-    gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y, last_point->x, last_point->y);
+    gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y, last_point->c2d.x, last_point->c2d.y);
     bearing = last_point->geo.h;
 
     g_mutex_unlock (&priv->track_lock);
@@ -1301,7 +1269,7 @@ hyscan_gtk_map_way_layer_update_points (HyScanGtkMapWayLayerPrivate *priv)
   for (track_l = priv->track->head; track_l != NULL; track_l = track_l->next)
     {
       point = track_l->data;
-      hyscan_gtk_map_geo_to_value (priv->map, point->coord.geo, &point->coord.x, &point->coord.y);
+      hyscan_gtk_map_geo_to_value (priv->map, point->coord.geo, &point->coord.c2d.x, &point->coord.c2d.y);
     }
 
   g_mutex_unlock (&priv->track_lock);

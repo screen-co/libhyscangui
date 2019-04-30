@@ -60,16 +60,9 @@ typedef struct _HyScanGtkMapClass HyScanGtkMapClass;
 /* Координаты точки. */
 typedef struct
 {
-  HyScanGeoGeodetic geo;
-  gdouble           x;
-  gdouble           y;
+  HyScanGeoGeodetic    geo;      /* Географические координаты (широта, долгота). */
+  HyScanGeoCartesian2D c2d;      /* Декартовы координаты (x, y). */
 } HyScanGtkMapPoint;
-
-typedef struct
-{
-  HyScanGtkMapPoint from;
-  HyScanGtkMapPoint to;
-} HyScanGtkMapRect;
 
 struct _HyScanGtkMap
 {
