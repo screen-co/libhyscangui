@@ -91,3 +91,16 @@ hyscan_cartesian_distance_to_line (HyScanGeoCartesian2D *p1,
 
   return dist;
 }
+
+
+gdouble
+hyscan_cartesian_distance (HyScanGeoCartesian2D *p1,
+                           HyScanGeoCartesian2D *p2)
+{
+  gdouble dx, dy;
+
+  dx = p1->x - p2->x;
+  dy = p1->y - p2->y;
+
+  return sqrt (dx * dx + dy * dy);
+}

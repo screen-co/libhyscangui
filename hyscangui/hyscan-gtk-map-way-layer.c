@@ -594,7 +594,7 @@ hyscan_gtk_map_way_layer_model_changed (HyScanGtkMapWayLayer *way_layer,
       point.coord.geo.lon = coord->lon;
       point.coord.geo.h = coord->h;
       if (priv->map != NULL)
-        hyscan_gtk_map_geo_to_value (priv->map, point.coord.geo, &point.coord.c2d.x, &point.coord.c2d.y);
+        hyscan_gtk_map_geo_to_value (priv->map, point.coord.geo, &point.coord.c2d);
 
       g_queue_push_head (priv->track, hyscan_gtk_map_way_layer_point_copy (&point));
 
@@ -1269,7 +1269,7 @@ hyscan_gtk_map_way_layer_update_points (HyScanGtkMapWayLayerPrivate *priv)
   for (track_l = priv->track->head; track_l != NULL; track_l = track_l->next)
     {
       point = track_l->data;
-      hyscan_gtk_map_geo_to_value (priv->map, point->coord.geo, &point->coord.c2d.x, &point->coord.c2d.y);
+      hyscan_gtk_map_geo_to_value (priv->map, point->coord.geo, &point->coord.c2d);
     }
 
   g_mutex_unlock (&priv->track_lock);

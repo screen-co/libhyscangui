@@ -391,7 +391,7 @@ hyscan_gtk_map_pin_layer_handle_release (HyScanGtkLayerContainer *container,
 
   priv->mode = MODE_NONE;
   drag_point = priv->drag_point;
-  hyscan_gtk_map_value_to_geo (priv->map, &drag_point->geo, drag_point->c2d.x, drag_point->c2d.y);
+  hyscan_gtk_map_value_to_geo (priv->map, &drag_point->geo, drag_point->c2d);
 
   return TRUE;
 }
@@ -400,7 +400,7 @@ static void
 hyscan_gtk_map_pin_layer_point_update (HyScanGtkMapPoint *point,
                                        HyScanGtkMap      *map)
 {
-  hyscan_gtk_map_geo_to_value (map, point->geo, &point->c2d.x, &point->c2d.y);
+  hyscan_gtk_map_geo_to_value (map, point->geo, &point->c2d);
 }
 
 /* Обновляет координаты точек при смене картографической проекции. */
@@ -829,7 +829,7 @@ hyscan_gtk_map_pin_layer_insert_before  (HyScanGtkMapPinLayer *pin_layer,
   HyScanGtkMapPoint *new_point;
 
   new_point = hyscan_gtk_map_point_copy (point);
-  hyscan_gtk_map_value_to_geo (priv->map, &new_point->geo, new_point->c2d.x, new_point->c2d.y);
+  hyscan_gtk_map_value_to_geo (priv->map, &new_point->geo, new_point->c2d);
   priv->points = g_list_insert_before (priv->points, sibling, new_point);
 
   return new_point;

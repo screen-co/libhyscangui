@@ -274,6 +274,7 @@ hyscan_gtk_map_grid_draw_lat (HyScanGtkMapGrid *grid,
   HyScanGtkMapGridPrivate *priv = grid->priv;
   GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
 
+  HyScanGeoCartesian2D point;
   gdouble grid_x;
   gdouble grid_y;
 
@@ -292,8 +293,8 @@ hyscan_gtk_map_grid_draw_lat (HyScanGtkMapGrid *grid,
 
   /* Рисуем подпись. */
   hyscan_gtk_map_grid_format_label (geo.lat, value_power, label, sizeof (label));
-  hyscan_gtk_map_geo_to_value (priv->map, geo, &grid_x, &grid_y);
-  gtk_cifro_area_visible_value_to_point (carea, &grid_x, &grid_y, grid_x, grid_y);
+  hyscan_gtk_map_geo_to_value (priv->map, geo, &point);
+  gtk_cifro_area_visible_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
   pango_layout_set_text (priv->pango_layout, label, -1);
   pango_layout_get_size (priv->pango_layout, &text_width, &text_height);
   text_height /= PANGO_SCALE;
@@ -318,8 +319,8 @@ hyscan_gtk_map_grid_draw_lat (HyScanGtkMapGrid *grid,
   for (i = 0; i < LINE_POINTS_NUM; ++i)
     {
       geo.lon = from_lon + step * i;
-      hyscan_gtk_map_geo_to_value (priv->map, geo, &grid_x, &grid_y);
-      gtk_cifro_area_visible_value_to_point (carea, &grid_x, &grid_y, grid_x, grid_y);
+      hyscan_gtk_map_geo_to_value (priv->map, geo, &point);
+      gtk_cifro_area_visible_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
       cairo_line_to (cairo, grid_x, grid_y);
     }
   cairo_set_line_width (cairo, priv->line_width);
@@ -347,6 +348,7 @@ hyscan_gtk_map_grid_draw_lon (HyScanGtkMapGrid *grid,
   gint text_width;
   gint text_height;
 
+  HyScanGeoCartesian2D point;
   HyScanGeoGeodetic geo;
 
   geo.lon = longitude;
@@ -358,8 +360,8 @@ hyscan_gtk_map_grid_draw_lon (HyScanGtkMapGrid *grid,
   for (i = 0; i < LINE_POINTS_NUM; ++i)
     {
       geo.lat = from_lat + step * i;
-      hyscan_gtk_map_geo_to_value (priv->map, geo, &grid_x, &grid_y);
-      gtk_cifro_area_visible_value_to_point (carea, &grid_x, &grid_y, grid_x, grid_y);
+      hyscan_gtk_map_geo_to_value (priv->map, geo, &point);
+      gtk_cifro_area_visible_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
       cairo_line_to (cairo, grid_x, grid_y);
     }
   cairo_set_line_width (cairo, priv->line_width);
@@ -368,8 +370,8 @@ hyscan_gtk_map_grid_draw_lon (HyScanGtkMapGrid *grid,
 
   /* Рисуем подпись. */
   cairo_save (cairo);
-  hyscan_gtk_map_geo_to_value (priv->map, geo, &grid_x, &grid_y);
-  gtk_cifro_area_visible_value_to_point (carea, &grid_x, &grid_y, grid_x, grid_y);
+  hyscan_gtk_map_geo_to_value (priv->map, geo, &point);
+  gtk_cifro_area_visible_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
   hyscan_gtk_map_grid_format_label (longitude, value_power, label, sizeof (label));
   pango_layout_set_text (priv->pango_layout, label, -1);
   pango_layout_get_size (priv->pango_layout, &text_width, &text_height);
@@ -602,23 +604,23 @@ hyscan_gtk_map_grid_draw_grid (HyScanGtkMapGrid *grid,
 
   gint value_power;
 
-  HyScanGeoGeodetic coords1;
-  HyScanGeoGeodetic coords2;
+  HyScanGeoGeodetic coords1_geo, coords2_geo;
+  HyScanGeoCartesian2D coords1, coords2;
 
-  HyScanGeoGeodetic from_geo;
-  HyScanGeoGeodetic to_geo;
+  HyScanGeoGeodetic from_geo, to_geo;
+  HyScanGeoCartesian2D from, to;
 
   /* Определяем размеры видимой области. */
   gtk_cifro_area_get_visible_size (carea, &width, &height);
   gtk_cifro_area_get_view (carea, &from_x, &to_x, &from_y, &to_y);
   gtk_cifro_area_get_limits (carea, &min_x, &max_x, &min_y, &max_y);
-  from_x = CLAMP (from_x, min_x, max_x);
-  to_x = CLAMP (to_x, min_x, max_x);
-  from_y = CLAMP (from_y, min_y, max_y);
-  to_y = CLAMP (to_y, min_y, max_y);
+  from.x = CLAMP (from_x, min_x, max_x);
+  from.y = CLAMP (from_y, min_y, max_y);
+  to.x = CLAMP (to_x, min_x, max_x);
+  to.y = CLAMP (to_y, min_y, max_y);
 
-  hyscan_gtk_map_value_to_geo (priv->map, &from_geo, from_x, from_y);
-  hyscan_gtk_map_value_to_geo (priv->map, &to_geo, to_x, to_y);
+  hyscan_gtk_map_value_to_geo (priv->map, &from_geo, from);
+  hyscan_gtk_map_value_to_geo (priv->map, &to_geo, to);
 
   /* Рисуем параллели (latitude = const). */
   {
@@ -629,10 +631,13 @@ hyscan_gtk_map_grid_draw_grid (HyScanGtkMapGrid *grid,
     steps = MAX(1, height / priv->step_width);
 
     /* Определяем границу видимой области по широте. */
-    hyscan_gtk_map_value_to_geo (priv->map, &coords1, (from_x + to_x) / 2.0, from_y);
-    hyscan_gtk_map_value_to_geo (priv->map, &coords2, (from_x + to_x) / 2.0, to_y);
-    from_lat = CLAMP (coords1.lat, -MAX_LAT, MAX_LAT);
-    to_lat = CLAMP (coords2.lat, -MAX_LAT, MAX_LAT);
+    coords1.y = from.y;
+    coords2.y = to.y;
+    coords1.x = coords2.x = (from.x + to.x) / 2.0;
+    hyscan_gtk_map_value_to_geo (priv->map, &coords1_geo, coords1);
+    hyscan_gtk_map_value_to_geo (priv->map, &coords2_geo, coords2);
+    from_lat = CLAMP (coords1_geo.lat, -MAX_LAT, MAX_LAT);
+    to_lat = CLAMP (coords2_geo.lat, -MAX_LAT, MAX_LAT);
 
     lat_step = (to_lat - from_lat) / steps;
     hyscan_gtk_map_grid_adjust_step (lat_step, &from_lat, &lat_step, &value_power);
@@ -654,10 +659,13 @@ hyscan_gtk_map_grid_draw_grid (HyScanGtkMapGrid *grid,
     steps = MAX (1, width / priv->step_width);
 
     /* Определяем границу видимой области по долготе. */
-    hyscan_gtk_map_value_to_geo (priv->map, &coords1, from_x, (from_y + to_y) / 2.0);
-    hyscan_gtk_map_value_to_geo (priv->map, &coords2, to_x, (from_y + to_y) / 2.0);
-    from_lon = CLAMP (coords1.lon, -MAX_LON, MAX_LON);
-    to_lon = CLAMP (coords2.lon, -MAX_LON, MAX_LON);
+  coords1.x = from.x;
+    coords2.x = to.x;
+    coords1.y = coords2.y = (from.y + to.y) / 2.0;
+    hyscan_gtk_map_value_to_geo (priv->map, &coords1_geo, coords1);
+    hyscan_gtk_map_value_to_geo (priv->map, &coords2_geo, coords2);
+    from_lon = CLAMP (coords1_geo.lon, -MAX_LON, MAX_LON);
+    to_lon = CLAMP (coords2_geo.lon, -MAX_LON, MAX_LON);
 
     lon_step = (to_lon - from_lon) / steps;
     hyscan_gtk_map_grid_adjust_step (lon_step, &from_lon, &lon_step, &value_power);

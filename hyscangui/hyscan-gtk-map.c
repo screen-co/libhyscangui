@@ -243,7 +243,7 @@ hyscan_gtk_map_init_view (GtkWidget         *widget,
   guint width, height;
 
   HyScanGeoGeodetic coord;
-  gdouble from_x, to_x, from_y, to_y;
+  HyScanGeoCartesian2D from, to;
   gdouble view_size = .005;
 
   /* При нулевых размерах виджета инициализироваться не выйдет. */
@@ -254,13 +254,13 @@ hyscan_gtk_map_init_view (GtkWidget         *widget,
   coord = priv->init_center;
   coord.lat -= view_size;
   coord.lon -= view_size;
-  hyscan_gtk_map_geo_to_value (map, coord, &from_x, &from_y);
+  hyscan_gtk_map_geo_to_value (map, coord, &from);
 
   coord = priv->init_center;
   coord.lat += view_size;
   coord.lon += view_size;
-  hyscan_gtk_map_geo_to_value (map, coord, &to_x, &to_y);
-  gtk_cifro_area_set_view (GTK_CIFRO_AREA (map), from_x, to_x, from_y, to_y);
+  hyscan_gtk_map_geo_to_value (map, coord, &to);
+  gtk_cifro_area_set_view (GTK_CIFRO_AREA (map), from.x, to.x, from.y, to.y);
 
   /* Отключаем этот обработчик, т.к. инициализируемся только раз. */
   g_signal_handlers_disconnect_by_func (widget, hyscan_gtk_map_init_view, NULL);
@@ -444,24 +444,24 @@ hyscan_gtk_map_set_projection (HyScanGtkMap        *map,
                                HyScanGeoProjection *projection)
 {
   HyScanGtkMapPrivate *priv;
-  gdouble from_x, to_x, from_y, to_y;
   HyScanGeoGeodetic from_geo, to_geo;
+  HyScanGeoCartesian2D from, to;
 
   g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
   g_return_if_fail (projection != NULL);
   priv = map->priv;
 
   /* Получаем текущие границы просмотра в географических координатах. */
-  gtk_cifro_area_get_view (GTK_CIFRO_AREA (map), &from_x, &to_x, &from_y, &to_y);
-  hyscan_gtk_map_value_to_geo (map, &from_geo, from_x, from_y);
-  hyscan_gtk_map_value_to_geo (map, &to_geo, to_x, to_y);
+  gtk_cifro_area_get_view (GTK_CIFRO_AREA (map), &from.x, &to.x, &from.y, &to.y);
+  hyscan_gtk_map_value_to_geo (map, &from_geo, from);
+  hyscan_gtk_map_value_to_geo (map, &to_geo, to);
 
   /* Меняем проекцию и восстанавливаем границы просмотра. */
   hyscan_gtk_map_set_projection_real (priv, projection);
 
-  hyscan_gtk_map_geo_to_value (map, from_geo, &from_x, &from_y);
-  hyscan_gtk_map_geo_to_value (map, to_geo, &to_x, &to_y);
-  gtk_cifro_area_set_view (GTK_CIFRO_AREA (map), from_x, to_x, from_y, to_y);
+  hyscan_gtk_map_geo_to_value (map, from_geo, &from);
+  hyscan_gtk_map_geo_to_value (map, to_geo, &to);
+  gtk_cifro_area_set_view (GTK_CIFRO_AREA (map), from.x, to.x, from.y, to.y);
 
   /* Оповещаем подписчиков об изменении проекции. */
   g_object_notify_by_pspec (G_OBJECT (map), hyscan_gtk_map_properties[PROP_PROJECTION]);
@@ -552,6 +552,7 @@ hyscan_gtk_map_get_pixel_scale (HyScanGtkMap *map)
   gdouble scale;
   gdouble from_x, to_x, from_y, to_y;
   HyScanGeoGeodetic geo_center;
+  HyScanGeoCartesian2D center;
 
   gdouble dist_pixels;
   gdouble dist_metres;
@@ -562,7 +563,9 @@ hyscan_gtk_map_get_pixel_scale (HyScanGtkMap *map)
 
   /* Определяем географические координаты центра видимой области. */
   gtk_cifro_area_get_view (GTK_CIFRO_AREA (map), &from_x, &to_x, &from_y, &to_y);
-  hyscan_gtk_map_value_to_geo (map, &geo_center, (from_x + to_x) / 2.0, (from_y + to_y) / 2.0);
+  center.x = (from_x + to_x) / 2.0;
+  center.y = (from_y + to_y) / 2.0;
+  hyscan_gtk_map_value_to_geo (map, &geo_center, center);
 
   /* Определяем размер единичного отрезка на проекции в метрах. */
   dist_metres = hyscan_geo_projection_get_scale (priv->projection, geo_center);
@@ -614,6 +617,7 @@ hyscan_gtk_map_set_pixel_scale (HyScanGtkMap *map,
   gdouble scale_px;
   gdouble from_x, to_x, from_y, to_y;
   HyScanGeoGeodetic geo_center;
+  HyScanGeoCartesian2D center;
 
   gdouble scale_geo;
 
@@ -623,7 +627,9 @@ hyscan_gtk_map_set_pixel_scale (HyScanGtkMap *map,
 
   /* Определяем географические координаты центра видимой области. */
   gtk_cifro_area_get_view (GTK_CIFRO_AREA (map), &from_x, &to_x, &from_y, &to_y);
-  hyscan_gtk_map_value_to_geo (map, &geo_center, (from_x + to_x) / 2.0, (from_y + to_y) / 2.0);
+  center.x = (from_x + to_x) / 2.0;
+  center.y = (from_y + to_y) / 2.0;
+  hyscan_gtk_map_value_to_geo (map, &geo_center, center);
 
   /* Определяем размер единичного отрезка на проекции в метрах. */
   scale_geo = hyscan_geo_projection_get_scale (priv->projection, geo_center);
@@ -670,41 +676,38 @@ hyscan_gtk_map_point_to_geo (HyScanGtkMap      *map,
  * координаты.
  */
 void
-hyscan_gtk_map_value_to_geo (HyScanGtkMap       *map,
-                             HyScanGeoGeodetic  *coords,
-                             gdouble             x_val,
-                             gdouble             y_val)
+hyscan_gtk_map_value_to_geo (HyScanGtkMap         *map,
+                             HyScanGeoGeodetic    *coords,
+                             HyScanGeoCartesian2D  c2d)
 {
   HyScanGtkMapPrivate *priv;
 
   g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
 
   priv = map->priv;
-  hyscan_geo_projection_value_to_geo (priv->projection, coords, x_val, y_val);
+  hyscan_geo_projection_value_to_geo (priv->projection, coords, c2d.x, c2d.y);
 }
 
 /**
  * hyscan_gtk_map_geo_to_value:
  * @map: указатель на #HyScanGtkMap
  * @coords: географические координаты
- * @x: координата x в системе координат виджета
- * @y: координата y в системе координат виджета
+ * @c2d: координата в системе координат виджета
  *
  * Преобразовывает координаты из географических в координаты на плоскости
  * картографической проекции.
  */
 void
-hyscan_gtk_map_geo_to_value (HyScanGtkMap        *map,
-                             HyScanGeoGeodetic    coords,
-                             gdouble             *x_val,
-                             gdouble             *y_val)
+hyscan_gtk_map_geo_to_value (HyScanGtkMap         *map,
+                             HyScanGeoGeodetic     coords,
+                             HyScanGeoCartesian2D *c2d)
 {
   HyScanGtkMapPrivate *priv;
 
   g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
 
   priv = map->priv;
-  hyscan_geo_projection_geo_to_value (priv->projection, coords, x_val, y_val);
+  hyscan_geo_projection_geo_to_value (priv->projection, coords, &c2d->x, &c2d->y);
 }
 
 /**

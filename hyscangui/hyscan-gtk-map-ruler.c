@@ -322,7 +322,7 @@ hyscan_gtk_map_ruler_get_distance (HyScanGtkMap *map,
 
   point_l = points;
   point = point_l->data;
-  hyscan_gtk_map_value_to_geo (map, &coord1, point->c2d.x, point->c2d.y);
+  hyscan_gtk_map_value_to_geo (map, &coord1, point->c2d);
 
   distance = 0.0;
   for (point_l = point_l->next; point_l != NULL; point_l = point_l->next)
@@ -330,7 +330,7 @@ hyscan_gtk_map_ruler_get_distance (HyScanGtkMap *map,
       point = point_l->data;
 
       coord0 = coord1;
-      hyscan_gtk_map_value_to_geo (map, &coord1, point->c2d.x, point->c2d.y);
+      hyscan_gtk_map_value_to_geo (map, &coord1, point->c2d);
       distance += hyscan_gtk_map_ruler_measure (coord0, coord1);
     }
 

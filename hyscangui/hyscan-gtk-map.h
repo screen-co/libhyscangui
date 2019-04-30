@@ -141,14 +141,12 @@ void                   hyscan_gtk_map_point_to_geo     (HyScanGtkMap           *
 HYSCAN_API
 void                   hyscan_gtk_map_value_to_geo     (HyScanGtkMap           *map,
                                                         HyScanGeoGeodetic      *coords,
-                                                        gdouble                 x_val,
-                                                        gdouble                 y_val);
+                                                        HyScanGeoCartesian2D    c2d);
 
 HYSCAN_API
 void                   hyscan_gtk_map_geo_to_value     (HyScanGtkMap           *map,
                                                         HyScanGeoGeodetic       coords,
-                                                        gdouble                *x_val,
-                                                        gdouble                *y_val);
+                                                        HyScanGeoCartesian2D   *c2d);
 
 HYSCAN_API
 HyScanGtkMapPoint *    hyscan_gtk_map_point_copy       (HyScanGtkMapPoint      *point);
