@@ -309,15 +309,13 @@ hyscan_gtk_map_track_layer_draw_chunk (HyScanGtkMapTrackLayer *track_layer,
 {
   HyScanGtkMapTrackLayerPrivate *priv = track_layer->priv;
   GList *point_l;
-  HyScanGtkMapTrackLayerPoint *point;
+  HyScanGtkMapTrackLayerPoint *point, *next_point;
   gdouble x, y;
 
   gdouble threshold;
-  gdouble dist;
 
-  /* Минимальное расстояние между двумя полосками. */
+  /* Делим весь отрезок на зоны длины threshold. В каждой зоне одна полоса. */
   threshold = scale * (priv->bar_margin + priv->bar_width);
-  dist = threshold;
 
   /* Рисуем полосы от бортов. */
   cairo_set_line_width (cairo, priv->bar_width);
@@ -328,12 +326,11 @@ hyscan_gtk_map_track_layer_draw_chunk (HyScanGtkMapTrackLayer *track_layer,
       gdouble shadow_len;
 
       point = point_l->data;
+      next_point = point_l->next ? point_l->next->data : NULL;
 
-      dist += point->dist;
-      if (dist < threshold || (point->l_dist == 0.0 && point->r_dist == 0.0))
+      /* Рисуем полосу, только если следующая полоса лежит в другой зоне. */
+      if (next_point == NULL || round (next_point->dist / threshold) == round (point->dist / threshold))
         continue;
-
-      dist = 0;
 
       cairo_save (cairo);
       gtk_cifro_area_value_to_point (GTK_CIFRO_AREA (priv->map), &x0, &y0, point->c2d.x, point->c2d.y);
@@ -555,8 +552,10 @@ hyscan_gtk_map_track_layer_track_points (HyScanGtkMapTrackLayer *layer,
       hyscan_gtk_map_geo_to_value (priv->map, point->geo, &point->c2d);
 
       /* Определяем расстояние до предыдущей точки. */
-      // todo: сделать накопительную систему
-      point->dist = prev_point != NULL ? hyscan_cartesian_distance (&point->c2d, &prev_point->c2d) : 0;
+      if (prev_point != NULL)
+        point->dist = prev_point->dist + hyscan_cartesian_distance (&point->c2d, &prev_point->c2d);
+      else
+        point->dist = 0;
 
       /* Масштаб перевода из метров в логические координаты. */
       scale = hyscan_gtk_map_get_value_scale (priv->map, &point->geo);
@@ -567,8 +566,8 @@ hyscan_gtk_map_track_layer_track_points (HyScanGtkMapTrackLayer *layer,
       angle_cos = cos (angle);
       point->r_dist = point->r_width / scale;
       point->l_dist = point->l_width / scale;
-      point->r_c2d.x = point->c2d.x - point->r_dist * angle_cos;
-      point->r_c2d.y = point->c2d.y + point->r_dist * angle_sin;
+      point->r_c2d.x = point->c2d.x + point->r_dist * angle_cos;
+      point->r_c2d.y = point->c2d.y - point->r_dist * angle_sin;
       point->l_c2d.x = point->c2d.x - point->l_dist * angle_cos;
       point->l_c2d.y = point->c2d.y + point->l_dist * angle_sin;
     }
