@@ -37,6 +37,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-layer-container.c
              hyscan-gtk-layer.c
              hyscan-gtk-map-tiles.c
+             hyscan-gtk-map-tiled-layer.c
              hyscan-gtk-map-control.c
              hyscan-gtk-map-ruler.c
              hyscan-gtk-map-grid.c

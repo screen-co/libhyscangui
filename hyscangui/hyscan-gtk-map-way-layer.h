@@ -38,6 +38,7 @@
 #include <hyscan-gtk-layer.h>
 #include <hyscan-cache.h>
 #include <hyscan-navigation-model.h>
+#include "hyscan-gtk-map-tiled-layer.h"
 
 G_BEGIN_DECLS
 
@@ -54,14 +55,14 @@ typedef struct _HyScanGtkMapWayLayerClass HyScanGtkMapWayLayerClass;
 
 struct _HyScanGtkMapWayLayer
 {
-  GInitiallyUnowned parent_instance;
+  HyScanGtkMapTiledLayer parent_instance;
 
   HyScanGtkMapWayLayerPrivate *priv;
 };
 
 struct _HyScanGtkMapWayLayerClass
 {
-  GInitiallyUnownedClass parent_class;
+  HyScanGtkMapTiledLayerClass parent_class;
 };
 
 HYSCAN_API
