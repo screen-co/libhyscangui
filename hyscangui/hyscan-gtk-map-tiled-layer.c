@@ -10,6 +10,9 @@
 #define CACHE_KEY_LEN          127           /* Длина ключа кэша. */
 #define TILE_SIZE              256           /* Размер тайла. */
 
+/* Раскомментируйте строку ниже для вывода отладочной информации на тайлах. */
+// #define DEBUG_TILES
+
 enum
 {
   PROP_O,
@@ -148,6 +151,7 @@ hyscan_gtk_map_tiled_layer_tile_cache_key (HyScanGtkMapTiledLayer *tiled_layer,
                                            gchar                  *key,
                                            gulong                  key_len)
 {
+  // todo: add id of layer
   g_snprintf (key, key_len,
               "GtkMapTiledLayer.%u.%d.%d.%u",
               hyscan_gtk_map_tiled_layer_get_param_hash (tiled_layer),
@@ -164,6 +168,7 @@ hyscan_gtk_map_tiled_layer_mod_cache_key (HyScanGtkMapTiledLayer *tiled_layer,
                                           gchar                  *key,
                                           gulong                  key_len)
 {
+  // todo: add id of layer
   g_snprintf (key, key_len,
               "GtkMapTiledLayer.mc.%d.%d.%d.%d",
               hyscan_gtk_map_tiled_layer_get_param_hash (tiled_layer),
@@ -201,7 +206,7 @@ hyscan_gtk_map_tiled_layer_get_mod_actual (HyScanGtkMapTiledLayer *tiled_layer,
   if (!found || last_update.magic != CACHE_TRACK_MOD_MAGIC)
     {
       last_update.magic = CACHE_TRACK_MOD_MAGIC;
-      last_update.mod = mod + 1;
+      last_update.mod = mod;
       hyscan_cache_set (priv->cache, mod_cache_key, NULL, buffer);
     }
 
@@ -304,10 +309,45 @@ hyscan_gtk_map_tiled_layer_fill_tile (HyScanGtkMapTiledLayer *tiled_layer,
                                       HyScanGtkMapTile       *tile)
 {
   HyScanGtkMapTiledLayerClass *klass = HYSCAN_GTK_MAP_TILED_LAYER_GET_CLASS (tiled_layer);
+  guint mod_count;
 
   g_return_val_if_fail (klass->fill_tile != NULL, 0);
 
-  return klass->fill_tile (tiled_layer, tile);
+  mod_count = klass->fill_tile (tiled_layer, tile);
+
+#ifdef DEBUG_TILES
+  {
+    GRand *rand;
+    gchar tile_num[100];
+    gint x, y;
+    guint tile_size;
+    cairo_t *cairo;
+    cairo_surface_t *surface;
+
+    surface = hyscan_gtk_map_tile_get_surface (tile);
+    cairo = cairo_create (surface);
+
+    x = hyscan_gtk_map_tile_get_x (tile);
+    y = hyscan_gtk_map_tile_get_y (tile);
+    tile_size = hyscan_gtk_map_tile_get_size (tile);
+    rand = g_rand_new ();
+    g_snprintf (tile_num, sizeof (tile_num), "tile %d, %d", x, y);
+    cairo_move_to (cairo, tile_size / 2.0, tile_size / 2.0);
+    cairo_set_source_rgba (cairo,
+                           g_rand_double_range (rand, 0.0, 1.0),
+                           g_rand_double_range (rand, 0.0, 1.0),
+                           g_rand_double_range (rand, 0.0, 1.0),
+                           0.1);
+    cairo_paint (cairo);
+    cairo_set_source_rgb (cairo, 0.2, 0.2, 0);
+    cairo_show_text (cairo, tile_num);
+
+    cairo_surface_destroy (surface);
+    cairo_destroy (cairo);
+  }
+#endif
+
+  return mod_count;
 }
 
 /* Помещает в кэш информацию о тайле. */
@@ -467,7 +507,7 @@ hyscan_gtk_map_tiled_layer_draw (HyScanGtkMapTiledLayer *tiled_layer,
   for (x = from_tile_x; x <= to_tile_x; x++)
     for (y = from_tile_y; y <= to_tile_y; y++)
       {
-        gdouble x_val, y_val;
+        HyScanGeoCartesian2D coord;
         gdouble x_source, y_source;
         HyScanGtkMapTile *tile;
         gboolean refill;
@@ -495,8 +535,8 @@ hyscan_gtk_map_tiled_layer_draw (HyScanGtkMapTiledLayer *tiled_layer,
             surface = hyscan_gtk_map_tile_get_surface (tile);
 
             /* Переносим поверхность тайла на изображение слоя. */
-            hyscan_gtk_map_tile_get_bounds (tile, &x_val, NULL, &y_val, NULL);
-            gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x_source, &y_source, x_val, y_val);
+            hyscan_gtk_map_tile_get_bounds (tile, &coord, NULL);
+            gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x_source, &y_source, coord.x, coord.y);
             cairo_set_source_surface (cairo, surface, x_source, y_source);
             cairo_paint (cairo);
 

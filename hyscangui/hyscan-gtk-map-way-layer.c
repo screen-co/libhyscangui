@@ -486,8 +486,8 @@ hyscan_gtk_map_way_layer_model_changed (HyScanGtkMapWayLayer *way_layer,
 /* Создаёт cairo-поверхность с изображением стрелки в голове трека. */
 static void
 hyscan_gtk_map_track_create_arrow (HyScanGtkMapWayLayerArrow *arrow,
-                                   GdkRGBA                     *color_fill,
-                                   GdkRGBA                     *color_stroke)
+                                   GdkRGBA                   *color_fill,
+                                   GdkRGBA                   *color_stroke)
 {
   cairo_t *cairo;
   guint line_width = 1;
@@ -524,7 +524,7 @@ hyscan_gtk_map_track_create_arrow (HyScanGtkMapWayLayerArrow *arrow,
  * Устанавливает видимость слоя. */
 static void
 hyscan_gtk_map_way_layer_set_visible (HyScanGtkLayer *layer,
-                                        gboolean        visible)
+                                      gboolean        visible)
 {
   HyScanGtkMapWayLayer *way_layer = HYSCAN_GTK_MAP_WAY_LAYER (layer);
   HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
@@ -592,7 +592,7 @@ hyscan_gtk_map_way_layer_draw_chunk (HyScanGtkMapWayLayer *way_layer,
 
       /* Координаты точки на поверхности. */
       x = (point->x - from_x) / scale;
-      y = (to_y - from_y) / scale - (point->y - from_y) / scale;
+      y = (from_y - to_y) / scale - (point->y - to_y) / scale;
 
       /* Точка из нового отрезка - завершаем рисование прошлого отрезка. */
       if (track_point->start && cairo_has_current_point (cairo))
@@ -688,8 +688,8 @@ hyscan_gtk_map_way_layer_draw_region (HyScanGtkMapWayLayer *way_layer,
         {
           chunk_end = point0_l;
           hyscan_gtk_map_way_layer_draw_chunk (way_layer, cairo,
-                                                 from_x, to_x, from_y, to_y, scale,
-                                                 chunk_start, chunk_end);
+                                               from_x, to_x, from_y, to_y, scale,
+                                               chunk_start, chunk_end);
 
           chunk_start = NULL;
           chunk_end = NULL;
@@ -700,8 +700,8 @@ hyscan_gtk_map_way_layer_draw_region (HyScanGtkMapWayLayer *way_layer,
   if (chunk_start != NULL)
     {
       hyscan_gtk_map_way_layer_draw_chunk (way_layer, cairo,
-                                             from_x, to_x, from_y, to_y, scale,
-                                             chunk_start, chunk_end);
+                                           from_x, to_x, from_y, to_y, scale,
+                                           chunk_start, chunk_end);
     }
 
   g_mutex_unlock (&priv->track_lock);
@@ -717,8 +717,7 @@ hyscan_gtk_map_way_layer_fill_tile (HyScanGtkMapTiledLayer *tiled_layer,
   HyScanGtkMapWayLayer *way_layer = HYSCAN_GTK_MAP_WAY_LAYER (tiled_layer);
   cairo_t *tile_cairo;
 
-  gdouble x_val, y_val;
-  gdouble x_val_to, y_val_to;
+  HyScanGeoCartesian2D from, to;
   cairo_surface_t *surface;
   gint width;
   gdouble scale;
@@ -730,36 +729,12 @@ hyscan_gtk_map_way_layer_fill_tile (HyScanGtkMapTiledLayer *tiled_layer,
   tile_cairo = cairo_create (surface);
 
   /* Заполняем поверхность тайла. */
-  hyscan_gtk_map_tile_get_bounds (tile, &x_val, &x_val_to, &y_val, &y_val_to);
+  hyscan_gtk_map_tile_get_bounds (tile, &from, &to);
   scale = hyscan_gtk_map_tile_get_scale (tile);
-  mod_count = hyscan_gtk_map_way_layer_draw_region (way_layer, tile_cairo, x_val, x_val_to, y_val_to, y_val, scale);
+  mod_count = hyscan_gtk_map_way_layer_draw_region (way_layer, tile_cairo, from.x, to.x, from.y, to.y, scale);
 
   /* Записываем поверхность в тайл. */
   hyscan_gtk_map_tile_set_surface (tile, surface);
-
-#ifdef HYSCAN_GTK_MAP_DEBUG_FPS
-  {
-    GRand *rand;
-    gchar tile_num[100];
-    gint x, y;
-    guint tile_size;
-
-    x = hyscan_gtk_map_tile_get_x (tile);
-    y = hyscan_gtk_map_tile_get_y (tile);
-    tile_size = hyscan_gtk_map_tile_get_size (tile);
-    rand = g_rand_new ();
-    g_snprintf (tile_num, sizeof (tile_num), "tile %d, %d", x, y);
-    cairo_move_to (tile_cairo, tile_size / 2.0, tile_size / 2.0);
-    cairo_set_source_rgba (tile_cairo,
-                           g_rand_double_range (rand, 0.0, 1.0),
-                           g_rand_double_range (rand, 0.0, 1.0),
-                           g_rand_double_range (rand, 0.0, 1.0),
-                           0.1);
-    cairo_paint (tile_cairo);
-    cairo_set_source_rgb (tile_cairo, 0.2, 0.2, 0);
-    cairo_show_text (tile_cairo, tile_num);
-  }
-#endif
 
   cairo_surface_destroy (surface);
   cairo_destroy (tile_cairo);

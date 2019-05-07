@@ -555,27 +555,26 @@ hyscan_gtk_map_tile_inv_y (HyScanGtkMapTile *tile)
 /**
  * hyscan_gtk_map_tile_get_bounds:
  * @tile: указатель на #HyScanGtkMapTile
- * @from_x: координата x верхнего правого угла
- * @to_x: координата x нижнего правого угла
- * @from_y: координата y верхнего левого угла
- * @to_y: координата y нижнего правого угла
+ * @from: координаты верхнего правого угла
+ * @to: координаты нижнего правого угла
  *
  * Определяет область в логических координатах, которую покрывает тайл @tile.
  */
 void
 hyscan_gtk_map_tile_get_bounds (HyScanGtkMapTile *tile,
-                                gdouble          *from_x,
-                                gdouble          *to_x,
-                                gdouble          *from_y,
-                                gdouble          *to_y)
+                                HyScanGeoCartesian2D *from,
+                                HyScanGeoCartesian2D *to)
 {
   HyScanGtkMapTilePrivate *priv;
   g_return_if_fail (HYSCAN_IS_GTK_MAP_TILE (tile));
 
   priv = tile->priv;
 
-  hyscan_gtk_map_tile_grid_tile_to_value (priv->grid, priv->zoom, priv->x, priv->y, from_x, from_y);
-  hyscan_gtk_map_tile_grid_tile_to_value (priv->grid, priv->zoom, priv->x + 1, priv->y + 1, to_x, to_y);
+  if (from != NULL)
+    hyscan_gtk_map_tile_grid_tile_to_value (priv->grid, priv->zoom, priv->x, priv->y, &from->x, &from->y);
+
+  if (to != NULL)
+    hyscan_gtk_map_tile_grid_tile_to_value (priv->grid, priv->zoom, priv->x + 1, priv->y + 1, &to->x, &to->y);
 }
 
 /**

@@ -35,7 +35,7 @@
 #ifndef __HYSCAN_GTK_MAP_TRACK_LAYER_H__
 #define __HYSCAN_GTK_MAP_TRACK_LAYER_H__
 
-#include <hyscan-gtk-layer.h>
+#include <hyscan-gtk-map-tiled-layer.h>
 #include <hyscan-db.h>
 #include <hyscan-cache.h>
 
@@ -54,14 +54,14 @@ typedef struct _HyScanGtkMapTrackLayerClass HyScanGtkMapTrackLayerClass;
 
 struct _HyScanGtkMapTrackLayer
 {
-  GInitiallyUnowned parent_instance;
+  HyScanGtkMapTiledLayer parent_instance;
 
   HyScanGtkMapTrackLayerPrivate *priv;
 };
 
 struct _HyScanGtkMapTrackLayerClass
 {
-  GInitiallyUnownedClass parent_class;
+  HyScanGtkMapTiledLayerClass parent_class;
 };
 
 enum

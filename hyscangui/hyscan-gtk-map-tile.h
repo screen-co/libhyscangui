@@ -125,10 +125,8 @@ guint                  hyscan_gtk_map_tile_inv_y              (HyScanGtkMapTile 
 
 HYSCAN_API
 void                   hyscan_gtk_map_tile_get_bounds         (HyScanGtkMapTile     *tile,
-                                                               gdouble              *from_x,
-                                                               gdouble              *to_x,
-                                                               gdouble              *from_y,
-                                                               gdouble              *to_y);
+                                                               HyScanGeoCartesian2D *from,
+                                                               HyScanGeoCartesian2D *to);
 
 HYSCAN_API
 guint                  hyscan_gtk_map_tile_get_zoom           (HyScanGtkMapTile     *tile);

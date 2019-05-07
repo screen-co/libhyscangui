@@ -70,7 +70,7 @@ main (int    argc,
 
   for (i = 0; i < G_N_ELEMENTS (points); i++)
     {
-      gdouble from_x, to_x, from_y, to_y;
+      HyScanGeoCartesian2D from, to;
       gdouble x_val, y_val, x_tile, y_tile;
       HyScanGtkMapTile *tile;
 
@@ -86,11 +86,11 @@ main (int    argc,
       g_assert_cmpfloat (point->x_tile, ==, x_tile);
       g_assert_cmpfloat (point->y_tile, ==, y_tile);
 
-      hyscan_gtk_map_tile_get_bounds (tile, &from_x, &to_x, &from_y, &to_y);
-      g_assert_cmpfloat (from_x, ==, point->x_val);
-      g_assert_cmpfloat (from_y, ==, point->y_val);
-      g_assert_cmpfloat (to_x,   ==, point->x_val + scales[point->zoom]);
-      g_assert_cmpfloat (to_y,   ==, point->y_val - scales[point->zoom]);
+      hyscan_gtk_map_tile_get_bounds (tile, &from, &to);
+      g_assert_cmpfloat (from.x, ==, point->x_val);
+      g_assert_cmpfloat (from.y, ==, point->y_val);
+      g_assert_cmpfloat (to.x,   ==, point->x_val + scales[point->zoom]);
+      g_assert_cmpfloat (to.y,   ==, point->y_val - scales[point->zoom]);
     }
 
   g_message ("Test finished successfully");
