@@ -9,14 +9,23 @@ hyscan_cartesian_is_cross (gdouble val1,
   return ((val1 < boundary) - (val2 > boundary) == 0);
 }
 
+static inline gboolean
+hyscan_cartesian_is_between (gdouble val1,
+                             gdouble val2,
+                             gdouble boundary)
+{
+  return (MIN (val1, val2) <= boundary) && (MAX(val1, val2) >= boundary);
+}
+
 /* Проверяет, находится ли точка point внутри указанного региона. */
 static inline gboolean
 hyscan_cartesian_is_point_inside (HyScanGeoCartesian2D *point,
                                   HyScanGeoCartesian2D *area_from,
                                   HyScanGeoCartesian2D *area_to)
 {
-  return point->x > area_from->x && point->x < area_to->x &&
-         point->y > area_from->x && point->y < area_to->y;
+  return hyscan_cartesian_is_between (area_from->x, area_to->x, point->x) &&
+         hyscan_cartesian_is_between (area_from->y, area_to->y, point->y);
+
 }
 
 
@@ -39,8 +48,7 @@ hyscan_cartesian_is_inside (HyScanGeoCartesian2D *segment_start,
                             HyScanGeoCartesian2D *area_to)
 {
   gboolean cross_x, cross_y;
-
-  g_return_val_if_fail (area_from->x <= area_to->x && area_from->y <= area_to->y, FALSE);
+  gboolean between_x, between_y;
 
   /* 1. Один из концов отрезка внутри области. */
   if (hyscan_cartesian_is_point_inside (segment_start, area_from, area_to) ||
@@ -54,8 +62,14 @@ hyscan_cartesian_is_inside (HyScanGeoCartesian2D *segment_start,
             hyscan_cartesian_is_cross (segment_start->x, segment_end->x, area_to->x);
   cross_y = hyscan_cartesian_is_cross (segment_start->y, segment_end->y, area_from->y) ||
             hyscan_cartesian_is_cross (segment_start->y, segment_end->y, area_to->y);
+  
+  between_x = hyscan_cartesian_is_between (area_from->x, area_to->x, segment_start->x) &&
+              hyscan_cartesian_is_between (area_from->x, area_to->x, segment_end->x);
 
-  return cross_x && cross_y;
+  between_y = hyscan_cartesian_is_between (area_from->y, area_to->y, segment_start->y) &&
+              hyscan_cartesian_is_between (area_from->y, area_to->y, segment_end->y);
+  
+  return (cross_x || between_x) && (cross_y || between_y);
 }
 
 /**

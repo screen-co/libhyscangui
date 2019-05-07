@@ -18,6 +18,7 @@ add_executable (navigation-model-test navigation-model-test.c)
 add_executable (nmea-file2udp nmea-file2udp.c)
 add_executable (tile-test tile-test.c)
 add_executable (tile-loader-test tile-loader-test.c)
+add_executable (cartesian-test cartesian-test.c)
 
 target_link_libraries (gtk-area-test ${TEST_LIBRARIES})
 target_link_libraries (gtk-param-test ${TEST_LIBRARIES})
@@ -33,6 +34,7 @@ target_link_libraries (navigation-model-test ${TEST_LIBRARIES})
 target_link_libraries (nmea-file2udp ${TEST_LIBRARIES})
 target_link_libraries (tile-test ${TEST_LIBRARIES})
 target_link_libraries (tile-loader-test ${TEST_LIBRARIES})
+target_link_libraries (cartesian-test ${TEST_LIBRARIES})
 
 install (TARGETS gtk-area-test
          COMPONENT test
