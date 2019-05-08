@@ -373,8 +373,8 @@ hyscan_gtk_map_way_layer_set_expired_mod (HyScanGtkMapWayLayer *way_layer,
 
       prev_point = track_l->prev->data;
       cur_point  = track_l->data;
-      hyscan_gtk_map_tiled_layer_set_section_mod (HYSCAN_GTK_MAP_TILED_LAYER (way_layer), mod_count,
-                                                  &cur_point->coord, &prev_point->coord);
+      hyscan_gtk_map_tiled_layer_set_area_mod (HYSCAN_GTK_MAP_TILED_LAYER (way_layer), mod_count,
+                                               &cur_point->coord.c2d, &prev_point->coord.c2d);
     }
 
   /* 3. Удаляем устаревшие точки. */
@@ -396,7 +396,7 @@ hyscan_gtk_map_way_layer_set_expired_mod (HyScanGtkMapWayLayer *way_layer,
  * Функция должна вызываться за мьютексом! */
 static void
 hyscan_gtk_map_way_layer_set_head_mod (HyScanGtkMapWayLayer *way_layer,
-                                         guint                   mod_count)
+                                       guint                 mod_count)
 {
   HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
 
@@ -415,8 +415,8 @@ hyscan_gtk_map_way_layer_set_head_mod (HyScanGtkMapWayLayer *way_layer,
   track_point1 = head_l->next->data;
 
   /* Актуализируем тайлы, содержащие найденный отрезок. */
-  hyscan_gtk_map_tiled_layer_set_section_mod (HYSCAN_GTK_MAP_TILED_LAYER (way_layer), mod_count,
-                                              &track_point0->coord, &track_point1->coord);
+  hyscan_gtk_map_tiled_layer_set_area_mod (HYSCAN_GTK_MAP_TILED_LAYER (way_layer), mod_count,
+                                           &track_point0->coord.c2d, &track_point1->coord.c2d);
 }
 
 /* Освобождает память, занятую структурой HyScanGtkMapWayLayerPoint. */

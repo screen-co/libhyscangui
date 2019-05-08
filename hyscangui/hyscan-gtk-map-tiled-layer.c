@@ -557,10 +557,10 @@ hyscan_gtk_map_tiled_layer_draw (HyScanGtkMapTiledLayer *tiled_layer,
  *
  * Функция должна вызываться за мьютексом! */
 void
-hyscan_gtk_map_tiled_layer_set_section_mod (HyScanGtkMapTiledLayer *tiled_layer,
-                                            guint                   mod_count,
-                                            HyScanGtkMapPoint      *point0,
-                                            HyScanGtkMapPoint      *point1)
+hyscan_gtk_map_tiled_layer_set_area_mod (HyScanGtkMapTiledLayer *tiled_layer,
+                                         guint                   mod_count,
+                                         HyScanGeoCartesian2D   *point0,
+                                         HyScanGeoCartesian2D   *point1)
 {
   HyScanGtkMapTiledLayerPrivate *priv = tiled_layer->priv;
 
@@ -587,8 +587,8 @@ hyscan_gtk_map_tiled_layer_set_section_mod (HyScanGtkMapTiledLayer *tiled_layer,
       gdouble x0, y0, x1, y1;
 
       /* Определяем на каких тайлах лежат концы отрезка. */
-      hyscan_gtk_map_tile_grid_value_to_tile (priv->tile_grid, scale_idx, point0->c2d.x, point0->c2d.y, &x0, &y0);
-      hyscan_gtk_map_tile_grid_value_to_tile (priv->tile_grid, scale_idx, point1->c2d.x, point1->c2d.y, &x1, &y1);
+      hyscan_gtk_map_tile_grid_value_to_tile (priv->tile_grid, scale_idx, point0->x, point0->y, &x0, &y0);
+      hyscan_gtk_map_tile_grid_value_to_tile (priv->tile_grid, scale_idx, point1->x, point1->y, &x1, &y1);
 
       /* Проходим все тайлы внутри найденной области и обновляем номер изменения трека. */
       to_x = MAX (x0, x1);

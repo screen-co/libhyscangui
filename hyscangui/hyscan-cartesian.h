@@ -4,6 +4,11 @@
 #include <hyscan-geo.h>
 
 HYSCAN_API
+gboolean        hyscan_cartesian_is_point_inside     (HyScanGeoCartesian2D *point,
+                                                      HyScanGeoCartesian2D *area_from,
+                                                      HyScanGeoCartesian2D *area_to);
+
+HYSCAN_API
 gboolean         hyscan_cartesian_is_inside          (HyScanGeoCartesian2D *segment_end,
                                                       HyScanGeoCartesian2D *segment_start,
                                                       HyScanGeoCartesian2D *area_from,

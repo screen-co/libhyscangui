@@ -43,10 +43,10 @@ void                 hyscan_gtk_map_tiled_layer_draw                (HyScanGtkMa
 
 
 HYSCAN_API
-void                 hyscan_gtk_map_tiled_layer_set_section_mod     (HyScanGtkMapTiledLayer *tiled_layer,
-                                                                     guint                   mod_count,
-                                                                     HyScanGtkMapPoint      *point0,
-                                                                     HyScanGtkMapPoint      *point1);
+void                 hyscan_gtk_map_tiled_layer_set_area_mod     (HyScanGtkMapTiledLayer *tiled_layer,
+                                                                  guint                   mod_count,
+                                                                  HyScanGeoCartesian2D   *point0,
+                                                                  HyScanGeoCartesian2D   *point1);
 
 HYSCAN_API
 gboolean             hyscan_gtk_map_tiled_layer_has_cache           (HyScanGtkMapTiledLayer *tiled_layer);

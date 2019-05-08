@@ -17,8 +17,18 @@ hyscan_cartesian_is_between (gdouble val1,
   return (MIN (val1, val2) <= boundary) && (MAX(val1, val2) >= boundary);
 }
 
-/* Проверяет, находится ли точка point внутри указанного региона. */
-static inline gboolean
+/**
+ * hyscan_cartesian_is_point_inside:
+ * @point: координаты точки
+ * @area_from: координаты одной границы области
+ * @area_to: координаты второй границы области
+ *
+ * Определяет, находится ли точка @point внутри прямоугольной области,
+ * ограниченной точками @area_from и @area_to.
+ *
+ * Returns: %TRUE, если точка @point находится внтури указанной области
+ */
+gboolean
 hyscan_cartesian_is_point_inside (HyScanGeoCartesian2D *point,
                                   HyScanGeoCartesian2D *area_from,
                                   HyScanGeoCartesian2D *area_to)
