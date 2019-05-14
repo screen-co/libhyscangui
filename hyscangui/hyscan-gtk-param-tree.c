@@ -97,7 +97,8 @@ static void        hyscan_gtk_param_tree_row_activated        (GtkTreeView      
                                                                GtkTreePath                *path,
                                                                GtkTreeViewColumn          *column,
                                                                gpointer                    user_data);
-
+static void        hyscan_gtk_param_tree_set_page             (HyScanGtkParamTree         *self,
+                                                               const gchar                *id);
 static void        hyscan_gtk_param_tree_selection_changed    (GtkTreeSelection           *select,
                                                                HyScanGtkParamTree         *tree);
 
@@ -152,7 +153,7 @@ hyscan_gtk_param_tree_object_constructed (GObject *object)
   hyscan_gtk_param_tree_populate (nodes, GTK_TREE_VIEW (tview), NULL,
                                   priv->stack, widgets,priv->param_lists,
                                   show_hidden);
-  gtk_stack_set_visible_child_name (priv->stack, "/");
+  hyscan_gtk_param_tree_set_page (self, "/");
 
   /* Создаем фильтрацию полей.
    * TODO: сейчас нельзя создать вью без модели, т.к. функции наполнения
@@ -589,13 +590,33 @@ hyscan_gtk_param_tree_row_activated (GtkTreeView       *tree_view,
   gtk_tree_view_expand_row (tree_view, path, FALSE);
 }
 
-/* Функция смены страницы. */
+/* Функция задания страницы. */
+static void
+hyscan_gtk_param_tree_set_page (HyScanGtkParamTree *self,
+                                const gchar        *id)
+{
+  HyScanGtkParamTreePrivate *priv = self->priv;
+  HyScanParamList *plist;
+
+  gtk_stack_set_visible_child_name (priv->stack, id);
+  plist = g_hash_table_lookup (priv->param_lists, id);
+
+  if (plist == NULL)
+    {
+      g_info ("HyScanGtkParamTree: ParamList not found. This may be an error "
+              "or HyScanDataSchemaNode with no keys. ");
+    }
+  else
+    {
+      hyscan_gtk_param_set_watch_list (HYSCAN_GTK_PARAM (self), plist);
+    }
+}
+
+/* Функция обрабатывает выбор страницы. */
 static void
 hyscan_gtk_param_tree_selection_changed (GtkTreeSelection   *select,
                                          HyScanGtkParamTree *self)
 {
-  HyScanGtkParamTreePrivate *priv = self->priv;
-  HyScanParamList *plist;
   GtkTreeIter iter;
   GtkTreeModel *model;
   gchar *id;
@@ -608,20 +629,7 @@ hyscan_gtk_param_tree_selection_changed (GtkTreeSelection   *select,
   if (id == NULL)
     return;
 
-  gtk_stack_set_visible_child_name (priv->stack, id);
-
-  plist = g_hash_table_lookup (priv->param_lists, id);
-
-  if (plist == NULL)
-    {
-      g_info ("HyScanGtkParamTree: ParamList not found. This may be an error "
-              "or HyScanDataSchemaNode with no keys. ");
-    }
-  else
-    {
-      hyscan_gtk_param_set_watch_list (HYSCAN_GTK_PARAM (self), plist);
-    }
-
+  hyscan_gtk_param_tree_set_page (self, id);
   g_free (id);
 }
 
