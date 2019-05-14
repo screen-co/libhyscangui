@@ -31,6 +31,7 @@
     </key>
     <key id="hex" name="Шестнадцатеричное целое" type="integer" view="hex">
       <default>16</default>
+      <range min="0" max="1000"/>
     </key>
     <key id="dbl" name="Вещественное" type="double">
       <default>3.1415</default>

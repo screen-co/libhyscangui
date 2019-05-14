@@ -551,10 +551,11 @@ hyscan_gtk_param_tree_tree_visible_func (GtkTreeModel *model,
   /* Если подузлов нет, сравниваем имя и путь текущего узла с фильтром. */
   gtk_tree_model_get (model, iter, ID_COL, &id, NAME_COL, &name, -1);
 
-  if (id && g_strstr_len (id, -1, priv->filter) != NULL)
-    visible = TRUE;
-  else if (name && g_strstr_len (name, -1, priv->filter) != NULL)
-    visible = TRUE;
+  if ((id != NULL && g_strstr_len (id, -1, priv->filter) != NULL) ||
+      (name != NULL && g_strstr_len (name, -1, priv->filter) != NULL))
+    {
+      visible = TRUE;
+    }
 
   g_free (id);
   g_free (name);
