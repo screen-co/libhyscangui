@@ -43,6 +43,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-map-grid.c
              hyscan-gtk-map-pin-layer.c
              hyscan-gtk-map-way-layer.c
+             hyscan-gtk-map-track.c
              hyscan-gtk-map-track-layer.c
 
              #[[ Загрузка тайлов ]]

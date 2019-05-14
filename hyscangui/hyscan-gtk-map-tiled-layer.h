@@ -28,10 +28,8 @@ struct _HyScanGtkMapTiledLayerClass
 {
   GInitiallyUnownedClass parent_class;
 
-  guint               (*fill_tile)                     (HyScanGtkMapTiledLayer *tiled_layer,
+  void                (*fill_tile)                     (HyScanGtkMapTiledLayer *tiled_layer,
                                                         HyScanGtkMapTile       *tile);
-
-  guint               (*get_param_hash)                (HyScanGtkMapTiledLayer *tiled_layer);
 };
 
 HYSCAN_API
@@ -43,10 +41,12 @@ void                 hyscan_gtk_map_tiled_layer_draw                (HyScanGtkMa
 
 
 HYSCAN_API
-void                 hyscan_gtk_map_tiled_layer_set_area_mod     (HyScanGtkMapTiledLayer *tiled_layer,
-                                                                  guint                   mod_count,
-                                                                  HyScanGeoCartesian2D   *point0,
-                                                                  HyScanGeoCartesian2D   *point1);
+void                 hyscan_gtk_map_tiled_layer_set_area_mod        (HyScanGtkMapTiledLayer *tiled_layer,
+                                                                     HyScanGeoCartesian2D   *point0,
+                                                                     HyScanGeoCartesian2D   *point1);
+
+HYSCAN_API
+void                 hyscan_gtk_map_tiled_layer_set_param_mod       (HyScanGtkMapTiledLayer *tiled_layer);
 
 HYSCAN_API
 gboolean             hyscan_gtk_map_tiled_layer_has_cache           (HyScanGtkMapTiledLayer *tiled_layer);

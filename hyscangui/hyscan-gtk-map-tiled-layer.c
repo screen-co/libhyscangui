@@ -50,6 +50,9 @@ struct _HyScanGtkMapTiledLayerPrivate
   gchar                         cache_key[CACHE_KEY_LEN];   /* Ключ кэша. */
   HyScanCache                  *cache;
 
+  guint                         mod_count;                  /* Номер изменения данных. */
+  guint                         param_mod_count;            /* Номер изменения в параметрах отображения слоя. */
+
   gboolean                      redraw;                     /* Признак необходимости перерисовки. */
   guint                         redraw_tag;                 /* Тэг функции, которая запрашивает перерисовку. */
 };
@@ -134,16 +137,6 @@ hyscan_gtk_map_tiled_layer_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_tiled_layer_parent_class)->finalize (object);
 }
 
-static guint
-hyscan_gtk_map_tiled_layer_get_param_hash (HyScanGtkMapTiledLayer *tiled_layer)
-{
-  HyScanGtkMapTiledLayerClass *klass = HYSCAN_GTK_MAP_TILED_LAYER_GET_CLASS (tiled_layer);
-
-  g_return_val_if_fail (klass->get_param_hash != NULL, 0);
-
-  return klass->get_param_hash (tiled_layer);
-}
-
 /* Ключ кэширования. */
 static void
 hyscan_gtk_map_tiled_layer_tile_cache_key (HyScanGtkMapTiledLayer *tiled_layer,
@@ -154,7 +147,7 @@ hyscan_gtk_map_tiled_layer_tile_cache_key (HyScanGtkMapTiledLayer *tiled_layer,
   // todo: add id of layer
   g_snprintf (key, key_len,
               "GtkMapTiledLayer.%u.%d.%d.%u",
-              hyscan_gtk_map_tiled_layer_get_param_hash (tiled_layer),
+              g_atomic_int_get (&tiled_layer->priv->param_mod_count),
               hyscan_gtk_map_tile_get_x (tile),
               hyscan_gtk_map_tile_get_y (tile),
               hyscan_gtk_map_tile_get_zoom (tile));
@@ -171,7 +164,7 @@ hyscan_gtk_map_tiled_layer_mod_cache_key (HyScanGtkMapTiledLayer *tiled_layer,
   // todo: add id of layer
   g_snprintf (key, key_len,
               "GtkMapTiledLayer.mc.%d.%d.%d.%d",
-              hyscan_gtk_map_tiled_layer_get_param_hash (tiled_layer),
+              g_atomic_int_get (&tiled_layer->priv->param_mod_count),
               x, y, z);
 }
 
@@ -309,11 +302,14 @@ hyscan_gtk_map_tiled_layer_fill_tile (HyScanGtkMapTiledLayer *tiled_layer,
                                       HyScanGtkMapTile       *tile)
 {
   HyScanGtkMapTiledLayerClass *klass = HYSCAN_GTK_MAP_TILED_LAYER_GET_CLASS (tiled_layer);
+  HyScanGtkMapTiledLayerPrivate *priv = tiled_layer->priv;
   guint mod_count;
 
   g_return_val_if_fail (klass->fill_tile != NULL, 0);
 
-  mod_count = klass->fill_tile (tiled_layer, tile);
+  /* Запоминаем номер изменения данных, соответствующий тайлу. */
+  mod_count = g_atomic_int_get (&priv->mod_count);
+  klass->fill_tile (tiled_layer, tile);
 
 #ifdef DEBUG_TILES
   {
@@ -558,11 +554,10 @@ hyscan_gtk_map_tiled_layer_draw (HyScanGtkMapTiledLayer *tiled_layer,
  * Функция должна вызываться за мьютексом! */
 void
 hyscan_gtk_map_tiled_layer_set_area_mod (HyScanGtkMapTiledLayer *tiled_layer,
-                                         guint                   mod_count,
                                          HyScanGeoCartesian2D   *point0,
                                          HyScanGeoCartesian2D   *point1)
 {
-  HyScanGtkMapTiledLayerPrivate *priv = tiled_layer->priv;
+  HyScanGtkMapTiledLayerPrivate *priv;
 
   gdouble *scales;
   guint scales_len;
@@ -573,9 +568,15 @@ hyscan_gtk_map_tiled_layer_set_area_mod (HyScanGtkMapTiledLayer *tiled_layer,
 
   gchar cache_key[CACHE_KEY_LEN];
 
-  /* Оборачиваен номер изменения в буфер. */
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_TILED_LAYER (tiled_layer));
+  priv = tiled_layer->priv;
+
+  /* Увеличиваем счетчик изменений. */
+  g_atomic_int_inc (&priv->mod_count);
+
+  /* Оборачиваем номер изменения в буфер. */
   track_mod.magic = CACHE_TRACK_MOD_MAGIC;
-  track_mod.mod = mod_count;
+  track_mod.mod = g_atomic_int_get (&priv->mod_count);
   buffer = hyscan_buffer_new ();
   hyscan_buffer_wrap_data (buffer, HYSCAN_DATA_BLOB, &track_mod, sizeof (track_mod));
 
@@ -604,6 +605,17 @@ hyscan_gtk_map_tiled_layer_set_area_mod (HyScanGtkMapTiledLayer *tiled_layer,
 
   g_object_unref (buffer);
   g_free (scales);
+}
+
+void
+hyscan_gtk_map_tiled_layer_set_param_mod (HyScanGtkMapTiledLayer *tiled_layer)
+{
+  HyScanGtkMapTiledLayerPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_TILED_LAYER (tiled_layer));
+  priv = tiled_layer->priv;
+
+  g_atomic_int_inc (&priv->param_mod_count);
 }
 
 

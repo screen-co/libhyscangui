@@ -10,11 +10,23 @@
 #include <hyscan-driver.h>
 #include <hyscan-map-profile.h>
 #include <hyscan-map-tile-loader.h>
+#include <hyscan-db-info.h>
+#include <hyscan-gtk-param-tree.h>
 
-#define PRELOAD_STATE_DONE 1000
+#define PRELOAD_STATE_DONE 1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
+
+/* Столбцы в GtkTreeView списка галсов. */
+enum
+{
+  VISIBLE_COLUMN,
+  DATE_SORT_COLUMN,
+  TRACK_COLUMN,
+  DATE_COLUMN
+};
 
 struct _HyScanGtkMapKitPrivate
 {
+  HyScanDBInfo          *db_info;          /* Доступ к данным БД. */
   GtkButton             *preload_button;   /* Кнопка загрузки тайлов. */
   GtkProgressBar        *preload_progress; /* Индикатор загрузки тайлов. */
   HyScanMapTileLoader   *loader;
@@ -24,6 +36,10 @@ struct _HyScanGtkMapKitPrivate
                                             * 0 - PRELOAD_STATE_DONE-1 - прогресс загрузки,
                                             * >= PRELOAD_STATE_DONE    - загрузка завершена, не удалось загрузить
                                             *                            PRELOAD_STATE_DONE - preload_state тайлов */
+
+  GtkTreeView           *track_tree;       /* GtkTreeView со списком галсов. */
+  GtkListStore          *track_store;      /* Модель данных для track_tree. */
+  GtkMenu               *track_menu;       /* Контекстное меню галса (по правой кнопке). */
 };
 
 /* Слой с треком движения. */
@@ -322,169 +338,271 @@ add_layer_row (GtkListBox     *list_box,
   gtk_list_box_insert (list_box, row, 0);
 }
 
-/* Обрабатывает изменение настроек галса в слое HyScanGtkMapTrackLayer. */
 static void
-track_settings_changed (GtkSpinButton *spin_button,
-                        gpointer       user_data)
+on_enable_track (GtkCellRendererToggle *cell_renderer,
+                 gchar                 *path,
+                 gpointer               user_data)
 {
-  HyScanGtkMapTrackLayer *layer = HYSCAN_GTK_MAP_TRACK_LAYER (user_data);
-  gint channel_num;
-  gchar *track_name;
-  guint channel;
+  HyScanGtkMapKit *kit = user_data;
+  HyScanGtkMapKitPrivate *priv = kit->priv;
 
-  channel_num = (gint) gtk_spin_button_get_value (spin_button);
-  track_name = g_object_get_data (G_OBJECT (spin_button), "track-name");
-  channel = GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (spin_button), "channel"));
-
-  hyscan_gtk_map_track_layer_track_set_channel (layer, track_name, channel, channel_num);
-}
-
-/* Виджет переключения номера канала. */
-static GtkWidget *
-channel_spin_new (HyScanGtkMapTrackLayer *track_layer,
-                  const gchar            *track_name,
-                  guint                   channel)
-{
-  GtkWidget *spin_button;
-  guint max_channel;
-
-  max_channel = hyscan_gtk_map_track_layer_track_max_channel (track_layer, track_name, channel);
-  spin_button = gtk_spin_button_new_with_range (0, max_channel, 1);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON (spin_button),
-                             hyscan_gtk_map_track_layer_track_get_channel (track_layer, track_name, channel));
-  g_object_set_data_full (G_OBJECT (spin_button), "track-name", g_strdup (track_name), g_free);
-  g_object_set_data (G_OBJECT (spin_button), "channel", GUINT_TO_POINTER (channel));
-  g_signal_connect (spin_button, "value-changed", G_CALLBACK (track_settings_changed), track_layer);
-
-  return spin_button;
-}
-
-/* Виджет с выбором каналов источников данных для отдельного трека. */
-static GtkWidget *
-track_settings_new (HyScanGtkMapTrackLayer *track_layer,
-                    const gchar *track_name)
-{
-  GtkWidget *form;
-  GtkWidget *rmc_channel, *dpt_channel, *port_channel, *starboard_channel;
-
-  form = gtk_box_new (GTK_ORIENTATION_VERTICAL, 4);
-
-  rmc_channel = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
-  dpt_channel = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
-  port_channel = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
-  starboard_channel = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 4);
-
-  gtk_box_pack_start (GTK_BOX (rmc_channel), gtk_label_new ("nmea (rmc)"), TRUE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (rmc_channel),
-                      channel_spin_new (track_layer, track_name, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_NMEA_RMC),
-                      FALSE, FALSE, 0);
-
-  gtk_box_pack_start (GTK_BOX (dpt_channel), gtk_label_new ("nmea (dpt)"), TRUE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (dpt_channel),
-                      channel_spin_new (track_layer, track_name, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_NMEA_DPT),
-                      FALSE, FALSE, 0);
-
-  gtk_box_pack_start (GTK_BOX (port_channel), gtk_label_new ("ss-port"), TRUE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (port_channel),
-                      channel_spin_new (track_layer, track_name, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_PORT),
-                      FALSE, FALSE, 0);
-
-  gtk_box_pack_start (GTK_BOX (starboard_channel), gtk_label_new ("ss-starboard"), TRUE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (starboard_channel),
-                      channel_spin_new (track_layer, track_name, HYSCAN_GTK_MAP_TRACK_LAYER_CHNL_STARBOARD),
-                      FALSE, FALSE, 0);
-
-  gtk_box_pack_start (GTK_BOX (form), gtk_label_new ("Выбор каналов данных"), FALSE, FALSE, 0);
-  gtk_box_pack_start (GTK_BOX (form), rmc_channel, FALSE, FALSE, 0);
-  gtk_box_pack_start (GTK_BOX (form), dpt_channel, FALSE, FALSE, 0);
-  gtk_box_pack_start (GTK_BOX (form), port_channel, FALSE, FALSE, 0);
-  gtk_box_pack_start (GTK_BOX (form), starboard_channel, FALSE, FALSE, 0);
-
-  return form;
-}
-
-static void
-on_enable_track (GtkToggleButton        *widget,
-                 GParamSpec             *pspec,
-                 HyScanGtkMapTrackLayer *track_layer)
-{
   gboolean enable;
   const gchar *track_name;
+  GtkTreePath *tree_path;
+  GtkTreeIter iter;
+  GtkTreeModel *tree_model = GTK_TREE_MODEL (priv->track_store);
 
-  enable = gtk_toggle_button_get_active (widget);
-  track_name = gtk_button_get_label (GTK_BUTTON (widget));
+  tree_path = gtk_tree_path_new_from_string (path);
+  gtk_tree_model_get_iter (tree_model, &iter, tree_path);
+  gtk_tree_path_free (tree_path);
+  gtk_tree_model_get (tree_model, &iter, TRACK_COLUMN, &track_name, VISIBLE_COLUMN, &enable, -1);
 
-  hyscan_gtk_map_track_layer_track_set_visible (track_layer, track_name, enable);
+  enable = !enable;
+  gtk_list_store_set (priv->track_store, &iter, VISIBLE_COLUMN, enable, -1);
+
+  hyscan_gtk_map_track_layer_track_set_visible (HYSCAN_GTK_MAP_TRACK_LAYER (kit->track_layer), track_name, enable);
 }
 
 static void
 on_locate_track_clicked (GtkButton *button,
                          gpointer   user_data)
 {
-  HyScanGtkMapTrackLayer *track_layer = HYSCAN_GTK_MAP_TRACK_LAYER (user_data);
-  gchar *track_name;
+  HyScanGtkMapKit *kit = user_data;
+  HyScanGtkMapKitPrivate *priv = kit->priv;
 
-  track_name = g_object_get_data (G_OBJECT (button), "track-name");
-  hyscan_gtk_map_track_layer_track_view (track_layer, track_name);
+  GtkTreeSelection *selection;
+  GList *list;
+  GtkTreeModel *tree_model = GTK_TREE_MODEL (priv->track_store);
+
+  selection = gtk_tree_view_get_selection (priv->track_tree);
+  list = gtk_tree_selection_get_selected_rows (selection, &tree_model);
+  if (list != NULL)
+    {
+      GtkTreePath *path = list->data;
+      GtkTreeIter iter;
+      gchar *track_name;
+
+      if (gtk_tree_model_get_iter (GTK_TREE_MODEL (priv->track_store), &iter, path))
+        {
+          gtk_tree_model_get (GTK_TREE_MODEL (priv->track_store), &iter, TRACK_COLUMN, &track_name, -1);
+          hyscan_gtk_map_track_layer_track_view (HYSCAN_GTK_MAP_TRACK_LAYER (kit->track_layer), track_name);
+
+          g_free (track_name);
+        }
+    }
+  g_list_free_full (list, (GDestroyNotify) gtk_tree_path_free);
+
+}
+static void
+on_configure_track_clicked (GtkButton *button,
+                            gpointer   user_data)
+{
+  HyScanGtkMapKit *kit = user_data;
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+
+  GtkTreeSelection *selection;
+  GList *list;
+  GtkTreeModel *tree_model = GTK_TREE_MODEL (priv->track_store);
+
+  selection = gtk_tree_view_get_selection (priv->track_tree);
+  list = gtk_tree_selection_get_selected_rows (selection, &tree_model);
+  if (list != NULL)
+    {
+      GtkTreePath *path = list->data;
+      GtkTreeIter iter;
+      gchar *track_name;
+
+      if (gtk_tree_model_get_iter (GTK_TREE_MODEL (priv->track_store), &iter, path))
+        {
+          GtkWidget *window, *header;
+          GtkWidget *frontend;
+          HyScanGtkMapTrack *track;
+
+          gtk_tree_model_get (GTK_TREE_MODEL (priv->track_store), &iter, TRACK_COLUMN, &track_name, -1);
+          track = hyscan_gtk_map_track_layer_lookup (HYSCAN_GTK_MAP_TRACK_LAYER (kit->track_layer), track_name);
+
+          /* Виджет отображения. */
+          frontend = hyscan_gtk_param_tree_new (HYSCAN_PARAM (track));
+          hyscan_gtk_param_set_watch_period (HYSCAN_GTK_PARAM (frontend), 500);
+
+          /* Хэдербар. */
+          header = g_object_new (GTK_TYPE_HEADER_BAR,
+                                 "title", "Параметры галса",
+                                 "subtitle", track_name,
+                                 "show-close-button", TRUE,
+                                 NULL);
+
+          /* Настраиваем окошко. */
+          window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+          gtk_window_set_modal (GTK_WINDOW (window), TRUE);
+          g_signal_connect_swapped (window, "destroy", G_CALLBACK (gtk_widget_destroy), window);
+          gtk_window_set_default_size (GTK_WINDOW (window), 300, 400);
+
+          /* Показываем всё. */
+          gtk_window_set_titlebar (GTK_WINDOW (window), header);
+          gtk_container_add (GTK_CONTAINER (window), frontend);
+          gtk_widget_show_all (window);
+
+          g_free (track_name);
+        }
+    }
+  g_list_free_full (list, (GDestroyNotify) gtk_tree_path_free);
+
 }
 
-/* Виджет отдельной строки в списке галсов. */
-static GtkWidget *
-track_row_new (HyScanGtkMapTrackLayer *track_layer,
-               const gchar            *track_name)
+/* Функция вызывается при изменении списка галсов. */
+void
+tracks_changed (HyScanDBInfo    *db_info,
+                HyScanGtkMapKit *kit)
 {
-  GtkWidget *box;
-  GtkWidget *track_checkbox;
-  GtkWidget *locate_button;
-  GtkWidget *settings_button;
-  GtkWidget *row;
-  GtkWidget *settings;
-  GtkWidget *settings_popover;
+  GtkTreePath *null_path;
+  GtkTreeIter tree_iter;
+  GHashTable *tracks;
+  GHashTableIter hash_iter;
+  gpointer key, value;
 
-  /* Галочка установки видимости слоя. */
-  track_checkbox = gtk_check_button_new_with_label (track_name);
-  g_signal_connect (track_checkbox, "notify::active", G_CALLBACK (on_enable_track), track_layer);
+  HyScanGtkMapKitPrivate *priv = kit->priv;
 
-  /* Кнопка поиска галса на карте. */
-  locate_button = gtk_button_new_from_icon_name ("zoom-fit-best", GTK_ICON_SIZE_MENU);
-  g_object_set_data_full (G_OBJECT (locate_button), "track-name", g_strdup (track_name), g_free);
-  g_signal_connect (locate_button, "clicked", G_CALLBACK (on_locate_track_clicked), track_layer);
+  null_path = gtk_tree_path_new ();
+  gtk_tree_view_set_cursor (priv->track_tree, null_path, NULL, FALSE);
+  gtk_tree_path_free (null_path);
 
-  /* Кнопка переход к настройкам галса. */
-  settings_button = gtk_menu_button_new ();
-  settings_popover = gtk_popover_new (settings_button);
-  settings = track_settings_new (track_layer, track_name);
-  gtk_widget_show_all (settings);
-  gtk_container_add (GTK_CONTAINER (settings_popover), settings);
-  gtk_menu_button_set_popover (GTK_MENU_BUTTON (settings_button), settings_popover);
+  gtk_list_store_clear (priv->track_store);
 
-  /* Строка галса. */
-  box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 3);
-  gtk_box_pack_start (GTK_BOX (box), track_checkbox, TRUE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (box), locate_button, FALSE, FALSE, 0);
-  gtk_box_pack_start (GTK_BOX (box), settings_button, FALSE, FALSE, 0);
+  tracks = hyscan_db_info_get_tracks (db_info);
+  g_hash_table_iter_init (&hash_iter, tracks);
 
-  row = gtk_list_box_row_new ();
-  g_object_set (row, "margin-bottom", 6,   "margin-top", 6,
-                     "activatable", FALSE, "selectable", FALSE, NULL);
-  gtk_container_add (GTK_CONTAINER (row), box);
+  while (g_hash_table_iter_next (&hash_iter, &key, &value))
+    {
+      GDateTime *local;
+      gchar *time_str;
+      HyScanTrackInfo *track_info = value;
+      gboolean visible;
 
-  return row;
+      if (track_info->id == NULL)
+        {
+          g_message ("Unable to open track <%s>", track_info->name);
+          continue;
+        }
+
+      /* Добавляем в список галсов. */
+      local = g_date_time_to_local (track_info->ctime);
+      time_str = g_date_time_format (local, "%d.%m %H:%M");
+      visible = hyscan_gtk_map_track_layer_track_get_visible (HYSCAN_GTK_MAP_TRACK_LAYER (kit->track_layer),
+                                                              track_info->id);
+
+      gtk_list_store_append (priv->track_store, &tree_iter);
+      gtk_list_store_set (priv->track_store, &tree_iter,
+                          VISIBLE_COLUMN, visible,
+                          DATE_SORT_COLUMN, g_date_time_to_unix (track_info->ctime),
+                          TRACK_COLUMN, track_info->name,
+                          DATE_COLUMN, time_str,
+                          -1);
+
+      g_free (time_str);
+      g_date_time_unref (local);
+    }
+
+  g_hash_table_unref (tracks);
+}
+
+gboolean
+on_button_press_event (GtkTreeView     *tree_view,
+                       GdkEventButton  *event_button,
+                       HyScanGtkMapKit *kit)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+
+  if ((event_button->type == GDK_BUTTON_PRESS) && (event_button->button == 3))
+    {
+      gtk_menu_popup (priv->track_menu, NULL, NULL, NULL, NULL, event_button->button, event_button->time);
+    }
+
+  return FALSE;
+}
+
+static GtkTreeView *
+create_track_tree_view (HyScanGtkMapKit *kit,
+                        GtkTreeModel    *tree_model)
+{
+  GtkCellRenderer *renderer;
+  GtkTreeViewColumn *visible_column, *track_column, *date_column;
+  GtkTreeView *tree_view;
+
+  /* Галочка с признаком видимости галса. */
+  renderer = gtk_cell_renderer_toggle_new ();
+  g_signal_connect (renderer, "toggled", G_CALLBACK (on_enable_track), kit);
+  visible_column = gtk_tree_view_column_new_with_attributes ("On", renderer,
+                                                             "active", VISIBLE_COLUMN, NULL);
+  gtk_tree_view_column_set_sort_column_id (visible_column, VISIBLE_COLUMN);
+
+  /* Название галса. */
+  renderer = gtk_cell_renderer_text_new ();
+  track_column = gtk_tree_view_column_new_with_attributes ("Track", renderer,
+                                                           "text", TRACK_COLUMN, NULL);
+  gtk_tree_view_column_set_sort_column_id (track_column, TRACK_COLUMN);
+
+  /* Дата создания галса. */
+  renderer = gtk_cell_renderer_text_new ();
+  date_column = gtk_tree_view_column_new_with_attributes ("Date", renderer,
+                                                          "text", DATE_COLUMN, NULL);
+  gtk_tree_view_column_set_sort_column_id (date_column, DATE_SORT_COLUMN);
+
+  tree_view = GTK_TREE_VIEW (gtk_tree_view_new_with_model (tree_model));
+  gtk_tree_view_set_search_column (tree_view, TRACK_COLUMN);
+  gtk_tree_view_append_column (tree_view, visible_column);
+  gtk_tree_view_append_column (tree_view, track_column);
+  gtk_tree_view_append_column (tree_view, date_column);
+
+  return tree_view;
+}
+
+static GtkMenu *
+create_track_menu (HyScanGtkMapKit *kit)
+{
+  GtkWidget *menu_item;
+  GtkMenu *menu;
+
+  menu = GTK_MENU (gtk_menu_new ());
+  menu_item = gtk_menu_item_new_with_label ("Найти на карте");
+  g_signal_connect (menu_item, "activate", G_CALLBACK (on_locate_track_clicked), kit);
+  gtk_widget_show (menu_item);
+  gtk_menu_shell_append (GTK_MENU_SHELL (menu), menu_item);
+
+  menu_item = gtk_menu_item_new_with_label ("Выбрать каналы данных");
+  g_signal_connect (menu_item, "activate", G_CALLBACK (on_configure_track_clicked), kit);
+  gtk_widget_show (menu_item);
+  gtk_menu_shell_append (GTK_MENU_SHELL (menu), menu_item);
+
+  return menu;
 }
 
 /* Выбор галсов проекта. */
 static GtkWidget *
-create_track_box (HyScanGtkMapTrackLayer *track_layer,
-                  HyScanDB               *db,
-                  const gchar            *project_name)
+create_track_box (HyScanGtkMapKit *kit,
+                  HyScanDB        *db,
+                  const gchar     *project_name)
 {
+  HyScanGtkMapKitPrivate *priv = kit->priv;
   GtkWidget *box;
   GtkWidget *label;
+  GtkWidget *scrolled_window;
 
-  gint32 project_id;
-  gchar **track_list = NULL;
-  guint i;
   gchar *title;
+
+  priv->track_store = gtk_list_store_new (4,
+                                          G_TYPE_BOOLEAN, /* VISIBLE_COLUMN   */
+                                          G_TYPE_INT64,   /* DATE_SORT_COLUMN */
+                                          G_TYPE_STRING,  /* TRACK_COLUMN     */
+                                          G_TYPE_STRING   /* DATE_COLUMN      */);
+  priv->track_tree = create_track_tree_view (kit, GTK_TREE_MODEL (priv->track_store));
+
+  priv->track_menu = create_track_menu (kit);
+  gtk_menu_attach_to_widget (priv->track_menu, GTK_WIDGET (priv->track_tree), NULL);
+
+  g_signal_connect (priv->track_tree, "button-press-event", on_button_press_event, kit);
+  g_signal_connect (priv->db_info, "tracks-changed", G_CALLBACK (tracks_changed), kit);
+
 
   box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
 
@@ -493,41 +611,19 @@ create_track_box (HyScanGtkMapTrackLayer *track_layer,
   label = gtk_label_new (title);
   gtk_label_set_max_width_chars (GTK_LABEL (label), 1);
   gtk_label_set_ellipsize (GTK_LABEL (label), PANGO_ELLIPSIZE_END);
-  gtk_box_pack_start (GTK_BOX (box), gtk_label_new (title), FALSE, FALSE, 0);
   g_free (title);
 
-  project_id = hyscan_db_project_open (db, project_name);
-  if (project_id > 0)
-    track_list = hyscan_db_track_list (db, project_id);
+  /* Область прокрутки со списком галсов. */
+  scrolled_window = gtk_scrolled_window_new (NULL, NULL);
+  gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled_window),
+                                  GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+  gtk_scrolled_window_set_min_content_height (GTK_SCROLLED_WINDOW (scrolled_window), 200);
+  gtk_container_add (GTK_CONTAINER (scrolled_window), GTK_WIDGET (priv->track_tree));
 
-  /* Список галсов. */
-  if (track_list != NULL)
-    {
-      GtkWidget *list_box;
-      GtkWidget *scrolled_window;
 
-      list_box = gtk_list_box_new ();
-
-      for (i = 0; track_list[i] != NULL; ++i)
-        gtk_list_box_insert (GTK_LIST_BOX (list_box), track_row_new (track_layer, track_list[i]), 0);
-
-      scrolled_window = gtk_scrolled_window_new (NULL, NULL);
-      gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled_window),
-                                      GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-      gtk_scrolled_window_set_min_content_height (GTK_SCROLLED_WINDOW (scrolled_window), 200);
-      gtk_container_add (GTK_CONTAINER (scrolled_window), list_box);
-
-      gtk_box_pack_end (GTK_BOX (box), scrolled_window, FALSE, FALSE, 0);
-
-      g_strfreev (track_list);
-    }
-  else
-    {
-      gtk_box_pack_end (GTK_BOX (box), gtk_label_new ("Галсы не найдены"), TRUE, FALSE, 0);
-    }
-
-  if (project_id > 0)
-    hyscan_db_close (db, project_id);
+  /* Пакуем всё вместе. */
+  gtk_box_pack_end (GTK_BOX (box), label, FALSE, FALSE, 0);
+  gtk_box_pack_end (GTK_BOX (box), scrolled_window, FALSE, FALSE, 0);
 
   return box;
 }
@@ -766,7 +862,7 @@ create_control_box (HyScanGtkMapKit *kit,
 
     if (kit->track_layer != NULL)
       {
-        layer_tools = create_track_box (HYSCAN_GTK_MAP_TRACK_LAYER (kit->track_layer), db, project_name);
+        layer_tools = create_track_box (kit, db, project_name);
         g_object_set_data (G_OBJECT (kit->track_layer), "toolbox-cb", layer_tools);
         gtk_stack_add_titled (GTK_STACK (kit->layer_tool_stack), layer_tools, "track", "Track");
       }
@@ -852,10 +948,13 @@ hyscan_gtk_map_kit_new (HyScanGeoGeodetic *center,
 
   kit = g_new0 (HyScanGtkMapKit, 1);
   kit->priv = g_new0 (HyScanGtkMapKitPrivate, 1);
+  kit->priv->db_info = hyscan_db_info_new (db);
 
   kit->center  = *center;
   kit->map     = create_map (db, kit, project_name, sensor, sensor_name);
   kit->control = create_control_box (kit, db, project_name, profile_dir);
+
+  hyscan_db_info_set_project (kit->priv->db_info, project_name);
 
   return kit;
 }
