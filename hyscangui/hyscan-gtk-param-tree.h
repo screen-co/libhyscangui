@@ -66,7 +66,12 @@ HYSCAN_API
 GType                  hyscan_gtk_param_tree_get_type         (void);
 
 HYSCAN_API
-GtkWidget *            hyscan_gtk_param_tree_new              (HyScanParam *param);
+GtkWidget *            hyscan_gtk_param_tree_new              (HyScanParam *param,
+                                                               const gchar *root,
+                                                               gboolean     show_hidden);
+
+HYSCAN_API
+GtkWidget *            hyscan_gtk_param_tree_new_default      (HyScanParam *param);
 
 G_END_DECLS
 

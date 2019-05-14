@@ -1,10 +1,11 @@
-
 set (TEST_LIBRARIES ${GTK3_LIBRARIES}
                     ${LIBXML2_LIBRARIES}
                     ${HYSCAN_LIBRARIES}
                     ${HYSCAN_GUI_LIBRARY})
 
 add_executable (gtk-area-test gtk-area-test.c)
+target_link_libraries (gtk-area-test ${TEST_LIBRARIES})
+
 add_executable (gtk-param-test gtk-param-test.c)
 add_executable (gtk-spin-button-test gtk-spin-button-test.c)
 add_executable (gtk-datetime-test gtk-datetime-test.c)
@@ -35,6 +36,7 @@ target_link_libraries (nmea-file2udp ${TEST_LIBRARIES})
 target_link_libraries (tile-test ${TEST_LIBRARIES})
 target_link_libraries (tile-loader-test ${TEST_LIBRARIES})
 target_link_libraries (cartesian-test ${TEST_LIBRARIES})
+
 
 install (TARGETS gtk-area-test
          COMPONENT test

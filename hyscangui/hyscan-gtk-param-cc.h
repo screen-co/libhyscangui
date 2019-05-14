@@ -66,16 +66,13 @@ struct _HyScanGtkParamCCClass
 HYSCAN_API
 GType                  hyscan_gtk_param_cc_get_type         (void);
 
-/**
- * Функция создает новый виджет.
- *
- * \param param указатель на HyScanParam
- * 
- * \return свежесозданный виджет.
- *
- */
 HYSCAN_API
-GtkWidget *            hyscan_gtk_param_cc_new              (HyScanParam *param);
+GtkWidget *            hyscan_gtk_param_cc_new              (HyScanParam *param,
+                                                             const gchar *root,
+                                                             gboolean     show_hidden);
+
+HYSCAN_API
+GtkWidget *            hyscan_gtk_param_cc_new_default      (HyScanParam *param);
 
 G_END_DECLS
 

@@ -180,6 +180,8 @@ hyscan_gtk_datetime_object_constructed (GObject *object)
   HyScanGtkDateTimePrivate *priv = self->priv;
   GtkWidget *popover;
 
+  G_OBJECT_CLASS (hyscan_gtk_datetime_parent_class)->constructed (object);
+
   if (priv->dt == NULL)
     hyscan_gtk_datetime_set_time (self, 0);
 
@@ -187,8 +189,6 @@ hyscan_gtk_datetime_object_constructed (GObject *object)
 
   g_signal_connect (self, "toggled", G_CALLBACK (hyscan_gtk_datetime_start_edit), popover);
   g_signal_connect_swapped (popover, "closed", G_CALLBACK (hyscan_gtk_datetime_end_edit), self);
-
-  G_OBJECT_CLASS (hyscan_gtk_datetime_parent_class)->constructed (object);
 }
 
 static void
@@ -410,7 +410,7 @@ hyscan_gtk_datetime_output (GtkSpinButton *button)
  * Функция создаёт новый виджет #HyScanGtkDateTime, отображающий данные в
  * соответствии с заданным режимом
  *
- * Returns: Свежесозданный #HyScanGtkDateTime.
+ * Returns: #HyScanGtkDateTime.
  */
 GtkWidget *
 hyscan_gtk_datetime_new (HyScanGtkDateTimeMode mode)
