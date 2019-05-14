@@ -393,6 +393,74 @@ on_locate_track_clicked (GtkButton *button,
   g_list_free_full (list, (GDestroyNotify) gtk_tree_path_free);
 
 }
+
+static GtkWidget *
+create_param_settings_window (HyScanGtkMapKit *kit,
+                              const gchar     *title,
+                              HyScanParam     *param)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+  GtkWidget *window;
+  GtkWidget *frontend;
+  GtkWidget *grid;
+  GtkWidget *abar;
+  GtkWidget *apply, *discard, *ok, *cancel;
+  GtkSizeGroup *size;
+  GtkWidget *toplevel;
+
+  /* Настраиваем окошко. */
+  window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+  gtk_window_set_title (GTK_WINDOW (window), title);
+  gtk_window_set_default_size (GTK_WINDOW (window), 250, 400);
+  gtk_window_set_modal (GTK_WINDOW (window), TRUE);
+  toplevel = gtk_widget_get_toplevel (GTK_WIDGET (priv->track_tree));
+  if (GTK_IS_WINDOW (toplevel))
+    gtk_window_set_transient_for (GTK_WINDOW (window), GTK_WINDOW (toplevel));
+
+  g_signal_connect_swapped (window, "destroy", G_CALLBACK (gtk_widget_destroy), window);
+
+  /* Виджет отображения параметров. */
+  frontend = hyscan_gtk_param_tree_new (param, "/", FALSE);
+  hyscan_gtk_param_set_watch_period (HYSCAN_GTK_PARAM (frontend), 500);
+
+  /* Кнопки сохранения настроек. */
+  ok = gtk_button_new_with_label ("OK");
+  cancel = gtk_button_new_with_label ("Отмена");
+  discard = gtk_button_new_with_label ("Откатить");
+  apply = gtk_button_new_with_label ("Применить");
+
+  g_signal_connect_swapped (apply,   "clicked", G_CALLBACK (hyscan_gtk_param_apply),   frontend);
+  g_signal_connect_swapped (discard, "clicked", G_CALLBACK (hyscan_gtk_param_discard), frontend);
+  g_signal_connect_swapped (ok,      "clicked", G_CALLBACK (hyscan_gtk_param_apply),   frontend);
+  g_signal_connect_swapped (ok,      "clicked", G_CALLBACK (gtk_widget_destroy),       window);
+  g_signal_connect_swapped (cancel,  "clicked", G_CALLBACK (gtk_widget_destroy),       window);
+
+  size = gtk_size_group_new (GTK_SIZE_GROUP_HORIZONTAL);
+
+  gtk_size_group_add_widget (GTK_SIZE_GROUP (size), apply);
+  gtk_size_group_add_widget (GTK_SIZE_GROUP (size), discard);
+  gtk_size_group_add_widget (GTK_SIZE_GROUP (size), ok);
+  gtk_size_group_add_widget (GTK_SIZE_GROUP (size), cancel);
+
+  abar = gtk_action_bar_new ();
+
+  gtk_action_bar_pack_end (GTK_ACTION_BAR (abar), apply);
+  gtk_action_bar_pack_end (GTK_ACTION_BAR (abar), discard);
+  gtk_action_bar_pack_end (GTK_ACTION_BAR (abar), cancel);
+  gtk_action_bar_pack_end (GTK_ACTION_BAR (abar), ok);
+
+  grid = gtk_grid_new ();
+  g_object_set (grid, "margin", 10, NULL);
+
+  /* Пакуем всё вместе. */
+  gtk_grid_attach (GTK_GRID (grid), frontend, 0, 0, 4, 1);
+  gtk_grid_attach (GTK_GRID (grid), abar,     0, 1, 4, 1);
+
+  gtk_container_add (GTK_CONTAINER (window), grid);
+
+  return window;
+}
+
 static void
 on_configure_track_clicked (GtkButton *button,
                             gpointer   user_data)
@@ -414,33 +482,13 @@ on_configure_track_clicked (GtkButton *button,
 
       if (gtk_tree_model_get_iter (GTK_TREE_MODEL (priv->track_store), &iter, path))
         {
-          GtkWidget *window, *header;
-          GtkWidget *frontend;
+          GtkWidget *window;
           HyScanGtkMapTrack *track;
 
           gtk_tree_model_get (GTK_TREE_MODEL (priv->track_store), &iter, TRACK_COLUMN, &track_name, -1);
           track = hyscan_gtk_map_track_layer_lookup (HYSCAN_GTK_MAP_TRACK_LAYER (kit->track_layer), track_name);
 
-          /* Виджет отображения. */
-          frontend = hyscan_gtk_param_tree_new (HYSCAN_PARAM (track));
-          hyscan_gtk_param_set_watch_period (HYSCAN_GTK_PARAM (frontend), 500);
-
-          /* Хэдербар. */
-          header = g_object_new (GTK_TYPE_HEADER_BAR,
-                                 "title", "Параметры галса",
-                                 "subtitle", track_name,
-                                 "show-close-button", TRUE,
-                                 NULL);
-
-          /* Настраиваем окошко. */
-          window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-          gtk_window_set_modal (GTK_WINDOW (window), TRUE);
-          g_signal_connect_swapped (window, "destroy", G_CALLBACK (gtk_widget_destroy), window);
-          gtk_window_set_default_size (GTK_WINDOW (window), 300, 400);
-
-          /* Показываем всё. */
-          gtk_window_set_titlebar (GTK_WINDOW (window), header);
-          gtk_container_add (GTK_CONTAINER (window), frontend);
+          window = create_param_settings_window (kit, "Параметры галса", HYSCAN_PARAM (track));
           gtk_widget_show_all (window);
 
           g_free (track_name);
@@ -622,8 +670,8 @@ create_track_box (HyScanGtkMapKit *kit,
 
 
   /* Пакуем всё вместе. */
-  gtk_box_pack_end (GTK_BOX (box), label, FALSE, FALSE, 0);
-  gtk_box_pack_end (GTK_BOX (box), scrolled_window, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (box), label, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (box), scrolled_window, FALSE, FALSE, 0);
 
   return box;
 }
