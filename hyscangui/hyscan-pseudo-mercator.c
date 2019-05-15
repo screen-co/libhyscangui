@@ -76,8 +76,7 @@ static void    hyscan_pseudo_mercator_value_to_geo       (HyScanGeoProjection   
 
 static void    hyscan_pseudo_mercator_geo_to_value       (HyScanGeoProjection          *projection,
                                                           HyScanGeoGeodetic             coords,
-                                                          gdouble                      *x,
-                                                          gdouble                      *y);
+                                                          HyScanGeoCartesian2D         *c2d);
 
 static void    hyscan_pseudo_mercator_get_limits         (HyScanGeoProjection          *projection,
                                                           gdouble                      *min_x,
@@ -137,10 +136,9 @@ hyscan_pseudo_mercator_object_constructed (GObject *object)
 
 /* Переводит географические координаты @coords в координаты (@x, @y) проекции. */
 static void
-hyscan_pseudo_mercator_geo_to_value (HyScanGeoProjection *projection,
-                                     HyScanGeoGeodetic    coords,
-                                     gdouble             *x,
-                                     gdouble             *y)
+hyscan_pseudo_mercator_geo_to_value (HyScanGeoProjection  *projection,
+                                     HyScanGeoGeodetic     coords,
+                                     HyScanGeoCartesian2D *c2d)
 {
   gdouble lat_rad;
 
@@ -148,8 +146,8 @@ hyscan_pseudo_mercator_geo_to_value (HyScanGeoProjection *projection,
 
   lat_rad = DEG2RAD (coords.lat);
 
-  (x != NULL) ? *x = (coords.lon + 180.0) / 360.0 : 0;
-  (y != NULL) ? *y = 1.0 - (1.0 - log (tan (lat_rad) + 1.0 / cos (lat_rad)) / M_PI) / 2.0 : 0;
+  c2d->x = (coords.lon + 180.0) / 360.0;
+  c2d->y = 1.0 - (1.0 - log (tan (lat_rad) + 1.0 / cos (lat_rad)) / M_PI) / 2.0;
 }
 
 /* Переводит координаты на карте (@x, @y) в географические координаты @coords. */

@@ -87,8 +87,7 @@ static void          hyscan_mercator_value_to_geo         (HyScanGeoProjection  
 
 static void          hyscan_mercator_geo_to_value         (HyScanGeoProjection          *mercator,
                                                            HyScanGeoGeodetic             coords,
-                                                           gdouble                      *x,
-                                                           gdouble                      *y);
+                                                           HyScanGeoCartesian2D         *c2d);
 
 static void          hyscan_mercator_get_limits           (HyScanGeoProjection          *mercator,
                                                            gdouble                      *min_x,
@@ -156,15 +155,19 @@ hyscan_mercator_set_limits (HyScanMercator *mercator)
 {
   HyScanMercatorPrivate *priv = mercator->priv;
   HyScanGeoGeodetic coord;
+  HyScanGeoCartesian2D boundary;
 
   coord.lat = 0;
   coord.lon = -180.0;
-  hyscan_geo_projection_geo_to_value (HYSCAN_GEO_PROJECTION (mercator), coord, &priv->min_x, NULL);
-  priv->min_y = priv->min_x;
-
+  hyscan_geo_projection_geo_to_value (HYSCAN_GEO_PROJECTION (mercator), coord, &boundary);
+  priv->min_x = boundary.x;
+  
   coord.lat = 0;
   coord.lon = 180.0;
-  hyscan_geo_projection_geo_to_value (HYSCAN_GEO_PROJECTION (mercator), coord, &priv->max_x, NULL);
+  hyscan_geo_projection_geo_to_value (HYSCAN_GEO_PROJECTION (mercator), coord, &boundary);
+  priv->max_x = boundary.x;
+  
+  priv->min_y = priv->min_x;
   priv->max_y = priv->max_x;
 }
 
@@ -220,13 +223,12 @@ hyscan_mercator_ellipsoid_lat (HyScanMercatorPrivate *priv,
 static void
 hyscan_mercator_geo_to_value (HyScanGeoProjection *mercator,
                               HyScanGeoGeodetic    coords,
-                              gdouble             *x,
-                              gdouble             *y)
+                              HyScanGeoCartesian2D *c2d)
 {
   HyScanMercatorPrivate *priv = HYSCAN_MERCATOR (mercator)->priv;
 
-  (x != NULL) ? *x = priv->ellipsoid.a * DEG2RAD (coords.lon): 0;
-  (y != NULL) ? *y = hyscan_mercator_ellipsoid_y (priv, coords.lat) : 0;
+  c2d->x = priv->ellipsoid.a * DEG2RAD (coords.lon);
+  c2d->y = hyscan_mercator_ellipsoid_y (priv, coords.lat);
 }
 
 /* Переводит координаты на карте (@x, @y) в географические координаты @coords. */

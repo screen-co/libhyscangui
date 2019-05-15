@@ -540,7 +540,7 @@ hyscan_gtk_map_track_cartesian (HyScanGtkMapTrack *track,
 
       point = point_l->data;
 
-      hyscan_geo_projection_geo_to_value (priv->projection, point->geo, &point->c2d.x, &point->c2d.y);
+      hyscan_geo_projection_geo_to_value (priv->projection, point->geo, &point->c2d);
 
       /* Определяем расстояние от начала галса на основе соседней точки. */
       neighbour = reverse ? point_l->next : point_l->prev;

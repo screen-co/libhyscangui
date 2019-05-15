@@ -651,7 +651,7 @@ create_track_box (HyScanGtkMapKit *kit,
   gtk_menu_attach_to_widget (priv->track_menu, GTK_WIDGET (priv->track_tree), NULL);
 
   g_signal_connect_swapped (priv->track_tree, "destroy", G_CALLBACK (gtk_widget_destroy), priv->track_menu);
-  g_signal_connect (priv->track_tree, "button-press-event", on_button_press_event, kit);
+  g_signal_connect (priv->track_tree, "button-press-event", G_CALLBACK (on_button_press_event), kit);
   g_signal_connect (priv->db_info, "tracks-changed", G_CALLBACK (tracks_changed), kit);
 
 

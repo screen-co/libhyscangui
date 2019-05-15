@@ -58,8 +58,7 @@ struct _HyScanGeoProjectionInterface
 
   void                 (*geo_to_value)         (HyScanGeoProjection    *geo_projection,
                                                 HyScanGeoGeodetic       coords,
-                                                gdouble                *x,
-                                                gdouble                *y);
+                                                HyScanGeoCartesian2D   *c2d);
 
   void                 (*get_limits)           (HyScanGeoProjection    *geo_projection,
                                                 gdouble                *min_x,
@@ -87,8 +86,7 @@ void                   hyscan_geo_projection_value_to_geo     (HyScanGeoProjecti
 HYSCAN_API
 void                   hyscan_geo_projection_geo_to_value     (HyScanGeoProjection    *geo_projection,
                                                                HyScanGeoGeodetic       coords,
-                                                               gdouble                *x,
-                                                               gdouble                *y);
+                                                               HyScanGeoCartesian2D   *c2d);
 
 HYSCAN_API
 void                   hyscan_geo_projection_get_limits       (HyScanGeoProjection    *geo_projection,

@@ -89,19 +89,17 @@ hyscan_geo_projection_value_to_geo (HyScanGeoProjection *geo_projection,
 
 /**
  * hyscan_geo_projection_geo_to_value:
- * @param mercator: указатель на проекцию #HyScanGeoProjection
- * @param coords: географическая координата точки
- * @param x: (out): координата x прямоугольной СК проекции
- * @param y: (out): координата y прямоугольной СК проекции
+ * @mercator: указатель на проекцию #HyScanGeoProjection
+ * @coords: географические координаты точки
+ * @c2d: (out): координаты в прямоугольной СК
  *
  * Переводит географические координаты @coords в координаты (@x, @y)
  * прямоугольной СК карты.
  */
 void
-hyscan_geo_projection_geo_to_value (HyScanGeoProjection *geo_projection,
-                                    HyScanGeoGeodetic    coords,
-                                    gdouble             *x,
-                                    gdouble             *y)
+hyscan_geo_projection_geo_to_value (HyScanGeoProjection  *geo_projection,
+                                    HyScanGeoGeodetic     coords,
+                                    HyScanGeoCartesian2D *c2d)
 {
   HyScanGeoProjectionInterface *iface;
 
@@ -109,7 +107,7 @@ hyscan_geo_projection_geo_to_value (HyScanGeoProjection *geo_projection,
 
   iface = HYSCAN_GEO_PROJECTION_GET_IFACE (geo_projection);
   if (iface->geo_to_value != NULL)
-    (* iface->geo_to_value) (geo_projection, coords, x, y);
+    (* iface->geo_to_value) (geo_projection, coords, c2d);
 }
 
 /**

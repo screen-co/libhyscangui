@@ -17,17 +17,17 @@ void test_projection (HyScanGeoProjection *projection,
   for (i = 0; i < n_elements; ++i)
     {
       HyScanGeoGeodetic coord;
-      gdouble x, y;
+      HyScanGeoCartesian2D c2d;
       gdouble lat_err, lon_err;
 
       /* Переводим из гео в проекцию. */
-      hyscan_geo_projection_geo_to_value (projection, data[i].geo, &x, &y);
-      g_message ("Projection coordinates: %f, %f", x, y);
+      hyscan_geo_projection_geo_to_value (projection, data[i].geo, &c2d);
+      g_message ("Projection coordinates: %f, %f", c2d.x, c2d.y);
 
-      g_assert_cmpfloat (fabs (x - data[i].x) + fabs (y - data[i].y), <, eps);
+      g_assert_cmpfloat (fabs (c2d.x - data[i].x) + fabs (c2d.y - data[i].y), <, eps);
 
       /* Переводим из проекции в гео. */
-      hyscan_geo_projection_value_to_geo (projection, &coord, x, y);
+      hyscan_geo_projection_value_to_geo (projection, &coord, c2d.x, c2d.y);
       g_message ("Geo coordinates: %f, %f", coord.lat, coord.lon);
 
       lat_err = fabs (coord.lat - data[i].geo.lat);
@@ -40,7 +40,7 @@ void test_projection (HyScanGeoProjection *projection,
     }
 }
 
-int main (int argc,
+int main (int     argc,
           gchar **argv)
 {
   HyScanGeoProjection *projection;

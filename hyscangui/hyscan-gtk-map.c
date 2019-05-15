@@ -494,7 +494,7 @@ hyscan_gtk_map_move_to (HyScanGtkMap      *map,
 {
   HyScanGtkMapPrivate *priv;
   GtkCifroArea *carea;
-  gdouble center_x, center_y;
+  HyScanGeoCartesian2D center_2d;
   gdouble width, height;
 
   gdouble from_x, to_x, from_y, to_y;
@@ -510,12 +510,12 @@ hyscan_gtk_map_move_to (HyScanGtkMap      *map,
   height = to_y - from_y;
 
   /* Получаем координаты геоточки в проекции карты. */
-  hyscan_geo_projection_geo_to_value (priv->projection, center, &center_x, &center_y);
+  hyscan_geo_projection_geo_to_value (priv->projection, center, &center_2d);
 
   /* Перемещаем показываемую область в новый центр. */
   gtk_cifro_area_set_view (carea,
-                           center_x - width / 2.0, center_x + width / 2.0,
-                           center_y - height / 2.0, center_y + height / 2.0);
+                           center_2d.x - width / 2.0, center_2d.x + width / 2.0,
+                           center_2d.y - height / 2.0, center_2d.y + height / 2.0);
 }
 
 /**
@@ -707,7 +707,7 @@ hyscan_gtk_map_geo_to_value (HyScanGtkMap         *map,
   g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
 
   priv = map->priv;
-  hyscan_geo_projection_geo_to_value (priv->projection, coords, &c2d->x, &c2d->y);
+  hyscan_geo_projection_geo_to_value (priv->projection, coords, c2d);
 }
 
 /**
