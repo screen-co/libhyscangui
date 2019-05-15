@@ -391,6 +391,9 @@ hyscan_gtk_map_track_layer_removed (HyScanGtkLayer *gtk_layer)
 
   g_signal_handlers_disconnect_by_data (priv->map, track_layer);
   g_clear_object (&priv->map);
+
+  /* Удаляем все галсы, потому что они держат ссылку на track_layer и не дадут ему удалиться. */
+  g_hash_table_remove_all (priv->tracks);
 }
 
 /* Реализация HyScanGtkLayerInterface.set_visible.

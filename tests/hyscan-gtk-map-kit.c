@@ -273,7 +273,7 @@ on_row_select (GtkListBox    *box,
   HyScanGtkMapKit *kit = user_data;
   HyScanGtkMap *map = HYSCAN_GTK_MAP (kit->map);
   HyScanGtkLayer *layer = NULL;
-  GtkWidget *layer_tools = NULL;
+  const gchar *layer_tools = NULL;
 
   if (row != NULL)
     layer = g_object_get_data (G_OBJECT (row), "layer");
@@ -284,9 +284,9 @@ on_row_select (GtkListBox    *box,
   if (layer == NULL || !hyscan_gtk_layer_grab_input (layer))
     hyscan_gtk_layer_container_set_input_owner (HYSCAN_GTK_LAYER_CONTAINER (map), NULL);
 
-  if (layer_tools != NULL && GTK_IS_WIDGET (layer_tools))
+  if (layer_tools != NULL)
     {
-      gtk_stack_set_visible_child (GTK_STACK (kit->layer_tool_stack), layer_tools);
+      gtk_stack_set_visible_child_name(GTK_STACK (kit->layer_tool_stack), layer_tools);
       gtk_widget_show_all (GTK_WIDGET (kit->layer_tool_stack));
     }
   else
@@ -347,7 +347,7 @@ on_enable_track (GtkCellRendererToggle *cell_renderer,
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
   gboolean enable;
-  const gchar *track_name;
+  gchar *track_name;
   GtkTreePath *tree_path;
   GtkTreeIter iter;
   GtkTreeModel *tree_model = GTK_TREE_MODEL (priv->track_store);
@@ -361,6 +361,7 @@ on_enable_track (GtkCellRendererToggle *cell_renderer,
   gtk_list_store_set (priv->track_store, &iter, VISIBLE_COLUMN, enable, -1);
 
   hyscan_gtk_map_track_layer_track_set_visible (HYSCAN_GTK_MAP_TRACK_LAYER (kit->track_layer), track_name, enable);
+  g_free (track_name);
 }
 
 static void
@@ -435,19 +436,20 @@ create_param_settings_window (HyScanGtkMapKit *kit,
   g_signal_connect_swapped (ok,      "clicked", G_CALLBACK (gtk_widget_destroy),       window);
   g_signal_connect_swapped (cancel,  "clicked", G_CALLBACK (gtk_widget_destroy),       window);
 
-  size = gtk_size_group_new (GTK_SIZE_GROUP_HORIZONTAL);
-
-  gtk_size_group_add_widget (GTK_SIZE_GROUP (size), apply);
-  gtk_size_group_add_widget (GTK_SIZE_GROUP (size), discard);
-  gtk_size_group_add_widget (GTK_SIZE_GROUP (size), ok);
-  gtk_size_group_add_widget (GTK_SIZE_GROUP (size), cancel);
-
   abar = gtk_action_bar_new ();
 
   gtk_action_bar_pack_end (GTK_ACTION_BAR (abar), apply);
   gtk_action_bar_pack_end (GTK_ACTION_BAR (abar), discard);
   gtk_action_bar_pack_end (GTK_ACTION_BAR (abar), cancel);
   gtk_action_bar_pack_end (GTK_ACTION_BAR (abar), ok);
+
+  size = gtk_size_group_new (GTK_SIZE_GROUP_HORIZONTAL);
+  g_object_set_data_full (G_OBJECT (abar), "size-group", size, g_object_unref);
+
+  gtk_size_group_add_widget (GTK_SIZE_GROUP (size), apply);
+  gtk_size_group_add_widget (GTK_SIZE_GROUP (size), discard);
+  gtk_size_group_add_widget (GTK_SIZE_GROUP (size), ok);
+  gtk_size_group_add_widget (GTK_SIZE_GROUP (size), cancel);
 
   grid = gtk_grid_new ();
   g_object_set (grid, "margin", 10, NULL);
@@ -648,6 +650,7 @@ create_track_box (HyScanGtkMapKit *kit,
   priv->track_menu = create_track_menu (kit);
   gtk_menu_attach_to_widget (priv->track_menu, GTK_WIDGET (priv->track_tree), NULL);
 
+  g_signal_connect_swapped (priv->track_tree, "destroy", G_CALLBACK (gtk_widget_destroy), priv->track_menu);
   g_signal_connect (priv->track_tree, "button-press-event", on_button_press_event, kit);
   g_signal_connect (priv->db_info, "tracks-changed", G_CALLBACK (tracks_changed), kit);
 
@@ -901,17 +904,17 @@ create_control_box (HyScanGtkMapKit *kit,
 
     /* Устаналиваем виджеты с инструментами для каждого слоя. */
     layer_tools = create_ruler_toolbox (kit->ruler, "Удалить линейку");
-    g_object_set_data (G_OBJECT (kit->ruler), "toolbox-cb", layer_tools);
+    g_object_set_data (G_OBJECT (kit->ruler), "toolbox-cb", "ruler");
     gtk_stack_add_titled (GTK_STACK (kit->layer_tool_stack), layer_tools, "ruler", "Ruler");
 
     layer_tools = create_ruler_toolbox (kit->pin_layer, "Удалить все метки");
-    g_object_set_data (G_OBJECT (kit->pin_layer), "toolbox-cb", layer_tools);
+    g_object_set_data (G_OBJECT (kit->pin_layer), "toolbox-cb", "pin");
     gtk_stack_add_titled (GTK_STACK (kit->layer_tool_stack), layer_tools, "pin", "Pin");
 
     if (kit->track_layer != NULL)
       {
         layer_tools = create_track_box (kit, db, project_name);
-        g_object_set_data (G_OBJECT (kit->track_layer), "toolbox-cb", layer_tools);
+        g_object_set_data (G_OBJECT (kit->track_layer), "toolbox-cb", "track");
         gtk_stack_add_titled (GTK_STACK (kit->layer_tool_stack), layer_tools, "track", "Track");
       }
   }

@@ -45,10 +45,10 @@ struct _HyScanGtkMapTiledLayerPrivate
   HyScanGtkMap                 *map;                        /* Виджет карты, на котором размещен слой. */
   HyScanGtkMapTileGrid         *tile_grid;                  /* Тайловая сетка. */
   HyScanTaskQueue              *task_queue;                 /* Очередь по загрузке тайлов. */
+  HyScanCache                  *cache;                      /* Кэш тайлов. */
   HyScanBuffer                 *tile_buffer;                /* Буфер для получения поверхности тайла. */
   HyScanBuffer                 *cache_buffer;               /* Буфер для получения заголовка кэша. */
   gchar                         cache_key[CACHE_KEY_LEN];   /* Ключ кэша. */
-  HyScanCache                  *cache;
 
   guint                         mod_count;                  /* Номер изменения данных. */
   guint                         param_mod_count;            /* Номер изменения в параметрах отображения слоя. */
@@ -65,7 +65,7 @@ static void    hyscan_gtk_map_tiled_layer_set_property             (GObject     
 static void    hyscan_gtk_map_tiled_layer_object_constructed       (GObject                *object);
 static void    hyscan_gtk_map_tiled_layer_object_finalize          (GObject                *object);
 
-G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapTiledLayer, hyscan_gtk_map_tiled_layer, G_TYPE_OBJECT,
+G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapTiledLayer, hyscan_gtk_map_tiled_layer, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapTiledLayer)
                          G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_LAYER, hyscan_gtk_map_tiled_layer_interface_init))
 

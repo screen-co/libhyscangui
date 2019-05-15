@@ -54,12 +54,13 @@ typedef struct {
 struct _HyScanGtkMapTrackPrivate
 {
   HyScanDB                       *db;               /* База данных. */
-  gchar                          *project;          /* Название проекта. */
-  gchar                          *name;             /* Название галса. */
   HyScanCache                    *cache;            /* Кэш. */
   HyScanGtkMapTiledLayer         *tiled_layer;      /* Тайловый слой, на котором размещён галс. */
   HyScanGeoProjection            *projection;       /* Картографическая проекция. */
   HyScanDataSchema               *schema;           /* Схема параметров галса (номера каналов данных). */
+
+  gchar                          *project;          /* Название проекта. */
+  gchar                          *name;             /* Название галса. */
 
   gboolean                        opened;            /* Признак того, что каналы галса открыты. */
   gboolean                        loaded;            /* Признак того, что данные галса загружены. */
@@ -211,19 +212,27 @@ hyscan_gtk_map_track_object_finalize (GObject *object)
   HyScanGtkMapTrack *gtk_map_track = HYSCAN_GTK_MAP_TRACK (object);
   HyScanGtkMapTrackPrivate *priv = gtk_map_track->priv;
 
-  g_free (priv->name);
-  g_free (priv->project);
   g_rw_lock_clear (&priv->lock);
+
+  g_clear_object (&priv->db);
+  g_clear_object (&priv->cache);
+  g_clear_object (&priv->tiled_layer);
+  g_clear_object (&priv->projection);
+  g_clear_object (&priv->schema);
+
+  g_free (priv->project);
+  g_free (priv->name);
+
+  g_clear_object (&priv->port.amplitude);
+  g_clear_object (&priv->port.projector);
+  g_clear_object (&priv->starboard.amplitude);
+  g_clear_object (&priv->starboard.projector);
+
+  g_clear_object (&priv->depthometer);
   g_clear_object (&priv->lat_data);
   g_clear_object (&priv->lon_data);
   g_clear_object (&priv->angle_data);
-  g_clear_object (&priv->starboard.amplitude);
-  g_clear_object (&priv->starboard.projector);
-  g_clear_object (&priv->port.amplitude);
-  g_clear_object (&priv->port.projector);
-  g_clear_object (&priv->depthometer);
-  g_clear_object (&priv->cache);
-  g_clear_object (&priv->db);
+
   g_list_free_full (priv->points, g_free);
 
   G_OBJECT_CLASS (hyscan_gtk_map_track_parent_class)->finalize (object);
@@ -888,7 +897,7 @@ hyscan_gtk_map_track_load (HyScanGtkMapTrack *track)
     }
 
   /* Приводим список точек в соответствие с флагом priv->loaded. */
-  if (!priv->loaded)
+  if (!priv->loaded && priv->points != NULL)
     {
       g_list_free_full (priv->points, g_free);
       priv->points = NULL;

@@ -194,7 +194,7 @@ hyscan_gtk_map_ruler_handle (HyScanGtkLayerContainer *container,
 
   new_point = hyscan_gtk_map_pin_layer_insert_before (pin_layer, &priv->section_point, section);
 
-  return hyscan_gtk_map_pin_layer_start_drag (pin_layer, new_point);;
+  return hyscan_gtk_map_pin_layer_start_drag (pin_layer, new_point);
 }
 
 static void
@@ -206,6 +206,8 @@ hyscan_gtk_map_ruler_removed (HyScanGtkLayer *gtk_layer)
 
   g_signal_handlers_disconnect_by_data (priv->map, gtk_layer);
   g_clear_object (&priv->map);
+
+  hyscan_gtk_layer_parent_interface->removed (gtk_layer);
 }
 
 static void
