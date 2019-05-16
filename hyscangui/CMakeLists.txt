@@ -45,6 +45,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-map-way-layer.c
              hyscan-gtk-map-track.c
              hyscan-gtk-map-track-layer.c
+             hyscan-gtk-map-wfmark-layer.c
 
              #[[ Загрузка тайлов ]]
              hyscan-task-queue.c

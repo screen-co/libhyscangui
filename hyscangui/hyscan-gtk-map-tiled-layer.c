@@ -2,8 +2,6 @@
 #include <hyscan-task-queue.h>
 #include <hyscan-gtk-map.h>
 #include <hyscan-buffer.h>
-#include <hyscan-cache.h>
-#include <hyscan-cached.h>
 
 #define CACHE_TRACK_MOD_MAGIC  0x4d546d64    /* Идентификатор заголовка кэша. */
 #define CACHE_HEADER_MAGIC     0xcfadec2d    /* Идентификатор заголовка кэша. */

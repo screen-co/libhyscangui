@@ -22,6 +22,7 @@ typedef struct
 
   /* Слои. */
   HyScanGtkLayer *track_layer;    /* Слой просмотра галсов. */
+  HyScanGtkLayer *wfmark_layer;   /* Слой с метками водопада. */
   HyScanGtkLayer *map_grid;       /* Слой координатной сетки. */
   HyScanGtkLayer *ruler;          /* Слой линейки. */
   HyScanGtkLayer *pin_layer;      /* Слой географических отметок. */

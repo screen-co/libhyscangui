@@ -3,6 +3,7 @@
 
 #include <hyscan-gtk-layer.h>
 #include <hyscan-gtk-map-tile.h>
+#include <hyscan-cache.h>
 
 G_BEGIN_DECLS
 

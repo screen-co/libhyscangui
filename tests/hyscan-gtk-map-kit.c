@@ -12,6 +12,7 @@
 #include <hyscan-map-tile-loader.h>
 #include <hyscan-db-info.h>
 #include <hyscan-gtk-param-tree.h>
+#include <hyscan-gtk-map-wfmark-layer.h>
 
 #define PRELOAD_STATE_DONE 1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
 
@@ -105,10 +106,14 @@ create_map (HyScanDB          *db,
         HyScanCache *cached;
 
         cached = HYSCAN_CACHE (hyscan_cached_new (200));
+
         kit->track_layer = hyscan_gtk_map_track_layer_new (db, project_name, cached);
+        kit->wfmark_layer = hyscan_gtk_map_wfmark_layer_new (db, project_name, cached);
+
         g_object_unref (cached);
 
         hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), kit->track_layer,   "track");
+        hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), kit->wfmark_layer,  "wfmark");
       }
 
     hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), kit->pin_layer,   "pin");
@@ -888,6 +893,8 @@ create_control_box (HyScanGtkMapKit *kit,
       add_layer_row (GTK_LIST_BOX (list_box), "Трек", kit->way_layer);
     if (kit->track_layer != NULL)
       add_layer_row (GTK_LIST_BOX (list_box), "Галсы", kit->track_layer);
+    if (kit->wfmark_layer != NULL)
+      add_layer_row (GTK_LIST_BOX (list_box), "Метки водопада", kit->wfmark_layer);
     g_signal_connect (list_box, "row-selected", G_CALLBACK (on_row_select), kit);
 
     gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Слои"));
