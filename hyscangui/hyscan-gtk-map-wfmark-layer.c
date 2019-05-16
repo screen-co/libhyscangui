@@ -11,6 +11,9 @@
 #define NMEA_RMC_CHANNEL        1          /* Канал с навигационными данными. */
 #define DISTANCE_TO_METERS      0.001      /* Коэффициент перевода размеров метки в метры. */
 
+/* Раскомментируйте строку ниже для отладки положения меток относительно галса. */
+// #define DEBUG_TRACK_POINTS
+
 enum
 {
   PROP_O,
@@ -253,6 +256,8 @@ hyscan_gtk_map_wfmark_layer_load_location (HyScanGtkMapWfmarkLayer         *wfm_
   {
     HyScanNavData *lat_data, *lon_data, *angle_data;
     guint32 lindex, rindex;
+    HyScanGeoGeodetic lgeo, rgeo;
+    gint64 ltime, rtime;
 
     // todo: определять, какой номер канала с навигационными данными. Сейчас захардкожен "NMEA_RMC_CHANNEL"
     lat_data = HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache,
@@ -265,17 +270,44 @@ hyscan_gtk_map_wfmark_layer_load_location (HyScanGtkMapWfmarkLayer         *wfm_
                                                           priv->project, track_name, NMEA_RMC_CHANNEL,
                                                           HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_TRACK));
 
-    if (hyscan_nav_data_find_data (lat_data, location->time, &lindex, &rindex, NULL, NULL) == HYSCAN_DB_FIND_OK)
+    if (hyscan_nav_data_find_data (lat_data, location->time, &lindex, &rindex, &ltime, &rtime) == HYSCAN_DB_FIND_OK)
       {
         gboolean found;
 
-        found =  hyscan_nav_data_get (lat_data, lindex, NULL, &location->center_geo.lat) &&
-                 hyscan_nav_data_get (lon_data, lindex, NULL, &location->center_geo.lon) &&
-                 hyscan_nav_data_get (angle_data, lindex, NULL, &location->center_geo.h);
+        /* Пробуем распарсить навигационные данные по найденным индексам. */
+        found =  hyscan_nav_data_get (lat_data, lindex, NULL, &lgeo.lat) &&
+                 hyscan_nav_data_get (lon_data, lindex, NULL, &lgeo.lon) &&
+                 hyscan_nav_data_get (angle_data, lindex, NULL, &lgeo.h);
+        found &=  hyscan_nav_data_get (lat_data, rindex, NULL, &rgeo.lat) &&
+                  hyscan_nav_data_get (lon_data, rindex, NULL, &rgeo.lon) &&
+                  hyscan_nav_data_get (angle_data, rindex, NULL, &rgeo.h);
 
-        // todo: если в текущем индексе нет данных, то пробовать брать соседние и интерполировать
-        if (!found)
-          g_warning ("HyScanGtkMapWfmarkLayer: mark location was not found");
+        if (found)
+          {
+            gint64 dtime = rtime - ltime;
+
+            /* Ищем средневзвешанное значение. */
+            if (dtime > 0)
+              {
+                gdouble rweight, lweight;
+
+                rweight = (gdouble) (rtime - location->time) / dtime;
+                lweight = (gdouble) (location->time - ltime) / dtime;
+
+                location->center_geo.lat = lweight * lgeo.lat + rweight * rgeo.lat;
+                location->center_geo.lon = lweight * lgeo.lon + rweight * rgeo.lon;
+                location->center_geo.h = lweight * lgeo.h + rweight * rgeo.h;
+              }
+            else
+              {
+                location->center_geo = lgeo;
+              }
+          }
+        else
+          {
+            // todo: если в текущем индексе нет данных, то пробовать брать соседние
+            g_warning ("HyScanGtkMapWfmarkLayer: mark location was not found");
+          }
       }
 
     g_object_unref (angle_data);
@@ -404,14 +436,6 @@ hyscan_gtk_map_wfmark_layer_draw (HyScanGtkMap            *map,
       gdouble width, height;
       gdouble scale;
 
-
-      gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y,
-                                             location->track_c2d.x, location->track_c2d.y);
-      cairo_arc (cairo, x, y, 4.0, 0, 2 * G_PI);
-      cairo_stroke (cairo);
-
-      cairo_move_to (cairo, x, y);
-
       /* Переводим размеры метки из логической СК в пиксельные. */
       gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &scale, NULL);
       width = location->width / scale;
@@ -420,11 +444,28 @@ hyscan_gtk_map_wfmark_layer_draw (HyScanGtkMap            *map,
       gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y,
                                              location->center_c2d.x, location->center_c2d.y);
 
-      cairo_line_to (cairo, x, y);
-      cairo_stroke (cairo);
+#ifdef DEBUG_TRACK_POINTS
+      {
+        gdouble track_x, track_y;
+        const gdouble dashes[] = { 12.0, 2.0 };
+        gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &track_x, &track_y,
+                                               location->track_c2d.x, location->track_c2d.y);
+        cairo_new_sub_path (cairo);
+        cairo_arc (cairo, x, y, 4.0, 0, 2 * G_PI);
+        cairo_fill (cairo);
+
+        cairo_new_sub_path (cairo);
+        cairo_arc (cairo, track_x, track_y, 4.0, 0, 2 * G_PI);
+        cairo_fill (cairo);
+
+        cairo_move_to (cairo, x, y);
+        cairo_line_to (cairo, track_x, track_y);
+        cairo_set_dash (cairo, dashes, G_N_ELEMENTS (dashes), 0.0);
+        cairo_stroke (cairo);
+      }
+#endif
 
       cairo_save (cairo);
-
 
       cairo_translate (cairo, x, y);
       cairo_rotate (cairo, location->angle);
