@@ -117,6 +117,13 @@ hyscan_cartesian_distance_to_line (HyScanGeoCartesian2D *p1,
 }
 
 
+/**
+ * hyscan_cartesian_distance:
+ * @p1
+ * @p2
+ *
+ * Returns: расстояние между точками p1 и p2
+ */
 gdouble
 hyscan_cartesian_distance (HyScanGeoCartesian2D *p1,
                            HyScanGeoCartesian2D *p2)
@@ -127,4 +134,75 @@ hyscan_cartesian_distance (HyScanGeoCartesian2D *p1,
   dy = p1->y - p2->y;
 
   return sqrt (dx * dx + dy * dy);
+}
+
+/* Поворачивает точку @point относительно @center на угол @angle. */
+void
+hyscan_cartesian_rotate (HyScanGeoCartesian2D *point,
+                         HyScanGeoCartesian2D *center,
+                         gdouble               angle,
+                         HyScanGeoCartesian2D *rotated)
+{
+  gdouble cos_angle, sin_angle;
+
+  cos_angle = cos (angle);
+  sin_angle = sin (angle);
+
+  rotated->x = (point->x - center->x) * cos_angle - (point->y - center->y) * sin_angle + center->x;
+  rotated->y = (point->x - center->x) * sin_angle + (point->y - center->y) * cos_angle + center->y;
+}
+
+/**
+ * hyscan_cartesian_extent:
+ * @area_from:
+ * @area_to:
+ * @angle:
+ * @extent_from:
+ * @extent_to:
+ *
+ * Определяет границы, внутри которых находится прямоугольник с вершинами
+ * @p1 и @p2 после поворота на угол @angle вокруг центра прямоугольника.
+ */
+void
+hyscan_cartesian_rotate_area (HyScanGeoCartesian2D *area_from,
+                              HyScanGeoCartesian2D *area_to,
+                              HyScanGeoCartesian2D *center,
+                              gdouble               angle,
+                              HyScanGeoCartesian2D *rotated_from,
+                              HyScanGeoCartesian2D *rotated_to)
+{
+  HyScanGeoCartesian2D vertex, rotated, rotated_from_ret, rotated_to_ret;
+  
+  /* Первая вершина. */
+  vertex = *area_from;
+  hyscan_cartesian_rotate (&vertex, center, angle, &rotated);
+  rotated_from_ret = rotated;
+  rotated_to_ret = rotated;
+
+  /* Вторая вершина. */
+  vertex.x = area_to->x;
+  hyscan_cartesian_rotate (&vertex, center, angle, &rotated);
+  rotated_from_ret.x = MIN (rotated.x, rotated_from_ret.x); 
+  rotated_from_ret.y = MIN (rotated.y, rotated_from_ret.y);
+  rotated_to_ret.x = MAX (rotated.x, rotated_to_ret.x);
+  rotated_to_ret.y = MAX (rotated.y, rotated_to_ret.y);
+
+  /* Третья вершина. */
+  vertex = *area_to;
+  hyscan_cartesian_rotate (&vertex, center, angle, &rotated);
+  rotated_from_ret.x = MIN (rotated.x, rotated_from_ret.x);
+  rotated_from_ret.y = MIN (rotated.y, rotated_from_ret.y);
+  rotated_to_ret.x = MAX (rotated.x, rotated_to_ret.x);
+  rotated_to_ret.y = MAX (rotated.y, rotated_to_ret.y);
+
+  /* Четвёртая вершина. */
+  vertex.x = area_from->x;
+  hyscan_cartesian_rotate (&vertex, center, angle, &rotated);
+  rotated_from_ret.x = MIN (rotated.x, rotated_from_ret.x);
+  rotated_from_ret.y = MIN (rotated.y, rotated_from_ret.y);
+  rotated_to_ret.x = MAX (rotated.x, rotated_to_ret.x);
+  rotated_to_ret.y = MAX (rotated.y, rotated_to_ret.y);
+
+  *rotated_from = rotated_from_ret;
+  *rotated_to = rotated_to_ret;
 }
