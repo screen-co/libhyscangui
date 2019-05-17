@@ -52,6 +52,7 @@ typedef struct
 struct _HyScanGtkMapWfmarkLayerPrivate
 {
   HyScanGtkMap    *map;                         /* Карта. */
+  gboolean         visible;                     /* Признак видимости слоя. */
 
   HyScanDB        *db;                          /* База данных. */
   HyScanCache     *cache;                       /* Кэш. */
@@ -678,10 +679,33 @@ hyscan_gtk_map_wfmark_layer_removed (HyScanGtkLayer *gtk_layer)
 }
 
 static void
+hyscan_gtk_map_wfmark_layer_set_visible (HyScanGtkLayer *layer,
+                                         gboolean        visible)
+{
+  HyScanGtkMapWfmarkLayer *wfm_layer = HYSCAN_GTK_MAP_WFMARK_LAYER (layer);
+  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
+
+  priv->visible = visible;
+
+  if (priv->map != NULL)
+    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+}
+
+static gboolean
+hyscan_gtk_map_wfmark_layer_get_visible (HyScanGtkLayer *layer)
+{
+  HyScanGtkMapWfmarkLayer *wfm_layer = HYSCAN_GTK_MAP_WFMARK_LAYER (layer);
+
+  return wfm_layer->priv->visible;
+}
+
+static void
 hyscan_gtk_map_wfmark_layer_interface_init (HyScanGtkLayerInterface *iface)
 {
   iface->removed = hyscan_gtk_map_wfmark_layer_removed;
   iface->added = hyscan_gtk_map_wfmark_layer_added;
+  iface->set_visible = hyscan_gtk_map_wfmark_layer_set_visible;
+  iface->get_visible = hyscan_gtk_map_wfmark_layer_get_visible;
 }
 
 HyScanGtkLayer *
