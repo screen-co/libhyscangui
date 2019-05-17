@@ -8,9 +8,18 @@
 #include <hyscan-projector.h>
 #include <math.h>
 
-#define ACOUSTIC_CHANNEL        1          /* Канал с акустическими данными. */
-#define NMEA_RMC_CHANNEL        1          /* Канал с навигационными данными. */
-#define DISTANCE_TO_METERS      0.001      /* Коэффициент перевода размеров метки в метры. */
+#define ACOUSTIC_CHANNEL        1                    /* Канал с акустическими данными. */
+#define NMEA_RMC_CHANNEL        1                    /* Канал с навигационными данными. */
+#define DISTANCE_TO_METERS      0.001                /* Коэффициент перевода размеров метки в метры. */
+
+/* Оформление по умолчанию. */
+#define MARK_COLOR              "#F55A22"            /* Цвет обводки меток. */
+#define MARK_COLOR_HOVER        "#5A22F5"            /* Цвет обводки меток при наведении мыши. */
+#define BG_COLOR                "rgba(0,0,0,0.4)"    /* Цвет фона подписи. */
+#define TEXT_COLOR              "#FFFFFF"            /* Цвет текста подписи. */
+#define LINE_WIDTH              2.0                  /* Толщина линии обводки. */
+#define TEXT_MARGIN             5.0                  /* Отступт текста от границ. */
+#define TOOLTIP_MARGIN          5.0                  /* Отступ всплывающей подсказки от указателя мыши. */
 
 /* Раскомментируйте строку ниже для отладки положения меток относительно галса. */
 // #define DEBUG_TRACK_POINTS
@@ -182,13 +191,13 @@ hyscan_gtk_map_wfmark_layer_object_constructed (GObject *object)
   hyscan_mark_model_set_project (priv->mark_model, priv->db, priv->project);
 
   /* Стиль оформления. */
-  gdk_rgba_parse (&priv->color_hover, "#F55A22");
-  gdk_rgba_parse (&priv->color_default, "#5A22F5");
-  gdk_rgba_parse (&priv->color_bg, "rgba(0,0,0,0.4)");
-  gdk_rgba_parse (&priv->color_text, "#FFFFFF");
-  priv->text_margin = 5.0;
-  priv->tooltip_margin = 5.0;
-  priv->line_width = 2.0;
+  gdk_rgba_parse (&priv->color_default, MARK_COLOR);
+  gdk_rgba_parse (&priv->color_hover, MARK_COLOR_HOVER);
+  gdk_rgba_parse (&priv->color_bg, BG_COLOR);
+  gdk_rgba_parse (&priv->color_text, TEXT_COLOR);
+  priv->text_margin = TEXT_MARGIN;
+  priv->tooltip_margin = TOOLTIP_MARGIN;
+  priv->line_width = LINE_WIDTH;
 }
 
 static void
@@ -722,6 +731,42 @@ hyscan_gtk_map_wfmark_layer_get_visible (HyScanGtkLayer *layer)
   return wfm_layer->priv->visible;
 }
 
+/* Загружает настройки слоя из ini-файла. */
+static gboolean
+hyscan_gtk_map_wfmark_layer_load_key_file (HyScanGtkLayer *layer,
+                                           GKeyFile       *key_file,
+                                           const gchar    *group)
+{
+  HyScanGtkMapWfmarkLayer *wfm_layer = HYSCAN_GTK_MAP_WFMARK_LAYER (layer);
+  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
+
+  gdouble value;
+
+  /* Блокируем доступ к меткам, пока не установим новые параметры. */
+  g_rw_lock_writer_lock (&priv->mark_lock);
+
+  /* Внешний вид линии. */
+  value = g_key_file_get_double (key_file, group, "line-width", NULL);
+  priv->line_width = value > 0 ? value : LINE_WIDTH ;
+  hyscan_gtk_layer_load_key_file_rgba (&priv->color_default, key_file, group, "mark-color", MARK_COLOR);
+  hyscan_gtk_layer_load_key_file_rgba (&priv->color_hover, key_file, group, "mark-color-hover", MARK_COLOR_HOVER);
+  hyscan_gtk_layer_load_key_file_rgba (&priv->color_bg, key_file, group, "bg-color", BG_COLOR);
+  hyscan_gtk_layer_load_key_file_rgba (&priv->color_text, key_file, group, "text-color", TEXT_COLOR);
+
+  value = g_key_file_get_double (key_file, group, "text-margin", NULL);
+  priv->text_margin = value > 0 ? value : TEXT_MARGIN;
+
+  value = g_key_file_get_double (key_file, group, "tooltip-margin", NULL);
+  priv->text_margin = value > 0 ? value : TOOLTIP_MARGIN;
+
+  g_rw_lock_writer_unlock (&priv->mark_lock);
+
+  /* Перерисовываем. */
+  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+  return TRUE;
+}
+
 static void
 hyscan_gtk_map_wfmark_layer_interface_init (HyScanGtkLayerInterface *iface)
 {
@@ -729,6 +774,7 @@ hyscan_gtk_map_wfmark_layer_interface_init (HyScanGtkLayerInterface *iface)
   iface->added = hyscan_gtk_map_wfmark_layer_added;
   iface->set_visible = hyscan_gtk_map_wfmark_layer_set_visible;
   iface->get_visible = hyscan_gtk_map_wfmark_layer_get_visible;
+  iface->load_key_file = hyscan_gtk_map_wfmark_layer_load_key_file;
 }
 
 HyScanGtkLayer *
