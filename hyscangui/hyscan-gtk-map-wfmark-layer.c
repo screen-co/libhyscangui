@@ -650,6 +650,28 @@ hyscan_gtk_map_wfmark_layer_motion_notify (GtkWidget      *widget,
   g_rw_lock_reader_unlock (&priv->mark_lock);
 }
 
+/* Обработчик сигнала HyScanGtkMap::notify::projection.
+ * Пересчитывает координаты меток, если изменяется картографическая проекция. */
+static void
+hyscan_gtk_map_wfmark_layer_proj_notify (HyScanGtkMap *map,
+                                         GParamSpec   *pspec,
+                                         gpointer      user_data)
+{
+  HyScanGtkMapWfmarkLayer *wfm_layer = HYSCAN_GTK_MAP_WFMARK_LAYER (user_data);
+  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
+  GList *list;
+
+  g_rw_lock_writer_lock (&priv->mark_lock);
+
+  /* Обновляем координаты меток согласно новой проекции. */
+  for (list = priv->locations; list != NULL; list = list->next)
+    hyscan_gtk_map_wfmark_layer_project_location (wfm_layer, list->data);
+
+  g_rw_lock_writer_unlock (&priv->mark_lock);
+
+  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+}
+
 static void
 hyscan_gtk_map_wfmark_layer_added (HyScanGtkLayer          *gtk_layer,
                                    HyScanGtkLayerContainer *container)
@@ -664,6 +686,7 @@ hyscan_gtk_map_wfmark_layer_added (HyScanGtkLayer          *gtk_layer,
   g_signal_connect (priv->map, "motion-notify-event", G_CALLBACK (hyscan_gtk_map_wfmark_layer_motion_notify), gtk_layer);
   g_signal_connect_after (priv->map, "visible-draw", G_CALLBACK (hyscan_gtk_map_wfmark_layer_draw), wfm_layer);
   g_signal_connect_swapped (priv->map, "configure-event", G_CALLBACK (hyscan_gtk_map_wfmark_layer_configure), wfm_layer);
+  g_signal_connect (priv->map, "notify::projection", G_CALLBACK (hyscan_gtk_map_wfmark_layer_proj_notify), gtk_layer);
 }
 
 static void
