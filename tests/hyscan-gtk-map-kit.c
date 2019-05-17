@@ -506,7 +506,7 @@ on_configure_track_clicked (GtkButton *button,
 }
 
 /* Функция вызывается при изменении списка галсов. */
-void
+static void
 tracks_changed (HyScanDBInfo    *db_info,
                 HyScanGtkMapKit *kit)
 {
@@ -561,7 +561,7 @@ tracks_changed (HyScanDBInfo    *db_info,
   g_hash_table_unref (tracks);
 }
 
-gboolean
+static gboolean
 on_button_press_event (GtkTreeView     *tree_view,
                        GdkEventButton  *event_button,
                        HyScanGtkMapKit *kit)

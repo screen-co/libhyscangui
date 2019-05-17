@@ -36,6 +36,7 @@ typedef struct
 {
   const HyScanWaterfallMark   *mark;            /* Указатель на оригинальную метку (принадлежит priv->marks). */
 
+  gboolean                     loaded;          /* Признак того, что геолокационные данные загружены. */
   HyScanGeoGeodetic            center_geo;      /* Географические координаты центра метки. */
   HyScanGeoCartesian2D         center_c2d;      /* Координаты центра метки в СК карты. */
   HyScanGeoCartesian2D         track_c2d;       /* Координаты проекции центра метки на галс. */
@@ -250,6 +251,9 @@ hyscan_gtk_map_wfmark_layer_project_location (HyScanGtkMapWfmarkLayer         *w
   gdouble offset;
   HyScanGeoCartesian2D mark_from, mark_to;
 
+  if (!location->loaded)
+    return;
+
   /* Переводим из метров в единицы картографической проекции. */
   scale = hyscan_gtk_map_get_value_scale (priv->map, &location->center_geo);
   location->width = DISTANCE_TO_METERS * location->mark->width / scale;
@@ -288,10 +292,12 @@ hyscan_gtk_map_wfmark_layer_load_location (HyScanGtkMapWfmarkLayer         *wfm_
   const HyScanWaterfallMark *mark = location->mark;
   const gchar *track_name;
 
+  location->loaded = FALSE;
+
   /* Получаем название галса. */
   track_name = g_hash_table_lookup (priv->track_names, mark->track);
   if (track_name == NULL)
-    return FALSE;
+    return location->loaded;
   // todo: Cache objects: amplitude, projector, lat_data, lon_data...
   
   /* Получаем временную метку из канала акустических данных. */
@@ -361,6 +367,8 @@ hyscan_gtk_map_wfmark_layer_load_location (HyScanGtkMapWfmarkLayer         *wfm_
               {
                 location->center_geo = lgeo;
               }
+
+            location->loaded = TRUE;
           }
         else
           {
@@ -392,7 +400,7 @@ hyscan_gtk_map_wfmark_layer_load_location (HyScanGtkMapWfmarkLayer         *wfm_
     g_object_unref (projector);
   }
 
-  return TRUE;
+  return location->loaded;
 }
 
 /* Перезагружает данные priv->locations.
@@ -467,6 +475,9 @@ hyscan_gtk_map_wfmark_layer_model_changed (HyScanGtkMapWfmarkLayer *wfm_layer)
   // todo: сделать обновление текущего списка меток priv->marks, а не полную перезагрузку
   hyscan_gtk_map_wfmark_layer_reload_locations (wfm_layer);
 
+  if (priv->map != NULL)
+    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
   g_rw_lock_writer_unlock (&priv->mark_lock);
 }
 
@@ -503,6 +514,9 @@ hyscan_gtk_map_wfmark_layer_draw (HyScanGtkMap            *map,
       gdouble x, y;
       gdouble width, height;
       gdouble scale;
+
+      if (!location->loaded)
+        continue;
 
       /* Переводим размеры метки из логической СК в пиксельные. */
       gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &scale, NULL);
