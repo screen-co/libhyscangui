@@ -2,8 +2,7 @@
 #define __HYSCAN_GTK_MAP_WFMARK_LAYER_H__
 
 #include <hyscan-gtk-layer.h>
-#include <hyscan-db.h>
-#include <hyscan-cache.h>
+#include <hyscan-mark-loc-model.h>
 
 G_BEGIN_DECLS
 
@@ -34,9 +33,7 @@ HYSCAN_API
 GType            hyscan_gtk_map_wfmark_layer_get_type (void);
 
 HYSCAN_API
-HyScanGtkLayer * hyscan_gtk_map_wfmark_layer_new      (HyScanDB        *db,
-                                                       const gchar     *project,
-                                                       HyScanCache     *cache);
+HyScanGtkLayer * hyscan_gtk_map_wfmark_layer_new      (HyScanMarkLocModel *model);
 
 G_END_DECLS
 

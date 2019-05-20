@@ -104,12 +104,16 @@ create_map (HyScanDB          *db,
     if (db != NULL && project_name != NULL)
       {
         HyScanCache *cached;
+        HyScanMarkLocModel *ml_model;
 
         cached = HYSCAN_CACHE (hyscan_cached_new (200));
 
         kit->track_layer = hyscan_gtk_map_track_layer_new (db, project_name, cached);
-        kit->wfmark_layer = hyscan_gtk_map_wfmark_layer_new (db, project_name, cached);
+        ml_model = hyscan_mark_loc_model_new (db, cached);
+        kit->wfmark_layer = hyscan_gtk_map_wfmark_layer_new (ml_model);
+        hyscan_mark_loc_model_set_project (ml_model, project_name);
 
+        g_object_unref (ml_model);
         g_object_unref (cached);
 
         hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), kit->track_layer,   "track");
