@@ -300,8 +300,6 @@ hyscan_gtk_map_tiles_queue_shutdown (HyScanGtkMapTiles *tiles)
   if (priv->task_queue == NULL)
     return;
 
-  /* todo: этот shutdown иногда надолго блокирует GUI
-   * Связано с тем, что долго слой tiles не сразу реагирует на сигнал отмены загрузки. */
   hyscan_task_queue_shutdown (priv->task_queue);
   g_clear_object (&priv->task_queue);
 }

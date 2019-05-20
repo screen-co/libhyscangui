@@ -305,8 +305,6 @@ hyscan_map_profile_read (HyScanMapProfile    *profile,
   gchar **keys;
   gint i;
 
-  // TODO: эту функцию можно использовать в HyScanSerializable
-
   g_return_val_if_fail (HYSCAN_IS_MAP_PROFILE (profile), FALSE);
   priv = profile->priv;
   
