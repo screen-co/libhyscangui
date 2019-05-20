@@ -1,3 +1,58 @@
+/* hyscan-gtk-map-track.h
+ *
+ * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
+ *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-map-track
+ * @Short_description: Изображение галса на карте
+ * @Title: HyScanGtkMapTrack
+ *
+ * HyScanGtkMapTrack позволяет изображать галс на карте в виде линии движения
+ * судна и дальности обнаружения по каждому борту.
+ *
+ * Функции:
+ * - hyscan_gtk_map_track_new() - создает нового объекта;
+ * - hyscan_gtk_map_track_set_projection() - устанавлиает картографическую проекцию;
+ * - hyscan_gtk_map_track_update() - проверяет и загруажет новые данные по галсу;
+ * - hyscan_gtk_map_track_draw() - рисует галс на указанном участке;
+ * - hyscan_gtk_map_track_view() - определяет границы галса.
+ *
+ * Кроме того #HyScanGtkMapTrack реализует интерфейс #HyScanParam, с помощью
+ * которого можно установить каналы данных, используемые для загрузки информации
+ * по галсу.
+ *
+ */
+
 #include "hyscan-gtk-map-track.h"
 #include <hyscan-cartesian.h>
 #include <hyscan-gtk-map-tiled-layer.h>
@@ -64,7 +119,6 @@ struct _HyScanGtkMapTrackPrivate
 
   gboolean                        opened;            /* Признак того, что каналы галса открыты. */
   gboolean                        loaded;            /* Признак того, что данные галса загружены. */
-  gboolean                        visible;           /* Признак того, что галс необходимо показать. */
   gboolean                        writeable;         /* Признак того, что галс открыт для записи. */
   GRWLock                         lock;              /* Блокировка доступа к точкам галса. */
 
@@ -1120,8 +1174,6 @@ hyscan_gtk_map_track_draw (HyScanGtkMapTrack      *track,
   g_return_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track));
 
   priv = track->priv;
-  if (!priv->visible)
-    return;
 
   /* Загружаем новые данные по треку (если что-то изменилось в канале данных). */
   g_rw_lock_writer_lock (&priv->lock);
@@ -1200,24 +1252,6 @@ hyscan_gtk_map_track_view (HyScanGtkMapTrack    *track,
   g_rw_lock_reader_unlock (&priv->lock);
 
   return TRUE;
-}
-
-
-void
-hyscan_gtk_map_track_set_visible (HyScanGtkMapTrack *track,
-                                  gboolean           visible)
-{
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track));
-
-  track->priv->visible = visible;
-}
-
-gboolean
-hyscan_gtk_map_track_get_visible (HyScanGtkMapTrack *track)
-{
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track), FALSE);
-
-  return track->priv->visible;
 }
 
 /**

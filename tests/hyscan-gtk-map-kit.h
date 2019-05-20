@@ -4,6 +4,7 @@
 #include <hyscan-gtk-map.h>
 #include <hyscan-db.h>
 #include <hyscan-sensor.h>
+#include <hyscan-track-list-model.h>
 
 typedef struct _HyScanGtkMapKitPrivate HyScanGtkMapKitPrivate;
 

@@ -13,6 +13,7 @@
 #include <hyscan-db-info.h>
 #include <hyscan-gtk-param-tree.h>
 #include <hyscan-gtk-map-wfmark-layer.h>
+#include <hyscan-track-list-model.h>
 
 #define PRELOAD_STATE_DONE 1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
 
@@ -41,6 +42,8 @@ struct _HyScanGtkMapKitPrivate
   GtkTreeView           *track_tree;       /* GtkTreeView со списком галсов. */
   GtkListStore          *track_store;      /* Модель данных для track_tree. */
   GtkMenu               *track_menu;       /* Контекстное меню галса (по правой кнопке). */
+
+  HyScanTrackListModel *track_list_model;  /* Модель активных галсов. */
 };
 
 /* Слой с треком движения. */
@@ -77,6 +80,7 @@ create_map (HyScanDB          *db,
             HyScanSensor      *sensor,
             const gchar       *sensor_name)
 {
+  HyScanGtkMapKitPrivate *priv = kit->priv;
   HyScanGtkMap *map;
   gdouble *scales;
   gint scales_len;
@@ -108,7 +112,8 @@ create_map (HyScanDB          *db,
 
         cached = HYSCAN_CACHE (hyscan_cached_new (200));
 
-        kit->track_layer = hyscan_gtk_map_track_layer_new (db, project_name, cached);
+        priv->track_list_model = hyscan_track_list_model_new ();
+        kit->track_layer = hyscan_gtk_map_track_layer_new (db, project_name, priv->track_list_model, cached);
         ml_model = hyscan_mark_loc_model_new (db, cached);
         kit->wfmark_layer = hyscan_gtk_map_wfmark_layer_new (ml_model);
         hyscan_mark_loc_model_set_project (ml_model, project_name);
@@ -355,22 +360,49 @@ on_enable_track (GtkCellRendererToggle *cell_renderer,
   HyScanGtkMapKit *kit = user_data;
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
-  gboolean enable;
+  gboolean active;
   gchar *track_name;
   GtkTreePath *tree_path;
   GtkTreeIter iter;
   GtkTreeModel *tree_model = GTK_TREE_MODEL (priv->track_store);
 
+  /* Узнаем, галочку какого галса изменил пользователь. */
   tree_path = gtk_tree_path_new_from_string (path);
   gtk_tree_model_get_iter (tree_model, &iter, tree_path);
   gtk_tree_path_free (tree_path);
-  gtk_tree_model_get (tree_model, &iter, TRACK_COLUMN, &track_name, VISIBLE_COLUMN, &enable, -1);
+  gtk_tree_model_get (tree_model, &iter, TRACK_COLUMN, &track_name, VISIBLE_COLUMN, &active, -1);
 
-  enable = !enable;
-  gtk_list_store_set (priv->track_store, &iter, VISIBLE_COLUMN, enable, -1);
+  /* Устанавливаем новое значение в модель данных. */
+  hyscan_track_list_model_set_active (priv->track_list_model, track_name, !active);
 
-  hyscan_gtk_map_track_layer_track_set_visible (HYSCAN_GTK_MAP_TRACK_LAYER (kit->track_layer), track_name, enable);
   g_free (track_name);
+}
+
+/* Обработчик HyScanTrackListModel::changed
+ * Обновляет список активных галсов при измении модели. */
+static void
+on_active_track_changed (HyScanTrackListModel *model,
+                         HyScanGtkMapKit      *kit)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+  GtkTreeIter iter;
+  gboolean valid;
+
+  valid = gtk_tree_model_get_iter_first (GTK_TREE_MODEL (priv->track_store), &iter);
+  while (valid)
+   {
+     gchar *track_name;
+     gboolean active;
+
+     gtk_tree_model_get (GTK_TREE_MODEL (priv->track_store), &iter, TRACK_COLUMN, &track_name, -1);
+
+     active = hyscan_track_list_model_get_active (priv->track_list_model, track_name);
+     gtk_list_store_set (priv->track_store, &iter, VISIBLE_COLUMN, active, -1);
+
+     g_free (track_name);
+
+     valid = gtk_tree_model_iter_next (GTK_TREE_MODEL (priv->track_store), &iter);
+   }
 }
 
 static void
@@ -547,8 +579,7 @@ tracks_changed (HyScanDBInfo    *db_info,
       /* Добавляем в список галсов. */
       local = g_date_time_to_local (track_info->ctime);
       time_str = g_date_time_format (local, "%d.%m %H:%M");
-      visible = hyscan_gtk_map_track_layer_track_get_visible (HYSCAN_GTK_MAP_TRACK_LAYER (kit->track_layer),
-                                                              track_info->id);
+      visible = hyscan_track_list_model_get_active (priv->track_list_model, track_info->name);
 
       gtk_list_store_append (priv->track_store, &tree_iter);
       gtk_list_store_set (priv->track_store, &tree_iter,
@@ -662,6 +693,7 @@ create_track_box (HyScanGtkMapKit *kit,
   g_signal_connect_swapped (priv->track_tree, "destroy", G_CALLBACK (gtk_widget_destroy), priv->track_menu);
   g_signal_connect (priv->track_tree, "button-press-event", G_CALLBACK (on_button_press_event), kit);
   g_signal_connect (priv->db_info, "tracks-changed", G_CALLBACK (tracks_changed), kit);
+  g_signal_connect (priv->track_list_model, "changed", G_CALLBACK (on_active_track_changed), kit);
 
 
   box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);

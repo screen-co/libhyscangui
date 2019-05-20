@@ -83,14 +83,6 @@ HYSCAN_API
 void                   hyscan_gtk_map_track_set_projection   (HyScanGtkMapTrack      *track,
                                                               HyScanGeoProjection    *projection);
 
-HYSCAN_API
-void                   hyscan_gtk_map_track_set_visible      (HyScanGtkMapTrack      *track,
-                                                              gboolean                visible);
-
-HYSCAN_API
-gboolean               hyscan_gtk_map_track_get_visible      (HyScanGtkMapTrack      *track);
-
-
 G_END_DECLS
 
 #endif /* __HYSCAN_GTK_MAP_TRACK_H__ */
