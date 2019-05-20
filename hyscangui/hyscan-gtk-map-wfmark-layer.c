@@ -193,11 +193,11 @@ hyscan_gtk_map_wfmark_layer_project_location (HyScanGtkMapWfmarkLayer         *w
   location->angle = location->mloc->center_geo.h / 180.0 * G_PI;
   location->center_c2d.x = location->track_c2d.x - offset * cos (location->angle);
   location->center_c2d.y = location->track_c2d.y + offset * sin (location->angle);
-  
-  location->rect_from.x = location->center_c2d.x - location->width; 
+
+  location->rect_from.x = location->center_c2d.x - location->width;
   location->rect_to.x = location->center_c2d.x + location->width;
-  location->rect_from.y = location->center_c2d.y - location->height; 
-  location->rect_to.y = location->center_c2d.y + location->height; 
+  location->rect_from.y = location->center_c2d.y - location->height;
+  location->rect_to.y = location->center_c2d.y + location->height;
 
   /* Определяем границы extent. */
   mark_from.x = location->center_c2d.x - location->width;
@@ -584,10 +584,51 @@ hyscan_gtk_map_wfmark_layer_interface_init (HyScanGtkLayerInterface *iface)
   iface->load_key_file = hyscan_gtk_map_wfmark_layer_load_key_file;
 }
 
+/**
+ * hyscan_gtk_map_wfmark_layer_new:
+ * @model
+ *
+ * Returns: создает новый объект #HyScanGtkMapWfmarkLayer. Для удаления g_object_unref().
+ */
 HyScanGtkLayer *
 hyscan_gtk_map_wfmark_layer_new (HyScanMarkLocModel *model)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_WFMARK_LAYER,
                        "mark-loc-model", model,
                        NULL);
+}
+
+/**
+ * hyscan_gtk_map_wfmark_layer_mark_view:
+ * @wfm_layer
+ * @mark_id
+ *
+ * Перемещает область видимости карты в положение метки @mark_id и выделяет
+ * эту метку.
+ */
+void
+hyscan_gtk_map_wfmark_layer_mark_view (HyScanGtkMapWfmarkLayer *wfm_layer,
+                                       const gchar             *mark_id)
+{
+  HyScanGtkMapWfmarkLayerPrivate *priv;
+  HyScanGtkMapWfmarkLayerLocation *location;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_WFMARK_LAYER (wfm_layer));
+  priv = wfm_layer->priv;
+
+  if (priv->map == NULL)
+    return;
+
+  g_rw_lock_reader_lock (&priv->mark_lock);
+
+  location = g_hash_table_lookup (priv->marks, mark_id);
+  if (location != NULL)
+    {
+      gtk_cifro_area_set_view (GTK_CIFRO_AREA (priv->map),
+                               location->extent_from.x, location->extent_to.x,
+                               location->extent_from.y, location->extent_to.y);
+      priv->location_hover = location;
+    }
+
+  g_rw_lock_reader_unlock (&priv->mark_lock);
 }

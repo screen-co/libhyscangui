@@ -14,6 +14,7 @@
 #include <hyscan-gtk-param-tree.h>
 #include <hyscan-gtk-map-wfmark-layer.h>
 #include <hyscan-track-list-model.h>
+#include <hyscan-mark-model.h>
 
 #define PRELOAD_STATE_DONE 1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
 
@@ -24,6 +25,15 @@ enum
   DATE_SORT_COLUMN,
   TRACK_COLUMN,
   DATE_COLUMN
+};
+
+/* Столбцы в GtkTreeView списка меток. */
+enum
+{
+  MARK_ID_COLUMN,
+  MARK_NAME_COLUMN,
+  MARK_MTIME_COLUMN,
+  MARK_MTIME_SORT_COLUMN
 };
 
 struct _HyScanGtkMapKitPrivate
@@ -43,7 +53,11 @@ struct _HyScanGtkMapKitPrivate
   GtkListStore          *track_store;      /* Модель данных для track_tree. */
   GtkMenu               *track_menu;       /* Контекстное меню галса (по правой кнопке). */
 
+  GtkTreeView           *mark_tree;       /* GtkTreeView со списком галсов. */
+  GtkListStore          *mark_store;      /* Модель данных для track_tree. */
+
   HyScanTrackListModel *track_list_model;  /* Модель активных галсов. */
+  HyScanMarkModel      *mark_model;        /* Модель меток водопада. */
 };
 
 /* Слой с треком движения. */
@@ -112,6 +126,7 @@ create_map (HyScanDB          *db,
 
         cached = HYSCAN_CACHE (hyscan_cached_new (200));
 
+        priv->mark_model = hyscan_mark_model_new ();
         priv->track_list_model = hyscan_track_list_model_new ();
         kit->track_layer = hyscan_gtk_map_track_layer_new (db, project_name, priv->track_list_model, cached);
         ml_model = hyscan_mark_loc_model_new (db, cached);
@@ -647,6 +662,34 @@ create_track_tree_view (HyScanGtkMapKit *kit,
   return tree_view;
 }
 
+static GtkTreeView *
+create_mark_tree_view (HyScanGtkMapKit *kit,
+                       GtkTreeModel    *tree_model)
+{
+  GtkCellRenderer *renderer;
+  GtkTreeViewColumn *name_column, *date_column;
+  GtkTreeView *tree_view;
+
+  /* Название метки. */
+  renderer = gtk_cell_renderer_text_new ();
+  name_column = gtk_tree_view_column_new_with_attributes ("Mark", renderer,
+                                                          "text", MARK_NAME_COLUMN, NULL);
+  gtk_tree_view_column_set_sort_column_id (name_column, MARK_NAME_COLUMN);
+
+  /* Время последнего изменения метки. */
+  renderer = gtk_cell_renderer_text_new ();
+  date_column = gtk_tree_view_column_new_with_attributes ("Time modified", renderer,
+                                                          "text", MARK_MTIME_COLUMN, NULL);
+  gtk_tree_view_column_set_sort_column_id (date_column, MARK_MTIME_SORT_COLUMN);
+
+  tree_view = GTK_TREE_VIEW (gtk_tree_view_new_with_model (tree_model));
+  gtk_tree_view_set_search_column (tree_view, MARK_NAME_COLUMN);
+  gtk_tree_view_append_column (tree_view, name_column);
+  gtk_tree_view_append_column (tree_view, date_column);
+
+  return tree_view;
+}
+
 static GtkMenu *
 create_track_menu (HyScanGtkMapKit *kit)
 {
@@ -665,6 +708,122 @@ create_track_menu (HyScanGtkMapKit *kit)
   gtk_menu_shell_append (GTK_MENU_SHELL (menu), menu_item);
 
   return menu;
+}
+
+static void
+on_marks_activated (GtkTreeView        *treeview,
+                    GtkTreePath        *path,
+                    GtkTreeViewColumn  *col,
+                    gpointer            userdata)
+{
+  HyScanGtkMapKit *kit = userdata;
+
+  GtkTreeModel *model;
+  GtkTreeIter iter;
+
+  model = gtk_tree_view_get_model (treeview);
+  if (gtk_tree_model_get_iter(model, &iter, path))
+  {
+    gchar *mark_id;
+
+    gtk_tree_model_get(model, &iter, MARK_ID_COLUMN, &mark_id, -1);
+    hyscan_gtk_map_wfmark_layer_mark_view (HYSCAN_GTK_MAP_WFMARK_LAYER (kit->wfmark_layer), mark_id);
+
+    g_free (mark_id);
+  }
+}
+
+static void
+on_marks_changed (HyScanMarkModel *model,
+                  HyScanGtkMapKit *kit)
+{
+  GtkTreePath *null_path;
+  GtkTreeIter tree_iter;
+  GHashTable *marks;
+  GHashTableIter hash_iter;
+  
+  HyScanWaterfallMark *mark;
+  gchar *mark_id;
+
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+
+  null_path = gtk_tree_path_new ();
+  gtk_tree_view_set_cursor (priv->track_tree, null_path, NULL, FALSE);
+  gtk_tree_path_free (null_path);
+
+  gtk_list_store_clear (priv->track_store);
+
+  marks = hyscan_mark_model_get (model);
+  g_hash_table_iter_init (&hash_iter, marks);
+
+  while (g_hash_table_iter_next (&hash_iter, (gpointer *) &mark_id, (gpointer *) &mark))
+    {
+      GDateTime *local;
+      gchar *time_str;
+
+      /* Добавляем в список меток. */
+      local = g_date_time_new_from_unix_local (mark->modification_time / 1000000);
+      time_str = g_date_time_format (local, "%d.%m %H:%M");
+
+      gtk_list_store_append (priv->mark_store, &tree_iter);
+      gtk_list_store_set (priv->mark_store, &tree_iter,
+                          MARK_ID_COLUMN, mark_id,
+                          MARK_NAME_COLUMN, mark->name,
+                          MARK_MTIME_COLUMN, time_str,
+                          MARK_MTIME_SORT_COLUMN, mark->modification_time,
+                          -1);
+
+      g_free (time_str);
+      g_date_time_unref (local);
+    }
+
+  g_hash_table_unref (marks);
+}
+
+/* Навигация по меткам. */
+static GtkWidget *
+create_wfmark_toolbox (HyScanGtkMapKit *kit,
+                       const gchar     *project_name)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+  GtkWidget *box;
+  GtkWidget *label;
+  GtkWidget *scrolled_window;
+
+  gchar *title;
+
+  priv->mark_store = gtk_list_store_new (4,
+                                         G_TYPE_STRING,  /* MARK_ID_COLUMN   */
+                                         G_TYPE_STRING,  /* MARK_NAME_COLUMN   */
+                                         G_TYPE_STRING,  /* MARK_MTIME_COLUMN */
+                                         G_TYPE_INT64    /* MARK_MTIME_SORT_COLUMN */);
+  priv->mark_tree = create_mark_tree_view (kit, GTK_TREE_MODEL (priv->mark_store));
+
+  g_signal_connect (priv->mark_model, "changed", G_CALLBACK (on_marks_changed), kit);
+  g_signal_connect (priv->mark_tree, "row-activated", G_CALLBACK (on_marks_activated), kit);
+
+  box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
+
+  /* Название проекта. */
+  title = g_strdup_printf ("Метки %s", project_name);
+  label = gtk_label_new (title);
+  gtk_label_set_max_width_chars (GTK_LABEL (label), 1);
+  gtk_label_set_ellipsize (GTK_LABEL (label), PANGO_ELLIPSIZE_END);
+  g_free (title);
+
+  /* Область прокрутки со списком галсов. */
+  scrolled_window = gtk_scrolled_window_new (NULL, NULL);
+  gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled_window),
+                                  GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+  gtk_scrolled_window_set_min_content_height (GTK_SCROLLED_WINDOW (scrolled_window), 200);
+  gtk_container_add (GTK_CONTAINER (scrolled_window), GTK_WIDGET (priv->mark_tree));
+
+
+  /* Пакуем всё вместе. */
+  gtk_box_pack_start (GTK_BOX (box), label, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (box), scrolled_window, FALSE, FALSE, 0);
+
+  return box;
 }
 
 /* Выбор галсов проекта. */
@@ -694,7 +853,6 @@ create_track_box (HyScanGtkMapKit *kit,
   g_signal_connect (priv->track_tree, "button-press-event", G_CALLBACK (on_button_press_event), kit);
   g_signal_connect (priv->db_info, "tracks-changed", G_CALLBACK (tracks_changed), kit);
   g_signal_connect (priv->track_list_model, "changed", G_CALLBACK (on_active_track_changed), kit);
-
 
   box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
 
@@ -960,6 +1118,13 @@ create_control_box (HyScanGtkMapKit *kit,
         g_object_set_data (G_OBJECT (kit->track_layer), "toolbox-cb", "track");
         gtk_stack_add_titled (GTK_STACK (kit->layer_tool_stack), layer_tools, "track", "Track");
       }
+
+    if (kit->wfmark_layer != NULL)
+      {
+        layer_tools = create_wfmark_toolbox (kit, project_name);
+        g_object_set_data (G_OBJECT (kit->wfmark_layer), "toolbox-cb", "wfmark");
+        gtk_stack_add_titled (GTK_STACK (kit->layer_tool_stack), layer_tools, "wfmark", "WfMarks");
+      }
   }
 
   gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
@@ -1039,16 +1204,18 @@ hyscan_gtk_map_kit_new (HyScanGeoGeodetic *center,
                         const gchar       *sensor_name)
 {
   HyScanGtkMapKit *kit;
+  HyScanGtkMapKitPrivate *priv;
 
   kit = g_new0 (HyScanGtkMapKit, 1);
-  kit->priv = g_new0 (HyScanGtkMapKitPrivate, 1);
-  kit->priv->db_info = hyscan_db_info_new (db);
+  priv = kit->priv = g_new0 (HyScanGtkMapKitPrivate, 1);
+  priv->db_info = hyscan_db_info_new (db);
 
   kit->center  = *center;
   kit->map     = create_map (db, kit, project_name, sensor, sensor_name);
   kit->control = create_control_box (kit, db, project_name, profile_dir);
 
-  hyscan_db_info_set_project (kit->priv->db_info, project_name);
+  hyscan_db_info_set_project (priv->db_info, project_name);
+  hyscan_mark_model_set_project (priv->mark_model, db, project_name);
 
   return kit;
 }
@@ -1060,6 +1227,8 @@ hyscan_gtk_map_kit_new (HyScanGeoGeodetic *center,
 void
 hyscan_gtk_map_kit_free (HyScanGtkMapKit *kit)
 {
+  g_object_unref (kit->priv->mark_model);
+  g_object_unref (kit->priv->track_list_model);
   g_free (kit->priv);
   g_free (kit);
 }
