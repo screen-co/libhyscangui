@@ -166,5 +166,5 @@ hyscan_track_list_model_get_active (HyScanTrackListModel *tlist_model,
   g_return_val_if_fail (HYSCAN_IS_TRACK_LIST_MODEL (tlist_model), FALSE);
   priv = tlist_model->priv;
 
-  return GPOINTER_TO_INT (g_hash_table_lookup (priv->table, g_strdup (track_name)));
+  return GPOINTER_TO_INT (g_hash_table_lookup (priv->table, track_name));
 }

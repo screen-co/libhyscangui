@@ -301,7 +301,6 @@ static void
 hyscan_gtk_map_wfmark_layer_model_changed (HyScanGtkMapWfmarkLayer *wfm_layer)
 {
   HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
-  GList *list;
   GHashTable *marks;
 
   g_rw_lock_writer_lock (&priv->mark_lock);
@@ -312,6 +311,7 @@ hyscan_gtk_map_wfmark_layer_model_changed (HyScanGtkMapWfmarkLayer *wfm_layer)
 
   g_rw_lock_writer_lock (&priv->mark_lock);
 
+  priv->location_hover = NULL;
   g_hash_table_remove_all (priv->marks);
   g_hash_table_foreach_steal (marks, hyscan_gtk_map_wfmark_layer_insert_mark, wfm_layer);
 
