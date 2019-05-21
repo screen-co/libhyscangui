@@ -203,8 +203,7 @@ hyscan_gtk_map_set_init_center (HyScanGtkMapPrivate *priv,
   if (center == NULL)
     return;
 
-  priv->init_center.lat = center->lat;
-  priv->init_center.lon = center->lon;
+  priv->init_center = *center;
 }
 
 static void
@@ -516,6 +515,8 @@ hyscan_gtk_map_move_to (HyScanGtkMap      *map,
   gtk_cifro_area_set_view (carea,
                            center_2d.x - width / 2.0, center_2d.x + width / 2.0,
                            center_2d.y - height / 2.0, center_2d.y + height / 2.0);
+
+  hyscan_gtk_map_set_init_center (priv, &center);
 }
 
 /**

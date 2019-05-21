@@ -4,7 +4,7 @@
 #include <hyscan-gtk-map.h>
 #include <hyscan-db.h>
 #include <hyscan-sensor.h>
-#include <hyscan-track-list-model.h>
+
 
 typedef struct _HyScanGtkMapKitPrivate HyScanGtkMapKitPrivate;
 
@@ -16,19 +16,6 @@ typedef struct
 
   /* ## Private. ## */
   HyScanGtkMapKitPrivate *priv;
-
-  HyScanGeoGeodetic center;       /* Географические координаты для виджета навигации. */
-
-  GtkWidget *layer_tool_stack;    /* GtkStack с виджетами настроек каждого слоя. */
-
-  /* Слои. */
-  HyScanGtkLayer *track_layer;    /* Слой просмотра галсов. */
-  HyScanGtkLayer *wfmark_layer;   /* Слой с метками водопада. */
-  HyScanGtkLayer *map_grid;       /* Слой координатной сетки. */
-  HyScanGtkLayer *ruler;          /* Слой линейки. */
-  HyScanGtkLayer *pin_layer;      /* Слой географических отметок. */
-  HyScanGtkLayer *way_layer;      /* Слой текущего положения по GPS-датчику. */
-
 } HyScanGtkMapKit;
 
 HyScanGtkMapKit * hyscan_gtk_map_kit_new   (HyScanGeoGeodetic *center,
