@@ -723,6 +723,30 @@ on_marks_activated (GtkTreeView        *treeview,
 }
 
 static void
+on_track_activated (GtkTreeView        *treeview,
+                    GtkTreePath        *path,
+                    GtkTreeViewColumn  *col,
+                    gpointer            userdata)
+{
+  HyScanGtkMapKit *kit = userdata;
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+
+  GtkTreeModel *model;
+  GtkTreeIter iter;
+
+  model = gtk_tree_view_get_model (treeview);
+  if (gtk_tree_model_get_iter(model, &iter, path))
+  {
+    gchar *track_name;
+
+    gtk_tree_model_get (model, &iter, TRACK_COLUMN, &track_name, -1);
+    hyscan_gtk_map_track_layer_track_view (HYSCAN_GTK_MAP_TRACK_LAYER (priv->track_layer), track_name);
+
+    g_free (track_name);
+  }
+}
+
+static void
 on_marks_changed (HyScanMarkModel *model,
                   HyScanGtkMapKit *kit)
 {
@@ -831,6 +855,7 @@ create_track_box (HyScanGtkMapKit *kit)
 
   g_signal_connect_swapped (priv->track_tree, "destroy", G_CALLBACK (gtk_widget_destroy), priv->track_menu);
   g_signal_connect (priv->track_tree, "button-press-event", G_CALLBACK (on_button_press_event), kit);
+  g_signal_connect (priv->track_tree, "row-activated", G_CALLBACK (on_track_activated), kit);
   g_signal_connect (priv->db_info, "tracks-changed", G_CALLBACK (tracks_changed), kit);
   g_signal_connect (priv->track_list_model, "changed", G_CALLBACK (on_active_track_changed), kit);
 
