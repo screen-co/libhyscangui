@@ -1,3 +1,62 @@
+/* hyscan-gtk-map-tiled-layer.c
+ *
+ * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
+ *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-map-tiled-layer
+ * @Short_description: Класс тайлового слоя
+ * @Title: HyScanGtkMapTiledLayer
+ * @See_also: #HyScanGtkLayer, #HyScanGtkMap, #GtkCifroArea
+ *
+ * Класс реализует интерфейса слоя #HyScanGtkLayer и предназначен для изображения
+ * вычислительно сложного слоя с изменяемым содержимым в виде тайлов.
+ *
+ * Слой разбивает всю область рисования на тайлы и рисует изображаемую область
+ * потайлово. Заполнение тайлов выполняет только при изменении параметров слоя
+ * или входных данных. В остальное время слой получает тайлы из кэша, и таким
+ * образом экономит вычислительные ресурсы.
+ *
+ * Для использования тайлового слоя необходимо унаследовать класс #HyScanGtkMapTiledLayer
+ * и реализовать функцию класса #HyScanGtkMapTiledLayerClass.fill_tile.
+ *
+ * Класс предоставляет следующие функции:
+ * - hyscan_gtk_map_tiled_layer_draw() - рисует текущую видимую область;
+ * - hyscan_gtk_map_tiled_layer_set_area_mod() - фиксирует факт изменения указанной области;
+ * - hyscan_gtk_map_tiled_layer_set_param_mod() - фиксирует факт изменения параметров слоя;
+ * - hyscan_gtk_map_tiled_layer_request_draw() - запрашивает перерисовку слоя.
+ *
+ */
+
 #include "hyscan-gtk-map-tiled-layer.h"
 #include <hyscan-task-queue.h>
 #include <hyscan-gtk-map.h>

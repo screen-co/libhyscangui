@@ -1,4 +1,4 @@
-/* hyscan-gtk-map-track.h
+/* hyscan-gtk-map-track.c
  *
  * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *

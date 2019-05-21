@@ -1,3 +1,61 @@
+/* hyscan-cartesian.c
+ *
+ * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
+ *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-cartesian
+ * @Short_description: Набор функций для работы с двумерным пространством
+ * @Title: HyScanCartesian
+ *
+ * Класс инкапсулирует в себя функции для работы с декартовой системой координат.
+ * Функции находят применения при рисовании и взаимодействии пользователя
+ * с отрисованным интерфейсом, когда необходимо определять взаимное
+ * расположение элементов и выполнять геометрические преобразования.
+ *
+ * Проверка, что элемент находится внутри заданной области:
+ * - hyscan_cartesian_is_point_inside() - точка внутри области;
+ * - hyscan_cartesian_is_inside() - отрезок внутри области.
+ *
+ * Вычисление расстояния:
+ * - hyscan_cartesian_distance() - расстояние между двумя точками;
+ * - hyscan_cartesian_distance_to_line() - расстояние от линии до точки.
+ *
+ * Поворот:
+ * - hyscan_cartesian_rotate() - поворот точки;
+ * - hyscan_cartesian_rotate_area() - поворот прямоугольной области.
+ *
+ */
+
 #include "hyscan-cartesian.h"
 #include <math.h>
 

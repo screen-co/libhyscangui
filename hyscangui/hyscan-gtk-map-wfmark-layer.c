@@ -1,3 +1,59 @@
+/* hyscan-gtk-map-wfmark-layer.c
+ *
+ * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
+ *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-map-wfmark-layer
+ * @Short_description: Класс слоя с метками водопада
+ * @Title: HyScanGtkMapWfmarkLayer
+ * @See_also: #HyScanGtkLayer, #HyScanGtkMapTiledLayer, #HyScanGtkMap, #GtkCifroArea
+ *
+ * Слой #HyScanGtkMapWfmarkLayer изображает на карте контуры меток водопада
+ * указанного проекта.
+ *
+ * - hyscan_gtk_map_wfmark_layer_new() - создание нового слоя;
+ * - hyscan_gtk_map_wfmark_layer_mark_view() - выделение указанной метки.
+ *
+ * Стиль слоя может быть настроен с помощью ini-файла:
+ * - "mark-color" - цвет контура метки
+ * - "mark-color-hover" - цвет контура выделенной метки
+ * - "line-width" - толщина линий
+ * - "text-color" - цвет текста подписи
+ * - "bg-color" - цвет подложки текста
+ * - "text-margin" - отступ текста от границ подложки
+ * - "tooltip-margin" - отступ всплывающей подсказки от курсора мыши
+ */
+
 #include "hyscan-gtk-map-wfmark-layer.h"
 #include <hyscan-cartesian.h>
 #include <hyscan-gtk-map.h>

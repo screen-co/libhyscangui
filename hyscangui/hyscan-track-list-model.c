@@ -1,3 +1,37 @@
+/* hyscan-track-list-model.с
+ *
+ * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
+ *
+ * This file is part of HyScanCore library.
+ *
+ * HyScanCore is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanCore is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanCore имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanCore на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
 #include "hyscan-track-list-model.h"
 
 enum
@@ -78,7 +112,13 @@ hyscan_track_list_model_new (void)
   return g_object_new (HYSCAN_TYPE_TRACK_LIST_MODEL, NULL);
 }
 
-
+/**
+ * hyscan_track_list_model_get:
+ * @tlist_model
+ *
+ * Returns: (element-type boolean): хэш-таблица, где ключ - название элемента,
+ *   значение - признак того, что элемент активен.
+ */
 GHashTable *
 hyscan_track_list_model_get (HyScanTrackListModel *tlist_model)
 {
@@ -87,6 +127,14 @@ hyscan_track_list_model_get (HyScanTrackListModel *tlist_model)
   return g_hash_table_ref (tlist_model->priv->table);
 }
 
+/**
+ * hyscan_track_list_model_set_active:
+ * @tlist_model
+ * @track_name
+ * @active
+ *
+ * Устанавливает элемент с именем @track_name активным или неактивным.
+ */
 void
 hyscan_track_list_model_set_active (HyScanTrackListModel *tlist_model,
                                     const gchar          *track_name,
@@ -102,6 +150,13 @@ hyscan_track_list_model_set_active (HyScanTrackListModel *tlist_model,
   g_signal_emit (tlist_model, hyscan_track_list_model_signals[SIGNAL_CHANGED], 0);
 }
 
+/**
+ * hyscan_track_list_model_get_active:
+ * @tlist_model
+ * @track_name
+ *
+ * Returns: возвращает %TRUE, если @track_name активен; иначе %FALSE.
+ */
 gboolean
 hyscan_track_list_model_get_active (HyScanTrackListModel *tlist_model,
                                     const gchar          *track_name)
