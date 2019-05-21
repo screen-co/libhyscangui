@@ -176,14 +176,15 @@ int main (int     argc,
 
   /* Добавляем виджет карты в окно. */
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_default_size (GTK_WINDOW (window), 800, 600);
+  gtk_window_set_default_size (GTK_WINDOW (window), 1024, 600);
 
   db = hyscan_db_new (db_uri);
   sensor = create_sensor ();
   kit = hyscan_gtk_map_kit_new (&center, db, project_name, profile_dir, sensor, GPS_SENSOR_NAME);
 
-  gtk_grid_attach (GTK_GRID (grid), kit->map,     0, 0, 1, 1);
-  gtk_grid_attach (GTK_GRID (grid), kit->control, 1, 0, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), kit->navigation, 0, 0, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), kit->map,        1, 0, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), kit->control,    2, 0, 1, 1);
 
   gtk_container_add (GTK_CONTAINER (window), grid);
   g_signal_connect (G_OBJECT (window), "destroy", G_CALLBACK (destroy_callback), NULL);

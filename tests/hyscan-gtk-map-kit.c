@@ -666,7 +666,7 @@ create_mark_tree_view (HyScanGtkMapKit *kit,
 
   /* Время последнего изменения метки. */
   renderer = gtk_cell_renderer_text_new ();
-  date_column = gtk_tree_view_column_new_with_attributes ("Time modified", renderer,
+  date_column = gtk_tree_view_column_new_with_attributes ("Last upd.", renderer,
                                                           "text", MARK_MTIME_COLUMN, NULL);
   gtk_tree_view_column_set_sort_column_id (date_column, MARK_MTIME_SORT_COLUMN);
 
@@ -771,15 +771,12 @@ on_marks_changed (HyScanMarkModel *model,
 
 /* Навигация по меткам. */
 static GtkWidget *
-create_wfmark_toolbox (HyScanGtkMapKit *kit,
-                       const gchar     *project_name)
+create_wfmark_toolbox (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
   GtkWidget *box;
   GtkWidget *label;
   GtkWidget *scrolled_window;
-
-  gchar *title;
 
   priv->mark_store = gtk_list_store_new (4,
                                          G_TYPE_STRING,  /* MARK_ID_COLUMN   */
@@ -794,11 +791,9 @@ create_wfmark_toolbox (HyScanGtkMapKit *kit,
   box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
 
   /* Название проекта. */
-  title = g_strdup_printf ("Метки %s", project_name);
-  label = gtk_label_new (title);
+  label = gtk_label_new ("Метки");
   gtk_label_set_max_width_chars (GTK_LABEL (label), 1);
   gtk_label_set_ellipsize (GTK_LABEL (label), PANGO_ELLIPSIZE_END);
-  g_free (title);
 
   /* Область прокрутки со списком галсов. */
   scrolled_window = gtk_scrolled_window_new (NULL, NULL);
@@ -817,15 +812,12 @@ create_wfmark_toolbox (HyScanGtkMapKit *kit,
 
 /* Выбор галсов проекта. */
 static GtkWidget *
-create_track_box (HyScanGtkMapKit *kit,
-                  const gchar     *project_name)
+create_track_box (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
   GtkWidget *box;
   GtkWidget *label;
   GtkWidget *scrolled_window;
-
-  gchar *title;
 
   priv->track_store = gtk_list_store_new (4,
                                           G_TYPE_BOOLEAN, /* VISIBLE_COLUMN   */
@@ -845,11 +837,9 @@ create_track_box (HyScanGtkMapKit *kit,
   box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
 
   /* Название проекта. */
-  title = g_strdup_printf ("Галсы %s", project_name);
-  label = gtk_label_new (title);
+  label = gtk_label_new ("Галсы");
   gtk_label_set_max_width_chars (GTK_LABEL (label), 1);
   gtk_label_set_ellipsize (GTK_LABEL (label), PANGO_ELLIPSIZE_END);
-  g_free (title);
 
   /* Область прокрутки со списком галсов. */
   scrolled_window = gtk_scrolled_window_new (NULL, NULL);
@@ -1035,10 +1025,25 @@ create_ruler_toolbox (HyScanGtkLayer *layer,
   return box;
 }
 
+/* Список галсов и меток. */
+static GtkWidget *
+create_navigation_box (HyScanGtkMapKit *kit)
+{
+  GtkWidget *ctrl_box;
+
+  ctrl_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
+
+  gtk_container_add (GTK_CONTAINER (ctrl_box), create_track_box (kit));
+  gtk_container_add (GTK_CONTAINER (ctrl_box), create_wfmark_toolbox (kit));
+
+  gtk_widget_set_size_request (ctrl_box, 200, -1);
+
+  return ctrl_box;
+}
+
 /* Кнопки управления виджетом. */
 static GtkWidget *
 create_control_box (HyScanGtkMapKit *kit,
-                    const gchar     *project_name,
                     const gchar     *profile_dir)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
@@ -1100,20 +1105,6 @@ create_control_box (HyScanGtkMapKit *kit,
     layer_tools = create_ruler_toolbox (priv->pin_layer, "Удалить все метки");
     g_object_set_data (G_OBJECT (priv->pin_layer), "toolbox-cb", "pin");
     gtk_stack_add_titled (GTK_STACK (priv->layer_tool_stack), layer_tools, "pin", "Pin");
-
-    if (priv->track_layer != NULL)
-      {
-        layer_tools = create_track_box (kit, project_name);
-        g_object_set_data (G_OBJECT (priv->track_layer), "toolbox-cb", "track");
-        gtk_stack_add_titled (GTK_STACK (priv->layer_tool_stack), layer_tools, "track", "Track");
-      }
-
-    if (priv->wfmark_layer != NULL)
-      {
-        layer_tools = create_wfmark_toolbox (kit, project_name);
-        g_object_set_data (G_OBJECT (priv->wfmark_layer), "toolbox-cb", "wfmark");
-        gtk_stack_add_titled (GTK_STACK (priv->layer_tool_stack), layer_tools, "wfmark", "WfMarks");
-      }
   }
 
   gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
@@ -1195,8 +1186,9 @@ hyscan_gtk_map_kit_view_create (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
-  kit->map     = create_map (kit);
-  kit->control = create_control_box (kit, priv->project_name, priv->profile_dir);
+  kit->map        = create_map (kit);
+  kit->navigation = create_navigation_box (kit);
+  kit->control    = create_control_box (kit, priv->profile_dir);
 }
 
 static void

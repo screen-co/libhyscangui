@@ -10,7 +10,8 @@ typedef struct _HyScanGtkMapKitPrivate HyScanGtkMapKitPrivate;
 
 typedef struct
 {
-  /* Виджеты. */
+
+  GtkWidget *navigation;          /* Виджет со списком меток и галсов. */
   GtkWidget *map;                 /* Виджет карты. */
   GtkWidget *control;             /* Виджет с кнопками управления карты. */
 
