@@ -24,7 +24,8 @@ HyScanGtkMapKit * hyscan_gtk_map_kit_new   (HyScanGeoGeodetic *center,
                                             const gchar       *project_name,
                                             const gchar       *profile_dir,
                                             HyScanSensor      *sensor,
-                                            const gchar       *sensor_name);
+                                            const gchar       *sensor_name,
+                                            const gchar       *planner_ini);
 
 void              hyscan_gtk_map_kit_free  (HyScanGtkMapKit   *kit);
 

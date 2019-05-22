@@ -15,6 +15,7 @@
 #include <hyscan-gtk-map-wfmark-layer.h>
 #include <hyscan-track-list-model.h>
 #include <hyscan-mark-model.h>
+#include <hyscan-gtk-map-planner.h>
 
 #define PRELOAD_STATE_DONE 1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
 
@@ -46,12 +47,14 @@ struct _HyScanGtkMapKitPrivate
   HyScanMarkLocModel    *ml_model;
   HyScanCache           *cache;
   HyScanNavigationModel *nav_model;
+  HyScanPlanner         *planner;
   gchar                 *project_name;
 
   gchar                 *profile_dir;      /* Папка с профилями карты. */
   HyScanGeoGeodetic      center;           /* Географические координаты для виджета навигации. */
 
   /* Слои. */
+  HyScanGtkLayer        *planner_layer;    /* Слой планировщика. */
   HyScanGtkLayer        *track_layer;      /* Слой просмотра галсов. */
   HyScanGtkLayer        *wfmark_layer;     /* Слой с метками водопада. */
   HyScanGtkLayer        *map_grid;         /* Слой координатной сетки. */
@@ -111,6 +114,13 @@ create_map (HyScanGtkMapKit *kit)
       {
         priv->way_layer = hyscan_gtk_map_way_layer_new (priv->nav_model, priv->cache);
         hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), HYSCAN_GTK_LAYER (priv->way_layer), "way");
+      }
+
+    /* Слой планировщика миссий. */
+    if (priv->planner != NULL)
+      {
+        priv->planner_layer = hyscan_gtk_map_planner_new (priv->planner);
+        hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), priv->planner_layer, "planner");
       }
 
     /* Слой с галсами. */
@@ -1108,6 +1118,8 @@ create_control_box (HyScanGtkMapKit *kit,
       add_layer_row (GTK_LIST_BOX (list_box), "Галсы", priv->track_layer);
     if (priv->wfmark_layer != NULL)
       add_layer_row (GTK_LIST_BOX (list_box), "Метки водопада", priv->wfmark_layer);
+    if (priv->planner_layer != NULL)
+      add_layer_row (GTK_LIST_BOX (list_box), "Планировщик", priv->planner_layer);
     g_signal_connect (list_box, "row-selected", G_CALLBACK (on_row_select), kit);
 
     gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Слои"));
@@ -1204,6 +1216,7 @@ hyscan_gtk_map_kit_model_create (HyScanGtkMapKit *kit,
     }
 
   priv->nav_model = hyscan_navigation_model_new ();
+  priv->planner = hyscan_planner_new ();
 }
 
 static void
@@ -1220,7 +1233,8 @@ static void
 hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
                                HyScanGeoGeodetic *center,
                                HyScanSensor      *sensor,
-                               const gchar       *sensor_name)
+                               const gchar       *sensor_name,
+                               const gchar       *planner_ini)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
@@ -1232,6 +1246,13 @@ hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
     {
       hyscan_navigation_model_set_sensor (priv->nav_model, sensor);
       hyscan_navigation_model_set_sensor_name (priv->nav_model, sensor_name);
+    }
+
+  if (planner_ini != NULL)
+    {
+      hyscan_planner_load_ini (priv->planner, planner_ini);
+      /* Автосохранение. */
+      g_signal_connect (priv->planner, "changed", G_CALLBACK (hyscan_planner_save_ini), planner_ini);
     }
 
   {
@@ -1250,6 +1271,7 @@ hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
  * @profile_dir: папка с профилями карты (примеры файлов-профилей в папке hyscangui/misc)
  * @sensor: датчик GPS-ресивера
  * @sensor_name: имя датчика
+ * @planner_ini: ini-файл с запланированной миссией
  *
  * Returns: указатель на структуру #HyScanGtkMapKit, для удаления
  *          hyscan_gtk_map_kit_free().
@@ -1260,7 +1282,8 @@ hyscan_gtk_map_kit_new (HyScanGeoGeodetic *center,
                         const gchar       *project_name,
                         const gchar       *profile_dir,
                         HyScanSensor      *sensor,
-                        const gchar       *sensor_name)
+                        const gchar       *sensor_name,
+                        const gchar       *planner_ini)
 {
   HyScanGtkMapKit *kit;
 
@@ -1272,7 +1295,7 @@ hyscan_gtk_map_kit_new (HyScanGeoGeodetic *center,
 
   hyscan_gtk_map_kit_model_create (kit, db);
   hyscan_gtk_map_kit_view_create (kit);
-  hyscan_gtk_map_kit_model_init (kit, center, sensor, sensor_name);
+  hyscan_gtk_map_kit_model_init (kit, center, sensor, sensor_name, planner_ini);
 
   return kit;
 }
@@ -1288,6 +1311,7 @@ hyscan_gtk_map_kit_free (HyScanGtkMapKit *kit)
 
   g_free (priv->profile_dir);
   g_free (priv->project_name);
+  g_object_unref (priv->planner);
   g_object_unref (priv->cache);
   g_object_unref (priv->ml_model);
   g_object_unref (priv->db);

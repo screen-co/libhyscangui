@@ -8,6 +8,7 @@
 static gchar *db_uri;                        /* Ссылка на базу данных. */
 static gchar *project_name;                  /* Ссылка на базу данных. */
 static gchar *profile_dir;                   /* Путь к каталогу, где хранятся профили карты. */
+static gchar *planner_ini;                   /* Путь к файлу со списком запланированных галсов. */
 static gchar *track_file;                    /* Путь к файлу с NMEA-строками. */
 static gchar *origin;                        /* Координаты центра карты. */
 static gchar *udp_host;                      /* Хост для подключения к GPS-приемнику. */
@@ -130,6 +131,7 @@ int main (int     argc,
         { "db-uri",          'D', 0, G_OPTION_ARG_STRING, &db_uri,            "Database uri", NULL},
         { "project-name",    'p', 0, G_OPTION_ARG_STRING, &project_name,      "Project name", NULL},
         { "origin",          '0', 0, G_OPTION_ARG_STRING, &origin,            "Map origin, lat,lon", NULL},
+        { "mission",         'm', 0, G_OPTION_ARG_STRING, &planner_ini,       "Path to mission planner ini-file", NULL},
         { NULL }
       };
 
@@ -180,7 +182,9 @@ int main (int     argc,
 
   db = hyscan_db_new (db_uri);
   sensor = create_sensor ();
-  kit = hyscan_gtk_map_kit_new (&center, db, project_name, profile_dir, sensor, GPS_SENSOR_NAME);
+  kit = hyscan_gtk_map_kit_new (&center, db, project_name, profile_dir,
+                                sensor, GPS_SENSOR_NAME,
+                                planner_ini);
 
   gtk_grid_attach (GTK_GRID (grid), kit->navigation, 0, 0, 1, 1);
   gtk_grid_attach (GTK_GRID (grid), kit->map,        1, 0, 1, 1);

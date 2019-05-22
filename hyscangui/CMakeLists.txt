@@ -46,6 +46,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-map-track.c
              hyscan-gtk-map-track-layer.c
              hyscan-gtk-map-wfmark-layer.c
+             hyscan-gtk-map-planner.c
 
              #[[ Загрузка тайлов ]]
              hyscan-task-queue.c
@@ -66,6 +67,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-mark-location.c
              hyscan-mark-loc-model.c
              hyscan-track-list-model.c
+             hyscan-planner.c
 
              hyscan-cartesian.c
              hyscan-nmea-file-device.c
