@@ -78,8 +78,7 @@ main (int    argc,
   gdouble speed = 1.0;
   gdouble white = 0.2;
   gdouble gamma = 1.0;
-  HyScanCache *cache = HYSCAN_CACHE (hyscan_cached_new (512));
-  HyScanCache *cache2 = HYSCAN_CACHE (hyscan_cached_new (512));
+  HyScanCache *cache = HYSCAN_CACHE (hyscan_cached_new (2048));
 
   gtk_init (&argc, &argv);
 
@@ -175,7 +174,6 @@ main (int    argc,
   gtk_main ();
 
   g_clear_object (&cache);
-  g_clear_object (&cache2);
   g_clear_object (&db);
 
   g_free (project_name);

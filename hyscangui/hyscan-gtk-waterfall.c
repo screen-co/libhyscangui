@@ -473,7 +473,6 @@ hyscan_gtk_waterfall_get_tile (HyScanGtkWaterfall *self,
       queue_found = hyscan_tile_queue_get (priv->queue, &requested_tile, &queue_tile, &buffer, &buffer_size);
       *tile = queue_tile;
       hyscan_tile_color_add (priv->color, &queue_tile, buffer, buffer_size, &tile_surface);
-      g_free (buffer);
       return TRUE;
 
     case SHOW_DUMMY:
