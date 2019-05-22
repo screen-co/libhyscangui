@@ -32,9 +32,11 @@ typedef struct
 
 struct _HyScanGtkMapPlannerPrivate
 {
-  HyScanGtkMap                      *map;                                  
+  HyScanGtkMap                      *map;
   HyScanPlanner                     *planner;
   guint                              mode;
+
+  gboolean                           visible;
 
   GMutex                             lock;
   GHashTable                        *tracks;
@@ -508,10 +510,33 @@ hyscan_gtk_map_planner_removed (HyScanGtkLayer *layer)
 }
 
 static void
+hyscan_gtk_map_planner_set_visible (HyScanGtkLayer *layer,
+                                    gboolean        visible)
+{
+  HyScanGtkMapPlanner *planner_layer = HYSCAN_GTK_MAP_PLANNER (layer);
+  HyScanGtkMapPlannerPrivate *priv = planner_layer->priv;
+
+  priv->visible = visible;
+  if (priv->map != NULL)
+    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+}
+
+static gboolean
+hyscan_gtk_map_planner_get_visible (HyScanGtkLayer *layer)
+{
+  HyScanGtkMapPlanner *planner_layer = HYSCAN_GTK_MAP_PLANNER (layer);
+  HyScanGtkMapPlannerPrivate *priv = planner_layer->priv;
+
+  return priv->visible;
+}
+
+static void
 hyscan_gtk_map_planner_interface_init (HyScanGtkLayerInterface *iface)
 {
   iface->added = hyscan_gtk_map_planner_added;
   iface->removed = hyscan_gtk_map_planner_removed;
+  iface->set_visible = hyscan_gtk_map_planner_set_visible;
+  iface->get_visible = hyscan_gtk_map_planner_get_visible;
 }
 
 
