@@ -13,6 +13,7 @@ static gchar *track_file;                    /* Путь к файлу с NMEA-�
 static gchar *origin;                        /* Координаты центра карты. */
 static gchar *udp_host;                      /* Хост для подключения к GPS-приемнику. */
 static gint udp_port;                        /* Порт для подключения к GPS-приемнику. */
+static gdouble delay_time;                   /* Время задержки навигационных данных. */
 
 void
 destroy_callback (GtkWidget *widget,
@@ -132,6 +133,7 @@ int main (int     argc,
         { "project-name",    'p', 0, G_OPTION_ARG_STRING, &project_name,      "Project name", NULL},
         { "origin",          '0', 0, G_OPTION_ARG_STRING, &origin,            "Map origin, lat,lon", NULL},
         { "mission",         'm', 0, G_OPTION_ARG_STRING, &planner_ini,       "Path to mission planner ini-file", NULL},
+        { "delay",             0, 0, G_OPTION_ARG_DOUBLE, &delay_time,        "Delay in navigation data to smooth real time track", NULL},
         { NULL }
       };
 
@@ -184,7 +186,8 @@ int main (int     argc,
   sensor = create_sensor ();
   kit = hyscan_gtk_map_kit_new (&center, db, project_name, profile_dir,
                                 sensor, GPS_SENSOR_NAME,
-                                planner_ini);
+                                planner_ini,
+                                delay_time);
 
   gtk_grid_attach (GTK_GRID (grid), kit->navigation, 0, 0, 1, 1);
   gtk_grid_attach (GTK_GRID (grid), kit->map,        1, 0, 1, 1);

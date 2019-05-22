@@ -1234,7 +1234,8 @@ hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
                                HyScanGeoGeodetic *center,
                                HyScanSensor      *sensor,
                                const gchar       *sensor_name,
-                               const gchar       *planner_ini)
+                               const gchar       *planner_ini,
+                               gdouble            delay_time)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
@@ -1246,6 +1247,7 @@ hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
     {
       hyscan_navigation_model_set_sensor (priv->nav_model, sensor);
       hyscan_navigation_model_set_sensor_name (priv->nav_model, sensor_name);
+      hyscan_navigation_model_set_delay (priv->nav_model, delay_time);
     }
 
   if (planner_ini != NULL)
@@ -1283,7 +1285,8 @@ hyscan_gtk_map_kit_new (HyScanGeoGeodetic *center,
                         const gchar       *profile_dir,
                         HyScanSensor      *sensor,
                         const gchar       *sensor_name,
-                        const gchar       *planner_ini)
+                        const gchar       *planner_ini,
+                        gdouble            delay_time)
 {
   HyScanGtkMapKit *kit;
 
@@ -1295,7 +1298,7 @@ hyscan_gtk_map_kit_new (HyScanGeoGeodetic *center,
 
   hyscan_gtk_map_kit_model_create (kit, db);
   hyscan_gtk_map_kit_view_create (kit);
-  hyscan_gtk_map_kit_model_init (kit, center, sensor, sensor_name, planner_ini);
+  hyscan_gtk_map_kit_model_init (kit, center, sensor, sensor_name, planner_ini, delay_time);
 
   return kit;
 }

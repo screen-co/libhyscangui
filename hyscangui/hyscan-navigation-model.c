@@ -57,7 +57,7 @@
 #include "hyscan-navigation-model.h"
 #include "hyscan-gui-marshallers.h"
 
-#define FIX_MIN_DELTA              0.1    /* Минимальное время между двумя фиксациями положения. */
+#define FIX_MIN_DELTA              0.01   /* Минимальное время между двумя фиксациями положения. */
 #define FIX_MAX_DELTA              1.3    /* Время между двумя фиксами, которое считается обрывом. */
 #define DELAY_TIME                 1.0    /* Время задержки вывода данных. */
 
@@ -102,6 +102,7 @@ typedef struct
 typedef struct
 {
   HyScanGeoGeodetic  coord;              /* Зафиксированные географические координаты. */
+  gdouble            heading;            /* Направление носа судна. */
   gdouble            speed;              /* Скорость движения. */
   gdouble            speed_lat;          /* Скорость движения по широте. */
   gdouble            speed_lon;          /* Скорость движения по долготе. */
@@ -118,12 +119,14 @@ struct _HyScanNavigationModelPrivate
   HyScanNMEAParser             *parser_lat;    /* Парсер широты. */
   HyScanNMEAParser             *parser_lon;    /* Парсер долготы. */
   HyScanNMEAParser             *parser_track;  /* Парсер курса. */
+  HyScanNMEAParser             *parser_heading;/* Парсер истинного курса. */
   HyScanNMEAParser             *parser_speed;  /* Парсер скорости. */
 
   guint                        interval;       /* Желаемая частота эмитирования сигналов "changed", милисекунды. */
   guint                        process_tag;    /* ID таймера отправки сигналов "changed". */
 
   GTimer                      *timer;          /* Внутренний таймер. */
+  gdouble                      delay_time;     /* Время задержки вывода данных. */
   gdouble                      timer_offset;   /* Разница во времени между таймером и датчиком. */
   gboolean                     timer_set;      /* Признак того, что timer_offset установлен. */
 
@@ -133,6 +136,7 @@ struct _HyScanNavigationModelPrivate
   HyScanNavigationModelParams  params;         /* Параметры модели для экстраполяции на последнем участке. */
   gboolean                     params_set;     /* Признак того, что параметры установлены. */
   GMutex                       fixes_lock;     /* Блокировка доступа к перемееным этой группы. */
+  gboolean                     extrapolate;    /* Стратегия получения актальных данных (экстраполировать или нет). */
 };
 
 static void    hyscan_navigation_model_set_property             (GObject               *object,
@@ -178,9 +182,9 @@ hyscan_navigation_model_class_init (HyScanNavigationModelClass *klass)
   hyscan_navigation_model_signals[SIGNAL_CHANGED] =
     g_signal_new ("changed", HYSCAN_TYPE_NAVIGATION_MODEL,
                   G_SIGNAL_RUN_LAST, 0, NULL, NULL,
-                  hyscan_gui_marshal_VOID__DOUBLE_POINTER,
+                  g_cclosure_marshal_VOID__POINTER,
                   G_TYPE_NONE,
-                  2, G_TYPE_DOUBLE, G_TYPE_POINTER);
+                  1, G_TYPE_POINTER);
 }
 
 static void
@@ -221,6 +225,7 @@ hyscan_navigation_model_fix_copy (HyScanNavigationModelFix *fix)
   HyScanNavigationModelFix *copy;
 
   copy = g_slice_new (HyScanNavigationModelFix);
+  copy->heading = fix->heading;
   copy->coord.lon = fix->coord.lon;
   copy->coord.lat = fix->coord.lat;
   copy->coord.h = fix->coord.h;
@@ -239,43 +244,25 @@ hyscan_navigation_model_fix_free (HyScanNavigationModelFix *fix)
   g_slice_free (HyScanNavigationModelFix, fix);
 }
 
-/* Парсит NMEA-строку. */
 static void
-hyscan_navigation_model_read_sentence (HyScanNavigationModel *model,
-                                       const gchar           *sentence)
+hyscan_navigation_model_remove_all (HyScanNavigationModel *model)
 {
   HyScanNavigationModelPrivate *priv = model->priv;
 
-  gboolean parsed;
-  HyScanNavigationModelFix fix;
+  g_list_free_full (priv->fixes, (GDestroyNotify) hyscan_navigation_model_fix_free);
+  priv->fixes_len = 0;
+  priv->fixes = NULL;
+  priv->params_set = FALSE;
+}
 
+/* Добавляет новый фикс в список. */
+static void
+hyscan_navigation_model_add_fix (HyScanNavigationModel    *model,
+                                 HyScanNavigationModelFix *fix)
+{
+  HyScanNavigationModelPrivate *priv = model->priv;
   GList *last_fix_l;
   HyScanNavigationModelFix *last_fix;
-
-  g_return_if_fail (sentence != NULL);
-
-  parsed  = hyscan_nmea_parser_parse_string (priv->parser_time, sentence, &fix.time);
-  parsed &= hyscan_nmea_parser_parse_string (priv->parser_lat, sentence, &fix.coord.lat);
-  parsed &= hyscan_nmea_parser_parse_string (priv->parser_lon, sentence, &fix.coord.lon);
-  parsed &= hyscan_nmea_parser_parse_string (priv->parser_track, sentence, &fix.coord.h);
-  parsed &= hyscan_nmea_parser_parse_string (priv->parser_speed, sentence, &fix.speed);
-
-  if (!parsed)
-    return;
-
-  /* Расчитываем скорости по широте и долготе. */
-  if (fix.speed > 0)
-    {
-      gdouble bearing = DEG2RAD (fix.coord.h);
-
-      fix.speed_lat = KNOTS2LAT (fix.speed * cos (bearing));
-      fix.speed_lon = KNOTS2LON (fix.speed * sin (bearing), fix.coord.lat);
-    }
-  else
-    {
-      fix.speed_lat = 0;
-      fix.speed_lon = 0;
-    }
 
   g_mutex_lock (&priv->fixes_lock);
 
@@ -287,25 +274,21 @@ hyscan_navigation_model_read_sentence (HyScanNavigationModel *model,
     last_fix = NULL;
 
   /* Обрыв: удаляем из списка старые данные. */
-  if (last_fix != NULL && fix.time - last_fix->time > FIX_MAX_DELTA)
+  if (last_fix != NULL && fix->time - last_fix->time > FIX_MAX_DELTA)
     {
-      g_list_free_full (priv->fixes, (GDestroyNotify) hyscan_navigation_model_fix_free);
-      priv->fixes_len = 0;
-      priv->fixes = NULL;
-      priv->params_set = FALSE;
+      hyscan_navigation_model_remove_all (model);
       last_fix = NULL;
     }
 
   /* Фиксируем данные только если они для нового момента времени. */
-  if (last_fix == NULL || fix.time - last_fix->time > FIX_MIN_DELTA)
+  if (last_fix == NULL || fix->time - last_fix->time > FIX_MIN_DELTA)
     {
-      priv->fixes = g_list_append (priv->fixes, hyscan_navigation_model_fix_copy (&fix));
+      priv->fixes = g_list_append (priv->fixes, hyscan_navigation_model_fix_copy (fix));
       priv->fixes_len++;
 
       /* При поступлении первого фикса запоминаем timer_offset. */
-      if (!priv->timer_set) {
-        priv->timer_offset = fix.time - g_timer_elapsed (priv->timer, NULL) - DELAY_TIME;
-        priv->timer_set = TRUE;
+      if (g_atomic_int_compare_and_exchange (&priv->timer_set, FALSE, TRUE)) {
+        priv->timer_offset = fix->time - g_timer_elapsed (priv->timer, NULL) - priv->delay_time;
       }
     }
 
@@ -323,6 +306,44 @@ hyscan_navigation_model_read_sentence (HyScanNavigationModel *model,
 
   hyscan_navigation_model_update_params (model);
   g_mutex_unlock (&priv->fixes_lock);
+}
+
+/* Парсит NMEA-строку. */
+static gboolean
+hyscan_navigation_model_read_sentence (HyScanNavigationModel    *model,
+                                       const gchar              *sentence,
+                                       HyScanNavigationModelFix *fix)
+{
+  HyScanNavigationModelPrivate *priv = model->priv;
+
+  gboolean parsed;
+
+  g_return_val_if_fail (sentence != NULL, FALSE);
+
+  parsed  = hyscan_nmea_parser_parse_string (priv->parser_time, sentence, &fix->time);
+  parsed &= hyscan_nmea_parser_parse_string (priv->parser_lat, sentence, &fix->coord.lat);
+  parsed &= hyscan_nmea_parser_parse_string (priv->parser_lon, sentence, &fix->coord.lon);
+  parsed &= hyscan_nmea_parser_parse_string (priv->parser_track, sentence, &fix->coord.h);
+  parsed &= hyscan_nmea_parser_parse_string (priv->parser_speed, sentence, &fix->speed);
+
+  if (!parsed)
+    return FALSE;
+
+  /* Расчитываем скорости по широте и долготе. */
+  if (fix->speed > 0)
+    {
+      gdouble bearing = DEG2RAD (fix->coord.h);
+
+      fix->speed_lat = KNOTS2LAT (fix->speed * cos (bearing));
+      fix->speed_lon = KNOTS2LON (fix->speed * sin (bearing), fix->coord.lat);
+    }
+  else
+    {
+      fix->speed_lat = 0;
+      fix->speed_lon = 0;
+    }
+
+  return TRUE;
 }
 
 /* Обработчик сигнала "sensor-data".
@@ -355,7 +376,23 @@ hyscan_navigation_model_sensor_data (HyScanSensor          *sensor,
 
   sentences = hyscan_nmea_data_split_sentence (msg, msg_size);
   for (i = 0; sentences[i] != NULL; i++)
-    hyscan_navigation_model_read_sentence (model, sentences[i]);
+    {
+      HyScanNavigationModelFix fix;
+
+      if (hyscan_navigation_model_read_sentence (model, sentences[i], &fix))
+        {
+          fix.heading = fix.coord.h;
+
+          /* Пробуем считать истинный курс. */
+          while (sentences[i + 1] != NULL &&
+                 !hyscan_nmea_parser_parse_string (priv->parser_time, sentences[i + 1], NULL))
+          {
+            hyscan_nmea_parser_parse_string (priv->parser_heading, sentences[++i], &fix.heading);
+          }
+
+          hyscan_navigation_model_add_fix (model, &fix);
+        }
+    }
 
   g_strfreev (sentences);
 }
@@ -395,12 +432,46 @@ hyscan_navigation_model_extrapolate_value (HyScanNavigationModelExParams *ex_par
   return s;
 }
 
+/* Возвращает последние полученные данные. */
+static gboolean
+hyscan_navigation_model_latest (HyScanNavigationModel     *model,
+                                HyScanNavigationModelData *data,
+                                gdouble                   *time_delta)
+{
+  HyScanNavigationModelPrivate *priv = model->priv;
+  GList *last_fix_l;
+  HyScanNavigationModelFix *last_fix;
+
+  g_mutex_lock (&priv->fixes_lock);
+
+  last_fix_l = g_list_last (priv->fixes);
+
+  if (last_fix_l == NULL)
+    {
+      g_mutex_unlock (&priv->fixes_lock);
+      return FALSE;
+    }
+
+  last_fix = last_fix_l->data;
+
+  data->coord = last_fix->coord;
+  data->coord.h = DEG2RAD (data->coord.h);
+  data->heading = DEG2RAD (last_fix->heading);
+  *time_delta = data->time - last_fix->time;
+
+  g_mutex_unlock (&priv->fixes_lock);
+
+  if (*time_delta > FIX_MAX_DELTA)
+    return FALSE;
+
+  return TRUE;
+}
+
 /* Экстраполирует реальные данные на указанный момент времени. */
 static gboolean
-hyscan_navigation_model_extrapolate (HyScanNavigationModel *model,
-                                     gdouble                time,
-                                     HyScanGeoGeodetic     *geo,
-                                     gdouble               *time_delta)
+hyscan_navigation_model_extrapolate (HyScanNavigationModel     *model,
+                                     HyScanNavigationModelData *data,
+                                     gdouble                   *time_delta)
 {
   HyScanNavigationModelPrivate *priv = model->priv;
   HyScanNavigationModelExParams lat_params;
@@ -427,24 +498,25 @@ hyscan_navigation_model_extrapolate (HyScanNavigationModel *model,
 
     lat_params = priv->params.lat_params;
     lon_params = priv->params.lon_params;
-    dt = time - priv->params.t0;
+    dt = data->time - priv->params.t0;
 
     last_fix = last_fix_l->data;
     time_end = last_fix->time;
+    data->heading = DEG2RAD (last_fix->heading);
 
     g_mutex_unlock (&priv->fixes_lock);
   }
 
   *time_delta = dt;
 
-  if (time > time_end)
+  if (data->time > time_end)
     return FALSE;
 
   /* При относительно малых расстояних (V * dt << R_{Земли}), чтобы облегчить вычисления,
    * можем использовать (lon, lat) в качестве декартовых координат (x, y). */
-  geo->lat = hyscan_navigation_model_extrapolate_value (&lat_params, dt, &v_lat);
-  geo->lon = hyscan_navigation_model_extrapolate_value (&lon_params, dt, &v_lon);
-  geo->h = atan2 (v_lon, v_lat / cos (DEG2RAD (geo->lat)));
+  data->coord.lat = hyscan_navigation_model_extrapolate_value (&lat_params, dt, &v_lat);
+  data->coord.lon = hyscan_navigation_model_extrapolate_value (&lon_params, dt, &v_lon);
+  data->coord.h = atan2 (v_lon, v_lat / cos (DEG2RAD (data->coord.lat)));
 
 
   return TRUE;
@@ -455,25 +527,20 @@ static gboolean
 hyscan_navigation_model_process (HyScanNavigationModel *model)
 {
   HyScanNavigationModelPrivate *priv = model->priv;
-  HyScanGeoGeodetic geo;
+  HyScanNavigationModelData data;
 
-  gdouble time;
   gdouble time_delta;
 
-  gboolean extrapolated;
+  data.time = g_timer_elapsed (priv->timer, NULL) + priv->timer_offset;
+  if (priv->extrapolate)
+    data.loaded = hyscan_navigation_model_extrapolate (model, &data, &time_delta);
+  else
+    data.loaded = hyscan_navigation_model_latest (model, &data, &time_delta);
 
-  time = g_timer_elapsed (priv->timer, NULL) + priv->timer_offset;
-  extrapolated = hyscan_navigation_model_extrapolate (model, time, &geo, &time_delta);
-  if (extrapolated)
-    {
-      g_signal_emit (model, hyscan_navigation_model_signals[SIGNAL_CHANGED], 0,
-                     time, &geo);
-    }
+  if (data.loaded)
+    g_signal_emit (model, hyscan_navigation_model_signals[SIGNAL_CHANGED], 0, &data);
   else if (time_delta > FIX_MAX_DELTA)
-    {
-      g_signal_emit (model, hyscan_navigation_model_signals[SIGNAL_CHANGED], 0,
-                     time, NULL);
-    }
+    g_signal_emit (model, hyscan_navigation_model_signals[SIGNAL_CHANGED], 0, &data);
 
 
   return TRUE;
@@ -528,11 +595,13 @@ hyscan_navigation_model_object_constructed (GObject *object)
   g_mutex_init (&priv->fixes_lock);
   priv->timer = g_timer_new ();
   priv->fixes_max_len = 10;
+  hyscan_navigation_model_set_delay (model, DELAY_TIME);
 
   priv->parser_time = hyscan_nmea_parser_new_empty (HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_TIME);
   priv->parser_lat = hyscan_nmea_parser_new_empty (HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_LAT);
   priv->parser_lon = hyscan_nmea_parser_new_empty (HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_LON);
   priv->parser_track = hyscan_nmea_parser_new_empty (HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_TRACK);
+  priv->parser_heading = hyscan_nmea_parser_new_empty (HYSCAN_NMEA_DATA_HDT, HYSCAN_NMEA_FIELD_HEADING);
   priv->parser_speed = hyscan_nmea_parser_new_empty (HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_SPEED);
 
   priv->process_tag = g_timeout_add (priv->interval, (GSourceFunc) hyscan_navigation_model_process, model);
@@ -565,6 +634,7 @@ hyscan_navigation_model_object_finalize (GObject *object)
   g_object_unref (priv->parser_lat);
   g_object_unref (priv->parser_lon);
   g_object_unref (priv->parser_track);
+  g_object_unref (priv->parser_heading);
   g_object_unref (priv->parser_speed);
 
   G_OBJECT_CLASS (hyscan_navigation_model_parent_class)->finalize (object);
@@ -635,4 +705,26 @@ hyscan_navigation_model_set_sensor_name (HyScanNavigationModel *model,
   g_free (priv->sensor_name);
   priv->sensor_name = g_strdup (name);
   g_mutex_unlock (&priv->sensor_lock);
+}
+
+void
+hyscan_navigation_model_set_delay (HyScanNavigationModel *model,
+                                   gdouble                delay)
+{
+  HyScanNavigationModelPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_NAVIGATION_MODEL (model));
+  priv = model->priv;
+
+  g_mutex_lock (&priv->fixes_lock);
+
+  priv->delay_time = delay;
+  priv->extrapolate = (priv->delay_time > 0);
+
+  g_message ("Nav model delay: %f sec; extrapolation: %d", priv->delay_time, priv->extrapolate);
+
+  g_atomic_int_set (&priv->timer_set, FALSE);
+  hyscan_navigation_model_remove_all (model);
+
+  g_mutex_unlock (&priv->fixes_lock);
 }

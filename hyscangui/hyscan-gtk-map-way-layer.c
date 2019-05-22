@@ -153,8 +153,7 @@ static void     hyscan_gtk_map_track_create_arrow                  (HyScanGtkMap
                                                                     GdkRGBA                       *color_fill,
                                                                     GdkRGBA                       *color_stroke);
 static void     hyscan_gtk_map_way_layer_model_changed           (HyScanGtkMapWayLayer        *way_layer,
-                                                                    gdouble                        time,
-                                                                    HyScanGeoGeodetic             *coord);
+                                                                  HyScanNavigationModelData   *data);
 static void     hyscan_gtk_map_way_layer_point_free              (HyScanGtkMapWayLayerPoint   *point);
 static void     hyscan_gtk_map_way_layer_fill_tile               (HyScanGtkMapTiledLayer        *tiled_layer,
                                                                   HyScanGtkMapTile              *tile);
@@ -428,9 +427,8 @@ hyscan_gtk_map_way_layer_point_copy (HyScanGtkMapWayLayerPoint *point)
 
 /* Обработчик сигнала "changed" модели. */
 static void
-hyscan_gtk_map_way_layer_model_changed (HyScanGtkMapWayLayer *way_layer,
-                                          gdouble                 time,
-                                          HyScanGeoGeodetic      *coord)
+hyscan_gtk_map_way_layer_model_changed (HyScanGtkMapWayLayer      *way_layer,
+                                        HyScanNavigationModelData *data)
 {
   HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
 
@@ -440,15 +438,15 @@ hyscan_gtk_map_way_layer_model_changed (HyScanGtkMapWayLayer *way_layer,
   priv->track_mod_count++;
 
   /* Добавляем новую точку в трек. */
-  if (coord != NULL)
+  if (data->loaded)
     {
       HyScanGtkMapWayLayerPoint point;
 
-      point.time = time;
+      point.time = data->time;
       point.start = priv->track_lost;
-      point.coord.geo.lat = coord->lat;
-      point.coord.geo.lon = coord->lon;
-      point.coord.geo.h = coord->h;
+      point.coord.geo.lat = data->coord.lat;
+      point.coord.geo.lon = data->coord.lon;
+      point.coord.geo.h = data->heading;
       if (priv->map != NULL)
         hyscan_gtk_map_geo_to_value (priv->map, point.coord.geo, &point.coord.c2d);
 
@@ -458,10 +456,10 @@ hyscan_gtk_map_way_layer_model_changed (HyScanGtkMapWayLayer *way_layer,
     }
 
   /* Фиксируем обрыв. */
-  priv->track_lost = (coord == NULL);
+  priv->track_lost = !data->loaded;
 
   /* Удаляем устаревшие по life_time точки. */
-  hyscan_gtk_map_way_layer_set_expired_mod (way_layer, time);
+  hyscan_gtk_map_way_layer_set_expired_mod (way_layer, data->time);
 
   g_mutex_unlock (&priv->track_lock);
 

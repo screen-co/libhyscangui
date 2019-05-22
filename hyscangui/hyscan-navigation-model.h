@@ -51,6 +51,15 @@ typedef struct _HyScanNavigationModel HyScanNavigationModel;
 typedef struct _HyScanNavigationModelPrivate HyScanNavigationModelPrivate;
 typedef struct _HyScanNavigationModelClass HyScanNavigationModelClass;
 
+typedef struct
+{
+  gboolean          loaded;
+
+  gdouble           time;
+  HyScanGeoGeodetic coord;
+  gdouble           heading;
+} HyScanNavigationModelData;
+
 struct _HyScanNavigationModel
 {
   GObject parent_instance;
@@ -70,12 +79,16 @@ HYSCAN_API
 HyScanNavigationModel *  hyscan_navigation_model_new              (void);
 
 HYSCAN_API
-void hyscan_navigation_model_set_sensor                           (HyScanNavigationModel *model,
+void                     hyscan_navigation_model_set_sensor       (HyScanNavigationModel *model,
                                                                    HyScanSensor          *sensor);
 
 HYSCAN_API
-void hyscan_navigation_model_set_sensor_name                      (HyScanNavigationModel *model,
+void                     hyscan_navigation_model_set_sensor_name  (HyScanNavigationModel *model,
                                                                    const gchar           *name);
+
+HYSCAN_API
+void                     hyscan_navigation_model_set_delay        (HyScanNavigationModel *model,
+                                                                   gdouble                delay);
 
 G_END_DECLS
 

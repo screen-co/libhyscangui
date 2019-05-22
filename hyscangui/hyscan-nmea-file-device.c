@@ -86,6 +86,7 @@ struct _HyScanNmeaFileDevicePrivate
   GThread              *thread;             /* Поток, в котором читаются NMEA-строки. */
 
   GTimer               *timer;              /* Таймер. */
+  gdouble               tick_step;          /* Время между двумя тиками. */
   gdouble               timer_offset;       /* Момент времени в файле, соответсвующий запуску таймера. */
   gdouble               next_tick;          /* Время следующего чтения файла. */
 
@@ -181,6 +182,7 @@ hyscan_nmea_file_device_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_nmea_file_device_parent_class)->constructed (object);
 
+  priv->tick_step = 0.01;
   priv->thread = g_thread_new ("nmea-device-virtual", (GThreadFunc) hyscan_nmea_file_device_process, device);
 }
 
@@ -250,13 +252,11 @@ hyscan_nmea_file_device_read (HyScanNmeaFileDevice *device)
   g_assert (priv->line_time <= time);
   g_string_append (priv->sensor_data, priv->line);
 
-  /* Считываем следующие строки, пока они проходят по времени: line_time < next_tick + 1. */
+  /* Считываем следующие строки, пока они проходят по времени: line_time < next_tick + priv->tick_step. */
   while (fgets (priv->line, priv->line_length, priv->fp) != NULL)
     {
-      if (!hyscan_nmea_file_device_parse_time (priv->line, &priv->line_time))
-        continue;
-
-      if (priv->line_time >= priv->next_tick + 1)
+      hyscan_nmea_file_device_parse_time (priv->line, &priv->line_time);
+      if (priv->line_time >= priv->next_tick + priv->tick_step)
         break;
 
       g_string_append (priv->sensor_data, priv->line);
@@ -283,7 +283,7 @@ hyscan_nmea_file_device_read (HyScanNmeaFileDevice *device)
     }
 
   g_string_truncate (priv->sensor_data, 0);
-  priv->next_tick = ceil (priv->line_time);
+  priv->next_tick = priv->line_time;
 }
 
 static gpointer
@@ -320,7 +320,7 @@ hyscan_nmea_file_device_process (HyScanNmeaFileDevice *device)
       if (g_atomic_int_get (&priv->enable))
         hyscan_nmea_file_device_read (device);
 
-      g_usleep (G_USEC_PER_SEC / 20);
+      g_usleep (G_USEC_PER_SEC * priv->tick_step / 20);
     }
 
 exit:
