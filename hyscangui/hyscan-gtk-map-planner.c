@@ -436,14 +436,15 @@ hyscan_gtk_map_planner_handle_grab (HyScanGtkLayerContainer *container,
 /* Обработчик сигнала "handle-release".
  * Возвращает %TRUE, если мы разрешаем отпустить хэндл. */
 static gboolean
-hyscan_gtk_map_pin_layer_handle_release (HyScanGtkLayerContainer *container,
-                                         GdkEventMotion          *event,
-                                         HyScanGtkMapPlanner    *layer)
+hyscan_gtk_map_planner_handle_release (HyScanGtkLayerContainer *container,
+                                       GdkEventMotion          *event,
+                                       gconstpointer            howner,
+                                       HyScanGtkMapPlanner     *layer)
 {
   HyScanGtkMapPlannerPrivate *priv = layer->priv;
   HyScanPlannerTrack *track_copy;
 
-  if (hyscan_gtk_layer_container_get_handle_grabbed (container) != layer)
+  if (howner != layer)
     return FALSE;
 
   if (priv->mode != MODE_DRAG)
@@ -488,7 +489,7 @@ hyscan_gtk_map_planner_added (HyScanGtkLayer          *layer,
   
     /* Сигналы контейнера. */
   g_signal_connect (container, "handle-grab", G_CALLBACK (hyscan_gtk_map_planner_handle_grab), planner_layer);
-  g_signal_connect (container, "handle-release", G_CALLBACK (hyscan_gtk_map_pin_layer_handle_release), planner_layer);
+  g_signal_connect (container, "handle-release", G_CALLBACK (hyscan_gtk_map_planner_handle_release), planner_layer);
   
   g_signal_connect_after (priv->map, "visible-draw",
                           G_CALLBACK (hyscan_gtk_map_planner_draw), planner_layer);

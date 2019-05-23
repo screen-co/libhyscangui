@@ -378,12 +378,13 @@ hyscan_gtk_map_pin_layer_handle_grab (HyScanGtkLayerContainer *container,
 static gboolean
 hyscan_gtk_map_pin_layer_handle_release (HyScanGtkLayerContainer *container,
                                          GdkEventMotion          *event,
+                                         gconstpointer            howner,
                                          HyScanGtkMapPinLayer    *layer)
 {
   HyScanGtkMapPinLayerPrivate *priv = layer->priv;
   HyScanGtkMapPoint *drag_point;
 
-  if (hyscan_gtk_layer_container_get_handle_grabbed (container) != layer)
+  if (howner != layer)
     return FALSE;
 
   if (priv->mode != MODE_DRAG)
