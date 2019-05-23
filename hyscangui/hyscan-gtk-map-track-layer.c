@@ -221,7 +221,7 @@ hyscan_gtk_map_track_layer_object_constructed (GObject *object)
   priv->tracks = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
   priv->active_tracks = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 
-  g_signal_connect_swapped (priv->track_list_model, "changed", hyscan_gtk_map_track_layer_list_changed, track_layer);
+  g_signal_connect_swapped (priv->track_list_model, "changed", G_CALLBACK (hyscan_gtk_map_track_layer_list_changed), track_layer);
 
   /* Оформление трека. */
   style->bar_width = DEFAULT_BAR_WIDTH;

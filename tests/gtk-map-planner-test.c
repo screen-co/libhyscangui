@@ -1,5 +1,6 @@
 #include "hyscan-gtk-map-kit.h"
 #include <hyscan-gtk-map.h>
+#include <hyscan-db.h>
 #include <hyscan-nmea-file-device.h>
 #include <hyscan-driver.h>
 #include <hyscan-hw-connector.h>

@@ -319,7 +319,7 @@ main (int    argc,
 
   db = db_uri != NULL ? hyscan_db_new (db_uri) : NULL;
   translator = translator_new (db, project_read, project_write, track_name);
-  kit = hyscan_gtk_map_kit_new (&center, db, project_write, profile_dir, NULL, NULL);
+  kit = hyscan_gtk_map_kit_new (&center, db, project_write, profile_dir, NULL, NULL, NULL, 1.0);
 
   gtk_grid_attach (GTK_GRID (grid), kit->map, 0, 0, 1, 1);
   gtk_grid_attach (GTK_GRID (grid), kit->control, 1, 0, 1, 1);

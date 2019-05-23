@@ -1254,7 +1254,7 @@ hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
     {
       hyscan_planner_load_ini (priv->planner, planner_ini);
       /* Автосохранение. */
-      g_signal_connect (priv->planner, "changed", G_CALLBACK (hyscan_planner_save_ini), planner_ini);
+      g_signal_connect (priv->planner, "changed", G_CALLBACK (hyscan_planner_save_ini), (gpointer) planner_ini);
     }
 
   {
