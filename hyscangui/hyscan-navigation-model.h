@@ -57,7 +57,9 @@ typedef struct
 
   gdouble           time;
   HyScanGeoGeodetic coord;
-  gdouble           heading;
+  gboolean          true_heading; /* Истинный курс установлен по HDT. */
+  gdouble           heading;      /* Истинный курс, радианы. */
+  gdouble           speed;        /* Скорость, м/с. */
 } HyScanNavigationModelData;
 
 struct _HyScanNavigationModel

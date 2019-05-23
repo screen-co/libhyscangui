@@ -94,6 +94,8 @@ typedef enum
 typedef struct
 {
   HyScanGtkMapPoint                    coord;          /* Путевая точка. */
+  gdouble                              speed;          /* Скорость, м/с. */
+  gboolean                             true_heading;   /* Курс истинный? */
   gdouble                              time;           /* Время фиксации точки. */
   gboolean                             start;          /* Признак того, что точка является началом куска. */
 } HyScanGtkMapWayLayerPoint;
@@ -111,6 +113,7 @@ struct _HyScanGtkMapWayLayerPrivate
   gboolean                      has_cache;                  /* Флаг, используется ли кэш? */
   HyScanNavigationModel        *nav_model;                  /* Модель навигационных данных, которые отображаются. */
   guint64                       life_time;                  /* Время жизни точки трека, секунды. */
+  PangoLayout                  *pango_layout;               /* Раскладка шрифта. */
 
   gboolean                      visible;                    /* Признак видимости слоя. */
 
@@ -255,6 +258,7 @@ hyscan_gtk_map_way_layer_object_finalize (GObject *object)
   g_clear_object (&priv->nav_model);
   g_clear_pointer (&priv->arrow_default.surface, cairo_surface_destroy);
   g_clear_pointer (&priv->arrow_lost.surface, cairo_surface_destroy);
+  g_clear_object (&priv->pango_layout);
 
   g_mutex_lock (&priv->track_lock);
   g_queue_free_full (priv->track, (GDestroyNotify) hyscan_gtk_map_way_layer_point_free);
@@ -418,9 +422,7 @@ hyscan_gtk_map_way_layer_point_copy (HyScanGtkMapWayLayerPoint *point)
   HyScanGtkMapWayLayerPoint *copy;
 
   copy = g_slice_new (HyScanGtkMapWayLayerPoint);
-  copy->start = point->start;
-  copy->time = point->time;
-  copy->coord = point->coord;
+  *copy = *point;
 
   return copy;
 }
@@ -447,6 +449,8 @@ hyscan_gtk_map_way_layer_model_changed (HyScanGtkMapWayLayer      *way_layer,
       point.coord.geo.lat = data->coord.lat;
       point.coord.geo.lon = data->coord.lon;
       point.coord.geo.h = data->heading;
+      point.speed = data->speed;
+      point.true_heading = data->true_heading;
       if (priv->map != NULL)
         hyscan_gtk_map_geo_to_value (priv->map, point.coord.geo, &point.coord.c2d);
 
@@ -780,7 +784,8 @@ hyscan_gtk_map_way_layer_draw (HyScanGtkMap         *map,
   HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
 
   gdouble x, y;
-  gdouble bearing;
+  gdouble bearing, speed;
+  gboolean true_heading;
 
   HyScanGtkMapWayLayerArrow *arrow;
 
@@ -816,6 +821,8 @@ hyscan_gtk_map_way_layer_draw (HyScanGtkMap         *map,
 
     gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y, last_point->c2d.x, last_point->c2d.y);
     bearing = last_point->geo.h;
+    speed = last_track_point->speed;
+    true_heading = last_track_point->true_heading;
 
     g_mutex_unlock (&priv->track_lock);
   }
@@ -834,6 +841,39 @@ hyscan_gtk_map_way_layer_draw (HyScanGtkMap         *map,
   cairo_set_source_surface (cairo, arrow->surface, arrow->x, arrow->y);
   cairo_paint (cairo);
   cairo_restore (cairo);
+
+  /* Рисуем текущий курс, скорость и координаты. */
+  {
+    gchar *label;
+    gint height, width, padding = 10, margin = 20;
+
+    if (priv->track_lost)
+      {
+        label = g_strdup_printf ("<big>signal lost</big>");
+      }
+    else
+      {
+        label = g_strdup_printf ("<big>%06.2f° (%s)\n%03.2f m/s</big>",
+                                 bearing / G_PI * 180.0,
+                                 true_heading ? "T" : "F",
+                                 speed);
+      }
+
+    pango_layout_set_markup (priv->pango_layout, label, -1);
+    pango_layout_get_size (priv->pango_layout, &width, &height);
+    width /= PANGO_SCALE;
+    height /= PANGO_SCALE;
+
+    cairo_rectangle (cairo, margin, margin, width + 2 *padding, height + 2 * padding);
+    cairo_set_source_rgba (cairo, 1.0, 1.0, 1.0, 0.8);
+    cairo_fill (cairo);
+
+    cairo_set_source_rgba (cairo, 0, 0, 0, 1.0);
+    cairo_move_to (cairo, padding + margin, padding + margin);
+    pango_cairo_show_layout (cairo, priv->pango_layout);
+
+    g_free (label);
+  }
 
 #ifdef HYSCAN_GTK_MAP_DEBUG_FPS
   {
@@ -878,7 +918,7 @@ hyscan_gtk_map_way_layer_update_points (HyScanGtkMapWayLayerPrivate *priv)
  * Пересчитывает координаты точек, если изменяется картографическая проекция. */
 static void
 hyscan_gtk_map_way_layer_proj_notify (HyScanGtkMapWayLayer *way_layer,
-                                      GParamSpec             *pspec)
+                                      GParamSpec           *pspec)
 {
   HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
 
@@ -887,6 +927,19 @@ hyscan_gtk_map_way_layer_proj_notify (HyScanGtkMapWayLayer *way_layer,
 
   /* Фиксируем изменение параметров. */
   hyscan_gtk_map_tiled_layer_set_param_mod (HYSCAN_GTK_MAP_TILED_LAYER (way_layer));
+}
+
+/* Обновление раскладки шрифта по сигналу "configure-event". */
+static gboolean
+hyscan_gtk_map_way_layer_configure (HyScanGtkMapWayLayer *way_layer,
+                                    GdkEvent         *screen)
+{
+  HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
+
+  g_clear_object (&priv->pango_layout);
+  priv->pango_layout = gtk_widget_create_pango_layout (GTK_WIDGET (priv->map), NULL);
+
+  return FALSE;
 }
 
 /* Реализация HyScanGtkLayerInterface.added.
@@ -905,6 +958,7 @@ hyscan_gtk_map_way_layer_added (HyScanGtkLayer          *layer,
   hyscan_gtk_map_way_layer_update_points (way_layer->priv);
   g_signal_connect_after (priv->map, "visible-draw", G_CALLBACK (hyscan_gtk_map_way_layer_draw), way_layer);
   g_signal_connect_swapped (priv->map, "notify::projection", G_CALLBACK (hyscan_gtk_map_way_layer_proj_notify), way_layer);
+  g_signal_connect_swapped (priv->map, "configure-event", G_CALLBACK (hyscan_gtk_map_way_layer_configure), way_layer);
 
   hyscan_gtk_layer_parent_interface->added (layer, container);
 }

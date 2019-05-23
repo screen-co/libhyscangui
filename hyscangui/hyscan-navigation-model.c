@@ -57,17 +57,18 @@
 #include "hyscan-navigation-model.h"
 #include "hyscan-gui-marshallers.h"
 
-#define FIX_MIN_DELTA              0.01   /* Минимальное время между двумя фиксациями положения. */
-#define FIX_MAX_DELTA              1.3    /* Время между двумя фиксами, которое считается обрывом. */
-#define DELAY_TIME                 1.0    /* Время задержки вывода данных. */
+#define FIX_MIN_DELTA              0.01      /* Минимальное время между двумя фиксациями положения. */
+#define FIX_MAX_DELTA              1.3       /* Время между двумя фиксами, которое считается обрывом. */
+#define DELAY_TIME                 1.0       /* Время задержки вывода данных. */
 
-#define MERIDIAN_LENGTH            20003930                                     /* Длина меридиана, метры. */
-#define NAUTICAL_MILE              1852                                         /* Морская миля, метры. */
+#define MERIDIAN_LENGTH            20003930  /* Длина меридиана, метры. */
+#define NAUTICAL_MILE              1852      /* Морская миля, метры. */
 
-#define DEG2RAD(deg) (deg / 180.0 * G_PI)
+#define DEG2RAD(deg)             (deg / 180.0 * G_PI)
+#define KNOTS2METER(knots)       ((knots) * NAUTICAL_MILE / 3600)
 #define KNOTS2ANGLE(knots, arc)  (180.0 / (arc) * (knots) * NAUTICAL_MILE / 3600)
-#define KNOTS2LAT(knots)       KNOTS2ANGLE (knots, MERIDIAN_LENGTH)
-#define KNOTS2LON(knots, lat)  KNOTS2ANGLE (knots, MERIDIAN_LENGTH * cos (DEG2RAD (lat)))
+#define KNOTS2LAT(knots)         KNOTS2ANGLE (knots, MERIDIAN_LENGTH)
+#define KNOTS2LON(knots, lat)    KNOTS2ANGLE (knots, MERIDIAN_LENGTH * cos (DEG2RAD (lat)))
 
 enum
 {
@@ -102,6 +103,7 @@ typedef struct
 typedef struct
 {
   HyScanGeoGeodetic  coord;              /* Зафиксированные географические координаты. */
+  gboolean           true_heading;
   gdouble            heading;            /* Направление носа судна. */
   gdouble            speed;              /* Скорость движения. */
   gdouble            speed_lat;          /* Скорость движения по широте. */
@@ -225,14 +227,7 @@ hyscan_navigation_model_fix_copy (HyScanNavigationModelFix *fix)
   HyScanNavigationModelFix *copy;
 
   copy = g_slice_new (HyScanNavigationModelFix);
-  copy->heading = fix->heading;
-  copy->coord.lon = fix->coord.lon;
-  copy->coord.lat = fix->coord.lat;
-  copy->coord.h = fix->coord.h;
-  copy->speed = fix->speed;
-  copy->speed_lon = fix->speed_lon;
-  copy->speed_lat = fix->speed_lat;
-  copy->time = fix->time;
+  *copy = *fix;
 
   return copy;
 }
@@ -382,12 +377,14 @@ hyscan_navigation_model_sensor_data (HyScanSensor          *sensor,
       if (hyscan_navigation_model_read_sentence (model, sentences[i], &fix))
         {
           fix.heading = fix.coord.h;
+          fix.true_heading = FALSE;
 
           /* Пробуем считать истинный курс. */
           while (sentences[i + 1] != NULL &&
                  !hyscan_nmea_parser_parse_string (priv->parser_time, sentences[i + 1], NULL))
           {
-            hyscan_nmea_parser_parse_string (priv->parser_heading, sentences[++i], &fix.heading);
+            if (hyscan_nmea_parser_parse_string (priv->parser_heading, sentences[++i], &fix.heading))
+              fix.true_heading = TRUE;
           }
 
           hyscan_navigation_model_add_fix (model, &fix);
@@ -457,6 +454,8 @@ hyscan_navigation_model_latest (HyScanNavigationModel     *model,
   data->coord = last_fix->coord;
   data->coord.h = DEG2RAD (data->coord.h);
   data->heading = DEG2RAD (last_fix->heading);
+  data->true_heading = last_fix->true_heading;
+  data->speed = KNOTS2METER (last_fix->speed);
   *time_delta = data->time - last_fix->time;
 
   g_mutex_unlock (&priv->fixes_lock);
@@ -503,6 +502,8 @@ hyscan_navigation_model_extrapolate (HyScanNavigationModel     *model,
     last_fix = last_fix_l->data;
     time_end = last_fix->time;
     data->heading = DEG2RAD (last_fix->heading);
+    data->true_heading = last_fix->true_heading;
+    data->speed = KNOTS2METER (last_fix->speed);
 
     g_mutex_unlock (&priv->fixes_lock);
   }
