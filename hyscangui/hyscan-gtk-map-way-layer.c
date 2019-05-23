@@ -65,7 +65,7 @@
 #include <string.h>
 #include <math.h>
 
-#define ARROW_SIZE            32          /* Размер маркера, изображающего движущийся объект. */
+#define ARROW_SIZE            40          /* Размер маркера, изображающего движущийся объект. */
 #define LIFETIME              600
 #define LINE_WIDTH            2.0
 #define LINE_COLOR            "rgba(20,  40,  100, 0.9)"
@@ -475,19 +475,33 @@ hyscan_gtk_map_track_create_arrow (HyScanGtkMapWayLayerArrow *arrow,
 {
   cairo_t *cairo;
   guint line_width = 1;
+  gdouble peak_length, peak_size, peak_width, height;
 
   g_clear_pointer (&arrow->surface, cairo_surface_destroy);
 
+  peak_length = ARROW_SIZE;
+  peak_size = 0.2 * ARROW_SIZE;
+  peak_width = 0.1 * ARROW_SIZE;
+  height = ARROW_SIZE + 2 * line_width + peak_length + peak_size;
   arrow->surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32,
-                                               ARROW_SIZE + 2 * line_width, ARROW_SIZE + 2 * line_width);
+                                               ARROW_SIZE + 2 * line_width, (guint) height);
   cairo = cairo_create (arrow->surface);
 
   cairo_translate (cairo, line_width, line_width);
 
-  cairo_line_to (cairo, .2 * ARROW_SIZE, ARROW_SIZE);
+  /* Пика. */
+  cairo_line_to (cairo, .5 * ARROW_SIZE, peak_size + peak_length);
+  cairo_line_to (cairo, .5 * ARROW_SIZE, peak_size);
+  cairo_line_to (cairo, .5 * ARROW_SIZE - peak_width, peak_size);
   cairo_line_to (cairo, .5 * ARROW_SIZE, 0);
-  cairo_line_to (cairo, .8 * ARROW_SIZE, ARROW_SIZE);
-  cairo_line_to (cairo, .5 * ARROW_SIZE, .8 * ARROW_SIZE);
+  cairo_line_to (cairo, .5 * ARROW_SIZE + peak_width, peak_size);
+  cairo_line_to (cairo, .5 * ARROW_SIZE, peak_size);
+  cairo_line_to (cairo, .5 * ARROW_SIZE, peak_size + peak_length);
+
+  /* Стрелка. */
+  cairo_line_to (cairo, .8 * ARROW_SIZE, height);
+  cairo_line_to (cairo, .5 * ARROW_SIZE, peak_size + peak_length + .8 * ARROW_SIZE);
+  cairo_line_to (cairo, .2 * ARROW_SIZE, height);
   cairo_close_path (cairo);
 
   gdk_cairo_set_source_rgba (cairo, color_fill);
@@ -501,7 +515,7 @@ hyscan_gtk_map_track_create_arrow (HyScanGtkMapWayLayerArrow *arrow,
 
   /* Координаты начала отсчета на поверхности. */
   arrow->x = -.5 * ARROW_SIZE - (gdouble) line_width;
-  arrow->y = -.8 * ARROW_SIZE - (gdouble) line_width;
+  arrow->y = - (peak_size + peak_length + .8 * ARROW_SIZE + (gdouble) line_width);
 }
 
 /* Реализация HyScanGtkLayerInterface.set_visible.
