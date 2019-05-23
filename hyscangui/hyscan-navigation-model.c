@@ -527,22 +527,13 @@ hyscan_navigation_model_extrapolate (HyScanNavigationModel     *model,
 static gboolean
 hyscan_navigation_model_process (HyScanNavigationModel *model)
 {
-  HyScanNavigationModelPrivate *priv = model->priv;
   HyScanNavigationModelData data;
 
   gdouble time_delta;
 
-  data.time = g_timer_elapsed (priv->timer, NULL) + priv->timer_offset;
-  if (priv->extrapolate)
-    data.loaded = hyscan_navigation_model_extrapolate (model, &data, &time_delta);
-  else
-    data.loaded = hyscan_navigation_model_latest (model, &data, &time_delta);
-
-  if (data.loaded)
+  hyscan_navigation_model_get (model, &data, &time_delta);
+  if (data.loaded || time_delta > FIX_MAX_DELTA)
     g_signal_emit (model, hyscan_navigation_model_signals[SIGNAL_CHANGED], 0, &data);
-  else if (time_delta > FIX_MAX_DELTA)
-    g_signal_emit (model, hyscan_navigation_model_signals[SIGNAL_CHANGED], 0, &data);
-
 
   return TRUE;
 }
@@ -728,4 +719,27 @@ hyscan_navigation_model_set_delay (HyScanNavigationModel *model,
   hyscan_navigation_model_remove_all (model);
 
   g_mutex_unlock (&priv->fixes_lock);
+}
+
+gboolean
+hyscan_navigation_model_get (HyScanNavigationModel     *model,
+                             HyScanNavigationModelData *data,
+                             gdouble                   *time_delta)
+{
+  HyScanNavigationModelPrivate *priv;
+  gdouble time_delta_ret;
+
+  g_return_val_if_fail (HYSCAN_IS_NAVIGATION_MODEL (model), FALSE);
+  priv = model->priv;
+
+  data->time = g_timer_elapsed (priv->timer, NULL) + priv->timer_offset;
+  if (priv->extrapolate)
+    data->loaded = hyscan_navigation_model_extrapolate (model, data, &time_delta_ret);
+  else
+    data->loaded = hyscan_navigation_model_latest (model, data, &time_delta_ret);
+
+  if (time_delta != NULL)
+    *time_delta = time_delta_ret;
+
+  return data->loaded;
 }

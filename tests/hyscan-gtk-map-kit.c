@@ -900,6 +900,16 @@ on_coordinate_change (GtkSwitch  *widget,
 }
 
 static void
+on_locate_click (HyScanGtkMapKit *kit)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+  HyScanNavigationModelData data;
+
+  if (hyscan_navigation_model_get (priv->nav_model, &data, NULL))
+    hyscan_gtk_map_move_to (HYSCAN_GTK_MAP (kit->map), data.coord);
+}
+
+static void
 on_move_to_click (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
@@ -1156,8 +1166,7 @@ create_control_box (HyScanGtkMapKit *kit,
     priv->lon_spin = gtk_spin_button_new_with_range (-180.0, 180.0, 0.001);
     g_signal_connect (priv->lon_spin, "notify::value", G_CALLBACK (on_coordinate_change), &priv->center.lon);
 
-    move_button = gtk_button_new ();
-    gtk_button_set_label (GTK_BUTTON (move_button), "Перейти");
+    move_button = gtk_button_new_with_label ("Перейти");
     g_signal_connect_swapped (move_button, "clicked", G_CALLBACK (on_move_to_click), kit);
 
     gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Навигация (ш, д)"));
@@ -1170,12 +1179,20 @@ create_control_box (HyScanGtkMapKit *kit,
 
   /* Текущие координаты. */
   {
+    GtkWidget *locate_button;
+
     ctrl_widget = gtk_label_new ("-, -");
     g_object_set (ctrl_widget, "width-chars", 24, NULL);
     g_signal_connect (kit->map, "motion-notify-event", G_CALLBACK (on_motion_show_coords), ctrl_widget);
 
-    gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Координаты"));
+    locate_button = gtk_button_new_from_icon_name ("network-wireless", GTK_ICON_SIZE_BUTTON);
+    gtk_button_set_label (GTK_BUTTON (locate_button), "Моё местоположение");
+    gtk_widget_set_sensitive (locate_button, priv->nav_model != NULL);
+    g_signal_connect_swapped (locate_button, "clicked", G_CALLBACK (on_locate_click), kit);
+
+    gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Координаты курсора"));
     gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
+    gtk_container_add (GTK_CONTAINER (ctrl_box), locate_button);
   }
 
   gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
