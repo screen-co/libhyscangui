@@ -272,7 +272,7 @@ hyscan_nmea_file_device_read (HyScanNmeaFileDevice *device)
   // g_rand_free (rand);
 
   /* Отправляем сигнал с данными. */
-  hyscan_buffer_wrap_data (priv->data_buffer, HYSCAN_DATA_STRING, priv->sensor_data->str, priv->sensor_data->len);
+  hyscan_buffer_wrap (priv->data_buffer, HYSCAN_DATA_STRING, priv->sensor_data->str, priv->sensor_data->len);
   g_signal_emit_by_name (device, "sensor-data", priv->name, HYSCAN_SOURCE_NMEA, (gint64) (time * 1e6), priv->data_buffer);
 
   /* Если дошли до конца файла, то по-тихому завершаем свою работу. */

@@ -372,7 +372,7 @@ hyscan_navigation_model_sensor_data (HyScanSensor          *sensor,
   if (!is_target_sensor)
     return;
 
-  msg = hyscan_buffer_get_data (data, &msg_size);
+  msg = hyscan_buffer_get (data, NULL, &msg_size);
 
   sentences = hyscan_nmea_data_split_sentence (msg, msg_size);
   for (i = 0; sentences[i] != NULL; i++)

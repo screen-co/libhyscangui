@@ -248,7 +248,7 @@ hyscan_gtk_map_tiled_layer_get_mod_actual (HyScanGtkMapTiledLayer *tiled_layer,
   hyscan_gtk_map_tiled_layer_mod_cache_key (tiled_layer, x, y, z, mod_cache_key, sizeof (mod_cache_key));
 
   buffer = hyscan_buffer_new ();
-  hyscan_buffer_wrap_data (buffer, HYSCAN_DATA_BLOB, &last_update, sizeof (last_update));
+  hyscan_buffer_wrap (buffer, HYSCAN_DATA_BLOB, &last_update, sizeof (last_update));
 
   found = hyscan_cache_get (priv->cache, mod_cache_key, NULL, buffer);
 
@@ -290,13 +290,13 @@ hyscan_gtk_map_tiled_layer_cache_get (HyScanGtkMapTiledLayer *tiled_layer,
 
   /* Ищем в кэше. */
   hyscan_gtk_map_tiled_layer_tile_cache_key (tiled_layer, tile, priv->cache_key, CACHE_KEY_LEN);
-  hyscan_buffer_wrap_data (priv->cache_buffer, HYSCAN_DATA_BLOB, &header, sizeof (header));
+  hyscan_buffer_wrap (priv->cache_buffer, HYSCAN_DATA_BLOB, &header, sizeof (header));
   if (!hyscan_cache_get2 (priv->cache, priv->cache_key, NULL, sizeof (header), priv->cache_buffer, tile_buffer))
     goto exit;
 
   /* Верифицируем. */
   if ((header.magic != CACHE_HEADER_MAGIC) ||
-      (header.size != hyscan_buffer_get_size (tile_buffer)))
+      (header.size != hyscan_buffer_get_data_size (tile_buffer)))
     {
       goto exit;
     }
@@ -435,11 +435,11 @@ hyscan_gtk_map_tiled_layer_cache_set (HyScanGtkMapTiledLayer *tiled_layer,
   header.magic = CACHE_HEADER_MAGIC;
   header.mod = mod_count;
   header.size = cairo_image_surface_get_stride (surface) * cairo_image_surface_get_height (surface);
-  hyscan_buffer_wrap_data (header_buf, HYSCAN_DATA_BLOB, &header, sizeof (header));
+  hyscan_buffer_wrap (header_buf, HYSCAN_DATA_BLOB, &header, sizeof (header));
 
   /* Оборачиваем в буфер пиксельные данные. */
   tile_data = cairo_image_surface_get_data (surface);
-  hyscan_buffer_wrap_data (tile_buf, HYSCAN_DATA_BLOB, (gpointer) tile_data, header.size);
+  hyscan_buffer_wrap (tile_buf, HYSCAN_DATA_BLOB, (gpointer) tile_data, header.size);
 
   /* Помещаем все данные в кэш. */
   hyscan_gtk_map_tiled_layer_tile_cache_key (tiled_layer, tile, cache_key, CACHE_KEY_LEN);
@@ -583,7 +583,7 @@ hyscan_gtk_map_tiled_layer_draw (HyScanGtkMapTiledLayer *tiled_layer,
             cairo_surface_t *surface;
 
             /* Загружаем поверхность тайла из буфера. */
-            cached_data = hyscan_buffer_get_data (priv->tile_buffer, &size);
+            cached_data = hyscan_buffer_get (priv->tile_buffer, NULL, &size);
             hyscan_gtk_map_tile_set_surface_data (tile, cached_data, size);
             surface = hyscan_gtk_map_tile_get_surface (tile);
 
@@ -635,7 +635,7 @@ hyscan_gtk_map_tiled_layer_set_area_mod (HyScanGtkMapTiledLayer *tiled_layer,
   track_mod.magic = CACHE_TRACK_MOD_MAGIC;
   track_mod.mod = g_atomic_int_get (&priv->mod_count);
   buffer = hyscan_buffer_new ();
-  hyscan_buffer_wrap_data (buffer, HYSCAN_DATA_BLOB, &track_mod, sizeof (track_mod));
+  hyscan_buffer_wrap (buffer, HYSCAN_DATA_BLOB, &track_mod, sizeof (track_mod));
 
   /* Для каждого масштаба определяем тайлы, на которых лежит этот отрезок. */
   scales = hyscan_gtk_map_get_scales_cifro (priv->map, &scales_len);

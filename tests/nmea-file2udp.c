@@ -53,7 +53,7 @@ on_data_received (HyScanNmeaFileDevice *device,
   GSocket *socket = user_data;
   gdouble dtime = time / 1000000.0;
 
-  nmea = hyscan_buffer_get_data (data, &size);
+  nmea = hyscan_buffer_get (data, NULL, &size);
   g_socket_send (socket, nmea, size, NULL, NULL);
 
   g_print ("Send to UDP: time %.03fs\n%s\n", dtime, nmea);

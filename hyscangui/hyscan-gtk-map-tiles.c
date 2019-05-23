@@ -390,11 +390,11 @@ hyscan_gtk_map_tiles_cache_set (HyScanGtkMapTilesPrivate *priv,
   /* Оборачиваем в буфер заголовок с информацией об изображении. */
   header.magic = CACHE_HEADER_MAGIC;
   header.size = cairo_image_surface_get_height (surface) * cairo_image_surface_get_stride (surface);
-  hyscan_buffer_wrap_data (header_buffer, HYSCAN_DATA_BLOB, &header, sizeof (header));
+  hyscan_buffer_wrap (header_buffer, HYSCAN_DATA_BLOB, &header, sizeof (header));
 
   /* Оборачиваем в буфер пиксельные данные. */
   data = cairo_image_surface_get_data (surface);
-  hyscan_buffer_wrap_data (data_buffer, HYSCAN_DATA_BLOB, (gpointer) data, header.size);
+  hyscan_buffer_wrap (data_buffer, HYSCAN_DATA_BLOB, (gpointer) data, header.size);
 
   /* Помещаем все данные в кэш. */
   hyscan_gtk_map_tiles_get_cache_key (tile, cache_key, sizeof (cache_key));
@@ -523,13 +523,13 @@ hyscan_gtk_map_tiles_cache_get (HyScanGtkMapTilesPrivate *priv,
   hyscan_gtk_map_tiles_get_cache_key (tile, cache_key, sizeof (cache_key));
 
   /* Ищем данные в кэше. */
-  hyscan_buffer_wrap_data (priv->cache_buffer, HYSCAN_DATA_BLOB, &header, sizeof (header));
+  hyscan_buffer_wrap (priv->cache_buffer, HYSCAN_DATA_BLOB, &header, sizeof (header));
   if (!hyscan_cache_get2 (priv->cache, cache_key, NULL, sizeof (header), priv->cache_buffer, tile_buffer))
     return FALSE;
 
   /* Верификация данных. */
   if ((header.magic != CACHE_HEADER_MAGIC) ||
-      (header.size != hyscan_buffer_get_size (priv->tile_buffer)))
+      (header.size != hyscan_buffer_get_data_size (priv->tile_buffer)))
     {
       return FALSE;
     }
@@ -621,7 +621,7 @@ hyscan_gtk_map_tiles_draw_tile (HyScanGtkMapTilesPrivate *priv,
       guchar *cached_data;
       guint32 size;
 
-      cached_data = hyscan_buffer_get_data (priv->tile_buffer, &size);
+      cached_data = hyscan_buffer_get (priv->tile_buffer, NULL, &size);
       hyscan_gtk_map_tile_set_surface_data (tile, cached_data, size);
       surface = hyscan_gtk_map_tile_get_surface (tile);
     }

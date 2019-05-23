@@ -52,10 +52,10 @@ on_data_received (HyScanNmeaFileDevice *device,
 {
   const gchar *nmea_string;
   guint32 size;
+  HyScanDataType data_type;
 
-  g_assert (hyscan_buffer_get_data_type (data) == HYSCAN_DATA_STRING);
-
-  nmea_string = hyscan_buffer_get_data (data, &size);
+  nmea_string = hyscan_buffer_get (data, &data_type, &size);
+  g_assert (data_type == HYSCAN_DATA_STRING);
 
   g_print ("%14" G_GINT64_FORMAT " %s", time, nmea_string);
 
