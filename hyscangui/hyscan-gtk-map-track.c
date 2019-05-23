@@ -475,26 +475,28 @@ hyscan_gtk_map_track_schema_build (HyScanGtkMapTrack *track)
   hyscan_data_schema_builder_node_set_name (builder, "/", "Track settings", "Configure track channel data");
 
 
+  max_channel = hyscan_gtk_map_track_max_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_RMC);
   hyscan_data_schema_builder_key_integer_create (builder, PARAM_CHANNEL_RMC, "RMC Channel",
                                                  "The number of NMEA-channel with RMC data or \"0\" to disable",
-                                                 1);
+                                                 MIN (1, max_channel));
+  hyscan_data_schema_builder_key_integer_range (builder, PARAM_CHANNEL_RMC, 0, max_channel, 1);
+
+  max_channel = hyscan_gtk_map_track_max_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_DPT);
   hyscan_data_schema_builder_key_integer_create (builder, PARAM_CHANNEL_DPT, "DPT Channel",
                                                  "The number of NMEA-channel with DPT data or \"0\" to disable",
-                                                 2);
+                                                 MIN (2, max_channel));
+  hyscan_data_schema_builder_key_integer_range (builder, PARAM_CHANNEL_DPT, 0, max_channel, 1);
+
+  max_channel = hyscan_gtk_map_track_max_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_PORT);
   hyscan_data_schema_builder_key_integer_create (builder, PARAM_CHANNEL_PORT, "Port Channel",
                                                  "The number of side-scan port channel or \"0\" to disable",
-                                                 1);
+                                                 MIN (1, max_channel));
+  hyscan_data_schema_builder_key_integer_range (builder, PARAM_CHANNEL_PORT, 0, max_channel, 1);
+
+  max_channel = hyscan_gtk_map_track_max_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_STARBOARD);
   hyscan_data_schema_builder_key_integer_create (builder, PARAM_CHANNEL_STARBOARD, "Starboard Channel",
                                                  "The number of side-scan starboard channel or \"0\" to disable",
-                                                 1);
-
-  max_channel = hyscan_gtk_map_track_max_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_RMC);
-  hyscan_data_schema_builder_key_integer_range (builder, PARAM_CHANNEL_RMC, 0, max_channel, 1);
-  max_channel = hyscan_gtk_map_track_max_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_DPT);
-  hyscan_data_schema_builder_key_integer_range (builder, PARAM_CHANNEL_DPT, 0, max_channel, 1);
-  max_channel = hyscan_gtk_map_track_max_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_PORT);
-  hyscan_data_schema_builder_key_integer_range (builder, PARAM_CHANNEL_PORT, 0, max_channel, 1);
-  max_channel = hyscan_gtk_map_track_max_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_STARBOARD);
+                                                 MIN (1, max_channel));
   hyscan_data_schema_builder_key_integer_range (builder, PARAM_CHANNEL_STARBOARD, 0, max_channel, 1);
 
   g_clear_object (&priv->schema);
