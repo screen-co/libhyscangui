@@ -45,43 +45,43 @@ HYSCAN_API
 HyScanPlanner *        hyscan_planner_new              (void);
 
 HYSCAN_API
-void                   hyscan_planner_load_ini         (HyScanPlanner *planner,
-                                                        const gchar   *file_name);
+void                   hyscan_planner_load_ini         (HyScanPlanner            *planner,
+                                                        const gchar              *file_name);
 
 HYSCAN_API
-void                   hyscan_planner_track_free       (HyScanPlannerTrack    *track);
+void                   hyscan_planner_track_free       (HyScanPlannerTrack       *track);
 
 HYSCAN_API
-HyScanPlannerTrack *   hyscan_planner_track_copy       (HyScanPlannerTrack    *track);
+HyScanPlannerTrack *   hyscan_planner_track_copy       (const HyScanPlannerTrack *track);
 
 HYSCAN_API
-void                   hyscan_planner_set_nav_model    (HyScanPlanner         *planner,
-                                                        HyScanNavigationModel *model);
+void                   hyscan_planner_set_nav_model    (HyScanPlanner            *planner,
+                                                        HyScanNavigationModel    *model);
 
 HYSCAN_API
-void                   hyscan_planner_create           (HyScanPlanner         *planner,
-                                                        HyScanPlannerTrack    *track);
+void                   hyscan_planner_create           (HyScanPlanner            *planner,
+                                                        HyScanPlannerTrack       *track);
 
 HYSCAN_API
-void                   hyscan_planner_update           (HyScanPlanner         *planner,
-                                                        HyScanPlannerTrack    *track);
+void                   hyscan_planner_update           (HyScanPlanner            *planner,
+                                                        const HyScanPlannerTrack *track);
 
 HYSCAN_API
-void                   hyscan_planner_delete           (HyScanPlanner         *planner,
-                                                        const gchar           *id);
+void                   hyscan_planner_delete           (HyScanPlanner            *planner,
+                                                        const gchar              *id);
 
 HYSCAN_API
-GHashTable *           hyscan_planner_get              (HyScanPlanner         *planner);
+GHashTable *           hyscan_planner_get              (HyScanPlanner            *planner);
 
 HYSCAN_API
-gboolean               hyscan_planner_delta            (HyScanPlanner         *planner,
-                                                        gdouble               *distance,
-                                                        gdouble               *angle,
-                                                        guint64               *time_passed);
+gboolean               hyscan_planner_delta            (HyScanPlanner            *planner,
+                                                        gdouble                  *distance,
+                                                        gdouble                  *angle,
+                                                        guint64                  *time_passed);
 
 HYSCAN_API
-void                   hyscan_planner_save_ini         (HyScanPlanner *planner,
-                                                        const gchar   *file_name);
+void                   hyscan_planner_save_ini         (HyScanPlanner            *planner,
+                                                        const gchar              *file_name);
 
 G_END_DECLS
 

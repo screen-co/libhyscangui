@@ -2,7 +2,8 @@
 #include <hyscan-gtk-map.h>
 #include <math.h>
 
-#define HOVER_DISTANCE 8  /* Расстояние до точки, при котором ее можно ухватить. */
+#define HOVER_DISTANCE 8               /* Расстояние до точки, при котором ее можно ухватить. */
+#define NEW_TRACK_ID   "new-magic-id"  /* Ключ в таблице галсов, соответствующий новому галсу. */
 
 enum
 {
@@ -52,7 +53,7 @@ static void    hyscan_gtk_map_planner_set_property             (GObject         
                                                                 GParamSpec               *pspec);
 static void    hyscan_gtk_map_planner_object_constructed       (GObject                  *object);
 static void    hyscan_gtk_map_planner_object_finalize          (GObject                  *object);
-static void    hyscan_gtk_map_planner_changed                  (HyScanGtkMapPlanner      *planner_layer);
+static void    hyscan_gtk_map_planner_update                   (HyScanGtkMapPlanner      *planner_layer);
 static void    hyscan_gtk_map_planner_track_free               (HyScanGtkMapPlannerTrack *track);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapPlanner, hyscan_gtk_map_planner, G_TYPE_INITIALLY_UNOWNED,
@@ -113,7 +114,7 @@ hyscan_gtk_map_planner_object_constructed (GObject *object)
   g_mutex_init (&priv->lock);
   priv->tracks = g_hash_table_new_full (g_str_hash, g_str_equal, NULL,
                                         (GDestroyNotify) hyscan_gtk_map_planner_track_free);
-  g_signal_connect_swapped (priv->planner, "changed", G_CALLBACK (hyscan_gtk_map_planner_changed), gtk_map_planner);
+  g_signal_connect_swapped (priv->planner, "changed", G_CALLBACK (hyscan_gtk_map_planner_update), gtk_map_planner);
 }
 
 static void
@@ -157,6 +158,16 @@ hyscan_gtk_map_planner_steal_track (gchar              *key,
   return TRUE;
 }
 
+static void
+hyscan_gtk_map_planner_project_track (HyScanGtkMapPlanner      *planner_layer,
+                                      HyScanGtkMapPlannerTrack *track)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner_layer->priv;
+
+  hyscan_gtk_map_geo_to_value (priv->map, track->orig->start, &track->start);
+  hyscan_gtk_map_geo_to_value (priv->map, track->orig->end, &track->end);
+}
+
 /* Функция должна вызываться за g_mutex_lock (&priv->lock); */
 static void
 hyscan_gtk_map_planner_update_tracks (HyScanGtkMapPlanner *planner_layer)
@@ -167,14 +178,11 @@ hyscan_gtk_map_planner_update_tracks (HyScanGtkMapPlanner *planner_layer)
 
   g_hash_table_iter_init (&iter, priv->tracks);
   while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &track))
-    {
-      hyscan_gtk_map_geo_to_value (priv->map, track->orig->start, &track->start);
-      hyscan_gtk_map_geo_to_value (priv->map, track->orig->end, &track->end);
-    }
+    hyscan_gtk_map_planner_project_track (planner_layer, track);
 }
 
 static void
-hyscan_gtk_map_planner_changed (HyScanGtkMapPlanner *planner_layer)
+hyscan_gtk_map_planner_update (HyScanGtkMapPlanner *planner_layer)
 {
   HyScanGtkMapPlannerPrivate *priv = planner_layer->priv;
   GHashTable *orig_tracks;
@@ -182,6 +190,8 @@ hyscan_gtk_map_planner_changed (HyScanGtkMapPlanner *planner_layer)
   orig_tracks = hyscan_planner_get (priv->planner);
 
   g_mutex_lock (&priv->lock);
+
+  /* Копируем к себе список всех галсов. */
   g_hash_table_remove_all (priv->tracks);
   g_hash_table_foreach_steal (orig_tracks, (GHRFunc) hyscan_gtk_map_planner_steal_track, priv->tracks);
   hyscan_gtk_map_planner_update_tracks (planner_layer);
@@ -293,6 +303,10 @@ hyscan_gtk_map_planner_get_point_at (HyScanGtkMapPlanner      *planner_layer,
   g_hash_table_iter_init (&iter, priv->tracks);
   while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &track) && active_track == NULL)
     {
+      /* Галсы, которых пока нет в модели, мы не добавляем. */
+      if (track->orig->id == NULL)
+        continue;
+
       if (fabs (track->start.x - x_val) + fabs (track->start.y - y_val) < threshold)
         {
           active_point = POINT_START;
@@ -475,6 +489,107 @@ hyscan_gtk_map_planner_handle_release (HyScanGtkLayerContainer *container,
   return TRUE;
 }
 
+/* Обработка "button-release-event" на слое.
+ * Создаёт новую точку в том месте, где пользователь кликнул мышью. */
+static gboolean
+hyscan_gtk_map_planner_button_release (GtkWidget      *widget,
+                                       GdkEventButton *event,
+                                       HyScanGtkLayer *layer)
+{
+  HyScanGtkMapPlanner *planner_layer = HYSCAN_GTK_MAP_PLANNER (layer);
+  HyScanGtkMapPlannerPrivate *priv = planner_layer->priv;
+
+  HyScanGtkLayerContainer *container;
+  HyScanGtkMapPlannerTrack *track_proj;
+  HyScanPlannerTrack track;
+  HyScanGeoCartesian2D point;
+
+  /* Обрабатываем только нажатия левой кнопки. */
+  if (event->button != GDK_BUTTON_PRIMARY)
+    return GDK_EVENT_PROPAGATE;
+
+  container = HYSCAN_GTK_LAYER_CONTAINER (priv->map);
+
+  if (!hyscan_gtk_layer_container_get_changes_allowed (container))
+    return GDK_EVENT_PROPAGATE;
+
+  /* Проверяем, что у нас есть право ввода. */
+  if (hyscan_gtk_layer_container_get_input_owner (container) != layer)
+    return GDK_EVENT_PROPAGATE;
+
+  if (priv->mode != MODE_NONE)
+    return GDK_EVENT_PROPAGATE;
+
+  /* Создаем новый галс. */
+  track.id = NULL;
+  track.name = NULL;
+  gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &point.x, &point.y);
+  hyscan_gtk_map_value_to_geo (priv->map, &track.start, point);
+  track.end = track.start;
+
+  /* Обертываем галс в HyScanGtkMapPlannerTrack и проецируем на карту. */
+  track_proj = hyscan_gtk_map_planner_track_new ();
+  track_proj->orig = hyscan_planner_track_copy (&track);
+  hyscan_gtk_map_planner_project_track (planner_layer, track_proj);
+
+  g_mutex_lock (&priv->lock);
+
+  /* Добавляем галс в таблицу. */
+  g_hash_table_insert (priv->tracks, NEW_TRACK_ID, track_proj);
+
+  /* Начинаем его перетаскивать. */
+  priv->active_point = POINT_END;
+  priv->mode = MODE_DRAG;
+  priv->active_track = track_proj;
+
+  g_mutex_unlock (&priv->lock);
+
+  hyscan_gtk_layer_container_set_handle_grabbed (container, layer);
+  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+  return GDK_EVENT_STOP;
+}
+
+static gboolean
+hyscan_gtk_map_planner_key_press (HyScanGtkMapPlanner *planner_layer,
+                                  GdkEventKey         *event)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner_layer->priv;
+  gchar *id;
+
+  if (event->keyval != GDK_KEY_Delete || priv->mode != MODE_DRAG)
+    return GDK_EVENT_PROPAGATE;
+
+  g_mutex_lock (&priv->lock);
+
+  /* Получаем id текущего галса. */
+  id = g_strdup (priv->active_track->orig->id);
+
+  /* Завершаем перетаскивание и возвращаемся в обычный режим. */
+  priv->mode = MODE_NONE;
+  priv->active_point = POINT_NONE;
+  priv->active_track = NULL;
+  hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);
+
+  g_mutex_unlock (&priv->lock);
+
+  /* Галс с id есть в модели данных. Надо его оттуда удалить. */
+  if (id != NULL)
+    {
+      hyscan_planner_delete (priv->planner, id);
+    }
+  /* Галс без id существует только в слое. Проще всего его удалить, загрузив актуальные метки. */
+  else
+    {
+      hyscan_gtk_map_planner_update (planner_layer);
+    }
+
+  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+  g_free (id);
+
+  return GDK_EVENT_STOP;
+}
+
 static void
 hyscan_gtk_map_planner_added (HyScanGtkLayer          *layer,
                               HyScanGtkLayerContainer *container)
@@ -490,7 +605,12 @@ hyscan_gtk_map_planner_added (HyScanGtkLayer          *layer,
     /* Сигналы контейнера. */
   g_signal_connect (container, "handle-grab", G_CALLBACK (hyscan_gtk_map_planner_handle_grab), planner_layer);
   g_signal_connect (container, "handle-release", G_CALLBACK (hyscan_gtk_map_planner_handle_release), planner_layer);
-  
+
+  g_signal_connect_after (container, "button-release-event",
+                          G_CALLBACK (hyscan_gtk_map_planner_button_release),planner_layer);
+  g_signal_connect_swapped (container, "key-press-event",
+                            G_CALLBACK (hyscan_gtk_map_planner_key_press), planner_layer);
+
   g_signal_connect_after (priv->map, "visible-draw",
                           G_CALLBACK (hyscan_gtk_map_planner_draw), planner_layer);
   g_signal_connect_swapped (priv->map, "motion-notify-event",
@@ -531,11 +651,28 @@ hyscan_gtk_map_planner_get_visible (HyScanGtkLayer *layer)
   return priv->visible;
 }
 
+/* Захватывает пользовательский ввод в контейнере.
+ * Реализация HyScanGtkLayerInterface.grab_input(). */
+static gboolean
+hyscan_gtk_map_planner_grab_input (HyScanGtkLayer *layer)
+{
+  HyScanGtkMapPlanner *planner_layer = HYSCAN_GTK_MAP_PLANNER (layer);
+  HyScanGtkMapPlannerPrivate *priv =planner_layer->priv;
+
+  if (priv->map == NULL)
+    return FALSE;
+
+  hyscan_gtk_layer_container_set_input_owner (HYSCAN_GTK_LAYER_CONTAINER (priv->map), layer);
+
+  return TRUE;
+}
+
 static void
 hyscan_gtk_map_planner_interface_init (HyScanGtkLayerInterface *iface)
 {
   iface->added = hyscan_gtk_map_planner_added;
   iface->removed = hyscan_gtk_map_planner_removed;
+  iface->grab_input = hyscan_gtk_map_planner_grab_input;
   iface->set_visible = hyscan_gtk_map_planner_set_visible;
   iface->get_visible = hyscan_gtk_map_planner_get_visible;
 }

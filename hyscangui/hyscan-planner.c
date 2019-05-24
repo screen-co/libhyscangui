@@ -1,5 +1,7 @@
 #include "hyscan-planner.h"
 
+#define TRACK_ID_LEN  33
+
 enum
 {
   SIGNAL_CHANGED,
@@ -77,6 +79,28 @@ hyscan_planner_new (void)
   return g_object_new (HYSCAN_TYPE_PLANNER, NULL);
 }
 
+/* Функция генерирует идентификатор. */
+static gchar *
+hyscan_planner_create_id (void)
+{
+  static gchar dict[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  guint i;
+  gchar *id;
+
+  id = g_new (gchar, TRACK_ID_LEN + 1);
+  id[TRACK_ID_LEN] = '\0';
+
+  for (i = 0; i < TRACK_ID_LEN; i++)
+    {
+      gint rnd;
+
+      rnd = g_random_int_range (0, sizeof (dict) - 1);
+      id[i] = dict[rnd];
+    }
+
+  return id;
+}
+
 void
 hyscan_planner_save_ini (HyScanPlanner *planner,
                          const gchar   *file_name)
@@ -97,7 +121,8 @@ hyscan_planner_save_ini (HyScanPlanner *planner,
   g_hash_table_iter_init (&iter, priv->tracks);
   while (g_hash_table_iter_next (&iter, (gpointer *) &id, (gpointer *) &track))
     {
-      g_key_file_set_string (key_file, id, "name", track->name);
+      if (track->name != NULL)
+        g_key_file_set_string (key_file, id, "name", track->name);
       g_key_file_set_double (key_file, track->id, "start_lat", track->start.lat);
       g_key_file_set_double (key_file, track->id, "start_lon", track->start.lon);
       g_key_file_set_double (key_file, track->id, "end_lat", track->end.lat);
@@ -157,7 +182,7 @@ hyscan_planner_load_ini (HyScanPlanner *planner,
 
 /**
  * hyscan_planner_get:
- * @param planner
+ * @planner:
  *
  * Returns: (element-type HyScanPlannerTrack): таблица запланированных галсов.
  *   Для удаления g_hash_table_unref().
@@ -192,7 +217,7 @@ hyscan_planner_get (HyScanPlanner *planner)
 }
 
 HyScanPlannerTrack *
-hyscan_planner_track_copy (HyScanPlannerTrack *track)
+hyscan_planner_track_copy (const HyScanPlannerTrack *track)
 {
   HyScanPlannerTrack *copy;
 
@@ -214,8 +239,23 @@ hyscan_planner_track_free (HyScanPlannerTrack *track)
 }
 
 void
-hyscan_planner_update (HyScanPlanner         *planner,
-                       HyScanPlannerTrack    *track)
+hyscan_planner_delete (HyScanPlanner *planner,
+                       const gchar   *id)
+{
+  HyScanPlannerPrivate *priv = planner->priv;
+
+  g_return_if_fail (HYSCAN_IS_PLANNER (planner));
+
+  g_mutex_lock (&priv->lock);
+  g_hash_table_remove (priv->tracks, id);
+  g_mutex_unlock (&priv->lock);
+
+  g_signal_emit (planner, hyscan_planner_signals[SIGNAL_CHANGED], 0);
+}
+
+void
+hyscan_planner_update (HyScanPlanner            *planner,
+                       const HyScanPlannerTrack *track)
 {
   HyScanPlannerPrivate *priv = planner->priv;
   HyScanPlannerTrack *track_copy;
@@ -224,6 +264,10 @@ hyscan_planner_update (HyScanPlanner         *planner,
 
   track_copy = hyscan_planner_track_copy (track);
   g_mutex_lock (&priv->lock);
+
+  if (track_copy->id == NULL)
+    track_copy->id = hyscan_planner_create_id ();
+
   g_hash_table_replace (priv->tracks, track_copy->id, track_copy);
   g_mutex_unlock (&priv->lock);
 
