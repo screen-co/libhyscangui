@@ -214,13 +214,20 @@ int main (int     argc,
                                 mission_ini,
                                 delay_time);
 
-  GtkWidget *left_col;
-  left_col = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
-  gtk_container_add (GTK_CONTAINER (left_col), gtk_label_new ("Запись"));
-  gtk_container_add (GTK_CONTAINER (left_col), start_stop_switch_create (HYSCAN_SONAR (control)));
-  gtk_container_add (GTK_CONTAINER (left_col), kit->navigation);
 
-  gtk_grid_attach (GTK_GRID (grid), left_col,        0, 0, 1, 1);
+  /* Левый столбец существует только при наличии подключения к бд.*/
+  if (db != NULL)
+    {
+      GtkWidget *left_col;
+
+      left_col = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
+      gtk_container_add (GTK_CONTAINER (left_col), gtk_label_new ("Запись"));
+      gtk_container_add (GTK_CONTAINER (left_col), start_stop_switch_create (HYSCAN_SONAR (control)));
+      gtk_container_add (GTK_CONTAINER (left_col), kit->navigation);
+
+      gtk_grid_attach (GTK_GRID (grid), left_col,        0, 0, 1, 1);
+    }
+
   gtk_grid_attach (GTK_GRID (grid), kit->map,        1, 0, 1, 1);
   gtk_grid_attach (GTK_GRID (grid), kit->control,    2, 0, 1, 1);
   gtk_grid_attach (GTK_GRID (grid), kit->status_bar, 1, 1, 2, 1);

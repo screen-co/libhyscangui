@@ -812,6 +812,9 @@ create_wfmark_toolbox (HyScanGtkMapKit *kit)
   GtkWidget *label;
   GtkWidget *scrolled_window;
 
+  if (priv->db == NULL)
+    return NULL;
+
   priv->mark_store = gtk_list_store_new (4,
                                          G_TYPE_STRING,  /* MARK_ID_COLUMN   */
                                          G_TYPE_STRING,  /* MARK_NAME_COLUMN   */
@@ -852,6 +855,9 @@ create_track_box (HyScanGtkMapKit *kit)
   GtkWidget *box;
   GtkWidget *label;
   GtkWidget *scrolled_window;
+
+  if (priv->db == NULL)
+    return NULL;
 
   priv->track_store = gtk_list_store_new (4,
                                           G_TYPE_BOOLEAN, /* VISIBLE_COLUMN   */
@@ -1074,12 +1080,17 @@ create_ruler_toolbox (HyScanGtkLayer *layer,
 static GtkWidget *
 create_navigation_box (HyScanGtkMapKit *kit)
 {
-  GtkWidget *ctrl_box;
+  GtkWidget *ctrl_box, *item;
 
   ctrl_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
 
-  gtk_container_add (GTK_CONTAINER (ctrl_box), create_track_box (kit));
-  gtk_container_add (GTK_CONTAINER (ctrl_box), create_wfmark_toolbox (kit));
+  item = create_track_box (kit);
+  if (item != NULL)
+    gtk_container_add (GTK_CONTAINER (ctrl_box), item);
+
+  item = create_wfmark_toolbox (kit);
+  if (item != NULL)
+    gtk_container_add (GTK_CONTAINER (ctrl_box), item);
 
   gtk_widget_set_size_request (ctrl_box, 200, -1);
 
@@ -1283,9 +1294,12 @@ hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
-  hyscan_db_info_set_project (priv->db_info, priv->project_name);
-  hyscan_mark_model_set_project (priv->mark_model, priv->db, priv->project_name);
-  hyscan_mark_loc_model_set_project (priv->ml_model, priv->project_name);
+  if (priv->db != NULL)
+    {
+      hyscan_db_info_set_project (priv->db_info, priv->project_name);
+      hyscan_mark_model_set_project (priv->mark_model, priv->db, priv->project_name);
+      hyscan_mark_loc_model_set_project (priv->ml_model, priv->project_name);
+    }
 
   if (priv->nav_model != NULL)
     {
@@ -1358,13 +1372,13 @@ hyscan_gtk_map_kit_free (HyScanGtkMapKit *kit)
 
   g_free (priv->profile_dir);
   g_free (priv->project_name);
-  g_object_unref (priv->planner);
-  g_object_unref (priv->cache);
-  g_object_unref (priv->ml_model);
-  g_object_unref (priv->db);
-  g_object_unref (priv->db_info);
-  g_object_unref (priv->mark_model);
-  g_object_unref (priv->track_list_model);
+  g_clear_object (&priv->planner);
+  g_clear_object (&priv->cache);
+  g_clear_object (&priv->ml_model);
+  g_clear_object (&priv->db);
+  g_clear_object (&priv->db_info);
+  g_clear_object (&priv->mark_model);
+  g_clear_object (&priv->track_list_model);
   g_free (priv);
 
   g_free (kit);
