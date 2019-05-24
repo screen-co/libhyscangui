@@ -120,6 +120,7 @@ create_map (HyScanGtkMapKit *kit)
     if (priv->planner != NULL)
       {
         priv->planner_layer = hyscan_gtk_map_planner_new (priv->planner);
+        hyscan_gtk_layer_set_visible (priv->planner_layer, TRUE);
         hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), priv->planner_layer, "planner");
       }
 

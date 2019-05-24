@@ -354,8 +354,6 @@ hyscan_gtk_map_pin_layer_object_constructed (GObject *object)
   hyscan_gtk_map_pin_layer_set_color_stroke (gtk_map_pin_layer, color);
   gdk_rgba_parse (&color, DEFAULT_COLOR_SECOND);
   hyscan_gtk_map_pin_layer_set_color_second (gtk_map_pin_layer, color);
-
-  hyscan_gtk_layer_set_visible (HYSCAN_GTK_LAYER (gtk_map_pin_layer), TRUE);
 }
 
 /* Обработчик сигнала "handle-grab". Захватывает хэндл под указателем мыши. */
