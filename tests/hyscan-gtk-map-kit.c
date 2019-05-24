@@ -920,14 +920,14 @@ on_move_to_click (HyScanGtkMapKit *kit)
 static gboolean
 on_motion_show_coords (HyScanGtkMap   *map,
                        GdkEventMotion *event,
-                       GtkLabel       *label)
+                       GtkStatusbar   *statusbar)
 {
   HyScanGeoGeodetic geo;
   gchar text[255];
 
   hyscan_gtk_map_point_to_geo (map, &geo, event->x, event->y);
   g_snprintf (text, sizeof (text), "%.5f°, %.5f°", geo.lat, geo.lon);
-  gtk_label_set_text (label, text);
+  gtk_statusbar_push (statusbar, 0, text);
 
   return FALSE;
 }
@@ -1086,6 +1086,68 @@ create_navigation_box (HyScanGtkMapKit *kit)
   return ctrl_box;
 }
 
+/* Текстовые поля для ввода координат. */
+static void
+create_nav_input (HyScanGtkMapKit *kit,
+                  GtkContainer    *container)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+  GtkWidget *move_button, *locate_button;
+
+  locate_button = gtk_button_new_from_icon_name ("network-wireless", GTK_ICON_SIZE_BUTTON);
+  gtk_widget_set_margin_bottom (locate_button, 5);
+  gtk_widget_set_sensitive (locate_button, priv->nav_model != NULL);
+  gtk_button_set_label (GTK_BUTTON (locate_button), "Моё местоположение");
+  g_signal_connect_swapped (locate_button, "clicked", G_CALLBACK (on_locate_click), kit);
+
+  priv->lat_spin = gtk_spin_button_new_with_range (-90.0, 90.0, 0.001);
+  g_signal_connect (priv->lat_spin, "notify::value", G_CALLBACK (on_coordinate_change), &priv->center.lat);
+
+  priv->lon_spin = gtk_spin_button_new_with_range (-180.0, 180.0, 0.001);
+  g_signal_connect (priv->lon_spin, "notify::value", G_CALLBACK (on_coordinate_change), &priv->center.lon);
+
+  move_button = gtk_button_new_with_label ("Перейти");
+  g_signal_connect_swapped (move_button, "clicked", G_CALLBACK (on_move_to_click), kit);
+
+  gtk_container_add (container, locate_button);
+  gtk_container_add (container, gtk_label_new ("Координаты (ш, д)"));
+  gtk_container_add (container, priv->lat_spin);
+  gtk_container_add (container, priv->lon_spin);
+  gtk_container_add (container, move_button);
+}
+
+/* Загрузка тайлов. */
+static void
+create_preloader (HyScanGtkMapKit *kit,
+                  GtkContainer    *container)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+
+  priv->preload_state = -1;
+
+  priv->preload_button = GTK_BUTTON (gtk_button_new_with_label ("Начать загрузку"));
+  g_signal_connect (priv->preload_button, "clicked", G_CALLBACK (on_preload_click), kit);
+
+  priv->preload_progress = GTK_PROGRESS_BAR (gtk_progress_bar_new ());
+  gtk_progress_bar_set_show_text (priv->preload_progress, TRUE);
+
+  gtk_container_add (container, GTK_WIDGET (priv->preload_progress));
+  gtk_container_add (container, GTK_WIDGET (priv->preload_button));
+}
+
+/* Текущие координаты. */
+GtkWidget *
+create_status_bar (HyScanGtkMapKit *kit)
+{
+  GtkWidget *statusbar;
+
+  statusbar = gtk_statusbar_new ();
+  g_object_set (statusbar, "margin", 0, NULL);
+  g_signal_connect (kit->map, "motion-notify-event", G_CALLBACK (on_motion_show_coords), statusbar);
+
+  return statusbar;
+}
+
 /* Кнопки управления виджетом. */
 static GtkWidget *
 create_control_box (HyScanGtkMapKit *kit,
@@ -1154,62 +1216,26 @@ create_control_box (HyScanGtkMapKit *kit,
     gtk_stack_add_titled (GTK_STACK (priv->layer_tool_stack), layer_tools, "pin", "Pin");
   }
 
-  gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
-
-  /* Текстовые поля для ввода координат. */
+  /* Стек с инструментами. */
   {
-    GtkWidget *move_button;
+    GtkWidget *stack_switcher, *stack, *stack_box;
 
-    priv->lat_spin = gtk_spin_button_new_with_range (-90.0, 90.0, 0.001);
-    g_signal_connect (priv->lat_spin, "notify::value", G_CALLBACK (on_coordinate_change), &priv->center.lat);
+    stack = gtk_stack_new ();
 
-    priv->lon_spin = gtk_spin_button_new_with_range (-180.0, 180.0, 0.001);
-    g_signal_connect (priv->lon_spin, "notify::value", G_CALLBACK (on_coordinate_change), &priv->center.lon);
+    stack_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
+    create_nav_input (kit, GTK_CONTAINER (stack_box));
+    gtk_stack_add_titled (GTK_STACK (stack), stack_box, "navigate", "Перейти к");
 
-    move_button = gtk_button_new_with_label ("Перейти");
-    g_signal_connect_swapped (move_button, "clicked", G_CALLBACK (on_move_to_click), kit);
+    stack_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
+    create_preloader (kit, GTK_CONTAINER (stack_box));
+    gtk_stack_add_titled (GTK_STACK (stack), stack_box, "cache", "Кэшировать");
 
-    gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Навигация (ш, д)"));
-    gtk_container_add (GTK_CONTAINER (ctrl_box), priv->lat_spin);
-    gtk_container_add (GTK_CONTAINER (ctrl_box), priv->lon_spin);
-    gtk_container_add (GTK_CONTAINER (ctrl_box), move_button);
-  }
+    stack_switcher = gtk_stack_switcher_new ();
+    gtk_widget_set_margin_top (stack_switcher, 5);
+    gtk_stack_switcher_set_stack (GTK_STACK_SWITCHER (stack_switcher), GTK_STACK (stack));
 
-  gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
-
-  /* Текущие координаты. */
-  {
-    GtkWidget *locate_button;
-
-    ctrl_widget = gtk_label_new ("-, -");
-    g_object_set (ctrl_widget, "width-chars", 24, NULL);
-    g_signal_connect (kit->map, "motion-notify-event", G_CALLBACK (on_motion_show_coords), ctrl_widget);
-
-    locate_button = gtk_button_new_from_icon_name ("network-wireless", GTK_ICON_SIZE_BUTTON);
-    gtk_button_set_label (GTK_BUTTON (locate_button), "Моё местоположение");
-    gtk_widget_set_sensitive (locate_button, priv->nav_model != NULL);
-    g_signal_connect_swapped (locate_button, "clicked", G_CALLBACK (on_locate_click), kit);
-
-    gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Координаты курсора"));
-    gtk_container_add (GTK_CONTAINER (ctrl_box), ctrl_widget);
-    gtk_container_add (GTK_CONTAINER (ctrl_box), locate_button);
-  }
-
-  gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL));
-
-  /* Загрузка тайлов. */
-  {
-    priv->preload_state = -1;
-
-    priv->preload_button = GTK_BUTTON (gtk_button_new_with_label ("Начать загрузку"));
-    g_signal_connect (priv->preload_button, "clicked", G_CALLBACK (on_preload_click), kit);
-
-    priv->preload_progress = GTK_PROGRESS_BAR (gtk_progress_bar_new ());
-    gtk_progress_bar_set_show_text (priv->preload_progress, TRUE);
-
-    gtk_container_add (GTK_CONTAINER (ctrl_box), gtk_label_new ("Кэширование тайлов"));
-    gtk_container_add (GTK_CONTAINER (ctrl_box), GTK_WIDGET (priv->preload_progress));
-    gtk_container_add (GTK_CONTAINER (ctrl_box), GTK_WIDGET (priv->preload_button));
+    gtk_container_add (GTK_CONTAINER (ctrl_box), stack_switcher);
+    gtk_container_add (GTK_CONTAINER (ctrl_box), stack);
   }
 
   return ctrl_box;
@@ -1244,6 +1270,7 @@ hyscan_gtk_map_kit_view_create (HyScanGtkMapKit *kit)
   kit->map        = create_map (kit);
   kit->navigation = create_navigation_box (kit);
   kit->control    = create_control_box (kit, priv->profile_dir);
+  kit->status_bar = create_status_bar (kit);
 }
 
 static void

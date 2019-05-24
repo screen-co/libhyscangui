@@ -198,12 +198,12 @@ int main (int     argc,
 
   /* Grid-виджет. */
   grid = gtk_grid_new ();
-  gtk_grid_set_row_spacing (GTK_GRID (grid), 20);
+  gtk_grid_set_row_spacing (GTK_GRID (grid), 0);
   gtk_grid_set_column_spacing (GTK_GRID (grid), 20);
   gtk_widget_set_margin_start (grid, 20);
   gtk_widget_set_margin_end (grid, 20);
-  gtk_widget_set_margin_top (grid, 20);
-  gtk_widget_set_margin_bottom (grid, 20);
+  gtk_widget_set_margin_top (grid, 10);
+  gtk_widget_set_margin_bottom (grid, 0);
 
   /* Добавляем виджет карты в окно. */
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
@@ -223,6 +223,7 @@ int main (int     argc,
   gtk_grid_attach (GTK_GRID (grid), left_col,        0, 0, 1, 1);
   gtk_grid_attach (GTK_GRID (grid), kit->map,        1, 0, 1, 1);
   gtk_grid_attach (GTK_GRID (grid), kit->control,    2, 0, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), kit->status_bar, 1, 1, 2, 1);
 
   gtk_container_add (GTK_CONTAINER (window), grid);
   g_signal_connect (G_OBJECT (window), "destroy", G_CALLBACK (destroy_callback), NULL);
