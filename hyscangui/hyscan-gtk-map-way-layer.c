@@ -47,11 +47,11 @@
  *
  * - "line-width"
  * - "line-color"
- * - "line-lost-color"
- * - "arrow-default-fill"
- * - "arrow-default-stroke"
- * - "arrow-lost-fill"
- * - "arrow-lost-stroke"
+ * - "arrow-color"
+ * - "arrow-stroke-color"
+ * - "lost-line-color"
+ * - "lost-arrow-color"
+ * - "lost-arrow-stroke-color"
  *
  * Выводимые данные получаются из модели #HyScanNavigationModel, которая
  * указывается при создании слоя в hyscan_gtk_map_way_layer_new().
@@ -300,16 +300,16 @@ hyscan_gtk_map_way_layer_load_key_file (HyScanGtkLayer *layer,
   line_width = g_key_file_get_double (key_file, group, "line-width", NULL);
   priv->line_width = line_width > 0 ? line_width : LINE_WIDTH ;
   hyscan_gtk_layer_load_key_file_rgba (&priv->line_color, key_file, group, "line-color", LINE_COLOR);
-  hyscan_gtk_layer_load_key_file_rgba (&priv->line_lost_color, key_file, group, "line-lost-color", LINE_LOST_COLOR);
+  hyscan_gtk_layer_load_key_file_rgba (&priv->line_lost_color, key_file, group, "lost-line-color", LINE_LOST_COLOR);
 
   /* Маркер в обычном состоянии. */
-  hyscan_gtk_layer_load_key_file_rgba (&color_fill, key_file, group, "arrow-default-fill", ARROW_DEFAULT_FILL);
-  hyscan_gtk_layer_load_key_file_rgba (&color_stroke, key_file, group, "arrow-default-stroke", ARROW_DEFAULT_STROKE);
+  hyscan_gtk_layer_load_key_file_rgba (&color_fill, key_file, group, "arrow-color", ARROW_DEFAULT_FILL);
+  hyscan_gtk_layer_load_key_file_rgba (&color_stroke, key_file, group, "arrow-stroke-color", ARROW_DEFAULT_STROKE);
   hyscan_gtk_map_track_create_arrow (&priv->arrow_default, &color_fill, &color_stroke);
 
   /* Маркер при потери сигнала. */
-  hyscan_gtk_layer_load_key_file_rgba (&color_fill, key_file, group, "arrow-lost-fill", ARROW_LOST_FILL);
-  hyscan_gtk_layer_load_key_file_rgba (&color_stroke, key_file, group, "arrow-lost-stroke", ARROW_LOST_STROKE);
+  hyscan_gtk_layer_load_key_file_rgba (&color_fill, key_file, group, "lost-arrow-color", ARROW_LOST_FILL);
+  hyscan_gtk_layer_load_key_file_rgba (&color_stroke, key_file, group, "lost-arrow-stroke-color", ARROW_LOST_STROKE);
   hyscan_gtk_map_track_create_arrow (&priv->arrow_lost, &color_fill, &color_stroke);
 
   g_mutex_unlock (&priv->track_lock);

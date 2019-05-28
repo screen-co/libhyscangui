@@ -41,9 +41,9 @@
  * Данный слой позволяет отмечать на карте некоторые целевые точки. Каждая точка
  * отмечается маркером, внешний вид которого можно задать с помощью функций:
  *
- * - hyscan_gtk_map_pin_layer_set_color_prime()    "color-prime"
- * - hyscan_gtk_map_pin_layer_set_color_second()   "color-second"
- * - hyscan_gtk_map_pin_layer_set_color_stroke()   "color-stroke"
+ * - hyscan_gtk_map_pin_layer_set_color_prime()    "prime-color"
+ * - hyscan_gtk_map_pin_layer_set_color_second()   "second-color"
+ * - hyscan_gtk_map_pin_layer_set_color_stroke()   "stroke-color"
  * - hyscan_gtk_map_pin_layer_set_pin_size()
  * - hyscan_gtk_map_pin_layer_set_pin_shape()
  *
@@ -509,13 +509,13 @@ hyscan_gtk_map_pin_layer_load_key_file (HyScanGtkLayer *gtk_layer,
   HyScanGtkMapPinLayer *pin_layer = HYSCAN_GTK_MAP_PIN_LAYER (gtk_layer);
   GdkRGBA color;
 
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "color-stroke", DEFAULT_COLOR_STROKE);
+  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "stroke-color", DEFAULT_COLOR_STROKE);
   hyscan_gtk_map_pin_layer_set_color_stroke (pin_layer, color);
 
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "color-prime", DEFAULT_COLOR_PRIME);
+  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "prime-color", DEFAULT_COLOR_PRIME);
   hyscan_gtk_map_pin_layer_set_color_prime (pin_layer, color);
 
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "color-second", DEFAULT_COLOR_SECOND);
+  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "second-color", DEFAULT_COLOR_SECOND);
   hyscan_gtk_map_pin_layer_set_color_second (pin_layer, color);
 
   return TRUE;

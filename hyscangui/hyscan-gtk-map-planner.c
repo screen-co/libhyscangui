@@ -2,8 +2,11 @@
 #include <hyscan-gtk-map.h>
 #include <math.h>
 
-#define HOVER_DISTANCE 8               /* Расстояние до точки, при котором ее можно ухватить. */
-#define NEW_TRACK_ID   "new-magic-id"  /* Ключ в таблице галсов, соответствующий новому галсу. */
+#define HOVER_DISTANCE 8                   /* Расстояние до точки, при котором ее можно ухватить. */
+#define NEW_TRACK_ID   "new-magic-id"      /* Ключ в таблице галсов, соответствующий новому галсу. */
+
+#define LINE_COLOR "rgba(200, 0, 0, 1.0)"  /* Цвет линий по умолчанию. */
+#define LINE_WIDTH 2.0                     /* Толщина линий по умолчанию. */
 
 enum
 {
@@ -33,17 +36,20 @@ typedef struct
 
 struct _HyScanGtkMapPlannerPrivate
 {
-  HyScanGtkMap                      *map;
-  HyScanPlanner                     *planner;
-  guint                              mode;
+  HyScanGtkMap                      *map;           /* Карта. */
+  HyScanPlanner                     *planner;       /* Планировщик. */
+  guint                              mode;          /* Текущий режим работы. */
 
-  gboolean                           visible;
+  gboolean                           visible;       /* Признак видимости слоя. */
 
-  GMutex                             lock;
-  GHashTable                        *tracks;
+  GMutex                             lock;          /* Блокировка доступа к следующим переменным. */
+  GHashTable                        *tracks;        /* Таблица запланированных галсов. */
+  HyScanGtkMapPlannerTrack          *active_track;  /* Активный галс. */
+  HyScanGtkMapPlannerPoint           active_point;  /* Активная точка активного галса. */
 
-  HyScanGtkMapPlannerTrack          *active_track;
-  HyScanGtkMapPlannerPoint           active_point;
+  /* Стиль оформления. */
+  GdkRGBA                            line_color;    /* Цвет линий. */
+  gdouble                            line_width;    /* Толщина линий. */
 };
 
 static void    hyscan_gtk_map_planner_interface_init           (HyScanGtkLayerInterface  *iface);
@@ -112,6 +118,8 @@ hyscan_gtk_map_planner_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_planner_parent_class)->constructed (object);
 
   g_mutex_init (&priv->lock);
+  priv->line_width = LINE_WIDTH;
+  gdk_rgba_parse (&priv->line_color, LINE_COLOR);
   priv->tracks = g_hash_table_new_full (g_str_hash, g_str_equal, NULL,
                                         (GDestroyNotify) hyscan_gtk_map_planner_track_free);
   g_signal_connect_swapped (priv->planner, "changed", G_CALLBACK (hyscan_gtk_map_planner_update), gtk_map_planner);
@@ -218,9 +226,9 @@ hyscan_gtk_map_planner_draw (GtkCifroArea *cifro,
   if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (planner_layer)))
     return;
 
-  /* Стили оформления.. */
-  cairo_set_line_width (cairo, 2.0);
-  cairo_set_source_rgba (cairo, 1.0, 0.0, 0.0, 0.8);
+  /* Стили оформления. */
+  cairo_set_line_width (cairo, priv->line_width);
+  gdk_cairo_set_source_rgba (cairo, &priv->line_color);
 
   /* Рисуем все запланированные галсы. */
   g_mutex_lock (&priv->lock);
@@ -230,6 +238,7 @@ hyscan_gtk_map_planner_draw (GtkCifroArea *cifro,
       gdouble x0, y0, x1, y1;
       gboolean active;
 
+      /* Переводим координаты концов галса в СК виджета. */
       gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x0, &y0,
                                              track->start.x, track->start.y);
       gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x1, &y1,
@@ -667,6 +676,27 @@ hyscan_gtk_map_planner_grab_input (HyScanGtkLayer *layer)
   return TRUE;
 }
 
+static gboolean
+hyscan_gtk_map_planner_load_key_file (HyScanGtkLayer *gtk_layer,
+                                      GKeyFile       *key_file,
+                                      const gchar    *group)
+{
+  HyScanGtkMapPlanner *planner_layer = HYSCAN_GTK_MAP_PLANNER (gtk_layer);
+  HyScanGtkMapPlannerPrivate *priv = planner_layer->priv;
+
+  gdouble width;
+
+  width = g_key_file_get_double (key_file, group, "line-width", NULL);
+  priv->line_width = width > 0 ? width : LINE_WIDTH;
+
+  hyscan_gtk_layer_load_key_file_rgba (&priv->line_color, key_file, group, "line-color", LINE_COLOR);
+
+  if (priv->map != NULL)
+    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+  return TRUE;
+}
+
 static void
 hyscan_gtk_map_planner_interface_init (HyScanGtkLayerInterface *iface)
 {
@@ -675,6 +705,7 @@ hyscan_gtk_map_planner_interface_init (HyScanGtkLayerInterface *iface)
   iface->grab_input = hyscan_gtk_map_planner_grab_input;
   iface->set_visible = hyscan_gtk_map_planner_set_visible;
   iface->get_visible = hyscan_gtk_map_planner_get_visible;
+  iface->load_key_file = hyscan_gtk_map_planner_load_key_file;
 }
 
 

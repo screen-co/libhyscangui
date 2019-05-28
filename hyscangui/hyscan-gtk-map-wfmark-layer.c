@@ -46,7 +46,7 @@
  *
  * Стиль слоя может быть настроен с помощью ini-файла:
  * - "mark-color" - цвет контура метки
- * - "mark-color-hover" - цвет контура выделенной метки
+ * - "hover-mark-color" - цвет контура выделенной метки
  * - "line-width" - толщина линий
  * - "text-color" - цвет текста подписи
  * - "bg-color" - цвет подложки текста
@@ -612,7 +612,7 @@ hyscan_gtk_map_wfmark_layer_load_key_file (HyScanGtkLayer *layer,
   value = g_key_file_get_double (key_file, group, "line-width", NULL);
   priv->line_width = value > 0 ? value : LINE_WIDTH ;
   hyscan_gtk_layer_load_key_file_rgba (&priv->color_default, key_file, group, "mark-color", MARK_COLOR);
-  hyscan_gtk_layer_load_key_file_rgba (&priv->color_hover, key_file, group, "mark-color-hover", MARK_COLOR_HOVER);
+  hyscan_gtk_layer_load_key_file_rgba (&priv->color_hover, key_file, group, "hover-mark-color", MARK_COLOR_HOVER);
   hyscan_gtk_layer_load_key_file_rgba (&priv->color_bg, key_file, group, "bg-color", BG_COLOR);
   hyscan_gtk_layer_load_key_file_rgba (&priv->color_text, key_file, group, "text-color", TEXT_COLOR);
 

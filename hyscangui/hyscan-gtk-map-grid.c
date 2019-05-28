@@ -42,9 +42,9 @@
  * оформления сетки можно задать с помощью функций класса или свойств из файла
  * конфигурации:
  *
- * - hyscan_gtk_map_grid_set_bg_color()      "color-bg"
- * - hyscan_gtk_map_grid_set_label_color()   "color-label"
- * - hyscan_gtk_map_grid_set_line_color()    "color-line"
+ * - hyscan_gtk_map_grid_set_bg_color()      "bg-color"
+ * - hyscan_gtk_map_grid_set_label_color()   "label-color"
+ * - hyscan_gtk_map_grid_set_line_color()    "line-color"
  * - hyscan_gtk_map_grid_set_line_width()    "line-width"
  * - hyscan_gtk_map_grid_set_step_width()
  * - hyscan_gtk_map_grid_set_scale_width()
@@ -202,13 +202,13 @@ hyscan_gtk_map_grid_load_key_file (HyScanGtkLayer          *gtk_layer,
   width = g_key_file_get_double (key_file, group, "line-width", NULL);
   hyscan_gtk_map_grid_set_line_width (grid_layer, width > 0 ? width : LINE_WIDTH);
 
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "color-bg", BG_COLOR_DEFAULT);
+  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "bg-color", BG_COLOR_DEFAULT);
   hyscan_gtk_map_grid_set_bg_color (grid_layer, color);
 
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "color-label", LABEL_COLOR_DEFAULT);
+  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "label-color", LABEL_COLOR_DEFAULT);
   hyscan_gtk_map_grid_set_label_color (grid_layer, color);
 
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "color-line", LINE_COLOR_DEFAULT);
+  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "line-color", LINE_COLOR_DEFAULT);
   hyscan_gtk_map_grid_set_line_color (grid_layer, color);
 
   if (priv->map != NULL)

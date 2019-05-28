@@ -243,13 +243,13 @@ hyscan_gtk_map_ruler_load_key_file (HyScanGtkLayer *gtk_layer,
 
   hyscan_gtk_layer_parent_interface->load_key_file (gtk_layer, key_file, group);
 
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "color-bg", BG_COLOR_DEFAULT);
+  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "bg-color", BG_COLOR_DEFAULT);
   hyscan_gtk_map_ruler_set_bg_color (ruler, color);
 
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "color-label", LABEL_COLOR_DEFAULT);
+  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "label-color", LABEL_COLOR_DEFAULT);
   hyscan_gtk_map_ruler_set_label_color (ruler, color);
 
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "color-line", LINE_COLOR_DEFAULT);
+  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "line-color", LINE_COLOR_DEFAULT);
   hyscan_gtk_map_ruler_set_line_color (ruler, color);
 
   width = g_key_file_get_double (key_file, group, "line-width", NULL);

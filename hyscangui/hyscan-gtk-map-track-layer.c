@@ -486,15 +486,15 @@ hyscan_gtk_map_track_layer_load_key_file (HyScanGtkLayer *gtk_layer,
   gdouble value;
 
   hyscan_gtk_layer_load_key_file_rgba (&rgba, key_file, group,
-                                       "color-track", DEFAULT_COLOR_TRACK);
+                                       "track-color", DEFAULT_COLOR_TRACK);
   hyscan_gtk_map_track_layer_set_color_track (track_layer, rgba);
 
   hyscan_gtk_layer_load_key_file_rgba (&rgba, key_file, group,
-                                       "color-port", DEFAULT_COLOR_PORT);
+                                       "port-color", DEFAULT_COLOR_PORT);
   hyscan_gtk_map_track_layer_set_color_port (track_layer, rgba);
 
   hyscan_gtk_layer_load_key_file_rgba (&rgba, key_file, group,
-                                       "color-starboard", DEFAULT_COLOR_STARBOARD);
+                                       "starboard-color", DEFAULT_COLOR_STARBOARD);
   hyscan_gtk_map_track_layer_set_color_starboard (track_layer, rgba);
 
   value = g_key_file_get_double (key_file, group, "bar-width", NULL);
