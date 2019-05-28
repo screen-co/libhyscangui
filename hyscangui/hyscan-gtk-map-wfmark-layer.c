@@ -59,16 +59,16 @@
 #include <hyscan-gtk-map.h>
 #include <math.h>
 
-#define DISTANCE_TO_METERS      0.001                /* Коэффициент перевода размеров метки в метры. */
+#define DISTANCE_TO_METERS      0.001                         /* Коэффициент перевода размеров метки в метры. */
 
 /* Оформление по умолчанию. */
-#define MARK_COLOR              "#5A22F5"            /* Цвет обводки меток. */
-#define MARK_COLOR_HOVER        "#F55A22"            /* Цвет обводки меток при наведении мыши. */
-#define BG_COLOR                "rgba(0,0,0,0.4)"    /* Цвет фона подписи. */
-#define TEXT_COLOR              "#FFFFFF"            /* Цвет текста подписи. */
-#define LINE_WIDTH              2.0                  /* Толщина линии обводки. */
-#define TEXT_MARGIN             5.0                  /* Отступт текста от границ. */
-#define TOOLTIP_MARGIN          5.0                  /* Отступ всплывающей подсказки от указателя мыши. */
+#define MARK_COLOR              "#9443B2"                     /* Цвет обводки меток. */
+#define MARK_COLOR_HOVER        "#61B243"                     /* Цвет обводки меток при наведении мыши. */
+#define BG_COLOR                "rgba(255, 255, 255, 0.6)"    /* Цвет фона подписи. */
+#define TEXT_COLOR              "rgba( 33,  33,  33, 1.0)"    /* Цвет текста подписи. */
+#define LINE_WIDTH              1.0                           /* Толщина линии обводки. */
+#define TEXT_MARGIN             5.0                           /* Отступт текста от границ. */
+#define TOOLTIP_MARGIN          5.0                           /* Отступ всплывающей подсказки от указателя мыши. */
 
 /* Раскомментируйте строку ниже для отладки положения меток относительно галса. */
 // #define DEBUG_TRACK_POINTS

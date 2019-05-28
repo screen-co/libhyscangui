@@ -54,8 +54,8 @@
 #include <math.h>
 
 #define DEFAULT_SIZE          8
-#define DEFAULT_COLOR_PRIME   "#995599"
-#define DEFAULT_COLOR_STROKE  "#884488"
+#define DEFAULT_COLOR_PRIME   "#699857"
+#define DEFAULT_COLOR_STROKE  "#537845"
 #define DEFAULT_COLOR_SECOND  "#ffffff"
 
 enum

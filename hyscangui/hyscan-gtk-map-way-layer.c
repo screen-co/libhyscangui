@@ -65,15 +65,15 @@
 #include <string.h>
 #include <math.h>
 
-#define ARROW_SIZE            40          /* Размер маркера, изображающего движущийся объект. */
-#define LIFETIME              600
-#define LINE_WIDTH            2.0
-#define LINE_COLOR            "rgba(20,  40,  100, 0.9)"
-#define LINE_LOST_COLOR       "rgba(20,  40,  100, 0.2)"
-#define ARROW_DEFAULT_STROKE  LINE_COLOR
-#define ARROW_DEFAULT_FILL    "rgba(255, 255, 255, 0.9)"
-#define ARROW_LOST_STROKE     "rgba(20,  40,  100, 0.2)"
-#define ARROW_LOST_FILL       "rgba(255, 255, 255, 0.2)"
+#define ARROW_SIZE            40                           /* Размер маркера, изображающего движущийся объект. */
+#define LIFETIME              600                          /* Время жизни путевых точек, секунды. */
+#define LINE_WIDTH            2.0                          /* Толщина линии. */
+#define LINE_COLOR            "#23505D"                    /* Цвет линии. */
+#define LINE_LOST_COLOR       "rgba(144,  88,  71, 0.2)"   /* Цвет линии при потере сигнала. */
+#define ARROW_DEFAULT_STROKE  LINE_COLOR                   /* Цвет обводки стрелки. */
+#define ARROW_DEFAULT_FILL    "rgba(255, 255, 255, 0.85)"  /* Цвет стрелки. */
+#define ARROW_LOST_STROKE     "rgba(144,  87,  71, 0.2)"   /* Цвет обводки стрелки при потере сигнала. */
+#define ARROW_LOST_FILL       "rgba(255, 255, 255, 0.2)"   /* Цвет стрелки при потере сигнала. */
 
 /* Раскомментируйте строку ниже для вывода отладочной информации о скорости отрисовки слоя. */
 // #define HYSCAN_GTK_MAP_DEBUG_FPS

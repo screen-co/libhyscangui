@@ -56,8 +56,8 @@
 #define SNAP_DISTANCE       6.0           /* Максимальное расстояние прилипания курсора мыши к звену ломаной. */
 #define EARTH_RADIUS        6378137.0     /* Радиус Земли. */
 
-#define LINE_WIDTH_DEFAULT  2.0
-#define LINE_COLOR_DEFAULT  "rgba( 80, 120, 180, 0.5)"
+#define LINE_WIDTH_DEFAULT  1.0
+#define LINE_COLOR_DEFAULT  "#72856A"
 #define LABEL_COLOR_DEFAULT "rgba( 33,  33,  33, 1.0)"
 #define BG_COLOR_DEFAULT    "rgba(255, 255, 255, 0.6)"
 

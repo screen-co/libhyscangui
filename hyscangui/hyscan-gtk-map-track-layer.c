@@ -75,17 +75,17 @@
 #include <math.h>
 
 /* Стиль оформления по умолчанию. */
-#define DEFAULT_COLOR_TRACK           "#bbbb00"            /* Цвет линии движения. */
-#define DEFAULT_COLOR_PORT            "#bb0000"            /* Цвет левого борта. */
-#define DEFAULT_COLOR_STARBOARD       "#00bb00"            /* Цвет правого борта. */
-#define DEFAULT_COLOR_STROKE          "#000000"            /* Цвет обводки некоторых элементов. */
-#define DEFAULT_COLOR_SHADOW          "rgba(0,0,0,0.5)"    /* Цвет затенения. */
-#define DEFAULT_BAR_WIDTH             10                   /* Ширина полос дальности. */
-#define DEFAULT_BAR_MARGIN            30                   /* Расстояние между соседними полосами. */
-#define DEFAULT_LINE_WIDTH            1                    /* Толщина линии движения. */
-#define DEFAULT_STROKE_WIDTH          0.5                  /* Толщина обводки. */
+#define DEFAULT_COLOR_TRACK           "#AC67C6"                     /* Цвет линии движения. */
+#define DEFAULT_COLOR_PORT            "#DDC3BB"                     /* Цвет левого борта. */
+#define DEFAULT_COLOR_STARBOARD       "#C4DDBB"                     /* Цвет правого борта. */
+#define DEFAULT_COLOR_STROKE          "#000000"                     /* Цвет обводки некоторых элементов. */
+#define DEFAULT_COLOR_SHADOW          "rgba(150, 150, 150, 0.5)"    /* Цвет затенения. */
+#define DEFAULT_BAR_WIDTH             3                             /* Ширина полос дальности. */
+#define DEFAULT_BAR_MARGIN            30                            /* Расстояние между соседними полосами. */
+#define DEFAULT_LINE_WIDTH            1                             /* Толщина линии движения. */
+#define DEFAULT_STROKE_WIDTH          1.0                           /* Толщина обводки. */
 
-#define REFRESH_INTERVAL              500                  /* Период проверки каналов данных на новые данные, мс. */
+#define REFRESH_INTERVAL              500                           /* Период проверки каналов данных на новые данные, мс. */
 
 /* Раскомментируйте строку ниже для вывода отладочной информации о скорости отрисовки слоя. */
 // #define HYSCAN_GTK_MAP_DEBUG_FPS

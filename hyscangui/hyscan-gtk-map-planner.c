@@ -5,7 +5,7 @@
 #define HOVER_DISTANCE 8                   /* Расстояние до точки, при котором ее можно ухватить. */
 #define NEW_TRACK_ID   "new-magic-id"      /* Ключ в таблице галсов, соответствующий новому галсу. */
 
-#define LINE_COLOR "rgba(200, 0, 0, 1.0)"  /* Цвет линий по умолчанию. */
+#define LINE_COLOR "#C67C67"               /* Цвет линий по умолчанию. */
 #define LINE_WIDTH 2.0                     /* Толщина линий по умолчанию. */
 
 enum
