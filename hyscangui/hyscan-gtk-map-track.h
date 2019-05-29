@@ -55,30 +55,35 @@ typedef struct _HyScanGtkMapTrack HyScanGtkMapTrack;
 typedef struct _HyScanGtkMapTrackPrivate HyScanGtkMapTrackPrivate;
 typedef struct _HyScanGtkMapTrackClass HyScanGtkMapTrackClass;
 
-enum
-{
-  HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_RMC,
-  HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_DPT,
-  HYSCAN_GTK_MAP_TRACK_CHNL_PORT,
-  HYSCAN_GTK_MAP_TRACK_CHNL_STARBOARD,
-};
-
+/**
+ * HyScanGtkMapTrackStyle:
+ *
+ * @color_left: Цвет левого борта.
+ * @color_right: Цвет правого борта.
+ * @color_track: Цвет линии движения.
+ * @color_stroke: Цвет обводки.
+ * @color_shadow: Цвет затенения (рекомендуется полупрозрачный чёрный).
+ * @bar_width: Толщина линии дальности.
+ * @bar_margin: Расстояние между соседними линиями дальности.
+ * @line_width: Толщина линии движения.
+ * @stroke_width: Толщина линии обводки.
+ *
+ */
 typedef struct {
-  GdkRGBA                    color_left;      /* Цвет левого борта. */
-  GdkRGBA                    color_right;     /* Цвет правого борта. */
-  GdkRGBA                    color_track;     /* Цвет линии движения. */
-  GdkRGBA                    color_stroke;    /* Цвет обводки. */
-  GdkRGBA                    color_shadow;    /* Цвет затенения (рекомендуется полупрозрачный чёрный). */
-  gdouble                    bar_width;       /* Толщина линии ширины. */
-  gdouble                    bar_margin;      /* Расстояние между соседними линиями ширины. */
-  gdouble                    line_width;      /* Толщина линии движения. */
-  gdouble                    stroke_width;    /* Толщина линии обводки. */
+  GdkRGBA color_left;
+  GdkRGBA color_right;
+  GdkRGBA color_track;
+  GdkRGBA color_stroke;
+  GdkRGBA color_shadow;
+  gdouble bar_width;
+  gdouble bar_margin;
+  gdouble line_width;
+  gdouble stroke_width;
 } HyScanGtkMapTrackStyle;
 
 struct _HyScanGtkMapTrack
 {
-  GObject parent_instance;
-
+  GObject                   parent_instance;
   HyScanGtkMapTrackPrivate *priv;
 };
 

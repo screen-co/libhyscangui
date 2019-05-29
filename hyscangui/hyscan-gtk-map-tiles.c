@@ -882,6 +882,8 @@ hyscan_gtk_map_tiles_draw (HyScanGtkMapTiles *layer,
 #ifdef HYSCAN_GTK_MAP_TILES_DEBUG
   time = g_test_timer_elapsed ();
   g_message ("Draw tiles FPS; %p; %.1f; %d", layer, 1.0 / time, refreshed);
+#else
+  (void) refreshed;
 #endif
 }
 

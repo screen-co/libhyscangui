@@ -671,14 +671,20 @@ hyscan_navigation_model_set_sensor (HyScanNavigationModel *model,
   priv = model->priv;
 
   g_mutex_lock (&priv->sensor_lock);
+
+  /* Отключаемся от старого датчика. */
   if (priv->sensor != NULL)
+    g_signal_handlers_disconnect_by_func (priv->sensor, hyscan_navigation_model_sensor_data, model);
+
+  g_clear_object (&priv->sensor);
+
+  /* Подключаемся к новому датчику. */
+  if (sensor != NULL)
     {
-      g_signal_handlers_disconnect_by_func (priv->sensor, hyscan_navigation_model_sensor_data, model);
-      g_object_unref (priv->sensor);
+      priv->sensor = g_object_ref (sensor);
+      g_signal_connect (priv->sensor, "sensor-data", G_CALLBACK (hyscan_navigation_model_sensor_data), model);
     }
 
-  priv->sensor = g_object_ref (sensor);
-  g_signal_connect (priv->sensor, "sensor-data", G_CALLBACK (hyscan_navigation_model_sensor_data), model);
   g_mutex_unlock (&priv->sensor_lock);
 }
 
@@ -760,7 +766,7 @@ hyscan_navigation_model_get (HyScanNavigationModel     *model,
                              gdouble                   *time_delta)
 {
   HyScanNavigationModelPrivate *priv;
-  gdouble time_delta_ret;
+  gdouble time_delta_ret = 0;
 
   g_return_val_if_fail (HYSCAN_IS_NAVIGATION_MODEL (model), FALSE);
   priv = model->priv;

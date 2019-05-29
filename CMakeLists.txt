@@ -71,6 +71,7 @@ else ()
   set (HYSCAN_LIBRARIES "hyscantypes-${HYSCAN_MAJOR_VERSION}"
                         "hyscandriver-${HYSCAN_MAJOR_VERSION}"
                         "hyscancore-${HYSCAN_MAJOR_VERSION}"
+                        "hyscandb-${HYSCAN_MAJOR_VERSION}"
                         "hyscanmodel-${HYSCAN_MAJOR_VERSION}"
                         "hyscancache-${HYSCAN_MAJOR_VERSION}")
 endif ()

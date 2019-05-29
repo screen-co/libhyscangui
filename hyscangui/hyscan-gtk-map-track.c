@@ -41,7 +41,7 @@
  * судна и дальности обнаружения по каждому борту.
  *
  * Функции:
- * - hyscan_gtk_map_track_new() - создает нового объекта;
+ * - hyscan_gtk_map_track_new() - создает новый объект;
  * - hyscan_gtk_map_track_set_projection() - устанавлиает картографическую проекцию;
  * - hyscan_gtk_map_track_update() - проверяет и загруажет новые данные по галсу;
  * - hyscan_gtk_map_track_draw() - рисует галс на указанном участке;
@@ -55,17 +55,14 @@
 
 #include "hyscan-gtk-map-track.h"
 #include <hyscan-cartesian.h>
-#include <hyscan-gtk-map-tiled-layer.h>
-#include <hyscan-geo.h>
-#include <hyscan-db.h>
 #include <hyscan-acoustic-data.h>
 #include <hyscan-amplitude.h>
 #include <hyscan-projector.h>
 #include <hyscan-depthometer.h>
-#include <cairo.h>
 #include <hyscan-nmea-parser.h>
-#include <math.h>
 #include <hyscan-data-schema-builder.h>
+#include <cairo.h>
+#include <math.h>
 
 #define PARAM_CHANNEL_RMC       "/channel-rmc"
 #define PARAM_CHANNEL_DPT       "/channel-dpt"
@@ -81,6 +78,14 @@ enum
   PROP_CACHE,
   PROP_PROJECTION,
   PROP_TILED_LAYER,
+};
+
+enum
+{
+  HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_RMC,
+  HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_DPT,
+  HYSCAN_GTK_MAP_TRACK_CHNL_PORT,
+  HYSCAN_GTK_MAP_TRACK_CHNL_STARBOARD,
 };
 
 typedef struct {
@@ -102,20 +107,20 @@ typedef struct {
 } HyScanGtkMapTrackLayerPoint;
 
 typedef struct {
-  HyScanAmplitude                *amplitude;        /* Амплитудные данные трека. */
-  HyScanProjector                *projector;        /* Сопоставления индексов и отсчётов реальным координатам. */
+  HyScanAmplitude                *amplitude;         /* Амплитудные данные трека. */
+  HyScanProjector                *projector;         /* Сопоставления индексов и отсчётов реальным координатам. */
 } HyScanGtkMapTrackLayerBoard;
 
 struct _HyScanGtkMapTrackPrivate
 {
-  HyScanDB                       *db;               /* База данных. */
-  HyScanCache                    *cache;            /* Кэш. */
-  HyScanGtkMapTiledLayer         *tiled_layer;      /* Тайловый слой, на котором размещён галс. */
-  HyScanGeoProjection            *projection;       /* Картографическая проекция. */
-  HyScanDataSchema               *schema;           /* Схема параметров галса (номера каналов данных). */
+  HyScanDB                       *db;                /* База данных. */
+  HyScanCache                    *cache;             /* Кэш. */
+  HyScanGtkMapTiledLayer         *tiled_layer;       /* Тайловый слой, на котором размещён галс. */
+  HyScanGeoProjection            *projection;        /* Картографическая проекция. */
+  HyScanDataSchema               *schema;            /* Схема параметров галса (номера каналов данных). */
 
-  gchar                          *project;          /* Название проекта. */
-  gchar                          *name;             /* Название галса. */
+  gchar                          *project;           /* Название проекта. */
+  gchar                          *name;              /* Название галса. */
 
   gboolean                        opened;            /* Признак того, что каналы галса открыты. */
   gboolean                        loaded;            /* Признак того, что данные галса загружены. */
@@ -292,6 +297,8 @@ hyscan_gtk_map_track_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_track_parent_class)->finalize (object);
 }
 
+/* Реализация HyScanParamInterface.get.
+ * Получает параметры галса. */
 static gboolean
 hyscan_gtk_map_track_param_get (HyScanParam     *param,
                                 HyScanParamList *list)
@@ -331,6 +338,8 @@ hyscan_gtk_map_track_param_get (HyScanParam     *param,
   return TRUE;
 }
 
+/* Реализация HyScanParamInterface.set.
+ * Устанавливает параметры галса. */
 static gboolean
 hyscan_gtk_map_track_param_set (HyScanParam     *param,
                                 HyScanParamList *list)
@@ -375,7 +384,9 @@ hyscan_gtk_map_track_param_set (HyScanParam     *param,
   return TRUE;
 }
 
-HyScanDataSchema *
+/* Реализация HyScanParamInterface.schema.
+ * Возвращает схему параметров галса. */
+static HyScanDataSchema *
 hyscan_gtk_map_track_param_schema (HyScanParam *param)
 {
   HyScanGtkMapTrack *track = HYSCAN_GTK_MAP_TRACK (param);
@@ -977,8 +988,7 @@ hyscan_gtk_map_track_load (HyScanGtkMapTrack *track)
 
 /* Рисует часть галса по точкам points. */
 static void
-hyscan_gtk_map_track_layer_draw_chunk (HyScanGtkMapTrack      *track,
-                                       HyScanGeoCartesian2D   *from,
+hyscan_gtk_map_track_layer_draw_chunk (HyScanGeoCartesian2D   *from,
                                        HyScanGeoCartesian2D   *to,
                                        gdouble                 scale,
                                        GList                  *chunk_start,
@@ -986,7 +996,6 @@ hyscan_gtk_map_track_layer_draw_chunk (HyScanGtkMapTrack      *track,
                                        cairo_t                *cairo,
                                        HyScanGtkMapTrackStyle *style)
 {
-  HyScanGtkMapTrackPrivate *priv = track->priv;
   GList *point_l;
   HyScanGtkMapTrackLayerPoint *point, *next_point;
   gdouble x, y;
@@ -1073,12 +1082,12 @@ hyscan_gtk_map_track_layer_draw_chunk (HyScanGtkMapTrack      *track,
 
 /* Рисует галс внутри указанной области from - to. */
 static void
-hyscan_gtk_map_track_layer_draw_region (HyScanGtkMapTrack           *track,
-                                        cairo_t                     *cairo,
-                                        gdouble                      scale,
-                                        HyScanGeoCartesian2D        *from,
-                                        HyScanGeoCartesian2D        *to,
-                                        HyScanGtkMapTrackStyle      *style)
+hyscan_gtk_map_track_layer_draw_region (HyScanGtkMapTrack      *track,
+                                        cairo_t                *cairo,
+                                        gdouble                 scale,
+                                        HyScanGeoCartesian2D   *from,
+                                        HyScanGeoCartesian2D   *to,
+                                        HyScanGtkMapTrackStyle *style)
 {
   HyScanGtkMapTrackPrivate *priv = track->priv;
   GList *point_l, *prev_point_l = NULL, *next_point_l = NULL;
@@ -1119,7 +1128,7 @@ hyscan_gtk_map_track_layer_draw_region (HyScanGtkMapTrack           *track,
         }
       else if (chunk_start != NULL)
         {
-          hyscan_gtk_map_track_layer_draw_chunk (track, from, to, scale, chunk_start, chunk_end, cairo, style);
+          hyscan_gtk_map_track_layer_draw_chunk (from, to, scale, chunk_start, chunk_end, cairo, style);
           chunk_start = chunk_end = NULL;
         }
 
@@ -1129,16 +1138,16 @@ hyscan_gtk_map_track_layer_draw_region (HyScanGtkMapTrack           *track,
     }
 
   if (chunk_start != NULL)
-    hyscan_gtk_map_track_layer_draw_chunk (track, from, to, scale, chunk_start, chunk_end, cairo, style);
+    hyscan_gtk_map_track_layer_draw_chunk (from, to, scale, chunk_start, chunk_end, cairo, style);
 }
 
 
 /**
  * hyscan_gtk_map_track_new:
- * @db
- * @cache
- * @project_name
- * @track_name
+ * @db: указатель на базу данных #HyScanDB
+ * @cache: кэш #HyScanCache
+ * @project_name: название проекта
+ * @track_name: название галса
  *
  * Создаёт галс с параметрами по умолчанию.
  *
@@ -1161,7 +1170,18 @@ hyscan_gtk_map_track_new (HyScanDB               *db,
                        "projection", projection, NULL);
 }
 
-/* Рисует отдельный галс. */
+/**
+ * hyscan_gtk_map_track_draw:
+ * @track: указатель на #HyScanGtkMapTrack
+ * @cairo: поверхность для рисования
+ * @scale: масштаб
+ * @from: граница видимой области
+ * @to: граница видимой области
+ * @style: указатель на стиль оформление галса #HyScanGtkMapTrackStyle
+ *
+ * Рисует на поверхности @cairo часть галса, которая находится внутри прямоугольной
+ * области от @from до @to. Галс рисуется в масштабе @scale и оформлением в стиле @style.
+ */
 void
 hyscan_gtk_map_track_draw (HyScanGtkMapTrack      *track,
                            cairo_t                *cairo,
@@ -1289,15 +1309,8 @@ hyscan_gtk_map_track_set_channel (HyScanGtkMapTrack *track,
   g_rw_lock_writer_unlock (&priv->lock);
 }
 
-/**
- * hyscan_gtk_map_track_get_channel:
- * @track_layer: указатель на #HyScanGtkMapTrackLayer
- * @track_name: название галса
- * @channel: источник данных
- *
- * Returns: возвращает номер канала указанного источника или 0, если канал не
- *          открыт или произошла ошибка.
- */
+/* Возвращает номер канала указанного источника или 0, если канал не открыт или
+ * произошла ошибка. */
 static guint
 hyscan_gtk_map_track_get_channel (HyScanGtkMapTrack *track,
                                   guint              channel)
@@ -1329,7 +1342,7 @@ hyscan_gtk_map_track_get_channel (HyScanGtkMapTrack *track,
 
 /**
  * hyscan_gtk_map_track_update:
- * @track
+ * @track: указатель на #HyScanGtkMapTrack
  *
  * Проверяет, есть ли новые данные в галсе и есть есть, то загружает их
  *
@@ -1351,6 +1364,14 @@ hyscan_gtk_map_track_update (HyScanGtkMapTrack *track)
   return any_changes;
 }
 
+/**
+ * hyscan_gtk_map_track_set_projection:
+ * @track: указатель на #HyScanGtkMapTrack
+ * @projection: проекция #HyScanGeoProjection
+ *
+ * Устанавливает картографическую проекцию, в которой рисуется изображение
+ * галса.
+ */
 void
 hyscan_gtk_map_track_set_projection (HyScanGtkMapTrack   *track,
                                      HyScanGeoProjection *projection)
