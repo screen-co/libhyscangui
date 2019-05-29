@@ -59,7 +59,8 @@
 
 #define FIX_MIN_DELTA              0.01      /* Минимальное время между двумя фиксациями положения. */
 #define FIX_MAX_DELTA              1.3       /* Время между двумя фиксами, которое считается обрывом. */
-#define DELAY_TIME                 1.0       /* Время задержки вывода данных. */
+#define DELAY_TIME                 1.0       /* Время задержки вывода данных по умолчанию. */
+#define FIXES_N                    10        /* Количество последних хранимых фиксов. */
 
 #define MERIDIAN_LENGTH            20003930  /* Длина меридиана, метры. */
 #define NAUTICAL_MILE              1852      /* Морская миля, метры. */
@@ -118,6 +119,7 @@ struct _HyScanNavigationModelPrivate
   GMutex                       sensor_lock;    /* Блокировка доступа к полям sensor_. */
 
   HyScanNMEAParser             *parser_time;   /* Парсер времени. */
+  HyScanNMEAParser             *parser_date;   /* Парсер даты. */
   HyScanNMEAParser             *parser_lat;    /* Парсер широты. */
   HyScanNMEAParser             *parser_lon;    /* Парсер долготы. */
   HyScanNMEAParser             *parser_track;  /* Парсер курса. */
@@ -134,7 +136,6 @@ struct _HyScanNavigationModelPrivate
 
   GList                       *fixes;          /* Список последних положений объекта, зафиксированных датчиком. */
   guint                        fixes_len;      /* Количество элементов в списке. */
-  guint                        fixes_max_len;  /* Сколько последних фиксов необходимо хранить в fixes. */
   HyScanNavigationModelParams  params;         /* Параметры модели для экстраполяции на последнем участке. */
   gboolean                     params_set;     /* Признак того, что параметры установлены. */
   GMutex                       fixes_lock;     /* Блокировка доступа к перемееным этой группы. */
@@ -281,14 +282,14 @@ hyscan_navigation_model_add_fix (HyScanNavigationModel    *model,
       priv->fixes = g_list_append (priv->fixes, hyscan_navigation_model_fix_copy (fix));
       priv->fixes_len++;
 
-      /* При поступлении первого фикса запоминаем timer_offset. */
+      /* Если timer_offset не инициализирован, делаем это. */
       if (g_atomic_int_compare_and_exchange (&priv->timer_set, FALSE, TRUE)) {
         priv->timer_offset = fix->time - g_timer_elapsed (priv->timer, NULL) - priv->delay_time;
       }
     }
 
   /* Удаляем из списка старые данные. */
-  if (priv->fixes_len > priv->fixes_max_len)
+  if (priv->fixes_len >FIXES_N)
     {
       GList *first_fix_l = priv->fixes;
 
@@ -312,10 +313,12 @@ hyscan_navigation_model_read_sentence (HyScanNavigationModel    *model,
   HyScanNavigationModelPrivate *priv = model->priv;
 
   gboolean parsed;
+  gdouble fix_time, fix_date;
 
   g_return_val_if_fail (sentence != NULL, FALSE);
 
-  parsed  = hyscan_nmea_parser_parse_string (priv->parser_time, sentence, &fix->time);
+  parsed  = hyscan_nmea_parser_parse_string (priv->parser_time, sentence, &fix_time);
+  parsed &= hyscan_nmea_parser_parse_string (priv->parser_date, sentence, &fix_date);
   parsed &= hyscan_nmea_parser_parse_string (priv->parser_lat, sentence, &fix->coord.lat);
   parsed &= hyscan_nmea_parser_parse_string (priv->parser_lon, sentence, &fix->coord.lon);
   parsed &= hyscan_nmea_parser_parse_string (priv->parser_track, sentence, &fix->coord.h);
@@ -323,6 +326,8 @@ hyscan_navigation_model_read_sentence (HyScanNavigationModel    *model,
 
   if (!parsed)
     return FALSE;
+
+  fix->time = fix_date + fix_time;
 
   /* Расчитываем скорости по широте и долготе. */
   if (fix->speed > 0)
@@ -586,10 +591,10 @@ hyscan_navigation_model_object_constructed (GObject *object)
   g_mutex_init (&priv->sensor_lock);
   g_mutex_init (&priv->fixes_lock);
   priv->timer = g_timer_new ();
-  priv->fixes_max_len = 10;
   hyscan_navigation_model_set_delay (model, DELAY_TIME);
 
   priv->parser_time = hyscan_nmea_parser_new_empty (HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_TIME);
+  priv->parser_date = hyscan_nmea_parser_new_empty (HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_DATE);
   priv->parser_lat = hyscan_nmea_parser_new_empty (HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_LAT);
   priv->parser_lon = hyscan_nmea_parser_new_empty (HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_LON);
   priv->parser_track = hyscan_nmea_parser_new_empty (HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_TRACK);
@@ -623,6 +628,7 @@ hyscan_navigation_model_object_finalize (GObject *object)
   g_timer_destroy (priv->timer);
 
   g_object_unref (priv->parser_time);
+  g_object_unref (priv->parser_date);
   g_object_unref (priv->parser_lat);
   g_object_unref (priv->parser_lon);
   g_object_unref (priv->parser_track);
@@ -699,6 +705,23 @@ hyscan_navigation_model_set_sensor_name (HyScanNavigationModel *model,
   g_mutex_unlock (&priv->sensor_lock);
 }
 
+/**
+ * hyscan_navigation_model_set_delay:
+ * @model: указатель на #HyScanNavigationModel
+ * @delay: время задержки выдачи данных, секунды
+ *
+ * Устанавливает время задержки @delay между получением данных от датчика и выдачей
+ * этих данных пользователю класса. Задержка необходима для сглаживания данных
+ * (интерполяции) между соседними фиксами.
+ *
+ * Интерполяция работает корректно, только если время задержки не больше интервала
+ * выдачи сигнала датчиком. Например, для датчика с частотой 1 Гц следует установить
+ * @delay = 1.0.
+ *
+ * Если сигнал "changed" испускается реже или не намного чаще получения данных от
+ * GPS-приёмника (приёмник с большой частотой), то можно установить @delay = 0.0.
+ * В этом случае пользователь получит точные данные, а сглаживание будет отключено.
+ */
 void
 hyscan_navigation_model_set_delay (HyScanNavigationModel *model,
                                    gdouble                delay)
@@ -713,14 +736,24 @@ hyscan_navigation_model_set_delay (HyScanNavigationModel *model,
   priv->delay_time = delay;
   priv->extrapolate = (priv->delay_time > 0);
 
-  g_message ("Nav model delay: %f sec; extrapolation: %d", priv->delay_time, priv->extrapolate);
-
   g_atomic_int_set (&priv->timer_set, FALSE);
   hyscan_navigation_model_remove_all (model);
 
   g_mutex_unlock (&priv->fixes_lock);
 }
 
+/**
+ * hyscan_navigation_model_get:
+ * @model: указатель на #HyScanNavigationModel
+ * @data: (out): данные модели
+ * @time_delta: (out): (nullable): возраст в секундах данных @data.
+ *
+ * Записывает текущие данные модели в @data. Возраст @time_delta показывает
+ * время в секундах, прошедшее с того момента, когда данные @data были
+ * актуальными.
+ *
+ * Returns: %TRUE, если данные получены успешно.
+ */
 gboolean
 hyscan_navigation_model_get (HyScanNavigationModel     *model,
                              HyScanNavigationModelData *data,
