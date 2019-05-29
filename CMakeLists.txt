@@ -2,6 +2,7 @@
 cmake_minimum_required (VERSION 2.8)
 
 project (libhyscangui)
+enable_testing()
 
 set (HYSCAN_MAJOR_VERSION 5)
 set (HYSCAN_GUI_VERSION 0)

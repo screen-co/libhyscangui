@@ -39,6 +39,18 @@ target_link_libraries (tile-test ${TEST_LIBRARIES})
 target_link_libraries (tile-loader-test ${TEST_LIBRARIES})
 target_link_libraries (cartesian-test ${TEST_LIBRARIES})
 
+add_test (NAME CartesianTest COMMAND cartesian-test
+          WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+add_test (NAME TaskQueueTest COMMAND task-queue-test
+          WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+add_test (NAME MercatorTest COMMAND mercator-test
+          WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+add_test (NAME TileTest COMMAND tile-test
+          WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+add_test (NAME TileSourceTest COMMAND tile-source-test
+          WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+add_test (NAME TileLoaderTest COMMAND tile-loader-test
+          WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 
 install (TARGETS gtk-area-test
          COMPONENT test
