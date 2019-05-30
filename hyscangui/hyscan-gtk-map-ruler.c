@@ -490,11 +490,19 @@ hyscan_gtk_map_ruler_get_segment_under_cursor (HyScanGtkMapRuler *ruler,
 
   gconstpointer howner;
 
-  /* Если какой-то хэндл захвачен или редактирование запрещено, то не реагируем на точки. */
+  /* Никак не реагируем на точки, если выполнено хотя бы одно из условий (1-3): */
+
+  /* 1. какой-то хэндл захвачен, ... */
   howner = hyscan_gtk_layer_container_get_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (map));
   if (howner != NULL)
     return NULL;
+
+  /* 2. редактирование запрещено, ... */
   if (!hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (map)))
+    return NULL;
+
+  /* 3. слой не отображается. */
+  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (ruler)))
     return NULL;
 
   carea = GTK_CIFRO_AREA (map);

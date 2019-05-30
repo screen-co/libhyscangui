@@ -293,12 +293,19 @@ hyscan_gtk_map_planner_get_point_at (HyScanGtkMapPlanner      *planner_layer,
 
   gconstpointer howner;
 
-  /* Если какой-то хэндл захвачен или редактирование запрещено, то не реагируем на точки. */
+  /* Никак не реагируем на точки, если выполнено хотя бы одно из условий (1-3): */
+
+  /* 1. какой-то хэндл захвачен, ... */
   howner = hyscan_gtk_layer_container_get_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map));
   if (howner != NULL)
     return NULL;
 
+  /* 2. редактирование запрещено, ... */
   if (!hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (priv->map)))
+    return NULL;
+
+  /* 3. слой не отображается. */
+  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (planner_layer)))
     return NULL;
 
   /* Определяем координаты и размеры в логической СК. */
@@ -524,6 +531,10 @@ hyscan_gtk_map_planner_button_release (GtkWidget      *widget,
 
   /* Проверяем, что у нас есть право ввода. */
   if (hyscan_gtk_layer_container_get_input_owner (container) != layer)
+    return GDK_EVENT_PROPAGATE;
+
+  /* Если слой не видно, то никак не реагируем. */
+  if (!hyscan_gtk_layer_get_visible (layer))
     return GDK_EVENT_PROPAGATE;
 
   if (priv->mode != MODE_NONE)
