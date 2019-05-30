@@ -73,7 +73,7 @@ int main (int    argc,
   hyscan_navigation_model_set_sensor (model, HYSCAN_SENSOR (device));
   hyscan_navigation_model_set_sensor_name (model, DEVICE_NAME);
 
-  g_signal_connect_swapped (device, "finish", g_main_loop_quit, loop);
+  g_signal_connect_swapped (device, "finish", G_CALLBACK (g_main_loop_quit), loop);
   g_signal_connect (model, "changed", G_CALLBACK (on_model_changed), NULL);
 
   hyscan_sensor_set_enable (HYSCAN_SENSOR (device), DEVICE_NAME, TRUE);

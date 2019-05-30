@@ -9,8 +9,7 @@ task_func (GObject      *task,
            GCancellable *cancellable)
 {
   g_assert_true (test_user_data == user_data);
-  g_message ("Processing task %s", g_object_get_data (task, "label"));
-  // g_usleep (G_USEC_PER_SEC / 1000);
+  g_message ("Processing task %s", (gchar *) g_object_get_data (task, "label"));
 }
 
 void
