@@ -54,6 +54,7 @@
  */
 
 #include "hyscan-gtk-map-grid.h"
+#include <glib/gi18n.h>
 #include <math.h>
 
 #define MAX_LAT             90.0      /* Максимальное по модулю значение широты. */
@@ -554,9 +555,9 @@ hyscan_gtk_map_grid_draw_scale (HyScanGtkMapGrid *grid,
 
     /* Формируем текст надписи и вычисляем её размер. */
     if (metres < 1000.0)
-      g_snprintf (label, sizeof (label), "1:%.0f, %.0f m", real_scale, metres);
+      g_snprintf (label, sizeof (label), "1:%.0f, %.0f %s", real_scale, metres, _("m"));
     else
-      g_snprintf (label, sizeof (label), "1:%.0f, %.0f km", real_scale, metres / 1000.0);
+      g_snprintf (label, sizeof (label), "1:%.0f, %.0f %s", real_scale, metres / 1000.0, _("km"));
     pango_layout_set_text (priv->pango_layout, label, -1);
     pango_layout_get_pixel_extents (priv->pango_layout, &inc_rect, &logical_rect);
     text_width = logical_rect.width;
@@ -659,7 +660,7 @@ hyscan_gtk_map_grid_draw_grid (HyScanGtkMapGrid *grid,
     steps = MAX (1, width / priv->step_width);
 
     /* Определяем границу видимой области по долготе. */
-  coords1.x = from.x;
+    coords1.x = from.x;
     coords2.x = to.x;
     coords1.y = coords2.y = (from.y + to.y) / 2.0;
     hyscan_gtk_map_value_to_geo (priv->map, &coords1_geo, coords1);

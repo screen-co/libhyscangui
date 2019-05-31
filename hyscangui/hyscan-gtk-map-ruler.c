@@ -51,6 +51,7 @@
  */
 #include "hyscan-gtk-map-ruler.h"
 #include <hyscan-cartesian.h>
+#include <glib/gi18n.h>
 #include <math.h>
 
 #define SNAP_DISTANCE       6.0           /* Максимальное расстояние прилипания курсора мыши к звену ломаной. */
@@ -368,9 +369,9 @@ hyscan_gtk_map_ruler_draw_label (HyScanGtkMapRuler *ruler,
     return;
 
   if (distance < 1000.0)
-    g_snprintf (label, sizeof (label), "%.0f m", distance);
+    g_snprintf (label, sizeof (label), "%.0f %s", distance, _("m"));
   else
-    g_snprintf (label, sizeof (label), "%.2f km", distance / 1000.0);
+    g_snprintf (label, sizeof (label), "%.2f %s", distance / 1000.0, _("km"));
 
   pango_layout_set_text (priv->pango_layout, label, -1);
   pango_layout_get_size (priv->pango_layout, &width, &height);

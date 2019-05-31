@@ -2,7 +2,7 @@
 
 LIB_DIR=hyscangui
 TEXTDOMAIN=hyscangui
-SRC_DIR=(hyscangui tests)
+SRC_DIR=(hyscangui)
 
 LANG=${2:-"${LANG}"}
 LANG_DIR=$(echo $LANG | cut -d_ -f1)
@@ -33,6 +33,7 @@ case "$1" in
   po)
     echo "Writing ${PO_FILE}..."
 
+    mkdir -p $(dirname ${PO_FILE})
     [ -f ${PO_FILE} ] ||  msginit --no-translator --input=${POT_FILE} --output-file=${PO_FILE}
 
     msgmerge --update ${PO_FILE} ${POT_FILE}

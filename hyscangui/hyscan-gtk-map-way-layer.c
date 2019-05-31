@@ -856,7 +856,7 @@ hyscan_gtk_map_way_layer_draw (HyScanGtkMap         *map,
       {
         label = g_strdup_printf ("<big>%06.2f° (%s)\n%03.2f %s</big>",
                                  bearing / G_PI * 180.0,
-                                 true_heading ? C_("Heading", "T") : C_("Heading", "F"),
+                                 true_heading ? C_("Heading", "HDG") : C_("Heading", "COG"),
                                  speed,
                                  _("m/s"));
       }
