@@ -675,11 +675,11 @@ on_marks_activated (GtkTreeView        *treeview,
   GtkTreeIter iter;
 
   model = gtk_tree_view_get_model (treeview);
-  if (gtk_tree_model_get_iter(model, &iter, path))
+  if (gtk_tree_model_get_iter (model, &iter, path))
   {
     gchar *mark_id;
 
-    gtk_tree_model_get(model, &iter, MARK_ID_COLUMN, &mark_id, -1);
+    gtk_tree_model_get (model, &iter, MARK_ID_COLUMN, &mark_id, -1);
     hyscan_gtk_map_wfmark_layer_mark_view (HYSCAN_GTK_MAP_WFMARK_LAYER (priv->wfmark_layer), mark_id);
 
     g_free (mark_id);
@@ -1427,6 +1427,9 @@ hyscan_gtk_map_kit_free (HyScanGtkMapKit *kit)
   g_clear_object (&priv->db_info);
   g_clear_object (&priv->mark_model);
   g_clear_object (&priv->track_list_model);
+  g_clear_object (&priv->layer_store);
+  g_clear_object (&priv->track_store);
+  g_clear_object (&priv->mark_store);
   g_free (priv);
 
   g_free (kit);
