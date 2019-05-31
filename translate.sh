@@ -2,7 +2,7 @@
 
 LIB_DIR=hyscangui
 TEXTDOMAIN=hyscangui
-SRC_FILES=({hyscangui,tests}/*.c)
+SRC_DIR=(hyscangui tests)
 
 LANG=${2:-"${LANG}"}
 LANG_DIR=$(echo $LANG | cut -d_ -f1)
@@ -15,12 +15,13 @@ MO_FILE=${MO_DIR}/${LANG_DIR}/LC_MESSAGES/${TEXTDOMAIN}.mo
 
 case "$1" in
   pot)
-    xgettext --sort-output --language=C \
+    find ${SRC_DIR[@]} -iname *.c -o -iname *.ui | xargs \
+    xgettext --sort-output \
     --keyword=_ \
     --keyword=C_:1c,2 \
     --keyword=Q_:1g \
     --from-code=UTF-8 \
-    -o ${POT_FILE} ${SRC_FILES[@]}
+    -o ${POT_FILE}
     ;;
 
   mo)
