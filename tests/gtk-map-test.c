@@ -2,8 +2,14 @@
 #include <hyscan-gtk-map.h>
 #include <hyscan-nmea-file-device.h>
 #include <hyscan-driver.h>
+#include <glib/gi18n.h>
+#include <locale.h>
 
 #define GPS_SENSOR_NAME "my-nmea-sensor"
+
+#ifndef HYSCAN_LOCALEDIR
+#define HYSCAN_LOCALEDIR "./locale"
+#endif
 
 static gchar *db_uri;                        /* Ссылка на базу данных. */
 static gchar *project_name;                  /* Ссылка на базу данных. */
@@ -168,6 +174,12 @@ int main (int     argc,
 
     g_option_context_free (context);
   }
+
+  /* Перевод. */
+  setlocale (LC_ALL, "");
+  bindtextdomain (GETTEXT_PACKAGE, HYSCAN_LOCALEDIR);
+  bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
+  textdomain (GETTEXT_PACKAGE);
 
   /* Grid-виджет. */
   grid = gtk_grid_new ();

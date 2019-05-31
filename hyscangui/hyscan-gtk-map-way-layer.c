@@ -62,6 +62,7 @@
 #include <hyscan-cartesian.h>
 #include <hyscan-gtk-map.h>
 #include <hyscan-navigation-model.h>
+#include <glib/gi18n.h>
 #include <string.h>
 #include <math.h>
 
@@ -849,14 +850,15 @@ hyscan_gtk_map_way_layer_draw (HyScanGtkMap         *map,
 
     if (priv->track_lost)
       {
-        label = g_strdup_printf ("<big>signal lost</big>");
+        label = g_strdup_printf ("<big>%s</big>", _("Signal lost"));
       }
     else
       {
-        label = g_strdup_printf ("<big>%06.2f° (%s)\n%03.2f m/s</big>",
+        label = g_strdup_printf ("<big>%06.2f° (%s)\n%03.2f %s</big>",
                                  bearing / G_PI * 180.0,
-                                 true_heading ? "T" : "F",
-                                 speed);
+                                 true_heading ? C_("Heading", "T") : C_("Heading", "F"),
+                                 speed,
+                                 _("m/s"));
       }
 
     pango_layout_set_markup (priv->pango_layout, label, -1);

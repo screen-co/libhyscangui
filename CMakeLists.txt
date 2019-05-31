@@ -84,5 +84,6 @@ set (GTKCIFROAREA_LIBRARIES gtkcifroarea-3.1)
 include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/hyscangui")
 
 add_definitions (-DG_LOG_DOMAIN="HyScanGUI")
+add_definitions (-DGETTEXT_PACKAGE="hyscangui")
 add_subdirectory (hyscangui)
 add_subdirectory (tests)
