@@ -32,7 +32,24 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
-/** Слой карт, загружает данные из тайлов. */
+/**
+ * SECTION: hyscan-gtk-map-tiles
+ * @Short_description: Тайловый слой.
+ * @Title: HyScanGtkMapTiles
+ * @See_also: #HyScanGtkLayer, #HyScanGtkMap
+ *
+ * Слой #HyScanGtkMapTiles формирует изображение видимой области карты из тайлов.
+ * Тайлы слой от источника, реализующего интерфейс #HyScanGtkMapTileSource.
+ * В качестве источника тайлов может быть использован тайловый сервер Open Street
+ * Map или любой другой сетевой ресурс.
+ *
+ * Благодаря тому, что остальные слои карты подключаются к сигналу #GtkCifroArea::visible-draw
+ * в последнюю очередь (через g_signal_connect_after()), #HyScanGtkMapTiles получает
+ * этот сигнал раньше всех, таким образом его изображение всегда находится ниже
+ * других слоёв и формирует подложку для всех остальных.
+ *
+ *
+ */
 
 #include "hyscan-gtk-map-tiles.h"
 #include <hyscan-task-queue.h>
@@ -42,7 +59,7 @@
 #include <stdlib.h>
 
 /* Раскомментируйте следующую строку для вывода отладочной информации. */
-/* #define HYSCAN_GTK_MAP_TILES_DEBUG */
+// #define HYSCAN_GTK_MAP_TILES_DEBUG
 
 #define CACHE_HEADER_MAGIC     0x484d6170    /* Идентификатор заголовка кэша. */
 
@@ -114,15 +131,11 @@ static gboolean             hyscan_gtk_map_tiles_buffer_is_visible        (HySca
 static void                 hyscan_gtk_map_tiles_get_cache_key            (HyScanGtkMapTile         *tile,
                                                                            gchar                    *key,
                                                                            gsize                     key_length);
-static gboolean             hyscan_gtk_map_tiles_is_the_same_scale        (HyScanGtkMapTilesPrivate *priv,
-                                                                           gdouble                   scale);
 static gboolean             hyscan_gtk_map_tiles_draw_tile                (HyScanGtkMapTilesPrivate *priv,
                                                                            cairo_t                  *cairo,
                                                                            HyScanGtkMapTile         *tile);
 static cairo_surface_t *    hyscan_gtk_map_tile_surface_make              (HyScanGtkMapTilesPrivate *priv,
                                                                            gboolean                 *filled);
-static cairo_surface_t *    hyscan_gtk_map_tile_surface_scale             (cairo_surface_t          *origin,
-                                                                           gdouble                   scale);
 static guint                hyscan_gtk_map_tiles_get_optimal_zoom         (HyScanGtkMapTilesPrivate *priv);
 static gdouble              hyscan_gtk_map_tiles_get_scaling              (HyScanGtkMapTilesPrivate *priv,
                                                                            guint                     zoom);
@@ -579,21 +592,6 @@ hyscan_gtk_map_tiles_get_optimal_zoom (HyScanGtkMapTilesPrivate *priv)
   return hyscan_gtk_map_tile_grid_adjust_zoom (priv->tile_grid, 1 / scale);
 }
 
-/* Проверяет, что scale и priv->scale дают один и тот же размер поверхности. */
-static gboolean
-hyscan_gtk_map_tiles_is_the_same_scale (HyScanGtkMapTilesPrivate *priv,
-                                        gdouble                   scale)
-{
-  guint width;
-  guint height;
-
-  width = (guint) priv->tile_size * (priv->to_x - priv->from_x + 1);
-  height = (guint) priv->tile_size * (priv->to_y - priv->from_y + 1);
-
-  return (gint) (width / scale) == (gint) (width / priv->scale) &&
-         (gint) (height / scale) == (gint) (height / priv->scale);
-}
-
 /* Риусет тайл (x, y) в контексте cairo. */
 static gboolean
 hyscan_gtk_map_tiles_draw_tile (HyScanGtkMapTilesPrivate *priv,
@@ -647,10 +645,13 @@ hyscan_gtk_map_tiles_draw_tile (HyScanGtkMapTilesPrivate *priv,
   {
     gchar label[255];
 
-    cairo_move_to (cairo, (x - x0) * tile_size, (y - y0) * tile_size);
-    cairo_set_source_rgb (cairo, 0, 0, 0);
+    cairo_move_to (cairo, (x - x0 + 0.5) * tile_size, (y - y0 + 0.5) * tile_size);
+    cairo_set_source_rgba (cairo, 0, 0, 0, 0.5);
     g_snprintf (label, sizeof (label), "%d, %d", x, y);
     cairo_show_text (cairo, label);
+    cairo_rectangle (cairo, x_point, y_point, tile_size, tile_size);
+    cairo_set_line_width (cairo, 1.0);
+    cairo_stroke (cairo);
   }
 #endif
 
@@ -729,37 +730,6 @@ hyscan_gtk_map_tile_surface_make (HyScanGtkMapTilesPrivate *priv,
   return surface;
 }
 
-/* Создаёт новую поверхность cairo с растянутым изображением origin. */
-static cairo_surface_t *
-hyscan_gtk_map_tile_surface_scale (cairo_surface_t *origin,
-                                   gdouble          scale)
-{
-  cairo_surface_t *surface;
-  cairo_t *cairo;
-
-  guint width;
-  guint height;
-
-  width = cairo_image_surface_get_width (origin);
-  height = cairo_image_surface_get_height (origin);
-
-  surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32,
-                                        (guint) fabs (width * scale),
-                                        (guint) fabs (height * scale));
-
-  cairo = cairo_create (surface);
-  cairo_scale (cairo, scale, scale);
-  cairo_set_source_surface (cairo, origin, 0, 0);
-
-  /* Делаем быстрый билинейный ресемплинг изображения, чтобы gui не тормозил. */
-  cairo_pattern_set_filter (cairo_get_source (cairo), CAIRO_FILTER_BILINEAR);
-  cairo_paint (cairo);
-
-  cairo_destroy (cairo);
-
-  return surface;
-}
-
 /* Обновляет поверхность cairo, чтобы она содержала запрошенную область с тайлами.
  * Возвращает %TRUE, если поверхность была перерисована. */
 static gboolean
@@ -770,16 +740,12 @@ hyscan_gtk_map_refresh_surface (HyScanGtkMapTilesPrivate *priv,
                                 guint                     yn,
                                 guint                     zoom)
 {
-  cairo_surface_t *surface;
-  gdouble scale;
-
   g_return_val_if_fail (x0 <= xn && y0 <= yn, FALSE);
 
-  scale = hyscan_gtk_map_tiles_get_scaling (priv, zoom);
+  priv->scale = hyscan_gtk_map_tiles_get_scaling (priv, zoom);
 
   /* Если нужный регион уже отрисован, то ничего не делаем. */
   if (priv->surface_filled &&
-      hyscan_gtk_map_tiles_is_the_same_scale (priv, scale) &&
       priv->from_x <= x0 && priv->to_x >= xn &&
       priv->from_y <= y0 && priv->to_y >= yn &&
       priv->zoom == zoom)
@@ -793,16 +759,10 @@ hyscan_gtk_map_refresh_surface (HyScanGtkMapTilesPrivate *priv,
   priv->from_y = CLAMP_TILE (y0 - priv->preload_margin, zoom);
   priv->to_y = CLAMP_TILE (yn + priv->preload_margin, zoom);
   priv->zoom = zoom;
-  priv->scale = scale;
 
   /* Рисуем все нужные тайлы в их исходном размере. */
-  surface = hyscan_gtk_map_tile_surface_make (priv, &priv->surface_filled);
-
-  /* Затем делаем ресемплинг изображения. */
   g_clear_pointer (&priv->surface, cairo_surface_destroy);
-  priv->surface = hyscan_gtk_map_tile_surface_scale (surface, scale);
-
-  cairo_surface_destroy (surface);
+  priv->surface = hyscan_gtk_map_tile_surface_make (priv, &priv->surface_filled);
 
   return TRUE;
 }
@@ -861,12 +821,16 @@ hyscan_gtk_map_tiles_draw (HyScanGtkMapTiles *layer,
   xn = CLAMP_TILE (xn, zoom);
   yn = CLAMP_TILE (yn, zoom);
 
+  /* Обновляем внутренний буфер с изображением видимой области. */
   refreshed = hyscan_gtk_map_refresh_surface (priv, x0, xn, y0, yn, zoom);
 
-  /* Растягиваем буфер под необходимый размер тайла и переносим его на поверхность виджета. */
+  /* Растягиваем буфер под текущий масштаб и переносим его на поверхность виджета. */
   {
     gdouble xs, ys;
     gdouble x_val, y_val;
+
+    cairo_pattern_t *pattern;
+    cairo_matrix_t matrix;
 
     /* Получаем координаты в логической СК. */
     hyscan_gtk_map_tile_grid_tile_to_value (priv->tile_grid, zoom, priv->from_x, priv->from_y, &x_val, &y_val);
@@ -874,9 +838,18 @@ hyscan_gtk_map_tiles_draw (HyScanGtkMapTiles *layer,
     /* Переводим в коордианты для рисования. */
     gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &xs, &ys, x_val, y_val);
 
-    /* Рисуем буфер. */
-    cairo_set_source_surface (cairo, priv->surface, xs, ys);
+    /* Определяем матрицу преобразований буфера. */
+    cairo_matrix_init_scale (&matrix, 1.0 / priv->scale, 1.0 / priv->scale);
+    cairo_matrix_translate (&matrix, -xs, -ys);
+
+    /* Переносим буфер на поверхность CifroArea. Используем быстрый фильтр CAIRO_FILTER_BILINEAR. */
+    pattern = cairo_pattern_create_for_surface (priv->surface);
+    cairo_pattern_set_matrix (pattern, &matrix);
+    cairo_pattern_set_filter (pattern, CAIRO_FILTER_BILINEAR);
+
+    cairo_set_source (cairo, pattern);
     cairo_paint (cairo);
+    cairo_pattern_destroy (pattern);
   }
 
 #ifdef HYSCAN_GTK_MAP_TILES_DEBUG
