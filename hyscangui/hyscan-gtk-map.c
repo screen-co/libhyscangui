@@ -716,7 +716,7 @@ hyscan_gtk_map_geo_to_value (HyScanGtkMap         *map,
  * @map: указатель на карту #HyScanGtkMap
  * @scales: (array length=scales_len): допустимые масштабы в метр на пиксель
  *          на экваторе
- * @scales_len:
+ * @scales_len: длина массива scales
  *
  * Устанавливает допустимые масштабы карты. Сгенерировать масштабы можно с
  * помощью функции hyscan_gtk_map_create_scales2().

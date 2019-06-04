@@ -83,14 +83,8 @@ enum
 {
   PROP_O,
   PROP_NAV_MODEL,
+  PROP_USE_CACHE
 };
-
-typedef enum
-{
-  STATE_ACTUAL,                    /* Тайл в актуальном состоянии. */
-  STATE_OUTDATED,                  /* Тайл не в актуальном состоянии, но можно показывать. */
-  STATE_IRRELEVANT                 /* Тайл не в актуальном состоянии, нельзя показывать. */
-} HyScanGtkMapWayLayerModState;
 
 typedef struct
 {
@@ -103,9 +97,9 @@ typedef struct
 
 typedef struct
 {
-  cairo_surface_t            *surface;   /* Поверхность с изображением маркера. */
-  gdouble                     x;         /* Координата x нулевой точки на поверхности маркера. */
-  gdouble                     y;         /* Координата y нулевой точки на поверхности маркера. */
+  cairo_surface_t            *surface;   /* Поверхность с изображением стрелки. */
+  gdouble                     x;         /* Координата x положения судна на поверхности surface. */
+  gdouble                     y;         /* Координата y положения судна на поверхности surface. */
 } HyScanGtkMapWayLayerArrow;
 
 struct _HyScanGtkMapWayLayerPrivate
@@ -184,6 +178,9 @@ hyscan_gtk_map_way_layer_class_init (HyScanGtkMapWayLayerClass *klass)
     g_param_spec_object ("nav-model", "Navigation model", "HyScanNavigationModel",
                           HYSCAN_TYPE_NAVIGATION_MODEL,
                           G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+  g_object_class_install_property (object_class, PROP_USE_CACHE,
+    g_param_spec_boolean ("use-cache", "Cache layer in tiles", "Set TRUE to draw layer with tiles", TRUE,
+                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
@@ -207,6 +204,10 @@ hyscan_gtk_map_way_layer_set_property (GObject     *object,
       priv->nav_model = g_value_dup_object (value);
       break;
 
+    case PROP_USE_CACHE:
+      priv->has_cache = g_value_get_boolean (value);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -220,8 +221,6 @@ hyscan_gtk_map_way_layer_object_constructed (GObject *object)
   HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
 
   G_OBJECT_CLASS (hyscan_gtk_map_way_layer_parent_class)->constructed (object);
-
-  priv->has_cache = hyscan_gtk_map_tiled_layer_has_cache (HYSCAN_GTK_MAP_TILED_LAYER (way_layer));
 
   priv->track = g_queue_new ();
 
@@ -968,19 +967,16 @@ hyscan_gtk_map_way_layer_added (HyScanGtkLayer          *layer,
 /**
  * hyscan_gtk_map_way_layer_new:
  * @nav_model: указатель на модель навигационных данных #HyScanNavigationModel
- * @cache: указатель на кэш #HyScanCache
  *
  * Создает новый слой с треком движения объекта.
  *
  * Returns: указатель на #HyScanGtkMapWayLayer
  */
 HyScanGtkLayer *
-hyscan_gtk_map_way_layer_new (HyScanNavigationModel *nav_model,
-                                HyScanCache           *cache)
+hyscan_gtk_map_way_layer_new (HyScanNavigationModel *nav_model)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_WAY_LAYER,
                        "nav-model", nav_model,
-                       "cache", cache,
                        NULL);
 }
 

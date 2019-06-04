@@ -69,8 +69,7 @@ HYSCAN_API
 GType                    hyscan_gtk_map_way_layer_get_type     (void);
 
 HYSCAN_API
-HyScanGtkLayer *         hyscan_gtk_map_way_layer_new          (HyScanNavigationModel *nav_model,
-                                                                  HyScanCache           *cache);
+HyScanGtkLayer *         hyscan_gtk_map_way_layer_new          (HyScanNavigationModel *nav_model);
 
 HYSCAN_API
 void                     hyscan_gtk_map_way_layer_set_lifetime (HyScanGtkMapWayLayer *way_layer,

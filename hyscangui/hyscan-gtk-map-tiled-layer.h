@@ -84,9 +84,6 @@ HYSCAN_API
 void                 hyscan_gtk_map_tiled_layer_set_param_mod       (HyScanGtkMapTiledLayer *tiled_layer);
 
 HYSCAN_API
-gboolean             hyscan_gtk_map_tiled_layer_has_cache           (HyScanGtkMapTiledLayer *tiled_layer);
-
-HYSCAN_API
 void                 hyscan_gtk_map_tiled_layer_request_draw        (HyScanGtkMapTiledLayer *tiled_layer);
 
 G_END_DECLS

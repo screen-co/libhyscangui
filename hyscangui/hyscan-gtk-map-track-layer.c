@@ -537,8 +537,7 @@ hyscan_gtk_map_track_layer_new (HyScanDB             *db,
                        "db", db,
                        "project", project,
                        "track-list-model", track_list_model,
-                       "data-cache", cache,
-                       "cache", cache, NULL);
+                       "data-cache", cache, NULL);
 }
 
 /* Ищет галс в хэш-таблице; если галс не найден, то создает новый и добавляет

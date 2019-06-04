@@ -108,7 +108,7 @@ create_map (HyScanGtkMapKit *kit)
   map = HYSCAN_GTK_MAP (hyscan_gtk_map_new (&priv->center));
 
   /* Устанавливаем допустимые масштабы. */
-  scales = hyscan_gtk_map_create_scales2 (1.0 / 10, HYSCAN_GTK_MAP_EQUATOR_LENGTH / 1000, 4, &scales_len);
+  scales = hyscan_gtk_map_create_scales2 (1.0 / 1000, HYSCAN_GTK_MAP_EQUATOR_LENGTH / 1000, 4, &scales_len);
   hyscan_gtk_map_set_scales_meter (map, scales, scales_len);
   g_free (scales);
 
@@ -1273,7 +1273,7 @@ create_layers (HyScanGtkMapKit *kit)
 
   /* Слой с траекторией движения судна. */
   if (priv->nav_model != NULL)
-    priv->way_layer = hyscan_gtk_map_way_layer_new (priv->nav_model, priv->cache);
+    priv->way_layer = hyscan_gtk_map_way_layer_new (priv->nav_model);
 
   /* Слой с галсами. */
   if (priv->db != NULL && priv->track_list_model != NULL)

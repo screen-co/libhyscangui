@@ -58,13 +58,11 @@
  */
 
 #include "hyscan-gtk-map-tiled-layer.h"
+#include <hyscan-cartesian.h>
 #include <hyscan-task-queue.h>
 #include <hyscan-gtk-map.h>
 #include <hyscan-buffer.h>
 
-#define CACHE_TRACK_MOD_MAGIC  0x4d546d64    /* Идентификатор заголовка кэша. */
-#define CACHE_HEADER_MAGIC     0xcfadec2d    /* Идентификатор заголовка кэша. */
-#define CACHE_KEY_LEN          127           /* Длина ключа кэша. */
 #define TILE_SIZE              256           /* Размер тайла. */
 
 /* Раскомментируйте строку ниже для вывода отладочной информации на тайлах. */
@@ -73,45 +71,34 @@
 enum
 {
   PROP_O,
-  PROP_CACHE
+  PROP_CACHE_SIZE
 };
 
-typedef enum
-{
-  STATE_ACTUAL,                    /* Тайл в актуальном состоянии. */
-  STATE_OUTDATED,                  /* Тайл не в актуальном состоянии, но можно показывать. */
-  STATE_IRRELEVANT                 /* Тайл не в актуальном состоянии, нельзя показывать. */
-} HyScanGtkMapTiledLayerModState;
-
-/* Структура с информацией о последнем изменении трека внутри некоторого тайла. */
 typedef struct
 {
-  guint32                              magic;          /* Идентификатор заголовка. */
-  guint64                              mod;            /* Номер изменения трека. */
-} HyScanGtkMapTiledLayerMod;
-
-typedef struct
-{
-  guint32                              magic;          /* Идентификатор заголовка. */
-  guint                                mod;            /* Номер изменения трека в момент отрисовки тайла. */
-  gsize                                size;           /* Размер данных поверхности. */
-} HyScanGtkMapTiledLayerCacheHeader;
+  HyScanGtkMapTile             *tile;              /* Заполненный тайл. */
+  guint                         fill_mod;          /* Номер изменения данных в момент отрисовки тайла. */
+  guint                         actual_mod;        /* Актуальный номер изменения данных для тайла. */
+  guint                         param_mod;         /* Номер изменения параметров в момент отрисовки тайла. */
+  HyScanGeoCartesian2D          area_from;         /* Граница области, которую покрывает тайл. */
+  HyScanGeoCartesian2D          area_to;           /* Граница области, которую покрывает тайл. */
+} HyScanGtkMapTiledLayerCache;
 
 struct _HyScanGtkMapTiledLayerPrivate
 {
-  HyScanGtkMap                 *map;                        /* Виджет карты, на котором размещен слой. */
-  HyScanGtkMapTileGrid         *tile_grid;                  /* Тайловая сетка. */
-  HyScanTaskQueue              *task_queue;                 /* Очередь по загрузке тайлов. */
-  HyScanCache                  *cache;                      /* Кэш тайлов. */
-  HyScanBuffer                 *tile_buffer;                /* Буфер для получения поверхности тайла. */
-  HyScanBuffer                 *cache_buffer;               /* Буфер для получения заголовка кэша. */
-  gchar                         cache_key[CACHE_KEY_LEN];   /* Ключ кэша. */
+  HyScanGtkMap                 *map;               /* Виджет карты, на котором размещен слой. */
+  HyScanGtkMapTileGrid         *tile_grid;         /* Тайловая сетка. */
+  HyScanTaskQueue              *task_queue;        /* Очередь по загрузке тайлов. */
 
-  guint                         mod_count;                  /* Номер изменения данных. */
-  guint                         param_mod_count;            /* Номер изменения в параметрах отображения слоя. */
+  GRWLock                       rw_lock;           /* Блокировка доступа к cached_tiles. */
+  GQueue                       *cached_tiles;      /* Список кэшированных тайлов. */
+  guint                         cache_size;        /* Максимально разрешённое число тайлов в кэше. */
 
-  gboolean                      redraw;                     /* Признак необходимости перерисовки. */
-  guint                         redraw_tag;                 /* Тэг функции, которая запрашивает перерисовку. */
+  guint                         mod_count;         /* Номер изменения данных. */
+  guint                         param_mod_count;   /* Номер изменения в параметрах отображения слоя. */
+
+  gboolean                      redraw;            /* Признак необходимости перерисовки. */
+  guint                         redraw_tag;        /* Тэг функции, которая запрашивает перерисовку. */
 };
 
 static void    hyscan_gtk_map_tiled_layer_interface_init           (HyScanGtkLayerInterface *iface);
@@ -136,10 +123,10 @@ hyscan_gtk_map_tiled_layer_class_init (HyScanGtkMapTiledLayerClass *klass)
   object_class->constructed = hyscan_gtk_map_tiled_layer_object_constructed;
   object_class->finalize = hyscan_gtk_map_tiled_layer_object_finalize;
 
-  g_object_class_install_property (object_class, PROP_CACHE,
-    g_param_spec_object ("cache", "Tile cache", "HyScanCache",
-                          HYSCAN_TYPE_CACHE,
-                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+  g_object_class_install_property (object_class, PROP_CACHE_SIZE,
+    g_param_spec_uint ("cache-size", "Tile cache size", "Maximum allowed number of tiles in cache",
+                       30, 1000, 250,
+                       G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
@@ -159,8 +146,8 @@ hyscan_gtk_map_tiled_layer_set_property (GObject      *object,
 
   switch (prop_id)
     {
-    case PROP_CACHE:
-      priv->cache = g_value_dup_object (value);
+    case PROP_CACHE_SIZE:
+      priv->cache_size = g_value_get_uint (value);
       break;
 
     default:
@@ -177,8 +164,8 @@ hyscan_gtk_map_tiled_layer_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_gtk_map_tiled_layer_parent_class)->constructed (object);
 
-  priv->cache_buffer = hyscan_buffer_new ();
-  priv->tile_buffer = hyscan_buffer_new ();
+  priv->cached_tiles = g_queue_new ();
+  g_rw_lock_init (&priv->rw_lock);
 }
 
 static void
@@ -187,141 +174,62 @@ hyscan_gtk_map_tiled_layer_object_finalize (GObject *object)
   HyScanGtkMapTiledLayer *gtk_map_tiled_layer = HYSCAN_GTK_MAP_TILED_LAYER (object);
   HyScanGtkMapTiledLayerPrivate *priv = gtk_map_tiled_layer->priv;
 
-  g_clear_object (&priv->cache);
-  g_clear_object (&priv->cache_buffer);
-  g_clear_object (&priv->tile_buffer);
+  g_rw_lock_clear (&priv->rw_lock);
+  g_queue_free (priv->cached_tiles);
 
   G_OBJECT_CLASS (hyscan_gtk_map_tiled_layer_parent_class)->finalize (object);
 }
 
-/* Ключ кэширования. */
-static void
-hyscan_gtk_map_tiled_layer_tile_cache_key (HyScanGtkMapTiledLayer *tiled_layer,
-                                           HyScanGtkMapTile       *tile,
-                                           gchar                  *key,
-                                           gulong                  key_len)
-{
-  // todo: add id of layer
-  g_snprintf (key, key_len,
-              "GtkMapTiledLayer.%u.%d.%d.%u",
-              g_atomic_int_get (&tiled_layer->priv->param_mod_count),
-              hyscan_gtk_map_tile_get_x (tile),
-              hyscan_gtk_map_tile_get_y (tile),
-              hyscan_gtk_map_tile_get_zoom (tile));
-}
-
-static void
-hyscan_gtk_map_tiled_layer_mod_cache_key (HyScanGtkMapTiledLayer *tiled_layer,
-                                          guint                   x,
-                                          guint                   y,
-                                          guint                   z,
-                                          gchar                  *key,
-                                          gulong                  key_len)
-{
-  // todo: add id of layer
-  g_snprintf (key, key_len,
-              "GtkMapTiledLayer.mc.%d.%d.%d.%d",
-              g_atomic_int_get (&tiled_layer->priv->param_mod_count),
-              x, y, z);
-}
-
-/* Возвращает статус актуальности тайла. */
-static HyScanGtkMapTiledLayerModState
-hyscan_gtk_map_tiled_layer_get_mod_actual (HyScanGtkMapTiledLayer *tiled_layer,
-                                           HyScanGtkMapTile       *tile,
-                                           guint                   mod)
-{
-  HyScanGtkMapTiledLayerPrivate *priv = tiled_layer->priv;
-
-  gboolean found;
-  gchar mod_cache_key[127];
-  guint x, y, z;
-  HyScanBuffer *buffer;
-
-  HyScanGtkMapTiledLayerMod last_update;
-  gint state;
-
-  x = hyscan_gtk_map_tile_get_x (tile);
-  y = hyscan_gtk_map_tile_get_y (tile);
-  z = hyscan_gtk_map_tile_get_zoom (tile);
-
-  hyscan_gtk_map_tiled_layer_mod_cache_key (tiled_layer, x, y, z, mod_cache_key, sizeof (mod_cache_key));
-
-  buffer = hyscan_buffer_new ();
-  hyscan_buffer_wrap (buffer, HYSCAN_DATA_BLOB, &last_update, sizeof (last_update));
-
-  found = hyscan_cache_get (priv->cache, mod_cache_key, NULL, buffer);
-
-  /* Если кэш не попал, то запишем в него значение, которое сделает тайл неактуальным. */
-  if (!found || last_update.magic != CACHE_TRACK_MOD_MAGIC)
-    {
-      last_update.magic = CACHE_TRACK_MOD_MAGIC;
-      last_update.mod = mod;
-      hyscan_cache_set (priv->cache, mod_cache_key, NULL, buffer);
-    }
-
-  if (last_update.mod > mod + 5)
-    state = STATE_IRRELEVANT;
-  else if (last_update.mod > mod)
-    state = STATE_OUTDATED;
-  else
-    state = STATE_ACTUAL;
-
-  g_object_unref (buffer);
-
-  return state;
-}
-
-/* Получает из кэша пискельные данные тайла и записывает их в tile_buffer. */
+/* Получает из кэша изображение поверхности тайла и записывает их в @tile. */
 static gboolean
 hyscan_gtk_map_tiled_layer_cache_get (HyScanGtkMapTiledLayer *tiled_layer,
                                       HyScanGtkMapTile       *tile,
-                                      HyScanBuffer           *tile_buffer,
                                       gboolean               *refill)
 {
   HyScanGtkMapTiledLayerPrivate *priv = tiled_layer->priv;
-  HyScanGtkMapTiledLayerCacheHeader header;
 
   gboolean found = FALSE;
   gboolean refill_ = TRUE;
 
-  if (priv->cache == NULL)
-    goto exit;
+  GList *tile_l;
 
-  /* Ищем в кэше. */
-  hyscan_gtk_map_tiled_layer_tile_cache_key (tiled_layer, tile, priv->cache_key, CACHE_KEY_LEN);
-  hyscan_buffer_wrap (priv->cache_buffer, HYSCAN_DATA_BLOB, &header, sizeof (header));
-  if (!hyscan_cache_get2 (priv->cache, priv->cache_key, NULL, sizeof (header), priv->cache_buffer, tile_buffer))
-    goto exit;
+  g_rw_lock_reader_lock (&priv->rw_lock);
 
-  /* Верифицируем. */
-  if ((header.magic != CACHE_HEADER_MAGIC) ||
-      (header.size != hyscan_buffer_get_data_size (tile_buffer)))
+  /* Ищем в кэше тайл. */
+  for (tile_l = priv->cached_tiles->head; tile_l != NULL; tile_l = tile_l->next)
     {
-      goto exit;
+      HyScanGtkMapTiledLayerCache *cache = tile_l->data;
+      HyScanGtkMapTile *cached_tile = cache->tile;
+      cairo_surface_t *surface;
+
+      if (hyscan_gtk_map_tile_compare (cached_tile, tile) != 0)
+        continue;
+
+      found = TRUE;
+      refill_ = cache->actual_mod > cache->fill_mod;
+
+      surface = hyscan_gtk_map_tile_get_surface (cached_tile);
+      hyscan_gtk_map_tile_set_surface (tile, surface);
+
+      cairo_surface_destroy (surface);
     }
 
-  /* Проверяем, насколько актуален найденный тайл. */
-  switch (hyscan_gtk_map_tiled_layer_get_mod_actual (tiled_layer, tile, header.mod))
-    {
-    case STATE_ACTUAL:
-      refill_ = FALSE;
-      found = TRUE;
-      break;
+  g_rw_lock_reader_unlock (&priv->rw_lock);
 
-    case STATE_OUTDATED:
-      refill_ = TRUE;
-      found = TRUE;
-      break;
-
-    case STATE_IRRELEVANT:
-      refill_ = TRUE;
-      found = FALSE;
-      break;
-    }
-
-exit:
   *refill = refill_;
+
+#ifdef DEBUG_TILES
+  {
+    static guint total = 0;
+    static guint hit = 0;
+
+    ++total;
+    if (found)
+      ++hit;
+
+    g_message ("Cache hit: %d/%d = %.2f%%", hit, total, 100.0 * hit / total);
+  }
+#endif
 
   return found;
 }
@@ -352,6 +260,7 @@ hyscan_gtk_map_tiled_layer_proj_notify (HyScanGtkMapTiledLayer *tiled_layer,
   HyScanGtkMapTiledLayerPrivate *priv = tiled_layer->priv;
 
   hyscan_gtk_map_tiled_layer_update_grid (priv);
+  hyscan_gtk_map_tiled_layer_set_param_mod (tiled_layer);
 }
 
 static guint
@@ -383,9 +292,9 @@ hyscan_gtk_map_tiled_layer_fill_tile (HyScanGtkMapTiledLayer *tiled_layer,
     x = hyscan_gtk_map_tile_get_x (tile);
     y = hyscan_gtk_map_tile_get_y (tile);
     tile_size = hyscan_gtk_map_tile_get_size (tile);
+
+    /* Заливка рандомного цвета. */
     rand = g_rand_new ();
-    g_snprintf (tile_num, sizeof (tile_num), "tile %d, %d", x, y);
-    cairo_move_to (cairo, tile_size / 2.0, tile_size / 2.0);
     cairo_set_source_rgba (cairo,
                            g_rand_double_range (rand, 0.0, 1.0),
                            g_rand_double_range (rand, 0.0, 1.0),
@@ -393,7 +302,11 @@ hyscan_gtk_map_tiled_layer_fill_tile (HyScanGtkMapTiledLayer *tiled_layer,
                            0.1);
     cairo_paint (cairo);
     cairo_set_source_rgb (cairo, 0.2, 0.2, 0);
-    cairo_show_text (cairo, tile_num);
+
+    /* Название тайла. */
+    // g_snprintf (tile_num, sizeof (tile_num), "tile %d, %d", x, y);
+    // cairo_move_to (cairo, tile_size / 2.0, tile_size / 2.0);
+    // cairo_show_text (cairo, tile_num); // here
 
     cairo_surface_destroy (surface);
     cairo_destroy (cairo);
@@ -403,51 +316,92 @@ hyscan_gtk_map_tiled_layer_fill_tile (HyScanGtkMapTiledLayer *tiled_layer,
   return mod_count;
 }
 
+static void
+hyscan_gtk_map_tiled_layer_cache_free (HyScanGtkMapTiledLayerCache *cache)
+{
+  g_object_unref (cache->tile);
+  g_slice_free (HyScanGtkMapTiledLayerCache, cache);
+}
+
+static void
+hyscan_gtk_map_tiled_layer_cache_trim (HyScanGtkMapTiledLayer *tiled_layer)
+{
+  HyScanGtkMapTiledLayerPrivate *priv = tiled_layer->priv;
+
+  g_rw_lock_writer_lock (&priv->rw_lock);
+  while (priv->cached_tiles->length > priv->cache_size)
+    {
+      HyScanGtkMapTiledLayerCache *cache;
+
+      cache = g_queue_pop_tail (priv->cached_tiles);
+      hyscan_gtk_map_tiled_layer_cache_free (cache);
+    }
+  g_rw_lock_writer_unlock (&priv->rw_lock);
+}
+
+static void
+hyscan_gtk_map_tiled_layer_cache_clean (HyScanGtkMapTiledLayer *tiled_layer)
+{
+  HyScanGtkMapTiledLayerPrivate *priv = tiled_layer->priv;
+
+  g_rw_lock_writer_lock (&priv->rw_lock);
+  g_queue_free_full (priv->cached_tiles, (GDestroyNotify) hyscan_gtk_map_tiled_layer_cache_free);
+  priv->cached_tiles = g_queue_new ();
+  g_rw_lock_writer_unlock (&priv->rw_lock);
+}
+
 /* Помещает в кэш информацию о тайле. */
 static void
 hyscan_gtk_map_tiled_layer_cache_set (HyScanGtkMapTiledLayer *tiled_layer,
                                       HyScanGtkMapTile       *tile,
-                                      guint                   mod_count)
+                                      guint                   mod_count,
+                                      guint                   param_mod_count)
 {
   HyScanGtkMapTiledLayerPrivate *priv = tiled_layer->priv;
+  GList *tile_l;
+  HyScanGtkMapTiledLayerCache *cache = NULL;
+  gboolean found = FALSE;
 
-  gchar cache_key[CACHE_KEY_LEN];
+  g_rw_lock_writer_lock (&priv->rw_lock);
 
-  HyScanGtkMapTiledLayerCacheHeader header;
-  HyScanBuffer *header_buf;
+  /* Ищем в кэше тайл. */
+  for (tile_l = priv->cached_tiles->head; tile_l != NULL; tile_l = tile_l->next)
+    {
+      cache = tile_l->data;
 
-  const guint8 *tile_data;
-  HyScanBuffer *tile_buf;
+      if (hyscan_gtk_map_tile_compare (cache->tile, tile) != 0)
+        continue;
 
-  cairo_surface_t *surface;
+      /* Если тайл нашёлся, выдёргиваем его из стека. */
+      g_queue_unlink (priv->cached_tiles, tile_l);
+      found = TRUE;
+      break;
+    }
 
-  if (priv->cache == NULL)
-    return;
+  if (G_UNLIKELY (!found))
+    {
+      cache = g_slice_new0 (HyScanGtkMapTiledLayerCache);
+      hyscan_gtk_map_tile_get_bounds (tile, &cache->area_from, &cache->area_to);
 
-  surface = hyscan_gtk_map_tile_get_surface (tile);
-  if (surface == NULL)
-    return;
+      tile_l = g_list_alloc ();
+      tile_l->data = cache;
+    }
+  else
+    {
+      g_object_unref (cache->tile);
+    }
 
-  tile_buf = hyscan_buffer_new ();
-  header_buf = hyscan_buffer_new ();
+  /* Пишем в кэш актуальную информацию. */
+  cache->fill_mod = mod_count;
+  cache->param_mod = param_mod_count;
+  cache->tile = g_object_ref (tile);
 
-  /* Оборачиваем в буфер заголовок с информацией об изображении. */
-  header.magic = CACHE_HEADER_MAGIC;
-  header.mod = mod_count;
-  header.size = cairo_image_surface_get_stride (surface) * cairo_image_surface_get_height (surface);
-  hyscan_buffer_wrap (header_buf, HYSCAN_DATA_BLOB, &header, sizeof (header));
+  /* Помещаем заполненный тайл на верх стека. */
+  g_queue_push_head_link (priv->cached_tiles, tile_l);
 
-  /* Оборачиваем в буфер пиксельные данные. */
-  tile_data = cairo_image_surface_get_data (surface);
-  hyscan_buffer_wrap (tile_buf, HYSCAN_DATA_BLOB, (gpointer) tile_data, header.size);
+  g_rw_lock_writer_unlock (&priv->rw_lock);
 
-  /* Помещаем все данные в кэш. */
-  hyscan_gtk_map_tiled_layer_tile_cache_key (tiled_layer, tile, cache_key, CACHE_KEY_LEN);
-  hyscan_cache_set2 (priv->cache, cache_key, NULL, header_buf, tile_buf);
-
-  cairo_surface_destroy (surface);
-  g_object_unref (header_buf);
-  g_object_unref (tile_buf);
+  hyscan_gtk_map_tiled_layer_cache_trim (tiled_layer);
 }
 
 
@@ -459,13 +413,15 @@ hyscan_gtk_map_tiled_layer_process (GObject      *task,
                                     GCancellable *cancellable)
 {
   HyScanGtkMapTile *tile = HYSCAN_GTK_MAP_TILE (task);
-  HyScanGtkMapTiledLayer*tiled_layer = HYSCAN_GTK_MAP_TILED_LAYER (user_data);
+  HyScanGtkMapTiledLayer *tiled_layer = HYSCAN_GTK_MAP_TILED_LAYER (user_data);
+  HyScanGtkMapTiledLayerPrivate *priv = tiled_layer->priv;
 
-  guint mod_count;
+  guint mod_count, param_mod_count;
 
   /* Заполняет тайл и помещаем его в кэш. */
+  param_mod_count = g_atomic_int_get (&priv->param_mod_count);
   mod_count = hyscan_gtk_map_tiled_layer_fill_tile (tiled_layer, tile);
-  hyscan_gtk_map_tiled_layer_cache_set (tiled_layer, tile, mod_count);
+  hyscan_gtk_map_tiled_layer_cache_set (tiled_layer, tile, mod_count, param_mod_count);
 
   /* Просим перерисовать. */
   hyscan_gtk_map_tiled_layer_request_draw (tiled_layer);
@@ -568,23 +524,14 @@ hyscan_gtk_map_tiled_layer_draw (HyScanGtkMapTiledLayer *tiled_layer,
 
         /* Заполняем тайл. */
         tile = hyscan_gtk_map_tile_new (priv->tile_grid, x, y, scale_idx);
-        found = hyscan_gtk_map_tiled_layer_cache_get (tiled_layer, tile, priv->tile_buffer, &refill);
-
-        /* Если надо, отправляем тайл на перерисовку. */
-        if (refill)
-          hyscan_task_queue_push (priv->task_queue, G_OBJECT (tile));
+        found = hyscan_gtk_map_tiled_layer_cache_get (tiled_layer, tile, &refill);
 
         /* Если тайл наден, то рисуем его. */
         if (found)
           {
-            guint32 size;
-            gpointer cached_data;
-
             cairo_surface_t *surface;
 
             /* Загружаем поверхность тайла из буфера. */
-            cached_data = hyscan_buffer_get (priv->tile_buffer, NULL, &size);
-            hyscan_gtk_map_tile_set_surface_data (tile, cached_data, size);
             surface = hyscan_gtk_map_tile_get_surface (tile);
 
             /* Переносим поверхность тайла на изображение слоя. */
@@ -595,7 +542,13 @@ hyscan_gtk_map_tiled_layer_draw (HyScanGtkMapTiledLayer *tiled_layer,
 
             /* Освобождаем поверхность. */
             cairo_surface_destroy (surface);
+          }
+
+        /* Если надо, отправляем тайл на перерисовку. */
+        if (refill)
+          {
             hyscan_gtk_map_tile_set_surface (tile, NULL);
+            hyscan_task_queue_push (priv->task_queue, G_OBJECT (tile));
           }
 
         g_object_unref (tile);
@@ -605,10 +558,18 @@ hyscan_gtk_map_tiled_layer_draw (HyScanGtkMapTiledLayer *tiled_layer,
   hyscan_task_queue_push_end (priv->task_queue);
 }
 
-/* Записывает, что актуальная версия тайлов с указанным отрезком point0 - point1
- * соответствует номеру изменения mod_count.
+/**
+ * hyscan_gtk_map_tiled_layer_set_area_mod:
+ * @tiled_layer: слой тайлов
+ * @point0: координаты начала отрезка
+ * @point1: координаты конца отрезка
  *
- * Функция должна вызываться за мьютексом! */
+ * Фиксирует изменение области, в которой находится отрезок @point0 - @point1,
+ * например, из-за поступления новых данных. Тайлы всех масштабов, содержащие
+ * изображение этой области, будут считаться более  невалидными и при следующем
+ * выводе потребуют перерисовки.
+ *
+ */
 void
 hyscan_gtk_map_tiled_layer_set_area_mod (HyScanGtkMapTiledLayer *tiled_layer,
                                          HyScanGeoCartesian2D   *point0,
@@ -616,52 +577,30 @@ hyscan_gtk_map_tiled_layer_set_area_mod (HyScanGtkMapTiledLayer *tiled_layer,
 {
   HyScanGtkMapTiledLayerPrivate *priv;
 
-  gdouble *scales;
-  guint scales_len;
-  guint scale_idx;
-
-  HyScanGtkMapTiledLayerMod track_mod;
-  HyScanBuffer *buffer;
-
-  gchar cache_key[CACHE_KEY_LEN];
+  GList *cache_l;
+  guint mod_count;
 
   g_return_if_fail (HYSCAN_IS_GTK_MAP_TILED_LAYER (tiled_layer));
   priv = tiled_layer->priv;
 
-  /* Увеличиваем счетчик изменений. */
+  /* Увеличиваем счетчик изменений данных. */
   g_atomic_int_inc (&priv->mod_count);
+  mod_count = g_atomic_int_get (&priv->mod_count);
 
-  /* Оборачиваем номер изменения в буфер. */
-  track_mod.magic = CACHE_TRACK_MOD_MAGIC;
-  track_mod.mod = g_atomic_int_get (&priv->mod_count);
-  buffer = hyscan_buffer_new ();
-  hyscan_buffer_wrap (buffer, HYSCAN_DATA_BLOB, &track_mod, sizeof (track_mod));
+  g_rw_lock_writer_lock (&priv->rw_lock);
 
-  /* Для каждого масштаба определяем тайлы, на которых лежит этот отрезок. */
-  scales = hyscan_gtk_map_get_scales_cifro (priv->map, &scales_len);
-  for (scale_idx = 0; scale_idx < scales_len; scale_idx++)
+  for (cache_l = priv->cached_tiles->head; cache_l != NULL; cache_l = cache_l->next)
     {
-      gint x, y, to_x, to_y;
-      gdouble x0, y0, x1, y1;
+      HyScanGtkMapTiledLayerCache *cache = cache_l->data;
 
-      /* Определяем на каких тайлах лежат концы отрезка. */
-      hyscan_gtk_map_tile_grid_value_to_tile (priv->tile_grid, scale_idx, point0->x, point0->y, &x0, &y0);
-      hyscan_gtk_map_tile_grid_value_to_tile (priv->tile_grid, scale_idx, point1->x, point1->y, &x1, &y1);
+      /* Если отрезок проходит через тайл, то помечаем этот тайл как изменённый. */
+      if (!hyscan_cartesian_is_inside (point0, point1, &cache->area_from, &cache->area_to))
+        continue;
 
-      /* Проходим все тайлы внутри найденной области и обновляем номер изменения трека. */
-      to_x = MAX (x0, x1);
-      to_y = MAX (y0, y1);
-      for (x = MIN (x0, x1); x <= to_x; ++x)
-        for (y = MIN (y0, y1); y <= to_y; ++y)
-          {
-            /* Обновляем в кэше номер изменения трека. */
-            hyscan_gtk_map_tiled_layer_mod_cache_key (tiled_layer, x, y, scale_idx, cache_key, sizeof (cache_key));
-            hyscan_cache_set (priv->cache, cache_key, NULL, buffer);
-          }
+      cache->actual_mod = mod_count;
     }
 
-  g_object_unref (buffer);
-  g_free (scales);
+  g_rw_lock_writer_unlock (&priv->rw_lock);
 }
 
 void
@@ -673,15 +612,8 @@ hyscan_gtk_map_tiled_layer_set_param_mod (HyScanGtkMapTiledLayer *tiled_layer)
   priv = tiled_layer->priv;
 
   g_atomic_int_inc (&priv->param_mod_count);
-}
 
-
-gboolean
-hyscan_gtk_map_tiled_layer_has_cache (HyScanGtkMapTiledLayer *tiled_layer)
-{
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILED_LAYER (tiled_layer), FALSE);
-
-  return tiled_layer->priv->cache != NULL;
+  hyscan_gtk_map_tiled_layer_cache_clean (tiled_layer);
 }
 
 void
