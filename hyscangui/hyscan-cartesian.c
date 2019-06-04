@@ -158,6 +158,25 @@ hyscan_cartesian_distance_to_line (HyScanGeoCartesian2D *p1,
   gdouble a, b, c;
   gdouble dist_ab2;
 
+  HyScanGeoCartesian2D shift, m1, m2, pt;
+
+  /* Делаем сдвиг всех точек, помещая начало отрезка p1 в ноль.
+   * Это повысит точность вычислений, когда dist << MAX (p1->x, p2->x). */
+  shift = *p1;
+
+  m1.x = 0;
+  m1.y = 0;
+
+  m2.x = p2->x - shift.x;
+  m2.y = p2->y - shift.y;
+
+  pt.x = point->x - shift.x;
+  pt.y = point->y - shift.y;
+
+  p1 = &m1;
+  p2 = &m2;
+  point = &pt;
+
   a = p1->y - p2->y;
   b = p2->x - p1->x;
   c = p1->x * p2->y - p2->x * p1->y;
@@ -167,8 +186,8 @@ hyscan_cartesian_distance_to_line (HyScanGeoCartesian2D *p1,
 
   if (nearest_point != NULL)
     {
-      nearest_point->x = (b * (b * point->x - a * point->y) - a * c) / dist_ab2;
-      nearest_point->y = (a * (-b * point->x + a * point->y) - b * c) / dist_ab2;
+      nearest_point->x = shift.x + (b * (b * point->x - a * point->y) - a * c) / dist_ab2;
+      nearest_point->y = shift.y + (a * (-b * point->x + a * point->y) - b * c) / dist_ab2;
     }
 
   return dist;

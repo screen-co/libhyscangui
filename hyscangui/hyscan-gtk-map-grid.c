@@ -540,11 +540,14 @@ hyscan_gtk_map_grid_draw_scale (HyScanGtkMapGrid *grid,
 
   /* Рисуем линейку и подпись к ней. */
   {
-    gchar label[256];
     PangoRectangle inc_rect, logical_rect;
 
-    gint text_width;
-    gint text_height;
+    gchar label[128];
+    gint label_width, label_height;
+
+    gchar scale_name[128];
+    gint scale_name_width, scale_name_height;
+
     gdouble ruler_width;
 
     gdouble spacing;
@@ -553,36 +556,69 @@ hyscan_gtk_map_grid_draw_scale (HyScanGtkMapGrid *grid,
 
     real_scale = 1.0 / hyscan_gtk_map_get_scale (priv->map);
 
-    /* Формируем текст надписи и вычисляем её размер. */
-    if (metres < 1000.0)
-      g_snprintf (label, sizeof (label), "1:%.0f, %.0f %s", real_scale, metres, _("m"));
+    /* Название масштаба. */
+    if (real_scale > 10.0)
+      g_snprintf (scale_name, sizeof (scale_name), "1:%.0f", real_scale);
+    else if (real_scale > 1.0)
+      g_snprintf (scale_name, sizeof (scale_name), "1:%.1f", real_scale);
+    else if (real_scale > 0.1)
+      g_snprintf (scale_name, sizeof (scale_name), "%.1f:1", 1 / real_scale);
     else
-      g_snprintf (label, sizeof (label), "1:%.0f, %.0f %s", real_scale, metres / 1000.0, _("km"));
+      g_snprintf (scale_name, sizeof (scale_name), "%.0f:1", 1 / real_scale);
+
+    /* Различный форматы записи длины линейки масштаба. */
+    if (metres > 1000.0)
+      g_snprintf (label, sizeof (label), "%.0f %s", metres / 1000.0, _("km"));
+    else if (metres > 1.0)
+      g_snprintf (label, sizeof (label), "%.0f %s", metres, _("m"));
+    else if (metres > 0.01)
+      g_snprintf (label, sizeof (label), "%.0f %s", metres * 100.0, _("cm"));
+    else
+      g_snprintf (label, sizeof (label), "%.0f %s", metres * 1000.0, _("mm"));
+
+    /* Вычисляем размеры подписи линейки. */
     pango_layout_set_text (priv->pango_layout, label, -1);
     pango_layout_get_pixel_extents (priv->pango_layout, &inc_rect, &logical_rect);
-    text_width = logical_rect.width;
-    text_height = inc_rect.height + inc_rect.y;
-    spacing = text_height;
+    label_width = logical_rect.width;
+    label_height = logical_rect.height;
+    spacing = label_height;
 
-    /* Рисуем линейку. */
+    /* Вычисляем размеры названия масштаба. */
+    pango_layout_set_text (priv->pango_layout, scale_name, -1);
+    pango_layout_get_pixel_extents (priv->pango_layout, &inc_rect, &logical_rect);
+    scale_name_width = logical_rect.width;
+    scale_name_height = logical_rect.height;
+
     ruler_width = metres * scale;
 
+    /* Рисуем подложку. */
     gdk_cairo_set_source_rgba (cairo, &priv->bg_color);
     cairo_rectangle (cairo, x0 + priv->label_padding, y0 + priv->label_padding,
-                    -(text_width + ruler_width + spacing + 2.0 * priv->label_padding), - text_height - 2.0 * priv->label_padding);
+                     - (scale_name_width + ruler_width + spacing + 2.0 * priv->label_padding),
+                     - (label_height + 2.0 * priv->label_padding));
     cairo_fill (cairo);
 
-
-    cairo_move_to (cairo, x0 - priv->scale_width / 2.0, y0 - text_height / 2.0);
-    cairo_rel_line_to (cairo, 0, text_height / 2.0);
+    /* Рисуем линейку масштаба. */
+    cairo_move_to (cairo, x0 - priv->scale_width / 2.0, y0 - label_height / 2.0);
+    cairo_rel_line_to (cairo, 0, label_height / 2.0);
     cairo_rel_line_to (cairo, -ruler_width, 0);
-    cairo_rel_line_to (cairo, 0, -text_height / 2.0);
+    cairo_rel_line_to (cairo, 0, -label_height / 2.0);
     gdk_cairo_set_source_rgba (cairo, &priv->label_color);
     cairo_set_line_width (cairo, priv->scale_width);
     cairo_stroke (cairo);
 
-    /* Рисуем надпись. */
-    cairo_move_to (cairo, x0 - text_width - ruler_width - spacing, y0 - text_height);
+    /* Рисуем название масштаба. */
+    pango_layout_set_text (priv->pango_layout, scale_name, -1);
+    cairo_move_to (cairo,
+                   x0 - ruler_width - spacing - scale_name_width,
+                   y0 - scale_name_height);
+    pango_cairo_show_layout (cairo, priv->pango_layout);
+
+    /* Рисуем подпись линейке. */
+    pango_layout_set_text (priv->pango_layout, label, -1);
+    cairo_move_to (cairo,
+                   x0 - label_width - spacing,
+                   y0 - label_height - priv->scale_width * 1.0);
     pango_cairo_show_layout (cairo, priv->pango_layout);
   }
 }

@@ -368,8 +368,12 @@ hyscan_gtk_map_ruler_draw_label (HyScanGtkMapRuler *ruler,
   if (distance < 0.0)
     return;
 
-  if (distance < 1000.0)
-    g_snprintf (label, sizeof (label), "%.0f %s", distance, _("m"));
+  if (distance < 1.0)
+    g_snprintf (label, sizeof (label), "%.1f %s", distance * 100.0, _("cm"));
+  else if (distance < 1000.0)
+    g_snprintf (label, sizeof (label), "%.2f %s", distance, _("m"));
+  else if (distance < 1000.0)
+    g_snprintf (label, sizeof (label), "%.1f %s", distance, _("m"));
   else
     g_snprintf (label, sizeof (label), "%.2f %s", distance / 1000.0, _("km"));
 
@@ -421,7 +425,7 @@ hyscan_gtk_map_ruler_draw_hover_section (HyScanGtkMapRuler *ruler,
   cairo_set_line_width (cairo, priv->line_width);
 
   cairo_new_path (cairo);
-  cairo_arc (cairo, x, y, priv->radius * 2.0, 0, 2.0 * G_PI);
+  cairo_arc (cairo, x, y, priv->radius * 4.0, 0, 2.0 * G_PI);
   cairo_stroke (cairo);
 }
 
