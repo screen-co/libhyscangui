@@ -60,11 +60,6 @@
 
 enum
 {
-  PROP_O,
-};
-
-enum
-{
   PIN_NORMAL,
   PIN_HOVER,
   PIN_DRAG,
@@ -142,6 +137,7 @@ static gboolean      hyscan_gtk_map_pin_layer_configure                 (HyScanG
                                                                          GdkEvent                    *event);
 static void          hyscan_gtk_map_pin_layer_draw_vertices             (HyScanGtkMapPinLayer        *pin_layer,
                                                                          cairo_t                     *cairo);
+static void          hyscan_gtk_map_pin_layer_changed                   (HyScanGtkMapPinLayer        *layer);
 static HyScanGtkMapPoint *   hyscan_gtk_map_pin_layer_get_point_at      (HyScanGtkMapPinLayer        *pin_layer,
                                                                          gdouble                      x,
                                                                          gdouble                      y);
@@ -178,6 +174,7 @@ hyscan_gtk_map_pin_layer_class_init (HyScanGtkMapPinLayerClass *klass)
   object_class->constructed = hyscan_gtk_map_pin_layer_object_constructed;
   object_class->finalize = hyscan_gtk_map_pin_layer_object_finalize;
 
+  klass->changed = hyscan_gtk_map_pin_layer_changed;
   klass->draw = hyscan_gtk_map_pin_layer_draw_vertices;
 }
 
@@ -185,6 +182,35 @@ static void
 hyscan_gtk_map_pin_layer_init (HyScanGtkMapPinLayer *gtk_map_pin_layer)
 {
   gtk_map_pin_layer->priv = hyscan_gtk_map_pin_layer_get_instance_private (gtk_map_pin_layer);
+}
+
+static void
+hyscan_gtk_map_pin_layer_changed (HyScanGtkMapPinLayer *layer)
+{
+  HyScanGtkMapPinLayerPrivate *priv = layer->priv;
+  GList *points;
+
+  if (priv->hover_point == NULL && priv->drag_point == NULL)
+    return;
+
+  points = hyscan_gtk_map_pin_layer_get_points (layer);
+
+  /* Очищаем указатель на hover_point. */
+  if (priv->hover_point != NULL && !g_list_find (points, priv->hover_point))
+    priv->hover_point = NULL;
+
+  /* Завершаем перетаскивание, если перетаскиваемая точка была удалена. */
+  if (priv->drag_point != NULL && !g_list_find (points, priv->hover_point))
+    {
+      priv->drag_point = NULL;
+
+      /* Если мы были в состоянии перетаскивания, то завершаем его. */
+      if (priv->mode == MODE_DRAG)
+        {
+          priv->mode = MODE_NONE;
+          hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);
+        }
+    }
 }
 
 /* Создаёт метку в виде круга. */
@@ -491,7 +517,7 @@ static gboolean
 hyscan_gtk_map_pin_layer_grab_input (HyScanGtkLayer *layer)
 {
   HyScanGtkMapPinLayer *pin_layer = HYSCAN_GTK_MAP_PIN_LAYER (layer);
-  HyScanGtkMapPinLayerPrivate *priv =pin_layer->priv;
+  HyScanGtkMapPinLayerPrivate *priv = pin_layer->priv;
 
   if (priv->map == NULL)
     return FALSE;
@@ -649,11 +675,13 @@ hyscan_gtk_map_pin_layer_key_press (HyScanGtkMapPinLayer *pin_layer,
 
   if (event->keyval == GDK_KEY_Delete && priv->mode == MODE_DRAG)
     {
+      /* Удаляем перетаскиваемую точку. */
       priv->points = g_list_remove (priv->points, priv->drag_point);
       g_clear_pointer (&priv->drag_point, hyscan_gtk_map_point_free);
-      priv->mode = MODE_NONE;
-      
-      hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);
+
+      /* Сообщаем, что список точек изменился. */
+      HYSCAN_GTK_MAP_PIN_LAYER_GET_CLASS (pin_layer)->changed (pin_layer);
+
       gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 
       return GDK_EVENT_STOP;
@@ -801,6 +829,9 @@ hyscan_gtk_map_pin_layer_clear (HyScanGtkMapPinLayer *layer)
 
   g_list_free_full (priv->points, (GDestroyNotify) hyscan_gtk_map_point_free);
   priv->points = NULL;
+
+  HYSCAN_GTK_MAP_PIN_LAYER_GET_CLASS (layer)->changed (layer);
+
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }
 
@@ -841,6 +872,8 @@ hyscan_gtk_map_pin_layer_insert_before  (HyScanGtkMapPinLayer *pin_layer,
   new_point = hyscan_gtk_map_point_copy (point);
   hyscan_gtk_map_value_to_geo (priv->map, &new_point->geo, new_point->c2d);
   priv->points = g_list_insert_before (priv->points, sibling, new_point);
+
+  HYSCAN_GTK_MAP_PIN_LAYER_GET_CLASS (pin_layer)->changed (pin_layer);
 
   return new_point;
 }

@@ -66,11 +66,6 @@
 #define DEG2RAD(x) ((x) * G_PI / 180.0)
 #define RAD2DEG(x) ((x) * 180.0 / G_PI)
 
-enum
-{
-  PROP_O,
-};
-
 struct _HyScanGtkMapRulerPrivate
 {
   HyScanGtkMap              *map;                      /* Виджет карты. */
@@ -114,6 +109,7 @@ static void                     hyscan_gtk_map_ruler_draw_label               (H
                                                                                cairo_t                  *cairo);
 static void                     hyscan_gtk_map_ruler_draw_impl                (HyScanGtkMapPinLayer     *layer,
                                                                                cairo_t                  *cairo);
+static void                     hyscan_gtk_map_ruler_changed_impl             (HyScanGtkMapPinLayer     *layer);
 
 static HyScanGtkLayerInterface *hyscan_gtk_layer_parent_interface = NULL;
 
@@ -131,6 +127,7 @@ hyscan_gtk_map_ruler_class_init (HyScanGtkMapRulerClass *klass)
   object_class->finalize = hyscan_gtk_map_ruler_object_finalize;
 
   pin_class->draw = hyscan_gtk_map_ruler_draw_impl;
+  pin_class->changed = hyscan_gtk_map_ruler_changed_impl;
 }
 
 static void
@@ -304,6 +301,7 @@ hyscan_gtk_map_ruler_measure (HyScanGeoGeodetic coord1,
 
   u = sin ((lat2r - lat1r) / 2);
   v = sin ((lon2r - lon1r) / 2);
+
   return 2.0 * EARTH_RADIUS * asin (sqrt (u * u + cos (lat1r) * cos (lat2r) * v * v));
 }
 
@@ -370,7 +368,7 @@ hyscan_gtk_map_ruler_draw_label (HyScanGtkMapRuler *ruler,
 
   if (distance < 1.0)
     g_snprintf (label, sizeof (label), "%.1f %s", distance * 100.0, _("cm"));
-  else if (distance < 1000.0)
+  else if (distance < 100.0)
     g_snprintf (label, sizeof (label), "%.2f %s", distance, _("m"));
   else if (distance < 1000.0)
     g_snprintf (label, sizeof (label), "%.1f %s", distance, _("m"));
@@ -460,6 +458,26 @@ hyscan_gtk_map_ruler_draw_line (HyScanGtkMapRuler *ruler,
       cairo_line_to (cairo, x, y);
     }
   cairo_stroke (cairo);
+}
+
+/* Обработчик изменения списка точек слоя. */
+static void
+hyscan_gtk_map_ruler_changed_impl (HyScanGtkMapPinLayer *layer)
+{
+  HyScanGtkMapRuler *ruler = HYSCAN_GTK_MAP_RULER (layer);
+  HyScanGtkMapRulerPrivate *priv = ruler->priv;
+  GList *points;
+
+  /* Вызываем обработчик родительского класса. */
+  HYSCAN_GTK_MAP_PIN_LAYER_CLASS (hyscan_gtk_map_ruler_parent_class)->changed (layer);
+
+  if (priv->hover_section == NULL)
+    return;
+
+  /* Если отрезок под курсором был удалён, то очищаем указатель на него. */
+  points = hyscan_gtk_map_pin_layer_get_points (layer);
+  if (g_list_position (points, priv->hover_section) == -1)
+    priv->hover_section = NULL;
 }
 
 /* Рисует элементы линейки по сигналу "visible-draw". */

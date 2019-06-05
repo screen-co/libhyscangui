@@ -63,12 +63,19 @@ struct _HyScanGtkMapPinLayer
   HyScanGtkMapPinLayerPrivate *priv;
 };
 
+/**
+ * HyScanGtkMapPinLayerClass:
+ * @draw: функция вызывается в момент отрисовки слоя
+ * @changed: функция вызывается при добавлении или удалении точек слоя
+ */
 struct _HyScanGtkMapPinLayerClass
 {
   GInitiallyUnownedClass parent_class;
 
   void       (*draw)                     (HyScanGtkMapPinLayer *layer,
                                           cairo_t              *cairo);
+
+  void       (*changed)                  (HyScanGtkMapPinLayer *layer);
 };
 
 HYSCAN_API
