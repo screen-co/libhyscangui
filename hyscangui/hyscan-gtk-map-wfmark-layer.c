@@ -62,8 +62,8 @@
 #define DISTANCE_TO_METERS      0.001                         /* Коэффициент перевода размеров метки в метры. */
 
 /* Оформление по умолчанию. */
-#define MARK_COLOR              "#9443B2"                     /* Цвет обводки меток. */
-#define MARK_COLOR_HOVER        "#61B243"                     /* Цвет обводки меток при наведении мыши. */
+#define MARK_COLOR              "#61B243"                     /* Цвет обводки меток. */
+#define MARK_COLOR_HOVER        "#9443B2"                     /* Цвет обводки меток при наведении мыши. */
 #define BG_COLOR                "rgba(255, 255, 255, 0.6)"    /* Цвет фона подписи. */
 #define TEXT_COLOR              "rgba( 33,  33,  33, 1.0)"    /* Цвет текста подписи. */
 #define LINE_WIDTH              1.0                           /* Толщина линии обводки. */
@@ -256,12 +256,26 @@ hyscan_gtk_map_wfmark_layer_project_location (HyScanGtkMapWfmarkLayer         *w
   location->rect_to.y = location->center_c2d.y + location->height;
 
   /* Определяем границы extent. */
-  mark_from.x = location->center_c2d.x - location->width;
-  mark_from.y = location->center_c2d.y - location->height;
-  mark_to.x = location->center_c2d.x + location->width;
-  mark_to.y = location->center_c2d.y + location->height;
-  hyscan_cartesian_rotate_area (&mark_from, &mark_to, &location->center_c2d, location->angle,
-                                &location->extent_from, &location->extent_to);
+  {
+    gdouble extent_margin;
+
+    mark_from.x = location->center_c2d.x - location->width;
+    mark_from.y = location->center_c2d.y - location->height;
+    mark_to.x = location->center_c2d.x + location->width;
+    mark_to.y = location->center_c2d.y + location->height;
+    hyscan_cartesian_rotate_area (&mark_from, &mark_to, &location->center_c2d, location->angle,
+                                  &location->extent_from, &location->extent_to);
+
+    /* Добавляем небольшой отступ. */
+    extent_margin = 0.1 * (location->extent_to.x - location->extent_from.x);
+    location->extent_to.x   += extent_margin;
+    location->extent_from.x -= extent_margin;
+
+    extent_margin = 0.1 * (location->extent_to.y - location->extent_from.y);
+    location->extent_to.y   += extent_margin;
+    location->extent_from.y -= extent_margin;
+  }
+
 }
 
 static HyScanGtkMapWfmarkLayerLocation *

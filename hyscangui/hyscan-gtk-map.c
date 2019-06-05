@@ -351,7 +351,9 @@ hyscan_gtk_map_check_scale (GtkCifroArea *carea,
 
   gdouble scale;
 
-  scale = hyscan_gtk_map_find_closest_scale (map, *scale_x, NULL);
+  scale = MAX (*scale_x, *scale_y);
+
+  scale = hyscan_gtk_map_find_closest_scale (map, scale, NULL);
 
   *scale_x = scale;
   *scale_y = scale;
