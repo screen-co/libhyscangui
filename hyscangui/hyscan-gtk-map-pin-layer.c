@@ -99,6 +99,7 @@ struct _HyScanGtkMapPinLayerPrivate
   GList                     *points;                   /* Список вершин ломаной, длину которой необходимо измерить. */
   HyScanGtkMapPoint         *hover_point;              /* Вершина ломаной под курсором мыши. */
   HyScanGtkMapPoint         *drag_point;               /* Вершина ломаной, которая перемещается в данный момент. */
+  HyScanGtkMapPoint          drag_origin;              /* Оригинальное положение точки, которая перемещается. */
 
   /* Стиль оформления. */
   gdouble                    pin_size;                 /* Размер маркера (фактический размер макера зависит от
@@ -185,6 +186,20 @@ hyscan_gtk_map_pin_layer_init (HyScanGtkMapPinLayer *gtk_map_pin_layer)
 }
 
 static void
+hyscan_gtk_map_pin_layer_stop_drag (HyScanGtkMapPinLayer *layer)
+{
+  HyScanGtkMapPinLayerPrivate *priv = layer->priv;
+
+  if (priv->mode != MODE_DRAG)
+    return;;
+
+  priv->drag_point = NULL;
+  priv->hover_point = NULL;
+  priv->mode = MODE_NONE;
+  hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);
+}
+
+static void
 hyscan_gtk_map_pin_layer_changed (HyScanGtkMapPinLayer *layer)
 {
   HyScanGtkMapPinLayerPrivate *priv = layer->priv;
@@ -200,17 +215,8 @@ hyscan_gtk_map_pin_layer_changed (HyScanGtkMapPinLayer *layer)
     priv->hover_point = NULL;
 
   /* Завершаем перетаскивание, если перетаскиваемая точка была удалена. */
-  if (priv->drag_point != NULL && !g_list_find (points, priv->hover_point))
-    {
-      priv->drag_point = NULL;
-
-      /* Если мы были в состоянии перетаскивания, то завершаем его. */
-      if (priv->mode == MODE_DRAG)
-        {
-          priv->mode = MODE_NONE;
-          hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);
-        }
-    }
+  if (priv->drag_point != NULL && !g_list_find (points, priv->drag_point))
+    hyscan_gtk_map_pin_layer_stop_drag (layer);
 }
 
 /* Создаёт метку в виде круга. */
@@ -673,14 +679,29 @@ hyscan_gtk_map_pin_layer_key_press (HyScanGtkMapPinLayer *pin_layer,
 {
   HyScanGtkMapPinLayerPrivate *priv = pin_layer->priv;
 
-  if (event->keyval == GDK_KEY_Delete && priv->mode == MODE_DRAG)
+  if (priv->mode != MODE_DRAG)
+    return GDK_EVENT_PROPAGATE;
+
+  if (event->keyval == GDK_KEY_Delete)
     {
       /* Удаляем перетаскиваемую точку. */
       priv->points = g_list_remove (priv->points, priv->drag_point);
-      g_clear_pointer (&priv->drag_point, hyscan_gtk_map_point_free);
+      hyscan_gtk_map_point_free (priv->drag_point);
+      hyscan_gtk_map_pin_layer_stop_drag (pin_layer);
 
       /* Сообщаем, что список точек изменился. */
       HYSCAN_GTK_MAP_PIN_LAYER_GET_CLASS (pin_layer)->changed (pin_layer);
+
+      gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+      return GDK_EVENT_STOP;
+    }
+
+  else if (event->keyval == GDK_KEY_Escape)
+    {
+      /* Возвращаем перетаскиваемую точку обратно. */
+      *priv->drag_point = priv->drag_origin;
+      hyscan_gtk_map_pin_layer_stop_drag (pin_layer);
 
       gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 
@@ -911,6 +932,7 @@ hyscan_gtk_map_pin_layer_start_drag (HyScanGtkMapPinLayer *layer,
     }
 
   priv->mode = MODE_DRAG;
+  priv->drag_origin = *handle_point;
   priv->drag_point = handle_point;
 
   gtk_widget_grab_focus (GTK_WIDGET (priv->map));
