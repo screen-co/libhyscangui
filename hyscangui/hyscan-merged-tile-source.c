@@ -172,26 +172,18 @@ hyscan_merged_tile_source_get_projection (HyScanGtkMapTileSource *source)
 }
 
 static void
-hyscan_merged_tile_source_get_zoom_limits (HyScanGtkMapTileSource *source,
-                                           guint                  *min_zoom,
-                                           guint                  *max_zoom)
-{
-  HyScanMergedTileSource *merged = HYSCAN_MERGED_TILE_SOURCE (source);
-  HyScanMergedTileSourcePrivate *priv = merged->priv;
-
-  (min_zoom != NULL) ? *min_zoom = priv->min_zoom : 0;
-  (max_zoom != NULL) ? *max_zoom = priv->max_zoom : 0;
-}
-
-static void
 hyscan_merged_tile_source_interface_init (HyScanGtkMapTileSourceInterface *iface)
 {
   iface->get_projection = hyscan_merged_tile_source_get_projection;
   iface->get_grid = hyscan_merged_tile_source_get_grid;
-  iface->get_zoom_limits = hyscan_merged_tile_source_get_zoom_limits;
   iface->fill_tile = hyscan_merged_tile_source_fill_tile;
 }
 
+/**
+ * hyscan_merged_tile_source_new:
+ *
+ * Returns: новый композитный источник тайлов. Для удаления g_object_unref().
+ */
 HyScanMergedTileSource *
 hyscan_merged_tile_source_new (void)
 {
@@ -228,13 +220,13 @@ hyscan_merged_tile_source_append (HyScanMergedTileSource *merged,
     {
       priv->grid = hyscan_gtk_map_tile_source_get_grid (source);
       priv->projection = hyscan_gtk_map_tile_source_get_projection (source);
-      hyscan_gtk_map_tile_source_get_zoom_limits (source, &priv->min_zoom, &priv->max_zoom);
     }
   else
     {
       guint min_zoom, max_zoom;
       guint merged_hash, source_hash;
       HyScanGeoProjection *source_projection;
+      HyScanGtkMapTileGrid *grid;
 
       /* Проверяем, что добавляемый источник совместим с уже добавленными. */
       source_projection = hyscan_gtk_map_tile_source_get_projection (source);
@@ -248,11 +240,13 @@ hyscan_merged_tile_source_append (HyScanMergedTileSource *merged,
         }
 
       // todo: test tile grid compatibility?
+      grid = hyscan_gtk_map_tile_source_get_grid (source);
 
       /* Расширяем диапазон доступных масштабов с учётом нового источника. */
-      hyscan_gtk_map_tile_source_get_zoom_limits (source, &min_zoom, &max_zoom);
+      hyscan_gtk_map_tile_grid_get_zoom_range (grid, &min_zoom, &max_zoom);
       priv->min_zoom = MIN (min_zoom, priv->min_zoom);
       priv->max_zoom = MIN (max_zoom, priv->max_zoom);
+      g_object_unref (grid);
     }
 
   priv->sources = g_list_append (priv->sources, g_object_ref (source));

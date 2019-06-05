@@ -884,7 +884,7 @@ hyscan_gtk_map_tiles_new (HyScanCache             *cache,
  *
  * Возвращает используемый источник тайлов слоя
  *
- * Returns: указатель на #HyScanGtkMapTileSource. Для удаления g_object_unref().
+ * Returns: (transfer full): указатель на #HyScanGtkMapTileSource. Для удаления g_object_unref().
  */
 HyScanGtkMapTileSource *
 hyscan_gtk_map_tiles_get_source (HyScanGtkMapTiles *tiles)

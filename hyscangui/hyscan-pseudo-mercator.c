@@ -192,6 +192,13 @@ hyscan_pseudo_mercator_get_scale (HyScanGeoProjection *projection,
   return cos (DEG2RAD (coords.lat)) * priv->equator_length;
 }
 
+/**
+ * hyscan_pseudo_mercator_new:
+ *
+ * Создаёт псевдопроекцию Мерктора
+ *
+ * Returns: указатель на #HyScanPseudoMercator. Для удаления g_object_unref()
+ */
 HyScanGeoProjection *
 hyscan_pseudo_mercator_new (void)
 {

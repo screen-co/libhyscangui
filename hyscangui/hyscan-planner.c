@@ -73,12 +73,6 @@ hyscan_planner_table_new (void)
   return g_hash_table_new_full (g_str_hash, g_str_equal, NULL, (GDestroyNotify) hyscan_planner_track_free);
 }
 
-HyScanPlanner *
-hyscan_planner_new (void)
-{
-  return g_object_new (HYSCAN_TYPE_PLANNER, NULL);
-}
-
 /* Функция генерирует идентификатор. */
 static gchar *
 hyscan_planner_create_id (void)
@@ -101,6 +95,26 @@ hyscan_planner_create_id (void)
   return id;
 }
 
+/**
+ * hyscan_planner_new:
+ *
+ * Создаёт планировщик галсов
+ *
+ * Returns: указатель на #HyScanPlanner, для удаления g_object_unref().
+ */
+HyScanPlanner *
+hyscan_planner_new (void)
+{
+  return g_object_new (HYSCAN_TYPE_PLANNER, NULL);
+}
+
+/**
+ * hyscan_planner_save_ini:
+ * @planner: указатель на #HyScanPlanner
+ * @file_name: путь к файлу
+ *
+ * Сохраняет запланированные галсы в файл @file_name
+ */
 void
 hyscan_planner_save_ini (HyScanPlanner *planner,
                          const gchar   *file_name)
@@ -135,6 +149,13 @@ hyscan_planner_save_ini (HyScanPlanner *planner,
   g_key_file_unref (key_file);
 }
 
+/**
+ * hyscan_planner_load_ini:
+ * @planner: указатель на #HyScanPlanner
+ * @file_name: путь к файлу
+ *
+ * Загрузка списка запланированных галсов из ini-файла @file_name
+ */
 void
 hyscan_planner_load_ini (HyScanPlanner *planner,
                          const gchar   *file_name)
@@ -182,7 +203,9 @@ hyscan_planner_load_ini (HyScanPlanner *planner,
 
 /**
  * hyscan_planner_get:
- * @planner:
+ * @planner: указатель на HyScanPlanner:
+ *
+ * Возвращает таблицу запланированных галсов.
  *
  * Returns: (element-type HyScanPlannerTrack): таблица запланированных галсов.
  *   Для удаления g_hash_table_unref().
@@ -216,6 +239,14 @@ hyscan_planner_get (HyScanPlanner *planner)
   return tracks;
 }
 
+/**
+ * hyscan_planner_track_copy:
+ * @track: указатель на #HyScanPlannerTrack
+ *
+ * Создаёт копию структуры #HyScanPlannerTrack
+ *
+ * Returns: указатель на #HyScanPlannerTrack. Для удаления hyscan_planner_track_free().
+ */
 HyScanPlannerTrack *
 hyscan_planner_track_copy (const HyScanPlannerTrack *track)
 {
@@ -230,6 +261,12 @@ hyscan_planner_track_copy (const HyScanPlannerTrack *track)
   return copy;
 }
 
+/**
+ * hyscan_planner_track_free:
+ * @track: указатель на #HyScanPlannerTrack
+ *
+ * Освобождает память, занятую структурой #HyScanPlannerTrack
+ */
 void
 hyscan_planner_track_free (HyScanPlannerTrack *track)
 {
@@ -238,6 +275,13 @@ hyscan_planner_track_free (HyScanPlannerTrack *track)
   g_slice_free (HyScanPlannerTrack, track);
 }
 
+/**
+ * hyscan_planner_delete:
+ * @planner: указатель на #HyScanPlannerTrack
+ * @id: идентификатор галса
+ *
+ * Удаляет галс из списка запланированных по его идентификатору @id.
+ */
 void
 hyscan_planner_delete (HyScanPlanner *planner,
                        const gchar   *id)
@@ -253,6 +297,14 @@ hyscan_planner_delete (HyScanPlanner *planner,
   g_signal_emit (planner, hyscan_planner_signals[SIGNAL_CHANGED], 0);
 }
 
+/**
+ * hyscan_planner_update:
+ * @planner: указатель на #HyScanPlanner
+ * @track: указатель на #HyScanPlannerTrack
+ *
+ * Обновляет параметры запланированного галса @track. Если идентификатор галса
+ * равен %NULL или его нет в таблице галсов, то будет создан новый галс.
+ */
 void
 hyscan_planner_update (HyScanPlanner            *planner,
                        const HyScanPlannerTrack *track)

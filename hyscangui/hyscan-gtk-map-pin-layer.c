@@ -35,7 +35,7 @@
 /**
  * SECTION: hyscan-gtk-map-pin-layer
  * @Short_description: Слой с отметками географических точек.
- * @Title: HyScanGtkLayerContainer
+ * @Title: HyScanGtkMapPinLayer
  * @See_also: #HyScanGtkLayer, #HyScanGtkMap
  *
  * Данный слой позволяет отмечать на карте некоторые целевые точки. Каждая точка
@@ -46,6 +46,14 @@
  * - hyscan_gtk_map_pin_layer_set_color_stroke()   "stroke-color"
  * - hyscan_gtk_map_pin_layer_set_pin_size()
  * - hyscan_gtk_map_pin_layer_set_pin_shape()
+ *
+ * Пользователь может взаимодействовать со слоем:
+ * - чтобы добавить точку, необходимо передать право ввода слою и кликнуть по карте.
+ * - чтобы активизировать точку, необходимо клинкуть по этой точке; после этого
+ *   можно выполнить одно из следующих действий:
+ *   - переместить активную точку, кликнув на новое место на карте,
+ *   - отменить перемещение, нажав клавишу Escape,
+ *   - удалить активную точку, нажав клавишу Delete.
  *
  */
 
@@ -191,7 +199,7 @@ hyscan_gtk_map_pin_layer_stop_drag (HyScanGtkMapPinLayer *layer)
   HyScanGtkMapPinLayerPrivate *priv = layer->priv;
 
   if (priv->mode != MODE_DRAG)
-    return;;
+    return;
 
   priv->drag_point = NULL;
   priv->hover_point = NULL;
@@ -874,9 +882,9 @@ hyscan_gtk_map_pin_layer_get_points (HyScanGtkMapPinLayer *layer)
 
 /**
  * hyscan_gtk_map_pin_layer_insert_before:
- * @pin_layer:
- * @point:
- * @sibling:
+ * @pin_layer: указатель на #HyScanGtkMapPinLayer
+ * @point: точка для добавления
+ * @sibling: позиция, перед которой необходимо поместить точку
  *
  * Добавляет @point в список точек слоя, помещая её перед указанной позицией @sibling.
  *
@@ -894,6 +902,7 @@ hyscan_gtk_map_pin_layer_insert_before  (HyScanGtkMapPinLayer *pin_layer,
   hyscan_gtk_map_value_to_geo (priv->map, &new_point->geo, new_point->c2d);
   priv->points = g_list_insert_before (priv->points, sibling, new_point);
 
+  /* Оповещаем, что список точек был изменён. */
   HYSCAN_GTK_MAP_PIN_LAYER_GET_CLASS (pin_layer)->changed (pin_layer);
 
   return new_point;
@@ -941,6 +950,14 @@ hyscan_gtk_map_pin_layer_start_drag (HyScanGtkMapPinLayer *layer,
   return layer;
 }
 
+/**
+ * hyscan_gtk_map_pin_layer_set_pin_size:
+ * @layer: указатель на слой #HyScanGtkMapPinLayer
+ * @size: характерный размер метки в пикселах
+ *
+ * Устанавливает характерный размер метки в пикселах. Фактический размер метки
+ * зависит от её формы, которая определяетя функцией hyscan_gtk_map_pin_layer_set_pin_shape().
+ */
 void
 hyscan_gtk_map_pin_layer_set_pin_size (HyScanGtkMapPinLayer *layer,
                                        guint                 size)
@@ -952,6 +969,13 @@ hyscan_gtk_map_pin_layer_set_pin_size (HyScanGtkMapPinLayer *layer,
   hyscan_gtk_map_grid_queue_draw (layer);
 }
 
+/**
+ * hyscan_gtk_map_pin_layer_set_color_prime:
+ * @layer: указатель на слой #HyScanGtkMapPinLayer
+ * @color: основной цвет маркера
+ *
+ * Устанавливает основной цвет маркера
+ */
 void
 hyscan_gtk_map_pin_layer_set_color_prime (HyScanGtkMapPinLayer *layer,
                                           GdkRGBA color)
@@ -963,6 +987,13 @@ hyscan_gtk_map_pin_layer_set_color_prime (HyScanGtkMapPinLayer *layer,
   hyscan_gtk_map_grid_queue_draw (layer);
 }
 
+/**
+ * hyscan_gtk_map_pin_layer_set_color_second:
+ * @layer: указатель на слой #HyScanGtkMapPinLayer
+ * @color: вспомогательный цвет маркера
+ *
+ * Устанваливает вспомогательный цвет маркера
+ */
 void
 hyscan_gtk_map_pin_layer_set_color_second (HyScanGtkMapPinLayer *layer,
                                            GdkRGBA               color)
@@ -974,6 +1005,13 @@ hyscan_gtk_map_pin_layer_set_color_second (HyScanGtkMapPinLayer *layer,
   hyscan_gtk_map_grid_queue_draw (layer);
 }
 
+/**
+ * hyscan_gtk_map_pin_layer_set_color_stroke:
+ * @layer: указатель на слой #HyScanGtkMapPinLayer
+ * @color: цвет обводки
+ *
+ * Устанавливает цвет обводки элементов
+ */
 void
 hyscan_gtk_map_pin_layer_set_color_stroke (HyScanGtkMapPinLayer *layer,
                                            GdkRGBA               color)
@@ -986,7 +1024,14 @@ hyscan_gtk_map_pin_layer_set_color_stroke (HyScanGtkMapPinLayer *layer,
 }
 
 
-/* Установка формы маркера. */
+/**
+ * hyscan_gtk_map_pin_layer_set_pin_shape:
+ * @layer: указатель на слой #HyScanGtkMapPinLayer
+ * @shape: устанавливает форму маркера
+ *
+ * Устанваливает форму маркера. Смотри #HyScanGtkMapPinLayerPinShape для списка
+ * доступных форм.
+ */
 void
 hyscan_gtk_map_pin_layer_set_pin_shape (HyScanGtkMapPinLayer         *layer,
                                         HyScanGtkMapPinLayerPinShape  shape)

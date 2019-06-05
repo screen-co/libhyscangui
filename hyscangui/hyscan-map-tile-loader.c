@@ -209,18 +209,18 @@ hyscan_map_tile_loader_new (void)
 
 /**
  * hyscan_map_tile_loader_start:
- * @loader:
- * @source:
- * @from_x:
- * @to_x:
- * @from_y:
- * @to_y:
+ * @loader: указатель на #HyScanMapTileLoader
+ * @source: источник тайлов
+ * @from_x: минимальная граница области для кэширования по оси X
+ * @to_x: максимальная граница области для кэширования по оси X
+ * @from_y: минимальная граница области для кэширования по оси Y
+ * @to_y: максимальная граница области для кэширования по оси Y
  *
  * Запускает загрузку тайлов из источника @source, которые полностью покрывают
  * указанную область.
  *
  * Returns: указатель на поток, в котором будет происходить загрузка тайлов, или
- *          NULL в случае ошибки. Для удаления g_thread_unref() или g_thread_join().
+ *          %NULL в случае ошибки. Для удаления g_thread_unref() или g_thread_join().
  */
 GThread *
 hyscan_map_tile_loader_start (HyScanMapTileLoader    *loader,
@@ -255,7 +255,7 @@ hyscan_map_tile_loader_start (HyScanMapTileLoader    *loader,
 
 /**
  * hyscan_map_tile_loader_stop:
- * @loader:
+ * @loader: указатель на #HyScanMapTileLoader
  *
  * Останавливает загрузку тайлов.
  */

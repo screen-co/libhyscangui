@@ -143,9 +143,6 @@ static void           hyscan_network_map_tile_source_object_finalize     (GObjec
 static gboolean       hyscan_network_map_tile_source_fill_tile           (HyScanGtkMapTileSource            *source,
                                                                           HyScanGtkMapTile                  *tile,
                                                                           GCancellable                      *cancellable);
-static void           hyscan_network_map_tile_source_get_zoom_limits     (HyScanGtkMapTileSource            *source,
-                                                                          guint                             *min_zoom,
-                                                                          guint                             *max_zoom);
 static void           hyscan_network_map_tile_source_set_format          (HyScanNetworkMapTileSourcePrivate *priv,
                                                                           const gchar                       *url_tpl);
 static gchar *        hyscan_network_map_tile_source_get_quad            (HyScanGtkMapTile                  *tile);
@@ -586,19 +583,6 @@ hyscan_network_map_tile_source_fill_tile (HyScanGtkMapTileSource *source,
   return status_ok;
 }
 
-/* Реализация функции get_zoom_limits интерфейса HyScanGtkMapTileSource.*/
-static void
-hyscan_network_map_tile_source_get_zoom_limits (HyScanGtkMapTileSource *source,
-                                                guint                  *min_zoom,
-                                                guint                  *max_zoom)
-{
-  HyScanNetworkMapTileSourcePrivate *priv;
-
-  priv = HYSCAN_NETWORK_MAP_TILE_SOURCE (source)->priv;
-  (max_zoom != NULL) ? *max_zoom = priv->max_zoom : 0;
-  (min_zoom != NULL) ? *min_zoom = priv->min_zoom : 0;
-}
-
 /* Реализация функции get_grid интерфейса HyScanGtkMapTileSource.*/
 static HyScanGtkMapTileGrid *
 hyscan_network_map_tile_source_get_grid (HyScanGtkMapTileSource *source)
@@ -626,7 +610,6 @@ static void
 hyscan_network_map_tile_source_interface_init (HyScanGtkMapTileSourceInterface *iface)
 {
   iface->fill_tile = hyscan_network_map_tile_source_fill_tile;
-  iface->get_zoom_limits = hyscan_network_map_tile_source_get_zoom_limits;
   iface->get_grid = hyscan_network_map_tile_source_get_grid;
   iface->get_projection = hyscan_network_map_tile_source_get_projection;
 }
@@ -637,8 +620,8 @@ hyscan_network_map_tile_source_interface_init (HyScanGtkMapTileSourceInterface *
  * @min_zoom: минимальный доступный уровень детализации
  * @max_zoom: максимальный доступный уровень детализации
  *
- * Создаёт новый источник тайлов из сервера тайлов. Подробнее о плейсхолдерах в
- * описании класса #HyScanNetworkMapTileSource.
+ * Создаёт новый источник тайлов из сервера тайлов. Подробнее про плейсхолдеры в
+ * формате @url_format описано в описании класса #HyScanNetworkMapTileSource.
  *
  * Returns: новый объект #HyScanNetworkMapTileSource. Для удаления g_object_unref().
  */

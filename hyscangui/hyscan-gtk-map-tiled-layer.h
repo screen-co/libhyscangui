@@ -59,6 +59,10 @@ struct _HyScanGtkMapTiledLayer
   HyScanGtkMapTiledLayerPrivate *priv;
 };
 
+/**
+ * HyScanGtkMapTiledLayerClass:
+ * @fill_tile: заполняет указанный тайл изображением
+ */
 struct _HyScanGtkMapTiledLayerClass
 {
   GInitiallyUnownedClass parent_class;

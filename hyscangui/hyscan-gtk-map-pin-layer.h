@@ -50,6 +50,13 @@ typedef struct _HyScanGtkMapPinLayer HyScanGtkMapPinLayer;
 typedef struct _HyScanGtkMapPinLayerPrivate HyScanGtkMapPinLayerPrivate;
 typedef struct _HyScanGtkMapPinLayerClass HyScanGtkMapPinLayerClass;
 
+/**
+ * HyScanGtkMapPinLayerPinShape:
+ * @HYSCAN_GTK_MAP_PIN_LAYER_SHAPE_CIRCLE: маркера в форме круга, целевая точка
+ *   расположена в центре круга
+ * @HYSCAN_GTK_MAP_PIN_LAYER_SHAPE_PIN: маркер в форме булавки, целевая точка
+ *   расположена в месте протыкания карты булавкой
+ */
 typedef enum
 {
   HYSCAN_GTK_MAP_PIN_LAYER_SHAPE_CIRCLE,

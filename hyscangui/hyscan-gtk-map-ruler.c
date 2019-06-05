@@ -35,7 +35,7 @@
 /**
  * SECTION: hyscan-gtk-map-ruler
  * @Short_description: Слой с линейкой для измерения расстояний.
- * @Title: HyScanGtkLayerContainer
+ * @Title: HyScanGtkMapRuler
  * @See_also: #HyScanGtkLayer, #HyScanGtkMap
  *
  * Данный слой позволяет измерять длину пути по двум и более точкам. Расчет
@@ -49,6 +49,7 @@
  * - hyscan_gtk_map_ruler_set_bg_color()      "color-bg"
  *
  */
+
 #include "hyscan-gtk-map-ruler.h"
 #include <hyscan-cartesian.h>
 #include <glib/gi18n.h>
@@ -71,8 +72,6 @@ struct _HyScanGtkMapRulerPrivate
   HyScanGtkMap              *map;                      /* Виджет карты. */
 
   PangoLayout               *pango_layout;             /* Раскладка шрифта. */
-
-  GList                     *points;                   /* Список вершин ломаной, длину которой необходимо измерить. */
 
   GList                     *hover_section;            /* Указатель на отрезок ломаной под курсором мыши. */
   HyScanGtkMapPoint          section_point;            /* Точка под курсором мыши в середине отрезка. */
@@ -166,7 +165,6 @@ hyscan_gtk_map_ruler_object_finalize (GObject *object)
   HyScanGtkMapRuler *gtk_map_ruler = HYSCAN_GTK_MAP_RULER (object);
   HyScanGtkMapRulerPrivate *priv = gtk_map_ruler->priv;
 
-  g_list_free_full (priv->points, (GDestroyNotify) hyscan_gtk_map_point_free);
   g_clear_object (&priv->pango_layout);
 
   G_OBJECT_CLASS (hyscan_gtk_map_ruler_parent_class)->finalize (object);
@@ -612,17 +610,32 @@ hyscan_gtk_map_ruler_new ()
   return g_object_new (HYSCAN_TYPE_GTK_MAP_RULER, NULL);
 }
 
+/**
+ * hyscan_gtk_map_ruler_set_line_width:
+ * @ruler: указатель на слой #HyScanGtkMapRuler
+ * @width: толщина линии линейки
+ *
+ * Устанавливает толщину линий линейки
+ */
 void
 hyscan_gtk_map_ruler_set_line_width (HyScanGtkMapRuler *ruler,
                                      gdouble            width)
 {
   g_return_if_fail (HYSCAN_IS_GTK_MAP_RULER (ruler));
+  g_return_if_fail (width > 0);
 
   ruler->priv->line_width = width;
   ruler->priv->radius = 1.5 * width;
   hyscan_gtk_map_grid_queue_draw (ruler);
 }
 
+/**
+ * hyscan_gtk_map_ruler_set_line_color:
+ * @ruler: указатель на слой #HyScanGtkMapRuler
+ * @color: цвет линии линейки
+ *
+ * Устанавливает цвет линий линейки
+ */
 void
 hyscan_gtk_map_ruler_set_line_color (HyScanGtkMapRuler *ruler,
                                      GdkRGBA            color)
@@ -633,6 +646,13 @@ hyscan_gtk_map_ruler_set_line_color (HyScanGtkMapRuler *ruler,
   hyscan_gtk_map_grid_queue_draw (ruler);
 }
 
+/**
+ * hyscan_gtk_map_ruler_set_label_color:
+ * @ruler: указатель на слой #HyScanGtkMapRuler
+ * @color: цвет текста подписи
+ *
+ * Устанавливает цвет текста подписи
+ */
 void
 hyscan_gtk_map_ruler_set_label_color (HyScanGtkMapRuler *ruler,
                                       GdkRGBA            color)
@@ -643,6 +663,13 @@ hyscan_gtk_map_ruler_set_label_color (HyScanGtkMapRuler *ruler,
   hyscan_gtk_map_grid_queue_draw (ruler);
 }
 
+/**
+ * hyscan_gtk_map_ruler_set_bg_color:
+ * @ruler: указатель на слой #HyScanGtkMapRuler
+ * @color: цвет подложки подписи
+ *
+ * Устанавливает цвет подложки подписи
+ */
 void
 hyscan_gtk_map_ruler_set_bg_color (HyScanGtkMapRuler *ruler,
                                    GdkRGBA            color)

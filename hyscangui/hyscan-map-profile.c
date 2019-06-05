@@ -32,6 +32,36 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
+/**
+ * SECTION: hyscan-gtk-map-profile
+ * @Short_description: Класс слоя с метками водопада
+ * @Title: HyScanGtkMapProfile
+ *
+ * Профиль карты предназначен для упрощения процесса конфигурации виджета карты
+ * #HyScanGtkMap и размещения на ней слоя подложки с изображением непосредственно карты.
+ *
+ * Профиль содержит в себе информацию об используемой подложке карты и соответствующем
+ * ей стиле оформления других слоёв карты. Так, например, спутниковые тайлы как правило
+ * имеют более тёмный цвет, чем векторные, и на их фоне инструменты карты должны
+ * менять цвет на более светлый.
+ *
+ * Существует несколько способов создания профиля карты:
+ * - конструктор по умолчанию hyscan_map_profile_new_default()
+ * - конструктор hyscan_map_profile_new_full() с указанием всех параметров
+ * - конструктор hyscan_map_profile_new(), а затем чтения ini-файла конфигурации
+ *   с помощью функции hyscan_map_profile_read
+ *
+ * Переключение используемых профилей карты позволяет изменять подложку карты и
+ * внешний вид слоёв.
+ *
+ * Чтобы применить профиль к карте необходимо воспользоваться функцией hyscan_map_profile_apply() -
+ * её можно использовать как для первоначальной конфигурации виджета, так и для
+ * изменения конфигурации карты во время выполнения. Применение профиля приводит
+ * к размещению на карте слоя с тайлами #HyScanGtkMapTiles, настроенного на
+ * загрузку тайлов по сети и их кэширование в некоторой папке на диске.
+ *
+ */
+
 #include "hyscan-map-profile.h"
 #include <hyscan-merged-tile-source.h>
 #include <hyscan-pseudo-mercator.h>
@@ -206,11 +236,11 @@ hyscan_map_profile_create_tiles (HyScanMapProfilePrivate *priv,
 
 /**
  * hyscan_map_profile_new_full:
- * @url_format
- * @cache_dir
- * @projection
- * @min_zoom
- * @max_zoom
+ * @url_format: формат URL тайла
+ * @cache_dir: директория для кэширования тайлов
+ * @projection: название проекции
+ * @min_zoom: минимальный доступный уровень детализации
+ * @max_zoom: максимальный доступный уровень детализации
  *
  * Создаёт новый профиль карты, который содержит в себе информацию об источнике
  * тайлов и соответствующей ему картографической проекции.
@@ -264,12 +294,7 @@ hyscan_map_profile_new_default (void)
 
 /**
  * hyscan_map_profile_new:
- * @url_format:
- * @cache_dir:
- * @projection:
- * @min_zoom:
- * @max_zoom:
- *
+
  * Создаёт пустой профиль карты. Параметры профиля могут быть установлены через
  * hyscan_map_profile_read().
  *
@@ -283,14 +308,16 @@ hyscan_map_profile_new (void)
 
 /**
  * hyscan_map_profile_read:
- * @param serializable
- * @param name
- * @return
+ * @profile: указатель на профиль #HyScanMapProfile
+ * @filename: путь к ini-файлу конфигурации
  *
+ * Считавает конфигурацию профиля из файла @filename.
+ *
+ * Returns: %TRUE, если параметры профиля были успешно считанны
  */
 gboolean
-hyscan_map_profile_read (HyScanMapProfile    *profile,
-                         const gchar         *name)
+hyscan_map_profile_read (HyScanMapProfile *profile,
+                         const gchar      *filename)
 {
   HyScanMapProfilePrivate *priv;
   gboolean result = FALSE;
@@ -308,7 +335,7 @@ hyscan_map_profile_read (HyScanMapProfile    *profile,
   g_return_val_if_fail (HYSCAN_IS_MAP_PROFILE (profile), FALSE);
   priv = profile->priv;
   
-  g_key_file_load_from_file (priv->key_file, name, G_KEY_FILE_NONE, &error);
+  g_key_file_load_from_file (priv->key_file, filename, G_KEY_FILE_NONE, &error);
   if (error != NULL)
     goto exit;
 
@@ -402,8 +429,8 @@ hyscan_map_profile_get_title (HyScanMapProfile *profile)
 
 /**
  * hyscan_map_profile_apply:
- * @profile
- * @map
+ * @profile: указатель на #HyScanMapProfile
+ * @map: указатель на карту #HyScanGtkMap
  *
  * Применяет профиль @profile к карте @map.
  */

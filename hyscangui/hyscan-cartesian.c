@@ -196,8 +196,8 @@ hyscan_cartesian_distance_to_line (HyScanGeoCartesian2D *p1,
 
 /**
  * hyscan_cartesian_distance:
- * @p1
- * @p2
+ * @p1: координаты первой точки
+ * @p2: координаты второй точки
  *
  * Returns: расстояние между точками p1 и p2
  */
@@ -213,7 +213,15 @@ hyscan_cartesian_distance (HyScanGeoCartesian2D *p1,
   return sqrt (dx * dx + dy * dy);
 }
 
-/* Поворачивает точку @point относительно @center на угол @angle. */
+/**
+ * hyscan_cartesian_rotate:
+ * @point: координаты точки до поворота
+ * @center: точка, вокруг которой происходит поворот
+ * @angle: угол поворота в радианах
+ * @rotated: координаты точки после поворота
+ *
+ * Поворачивает точку @point относительно @center на угол @angle
+ */
 void
 hyscan_cartesian_rotate (HyScanGeoCartesian2D *point,
                          HyScanGeoCartesian2D *center,
@@ -231,14 +239,17 @@ hyscan_cartesian_rotate (HyScanGeoCartesian2D *point,
 
 /**
  * hyscan_cartesian_extent:
- * @area_from:
- * @area_to:
- * @angle:
- * @extent_from:
- * @extent_to:
+ * @area_from: одна из вершин прямоугольника
+ * @area_to: противоположная вершина прямоугольника
+ * @angle: угол поворота прямоугльника, радианы
+ * @extent_from: координаты вершины повёрнутого прямоугольника
+ * @extent_to: координаты противоположной вершины повёрнутого прямоугольника
  *
- * Определяет границы, внутри которых находится прямоугольник с вершинами
- * @p1 и @p2 после поворота на угол @angle вокруг центра прямоугольника.
+ * Определяет область extent, внутри которой находится прямоугольник с вершинами
+ * @area_from и @area_to после поворота на угол @angle вокруг центра прямоугольника.
+ *
+ * Extent - прямоугольник, стороны которого параллельны осям координаты, а вершины
+ * имеют координаты @extent_from и @extent_to.
  */
 void
 hyscan_cartesian_rotate_area (HyScanGeoCartesian2D *area_from,

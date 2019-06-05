@@ -642,7 +642,7 @@ hyscan_gtk_map_wfmark_layer_interface_init (HyScanGtkLayerInterface *iface)
 
 /**
  * hyscan_gtk_map_wfmark_layer_new:
- * @model
+ * @model: указатель на модель данных положения меток
  *
  * Returns: создает новый объект #HyScanGtkMapWfmarkLayer. Для удаления g_object_unref().
  */

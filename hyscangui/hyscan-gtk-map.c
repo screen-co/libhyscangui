@@ -383,21 +383,6 @@ hyscan_gtk_map_get_limits (GtkCifroArea *carea,
   hyscan_geo_projection_get_limits (priv->projection, min_x, max_x, min_y, max_y);
 }
 
-/**
- * hyscan_gtk_map_new:
- * @center: (nullable): указатель на структуру с геокоординатами центра карты
- *
- * Создаёт новый виджет #HyScanGtkMap для отображения географической карты.
- *
- * Returns: указатель на #HyScanGtkMap
- */
-GtkWidget *
-hyscan_gtk_map_new (HyScanGeoGeodetic   *center)
-{
-  return g_object_new (HYSCAN_TYPE_GTK_MAP,
-                       "init-center", center, NULL);
-}
-
 /* Определяет размер карты в единицах проекции. */
 static gdouble
 hyscan_gtk_map_get_logic_size (HyScanGtkMapPrivate *priv)
@@ -430,9 +415,24 @@ hyscan_gtk_map_set_projection_real (HyScanGtkMapPrivate *priv,
 }
 
 /**
+ * hyscan_gtk_map_new:
+ * @center: (nullable): указатель на структуру с геокоординатами центра карты
+ *
+ * Создаёт новый виджет #HyScanGtkMap для отображения географической карты.
+ *
+ * Returns: указатель на #HyScanGtkMap
+ */
+GtkWidget *
+hyscan_gtk_map_new (HyScanGeoGeodetic   *center)
+{
+  return g_object_new (HYSCAN_TYPE_GTK_MAP,
+                       "init-center", center, NULL);
+}
+
+/**
  * hyscan_gtk_map_set_projection:
- * @map:
- * @projection:
+ * @map: указатель на карту #HyScanGtkMap
+ * @projection: картографическая проекция #HyScanGeoProjection
  *
  * Устанавливает новую проекцию в карте, сохраняя географические координаты
  * видимой области карты. Все слои будут оповещены об этом событии с помощью
@@ -468,9 +468,9 @@ hyscan_gtk_map_set_projection (HyScanGtkMap        *map,
 
 /**
  * hyscan_gtk_map_get_projection:
- * @map
+ * @map: указатель на карту #HyScanGtkMap
  *
- * Returns: указатель на #HyScanGeoProjection. Для удаления g_object_unref().
+ * Returns: (transfer full): указатель на #HyScanGeoProjection. Для удаления g_object_unref().
  */
 HyScanGeoProjection *
 hyscan_gtk_map_get_projection (HyScanGtkMap *map)

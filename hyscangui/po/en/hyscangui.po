@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-05-31 17:28+0300\n"
+"POT-Creation-Date: 2019-06-05 16:05+0300\n"
 "PO-Revision-Date: 2019-05-31 17:01+0300\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -17,28 +17,37 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: hyscangui/hyscan-gtk-map-way-layer.c:859
+#: hyscangui/hyscan-gtk-map-way-layer.c:858
 msgctxt "Heading"
 msgid "COG"
 msgstr "COG"
 
-#: hyscangui/hyscan-gtk-map-way-layer.c:859
+#: hyscangui/hyscan-gtk-map-way-layer.c:858
 msgctxt "Heading"
 msgid "HDG"
 msgstr "HDG"
 
-#: hyscangui/hyscan-gtk-map-way-layer.c:853
+#: hyscangui/hyscan-gtk-map-way-layer.c:852
 msgid "Signal lost"
 msgstr "Signal lost"
 
-#: hyscangui/hyscan-gtk-map-grid.c:560
+#: hyscangui/hyscan-gtk-map-grid.c:580 hyscangui/hyscan-gtk-map-ruler.c:368
+msgid "cm"
+msgstr "cm"
+
+#: hyscangui/hyscan-gtk-map-grid.c:576 hyscangui/hyscan-gtk-map-ruler.c:374
 msgid "km"
 msgstr "km"
 
-#: hyscangui/hyscan-gtk-map-grid.c:558
+#: hyscangui/hyscan-gtk-map-grid.c:578 hyscangui/hyscan-gtk-map-ruler.c:370
+#: hyscangui/hyscan-gtk-map-ruler.c:372
 msgid "m"
 msgstr "m"
 
-#: hyscangui/hyscan-gtk-map-way-layer.c:861
+#: hyscangui/hyscan-gtk-map-way-layer.c:860
 msgid "m/s"
 msgstr "m/s"
+
+#: hyscangui/hyscan-gtk-map-grid.c:582
+msgid "mm"
+msgstr "mm"

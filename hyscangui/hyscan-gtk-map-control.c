@@ -32,6 +32,20 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
+/**
+ * SECTION: hyscan-gtk-map-control
+ * @Short_description: Слой управления видимой областью карты
+ * @Title: HyScanGtkMapControl
+ * @See_also: #HyScanGtkLayer, #HyScanGtkMap
+ *
+ * Данный слой позволяет управлять видимой областью карты:
+ * - перемещение по карте с помощью мыши (drag and drop),
+ * - изменение масштаба колесом мыши.
+ *
+ * Слой не выводит на карте никакого изображения.
+ *
+ */
+
 #include "hyscan-gtk-map-control.h"
 #include <math.h>
 

@@ -57,11 +57,19 @@ typedef struct _HyScanGtkMap HyScanGtkMap;
 typedef struct _HyScanGtkMapPrivate HyScanGtkMapPrivate;
 typedef struct _HyScanGtkMapClass HyScanGtkMapClass;
 
-/* Координаты точки. */
+/**
+ * HyScanGtkMapPoint:
+ * @geo: географические координаты точки
+ * @c2d: декартовы координаты точки на картографической проекции
+ *
+ * Структура хранит координаты точки в двух форматах:
+ * - географические (широта и долгота)
+ * - декартовы (x, y), которые зависят от выбранной картографической проекции.
+ */
 typedef struct
 {
-  HyScanGeoGeodetic    geo;      /* Географические координаты (широта, долгота). */
-  HyScanGeoCartesian2D c2d;      /* Декартовы координаты (x, y). */
+  HyScanGeoGeodetic    geo;
+  HyScanGeoCartesian2D c2d;
 } HyScanGtkMapPoint;
 
 struct _HyScanGtkMap
@@ -94,14 +102,14 @@ void                   hyscan_gtk_map_move_to          (HyScanGtkMap           *
                                                         HyScanGeoGeodetic       center);
 
 HYSCAN_API
-void                   hyscan_gtk_map_set_pixel_scale (HyScanGtkMap            *map,
-                                                       gdouble                  scale);
-
-HYSCAN_API
 gdouble *              hyscan_gtk_map_create_scales2  (gdouble                  min_scale,
                                                        gdouble                  max_scale,
                                                        gint                     steps,
                                                        gint                    *scales_len);
+
+HYSCAN_API
+void                   hyscan_gtk_map_set_pixel_scale (HyScanGtkMap            *map,
+                                                       gdouble                  scale);
 
 HYSCAN_API
 gdouble                hyscan_gtk_map_get_pixel_scale (HyScanGtkMap            *map);

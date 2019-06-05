@@ -18,6 +18,15 @@ typedef struct _HyScanPlannerTrack HyScanPlannerTrack;
 typedef struct _HyScanPlannerPrivate HyScanPlannerPrivate;
 typedef struct _HyScanPlannerClass HyScanPlannerClass;
 
+/**
+ * HyScanPlannerTrack:
+ * @id: уникальный идентификатор
+ * @name: название
+ * @start: геокоординаты начала
+ * @start: геокоординаты конца
+ *
+ * Параметры запланированного галса
+ */
 struct _HyScanPlannerTrack
 {
   gchar             *id;

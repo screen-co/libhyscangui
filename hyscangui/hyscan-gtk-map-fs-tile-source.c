@@ -32,6 +32,23 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
+/**
+ * SECTION: hyscan-gtk-map-fs-tile-source
+ * @Short_description: Файловый источник тайлов
+ * @Title: HyScanGtkMapFsTileSource
+ * @See_also: #HyScanGtkMapTileSource
+ *
+ * Класс реализует интерфейс загрузки тайлов, загружая их из директории на
+ * диске пользователя. Для создания объекта используется функция
+ * hyscan_gtk_map_fs_tile_source_new().
+ *
+ * Если класс #HyScanGtkMapFsTileSource не находит файл с изображением тайла в
+ * каталоге тайлов на диске, то он загружает тайл из источника @fb_source, а
+ * затем сохранят загруженный тайл в каталоге. Таким образом класс может быть
+ * использован в качестве кэша тайлов для других источников.
+ *
+ */
+
 #include "hyscan-gtk-map-fs-tile-source.h"
 
 enum
@@ -214,25 +231,6 @@ hyscan_gtk_map_fs_tile_source_fill_tile (HyScanGtkMapTileSource *source,
   return success;
 }
 
-static void
-hyscan_gtk_map_fs_tile_source_get_zoom_limits (HyScanGtkMapTileSource *source,
-                                               guint                  *min_zoom,
-                                               guint                  *max_zoom)
-{
-  HyScanGtkMapFsTileSourcePrivate *priv = HYSCAN_GTK_MAP_FS_TILE_SOURCE (source)->priv;
-
-  if (priv->fallback_source != NULL)
-    {
-      hyscan_gtk_map_tile_source_get_zoom_limits (priv->fallback_source,  min_zoom, max_zoom);
-    }
-  else
-    {
-      /* todo: get zooms from file system. */
-      (max_zoom != NULL) ? *max_zoom = 19 : 0;
-      (min_zoom != NULL) ? *min_zoom = 0 : 0;
-    }
-}
-
 static HyScanGtkMapTileGrid *
 hyscan_gtk_map_fs_tile_source_get_grid (HyScanGtkMapTileSource *source)
 {
@@ -257,7 +255,6 @@ static void
 hyscan_gtk_map_fs_tile_source_interface_init (HyScanGtkMapTileSourceInterface *iface)
 {
   iface->fill_tile = hyscan_gtk_map_fs_tile_source_fill_tile;
-  iface->get_zoom_limits = hyscan_gtk_map_fs_tile_source_get_zoom_limits;
   iface->get_grid = hyscan_gtk_map_fs_tile_source_get_grid;
   iface->get_projection = hyscan_gtk_map_fs_tile_source_get_projection;
 }

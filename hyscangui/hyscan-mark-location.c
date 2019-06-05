@@ -49,7 +49,7 @@ hyscan_mark_location_new (void)
 
 /**
  * hyscan_mark_location_copy:
- * @mark_location:
+ * @mark_location: указатель на #HyScanMarkLocation
  *
  * Создаёт копию структуры @mark_location.
  *
@@ -73,7 +73,7 @@ hyscan_mark_location_copy (const HyScanMarkLocation *mark_location)
 
 /**
  * hyscan_mark_location_free:
- * @mark_location:
+ * @mark_location: указатель на #HyScanMarkLocation
  *
  * Освобождает память, занятую структурой #HyScanMarkLocation
  */

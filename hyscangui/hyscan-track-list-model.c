@@ -32,6 +32,23 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
+/**
+ * SECTION: hyscan-track-list-model
+ * @Short_description: Модель активных элементов (не обязательно галсов)
+ * @Title: HyScanTrackListModel
+ *
+ * Модель хранит список идентификаторов активных элементов и оповещает своих подписчиков
+ * о любых изменения в этом списке.
+ *
+ * - hyscan_track_list_model_new() - создание модели
+ * - hyscan_track_list_model_get() - получение таблицы активных элементов
+ * - hyscan_track_list_model_set_active() - установка статуса элемента
+ * - hyscan_track_list_model_get_active() - получение статуса элемента
+ *
+ * Для подписки на события изменения используется сигнал #HyScanTrackListModel::changed
+ *
+ */
+
 #include "hyscan-track-list-model.h"
 
 enum
@@ -63,7 +80,7 @@ hyscan_track_list_model_class_init (HyScanTrackListModelClass *klass)
 
   /**
    * HyScanTrackListModel::changed:
-   * @ml_model: указатель на #HyScanTrackListModel
+   * @track_list_model: указатель на #HyScanTrackListModel
    *
    * Сигнал посылается при изменении списка активных элементов.
    */
@@ -114,7 +131,7 @@ hyscan_track_list_model_new (void)
 
 /**
  * hyscan_track_list_model_get:
- * @tlist_model
+ * @tlist_model: указатель на #HyScanTrackListModel
  *
  * Returns: (element-type boolean): хэш-таблица, где ключ - название элемента,
  *   значение - признак того, что элемент активен.
@@ -129,9 +146,9 @@ hyscan_track_list_model_get (HyScanTrackListModel *tlist_model)
 
 /**
  * hyscan_track_list_model_set_active:
- * @tlist_model
- * @track_name
- * @active
+ * @tlist_model: указатель на #HyScanTrackListModel
+ * @track_name: имя элемента
+ * @active: признак активности элемента
  *
  * Устанавливает элемент с именем @track_name активным или неактивным.
  */
@@ -152,8 +169,8 @@ hyscan_track_list_model_set_active (HyScanTrackListModel *tlist_model,
 
 /**
  * hyscan_track_list_model_get_active:
- * @tlist_model
- * @track_name
+ * @tlist_model: указатель на #HyScanTrackListModel
+ * @track_name: имя элемента
  *
  * Returns: возвращает %TRUE, если @track_name активен; иначе %FALSE.
  */

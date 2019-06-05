@@ -83,8 +83,8 @@ HYSCAN_API
 gchar *                hyscan_map_profile_get_title        (HyScanMapProfile   *profile);
 
 HYSCAN_API
-gboolean               hyscan_map_profile_read             (HyScanMapProfile   *serializable,
-                                                            const gchar        *name);
+gboolean               hyscan_map_profile_read             (HyScanMapProfile   *profile,
+                                                            const gchar        *filename);
 
 HYSCAN_API
 gboolean               hyscan_map_profile_apply            (HyScanMapProfile   *profile,

@@ -32,7 +32,7 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
- /**
+/**
  * SECTION: hyscan-task-queue
  * @Short_description: Очередь задач
  * @Title: HyScanTaskQueue
@@ -290,11 +290,14 @@ hyscan_task_queue_cmp (HyScanTaskQueueWrap *a,
 
 /**
  * hyscan_task_queue_push:
- * @task_func:
- * @user_data:
- * @cmp_func:
+ * @task_func: функция обработки задачи
+ * @user_data: пользовательские данные
+ * @cmp_func: функция сравнения задач
  *
- * Создает новый объект #HyScanTaskQueue.
+ * Создает новый объект #HyScanTaskQueue. Очередь будет использовать функцию
+ * @task_func для обработки поступающих задач, передавая ей в качестве параметров
+ * задачу и пользовательские данные @user_data. Функция @cmp_func позволяет
+ * не добавлять повторно в очередь задачу, которая там уже есть.
  *
  * Returns: Перед удалением необходимо завершить работу очереди с помощью
  *    hyscan_task_queue_shutdown() и затем удалить через g_object_unref().
@@ -315,7 +318,8 @@ hyscan_task_queue_new (HyScanTaskQueueFunc task_func,
  * hyscan_task_queue_push_end:
  * @queue: указатель на #HyScanTaskQueue
  *
- * Завершает добавление в очередь.
+ * Завершает добавление в очередь и запускает обработку задач из сформированной
+ * очереди.
  */
 void
 hyscan_task_queue_push_end (HyScanTaskQueue *queue)

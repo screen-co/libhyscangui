@@ -50,6 +50,12 @@ G_BEGIN_DECLS
 typedef struct _HyScanGtkMapTileSource HyScanGtkMapTileSource;
 typedef struct _HyScanGtkMapTileSourceInterface HyScanGtkMapTileSourceInterface;
 
+/**
+ * HyScanGtkMapTileSourceInterface:
+ * @fill_tile: заполняет тайл изображением
+ * @get_grid: возвращает тайловую сетку источника
+ * @get_projection: возвращает картографическую проекцию источника
+ */
 struct _HyScanGtkMapTileSourceInterface
 {
   GTypeInterface           g_iface;
@@ -58,10 +64,6 @@ struct _HyScanGtkMapTileSourceInterface
                                                      HyScanGtkMapTile              *tile,
                                                      GCancellable                  *cancellable);
 
-  void                   (*get_zoom_limits)         (HyScanGtkMapTileSource        *source,
-                                                     guint                         *min_zoom,
-                                                     guint                         *max_zoom);
-
   HyScanGtkMapTileGrid * (*get_grid)                (HyScanGtkMapTileSource        *source);
 
   HyScanGeoProjection *  (*get_projection)          (HyScanGtkMapTileSource        *source);
@@ -69,11 +71,6 @@ struct _HyScanGtkMapTileSourceInterface
 
 HYSCAN_API
 GType                   hyscan_gtk_map_tile_source_get_type                  (void);
-
-HYSCAN_API
-void                    hyscan_gtk_map_tile_source_get_zoom_limits           (HyScanGtkMapTileSource *source,
-                                                                              guint                  *min_zoom,
-                                                                              guint                  *max_zoom);
 
 HYSCAN_API
 HyScanGtkMapTileGrid *  hyscan_gtk_map_tile_source_get_grid                  (HyScanGtkMapTileSource *source);

@@ -518,28 +518,6 @@ hyscan_gtk_map_track_layer_interface_init (HyScanGtkLayerInterface *iface)
   iface->get_visible = hyscan_gtk_map_track_layer_get_visible;
 }
 
-/**
- * hyscan_gtk_map_track_layer_new:
- * @db
- * @project
- * @track_list_model
- * @cache
- *
- * Returns: указатель на новый слой #HyScanGtkMapTrackLayer
- */
-HyScanGtkLayer *
-hyscan_gtk_map_track_layer_new (HyScanDB             *db,
-                                const gchar          *project,
-                                HyScanTrackListModel *track_list_model,
-                                HyScanCache          *cache)
-{
-  return g_object_new (HYSCAN_TYPE_GTK_MAP_TRACK_LAYER,
-                       "db", db,
-                       "project", project,
-                       "track-list-model", track_list_model,
-                       "data-cache", cache, NULL);
-}
-
 /* Ищет галс в хэш-таблице; если галс не найден, то создает новый и добавляет
  * его в таблицу. */
 static HyScanGtkMapTrack *
@@ -565,6 +543,28 @@ hyscan_gtk_map_track_layer_get_track (HyScanGtkMapTrackLayer *track_layer,
   g_mutex_unlock (&priv->t_lock);
 
   return track;
+}
+
+/**
+ * hyscan_gtk_map_track_layer_new:
+ * @db: база данных #HyScanDB
+ * @project: название проекта
+ * @track_list_model: модель данных активных галсов
+ * @cache: кэш данных
+ *
+ * Returns: указатель на новый слой #HyScanGtkMapTrackLayer
+ */
+HyScanGtkLayer *
+hyscan_gtk_map_track_layer_new (HyScanDB             *db,
+                                const gchar          *project,
+                                HyScanTrackListModel *track_list_model,
+                                HyScanCache          *cache)
+{
+  return g_object_new (HYSCAN_TYPE_GTK_MAP_TRACK_LAYER,
+                       "db", db,
+                       "project", project,
+                       "track-list-model", track_list_model,
+                       "data-cache", cache, NULL);
 }
 
 /**
@@ -659,7 +659,7 @@ hyscan_gtk_map_track_layer_set_color_starboard (HyScanGtkMapTrackLayer *track_la
  * @track_layer: указатель на #HyScanGtkMapTrackLayer
  * @bar_width: ширина полосы в пикселях
  *
- * Устанавливает ширину полосы дальности.
+ * Устанавливает ширину линии дальности.
  */
 void
 hyscan_gtk_map_track_layer_set_bar_width (HyScanGtkMapTrackLayer *track_layer,
@@ -677,7 +677,7 @@ hyscan_gtk_map_track_layer_set_bar_width (HyScanGtkMapTrackLayer *track_layer,
  * @track_layer: указатель на #HyScanGtkMapTrackLayer
  * @bar_margin: отступ в пикселях вдоль линии трека
  *
- * Устанавливает расстоянием между двумя соседними полосами дальности.
+ * Устанавливает расстоянием между двумя соседними линиями дальности.
  */
 void
 hyscan_gtk_map_track_layer_set_bar_margin (HyScanGtkMapTrackLayer *track_layer,
@@ -691,7 +691,14 @@ hyscan_gtk_map_track_layer_set_bar_margin (HyScanGtkMapTrackLayer *track_layer,
   hyscan_gtk_map_tiled_layer_request_draw (HYSCAN_GTK_MAP_TILED_LAYER (track_layer));
 }
 
-
+/**
+ * hyscan_gtk_map_track_layer_lookup:
+ * @track_layer: указатель на #HyScanGtkMapTrackLayer
+ * @track_name: название галса
+ *
+ * Returns: (transfer full): указатель на найденный галс #HyScanGtkMapTrack.
+ *   Для удаления g_object_unref().
+ */
 HyScanGtkMapTrack *
 hyscan_gtk_map_track_layer_lookup (HyScanGtkMapTrackLayer *track_layer,
                                    const gchar            *track_name)

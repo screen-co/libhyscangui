@@ -164,8 +164,18 @@ hyscan_geo_projection_get_scale (HyScanGeoProjection *geo_projection,
   return -1.0;
 }
 
+/**
+ * hyscan_geo_projection_hash:
+ * @geo_projection: указатель на проекцию #HyScanGeoProjection
+ *
+ * Возвращает хэш проекции. Проекции с равными значениями хэша одинаковые, то есть
+ * переводят географические координаты точки в одни и те же координаты на карте.
+ * Разные проекции имеют разный хэш.
+ *
+ * Returns: хэш проекции
+ */
 guint
-hyscan_geo_projection_hash (HyScanGeoProjection  *geo_projection)
+hyscan_geo_projection_hash (HyScanGeoProjection *geo_projection)
 {
   HyScanGeoProjectionInterface *iface;
 

@@ -35,11 +35,16 @@
 /**
  * SECTION: hyscan-gtk-map-grid
  * @Short_description: Слой карты #HyScanGtkMap
- * @Title: HyScanGtkLayerContainer
+ * @Title: HyScanGtkMapGrid
  * @See_also: #HyScanGtkLayer, #HyScanGtkMap
  *
- * Слой с изображением координатной сетки и текущего масштаба карты. Стиль
- * оформления сетки можно задать с помощью функций класса или свойств из файла
+ * Слой с изображением координатной сетки и текущего масштаба карты. Масштаб карты
+ * выводится в двух видах:
+ * 1. численный масштаб в виде дроби, показывающий степень уменьшения проекции,
+ *    например, 1:10000; степень уменьшения рассчитывается на основе PPI дисплея;
+ * 2. графическое изображение линейки с подписью соответствующей её длины на местности.
+ *
+ * Стиль оформления сетки можно задать с помощью функций класса или свойств из файла
  * конфигурации:
  *
  * - hyscan_gtk_map_grid_set_bg_color()      "bg-color"
@@ -723,12 +728,26 @@ hyscan_gtk_map_grid_queue_draw (HyScanGtkMapGrid *grid)
     gtk_widget_queue_draw (GTK_WIDGET (grid->priv->map));
 }
 
+/**
+ * hyscan_gtk_map_grid_new:
+ *
+ * Создаёт слой координатной сетки.
+ *
+ * Returns: указатель на созданный слой
+ */
 HyScanGtkLayer *
 hyscan_gtk_map_grid_new (void)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_GRID, NULL);
 }
 
+/**
+ * hyscan_gtk_map_grid_set_bg_color:
+ * @grid: указатель на #HyScanGtkMapGrid
+ * @color: цвет подложки подписей
+ *
+ * Устанавливает цвет подложки подписей
+ */
 void
 hyscan_gtk_map_grid_set_bg_color (HyScanGtkMapGrid *grid,
                                   GdkRGBA           color)
@@ -739,6 +758,13 @@ hyscan_gtk_map_grid_set_bg_color (HyScanGtkMapGrid *grid,
   hyscan_gtk_map_grid_queue_draw (grid);
 }
 
+/**
+ * hyscan_gtk_map_grid_set_line_color:
+ * @grid: указатель на #HyScanGtkMapGrid
+ * @color: цвет линий координатной сетки
+ *
+ * Устанавливает цвет линий координатной сетки.
+ */
 void
 hyscan_gtk_map_grid_set_line_color (HyScanGtkMapGrid *grid,
                                     GdkRGBA           color)
@@ -749,29 +775,52 @@ hyscan_gtk_map_grid_set_line_color (HyScanGtkMapGrid *grid,
   hyscan_gtk_map_grid_queue_draw (grid);
 }
 
+/**
+ * hyscan_gtk_map_grid_set_line_width:
+ * @grid: указатель на #HyScanGtkMapGrid
+ * @width: толщина линий координатной сетки
+ *
+ * Устанавливает толщину линии координатной сетки.
+ */
 void
 hyscan_gtk_map_grid_set_line_width (HyScanGtkMapGrid *grid,
                                     gdouble           width)
 {
   g_return_if_fail (HYSCAN_IS_GTK_MAP_GRID (grid));
+  g_return_if_fail (width > 0);
 
   grid->priv->line_width = width;
   hyscan_gtk_map_grid_queue_draw (grid);
 }
 
+/**
+ * hyscan_gtk_map_grid_set_scale_width:
+ * @grid: указатель на #HyScanGtkMapGrid
+ * @width: толщина линии в изображении линейки масштаба
+ *
+ * Устанавливает толщину линии в изображении линейки масштаба.
+ */
 void
 hyscan_gtk_map_grid_set_scale_width (HyScanGtkMapGrid *grid,
                                      gdouble           width)
 {
   g_return_if_fail (HYSCAN_IS_GTK_MAP_GRID (grid));
+  g_return_if_fail (width > 0);
 
   grid->priv->scale_width = width;
   hyscan_gtk_map_grid_queue_draw (grid);
 }
 
+/**
+ * hyscan_gtk_map_grid_set_label_color:
+ * @grid: указатель на #HyScanGtkMapGrid
+ * @color: цвет текста подписей
+ *
+ * Устанавливает цвет текста подписей
+ */
 void
-hyscan_gtk_map_grid_set_label_color  (HyScanGtkMapGrid *grid,
-                                      GdkRGBA           color)
+hyscan_gtk_map_grid_set_label_color (HyScanGtkMapGrid *grid,
+                                     GdkRGBA           color)
 {
   g_return_if_fail (HYSCAN_IS_GTK_MAP_GRID (grid));
 
@@ -779,6 +828,14 @@ hyscan_gtk_map_grid_set_label_color  (HyScanGtkMapGrid *grid,
   hyscan_gtk_map_grid_queue_draw (grid);
 }
 
+/**
+ * hyscan_gtk_map_grid_set_step_width:
+ * @grid: указатель на #HyScanGtkMapGrid
+ * @width: расстояние между двумя соседними линиями координатной сетки
+ *
+ * Устанавливает желаемое расстояние между двумя соседними линиями координатной
+ * сетки.
+ */
 void
 hyscan_gtk_map_grid_set_step_width (HyScanGtkMapGrid *grid,
                                     guint             width)

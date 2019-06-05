@@ -504,7 +504,7 @@ hyscan_gtk_map_tile_grid_adjust_zoom (HyScanGtkMapTileGrid *grid,
 
 /**
  * hyscan_gtk_map_tile_get_x:
- * @tile
+ * @tile: указатель на #HyScanGtkMapTile
  *
  * Returns: координата x тайла.
  */
@@ -518,7 +518,7 @@ hyscan_gtk_map_tile_get_x (HyScanGtkMapTile *tile)
 
 /**
  * hyscan_gtk_map_tile_get_y:
- * @tile
+ * @tile: указатель на #HyScanGtkMapTile
  *
  * Returns: координата y тайла.
  */
@@ -579,7 +579,7 @@ hyscan_gtk_map_tile_get_bounds (HyScanGtkMapTile *tile,
 
 /**
  * hyscan_gtk_map_tile_get_zoom:
- * @tile:
+ * @tile: указатель на #HyScanGtkMapTile
  *
  * Returns: номер масштаба тайла
  */
@@ -595,7 +595,7 @@ hyscan_gtk_map_tile_get_zoom (HyScanGtkMapTile *tile)
  * hyscan_gtk_map_tile_get_size:
  * @tile: указатель на #HyScanGtkMapTile
  *
- * Returns: размер стороны тайла в пикселях.
+ * Returns: длина стороны тайла в пикселях.
  */
 guint
 hyscan_gtk_map_tile_get_size (HyScanGtkMapTile *tile)
@@ -624,9 +624,9 @@ hyscan_gtk_map_tile_get_scale (HyScanGtkMapTile *tile)
 
 /**
  * hyscan_gtk_map_tile_set_surface_data:
- * @tile
- * @data
- * @size
+ * @tile: указатель на #HyScanGtkMapTile
+ * @data: пиксельные данные
+ * @size: размер @data
  *
  * Устанавливает поверхность данные @data в качестве поверхности тайла.
  *
@@ -657,8 +657,8 @@ hyscan_gtk_map_tile_set_surface_data (HyScanGtkMapTile *tile,
 
 /**
  * hyscan_gtk_map_tile_set_pixbuf:
- * @tile
- * @pixbuf
+ * @tile: указатель на #HyScanGtkMapTile
+ * @pixbuf: изображение тайла
  *
  * Устанавливает изображение @pixbuf на поверхность тайла.
  *
@@ -698,10 +698,10 @@ hyscan_gtk_map_tile_set_pixbuf (HyScanGtkMapTile *tile,
 
 /**
  * hyscan_gtk_map_tile_set_surface:
- * @tile:
- * @surface: (nullable):
+ * @tile: указатель на #HyScanGtkMapTile
+ * @surface: (nullable): поверхность с изображением тайла
  *
- * Устанавливает поверхность тайла.
+ * Устанавливает поверхность тайла. Если передан %NULL, то поверхность удаляется.
  */
 void
 hyscan_gtk_map_tile_set_surface (HyScanGtkMapTile *tile,
@@ -729,7 +729,7 @@ hyscan_gtk_map_tile_set_surface (HyScanGtkMapTile *tile,
 
 /**
  * hyscan_gtk_map_tile_get_surface:
- * @tile
+ * @tile: указатель на #HyScanGtkMapTile
  *
  * Returns: (nullable): поверхность тайла
  */
@@ -746,10 +746,10 @@ hyscan_gtk_map_tile_get_surface (HyScanGtkMapTile *tile)
 
 /**
  * hyscan_gtk_map_tile_compare:
- * @a
- * @b
+ * @a: указатель на #HyScanGtkMapTile
+ * @b: указатель на #HyScanGtkMapTile
  *
- * Сравнивает тайлы a и b.
+ * Сравнивает тайлы @a и @b.
  *
  * Returns: Возвращает 0, если тайлы одинаковые.
  */
@@ -837,6 +837,12 @@ hyscan_gtk_map_tile_grid_get_view_cifro (HyScanGtkMapTileGrid *grid,
                                      from_tile_x, to_tile_x, from_tile_y, to_tile_y);
 }
 
+/**
+ * hyscan_gtk_map_tile_grid_get_tile_size:
+ * @grid: указатель на #HyScanGtkMapTileGrid
+ *
+ * Returns: длина стороны тайла в пикселах
+ */
 guint
 hyscan_gtk_map_tile_grid_get_tile_size (HyScanGtkMapTileGrid *grid)
 {

@@ -154,7 +154,6 @@ hyscan_mark_loc_model_set_property (GObject      *object,
 
   switch (prop_id)
     {
-
     case PROP_DB:
       priv->db = g_value_dup_object (value);
       break;
@@ -175,8 +174,6 @@ hyscan_mark_loc_model_object_constructed (GObject *object)
   HyScanMarkLocModel *ml_model = HYSCAN_MARK_LOC_MODEL (object);
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
 
-  /* Remove this call then class is derived from GObject.
-     This call is strongly needed then class is derived from GtkWidget. */
   G_OBJECT_CLASS (hyscan_mark_loc_model_parent_class)->constructed (object);
 
   g_rw_lock_init (&priv->mark_lock);
@@ -198,6 +195,10 @@ hyscan_mark_loc_model_object_finalize (GObject *object)
 {
   HyScanMarkLocModel *mark_loc_model = HYSCAN_MARK_LOC_MODEL (object);
   HyScanMarkLocModelPrivate *priv = mark_loc_model->priv;
+
+  /* Отключаемся от всех сигналов. */
+  g_signal_handlers_disconnect_by_data (priv->mark_model, mark_loc_model);
+  g_signal_handlers_disconnect_by_data (priv->db_info, mark_loc_model);
 
   g_rw_lock_clear (&priv->mark_lock);
 
@@ -447,8 +448,8 @@ hyscan_mark_loc_model_create_table (void)
 
 /**
  * hyscan_mark_loc_model_new:
- * @db
- * @cache
+ * @db: указатель на базу данных #HyScanDb
+ * @cache: кэш
  *
  * Создаёт модель данных положений меток.
  */
@@ -463,8 +464,8 @@ hyscan_mark_loc_model_new (HyScanDB    *db,
 
 /**
  * hyscan_mark_loc_model_set_project:
- * @ml_model
- * @project
+ * @ml_model: указатель на #HyScanMarkLocModel
+ * @project: название проекта
  *
  * Устанавливает название проекта
  */
