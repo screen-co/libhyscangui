@@ -58,6 +58,7 @@
 #include <hyscan-projector.h>
 #include <hyscan-acoustic-data.h>
 #include <hyscan-nmea-parser.h>
+#include <hyscan-waterfall-mark-data.h>
 
 #define ACOUSTIC_CHANNEL        1                    /* Канал с акустическими данными. */
 #define NMEA_RMC_CHANNEL        1                    /* Канал с навигационными данными. */
@@ -181,7 +182,7 @@ hyscan_mark_loc_model_object_constructed (GObject *object)
   priv->locations = hyscan_mark_loc_model_create_table ();
 
   /* Модели данных. */
-  priv->mark_model = hyscan_mark_model_new ();
+  priv->mark_model = hyscan_mark_model_new (HYSCAN_TYPE_WATERFALL_MARK_DATA);
   priv->db_info = hyscan_db_info_new (priv->db);
 
   g_signal_connect_swapped (priv->mark_model, "changed",
@@ -238,7 +239,7 @@ hyscan_mark_loc_model_load_location (HyScanMarkLocModel *ml_model,
 {
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
 
-  const HyScanWaterfallMark *mark = location->mark;
+  const HyScanMarkWaterfall *mark = location->mark;
   const gchar *track_name;
 
   location->loaded = FALSE;

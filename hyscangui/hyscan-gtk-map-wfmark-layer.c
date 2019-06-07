@@ -569,10 +569,10 @@ hyscan_gtk_map_wfmark_layer_added (HyScanGtkLayer          *gtk_layer,
   g_return_if_fail (priv->map == NULL);
 
   priv->map = g_object_ref (container);
-  g_signal_connect (priv->map, "motion-notify-event", G_CALLBACK (hyscan_gtk_map_wfmark_layer_motion_notify), gtk_layer);
+  g_signal_connect (priv->map, "motion-notify-event", G_CALLBACK (hyscan_gtk_map_wfmark_layer_motion_notify), wfm_layer);
   g_signal_connect_after (priv->map, "visible-draw", G_CALLBACK (hyscan_gtk_map_wfmark_layer_draw), wfm_layer);
   g_signal_connect_swapped (priv->map, "configure-event", G_CALLBACK (hyscan_gtk_map_wfmark_layer_configure), wfm_layer);
-  g_signal_connect (priv->map, "notify::projection", G_CALLBACK (hyscan_gtk_map_wfmark_layer_proj_notify), gtk_layer);
+  g_signal_connect (priv->map, "notify::projection", G_CALLBACK (hyscan_gtk_map_wfmark_layer_proj_notify), wfm_layer);
 }
 
 static void

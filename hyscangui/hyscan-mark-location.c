@@ -62,7 +62,7 @@ hyscan_mark_location_copy (const HyScanMarkLocation *mark_location)
 
   copy = hyscan_mark_location_new ();
 
-  copy->mark = hyscan_waterfall_mark_copy (mark_location->mark);
+  copy->mark = (HyScanMarkWaterfall *) hyscan_mark_copy ((HyScanMark *) mark_location->mark);
   copy->loaded = mark_location->loaded;
   copy->time = mark_location->time;
   copy->center_geo = mark_location->center_geo;
@@ -80,6 +80,6 @@ hyscan_mark_location_copy (const HyScanMarkLocation *mark_location)
 void
 hyscan_mark_location_free (HyScanMarkLocation *mark_location)
 {
-  hyscan_waterfall_mark_free (mark_location->mark);
+  hyscan_mark_free ((HyScanMark *) mark_location->mark);
   g_slice_free (HyScanMarkLocation, mark_location);
 }

@@ -35,7 +35,7 @@
 #define __HYSCAN_MARK_LOCATION_H__
 
 
-#include <hyscan-waterfall-mark.h>
+#include <hyscan-mark.h>
 #include <hyscan-geo.h>
 
 /**
@@ -43,7 +43,7 @@
  *
  * Местоположение метки, содержит в себе географические координаты метки
  *
- * @mark: указатель на метку водопада #HyScanWaterfallMark
+ * @mark: указатель на метку водопада #HyScanMarkWaterfall
  * @loaded: признак того, что геолокационные данные по метке загружены
  * @time: время фиксации строки с меткой
  * @center_geo: географические координаты и курс судна в момент фиксации метки
@@ -51,7 +51,7 @@
  */
 typedef struct
 {
-  HyScanWaterfallMark  *mark;
+  HyScanMarkWaterfall  *mark;
   gboolean              loaded;
   gint64                time;
   HyScanGeoGeodetic     center_geo;
