@@ -57,12 +57,8 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-map-tile-loader.c
 
              # [[ Модели ]]
-             hyscan-navigation-model.c
              hyscan-mark-location.c
              hyscan-mark-loc-model.c
-             hyscan-planner.c
-
-             hyscan-nmea-file-device.c
              ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c)
 
 target_link_libraries (${HYSCAN_GUI_LIBRARY}
