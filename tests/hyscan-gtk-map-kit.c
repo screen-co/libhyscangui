@@ -17,7 +17,7 @@
 #include <hyscan-mark-model.h>
 #include <hyscan-gtk-map-planner.h>
 #include <glib/gi18n.h>
-#include <hyscan-waterfall-mark-data.h>
+#include <hyscan-mark-data-waterfall.h>
 
 #define PRELOAD_STATE_DONE 1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
 
@@ -1300,7 +1300,7 @@ hyscan_gtk_map_kit_model_create (HyScanGtkMapKit *kit,
     {
       priv->db = g_object_ref (db);
       priv->db_info = hyscan_db_info_new (db);
-      priv->mark_model = hyscan_mark_model_new (HYSCAN_TYPE_WATERFALL_MARK_DATA);
+      priv->mark_model = hyscan_mark_model_new (HYSCAN_TYPE_MARK_DATA_WATERFALL);
       priv->list_model = hyscan_list_model_new ();
       priv->ml_model = hyscan_mark_loc_model_new (db, priv->cache);
     }
