@@ -49,18 +49,12 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-map-planner.c
 
              #[[ Загрузка тайлов ]]
-             hyscan-task-queue.c
              hyscan-gtk-map-tile.c
              hyscan-gtk-map-tile-source.c
              hyscan-network-map-tile-source.c
              hyscan-gtk-map-fs-tile-source.c
              hyscan-merged-tile-source.c
              hyscan-map-tile-loader.c
-
-             #[[ Проекции ]]
-             hyscan-geo-projection.c
-             hyscan-mercator.c
-             hyscan-pseudo-mercator.c
 
              # [[ Модели ]]
              hyscan-navigation-model.c
@@ -69,7 +63,6 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-track-list-model.c
              hyscan-planner.c
 
-             hyscan-cartesian.c
              hyscan-nmea-file-device.c
              ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c)
 
