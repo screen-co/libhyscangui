@@ -39,7 +39,7 @@
 #include <hyscan-gtk-map-track.h>
 #include <hyscan-db.h>
 #include <hyscan-cache.h>
-#include <hyscan-track-list-model.h>
+#include <hyscan-list-model.h>
 
 G_BEGIN_DECLS
 
@@ -73,7 +73,7 @@ GType                  hyscan_gtk_map_track_layer_get_type            (void);
 HYSCAN_API
 HyScanGtkLayer *       hyscan_gtk_map_track_layer_new                 (HyScanDB               *db,
                                                                        const gchar            *project,
-                                                                       HyScanTrackListModel   *model,
+                                                                       HyScanListModel        *model,
                                                                        HyScanCache            *cache);
 
 HYSCAN_API

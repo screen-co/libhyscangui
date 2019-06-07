@@ -13,7 +13,7 @@
 #include <hyscan-db-info.h>
 #include <hyscan-gtk-param-tree.h>
 #include <hyscan-gtk-map-wfmark-layer.h>
-#include <hyscan-track-list-model.h>
+#include <hyscan-list-model.h>
 #include <hyscan-mark-model.h>
 #include <hyscan-gtk-map-planner.h>
 #include <glib/gi18n.h>
@@ -52,7 +52,7 @@ struct _HyScanGtkMapKitPrivate
 {
   /* Модели данных. */
   HyScanDBInfo          *db_info;          /* Доступ к данным БД. */
-  HyScanTrackListModel  *track_list_model; /* Модель активных галсов. */
+  HyScanListModel       *list_model;       /* Модель списка активных галсов. */
   HyScanMarkModel       *mark_model;       /* Модель меток водопада. */
   HyScanDB              *db;
   HyScanMarkLocModel    *ml_model;
@@ -310,7 +310,10 @@ on_enable_track (GtkCellRendererToggle *cell_renderer,
   gtk_tree_model_get (tree_model, &iter, TRACK_COLUMN, &track_name, VISIBLE_COLUMN, &active, -1);
 
   /* Устанавливаем новое значение в модель данных. */
-  hyscan_track_list_model_set_active (priv->track_list_model, track_name, !active);
+  if (active)
+    hyscan_list_model_remove (priv->list_model, track_name);
+  else
+    hyscan_list_model_add (priv->list_model, track_name);
 
   g_free (track_name);
 }
@@ -346,11 +349,11 @@ on_enable_layer (GtkCellRendererToggle *cell_renderer,
   g_object_unref (layer);
 }
 
-/* Обработчик HyScanTrackListModel::changed
+/* Обработчик HyScanListModel::changed
  * Обновляет список активных галсов при измении модели. */
 static void
-on_active_track_changed (HyScanTrackListModel *model,
-                         HyScanGtkMapKit      *kit)
+on_active_track_changed (HyScanListModel *model,
+                         HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
   GtkTreeIter iter;
@@ -364,7 +367,7 @@ on_active_track_changed (HyScanTrackListModel *model,
 
      gtk_tree_model_get (GTK_TREE_MODEL (priv->track_store), &iter, TRACK_COLUMN, &track_name, -1);
 
-     active = hyscan_track_list_model_get_active (priv->track_list_model, track_name);
+     active = hyscan_list_model_has (priv->list_model, track_name);
      gtk_list_store_set (priv->track_store, &iter, VISIBLE_COLUMN, active, -1);
 
      g_free (track_name);
@@ -547,7 +550,7 @@ tracks_changed (HyScanDBInfo    *db_info,
       /* Добавляем в список галсов. */
       local = g_date_time_to_local (track_info->ctime);
       time_str = g_date_time_format (local, "%d.%m %H:%M");
-      visible = hyscan_track_list_model_get_active (priv->track_list_model, track_info->name);
+      visible = hyscan_list_model_has (priv->list_model, track_info->name);
 
       gtk_list_store_append (priv->track_store, &tree_iter);
       gtk_list_store_set (priv->track_store, &tree_iter,
@@ -828,7 +831,7 @@ create_track_box (HyScanGtkMapKit *kit)
   g_signal_connect (priv->track_tree, "button-press-event", G_CALLBACK (on_button_press_event), kit);
   g_signal_connect (priv->track_tree, "row-activated", G_CALLBACK (on_track_activated), kit);
   g_signal_connect (priv->db_info, "tracks-changed", G_CALLBACK (tracks_changed), kit);
-  g_signal_connect (priv->track_list_model, "changed", G_CALLBACK (on_active_track_changed), kit);
+  g_signal_connect (priv->list_model, "changed", G_CALLBACK (on_active_track_changed), kit);
 
   box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
 
@@ -1277,8 +1280,8 @@ create_layers (HyScanGtkMapKit *kit)
     priv->way_layer = hyscan_gtk_map_way_layer_new (priv->nav_model);
 
   /* Слой с галсами. */
-  if (priv->db != NULL && priv->track_list_model != NULL)
-    priv->track_layer = hyscan_gtk_map_track_layer_new (priv->db, priv->project_name, priv->track_list_model, priv->cache);
+  if (priv->db != NULL && priv->list_model != NULL)
+    priv->track_layer = hyscan_gtk_map_track_layer_new (priv->db, priv->project_name, priv->list_model, priv->cache);
 
   /* Слой с метками. */
   if (priv->ml_model)
@@ -1298,7 +1301,7 @@ hyscan_gtk_map_kit_model_create (HyScanGtkMapKit *kit,
       priv->db = g_object_ref (db);
       priv->db_info = hyscan_db_info_new (db);
       priv->mark_model = hyscan_mark_model_new (HYSCAN_TYPE_WATERFALL_MARK_DATA);
-      priv->track_list_model = hyscan_track_list_model_new ();
+      priv->list_model = hyscan_list_model_new ();
       priv->ml_model = hyscan_mark_loc_model_new (db, priv->cache);
     }
 
@@ -1427,7 +1430,7 @@ hyscan_gtk_map_kit_free (HyScanGtkMapKit *kit)
   g_clear_object (&priv->db);
   g_clear_object (&priv->db_info);
   g_clear_object (&priv->mark_model);
-  g_clear_object (&priv->track_list_model);
+  g_clear_object (&priv->list_model);
   g_clear_object (&priv->layer_store);
   g_clear_object (&priv->track_store);
   g_clear_object (&priv->mark_store);

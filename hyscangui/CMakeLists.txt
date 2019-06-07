@@ -60,7 +60,6 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-navigation-model.c
              hyscan-mark-location.c
              hyscan-mark-loc-model.c
-             hyscan-track-list-model.c
              hyscan-planner.c
 
              hyscan-nmea-file-device.c

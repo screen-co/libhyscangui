@@ -96,7 +96,7 @@ enum
   PROP_DB,
   PROP_PROJECT,
   PROP_CACHE,
-  PROP_TRACK_LIST_MODEL
+  PROP_LIST_MODEL
 };
 
 struct _HyScanGtkMapTrackLayerPrivate
@@ -107,15 +107,14 @@ struct _HyScanGtkMapTrackLayerPrivate
 
   HyScanDB                  *db;               /* База данных. */
   gchar                     *project;          /* Название проекта. */
-  HyScanTrackListModel      *track_list_model; /* Модель списка активных галсов. */
+  HyScanListModel           *list_model;       /* Модель списка активных галсов. */
   HyScanCache               *cache;            /* Кэш для навигационных данных. */
 
   GMutex                     t_lock;           /* Доступ к модификации таблицы tracks. */
   GHashTable                *tracks;           /* Таблица отображаемых галсов:
                                                 * ключ - название галса, значение - HyScanGtkMapTrackLayerTrack. */
-  GRWLock                    a_lock;           /* Доступ к модификации таблицы active_tracks. */
-  GHashTable                *active_tracks;    /* Таблица видимости галсов:
-                                                * ключ - название галса, значение - gboolean. */
+  GRWLock                    a_lock;           /* Доступ к модификации массива active_tracks. */
+  gchar                    **active_tracks;    /* NULL-терминированный массив названий видимых галсов. */
 
   HyScanGtkMapTrackStyle     style;            /* Стиль оформления. */
 };
@@ -161,10 +160,10 @@ hyscan_gtk_map_track_layer_class_init (HyScanGtkMapTrackLayerClass *klass)
   g_object_class_install_property (object_class, PROP_CACHE,
     g_param_spec_object ("data-cache", "Data Cache", "HyScanCache", HYSCAN_TYPE_CACHE,
                           G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-  g_object_class_install_property (object_class, PROP_TRACK_LIST_MODEL,
+  g_object_class_install_property (object_class, PROP_LIST_MODEL,
     g_param_spec_object ("track-list-model", "Track List Model",
-                         "The HyScanTrackListModel with a list of active (visible) tracks",
-                         HYSCAN_TYPE_TRACK_LIST_MODEL,
+                         "The HyScanListModel with a list of active (visible) tracks",
+                         HYSCAN_TYPE_LIST_MODEL,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -197,8 +196,8 @@ hyscan_gtk_map_track_layer_set_property (GObject      *object,
       priv->cache = g_value_dup_object (value);
       break;
 
-    case PROP_TRACK_LIST_MODEL:
-      priv->track_list_model = g_value_dup_object (value);
+    case PROP_LIST_MODEL:
+      priv->list_model = g_value_dup_object (value);
       break;
 
     default:
@@ -219,9 +218,9 @@ hyscan_gtk_map_track_layer_object_constructed (GObject *object)
   g_mutex_init (&priv->t_lock);
   g_rw_lock_init (&priv->a_lock);
   priv->tracks = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
-  priv->active_tracks = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+  priv->active_tracks = g_new0 (gchar *, 1);
 
-  g_signal_connect_swapped (priv->track_list_model, "changed", G_CALLBACK (hyscan_gtk_map_track_layer_list_changed), track_layer);
+  g_signal_connect_swapped (priv->list_model, "changed", G_CALLBACK (hyscan_gtk_map_track_layer_list_changed), track_layer);
 
   /* Оформление трека. */
   style->bar_width = DEFAULT_BAR_WIDTH;
@@ -247,20 +246,20 @@ hyscan_gtk_map_track_layer_object_finalize (GObject *object)
   g_clear_object (&priv->cache);
   g_free (priv->project);
   g_hash_table_destroy (priv->tracks);
-  g_clear_pointer (&priv->active_tracks, g_hash_table_unref);
+  g_clear_pointer (&priv->active_tracks, g_strfreev);
 
   G_OBJECT_CLASS (hyscan_gtk_map_track_layer_parent_class)->finalize (object);
 }
 
-/* Обработчик сигнала HyScanTrackListModel::changed. */
+/* Обработчик сигнала HyScanListModel::changed. */
 static void
 hyscan_gtk_map_track_layer_list_changed (HyScanGtkMapTrackLayer *track_layer)
 {
   HyScanGtkMapTrackLayerPrivate *priv = track_layer->priv;
 
   g_rw_lock_writer_lock (&priv->a_lock);
-  g_clear_pointer (&priv->active_tracks, g_hash_table_unref);
-  priv->active_tracks = hyscan_track_list_model_get (priv->track_list_model);
+  g_clear_pointer (&priv->active_tracks, g_strfreev);
+  priv->active_tracks = hyscan_list_model_get (priv->list_model);
   g_rw_lock_writer_unlock (&priv->a_lock);
 
   hyscan_gtk_map_tiled_layer_set_param_mod (HYSCAN_GTK_MAP_TILED_LAYER (track_layer));
@@ -273,13 +272,10 @@ hyscan_gtk_map_track_layer_fill_tile (HyScanGtkMapTiledLayer *tiled_layer,
 {
   HyScanGtkMapTrackLayer *track_layer = HYSCAN_GTK_MAP_TRACK_LAYER (tiled_layer);
   HyScanGtkMapTrackLayerPrivate *priv = track_layer->priv;
-  GHashTableIter iter;
+  gint i;
 
   HyScanGeoCartesian2D from, to;
   gdouble scale;
-
-  gchar *track_name;
-  gpointer active;
 
   cairo_t *cairo;
   cairo_surface_t *surface;
@@ -293,15 +289,11 @@ hyscan_gtk_map_track_layer_fill_tile (HyScanGtkMapTiledLayer *tiled_layer,
   cairo = cairo_create (surface);
 
   g_rw_lock_reader_lock (&priv->a_lock);
-  g_hash_table_iter_init (&iter, priv->active_tracks);
-  while (g_hash_table_iter_next (&iter, (gpointer *) &track_name, (gpointer *) &active))
+  for (i = 0; priv->active_tracks[i] != NULL; ++i)
     {
       HyScanGtkMapTrack *track;
 
-      if (!GPOINTER_TO_INT (active))
-        continue;
-
-      track = hyscan_gtk_map_track_layer_get_track (track_layer, track_name, TRUE);
+      track = hyscan_gtk_map_track_layer_get_track (track_layer, priv->active_tracks[i], TRUE);
       hyscan_gtk_map_track_draw (track, cairo, scale, &from, &to, &priv->style);
     }
   g_rw_lock_reader_unlock (&priv->a_lock);
@@ -549,7 +541,7 @@ hyscan_gtk_map_track_layer_get_track (HyScanGtkMapTrackLayer *track_layer,
  * hyscan_gtk_map_track_layer_new:
  * @db: база данных #HyScanDB
  * @project: название проекта
- * @track_list_model: модель данных активных галсов
+ * @list_model: модель данных активных галсов
  * @cache: кэш данных
  *
  * Returns: указатель на новый слой #HyScanGtkMapTrackLayer
@@ -557,13 +549,13 @@ hyscan_gtk_map_track_layer_get_track (HyScanGtkMapTrackLayer *track_layer,
 HyScanGtkLayer *
 hyscan_gtk_map_track_layer_new (HyScanDB             *db,
                                 const gchar          *project,
-                                HyScanTrackListModel *track_list_model,
+                                HyScanListModel      *list_model,
                                 HyScanCache          *cache)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_TRACK_LAYER,
                        "db", db,
                        "project", project,
-                       "track-list-model", track_list_model,
+                       "track-list-model", list_model,
                        "data-cache", cache, NULL);
 }
 
