@@ -439,7 +439,7 @@ hyscan_gtk_map_track_max_channel (HyScanGtkMapTrack *track,
       HyScanSourceType source;
       HyScanChannelType type;
 
-      hyscan_channel_get_types_by_name (channel_list[i], &source, &type, &channel_num);
+      hyscan_channel_get_types_by_id (channel_list[i], &source, &type, &channel_num);
 
       /* Отфильтровываем каналы по типу данных. */
       switch (channel)

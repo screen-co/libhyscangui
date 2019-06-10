@@ -156,7 +156,7 @@ open_channel (DataTranslator *translator,
   HyScanParamList *param_list;
   gchar *schema_id;
 
-  hyscan_channel_get_types_by_name (channel_name, &channel->source, &type, &channel->channel);
+  hyscan_channel_get_types_by_id (channel_name, &channel->source, &type, &channel->channel);
   channel->read_channel_id = hyscan_db_channel_open (translator->db, translator->read_track_id, channel_name);
 
   hyscan_db_channel_get_data_range (translator->db, channel->read_channel_id, &channel->index, NULL);

@@ -255,7 +255,7 @@ hyscan_mark_loc_model_load_location (HyScanMarkLocModel *ml_model,
     gint32 project_id, track_id, channel_id;
     const gchar *acoustic_channel_name;
 
-    acoustic_channel_name = hyscan_channel_get_name_by_types (mark->source0, HYSCAN_CHANNEL_DATA, ACOUSTIC_CHANNEL);
+    acoustic_channel_name = hyscan_channel_get_id_by_types (mark->source0, HYSCAN_CHANNEL_DATA, ACOUSTIC_CHANNEL);
     project_id = hyscan_db_project_open (priv->db, priv->project);
     track_id = hyscan_db_track_open (priv->db, project_id, track_name);
     channel_id = hyscan_db_channel_open (priv->db, track_id, acoustic_channel_name);
