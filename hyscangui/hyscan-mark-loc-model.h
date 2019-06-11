@@ -38,7 +38,7 @@
 #include <glib-object.h>
 #include <hyscan-db.h>
 #include <hyscan-cache.h>
-#include <hyscan-mark-location.h>
+#include "hyscan-mark-location.h"
 
 G_BEGIN_DECLS
 

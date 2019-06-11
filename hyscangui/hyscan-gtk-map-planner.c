@@ -720,7 +720,7 @@ static gboolean
 hyscan_gtk_map_planner_grab_input (HyScanGtkLayer *layer)
 {
   HyScanGtkMapPlanner *planner_layer = HYSCAN_GTK_MAP_PLANNER (layer);
-  HyScanGtkMapPlannerPrivate *priv =planner_layer->priv;
+  HyScanGtkMapPlannerPrivate *priv = planner_layer->priv;
 
   if (priv->map == NULL)
     return FALSE;

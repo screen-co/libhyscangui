@@ -47,6 +47,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-map-track-layer.c
              hyscan-gtk-map-wfmark-layer.c
              hyscan-gtk-map-planner.c
+             hyscan-gtk-map-geomark-layer.c
 
              #[[ Загрузка тайлов ]]
              hyscan-gtk-map-tile.c

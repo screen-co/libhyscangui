@@ -18,6 +18,8 @@
 #include <hyscan-gtk-map-planner.h>
 #include <glib/gi18n.h>
 #include <hyscan-mark-data-waterfall.h>
+#include <hyscan-mark-data-geo.h>
+#include <hyscan-gtk-map-geomark-layer.h>
 
 #define PRELOAD_STATE_DONE 1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
 
@@ -54,6 +56,7 @@ struct _HyScanGtkMapKitPrivate
   HyScanDBInfo          *db_info;          /* Доступ к данным БД. */
   HyScanListModel       *list_model;       /* Модель списка активных галсов. */
   HyScanMarkModel       *mark_model;       /* Модель меток водопада. */
+  HyScanMarkModel       *mark_geo_model;   /* Модель геометок. */
   HyScanDB              *db;
   HyScanMarkLocModel    *ml_model;
   HyScanCache           *cache;
@@ -69,6 +72,7 @@ struct _HyScanGtkMapKitPrivate
   HyScanGtkLayer        *planner_layer;    /* Слой планировщика. */
   HyScanGtkLayer        *track_layer;      /* Слой просмотра галсов. */
   HyScanGtkLayer        *wfmark_layer;     /* Слой с метками водопада. */
+  HyScanGtkLayer        *geomark_layer;    /* Слой с метками водопада. */
   HyScanGtkLayer        *map_grid;         /* Слой координатной сетки. */
   HyScanGtkLayer        *ruler;            /* Слой линейки. */
   HyScanGtkLayer        *pin_layer;        /* Слой географических отметок. */
@@ -1284,8 +1288,11 @@ create_layers (HyScanGtkMapKit *kit)
     priv->track_layer = hyscan_gtk_map_track_layer_new (priv->db, priv->project_name, priv->list_model, priv->cache);
 
   /* Слой с метками. */
-  if (priv->ml_model)
+  if (priv->ml_model != NULL)
     priv->wfmark_layer = hyscan_gtk_map_wfmark_layer_new (priv->ml_model);
+
+  if (priv->mark_geo_model != NULL)
+    priv->geomark_layer = hyscan_gtk_map_geomark_layer_new (priv->mark_geo_model);
 }
 
 /* Создает модели данных. */
@@ -1301,6 +1308,7 @@ hyscan_gtk_map_kit_model_create (HyScanGtkMapKit *kit,
       priv->db = g_object_ref (db);
       priv->db_info = hyscan_db_info_new (db);
       priv->mark_model = hyscan_mark_model_new (HYSCAN_TYPE_MARK_DATA_WATERFALL);
+      priv->mark_geo_model = hyscan_mark_model_new (HYSCAN_TYPE_MARK_DATA_GEO);
       priv->list_model = hyscan_list_model_new ();
       priv->ml_model = hyscan_mark_loc_model_new (db, priv->cache);
     }
@@ -1321,6 +1329,7 @@ hyscan_gtk_map_kit_model_create (HyScanGtkMapKit *kit,
   add_layer_row (kit, priv->way_layer,     "way",     _("Navigation"));
   add_layer_row (kit, priv->track_layer,   "track",   _("Tracks"));
   add_layer_row (kit, priv->wfmark_layer,  "wfmark",  _("Waterfall Marks"));
+  add_layer_row (kit, priv->geomark_layer, "wfmark",  _("Geo Marks"));
   add_layer_row (kit, priv->ruler,         "ruler",   _("Ruler"));
   add_layer_row (kit, priv->pin_layer,     "pin",     _("Pin"));
   add_layer_row (kit, priv->map_grid,      "grid",    _("Grid"));
@@ -1350,6 +1359,7 @@ hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
     {
       hyscan_db_info_set_project (priv->db_info, priv->project_name);
       hyscan_mark_model_set_project (priv->mark_model, priv->db, priv->project_name);
+      hyscan_mark_model_set_project (priv->mark_geo_model, priv->db, priv->project_name);
       hyscan_mark_loc_model_set_project (priv->ml_model, priv->project_name);
     }
 
@@ -1430,6 +1440,7 @@ hyscan_gtk_map_kit_free (HyScanGtkMapKit *kit)
   g_clear_object (&priv->db);
   g_clear_object (&priv->db_info);
   g_clear_object (&priv->mark_model);
+  g_clear_object (&priv->mark_geo_model);
   g_clear_object (&priv->list_model);
   g_clear_object (&priv->layer_store);
   g_clear_object (&priv->track_store);
