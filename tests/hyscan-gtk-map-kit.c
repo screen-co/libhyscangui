@@ -752,10 +752,18 @@ list_store_insert (HyScanGtkMapKit *kit,
     {
       GDateTime *local;
       gchar *time_str;
+      gchar *type_name;
 
       /* Добавляем в список меток. */
       local = g_date_time_new_from_unix_local (mark->modification_time / 1000000);
       time_str = g_date_time_format (local, "%d.%m %H:%M");
+
+      if (mark->type == HYSCAN_MARK_WATERFALL)
+        type_name = "W";
+      else if (mark->type == HYSCAN_MARK_GEO)
+        type_name = "G";
+      else
+        type_name = "?";
 
       gtk_list_store_append (priv->mark_store, &tree_iter);
       gtk_list_store_set (priv->mark_store, &tree_iter,
@@ -764,7 +772,7 @@ list_store_insert (HyScanGtkMapKit *kit,
                           MARK_MTIME_COLUMN, time_str,
                           MARK_MTIME_SORT_COLUMN, mark->modification_time,
                           MARK_TYPE_COLUMN, mark->type,
-                          MARK_TYPE_NAME_COLUMN, mark->type == HYSCAN_MARK_WATERFALL ? "W" : "G",
+                          MARK_TYPE_NAME_COLUMN, type_name,
                           -1);
 
       g_free (time_str);
