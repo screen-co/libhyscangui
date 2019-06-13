@@ -96,7 +96,7 @@
 #ifndef __HYSCAN_GTK_WATERFALL_MARK_H__
 #define __HYSCAN_GTK_WATERFALL_MARK_H__
 
-#include <hyscan-gtk-waterfall-layer.h>
+#include "hyscan-gtk-waterfall-layer.h"
 #include <hyscan-mark-model.h>
 
 G_BEGIN_DECLS

@@ -1,0 +1,53 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2019-06-05 16:05+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: hyscangui/hyscan-gtk-map-way-layer.c:858
+msgctxt "Heading"
+msgid "COG"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-map-way-layer.c:858
+msgctxt "Heading"
+msgid "HDG"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-map-way-layer.c:852
+msgid "Signal lost"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-map-grid.c:580 hyscangui/hyscan-gtk-map-ruler.c:368
+msgid "cm"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-map-grid.c:576 hyscangui/hyscan-gtk-map-ruler.c:374
+msgid "km"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-map-grid.c:578 hyscangui/hyscan-gtk-map-ruler.c:370
+#: hyscangui/hyscan-gtk-map-ruler.c:372
+msgid "m"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-map-way-layer.c:860
+msgid "m/s"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-map-grid.c:582
+msgid "mm"
+msgstr ""

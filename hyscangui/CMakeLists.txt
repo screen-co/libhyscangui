@@ -39,9 +39,46 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-param-list.c
              hyscan-gtk-param-cc.c
              hyscan-gtk-param-tree.c
+
+             #[[ Виджет карты ]]
+             hyscan-gtk-map.c
+             hyscan-map-profile.c
+
+             #[[ Слои ]]
+             hyscan-gtk-layer-container.c
+             hyscan-gtk-layer.c
+             hyscan-gtk-map-tiles.c
+             hyscan-gtk-map-tiled-layer.c
+             hyscan-gtk-map-control.c
+             hyscan-gtk-map-ruler.c
+             hyscan-gtk-map-grid.c
+             hyscan-gtk-map-pin-layer.c
+             hyscan-gtk-map-way-layer.c
+             hyscan-gtk-map-track.c
+             hyscan-gtk-map-track-layer.c
+             hyscan-gtk-map-wfmark-layer.c
+             hyscan-gtk-map-planner.c
+             hyscan-gtk-map-geomark-layer.c
+
+             #[[ Загрузка тайлов ]]
+             hyscan-gtk-map-tile.c
+             hyscan-gtk-map-tile-source.c
+             hyscan-network-map-tile-source.c
+             hyscan-gtk-map-fs-tile-source.c
+             hyscan-merged-tile-source.c
+             hyscan-map-tile-loader.c
+
+             # [[ Модели ]]
+             hyscan-mark-location.c
+             hyscan-mark-loc-model.c
              ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c)
 
-target_link_libraries (${HYSCAN_GUI_LIBRARY} ${GTK3_LIBRARIES} ${HYSCAN_LIBRARIES} ${GTKCIFROAREA_LIBRARIES})
+target_link_libraries (${HYSCAN_GUI_LIBRARY}
+                       ${GTK3_LIBRARIES}
+                       ${HYSCAN_LIBRARIES}
+                       ${GTKCIFROAREA_LIBRARIES}
+                       ${LIBSOUP_LIBRARIES}
+                       ${GDK_PIXBUF_LIBRARIES})
 
 set_target_properties (${HYSCAN_GUI_LIBRARY} PROPERTIES DEFINE_SYMBOL "HYSCAN_API_EXPORTS")
 set_target_properties (${HYSCAN_GUI_LIBRARY} PROPERTIES SOVERSION ${HYSCAN_GUI_VERSION})

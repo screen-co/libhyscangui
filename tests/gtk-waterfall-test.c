@@ -133,7 +133,7 @@ main (int    argc,
   if (db == NULL)
     g_error ("can't open db at: %s", db_uri);
 
-  markmodel = hyscan_mark_model_new ();
+  markmodel = hyscan_mark_model_new (HYSCAN_MARK_WATERFALL);
 
 
   /* Водопад. */

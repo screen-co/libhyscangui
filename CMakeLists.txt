@@ -2,6 +2,7 @@
 cmake_minimum_required (VERSION 2.8)
 
 project (libhyscangui)
+enable_testing()
 
 set (HYSCAN_MAJOR_VERSION 5)
 set (HYSCAN_GUI_VERSION 0)
@@ -45,39 +46,44 @@ endif ()
 
 pkg_check_modules (GTK3 REQUIRED gtk+-3.0)
 pkg_check_modules (LIBXML2 REQUIRED libxml-2.0)
-add_definitions (${GTK3_CFLAGS} ${LIBXML2_CFLAGS})
-link_directories (${GTK3_LIBRARY_DIRS} ${LIBXML2_LIBRARY_DIRS})
+pkg_check_modules (LIBSOUP REQUIRED libsoup-2.4)
+pkg_check_modules (GDK_PIXBUF REQUIRED gdk-pixbuf-2.0)
+add_definitions (${GTK3_CFLAGS} ${LIBXML2_CFLAGS} ${LIBSOUP_CFLAGS} ${GDK_PIXBUF_CFLAGS})
+link_directories (${GTK3_LIBRARY_DIRS} ${LIBXML2_LIBRARY_DIRS} ${LIBSOUP_LIBRARY_DIRS} ${GDK_PIXBUF_LIBRARY_DIRS})
 
 if (HYSCAN_USE_SYS_LIBS)
-  pkg_check_modules (HYSCAN REQUIRED "hyscantypes-${HYSCAN_MAJOR_VERSION}"
-                                     "hyscancache-${HYSCAN_MAJOR_VERSION}"
-                                     "hyscancore-${HYSCAN_MAJOR_VERSION}"
-                                     "hyscandb-${HYSCAN_MAJOR_VERSION}")
+  pkg_check_modules (HYSCAN REQUIRED "hyscantypes-${HYSCAN_MAJOR_VERSION}")
 
   link_directories (${HYSCAN_LIBRARY_DIRS})
   add_definitions (${HYSCAN_CFLAGS})
 else ()
-  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/hyscangui")
   include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscantypes/hyscantypes")
-  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancache/hyscancache")
-  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscandb/hyscandb")
   include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancore/hyscancore")
-
+  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscanmodel/hyscanmodel")
+  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancache/hyscancache")
+  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscandriver/hyscandriver")
+  include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscandb/hyscandb")
   link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscantypes/bin")
-  link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancache/bin")
   link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancore/bin")
+  link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscanmodel/bin")
+  link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscancache/bin")
+  link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscandriver/bin")
   link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../libhyscandb/bin")
-
   set (HYSCAN_LIBRARIES "hyscantypes-${HYSCAN_MAJOR_VERSION}"
-                        "hyscancache-${HYSCAN_MAJOR_VERSION}"
+                        "hyscandriver-${HYSCAN_MAJOR_VERSION}"
+                        "hyscancore-${HYSCAN_MAJOR_VERSION}"
                         "hyscandb-${HYSCAN_MAJOR_VERSION}"
-                        "hyscancore-${HYSCAN_MAJOR_VERSION}")
+                        "hyscanmodel-${HYSCAN_MAJOR_VERSION}"
+                        "hyscancache-${HYSCAN_MAJOR_VERSION}")
 endif ()
 
 include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../gtkcifroarea/gtkcifroarea")
 link_directories ("${CMAKE_CURRENT_SOURCE_DIR}/../gtkcifroarea/bin")
 set (GTKCIFROAREA_LIBRARIES gtkcifroarea-3.1)
 
+include_directories ("${CMAKE_CURRENT_SOURCE_DIR}/hyscangui")
+
 add_definitions (-DG_LOG_DOMAIN="HyScanGUI")
+add_definitions (-DGETTEXT_PACKAGE="hyscangui")
 add_subdirectory (hyscangui)
 add_subdirectory (tests)
