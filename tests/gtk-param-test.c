@@ -24,7 +24,7 @@ main (int argc, char **argv)
   GType view_type;
   gchar *file = NULL;
   gchar *id = NULL;
-  gchar *view = g_strdup ("list");
+  gchar *view;
   gint   n_windows = 1;
   gboolean hidden = FALSE;
   gchar *root = NULL;
@@ -107,7 +107,7 @@ find_function (const gchar * view)
     return HYSCAN_TYPE_GTK_PARAM_CC;
   else if (g_strcmp0 (view, "list") == 0)
     return HYSCAN_TYPE_GTK_PARAM_LIST;
-  else if (g_strcmp0 (view, "tree") == 0)
+  else if (view == NULL || g_strcmp0 (view, "tree") == 0)
     return HYSCAN_TYPE_GTK_PARAM_TREE;
   else
     return G_TYPE_INVALID;

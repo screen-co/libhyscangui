@@ -237,6 +237,8 @@ hyscan_gtk_param_key_object_constructed (GObject *object)
   gtk_grid_attach (grid, priv->value, 1, 0, 1, 1);
 
   gtk_widget_set_hexpand (GTK_WIDGET (self), TRUE);
+
+  gtk_widget_set_name (GTK_WIDGET (self), priv->key->id);
 }
 
 static void
@@ -379,12 +381,6 @@ hyscan_gtk_param_key_make_editor_integer (HyScanDataSchema    *schema,
   if (_step != NULL)
     step = g_variant_get_int64 (_step);
 
-  /* Это сделано потому, что adjustment принимает значения [start, end). */
-  if (max < G_MAXINT64 - step)
-    max += step;
-  else
-    max = G_MAXINT64;
-
   if (key->view == HYSCAN_DATA_SCHEMA_VIEW_BIN)
     base = 2;
   else if (key->view == HYSCAN_DATA_SCHEMA_VIEW_HEX)
@@ -392,7 +388,7 @@ hyscan_gtk_param_key_make_editor_integer (HyScanDataSchema    *schema,
   else /* if (key->view == HYSCAN_DATA_SCHEMA_VIEW_DEC || key->view == HYSCAN_DATA_SCHEMA_VIEW_DEFAULT) */
     base = 10;
 
-  adjustment = gtk_adjustment_new (def, min, max, step, step, step);
+  adjustment = gtk_adjustment_new (def, min, max, step, 10.0 * step, 0);
   editor = g_object_new (HYSCAN_TYPE_GTK_SPIN_BUTTON,
                          "base", base,                  /* HyScanGtkSpinButton */
                          "adjustment", adjustment,      /* GtkSpinButton */

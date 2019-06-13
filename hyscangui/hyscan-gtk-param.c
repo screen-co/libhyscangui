@@ -138,7 +138,7 @@ hyscan_gtk_param_class_init (HyScanGtkParamClass *klass)
                          G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_ROOT,
     g_param_spec_string ("root", "RootNode", "Show only nodes starting with root",
-                         "",
+                         "/",
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_HIDDEN,
     g_param_spec_boolean ("hidden", "ShowHidden", "Show hidden keys",
