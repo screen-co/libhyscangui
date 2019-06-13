@@ -665,7 +665,7 @@ hyscan_gtk_map_planner_added (HyScanGtkLayer          *layer,
 
   priv->map = g_object_ref (container);
   
-    /* Сигналы контейнера. */
+  /* Сигналы контейнера. */
   g_signal_connect (container, "handle-grab", G_CALLBACK (hyscan_gtk_map_planner_handle_grab), planner_layer);
   g_signal_connect (container, "handle-release", G_CALLBACK (hyscan_gtk_map_planner_handle_release), planner_layer);
 
@@ -680,6 +680,9 @@ hyscan_gtk_map_planner_added (HyScanGtkLayer          *layer,
                             G_CALLBACK (hyscan_gtk_map_planner_motion_notify), planner_layer);
   g_signal_connect_swapped (priv->map, "notify::projection",
                             G_CALLBACK (hyscan_gtk_map_planner_proj_notify), planner_layer);
+
+  /* Загружаем данные из модели. */
+  hyscan_gtk_map_planner_update (planner_layer);
 }
 
 static void

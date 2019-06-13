@@ -59,14 +59,13 @@ struct _HyScanGtkMapKitPrivate
   HyScanListModel       *list_model;       /* Модель списка активных галсов. */
   HyScanMarkModel       *mark_model;       /* Модель меток водопада. */
   HyScanMarkModel       *mark_geo_model;   /* Модель геометок. */
+  HyScanMarkLocModel    *ml_model;         /* Модель местоположения меток водопада. */
   HyScanDB              *db;
-  HyScanMarkLocModel    *ml_model;
   HyScanCache           *cache;
   HyScanNavigationModel *nav_model;
   HyScanPlanner         *planner;
   gchar                 *project_name;
 
-  gchar                 *profile_dir;      /* Папка с профилями карты. */
   HyScanGeoGeodetic      center;           /* Географические координаты для виджета навигации. */
 
   /* Слои. */
@@ -81,6 +80,7 @@ struct _HyScanGtkMapKitPrivate
   HyScanGtkLayer        *way_layer;        /* Слой текущего положения по GPS-датчику. */
 
   /* Виджеты. */
+  GtkWidget             *profiles_box;     /* Выпадающий список профилей карты. */
   GtkWidget             *layer_tool_stack; /* GtkStack с виджетами настроек каждого слоя. */
   GtkButton             *preload_button;   /* Кнопка загрузки тайлов. */
   GtkProgressBar        *preload_progress; /* Индикатор загрузки тайлов. */
@@ -100,6 +100,7 @@ struct _HyScanGtkMapKitPrivate
   GtkTreeView           *mark_tree;       /* GtkTreeView со списком галсов. */
   GtkListStore          *mark_store;      /* Модель данных для track_tree. */
 
+  GtkWidget             *locate_button;   /* Кнопка для определения текущего местоположения. */
   GtkWidget             *lat_spin;        /* Поля для ввода широты. */
   GtkWidget             *lon_spin;        /* Поля для ввода долготы. */
 };
@@ -214,35 +215,14 @@ on_profile_change (GtkComboBoxText *widget,
 
 /* Создает выпадающий список с профилями. */
 static GtkWidget *
-create_profile_switch (HyScanGtkMap *map,
-                       const gchar  *profile_dir)
+create_profile_switch (HyScanGtkMap *map)
 {
   GtkWidget *combo_box;
   GPtrArray *profiles_array;
 
-  gchar **config_files;
-  guint conf_i;
-
   profiles_array = g_ptr_array_new_with_free_func (g_object_unref);
   combo_box = gtk_combo_box_text_new ();
   g_object_set_data_full (G_OBJECT (combo_box), "profiles", profiles_array, (GDestroyNotify) free_profiles);
-
-  /* Считываем профили карты из всех файлов в папке. */
-  if (profile_dir != NULL)
-    {
-      config_files = list_profiles (profile_dir);
-      for (conf_i = 0; config_files[conf_i] != NULL; ++conf_i)
-        {
-          HyScanMapProfile *profile;
-          profile = hyscan_map_profile_new ();
-
-          if (hyscan_map_profile_read (profile, config_files[conf_i]))
-            combo_box_add_profile (GTK_COMBO_BOX_TEXT (combo_box), profile);
-
-          g_object_unref (profile);
-        }
-      g_strfreev (config_files);
-    }
 
   /* Если не добавили не один профиль, то добавим хотя бы дефолтный. */
   if (profiles_array->len == 0)
@@ -699,9 +679,9 @@ on_marks_activated (GtkTreeView        *treeview,
     HyScanMarkType mark_type;
 
     gtk_tree_model_get (model, &iter, MARK_ID_COLUMN, &mark_id, MARK_TYPE_COLUMN, &mark_type, -1);
-    if (mark_type == HYSCAN_MARK_WATERFALL)
+    if (mark_type == HYSCAN_MARK_WATERFALL && priv->wfmark_layer != NULL)
       hyscan_gtk_map_wfmark_layer_mark_view (HYSCAN_GTK_MAP_WFMARK_LAYER (priv->wfmark_layer), mark_id);
-    else if (mark_type == HYSCAN_MARK_GEO)
+    else if (mark_type == HYSCAN_MARK_GEO && priv->geomark_layer != NULL)
       hyscan_gtk_map_geomark_layer_mark_view (HYSCAN_GTK_MAP_GEOMARK_LAYER (priv->geomark_layer), mark_id);
 
     g_free (mark_id);
@@ -791,12 +771,14 @@ on_marks_changed (HyScanGtkMapKit *kit)
   gtk_list_store_clear (priv->mark_store);
 
   /* Добавляем метки из всех моделей. */
-  list_store_insert (kit, priv->mark_model);
-  list_store_insert (kit, priv->mark_geo_model);
+  if (priv->mark_model != NULL)
+    list_store_insert (kit, priv->mark_model);
+  if (priv->mark_geo_model != NULL)
+    list_store_insert (kit, priv->mark_geo_model);
 }
 
-/* Навигация по меткам. */
-static GtkWidget *
+/* Добавляет в панель навигации виджет просмотра меток. */
+static void
 create_wfmark_toolbox (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
@@ -804,8 +786,13 @@ create_wfmark_toolbox (HyScanGtkMapKit *kit)
   GtkWidget *label;
   GtkWidget *scrolled_window;
 
+  /* Невозможно создать виджет, т.к. */
   if (priv->db == NULL)
-    return NULL;
+    return;
+
+  /* Виджет уже создан. Ничего не делаем. */
+  if (priv->mark_tree != NULL)
+    return;
 
   priv->mark_store = gtk_list_store_new (6,
                                          G_TYPE_STRING,  /* MARK_ID_COLUMN   */
@@ -817,8 +804,6 @@ create_wfmark_toolbox (HyScanGtkMapKit *kit)
                                          -1);
   priv->mark_tree = create_mark_tree_view (kit, GTK_TREE_MODEL (priv->mark_store));
 
-  g_signal_connect_swapped (priv->mark_model, "changed", G_CALLBACK (on_marks_changed), kit);
-  g_signal_connect_swapped (priv->mark_geo_model, "changed", G_CALLBACK (on_marks_changed), kit);
   g_signal_connect (priv->mark_tree, "row-activated", G_CALLBACK (on_marks_activated), kit);
 
   box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
@@ -835,12 +820,12 @@ create_wfmark_toolbox (HyScanGtkMapKit *kit)
   gtk_scrolled_window_set_min_content_height (GTK_SCROLLED_WINDOW (scrolled_window), 200);
   gtk_container_add (GTK_CONTAINER (scrolled_window), GTK_WIDGET (priv->mark_tree));
 
-
   /* Пакуем всё вместе. */
   gtk_box_pack_start (GTK_BOX (box), label, FALSE, FALSE, 0);
   gtk_box_pack_start (GTK_BOX (box), scrolled_window, FALSE, FALSE, 0);
 
-  return box;
+  /* Помещаем в панель навигации. */
+  gtk_container_add (GTK_CONTAINER (kit->navigation), box);
 }
 
 /* Выбор галсов проекта. */
@@ -1084,10 +1069,6 @@ create_navigation_box (HyScanGtkMapKit *kit)
   if (item != NULL)
     gtk_container_add (GTK_CONTAINER (ctrl_box), item);
 
-  item = create_wfmark_toolbox (kit);
-  if (item != NULL)
-    gtk_container_add (GTK_CONTAINER (ctrl_box), item);
-
   gtk_widget_set_size_request (ctrl_box, 200, -1);
 
   return ctrl_box;
@@ -1099,13 +1080,12 @@ create_nav_input (HyScanGtkMapKit *kit,
                   GtkContainer    *container)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
-  GtkWidget *move_button, *locate_button;
+  GtkWidget *move_button;
 
-  locate_button = gtk_button_new_from_icon_name ("network-wireless", GTK_ICON_SIZE_BUTTON);
-  gtk_widget_set_margin_bottom (locate_button, 5);
-  gtk_widget_set_sensitive (locate_button, priv->nav_model != NULL);
-  gtk_button_set_label (GTK_BUTTON (locate_button), _("My location"));
-  g_signal_connect_swapped (locate_button, "clicked", G_CALLBACK (on_locate_click), kit);
+  priv->locate_button = gtk_button_new_from_icon_name ("network-wireless", GTK_ICON_SIZE_BUTTON);
+  gtk_widget_set_margin_bottom (priv->locate_button, 5);
+  gtk_button_set_label (GTK_BUTTON (priv->locate_button), _("My location"));
+  gtk_widget_set_sensitive (priv->locate_button, FALSE);
 
   priv->lat_spin = gtk_spin_button_new_with_range (-90.0, 90.0, 0.001);
   g_signal_connect (priv->lat_spin, "notify::value", G_CALLBACK (on_coordinate_change), &priv->center.lat);
@@ -1116,7 +1096,7 @@ create_nav_input (HyScanGtkMapKit *kit,
   move_button = gtk_button_new_with_label (_("Go"));
   g_signal_connect_swapped (move_button, "clicked", G_CALLBACK (on_move_to_click), kit);
 
-  gtk_container_add (container, locate_button);
+  gtk_container_add (container, priv->locate_button);
   gtk_container_add (container, gtk_label_new (_("Coordinates (lat, lon)")));
   gtk_container_add (container, priv->lat_spin);
   gtk_container_add (container, priv->lon_spin);
@@ -1225,8 +1205,7 @@ create_layer_tree_view (HyScanGtkMapKit *kit,
 
 /* Кнопки управления виджетом. */
 static GtkWidget *
-create_control_box (HyScanGtkMapKit *kit,
-                    const gchar     *profile_dir)
+create_control_box (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
   GtkWidget *ctrl_box;
@@ -1235,7 +1214,8 @@ create_control_box (HyScanGtkMapKit *kit,
   ctrl_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
 
   /* Выпадающий список с профилями. */
-  gtk_container_add (GTK_CONTAINER (ctrl_box), create_profile_switch (HYSCAN_GTK_MAP (kit->map), profile_dir));
+  priv->profiles_box = create_profile_switch (HYSCAN_GTK_MAP (kit->map));
+  gtk_container_add (GTK_CONTAINER (ctrl_box), priv->profiles_box);
 
   /* Блокировка редактирования. */
   {
@@ -1309,24 +1289,9 @@ create_layers (HyScanGtkMapKit *kit)
   priv->ruler = hyscan_gtk_map_ruler_new ();
   priv->pin_layer = hyscan_gtk_map_pin_layer_new ();
 
-  /* Слой планировщика миссий. */
-  if (priv->planner != NULL)
-    priv->planner_layer = hyscan_gtk_map_planner_new (priv->planner);
-
-  /* Слой с траекторией движения судна. */
-  if (priv->nav_model != NULL)
-    priv->way_layer = hyscan_gtk_map_way_layer_new (priv->nav_model);
-
   /* Слой с галсами. */
   if (priv->db != NULL && priv->list_model != NULL)
     priv->track_layer = hyscan_gtk_map_track_layer_new (priv->db, priv->project_name, priv->list_model, priv->cache);
-
-  /* Слой с метками. */
-  if (priv->ml_model != NULL)
-    priv->wfmark_layer = hyscan_gtk_map_wfmark_layer_new (priv->ml_model);
-
-  if (priv->mark_geo_model != NULL)
-    priv->geomark_layer = hyscan_gtk_map_geomark_layer_new (priv->mark_geo_model);
 }
 
 /* Создает модели данных. */
@@ -1341,14 +1306,8 @@ hyscan_gtk_map_kit_model_create (HyScanGtkMapKit *kit,
     {
       priv->db = g_object_ref (db);
       priv->db_info = hyscan_db_info_new (db);
-      priv->mark_model = hyscan_mark_model_new (HYSCAN_TYPE_MARK_DATA_WATERFALL);
-      priv->mark_geo_model = hyscan_mark_model_new (HYSCAN_TYPE_MARK_DATA_GEO);
       priv->list_model = hyscan_list_model_new ();
-      priv->ml_model = hyscan_mark_loc_model_new (db, priv->cache);
     }
-
-  priv->nav_model = hyscan_navigation_model_new ();
-  priv->planner = hyscan_planner_new ();
 
   kit->map = create_map (kit);
   create_layers (kit);
@@ -1359,11 +1318,7 @@ hyscan_gtk_map_kit_model_create (HyScanGtkMapKit *kit,
                                           G_TYPE_STRING,         /* LAYER_TITLE_COLUMN   */
                                           HYSCAN_TYPE_GTK_LAYER  /* LAYER_COLUMN         */);
 
-  add_layer_row (kit, priv->planner_layer, "planner", _("Planner"));
-  add_layer_row (kit, priv->way_layer,     "way",     _("Navigation"));
   add_layer_row (kit, priv->track_layer,   "track",   _("Tracks"));
-  add_layer_row (kit, priv->wfmark_layer,  "wfmark",  _("Waterfall Marks"));
-  add_layer_row (kit, priv->geomark_layer, "wfmark",  _("Geo Marks"));
   add_layer_row (kit, priv->ruler,         "ruler",   _("Ruler"));
   add_layer_row (kit, priv->pin_layer,     "pin",     _("Pin"));
   add_layer_row (kit, priv->map_grid,      "grid",    _("Grid"));
@@ -1372,43 +1327,20 @@ hyscan_gtk_map_kit_model_create (HyScanGtkMapKit *kit,
 static void
 hyscan_gtk_map_kit_view_create (HyScanGtkMapKit *kit)
 {
-  HyScanGtkMapKitPrivate *priv = kit->priv;
-
   kit->navigation = create_navigation_box (kit);
-  kit->control    = create_control_box (kit, priv->profile_dir);
+  kit->control    = create_control_box (kit);
   kit->status_bar = create_status_bar (kit);
 }
 
 static void
 hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
-                               HyScanGeoGeodetic *center,
-                               HyScanSensor      *sensor,
-                               const gchar       *sensor_name,
-                               const gchar       *planner_ini,
-                               gdouble            delay_time)
+                               HyScanGeoGeodetic *center)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
   if (priv->db != NULL)
     {
       hyscan_db_info_set_project (priv->db_info, priv->project_name);
-      hyscan_mark_model_set_project (priv->mark_model, priv->db, priv->project_name);
-      hyscan_mark_model_set_project (priv->mark_geo_model, priv->db, priv->project_name);
-      hyscan_mark_loc_model_set_project (priv->ml_model, priv->project_name);
-    }
-
-  if (priv->nav_model != NULL)
-    {
-      hyscan_navigation_model_set_sensor (priv->nav_model, sensor);
-      hyscan_navigation_model_set_sensor_name (priv->nav_model, sensor_name);
-      hyscan_navigation_model_set_delay (priv->nav_model, delay_time);
-    }
-
-  if (planner_ini != NULL)
-    {
-      hyscan_planner_load_ini (priv->planner, planner_ini);
-      /* Автосохранение. */
-      g_signal_connect (priv->planner, "changed", G_CALLBACK (hyscan_planner_save_ini), (gpointer) planner_ini);
     }
 
   {
@@ -1425,9 +1357,6 @@ hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
  * @db: указатель на #HyScanDB
  * @project_name: имя проекта
  * @profile_dir: папка с профилями карты (примеры файлов-профилей в папке hyscangui/misc)
- * @sensor: датчик GPS-ресивера
- * @sensor_name: имя датчика
- * @planner_ini: ini-файл с запланированной миссией
  *
  * Returns: указатель на структуру #HyScanGtkMapKit, для удаления
  *          hyscan_gtk_map_kit_free().
@@ -1435,12 +1364,7 @@ hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
 HyScanGtkMapKit *
 hyscan_gtk_map_kit_new (HyScanGeoGeodetic *center,
                         HyScanDB          *db,
-                        const gchar       *project_name,
-                        const gchar       *profile_dir,
-                        HyScanSensor      *sensor,
-                        const gchar       *sensor_name,
-                        const gchar       *planner_ini,
-                        gdouble            delay_time)
+                        const gchar       *project_name)
 {
   HyScanGtkMapKit *kit;
 
@@ -1448,13 +1372,148 @@ hyscan_gtk_map_kit_new (HyScanGeoGeodetic *center,
   kit->priv = g_new0 (HyScanGtkMapKitPrivate, 1);
 
   kit->priv->project_name = g_strdup (project_name);
-  kit->priv->profile_dir = g_strdup (profile_dir);
 
   hyscan_gtk_map_kit_model_create (kit, db);
   hyscan_gtk_map_kit_view_create (kit);
-  hyscan_gtk_map_kit_model_init (kit, center, sensor, sensor_name, planner_ini, delay_time);
+  hyscan_gtk_map_kit_model_init (kit, center);
 
   return kit;
+}
+
+/**
+ * hyscan_gtk_map_kit_load_profiles:
+ * @kit:
+ * @profile_dir: директория с ini-профилями карты
+ *
+ * Добавляет дополнительные профили карты, загружая из папки profile_dir
+ */
+void
+hyscan_gtk_map_kit_load_profiles (HyScanGtkMapKit *kit,
+                                  const gchar     *profile_dir)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+  gchar **config_files;
+  guint conf_i;
+
+  config_files = list_profiles (profile_dir);
+  for (conf_i = 0; config_files[conf_i] != NULL; ++conf_i)
+    {
+      HyScanMapProfile *profile;
+      profile = hyscan_map_profile_new ();
+
+      if (hyscan_map_profile_read (profile, config_files[conf_i]))
+        combo_box_add_profile (GTK_COMBO_BOX_TEXT (priv->profiles_box), profile);
+
+      g_object_unref (profile);
+    }
+
+  g_strfreev (config_files);
+}
+
+/**
+ * hyscan_gtk_map_kit_add_planner:
+ * @kit
+ * @planner_ini: ini-файл с запланированной миссией
+ *
+ * Добавляет слой планировщика галсов.
+ */
+void
+hyscan_gtk_map_kit_add_planner (HyScanGtkMapKit *kit,
+                                const gchar     *planner_ini)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+
+  g_return_if_fail (priv->planner == NULL);
+
+  priv->planner = hyscan_planner_new ();
+  hyscan_planner_load_ini (priv->planner, planner_ini);
+
+  /* Автосохранение. */
+  g_signal_connect (priv->planner, "changed", G_CALLBACK (hyscan_planner_save_ini), (gpointer) planner_ini);
+
+  /* Слой планировщика миссий. */
+  priv->planner_layer = hyscan_gtk_map_planner_new (priv->planner);
+  add_layer_row (kit, priv->planner_layer, "planner", _("Planner"));
+}
+
+/**
+ * hyscan_gtk_map_kit_add_nav:
+ * @kit:
+ * @sensor: датчик GPS-ресивера
+ * @sensor_name: имя датчика
+ * @delay_time: время задержки навигационных данных
+ */
+void
+hyscan_gtk_map_kit_add_nav (HyScanGtkMapKit *kit,
+                            HyScanSensor    *sensor,
+                            const gchar     *sensor_name,
+                            gdouble          delay_time)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+
+  g_return_if_fail (priv->nav_model == NULL);
+
+  /* Навигационные данные. */
+  priv->nav_model = hyscan_navigation_model_new ();
+  hyscan_navigation_model_set_sensor (priv->nav_model, sensor);
+  hyscan_navigation_model_set_sensor_name (priv->nav_model, sensor_name);
+  hyscan_navigation_model_set_delay (priv->nav_model, delay_time);
+
+  /* Определение местоположения. */
+  g_signal_connect_swapped (priv->locate_button, "clicked", G_CALLBACK (on_locate_click), kit);
+  gtk_widget_set_sensitive (priv->locate_button, TRUE);
+
+  /* Слой с траекторией движения судна. */
+  priv->way_layer = hyscan_gtk_map_way_layer_new (priv->nav_model);
+  add_layer_row (kit, priv->way_layer, "way", _("Navigation"));
+}
+
+void
+hyscan_gtk_map_kit_add_marks_wf (HyScanGtkMapKit *kit)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+
+  g_return_if_fail (priv->mark_model == NULL);
+  g_return_if_fail (priv->db != NULL);
+
+  /* Модели меток водопада и их местоположения. */
+  priv->mark_model = hyscan_mark_model_new (HYSCAN_TYPE_MARK_DATA_WATERFALL);
+  priv->ml_model = hyscan_mark_loc_model_new (priv->db, priv->cache);
+
+  g_signal_connect_swapped (priv->mark_model, "changed", G_CALLBACK (on_marks_changed), kit);
+
+  /* Слой с метками. */
+  priv->wfmark_layer = hyscan_gtk_map_wfmark_layer_new (priv->ml_model);
+  add_layer_row (kit, priv->wfmark_layer, "wfmark", _("Waterfall Marks"));
+
+  /* Виджет навигации по меткам. */
+  create_wfmark_toolbox (kit);
+
+  /* Устанавливаем проект и БД. */
+  hyscan_mark_model_set_project (priv->mark_model, priv->db, priv->project_name);
+  hyscan_mark_loc_model_set_project (priv->ml_model, priv->project_name);
+}
+
+void
+hyscan_gtk_map_kit_add_marks_geo (HyScanGtkMapKit   *kit)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+
+  g_return_if_fail (priv->mark_geo_model == NULL);
+  g_return_if_fail (priv->db != NULL);
+
+  /* Модель геометок. */
+  priv->mark_geo_model = hyscan_mark_model_new (HYSCAN_TYPE_MARK_DATA_GEO);
+  g_signal_connect_swapped (priv->mark_geo_model, "changed", G_CALLBACK (on_marks_changed), kit);
+
+  /* Слой с геометками. */
+  priv->geomark_layer = hyscan_gtk_map_geomark_layer_new (priv->mark_geo_model);
+  add_layer_row (kit, priv->geomark_layer, "wfmark", _("Geo Marks"));
+
+  /* Виджет навигации по меткам. */
+  create_wfmark_toolbox (kit);
+
+  hyscan_mark_model_set_project (priv->mark_geo_model, priv->db, priv->project_name);
 }
 
 /**
@@ -1466,7 +1525,6 @@ hyscan_gtk_map_kit_free (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
-  g_free (priv->profile_dir);
   g_free (priv->project_name);
   g_clear_object (&priv->planner);
   g_clear_object (&priv->cache);

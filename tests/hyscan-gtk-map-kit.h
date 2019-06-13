@@ -20,15 +20,32 @@ typedef struct
   HyScanGtkMapKitPrivate *priv;
 } HyScanGtkMapKit;
 
-HyScanGtkMapKit * hyscan_gtk_map_kit_new        (HyScanGeoGeodetic *center,
-                                                 HyScanDB          *db,
-                                                 const gchar       *project_name,
-                                                 const gchar       *profile_dir,
-                                                 HyScanSensor      *sensor,
-                                                 const gchar       *sensor_name,
-                                                 const gchar       *planner_ini,
-                                                 gdouble            delay_time);
+HYSCAN_API
+HyScanGtkMapKit * hyscan_gtk_map_kit_new           (HyScanGeoGeodetic *center,
+                                                    HyScanDB          *db,
+                                                    const gchar       *project_name);
 
-void              hyscan_gtk_map_kit_free       (HyScanGtkMapKit   *kit);
+HYSCAN_API
+void              hyscan_gtk_map_kit_load_profiles (HyScanGtkMapKit   *kit,
+                                                    const gchar       *profile_dir);
+
+HYSCAN_API
+void              hyscan_gtk_map_kit_add_planner   (HyScanGtkMapKit   *kit,
+                                                    const gchar       *planner_ini);
+
+HYSCAN_API
+void              hyscan_gtk_map_kit_add_nav       (HyScanGtkMapKit   *kit,
+                                                    HyScanSensor      *sensor,
+                                                    const gchar       *sensor_name,
+                                                    gdouble            delay_time);
+
+HYSCAN_API
+void              hyscan_gtk_map_kit_add_marks_wf  (HyScanGtkMapKit   *kit);
+
+HYSCAN_API
+void              hyscan_gtk_map_kit_add_marks_geo (HyScanGtkMapKit   *kit);
+
+HYSCAN_API
+void              hyscan_gtk_map_kit_free          (HyScanGtkMapKit   *kit);
 
 #endif /* __HYSCAN_GTK_MAP_KIT_H__ */

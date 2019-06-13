@@ -196,10 +196,13 @@ int main (int     argc,
 
   db = hyscan_db_new (db_uri);
   sensor = create_sensor ();
-  kit = hyscan_gtk_map_kit_new (&center, db, project_name, profile_dir,
-                                sensor, GPS_SENSOR_NAME,
-                                planner_ini,
-                                delay_time);
+
+  kit = hyscan_gtk_map_kit_new (&center, db, project_name);
+  hyscan_gtk_map_kit_load_profiles (kit, profile_dir);
+  hyscan_gtk_map_kit_add_planner (kit, planner_ini);
+  hyscan_gtk_map_kit_add_nav (kit, sensor, GPS_SENSOR_NAME, delay_time);
+  hyscan_gtk_map_kit_add_marks_wf (kit);
+  hyscan_gtk_map_kit_add_marks_geo (kit);
 
   gtk_grid_attach (GTK_GRID (grid), kit->navigation, 0, 0, 1, 1);
   gtk_grid_attach (GTK_GRID (grid), kit->map,        1, 0, 1, 1);
