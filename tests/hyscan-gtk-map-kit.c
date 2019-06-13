@@ -47,7 +47,9 @@ enum
   MARK_ID_COLUMN,
   MARK_NAME_COLUMN,
   MARK_MTIME_COLUMN,
-  MARK_MTIME_SORT_COLUMN
+  MARK_MTIME_SORT_COLUMN,
+  MARK_TYPE_COLUMN,
+  MARK_TYPE_NAME_COLUMN,
 };
 
 struct _HyScanGtkMapKitPrivate
@@ -627,11 +629,18 @@ create_mark_tree_view (HyScanGtkMapKit *kit,
                        GtkTreeModel    *tree_model)
 {
   GtkCellRenderer *renderer;
-  GtkTreeViewColumn *name_column, *date_column;
+  GtkTreeViewColumn *type_column, *name_column, *date_column;
   GtkTreeView *tree_view;
+
+  /* Тип метки. */
+  renderer = gtk_cell_renderer_text_new ();
+  type_column = gtk_tree_view_column_new_with_attributes ("", renderer,
+                                                          "text", MARK_TYPE_NAME_COLUMN, NULL);
+  gtk_tree_view_column_set_sort_column_id (type_column, MARK_TYPE_COLUMN);
 
   /* Название метки. */
   renderer = gtk_cell_renderer_text_new ();
+  // g_object_set (renderer, "editable", TRUE, NULL);
   name_column = gtk_tree_view_column_new_with_attributes (_("Mark"), renderer,
                                                           "text", MARK_NAME_COLUMN, NULL);
   gtk_tree_view_column_set_sort_column_id (name_column, MARK_NAME_COLUMN);
@@ -644,6 +653,7 @@ create_mark_tree_view (HyScanGtkMapKit *kit,
 
   tree_view = GTK_TREE_VIEW (gtk_tree_view_new_with_model (tree_model));
   gtk_tree_view_set_search_column (tree_view, MARK_NAME_COLUMN);
+  gtk_tree_view_append_column (tree_view, type_column);
   gtk_tree_view_append_column (tree_view, name_column);
   gtk_tree_view_append_column (tree_view, date_column);
 
@@ -686,9 +696,13 @@ on_marks_activated (GtkTreeView        *treeview,
   if (gtk_tree_model_get_iter (model, &iter, path))
   {
     gchar *mark_id;
+    HyScanMarkType mark_type;
 
-    gtk_tree_model_get (model, &iter, MARK_ID_COLUMN, &mark_id, -1);
-    hyscan_gtk_map_wfmark_layer_mark_view (HYSCAN_GTK_MAP_WFMARK_LAYER (priv->wfmark_layer), mark_id);
+    gtk_tree_model_get (model, &iter, MARK_ID_COLUMN, &mark_id, MARK_TYPE_COLUMN, &mark_type, -1);
+    if (mark_type == HYSCAN_MARK_WATERFALL)
+      hyscan_gtk_map_wfmark_layer_mark_view (HYSCAN_GTK_MAP_WFMARK_LAYER (priv->wfmark_layer), mark_id);
+    else if (mark_type == HYSCAN_MARK_GEO)
+      hyscan_gtk_map_geomark_layer_mark_view (HYSCAN_GTK_MAP_GEOMARK_LAYER (priv->geomark_layer), mark_id);
 
     g_free (mark_id);
   }
@@ -719,24 +733,17 @@ on_track_activated (GtkTreeView        *treeview,
 }
 
 static void
-on_marks_changed (HyScanMarkModel *model,
-                  HyScanGtkMapKit *kit)
+list_store_insert (HyScanGtkMapKit *kit,
+                   HyScanMarkModel *model)
 {
-  GtkTreePath *null_path;
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+
   GtkTreeIter tree_iter;
   GHashTable *marks;
   GHashTableIter hash_iter;
-  
-  HyScanMarkWaterfall *mark;
+
+  HyScanMarkAny *mark;
   gchar *mark_id;
-
-  HyScanGtkMapKitPrivate *priv = kit->priv;
-
-  null_path = gtk_tree_path_new ();
-  gtk_tree_view_set_cursor (priv->track_tree, null_path, NULL, FALSE);
-  gtk_tree_path_free (null_path);
-
-  gtk_list_store_clear (priv->track_store);
 
   marks = hyscan_mark_model_get (model);
   g_hash_table_iter_init (&hash_iter, marks);
@@ -756,6 +763,8 @@ on_marks_changed (HyScanMarkModel *model,
                           MARK_NAME_COLUMN, mark->name,
                           MARK_MTIME_COLUMN, time_str,
                           MARK_MTIME_SORT_COLUMN, mark->modification_time,
+                          MARK_TYPE_COLUMN, mark->type,
+                          MARK_TYPE_NAME_COLUMN, mark->type == HYSCAN_MARK_WATERFALL ? "W" : "G",
                           -1);
 
       g_free (time_str);
@@ -763,6 +772,19 @@ on_marks_changed (HyScanMarkModel *model,
     }
 
   g_hash_table_unref (marks);
+}
+
+static void
+on_marks_changed (HyScanGtkMapKit *kit)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+
+  /* Удаляем все строки из mark_store. */
+  gtk_list_store_clear (priv->mark_store);
+
+  /* Добавляем метки из всех моделей. */
+  list_store_insert (kit, priv->mark_model);
+  list_store_insert (kit, priv->mark_geo_model);
 }
 
 /* Навигация по меткам. */
@@ -777,14 +799,18 @@ create_wfmark_toolbox (HyScanGtkMapKit *kit)
   if (priv->db == NULL)
     return NULL;
 
-  priv->mark_store = gtk_list_store_new (4,
+  priv->mark_store = gtk_list_store_new (6,
                                          G_TYPE_STRING,  /* MARK_ID_COLUMN   */
                                          G_TYPE_STRING,  /* MARK_NAME_COLUMN   */
                                          G_TYPE_STRING,  /* MARK_MTIME_COLUMN */
-                                         G_TYPE_INT64    /* MARK_MTIME_SORT_COLUMN */);
+                                         G_TYPE_INT64,   /* MARK_MTIME_SORT_COLUMN */
+                                         G_TYPE_UINT,    /* MARK_TYPE_COLUMN */
+                                         G_TYPE_STRING,  /* MARK_TYPE_NAME_COLUMN */
+                                         -1);
   priv->mark_tree = create_mark_tree_view (kit, GTK_TREE_MODEL (priv->mark_store));
 
-  g_signal_connect (priv->mark_model, "changed", G_CALLBACK (on_marks_changed), kit);
+  g_signal_connect_swapped (priv->mark_model, "changed", G_CALLBACK (on_marks_changed), kit);
+  g_signal_connect_swapped (priv->mark_geo_model, "changed", G_CALLBACK (on_marks_changed), kit);
   g_signal_connect (priv->mark_tree, "row-activated", G_CALLBACK (on_marks_activated), kit);
 
   box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);

@@ -67,7 +67,11 @@ HYSCAN_API
 GType            hyscan_gtk_map_geomark_layer_get_type (void);
 
 HYSCAN_API
-HyScanGtkLayer * hyscan_gtk_map_geomark_layer_new      (HyScanMarkModel *model);
+HyScanGtkLayer * hyscan_gtk_map_geomark_layer_new      (HyScanMarkModel           *model);
+
+HYSCAN_API
+void             hyscan_gtk_map_geomark_layer_mark_view (HyScanGtkMapGeomarkLayer *gm_layer,
+                                                         const gchar              *mark_id);
 
 G_END_DECLS
 

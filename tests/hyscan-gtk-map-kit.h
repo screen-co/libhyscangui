@@ -29,8 +29,6 @@ HyScanGtkMapKit * hyscan_gtk_map_kit_new        (HyScanGeoGeodetic *center,
                                                  const gchar       *planner_ini,
                                                  gdouble            delay_time);
 
-void              hyscan_gtk_map_kit_add_tracks (HyScanGtkMapKit   *kit);
-
 void              hyscan_gtk_map_kit_free       (HyScanGtkMapKit   *kit);
 
 #endif /* __HYSCAN_GTK_MAP_KIT_H__ */
