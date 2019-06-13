@@ -54,20 +54,30 @@
  */
 
 #include "hyscan-gtk-map-track.h"
-#include <hyscan-cartesian.h>
 #include <hyscan-acoustic-data.h>
 #include <hyscan-amplitude.h>
-#include <hyscan-projector.h>
+#include <hyscan-cartesian.h>
+#include <hyscan-core-common.h>
 #include <hyscan-depthometer.h>
 #include <hyscan-nmea-parser.h>
+#include <hyscan-projector.h>
 #include <hyscan-data-schema-builder.h>
+#include <glib/gi18n.h>
 #include <cairo.h>
 #include <math.h>
 
-#define PARAM_CHANNEL_RMC       "/channel-rmc"
-#define PARAM_CHANNEL_DPT       "/channel-dpt"
-#define PARAM_CHANNEL_PORT      "/channel-port"
-#define PARAM_CHANNEL_STARBOARD "/channel-starboard"
+/* Ключи схемы данных настроек галса. */
+#define ENUM_NMEA_CHANNEL     "nmea-channel"
+#define KEY_CHANNEL_RMC       "/channel-rmc"
+#define KEY_CHANNEL_DPT       "/channel-dpt"
+#define KEY_CHANNEL_PORT      "/channel-port"
+#define KEY_CHANNEL_STARBOARD "/channel-starboard"
+
+/* Номера каналов по умолчанию. */
+#define DEFAULT_CHANNEL_RMC       1
+#define DEFAULT_CHANNEL_DPT       2
+#define DEFAULT_CHANNEL_PORT      1
+#define DEFAULT_CHANNEL_STARBOARD 1
 
 enum
 {
@@ -80,12 +90,13 @@ enum
   PROP_TILED_LAYER,
 };
 
+/* Каналы данных для изображения галса. */
 enum
 {
-  HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_RMC,
-  HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_DPT,
-  HYSCAN_GTK_MAP_TRACK_CHNL_PORT,
-  HYSCAN_GTK_MAP_TRACK_CHNL_STARBOARD,
+  CHANNEL_NMEA_RMC,
+  CHANNEL_NMEA_DPT,
+  CHANNEL_PORT,
+  CHANNEL_STARBOARD,
 };
 
 typedef struct {
@@ -259,10 +270,10 @@ hyscan_gtk_map_track_object_constructed (GObject *object)
 
   /* Устанавливаем номера каналов по умолчанию. */
   hyscan_gtk_map_track_schema_build (track);
-  hyscan_gtk_map_track_set_channel_real (track, HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_RMC,  1);
-  hyscan_gtk_map_track_set_channel_real (track, HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_DPT,  2);
-  hyscan_gtk_map_track_set_channel_real (track, HYSCAN_GTK_MAP_TRACK_CHNL_STARBOARD, 1);
-  hyscan_gtk_map_track_set_channel_real (track, HYSCAN_GTK_MAP_TRACK_CHNL_PORT,      1);
+  hyscan_gtk_map_track_set_channel_real (track, CHANNEL_NMEA_RMC,  DEFAULT_CHANNEL_RMC);
+  hyscan_gtk_map_track_set_channel_real (track, CHANNEL_NMEA_DPT,  DEFAULT_CHANNEL_DPT);
+  hyscan_gtk_map_track_set_channel_real (track, CHANNEL_STARBOARD, DEFAULT_CHANNEL_STARBOARD);
+  hyscan_gtk_map_track_set_channel_real (track, CHANNEL_PORT,      DEFAULT_CHANNEL_PORT);
 }
 
 static void
@@ -313,26 +324,28 @@ hyscan_gtk_map_track_param_get (HyScanParam     *param,
 
   for (i = 0; names[i] != NULL; ++i)
     {
-      if (g_str_equal (names[i], PARAM_CHANNEL_RMC))
-      {
-        hyscan_param_list_set_integer (list, names[i],
-                                       hyscan_gtk_map_track_get_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_RMC));
-      }
-      else if (g_str_equal (names[i], PARAM_CHANNEL_DPT))
-      {
-        hyscan_param_list_set_integer (list, names[i],
-                                       hyscan_gtk_map_track_get_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_DPT));
-      }
-      else if (g_str_equal (names[i], PARAM_CHANNEL_PORT))
-      {
-        hyscan_param_list_set_integer (list, names[i],
-                                       hyscan_gtk_map_track_get_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_PORT));
-      }
-      else if (g_str_equal (names[i], PARAM_CHANNEL_STARBOARD))
-      {
-        hyscan_param_list_set_integer (list, names[i],
-                                       hyscan_gtk_map_track_get_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_STARBOARD));
-      }
+      gint channel;
+
+      if (g_str_equal (names[i], KEY_CHANNEL_RMC))
+        {
+          channel = hyscan_gtk_map_track_get_channel (track, CHANNEL_NMEA_RMC);
+          hyscan_param_list_set_enum (list, names[i], channel);
+        }
+      else if (g_str_equal (names[i], KEY_CHANNEL_DPT))
+        {
+          channel = hyscan_gtk_map_track_get_channel (track, CHANNEL_NMEA_DPT);
+          hyscan_param_list_set_enum (list, names[i], channel);
+        }
+      else if (g_str_equal (names[i], KEY_CHANNEL_PORT))
+        {
+          channel = hyscan_gtk_map_track_get_channel (track, CHANNEL_PORT);
+          hyscan_param_list_set_boolean (list, names[i], channel > 0);
+        }
+      else if (g_str_equal (names[i], KEY_CHANNEL_STARBOARD))
+        {
+          channel = hyscan_gtk_map_track_get_channel (track, CHANNEL_STARBOARD);
+          hyscan_param_list_set_boolean (list, names[i], channel > 0);
+        }
     }
 
   return TRUE;
@@ -355,26 +368,35 @@ hyscan_gtk_map_track_param_set (HyScanParam     *param,
 
   for (i = 0; names[i] != NULL; ++i)
     {
-      if (g_str_equal (names[i], PARAM_CHANNEL_RMC))
-      {
-        hyscan_gtk_map_track_set_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_RMC,
-                                          hyscan_param_list_get_integer (list, names[i]));
-      }
-      else if (g_str_equal (names[i], PARAM_CHANNEL_DPT))
-      {
-        hyscan_gtk_map_track_set_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_DPT,
-                                          hyscan_param_list_get_integer (list, names[i]));
-      }
-      else if (g_str_equal (names[i], PARAM_CHANNEL_STARBOARD))
-      {
-        hyscan_gtk_map_track_set_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_STARBOARD,
-                                          hyscan_param_list_get_integer (list, names[i]));
-      }
-      else if (g_str_equal (names[i], PARAM_CHANNEL_PORT))
-      {
-        hyscan_gtk_map_track_set_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_PORT,
-                                          hyscan_param_list_get_integer (list, names[i]));
-      }
+      guint channel;
+      gint channel_num;
+      
+      if (g_str_equal (names[i], KEY_CHANNEL_RMC))
+        {
+          channel = CHANNEL_NMEA_RMC;
+          channel_num = hyscan_param_list_get_integer (list, names[i]);
+        }
+      else if (g_str_equal (names[i], KEY_CHANNEL_DPT))
+        {
+          channel = CHANNEL_NMEA_DPT;
+          channel_num = hyscan_param_list_get_integer (list, names[i]);
+        }
+      else if (g_str_equal (names[i], KEY_CHANNEL_STARBOARD))
+        {
+          channel = CHANNEL_STARBOARD;
+          channel_num = hyscan_param_list_get_boolean (list, names[i]) ? DEFAULT_CHANNEL_STARBOARD : 0;
+        }
+      else if (g_str_equal (names[i], KEY_CHANNEL_PORT))
+        {
+          channel = CHANNEL_PORT;
+          channel_num = hyscan_param_list_get_boolean (list, names[i]) ? DEFAULT_CHANNEL_PORT : 0;
+        }
+      else
+        {
+          continue;
+        }
+      
+      hyscan_gtk_map_track_set_channel (track, channel, channel_num);
     }
 
   /* Сообщаем об изменнении параметров и необходимости перерисовки. */
@@ -403,16 +425,8 @@ hyscan_gtk_map_track_interface_init (HyScanParamInterface *iface)
   iface->schema = hyscan_gtk_map_track_param_schema;
 }
 
-/**
- * hyscan_gtk_map_track_max_channel:
- * @track_layer: указатель на #HyScanGtkMapTrackLayer
- * @track_name: название галса
- * @channel: источник данных
- *
- * Returns: максимальный доступный номер канала для указанного источника данных
- *          @channel.
- */
-guint
+/* Возвращает максимальный доступный номер канала для указанного источника данных. */
+static guint
 hyscan_gtk_map_track_max_channel (HyScanGtkMapTrack *track,
                                   guint              channel)
 {
@@ -444,18 +458,18 @@ hyscan_gtk_map_track_max_channel (HyScanGtkMapTrack *track,
       /* Отфильтровываем каналы по типу данных. */
       switch (channel)
         {
-        case HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_RMC:
-        case HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_DPT:
+        case CHANNEL_NMEA_RMC:
+        case CHANNEL_NMEA_DPT:
           if (source != HYSCAN_SOURCE_NMEA)
             continue;
           break;
 
-        case HYSCAN_GTK_MAP_TRACK_CHNL_PORT:
+        case CHANNEL_PORT:
           if (source != HYSCAN_SOURCE_SIDE_SCAN_PORT)
             continue;
           break;
 
-        case HYSCAN_GTK_MAP_TRACK_CHNL_STARBOARD:
+        case CHANNEL_STARBOARD:
           if (source != HYSCAN_SOURCE_SIDE_SCAN_STARBOARD)
             continue;
           break;
@@ -476,6 +490,84 @@ exit:
 }
 
 static void
+hyscan_gtk_map_track_schema_build_nmea_enum (HyScanGtkMapTrack       *track,
+                                             HyScanDataSchemaBuilder *builder,
+                                             guint                   *channel_last)
+{
+  HyScanGtkMapTrackPrivate *priv = track->priv;
+
+  gint32 project_id = -1, track_id = -1;
+  gchar **channels;
+
+  guint max_channel = 0;
+  guint i;
+
+  /* Создаём перечисление и "пустое" значение. */
+  hyscan_data_schema_builder_enum_create (builder, ENUM_NMEA_CHANNEL);
+  hyscan_data_schema_builder_enum_value_create (builder, ENUM_NMEA_CHANNEL, 0, "disabled", "Disabled", NULL);
+
+  /* Получаем из БД информацию о каналах галса. */
+  project_id = hyscan_db_project_open (priv->db, priv->project);
+  if (project_id < 0)
+    goto exit;
+
+  track_id = hyscan_db_track_open (priv->db, project_id, priv->name);
+  if (track_id < 0)
+    goto exit;
+
+  channels = hyscan_db_channel_list (priv->db, track_id);
+
+  if (channels == NULL)
+    goto exit;
+
+  for (i = 0; channels[i] != NULL; ++i)
+    {
+      gchar *sensor_name;
+      gint32 channel_id, param_id;
+
+      HyScanSourceType source;
+      HyScanChannelType type;
+      guint channel_num;
+
+      hyscan_channel_get_types_by_id (channels[i], &source, &type, &channel_num);
+      if (source != HYSCAN_SOURCE_NMEA)
+        continue;
+
+      channel_id = hyscan_db_channel_open (priv->db, track_id, channels[i]);
+      if (channel_id < 0)
+        continue;
+
+      param_id = hyscan_db_channel_param_open (priv->db, channel_id);
+      hyscan_db_close (priv->db, channel_id);
+
+      if (param_id < 0)
+        continue;
+
+      sensor_name = hyscan_core_params_load_sensor_info (priv->db, param_id);
+      hyscan_db_close (priv->db, param_id);
+
+      /* Добавляем канал в enum. */
+      hyscan_data_schema_builder_enum_value_create (builder, ENUM_NMEA_CHANNEL, channel_num, channels[i], sensor_name, NULL);
+      max_channel = MAX (max_channel, channel_num);
+
+      g_free (sensor_name);
+    }
+
+exit:
+  g_clear_pointer (&channels, g_strfreev);
+
+  if (track_id > 0)
+    hyscan_db_close (priv->db, track_id);
+
+  if (project_id > 0)
+    hyscan_db_close (priv->db, project_id);
+
+  if (channel_last != NULL)
+    *channel_last = max_channel;
+}
+
+/* Создаёт схему параметров галса. */
+static void
 hyscan_gtk_map_track_schema_build (HyScanGtkMapTrack *track)
 {
   HyScanGtkMapTrackPrivate *priv = track->priv;
@@ -485,33 +577,37 @@ hyscan_gtk_map_track_schema_build (HyScanGtkMapTrack *track)
   builder = hyscan_data_schema_builder_new ("gtk-map-track");
   hyscan_data_schema_builder_node_set_name (builder, "/", "Track settings", "Configure track channel data");
 
+  /* Формируем перечисление NMEA-каналов. */
+  hyscan_gtk_map_track_schema_build_nmea_enum (track, builder, &max_channel);
 
-  max_channel = hyscan_gtk_map_track_max_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_RMC);
-  hyscan_data_schema_builder_key_integer_create (builder, PARAM_CHANNEL_RMC, "RMC Channel",
-                                                 "The number of NMEA-channel with RMC data or \"0\" to disable",
-                                                 MIN (1, max_channel));
-  hyscan_data_schema_builder_key_integer_range (builder, PARAM_CHANNEL_RMC, 0, max_channel, 1);
+  /* Настройка канала RMC-строк. */
+  hyscan_data_schema_builder_key_enum_create (builder, KEY_CHANNEL_RMC, "RMC Channel",
+                                              "The NMEA-channel with RMC sentences",
+                                              ENUM_NMEA_CHANNEL, MIN (DEFAULT_CHANNEL_RMC, max_channel));
 
-  max_channel = hyscan_gtk_map_track_max_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_DPT);
-  hyscan_data_schema_builder_key_integer_create (builder, PARAM_CHANNEL_DPT, "DPT Channel",
-                                                 "The number of NMEA-channel with DPT data or \"0\" to disable",
-                                                 MIN (2, max_channel));
-  hyscan_data_schema_builder_key_integer_range (builder, PARAM_CHANNEL_DPT, 0, max_channel, 1);
+  /* Настройка канала DPT-строк. */
+  hyscan_data_schema_builder_key_enum_create (builder, KEY_CHANNEL_DPT, "DPT Channel",
+                                              "The NMEA-channel with DPT sentences",
+                                              ENUM_NMEA_CHANNEL, MIN (DEFAULT_CHANNEL_DPT, max_channel));
 
-  max_channel = hyscan_gtk_map_track_max_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_PORT);
-  hyscan_data_schema_builder_key_integer_create (builder, PARAM_CHANNEL_PORT, "Port Channel",
-                                                 "The number of side-scan port channel or \"0\" to disable",
-                                                 MIN (1, max_channel));
-  hyscan_data_schema_builder_key_integer_range (builder, PARAM_CHANNEL_PORT, 0, max_channel, 1);
+  /* Настройка левого борта. */
+  max_channel = hyscan_gtk_map_track_max_channel (track, CHANNEL_PORT);
+  hyscan_data_schema_builder_key_boolean_create (builder, KEY_CHANNEL_PORT, "Port Channel",
+                                                 "Show side-scan port channel data", max_channel > 0);
+  if (max_channel == 0)
+    hyscan_data_schema_builder_key_set_access (builder, KEY_CHANNEL_PORT, HYSCAN_DATA_SCHEMA_ACCESS_READ);
 
-  max_channel = hyscan_gtk_map_track_max_channel (track, HYSCAN_GTK_MAP_TRACK_CHNL_STARBOARD);
-  hyscan_data_schema_builder_key_integer_create (builder, PARAM_CHANNEL_STARBOARD, "Starboard Channel",
-                                                 "The number of side-scan starboard channel or \"0\" to disable",
-                                                 MIN (1, max_channel));
-  hyscan_data_schema_builder_key_integer_range (builder, PARAM_CHANNEL_STARBOARD, 0, max_channel, 1);
+  /* Настройка правого борта. */
+  max_channel = hyscan_gtk_map_track_max_channel (track, CHANNEL_STARBOARD);
+  hyscan_data_schema_builder_key_boolean_create (builder, KEY_CHANNEL_STARBOARD, "Starboard Channel",
+                                                 "Show side-scan starboard channel data", max_channel > 0);
+  if (max_channel == 0)
+    hyscan_data_schema_builder_key_set_access (builder, KEY_CHANNEL_STARBOARD, HYSCAN_DATA_SCHEMA_ACCESS_READ);
 
+  /* Записываем полученную схему данных. */
   g_clear_object (&priv->schema);
   priv->schema = hyscan_data_schema_builder_get_schema (builder);
+
   g_object_unref (builder);
 }
 
@@ -530,19 +626,19 @@ hyscan_gtk_map_track_set_channel_real (HyScanGtkMapTrack *track,
 
   switch (channel)
     {
-    case HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_DPT:
+    case CHANNEL_NMEA_DPT:
       priv->channel_dpt = channel_num;
       break;
 
-    case HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_RMC:
+    case CHANNEL_NMEA_RMC:
       priv->channel_rmc = channel_num;
       break;
 
-    case HYSCAN_GTK_MAP_TRACK_CHNL_STARBOARD:
+    case CHANNEL_STARBOARD:
       priv->channel_starboard = channel_num;
       break;
 
-    case HYSCAN_GTK_MAP_TRACK_CHNL_PORT:
+    case CHANNEL_PORT:
       priv->channel_port = channel_num;
       break;
 
@@ -1276,17 +1372,9 @@ hyscan_gtk_map_track_view (HyScanGtkMapTrack    *track,
   return TRUE;
 }
 
-/**
- * hyscan_gtk_map_track_configure:
- * @track_layer: указатель на слой
- * @track_name: название трека
- * @channel: источник данных
- * @channel_num: номер канала или 0, чтобы отключить указанный источник
- *
- * Устанавливает номер канала для указанного трека. Чтобы не загружать данные по
+/* Устанавливает номер канала для указанного трека. Чтобы не загружать данные по
  * указанном истоничку, необходимо передать @channel_num = 0. Максимальный
- * доступный номер канала можно получить с помощью функции
- * hyscan_gtk_map_track_max_channel().
+ * доступный номер канала можно получить с помощью функции hyscan_gtk_map_track_max_channel().
  */
 static void
 hyscan_gtk_map_track_set_channel (HyScanGtkMapTrack *track,
@@ -1322,16 +1410,16 @@ hyscan_gtk_map_track_get_channel (HyScanGtkMapTrack *track,
 
   switch (channel)
     {
-    case HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_DPT:
+    case CHANNEL_NMEA_DPT:
       return priv->channel_dpt;
 
-    case HYSCAN_GTK_MAP_TRACK_CHNL_NMEA_RMC:
+    case CHANNEL_NMEA_RMC:
       return priv->channel_rmc;
 
-    case HYSCAN_GTK_MAP_TRACK_CHNL_STARBOARD:
+    case CHANNEL_STARBOARD:
       return priv->channel_starboard;
 
-    case HYSCAN_GTK_MAP_TRACK_CHNL_PORT:
+    case CHANNEL_PORT:
       return priv->channel_port;
 
     default:
