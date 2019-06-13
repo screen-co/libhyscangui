@@ -182,7 +182,7 @@ hyscan_mark_loc_model_object_constructed (GObject *object)
   priv->locations = hyscan_mark_loc_model_create_table ();
 
   /* Модели данных. */
-  priv->mark_model = hyscan_mark_model_new (HYSCAN_TYPE_MARK_DATA_WATERFALL);
+  priv->mark_model = hyscan_mark_model_new (HYSCAN_MARK_WATERFALL);
   priv->db_info = hyscan_db_info_new (priv->db);
 
   g_signal_connect_swapped (priv->mark_model, "changed",
@@ -249,7 +249,7 @@ hyscan_mark_loc_model_load_location (HyScanMarkLocModel *ml_model,
   if (track_name == NULL)
     return location->loaded;
   // todo: Cache objects: amplitude, projector, lat_data, lon_data...
-  
+
   /* Получаем временную метку из канала акустических данных. */
   {
     gint32 project_id, track_id, channel_id;
@@ -266,7 +266,7 @@ hyscan_mark_loc_model_load_location (HyScanMarkLocModel *ml_model,
     hyscan_db_close (priv->db, track_id);
     hyscan_db_close (priv->db, project_id);
   }
-  
+
   /* Находим географические координаты метки и курс. */
   {
     HyScanNavData *lat_data, *lon_data, *angle_data;

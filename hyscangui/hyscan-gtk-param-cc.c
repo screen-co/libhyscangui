@@ -265,6 +265,7 @@ hyscan_gtk_param_cc_make_level1 (const HyScanDataSchemaNode *node,
 
   if (empty)
     {
+      g_object_ref_sink (box);
       g_clear_object (&box);
       return NULL;
     }

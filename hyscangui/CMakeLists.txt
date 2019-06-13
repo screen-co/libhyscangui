@@ -21,6 +21,17 @@ add_custom_command (OUTPUT "${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshalle
 
 add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-area.c
+             hyscan-gtk-waterfall-state.c
+             hyscan-gtk-waterfall.c
+             hyscan-gtk-waterfall-layer.c
+             hyscan-gtk-waterfall-control.c
+             hyscan-gtk-waterfall-grid.c
+             hyscan-gtk-waterfall-tools.c
+             hyscan-gtk-waterfall-mark.c
+             hyscan-gtk-waterfall-meter.c
+             hyscan-gtk-waterfall-player.c
+             hyscan-gtk-waterfall-magnifier.c
+             # hyscan-gtk-waterfall-depth.c
              hyscan-gtk-spin-button.c
              hyscan-gtk-datetime.c
              hyscan-gtk-param-key.c
@@ -89,6 +100,17 @@ install (FILES "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/hyscangui-${HYSCAN_MAJOR_VERSI
          PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
 
 install (FILES hyscan-gtk-area.h
+               hyscan-gtk-waterfall-state.h
+               hyscan-gtk-waterfall.h
+               hyscan-gtk-waterfall-layer.h
+               hyscan-gtk-waterfall-mayer.h
+               hyscan-gtk-waterfall-control.h
+               hyscan-gtk-waterfall-grid.h
+               hyscan-gtk-waterfall-tools.h
+               hyscan-gtk-waterfall-mark.h
+               hyscan-gtk-waterfall-meter.h
+               hyscan-gtk-waterfall-player.h
+               hyscan-gtk-waterfall-magnifier.h
          COMPONENT development
          DESTINATION "include/hyscan-${HYSCAN_MAJOR_VERSION}/hyscangui"
          PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)

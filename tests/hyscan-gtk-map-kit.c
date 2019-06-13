@@ -17,8 +17,6 @@
 #include <hyscan-mark-model.h>
 #include <hyscan-gtk-map-planner.h>
 #include <glib/gi18n.h>
-#include <hyscan-mark-data-waterfall.h>
-#include <hyscan-mark-data-geo.h>
 #include <hyscan-gtk-map-geomark-layer.h>
 
 #define PRELOAD_STATE_DONE 1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
@@ -1477,7 +1475,7 @@ hyscan_gtk_map_kit_add_marks_wf (HyScanGtkMapKit *kit)
   g_return_if_fail (priv->db != NULL);
 
   /* Модели меток водопада и их местоположения. */
-  priv->mark_model = hyscan_mark_model_new (HYSCAN_TYPE_MARK_DATA_WATERFALL);
+  priv->mark_model = hyscan_mark_model_new (HYSCAN_MARK_WATERFALL);
   priv->ml_model = hyscan_mark_loc_model_new (priv->db, priv->cache);
 
   g_signal_connect_swapped (priv->mark_model, "changed", G_CALLBACK (on_marks_changed), kit);
@@ -1503,7 +1501,7 @@ hyscan_gtk_map_kit_add_marks_geo (HyScanGtkMapKit   *kit)
   g_return_if_fail (priv->db != NULL);
 
   /* Модель геометок. */
-  priv->mark_geo_model = hyscan_mark_model_new (HYSCAN_TYPE_MARK_DATA_GEO);
+  priv->mark_geo_model = hyscan_mark_model_new (HYSCAN_MARK_GEO);
   g_signal_connect_swapped (priv->mark_geo_model, "changed", G_CALLBACK (on_marks_changed), kit);
 
   /* Слой с геометками. */
