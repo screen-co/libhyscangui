@@ -835,12 +835,14 @@ hyscan_gtk_map_geomark_layer_key_press (HyScanGtkMapGeomarkLayer *gm_layer,
       g_rw_lock_writer_lock (&priv->mark_lock);
 
       mark_id = g_strdup (priv->drag_mark_id);
-      g_hash_table_remove (priv->marks, priv->drag_mark_id);
+      if (mark_id != NULL)
+        g_hash_table_remove (priv->marks, priv->drag_mark_id);
       hyscan_gtk_map_geomark_layer_drag_clear (gm_layer, TRUE);
 
       g_rw_lock_writer_unlock (&priv->mark_lock);
 
-      hyscan_mark_model_remove_mark (priv->model, mark_id);
+      if (mark_id != NULL)
+        hyscan_mark_model_remove_mark (priv->model, mark_id);
       g_free (mark_id);
 
       hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);
