@@ -319,7 +319,7 @@ main (int    argc,
 
   db = db_uri != NULL ? hyscan_db_new (db_uri) : NULL;
   translator = translator_new (db, project_read, project_write, track_name);
-  kit = hyscan_gtk_map_kit_new (&center, db);
+  kit = hyscan_gtk_map_kit_new (&center, db, "/tmp/tile-cache");
   hyscan_gtk_map_kit_set_project (kit, project_write);
   hyscan_gtk_map_kit_load_profiles (kit, profile_dir);
 

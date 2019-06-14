@@ -65,8 +65,9 @@ struct _HyScanGtkMapKitPrivate
   HyScanPlanner         *planner;
   gchar                 *project_name;
 
-  GHashTable            *profiles;
-  gchar                 *profile_active;
+  GHashTable            *profiles;         /* Хэш-таблица профилей карты. */
+  gchar                 *profile_active;   /* Ключ активного профиля. */
+  gchar                 *tile_cache_dir;   /* Путь к директории, в которой хранятся тайлы. */
 
   HyScanGeoGeodetic      center;           /* Географические координаты для виджета навигации. */
 
@@ -1346,7 +1347,7 @@ hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
    {
     HyScanMapProfile *profile;
 
-    profile = hyscan_map_profile_new_default ();
+    profile = hyscan_map_profile_new_default (priv->tile_cache_dir);
 
     add_profile (kit, DEFAULT_PROFILE_NAME, profile);
     hyscan_gtk_map_kit_set_profile_name (kit, DEFAULT_PROFILE_NAME);
@@ -1359,18 +1360,21 @@ hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
  * hyscan_gtk_map_kit_new_map:
  * @center: центр карты
  * @db: указатель на #HyScanDB
+ * @cache_dir: папка для кэширования тайлов
  *
  * Returns: указатель на структуру #HyScanGtkMapKit, для удаления
  *          hyscan_gtk_map_kit_free().
  */
 HyScanGtkMapKit *
 hyscan_gtk_map_kit_new (HyScanGeoGeodetic *center,
-                        HyScanDB          *db)
+                        HyScanDB          *db,
+                        const gchar       *cache_dir)
 {
   HyScanGtkMapKit *kit;
 
   kit = g_new0 (HyScanGtkMapKit, 1);
   kit->priv = g_new0 (HyScanGtkMapKitPrivate, 1);
+  kit->priv->tile_cache_dir = g_strdup (cache_dir);
 
   hyscan_gtk_map_kit_model_create (kit, db);
   hyscan_gtk_map_kit_view_create (kit);
@@ -1452,6 +1456,7 @@ void
 hyscan_gtk_map_kit_load_profiles (HyScanGtkMapKit *kit,
                                   const gchar     *profile_dir)
 {
+  HyScanGtkMapKitPrivate *priv = kit->priv;
   gchar **config_files;
   guint conf_i;
 
@@ -1461,7 +1466,7 @@ hyscan_gtk_map_kit_load_profiles (HyScanGtkMapKit *kit,
       HyScanMapProfile *profile;
       gchar *profile_name, *extension_ptr;
 
-      profile = hyscan_map_profile_new ();
+      profile = hyscan_map_profile_new (priv->tile_cache_dir);
 
       /* Обрезаем имя файла по последней точке - это будет название профиля. */
       profile_name = g_path_get_basename (config_files[conf_i]);
@@ -1599,6 +1604,7 @@ hyscan_gtk_map_kit_free (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
+  g_free (priv->tile_cache_dir);
   g_free (priv->project_name);
   g_hash_table_destroy (priv->profiles);
   g_clear_object (&priv->planner);

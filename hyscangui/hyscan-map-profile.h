@@ -66,15 +66,16 @@ HYSCAN_API
 GType                  hyscan_map_profile_get_type         (void);
 
 HYSCAN_API
-HyScanMapProfile *     hyscan_map_profile_new              (void);
+HyScanMapProfile *     hyscan_map_profile_new              (const gchar        *cache_dir);
 
 HYSCAN_API
-HyScanMapProfile *     hyscan_map_profile_new_default      (void);
+HyScanMapProfile *     hyscan_map_profile_new_default      (const gchar        *cache_dir);
 
 HYSCAN_API
 HyScanMapProfile *     hyscan_map_profile_new_full         (const gchar        *title,
                                                             const gchar        *url_format,
                                                             const gchar        *cache_dir,
+                                                            const gchar        *cache_subdir,
                                                             const gchar        *projection,
                                                             guint               min_zoom,
                                                             guint               max_zoom);

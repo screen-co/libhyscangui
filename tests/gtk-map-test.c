@@ -197,7 +197,7 @@ int main (int     argc,
   db = hyscan_db_new (db_uri);
   sensor = create_sensor ();
 
-  kit = hyscan_gtk_map_kit_new (&center, db);
+  kit = hyscan_gtk_map_kit_new (&center, db, "/tmp/tile-cache");
   hyscan_gtk_map_kit_set_project (kit, project_name);
   hyscan_gtk_map_kit_load_profiles (kit, profile_dir);
   hyscan_gtk_map_kit_add_planner (kit, planner_ini);

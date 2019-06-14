@@ -209,7 +209,7 @@ int main (int     argc,
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_window_set_default_size (GTK_WINDOW (window), 1024, 600);
 
-  kit = hyscan_gtk_map_kit_new (&center, db);
+  kit = hyscan_gtk_map_kit_new (&center, db, "/tmp/tile-cache");
 
   hyscan_gtk_map_kit_set_project (kit, project_name);
   hyscan_gtk_map_kit_load_profiles (kit, profile_dir);
