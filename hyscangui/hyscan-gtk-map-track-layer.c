@@ -156,7 +156,7 @@ hyscan_gtk_map_track_layer_class_init (HyScanGtkMapTrackLayerClass *klass)
                           G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_PROJECT,
     g_param_spec_string ("project", "Project", "Project name", NULL,
-                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+                          G_PARAM_WRITABLE));
   g_object_class_install_property (object_class, PROP_CACHE,
     g_param_spec_object ("data-cache", "Data Cache", "HyScanCache", HYSCAN_TYPE_CACHE,
                           G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
@@ -170,7 +170,15 @@ hyscan_gtk_map_track_layer_class_init (HyScanGtkMapTrackLayerClass *klass)
 static void
 hyscan_gtk_map_track_layer_init (HyScanGtkMapTrackLayer *gtk_map_track_layer)
 {
+  HyScanGtkMapTrackLayerPrivate *priv;
+
   gtk_map_track_layer->priv = hyscan_gtk_map_track_layer_get_instance_private (gtk_map_track_layer);
+  priv = gtk_map_track_layer->priv;
+
+  g_mutex_init (&priv->t_lock);
+  g_rw_lock_init (&priv->a_lock);
+  priv->tracks = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
+  priv->active_tracks = g_new0 (gchar *, 1);
 }
 
 static void
@@ -189,7 +197,7 @@ hyscan_gtk_map_track_layer_set_property (GObject      *object,
       break;
 
     case PROP_PROJECT:
-      priv->project = g_value_dup_string (value);
+      hyscan_gtk_map_track_layer_set_project (gtk_map_track_layer, g_value_get_string (value));
       break;
 
     case PROP_CACHE:
@@ -214,11 +222,6 @@ hyscan_gtk_map_track_layer_object_constructed (GObject *object)
   HyScanGtkMapTrackStyle *style = &priv->style;
 
   G_OBJECT_CLASS (hyscan_gtk_map_track_layer_parent_class)->constructed (object);
-
-  g_mutex_init (&priv->t_lock);
-  g_rw_lock_init (&priv->a_lock);
-  priv->tracks = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
-  priv->active_tracks = g_new0 (gchar *, 1);
 
   g_signal_connect_swapped (priv->list_model, "changed", G_CALLBACK (hyscan_gtk_map_track_layer_list_changed), track_layer);
 
@@ -294,6 +297,9 @@ hyscan_gtk_map_track_layer_fill_tile (HyScanGtkMapTiledLayer *tiled_layer,
       HyScanGtkMapTrack *track;
 
       track = hyscan_gtk_map_track_layer_get_track (track_layer, priv->active_tracks[i], TRUE);
+      if (track == NULL)
+        continue;
+
       hyscan_gtk_map_track_draw (track, cairo, scale, &from, &to, &priv->style);
     }
   g_rw_lock_reader_unlock (&priv->a_lock);
@@ -522,7 +528,7 @@ hyscan_gtk_map_track_layer_get_track (HyScanGtkMapTrackLayer *track_layer,
 
   g_mutex_lock (&priv->t_lock);
   track = g_hash_table_lookup (priv->tracks, track_name);
-  if (track == NULL && create_if_not_exists)
+  if (track == NULL && priv->project != NULL && create_if_not_exists)
     {
       HyScanGeoProjection *projection;
 
@@ -548,15 +554,44 @@ hyscan_gtk_map_track_layer_get_track (HyScanGtkMapTrackLayer *track_layer,
  */
 HyScanGtkLayer *
 hyscan_gtk_map_track_layer_new (HyScanDB             *db,
-                                const gchar          *project,
                                 HyScanListModel      *list_model,
                                 HyScanCache          *cache)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_TRACK_LAYER,
                        "db", db,
-                       "project", project,
                        "track-list-model", list_model,
                        "data-cache", cache, NULL);
+}
+
+/**
+ * hyscan_gtk_map_track_layer_set_project:
+ * @track_layer:
+ * @project:
+ *
+ * Меняет название проекта
+ */
+void
+hyscan_gtk_map_track_layer_set_project (HyScanGtkMapTrackLayer *track_layer,
+                                        const gchar            *project)
+{
+  HyScanGtkMapTrackLayerPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_TRACK_LAYER (track_layer));
+  priv = track_layer->priv;
+
+  g_mutex_lock (&priv->t_lock);
+
+  /* Удаляем информацию о галсах. */
+  g_hash_table_remove_all (priv->tracks);
+
+  /* Меняем название проекта. */
+  g_free (priv->project);
+  priv->project = g_strdup (project);
+
+  g_mutex_unlock (&priv->t_lock);
+
+  hyscan_gtk_map_tiled_layer_set_param_mod (HYSCAN_GTK_MAP_TILED_LAYER (track_layer));
+  hyscan_gtk_map_tiled_layer_request_draw (HYSCAN_GTK_MAP_TILED_LAYER (track_layer));
 }
 
 /**
@@ -585,6 +620,8 @@ hyscan_gtk_map_track_layer_track_view (HyScanGtkMapTrackLayer *track_layer,
 
   /* Находим запрошенный галс. */
   track = hyscan_gtk_map_track_layer_get_track (track_layer, track_name, TRUE);
+  if (track == NULL)
+    return FALSE;
 
   hyscan_gtk_map_track_view (track, &from, &to);
   gtk_cifro_area_set_view (GTK_CIFRO_AREA (priv->map), from.x, to.x, from.y, to.y);
@@ -699,6 +736,8 @@ hyscan_gtk_map_track_layer_lookup (HyScanGtkMapTrackLayer *track_layer,
   g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TRACK_LAYER (track_layer), NULL);
 
   track = hyscan_gtk_map_track_layer_get_track (track_layer, track_name, TRUE);
+  if (track == NULL)
+    return NULL;
 
   return g_object_ref (track);
 }

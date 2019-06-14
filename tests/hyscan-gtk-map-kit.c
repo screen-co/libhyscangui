@@ -1289,7 +1289,7 @@ create_layers (HyScanGtkMapKit *kit)
 
   /* Слой с галсами. */
   if (priv->db != NULL && priv->list_model != NULL)
-    priv->track_layer = hyscan_gtk_map_track_layer_new (priv->db, priv->project_name, priv->list_model, priv->cache);
+    priv->track_layer = hyscan_gtk_map_track_layer_new (priv->db, priv->list_model, priv->cache);
 }
 
 /* Создает модели данных. */
@@ -1312,7 +1312,7 @@ hyscan_gtk_map_kit_model_create (HyScanGtkMapKit *kit,
 
   priv->layer_store = gtk_list_store_new (4,
                                           G_TYPE_BOOLEAN,        /* LAYER_VISIBLE_COLUMN */
-                                          G_TYPE_STRING,         /* LAYER_KEY_COLUMN   */
+                                          G_TYPE_STRING,         /* LAYER_KEY_COLUMN     */
                                           G_TYPE_STRING,         /* LAYER_TITLE_COLUMN   */
                                           HYSCAN_TYPE_GTK_LAYER  /* LAYER_COLUMN         */);
 
@@ -1336,10 +1336,8 @@ hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
-  if (priv->db != NULL)
-    {
-      hyscan_db_info_set_project (priv->db_info, priv->project_name);
-    }
+  if (priv->db_info != NULL && priv->project_name != NULL)
+    hyscan_db_info_set_project (priv->db_info, priv->project_name);
 
   {
     priv->center = *center;
@@ -1353,29 +1351,54 @@ hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
  * hyscan_gtk_map_kit_new_map:
  * @center: центр карты
  * @db: указатель на #HyScanDB
- * @project_name: имя проекта
- * @profile_dir: папка с профилями карты (примеры файлов-профилей в папке hyscangui/misc)
  *
  * Returns: указатель на структуру #HyScanGtkMapKit, для удаления
  *          hyscan_gtk_map_kit_free().
  */
 HyScanGtkMapKit *
 hyscan_gtk_map_kit_new (HyScanGeoGeodetic *center,
-                        HyScanDB          *db,
-                        const gchar       *project_name)
+                        HyScanDB          *db)
 {
   HyScanGtkMapKit *kit;
 
   kit = g_new0 (HyScanGtkMapKit, 1);
   kit->priv = g_new0 (HyScanGtkMapKitPrivate, 1);
 
-  kit->priv->project_name = g_strdup (project_name);
-
   hyscan_gtk_map_kit_model_create (kit, db);
   hyscan_gtk_map_kit_view_create (kit);
   hyscan_gtk_map_kit_model_init (kit, center);
 
   return kit;
+}
+
+void
+hyscan_gtk_map_kit_set_project (HyScanGtkMapKit *kit,
+                                const gchar     *project_name)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+
+  g_free (priv->project_name);
+  priv->project_name = g_strdup (project_name);
+
+  /* Очищаем список активных галсов. */
+  if (priv->list_model)
+    hyscan_list_model_remove_all (priv->list_model);
+
+  if (priv->db_info)
+    hyscan_db_info_set_project (priv->db_info, priv->project_name);
+
+  /* Устанавливаем проект во всех сущностях. */
+  if (priv->mark_geo_model != NULL)
+    hyscan_mark_model_set_project (priv->mark_geo_model, priv->db, priv->project_name);
+
+  if (priv->mark_model != NULL)
+    hyscan_mark_model_set_project (priv->mark_model, priv->db, priv->project_name);
+
+  if (priv->ml_model != NULL)
+    hyscan_mark_loc_model_set_project (priv->ml_model, priv->project_name);
+
+  if (priv->track_layer != NULL)
+    hyscan_gtk_map_track_layer_set_project (HYSCAN_GTK_MAP_TRACK_LAYER (priv->track_layer), priv->project_name);
 }
 
 /**
@@ -1488,8 +1511,11 @@ hyscan_gtk_map_kit_add_marks_wf (HyScanGtkMapKit *kit)
   create_wfmark_toolbox (kit);
 
   /* Устанавливаем проект и БД. */
-  hyscan_mark_model_set_project (priv->mark_model, priv->db, priv->project_name);
-  hyscan_mark_loc_model_set_project (priv->ml_model, priv->project_name);
+  if (priv->project_name != NULL)
+    {
+      hyscan_mark_model_set_project (priv->mark_model, priv->db, priv->project_name);
+      hyscan_mark_loc_model_set_project (priv->ml_model, priv->project_name);
+    }
 }
 
 void
@@ -1511,7 +1537,8 @@ hyscan_gtk_map_kit_add_marks_geo (HyScanGtkMapKit   *kit)
   /* Виджет навигации по меткам. */
   create_wfmark_toolbox (kit);
 
-  hyscan_mark_model_set_project (priv->mark_geo_model, priv->db, priv->project_name);
+  if (priv->project_name != NULL)
+    hyscan_mark_model_set_project (priv->mark_geo_model, priv->db, priv->project_name);
 }
 
 /**

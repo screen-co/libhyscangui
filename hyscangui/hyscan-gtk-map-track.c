@@ -497,7 +497,7 @@ hyscan_gtk_map_track_schema_build_nmea_enum (HyScanGtkMapTrack       *track,
   HyScanGtkMapTrackPrivate *priv = track->priv;
 
   gint32 project_id = -1, track_id = -1;
-  gchar **channels;
+  gchar **channels = NULL;
 
   guint max_channel = 0;
   guint i;

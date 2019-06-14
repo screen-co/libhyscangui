@@ -22,7 +22,10 @@ typedef struct
 
 HYSCAN_API
 HyScanGtkMapKit * hyscan_gtk_map_kit_new           (HyScanGeoGeodetic *center,
-                                                    HyScanDB          *db,
+                                                    HyScanDB          *db);
+
+HYSCAN_API
+void              hyscan_gtk_map_kit_set_project   (HyScanGtkMapKit   *kit,
                                                     const gchar       *project_name);
 
 HYSCAN_API
