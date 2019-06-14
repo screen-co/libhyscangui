@@ -19,7 +19,8 @@
 #include <glib/gi18n.h>
 #include <hyscan-gtk-map-geomark-layer.h>
 
-#define PRELOAD_STATE_DONE 1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
+#define DEFAULT_PROFILE_NAME "default"    /* Имя профиля карты по умолчанию. */
+#define PRELOAD_STATE_DONE   1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
 
 /* Столбцы в GtkTreeView списка слоёв. */
 enum
@@ -63,6 +64,9 @@ struct _HyScanGtkMapKitPrivate
   HyScanNavigationModel *nav_model;
   HyScanPlanner         *planner;
   gchar                 *project_name;
+
+  GHashTable            *profiles;
+  gchar                 *profile_active;
 
   HyScanGeoGeodetic      center;           /* Географические координаты для виджета навигации. */
 
@@ -164,7 +168,7 @@ list_profiles (const gchar *profiles_path)
     }
   else
     {
-      g_warning ("%s", error->message);
+      g_warning ("HyScanGtkMapKit: %s", error->message);
       g_error_free (error);
     }
 
@@ -177,66 +181,55 @@ list_profiles (const gchar *profiles_path)
 }
 
 static void
-combo_box_add_profile (GtkComboBoxText  *combo_box,
-                       HyScanMapProfile *profile)
+combo_box_update (HyScanGtkMapKit *kit)
 {
-  gchar *profile_title;
-  GPtrArray *profiles_array;
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+  GtkComboBoxText *combo = GTK_COMBO_BOX_TEXT (priv->profiles_box);
 
-  profiles_array = g_object_get_data (G_OBJECT (combo_box), "profiles");
+  GHashTableIter iter;
+  const gchar *key;
+  HyScanMapProfile *profile;
 
-  profile_title = hyscan_map_profile_get_title (profile);
-  gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (combo_box), profile_title);
-  g_ptr_array_add (profiles_array, g_object_ref (profile));
-  g_free (profile_title);
+  gtk_combo_box_text_remove_all (GTK_COMBO_BOX_TEXT (combo));
+
+  g_hash_table_iter_init (&iter, priv->profiles);
+  while (g_hash_table_iter_next (&iter, (gpointer *) &key, (gpointer *) &profile))
+    {
+      gchar *title;
+
+      title = hyscan_map_profile_get_title (profile);
+      gtk_combo_box_text_append (GTK_COMBO_BOX_TEXT (combo), key, title);
+
+      g_free (title);
+    }
+
+  if (priv->profile_active != NULL)
+    gtk_combo_box_set_active_id (GTK_COMBO_BOX (combo), priv->profile_active);
 }
 
 static void
-on_profile_change (GtkComboBoxText *widget,
-                   gpointer         user_data)
+add_profile (HyScanGtkMapKit  *kit,
+             const gchar      *profile_name,
+             HyScanMapProfile *profile)
 {
-  HyScanGtkMap *map = HYSCAN_GTK_MAP (user_data);
-  GPtrArray *profiles_array;
-  gint index;
+  HyScanGtkMapKitPrivate *priv = kit->priv;
 
-  profiles_array = g_object_get_data (G_OBJECT (widget), "profiles");
-  if (profiles_array == NULL)
-    return;
-
-  index = gtk_combo_box_get_active (GTK_COMBO_BOX (widget));
-
-  if (index < 0 || index >= (gint) profiles_array->len)
-    return;
-
-  hyscan_map_profile_apply (profiles_array->pdata[index], map);
+  g_hash_table_insert (priv->profiles, g_strdup (profile_name), g_object_ref (profile));
+  combo_box_update (kit);
 }
 
-/* Создает выпадающий список с профилями. */
-static GtkWidget *
-create_profile_switch (HyScanGtkMap *map)
+/* Переключает активный профиль карты. */
+static void
+on_profile_change (HyScanGtkMapKit *kit)
 {
-  GtkWidget *combo_box;
-  GPtrArray *profiles_array;
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+  GtkComboBox *combo = GTK_COMBO_BOX (priv->profiles_box);
+  const gchar *active_id;
 
-  profiles_array = g_ptr_array_new_with_free_func (g_object_unref);
-  combo_box = gtk_combo_box_text_new ();
-  g_object_set_data_full (G_OBJECT (combo_box), "profiles", profiles_array, (GDestroyNotify) free_profiles);
+  active_id = gtk_combo_box_get_active_id (combo);
 
-  /* Если не добавили не один профиль, то добавим хотя бы дефолтный. */
-  if (profiles_array->len == 0)
-    {
-      HyScanMapProfile *profile;
-
-      profile = hyscan_map_profile_new_default ();
-      combo_box_add_profile (GTK_COMBO_BOX_TEXT (combo_box), profile);
-
-      g_object_unref (profile);
-    }
-
-  g_signal_connect (combo_box, "changed", G_CALLBACK (on_profile_change), map);
-  gtk_combo_box_set_active (GTK_COMBO_BOX (combo_box), 0);
-
-  return combo_box;
+  if (active_id != NULL)
+    hyscan_gtk_map_kit_set_profile_name (kit, active_id);
 }
 
 static void
@@ -1212,7 +1205,8 @@ create_control_box (HyScanGtkMapKit *kit)
   ctrl_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
 
   /* Выпадающий список с профилями. */
-  priv->profiles_box = create_profile_switch (HYSCAN_GTK_MAP (kit->map));
+  priv->profiles_box = gtk_combo_box_text_new ();
+  g_signal_connect_swapped (priv->profiles_box , "changed", G_CALLBACK (on_profile_change), kit);
   gtk_container_add (GTK_CONTAINER (ctrl_box), priv->profiles_box);
 
   /* Блокировка редактирования. */
@@ -1267,6 +1261,7 @@ create_control_box (HyScanGtkMapKit *kit)
     gtk_stack_add_titled (GTK_STACK (stack), stack_box, "cache", _("Offline"));
 
     stack_switcher = gtk_stack_switcher_new ();
+    gtk_widget_set_halign (stack_switcher, GTK_ALIGN_CENTER);
     gtk_widget_set_margin_top (stack_switcher, 5);
     gtk_stack_switcher_set_stack (GTK_STACK_SWITCHER (stack_switcher), GTK_STACK (stack));
 
@@ -1298,6 +1293,8 @@ hyscan_gtk_map_kit_model_create (HyScanGtkMapKit *kit,
                                  HyScanDB        *db)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
+
+  priv->profiles = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_object_unref);
 
   priv->cache = HYSCAN_CACHE (hyscan_cached_new (300));
   if (db != NULL)
@@ -1344,6 +1341,17 @@ hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
     hyscan_gtk_map_move_to (HYSCAN_GTK_MAP (kit->map), priv->center);
     gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->lat_spin), priv->center.lat);
     gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->lon_spin), priv->center.lon);
+  }
+
+   {
+    HyScanMapProfile *profile;
+
+    profile = hyscan_map_profile_new_default ();
+
+    add_profile (kit, DEFAULT_PROFILE_NAME, profile);
+    hyscan_gtk_map_kit_set_profile_name (kit, DEFAULT_PROFILE_NAME);
+
+    g_object_unref (profile);
   }
 }
 
@@ -1401,6 +1409,38 @@ hyscan_gtk_map_kit_set_project (HyScanGtkMapKit *kit,
     hyscan_gtk_map_track_layer_set_project (HYSCAN_GTK_MAP_TRACK_LAYER (priv->track_layer), priv->project_name);
 }
 
+
+gboolean
+hyscan_gtk_map_kit_set_profile_name (HyScanGtkMapKit *kit,
+                                     const gchar     *profile_name)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+  HyScanGtkMap *map = HYSCAN_GTK_MAP (kit->map);
+  HyScanMapProfile *profile;
+
+  g_return_val_if_fail (profile_name != NULL, FALSE);
+
+  profile = g_hash_table_lookup (priv->profiles, profile_name);
+  if (profile == NULL)
+    return FALSE;
+
+  g_free (priv->profile_active);
+  priv->profile_active = g_strdup (profile_name);
+  hyscan_map_profile_apply (profile, map);
+
+  g_signal_handlers_block_by_func (priv->profiles_box, on_profile_change, kit);
+  gtk_combo_box_set_active_id (GTK_COMBO_BOX (priv->profiles_box), priv->profile_active);
+  g_signal_handlers_unblock_by_func (priv->profiles_box, on_profile_change, kit);
+
+  return TRUE;
+}
+
+gchar *
+hyscan_gtk_map_kit_get_profile_name (HyScanGtkMapKit   *kit)
+{
+  return g_strdup (kit->priv->profile_active);
+}
+
 /**
  * hyscan_gtk_map_kit_load_profiles:
  * @kit:
@@ -1412,7 +1452,6 @@ void
 hyscan_gtk_map_kit_load_profiles (HyScanGtkMapKit *kit,
                                   const gchar     *profile_dir)
 {
-  HyScanGtkMapKitPrivate *priv = kit->priv;
   gchar **config_files;
   guint conf_i;
 
@@ -1420,11 +1459,21 @@ hyscan_gtk_map_kit_load_profiles (HyScanGtkMapKit *kit,
   for (conf_i = 0; config_files[conf_i] != NULL; ++conf_i)
     {
       HyScanMapProfile *profile;
+      gchar *profile_name, *extension_ptr;
+
       profile = hyscan_map_profile_new ();
 
-      if (hyscan_map_profile_read (profile, config_files[conf_i]))
-        combo_box_add_profile (GTK_COMBO_BOX_TEXT (priv->profiles_box), profile);
+      /* Обрезаем имя файла по последней точке - это будет название профиля. */
+      profile_name = g_path_get_basename (config_files[conf_i]);
+      extension_ptr = g_strrstr (profile_name, ".");
+      if (extension_ptr != NULL)
+        *extension_ptr = '\0';
 
+      /* Читаем профиль и добавляем его в карту. */
+      if (hyscan_map_profile_read (profile, config_files[conf_i]))
+        add_profile (kit, profile_name, profile);
+
+      g_free (profile_name);
       g_object_unref (profile);
     }
 
@@ -1551,6 +1600,7 @@ hyscan_gtk_map_kit_free (HyScanGtkMapKit *kit)
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
   g_free (priv->project_name);
+  g_hash_table_destroy (priv->profiles);
   g_clear_object (&priv->planner);
   g_clear_object (&priv->cache);
   g_clear_object (&priv->ml_model);

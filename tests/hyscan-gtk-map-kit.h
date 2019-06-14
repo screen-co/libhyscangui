@@ -21,34 +21,41 @@ typedef struct
 } HyScanGtkMapKit;
 
 HYSCAN_API
-HyScanGtkMapKit * hyscan_gtk_map_kit_new           (HyScanGeoGeodetic *center,
-                                                    HyScanDB          *db);
+HyScanGtkMapKit * hyscan_gtk_map_kit_new              (HyScanGeoGeodetic *center,
+                                                       HyScanDB          *db);
 
 HYSCAN_API
-void              hyscan_gtk_map_kit_set_project   (HyScanGtkMapKit   *kit,
-                                                    const gchar       *project_name);
+void              hyscan_gtk_map_kit_set_project      (HyScanGtkMapKit   *kit,
+                                                       const gchar       *project_name);
 
 HYSCAN_API
-void              hyscan_gtk_map_kit_load_profiles (HyScanGtkMapKit   *kit,
-                                                    const gchar       *profile_dir);
+gboolean          hyscan_gtk_map_kit_set_profile_name (HyScanGtkMapKit   *kit,
+                                                       const gchar       *profile_name);
 
 HYSCAN_API
-void              hyscan_gtk_map_kit_add_planner   (HyScanGtkMapKit   *kit,
-                                                    const gchar       *planner_ini);
+gchar *           hyscan_gtk_map_kit_get_profile_name (HyScanGtkMapKit   *kit);
 
 HYSCAN_API
-void              hyscan_gtk_map_kit_add_nav       (HyScanGtkMapKit   *kit,
-                                                    HyScanSensor      *sensor,
-                                                    const gchar       *sensor_name,
-                                                    gdouble            delay_time);
+void              hyscan_gtk_map_kit_load_profiles    (HyScanGtkMapKit   *kit,
+                                                       const gchar       *profile_dir);
 
 HYSCAN_API
-void              hyscan_gtk_map_kit_add_marks_wf  (HyScanGtkMapKit   *kit);
+void              hyscan_gtk_map_kit_add_planner      (HyScanGtkMapKit   *kit,
+                                                       const gchar       *planner_ini);
 
 HYSCAN_API
-void              hyscan_gtk_map_kit_add_marks_geo (HyScanGtkMapKit   *kit);
+void              hyscan_gtk_map_kit_add_nav          (HyScanGtkMapKit   *kit,
+                                                       HyScanSensor      *sensor,
+                                                       const gchar       *sensor_name,
+                                                       gdouble            delay_time);
 
 HYSCAN_API
-void              hyscan_gtk_map_kit_free          (HyScanGtkMapKit   *kit);
+void              hyscan_gtk_map_kit_add_marks_wf     (HyScanGtkMapKit   *kit);
+
+HYSCAN_API
+void              hyscan_gtk_map_kit_add_marks_geo    (HyScanGtkMapKit   *kit);
+
+HYSCAN_API
+void              hyscan_gtk_map_kit_free             (HyScanGtkMapKit   *kit);
 
 #endif /* __HYSCAN_GTK_MAP_KIT_H__ */
