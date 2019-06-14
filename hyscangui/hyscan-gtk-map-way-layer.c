@@ -124,6 +124,8 @@ struct _HyScanGtkMapWayLayerPrivate
   GdkRGBA                       line_color;                 /* Цвет линии трека. */
   GdkRGBA                       line_lost_color;            /* Цвет линии при обрыве связи. */
   gdouble                       line_width;                 /* Ширина линии трека. */
+  guint                         margin;                     /* Внешний отступ плашки навигационной информации. */
+  guint                         padding;                    /* Внутренний отступ плашки навигационной информации. */
 };
 
 static void    hyscan_gtk_map_way_layer_interface_init           (HyScanGtkLayerInterface       *iface);
@@ -845,7 +847,10 @@ hyscan_gtk_map_way_layer_draw (HyScanGtkMap         *map,
   /* Рисуем текущий курс, скорость и координаты. */
   {
     gchar *label;
-    gint height, width, padding = 10, margin = 20;
+    guint area_width;
+    gint height, width;
+
+    gtk_cifro_area_get_visible_size (GTK_CIFRO_AREA (priv->map), &area_width, NULL);
 
     if (priv->track_lost)
       {
@@ -865,13 +870,20 @@ hyscan_gtk_map_way_layer_draw (HyScanGtkMap         *map,
     width /= PANGO_SCALE;
     height /= PANGO_SCALE;
 
-    cairo_rectangle (cairo, margin, margin, width + 2 *padding, height + 2 * padding);
+    cairo_save (cairo);
+
+    /* Перемещаемся в начало фонового прямоугольника. */
+    cairo_translate (cairo, area_width - priv->margin - (width + 2 * priv->padding), priv->margin);
+
+    cairo_rectangle (cairo, 0, 0, width + 2 * priv->padding, height + 2 * priv->padding);
     cairo_set_source_rgba (cairo, 1.0, 1.0, 1.0, 0.8);
     cairo_fill (cairo);
 
     cairo_set_source_rgba (cairo, 0, 0, 0, 1.0);
-    cairo_move_to (cairo, padding + margin, padding + margin);
+    cairo_move_to (cairo, priv->padding, priv->padding);
     pango_cairo_show_layout (cairo, priv->pango_layout);
+
+    cairo_restore (cairo);
 
     g_free (label);
   }
@@ -933,12 +945,20 @@ hyscan_gtk_map_way_layer_proj_notify (HyScanGtkMapWayLayer *way_layer,
 /* Обновление раскладки шрифта по сигналу "configure-event". */
 static gboolean
 hyscan_gtk_map_way_layer_configure (HyScanGtkMapWayLayer *way_layer,
-                                    GdkEvent         *screen)
+                                    GdkEvent             *screen)
 {
   HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
+  gint height;
 
   g_clear_object (&priv->pango_layout);
-  priv->pango_layout = gtk_widget_create_pango_layout (GTK_WIDGET (priv->map), NULL);
+
+  priv->pango_layout = gtk_widget_create_pango_layout (GTK_WIDGET (priv->map), "1234567890");
+  pango_layout_get_size (priv->pango_layout, NULL, &height);
+
+  height /= PANGO_SCALE;
+
+  priv->margin = 1.5 * height;
+  priv->padding = priv->margin / 4;
 
   return FALSE;
 }
