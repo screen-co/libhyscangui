@@ -133,12 +133,6 @@ create_map (HyScanGtkMapKit *kit)
   return GTK_WIDGET (map);
 }
 
-static void
-free_profiles (GPtrArray *profiles_array)
-{
-  g_ptr_array_free (profiles_array, TRUE);
-}
-
 /* Получает NULL-терминированный массив названий профилей.
  * Скопировано почти без изменений из hyscan_profile_common_list_profiles. */
 static gchar **
@@ -1283,6 +1277,10 @@ create_layers (HyScanGtkMapKit *kit)
   priv->ruler = hyscan_gtk_map_ruler_new ();
   priv->pin_layer = hyscan_gtk_map_pin_layer_new ();
 
+  hyscan_gtk_layer_set_visible (priv->map_grid, TRUE);
+  hyscan_gtk_layer_set_visible (priv->ruler, TRUE);
+  hyscan_gtk_layer_set_visible (priv->pin_layer, TRUE);
+
   /* Слой с галсами. */
   if (priv->db != NULL && priv->list_model != NULL)
     priv->track_layer = hyscan_gtk_map_track_layer_new (priv->db, priv->list_model, priv->cache);
@@ -1314,10 +1312,10 @@ hyscan_gtk_map_kit_model_create (HyScanGtkMapKit *kit,
                                           G_TYPE_STRING,         /* LAYER_TITLE_COLUMN   */
                                           HYSCAN_TYPE_GTK_LAYER  /* LAYER_COLUMN         */);
 
-  add_layer_row (kit, priv->track_layer,   "track",   _("Tracks"));
+  add_layer_row (kit, priv->map_grid,      "grid",    _("Grid"));
   add_layer_row (kit, priv->ruler,         "ruler",   _("Ruler"));
   add_layer_row (kit, priv->pin_layer,     "pin",     _("Pin"));
-  add_layer_row (kit, priv->map_grid,      "grid",    _("Grid"));
+  add_layer_row (kit, priv->track_layer,   "track",   _("Tracks"));
 }
 
 static void
@@ -1337,6 +1335,7 @@ hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
   if (priv->db_info != NULL && priv->project_name != NULL)
     hyscan_db_info_set_project (priv->db_info, priv->project_name);
 
+  /* Устанавливаем центр карты. */
   {
     priv->center = *center;
     hyscan_gtk_map_move_to (HYSCAN_GTK_MAP (kit->map), priv->center);
@@ -1344,7 +1343,8 @@ hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
     gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->lon_spin), priv->center.lon);
   }
 
-   {
+  /* Добавляем профиль по умолчанию. */
+  {
     HyScanMapProfile *profile;
 
     profile = hyscan_map_profile_new_default (priv->tile_cache_dir);
