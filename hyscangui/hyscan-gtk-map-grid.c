@@ -64,7 +64,7 @@
 
 #define MAX_LAT             90.0      /* Максимальное по модулю значение широты. */
 #define MAX_LON             180.0     /* Максимальное по модулю значение долготы. */
-#define MAX_SCALE_SIZE_PX   100.0     /* Максимальная длина линейки масштаба. */
+#define MIN_SCALE_SIZE_PX   50.0      /* Минимальная длина линейки масштаба. */
 #define LINE_POINTS_NUM     5         /* Количество точек, по которым строится линия сетки. */
 
 #define LINE_WIDTH          0.5
@@ -82,6 +82,7 @@ struct _HyScanGtkMapGridPrivate
   HyScanGtkMap                     *map;                /* Виджет карты, на котором показывается сетка. */
 
   PangoLayout                      *pango_layout;       /* Раскладка шрифта. */
+  guint                             min_scale_size;     /* Минимальная длина линейки масштаба. */
 
   GdkRGBA                           line_color;         /* Цвет линий координатной сетки. */
   gdouble                           line_width;         /* Ширина линии координатной сетки. */
@@ -132,9 +133,13 @@ static void
 hyscan_gtk_map_grid_object_constructed (GObject *object)
 {
   HyScanGtkMapGrid *gtk_map_grid = HYSCAN_GTK_MAP_GRID (object);
+  HyScanGtkMapGridPrivate *priv = gtk_map_grid->priv;
   GdkRGBA color;
 
   G_OBJECT_CLASS (hyscan_gtk_map_grid_parent_class)->constructed (object);
+
+  priv->label_padding = 2;
+  priv->min_scale_size = MIN_SCALE_SIZE_PX;
 
   gdk_rgba_parse (&color, LINE_COLOR_DEFAULT);
   hyscan_gtk_map_grid_set_line_color (gtk_map_grid, color);
@@ -169,7 +174,9 @@ hyscan_gtk_map_grid_set_visible (HyScanGtkLayer *layer,
 {
   HyScanGtkMapGridPrivate *priv = HYSCAN_GTK_MAP_GRID (layer)->priv;
   priv->visible = visible;
-  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+  if (priv->map != NULL)
+    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }
 
 static gboolean
@@ -238,19 +245,20 @@ hyscan_gtk_map_grid_configure (HyScanGtkMapGrid *grid,
                                GdkEvent         *screen)
 {
   HyScanGtkMapGridPrivate *priv = grid->priv;
-  gint size;
+  gint width;
 
   g_clear_object (&priv->pango_layout);
-  priv->pango_layout = gtk_widget_create_pango_layout (GTK_WIDGET (priv->map), "-0123456789.°km");
+  priv->pango_layout = gtk_widget_create_pango_layout (GTK_WIDGET (priv->map), "01234 km");
 
-  pango_layout_get_size (priv->pango_layout, NULL, &size);
-  if (size < 0)
-    size = 0;
+  pango_layout_get_size (priv->pango_layout, &width, NULL);
+  if (width < 0)
+    width = 0;
 
-  size /= PANGO_SCALE;
-  priv->label_padding = (guint) size / 3;
+  width /= PANGO_SCALE;
+  priv->label_padding = width / 20;
+  priv->min_scale_size = 2 * priv->label_padding + MAX (MIN_SCALE_SIZE_PX, width);
 
-  return FALSE;
+  return GDK_EVENT_PROPAGATE;
 }
 
 /* Форматирует значение value, округляя его до 10^value_power знака. */
@@ -538,9 +546,9 @@ hyscan_gtk_map_grid_draw_scale (HyScanGtkMapGrid *grid,
 
   /* Определяем размер линейки, чтобы он был круглым числом метров. */
   scale = hyscan_gtk_map_get_pixel_scale (priv->map);
-  metres = .8 * MAX_SCALE_SIZE_PX / scale;
+  metres = 1.6 * priv->min_scale_size / scale;
   metres = pow (10, floor (log10 (metres)));
-  while (metres * scale < MAX_SCALE_SIZE_PX / 2.0)
+  while (metres * scale < priv->min_scale_size)
     metres *= 2.0;
 
   /* Рисуем линейку и подпись к ней. */
@@ -600,7 +608,7 @@ hyscan_gtk_map_grid_draw_scale (HyScanGtkMapGrid *grid,
     gdk_cairo_set_source_rgba (cairo, &priv->bg_color);
     cairo_rectangle (cairo, x0 + priv->label_padding, y0 + priv->label_padding,
                      - (scale_name_width + ruler_width + spacing + 2.0 * priv->label_padding),
-                     - (label_height + 2.0 * priv->label_padding));
+                     - (label_height + 2.0 * priv->label_padding + priv->scale_width));
     cairo_fill (cairo);
 
     /* Рисуем линейку масштаба. */
@@ -616,15 +624,17 @@ hyscan_gtk_map_grid_draw_scale (HyScanGtkMapGrid *grid,
     pango_layout_set_text (priv->pango_layout, scale_name, -1);
     cairo_move_to (cairo,
                    x0 - ruler_width - spacing - scale_name_width,
-                   y0 - scale_name_height);
+                   y0 - scale_name_height - priv->scale_width);
     pango_cairo_show_layout (cairo, priv->pango_layout);
 
     /* Рисуем подпись линейке. */
-    pango_layout_set_text (priv->pango_layout, label, -1);
-    cairo_move_to (cairo,
-                   x0 - label_width - spacing,
-                   y0 - label_height - priv->scale_width * 1.0);
-    pango_cairo_show_layout (cairo, priv->pango_layout);
+    {
+      pango_layout_set_text (priv->pango_layout, label, -1);
+      cairo_move_to (cairo,
+                     x0 - label_width / 2.0 - ruler_width / 2.0,
+                     y0 - label_height - priv->scale_width);
+      pango_cairo_show_layout (cairo, priv->pango_layout);
+    }
   }
 }
 
