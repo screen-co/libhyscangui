@@ -3,7 +3,7 @@
 #include <hyscan-db.h>
 #include <hyscan-nmea-file-device.h>
 #include <hyscan-driver.h>
-#include <hyscan-hw-connector.h>
+#include <hyscan-profile-hw.h>
 
 #define GPS_SENSOR_NAME "nmea"
 #define INI_GROUP       "planner"
@@ -75,7 +75,7 @@ int main (int     argc,
   GtkWidget *grid;
 
   HyScanDB *db = NULL;
-  HyScanHWConnector *connector = NULL;
+  HyScanProfileHW *profile = NULL;
   HyScanControl *control = NULL;
   HyScanGeoGeodetic center = {.lat = 55.571, .lon = 38.103};
 
@@ -175,15 +175,21 @@ int main (int     argc,
     }
 
   /* Подключение к устройству. */
-  connector = hyscan_hw_connector_new ();
-  driver_paths = g_strsplit (driver_path, ";", -1);
-  hyscan_hw_connector_set_driver_paths (connector, (const gchar**)driver_paths);
-  if (!hyscan_hw_connector_load_profile (connector, hw_profile))
-    goto fail;
+  profile = hyscan_profile_hw_new (hw_profile);
 
-  control = hyscan_hw_connector_connect (connector);
+  driver_paths = g_strsplit (driver_path, ";", -1);
+  hyscan_profile_hw_set_driver_paths (profile, driver_paths);
+
+
+  hyscan_profile_read (HYSCAN_PROFILE (profile));
+  control = hyscan_profile_hw_connect (profile);
+
   if (control == NULL)
     goto fail;
+
+  if (!hyscan_control_device_bind (control))
+    goto fail;
+
   hyscan_sensor_set_enable (HYSCAN_SENSOR (control), GPS_SENSOR_NAME, TRUE);
 
   /* База данных. */
@@ -244,6 +250,7 @@ int main (int     argc,
   /* Cleanup. */
 fail:
   g_clear_object (&db);
+  g_clear_object (&profile);
   g_clear_pointer (&kit, hyscan_gtk_map_kit_free);
 
   return 0;
