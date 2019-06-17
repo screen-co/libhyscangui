@@ -506,7 +506,7 @@ hyscan_gtk_map_wfmark_layer_find_hover (HyScanGtkMapWfmarkLayer *wfm_layer)
 
 /* Обработчки ::motion-notify-event.
  * Определяет метку под курсором мыши. */
-static void
+static gboolean
 hyscan_gtk_map_wfmark_layer_motion_notify (GtkWidget      *widget,
                                            GdkEventMotion *event,
                                            gpointer        user_data)
@@ -529,6 +529,8 @@ hyscan_gtk_map_wfmark_layer_motion_notify (GtkWidget      *widget,
   priv->location_hover = hover;
 
   g_rw_lock_reader_unlock (&priv->mark_lock);
+
+  return GDK_EVENT_PROPAGATE;
 }
 
 /* Обработчик сигнала HyScanGtkMap::notify::projection.

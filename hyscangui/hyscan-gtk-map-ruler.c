@@ -90,7 +90,7 @@ static void                     hyscan_gtk_map_ruler_object_finalize          (G
 static void                     hyscan_gtk_map_ruler_interface_init           (HyScanGtkLayerInterface  *iface);
 static GList *                  hyscan_gtk_map_ruler_get_segment_under_cursor (HyScanGtkMapRuler        *ruler,
                                                                                GdkEventMotion           *event);
-static void                     hyscan_gtk_map_ruler_motion_notify            (GtkWidget                *widget,
+static gboolean                 hyscan_gtk_map_ruler_motion_notify            (GtkWidget                *widget,
                                                                                GdkEventMotion           *event,
                                                                                HyScanGtkMapRuler        *ruler);
 static gdouble                  hyscan_gtk_map_ruler_measure                  (HyScanGeoGeodetic         coord1,
@@ -572,7 +572,7 @@ hyscan_gtk_map_ruler_get_segment_under_cursor (HyScanGtkMapRuler *ruler,
 }
 
 /* Выделяет точку под курсором мыши, если она находится на отрезке. */
-static void
+static gboolean
 hyscan_gtk_map_ruler_motion_notify (GtkWidget         *widget,
                                     GdkEventMotion    *event,
                                     HyScanGtkMapRuler *ruler)
@@ -587,6 +587,8 @@ hyscan_gtk_map_ruler_motion_notify (GtkWidget         *widget,
       priv->hover_section = hover_section;
       gtk_widget_queue_draw (GTK_WIDGET (priv->map));
     }
+
+  return GDK_EVENT_PROPAGATE;
 }
 
 static void
