@@ -126,7 +126,7 @@ hyscan_gtk_map_control_added (HyScanGtkLayer          *gtk_layer,
   g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
   g_return_if_fail (priv->map == NULL);
 
-  priv->map = g_object_ref (container);
+  priv->map = g_object_ref (HYSCAN_GTK_MAP (container));
 
   /* Обработчики взаимодействия мышки пользователя с картой. */
   g_signal_connect_swapped (priv->map, "button-press-event",    G_CALLBACK (hyscan_gtk_map_control_button_press_release), gtk_map_control);

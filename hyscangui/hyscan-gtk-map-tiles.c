@@ -283,7 +283,7 @@ hyscan_gtk_map_tiles_added (HyScanGtkLayer          *gtk_layer,
   g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
   g_return_if_fail (priv->map == NULL);
 
-  priv->map = g_object_ref (container);
+  priv->map = g_object_ref (HYSCAN_GTK_MAP (container));
 
   /* Запускаем очередь задач. */
   hyscan_gtk_map_tiles_queue_start (tiles);

@@ -415,7 +415,7 @@ hyscan_gtk_map_track_layer_added (HyScanGtkLayer          *gtk_layer,
   g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
   g_return_if_fail (priv->map == NULL);
 
-  priv->map = g_object_ref (container);
+  priv->map = g_object_ref (HYSCAN_GTK_MAP (container));
   g_signal_connect_after (priv->map, "visible-draw", 
                           G_CALLBACK (hyscan_gtk_map_track_layer_draw), track_layer);
   g_signal_connect (priv->map, "notify::projection",

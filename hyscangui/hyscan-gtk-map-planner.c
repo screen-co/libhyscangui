@@ -663,7 +663,7 @@ hyscan_gtk_map_planner_added (HyScanGtkLayer          *layer,
   g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
   g_return_if_fail (priv->map == NULL);
 
-  priv->map = g_object_ref (container);
+  priv->map = g_object_ref (HYSCAN_GTK_MAP (container));
   
   /* Сигналы контейнера. */
   g_signal_connect (container, "handle-grab", G_CALLBACK (hyscan_gtk_map_planner_handle_grab), planner_layer);

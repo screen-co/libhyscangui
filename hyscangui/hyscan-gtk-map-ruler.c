@@ -218,7 +218,7 @@ hyscan_gtk_map_ruler_added (HyScanGtkLayer          *gtk_layer,
   /* Выполняем реализацию в родительском классе. */
   hyscan_gtk_layer_parent_interface->added (gtk_layer, container);
 
-  priv->map = g_object_ref (container);
+  priv->map = g_object_ref (HYSCAN_GTK_MAP (container));
 
   g_signal_connect (priv->map, "configure-event",
                     G_CALLBACK (hyscan_gtk_map_ruler_configure), gtk_layer);

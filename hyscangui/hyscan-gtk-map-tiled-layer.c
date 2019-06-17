@@ -455,7 +455,7 @@ hyscan_gtk_map_tiled_layer_added (HyScanGtkLayer          *layer,
                                             (GCompareFunc) hyscan_gtk_map_tile_compare);
 
   /* Подключаемся к карте. */
-  priv->map = g_object_ref (container);
+  priv->map = g_object_ref (HYSCAN_GTK_MAP (container));
   hyscan_gtk_map_tiled_layer_update_grid (tiled_layer->priv);
   g_signal_connect_swapped (priv->map, "notify::projection", G_CALLBACK (hyscan_gtk_map_tiled_layer_proj_notify), tiled_layer);
 

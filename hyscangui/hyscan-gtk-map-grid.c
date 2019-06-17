@@ -193,7 +193,7 @@ hyscan_gtk_map_grid_added (HyScanGtkLayer          *gtk_layer,
 
   g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
 
-  priv->map = g_object_ref (container);
+  priv->map = g_object_ref (HYSCAN_GTK_MAP (container));
 
   g_signal_connect_after (priv->map, "visible-draw",
                           G_CALLBACK (hyscan_gtk_map_grid_draw), gtk_layer);

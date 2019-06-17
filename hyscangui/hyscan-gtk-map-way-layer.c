@@ -975,7 +975,7 @@ hyscan_gtk_map_way_layer_added (HyScanGtkLayer          *layer,
   g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
 
   /* Подключаемся к карте. */
-  priv->map = g_object_ref (container);
+  priv->map = g_object_ref (HYSCAN_GTK_MAP (container));
   hyscan_gtk_map_way_layer_update_points (way_layer->priv);
   g_signal_connect_after (priv->map, "visible-draw", G_CALLBACK (hyscan_gtk_map_way_layer_draw), way_layer);
   g_signal_connect_swapped (priv->map, "notify::projection", G_CALLBACK (hyscan_gtk_map_way_layer_proj_notify), way_layer);
