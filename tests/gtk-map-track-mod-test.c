@@ -286,7 +286,7 @@ main (int    argc,
         return -1;
       }
 
-    if (track_name == NULL || project_read == NULL || project_write == NULL)
+    if (db_uri == NULL || track_name == NULL || project_read == NULL || project_write == NULL)
       {
         g_print ("%s", g_option_context_get_help (context, FALSE, NULL));
         return -1;
@@ -317,7 +317,7 @@ main (int    argc,
   gtk_grid_set_column_spacing (GTK_GRID (grid), 20);
   gtk_container_set_border_width (GTK_CONTAINER (grid), 20);
 
-  db = db_uri != NULL ? hyscan_db_new (db_uri) : NULL;
+  db = hyscan_db_new (db_uri);
   translator = translator_new (db, project_read, project_write, track_name);
   kit = hyscan_gtk_map_kit_new (&center, db, "/tmp/tile-cache");
   hyscan_gtk_map_kit_set_project (kit, project_write);

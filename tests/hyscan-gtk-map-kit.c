@@ -712,6 +712,9 @@ list_store_insert (HyScanGtkMapKit *kit,
   gchar *mark_id;
 
   marks = hyscan_mark_model_get (model);
+  if (marks == NULL)
+    return;
+
   g_hash_table_iter_init (&hash_iter, marks);
 
   while (g_hash_table_iter_next (&hash_iter, (gpointer *) &mark_id, (gpointer *) &mark))
@@ -1604,6 +1607,7 @@ hyscan_gtk_map_kit_free (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
+  g_free (priv->profile_active);
   g_free (priv->tile_cache_dir);
   g_free (priv->project_name);
   g_hash_table_destroy (priv->profiles);

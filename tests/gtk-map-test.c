@@ -117,7 +117,7 @@ int main (int     argc,
   GtkWidget *window;
   GtkWidget *grid;
 
-  HyScanDB *db;
+  HyScanDB *db = NULL;
   HyScanSensor *sensor;
   HyScanGeoGeodetic center = {.lat = 55.571, .lon = 38.103};
 
@@ -194,16 +194,27 @@ int main (int     argc,
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_window_set_default_size (GTK_WINDOW (window), 1024, 600);
 
-  db = hyscan_db_new (db_uri);
+  if (db_uri != NULL)
+    db = hyscan_db_new (db_uri);
+
   sensor = create_sensor ();
 
   kit = hyscan_gtk_map_kit_new (&center, db, "/tmp/tile-cache");
   hyscan_gtk_map_kit_set_project (kit, project_name);
-  hyscan_gtk_map_kit_load_profiles (kit, profile_dir);
-  hyscan_gtk_map_kit_add_planner (kit, planner_ini);
-  hyscan_gtk_map_kit_add_nav (kit, sensor, GPS_SENSOR_NAME, delay_time);
-  hyscan_gtk_map_kit_add_marks_wf (kit);
-  hyscan_gtk_map_kit_add_marks_geo (kit);
+  if (profile_dir != NULL)
+    hyscan_gtk_map_kit_load_profiles (kit, profile_dir);
+
+  if (planner_ini != NULL)
+    hyscan_gtk_map_kit_add_planner (kit, planner_ini);
+
+  if (sensor != NULL)
+    hyscan_gtk_map_kit_add_nav (kit, sensor, GPS_SENSOR_NAME, delay_time);
+
+  if (db != NULL)
+    {
+      hyscan_gtk_map_kit_add_marks_geo (kit);
+      hyscan_gtk_map_kit_add_marks_wf (kit);
+    }
 
   gtk_grid_attach (GTK_GRID (grid), kit->navigation, 0, 0, 1, 1);
   gtk_grid_attach (GTK_GRID (grid), kit->map,        1, 0, 1, 1);
@@ -218,7 +229,7 @@ int main (int     argc,
   gtk_main ();
 
   /* Cleanup. */
-  g_object_unref (db);
+  g_clear_object (&db);
   hyscan_gtk_map_kit_free (kit);
 
   return 0;
