@@ -55,6 +55,7 @@ typedef struct
   gboolean              loaded;
   gint64                time;
   HyScanGeoGeodetic     center_geo;
+  HyScanGeoGeodetic     mark_geo;
   gdouble               offset;
 } HyScanMarkLocation;
 

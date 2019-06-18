@@ -233,6 +233,27 @@ hyscan_mark_loc_model_is_starboard (HyScanSourceType source_type)
 
 /* Загружает геолокационные данные по метке.
  * Функция должна вызываться за g_rw_lock_reader_lock (&priv->mark_lock). */
+static void
+hyscan_mark_loc_model_load_coord (HyScanMarkLocation *location)
+{
+  HyScanGeoCartesian2D position;
+  HyScanGeo *geo;
+
+  if (!location->loaded)
+    return;
+  
+  /* Положение метки относительно судна. */
+  position.x = 0;
+  position.y = location->offset;
+
+  geo = hyscan_geo_new (location->center_geo, HYSCAN_GEO_ELLIPSOID_WGS84);
+  hyscan_geo_topoXY2geo (geo, &location->mark_geo, position, 0);
+  
+  g_object_unref (geo);
+}
+
+/* Загружает геолокационные данные по метке.
+ * Функция должна вызываться за g_rw_lock_reader_lock (&priv->mark_lock). */
 static gboolean
 hyscan_mark_loc_model_load_location (HyScanMarkLocModel *ml_model,
                                      HyScanMarkLocation *location)
@@ -349,6 +370,9 @@ hyscan_mark_loc_model_load_location (HyScanMarkLocModel *ml_model,
     g_object_unref (acoustic_data);
     g_object_unref (projector);
   }
+
+  /* Определяем координаты центра метки. */
+  hyscan_mark_loc_model_load_coord (location);
 
   return location->loaded;
 }

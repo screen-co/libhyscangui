@@ -66,6 +66,7 @@ hyscan_mark_location_copy (const HyScanMarkLocation *mark_location)
   copy->loaded = mark_location->loaded;
   copy->time = mark_location->time;
   copy->center_geo = mark_location->center_geo;
+  copy->mark_geo = mark_location->mark_geo;
   copy->offset = mark_location->offset;
 
   return copy;
