@@ -141,6 +141,7 @@
 #include "hyscan-gtk-layer-container.h"
 #include "hyscan-gui-marshallers.h"
 
+#define INI_GROUP_NAME     "container"
 #define COLOR_TEXT_DEFAULT "rgb(0,0,0)"
 #define COLOR_BG_DEFAULT   "rgba(255, 255, 255, 0.9)"
 
@@ -665,8 +666,12 @@ hyscan_gtk_layer_container_load_key_file (HyScanGtkLayerContainer *container,
   g_return_if_fail (HYSCAN_IS_GTK_LAYER_CONTAINER (container));
   priv = container->priv;
 
+  /* Загружаем конфигурацию контейнера. */
+  hyscan_gtk_layer_load_key_file_rgba (&priv->color_text, key_file, INI_GROUP_NAME, "text-color", COLOR_TEXT_DEFAULT);
+  hyscan_gtk_layer_load_key_file_rgba (&priv->color_bg,   key_file, INI_GROUP_NAME, "bg-color",   COLOR_BG_DEFAULT);
+
+  /* Загружаем конфигурацию каждого слоя. */
   g_hash_table_iter_init (&iter, priv->layers_table);
-  
   while (g_hash_table_iter_next (&iter, (gpointer) &key, (gpointer) &layer))
     hyscan_gtk_layer_load_key_file (layer, key_file, key);
 }

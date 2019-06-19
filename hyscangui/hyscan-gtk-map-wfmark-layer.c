@@ -533,8 +533,8 @@ hyscan_gtk_map_wfmark_layer_load_key_file (HyScanGtkLayer *layer,
   /* Внешний вид линии. */
   value = g_key_file_get_double (key_file, group, "line-width", NULL);
   priv->line_width = value > 0 ? value : LINE_WIDTH ;
-  hyscan_gtk_layer_load_key_file_rgba (&priv->color_default, key_file, group, "mark-color", MARK_COLOR);
-  hyscan_gtk_layer_load_key_file_rgba (&priv->color_hover, key_file, group, "hover-mark-color", MARK_COLOR_HOVER);
+  hyscan_gtk_layer_load_key_file_rgba (&priv->color_default, key_file, group, "color",       MARK_COLOR);
+  hyscan_gtk_layer_load_key_file_rgba (&priv->color_hover,   key_file, group, "hover-color", MARK_COLOR_HOVER);
 
   g_rw_lock_writer_unlock (&priv->mark_lock);
 

@@ -1616,7 +1616,7 @@ hyscan_gtk_map_kit_add_marks_geo (HyScanGtkMapKit   *kit)
 
   /* Слой с геометками. */
   priv->geomark_layer = hyscan_gtk_map_geomark_layer_new (priv->mark_geo_model);
-  add_layer_row (kit, priv->geomark_layer, "wfmark", _("Geo Marks"));
+  add_layer_row (kit, priv->geomark_layer, "geomark", _("Geo Marks"));
 
   /* Виджет навигации по меткам. */
   create_wfmark_toolbox (kit);

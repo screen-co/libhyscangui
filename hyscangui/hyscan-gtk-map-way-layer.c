@@ -52,6 +52,8 @@
  * - "lost-line-color"
  * - "lost-arrow-color"
  * - "lost-arrow-stroke-color"
+ * - "text-color"
+ * - "bg-color"
  *
  * Выводимые данные получаются из модели #HyScanNavigationModel, которая
  * указывается при создании слоя в hyscan_gtk_map_way_layer_new().
@@ -75,6 +77,8 @@
 #define ARROW_DEFAULT_FILL    "rgba(255, 255, 255, 0.85)"  /* Цвет стрелки. */
 #define ARROW_LOST_STROKE     "rgba(144,  87,  71, 0.2)"   /* Цвет обводки стрелки при потере сигнала. */
 #define ARROW_LOST_FILL       "rgba(255, 255, 255, 0.2)"   /* Цвет стрелки при потере сигнала. */
+#define TEXT_COLOR            "rgba(  0,   0,   0, 1)"     /* Цвет текста. */
+#define BG_COLOR              "rgba(255, 255, 255, 0.8)"   /* Цвет подложки под текстом. */
 
 /* Раскомментируйте строку ниже для вывода отладочной информации о скорости отрисовки слоя. */
 // #define HYSCAN_GTK_MAP_DEBUG_FPS
@@ -124,37 +128,39 @@ struct _HyScanGtkMapWayLayerPrivate
   GdkRGBA                       line_color;                 /* Цвет линии трека. */
   GdkRGBA                       line_lost_color;            /* Цвет линии при обрыве связи. */
   gdouble                       line_width;                 /* Ширина линии трека. */
-  guint                         margin;                     /* Внешний отступ плашки навигационной информации. */
-  guint                         padding;                    /* Внутренний отступ плашки навигационной информации. */
+  guint                         margin;                     /* Внешний отступ панели навигационной информации. */
+  guint                         padding;                    /* Внутренний отступ панели навигационной информации. */
+  GdkRGBA                       text_color;                 /* Цвет текса на панели навигационной информации. */
+  GdkRGBA                       bg_color;                   /* Фоновый цвет панели навигационной информации. */
 };
 
 static void    hyscan_gtk_map_way_layer_interface_init           (HyScanGtkLayerInterface       *iface);
 static void    hyscan_gtk_map_way_layer_set_property             (GObject                       *object,
-                                                                    guint                          prop_id,
-                                                                    const GValue                  *value,
-                                                                    GParamSpec                    *pspec);
+                                                                  guint                          prop_id,
+                                                                  const GValue                  *value,
+                                                                  GParamSpec                    *pspec);
 static void     hyscan_gtk_map_way_layer_object_constructed      (GObject                       *object);
 static void     hyscan_gtk_map_way_layer_object_finalize         (GObject                       *object);
 static gboolean hyscan_gtk_map_way_layer_load_key_file           (HyScanGtkLayer                *layer,
-                                                                    GKeyFile                      *key_file,
-                                                                    const gchar                   *group);
+                                                                  GKeyFile                      *key_file,
+                                                                  const gchar                   *group);
 static void     hyscan_gtk_map_way_layer_removed                 (HyScanGtkLayer                *layer);
 static void     hyscan_gtk_map_way_layer_draw                    (HyScanGtkMap                  *map,
-                                                                    cairo_t                       *cairo,
-                                                                    HyScanGtkMapWayLayer        *way_layer);
-static void     hyscan_gtk_map_way_layer_proj_notify             (HyScanGtkMapWayLayer        *way_layer,
-                                                                    GParamSpec                    *pspec);
+                                                                  cairo_t                       *cairo,
+                                                                  HyScanGtkMapWayLayer          *way_layer);
+static void     hyscan_gtk_map_way_layer_proj_notify             (HyScanGtkMapWayLayer          *way_layer,
+                                                                  GParamSpec                    *pspec);
 static void     hyscan_gtk_map_way_layer_added                   (HyScanGtkLayer                *layer,
-                                                                    HyScanGtkLayerContainer       *container);
+                                                                  HyScanGtkLayerContainer       *container);
 static gboolean hyscan_gtk_map_way_layer_get_visible             (HyScanGtkLayer                *layer);
 static void     hyscan_gtk_map_way_layer_set_visible             (HyScanGtkLayer                *layer,
-                                                                    gboolean                       visible);
-static void     hyscan_gtk_map_track_create_arrow                  (HyScanGtkMapWayLayerArrow   *arrow,
-                                                                    GdkRGBA                       *color_fill,
-                                                                    GdkRGBA                       *color_stroke);
-static void     hyscan_gtk_map_way_layer_model_changed           (HyScanGtkMapWayLayer        *way_layer,
-                                                                  HyScanNavigationModelData   *data);
-static void     hyscan_gtk_map_way_layer_point_free              (HyScanGtkMapWayLayerPoint   *point);
+                                                                  gboolean                       visible);
+static void     hyscan_gtk_map_track_create_arrow                (HyScanGtkMapWayLayerArrow     *arrow,
+                                                                  GdkRGBA                       *color_fill,
+                                                                  GdkRGBA                       *color_stroke);
+static void     hyscan_gtk_map_way_layer_model_changed           (HyScanGtkMapWayLayer          *way_layer,
+                                                                  HyScanNavigationModelData     *data);
+static void     hyscan_gtk_map_way_layer_point_free              (HyScanGtkMapWayLayerPoint     *point);
 static void     hyscan_gtk_map_way_layer_fill_tile               (HyScanGtkMapTiledLayer        *tiled_layer,
                                                                   HyScanGtkMapTile              *tile);
 
@@ -245,6 +251,9 @@ hyscan_gtk_map_way_layer_object_constructed (GObject *object)
     gdk_rgba_parse (&color_fill, ARROW_LOST_FILL);
     gdk_rgba_parse (&color_stroke, ARROW_LOST_STROKE);
     hyscan_gtk_map_track_create_arrow (&priv->arrow_lost, &color_fill, &color_stroke);
+
+    gdk_rgba_parse (&priv->text_color, TEXT_COLOR);
+    gdk_rgba_parse (&priv->bg_color,   BG_COLOR);
   }
 
   g_signal_connect_swapped (priv->nav_model, "changed", G_CALLBACK (hyscan_gtk_map_way_layer_model_changed), way_layer);
@@ -313,6 +322,9 @@ hyscan_gtk_map_way_layer_load_key_file (HyScanGtkLayer *layer,
   hyscan_gtk_layer_load_key_file_rgba (&color_fill, key_file, group, "lost-arrow-color", ARROW_LOST_FILL);
   hyscan_gtk_layer_load_key_file_rgba (&color_stroke, key_file, group, "lost-arrow-stroke-color", ARROW_LOST_STROKE);
   hyscan_gtk_map_track_create_arrow (&priv->arrow_lost, &color_fill, &color_stroke);
+
+  hyscan_gtk_layer_load_key_file_rgba (&priv->text_color, key_file, group, "text-color", TEXT_COLOR);
+  hyscan_gtk_layer_load_key_file_rgba (&priv->bg_color,   key_file, group, "bg-color",   BG_COLOR);
 
   g_mutex_unlock (&priv->track_lock);
 
@@ -876,10 +888,10 @@ hyscan_gtk_map_way_layer_draw (HyScanGtkMap         *map,
     cairo_translate (cairo, area_width - priv->margin - (width + 2 * priv->padding), priv->margin);
 
     cairo_rectangle (cairo, 0, 0, width + 2 * priv->padding, height + 2 * priv->padding);
-    cairo_set_source_rgba (cairo, 1.0, 1.0, 1.0, 0.8);
+    gdk_cairo_set_source_rgba (cairo, &priv->bg_color);
     cairo_fill (cairo);
 
-    cairo_set_source_rgba (cairo, 0, 0, 0, 1.0);
+    gdk_cairo_set_source_rgba (cairo, &priv->text_color);
     cairo_move_to (cairo, priv->padding, priv->padding);
     pango_cairo_show_layout (cairo, priv->pango_layout);
 

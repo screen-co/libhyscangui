@@ -422,7 +422,7 @@ hyscan_gtk_map_ruler_draw_hover_section (HyScanGtkMapRuler *ruler,
   cairo_set_line_width (cairo, priv->line_width);
 
   cairo_new_path (cairo);
-  cairo_arc (cairo, x, y, priv->radius * 4.0, 0, 2.0 * G_PI);
+  cairo_arc (cairo, x, y, priv->radius, 0, 2.0 * G_PI);
   cairo_stroke (cairo);
 }
 
@@ -628,7 +628,7 @@ hyscan_gtk_map_ruler_set_line_width (HyScanGtkMapRuler *ruler,
   g_return_if_fail (width > 0);
 
   ruler->priv->line_width = width;
-  ruler->priv->radius = 1.5 * width;
+  ruler->priv->radius = SNAP_DISTANCE;
   hyscan_gtk_map_grid_queue_draw (ruler);
 }
 

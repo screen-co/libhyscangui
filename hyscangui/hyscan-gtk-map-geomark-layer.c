@@ -52,6 +52,11 @@
 
 #define DISTANCE_TO_METERS      0.001                         /* Коэффициент перевода размеров метки в метры. */
 #define HOVER_RADIUS            7                             /* Радиус хэндла. */
+#define DEFAULT_LINE_WIDTH      1.0
+#define DEFAULT_COLOR           "#B25D43"
+#define DEFAULT_HOVER_COLOR     "#9443B2"
+#define DEFAULT_PENDING_COLOR   "rgba(0,0,0,0.5)"
+#define DEFAULT_BLACKOUT_COLOR  "rgba(0,0,0,0.5)"
 
 enum
 {
@@ -177,11 +182,11 @@ hyscan_gtk_map_geomark_layer_object_constructed (GObject *object)
                                        (GDestroyNotify) hyscan_gtk_map_geomark_layer_location_free);
 
   /* Оформление по умолчанию. */
-  priv->line_width = 1.0;
-  gdk_rgba_parse (&priv->color,          "#B25D43");
-  gdk_rgba_parse (&priv->color_hover,    "#9443B2");
-  gdk_rgba_parse (&priv->color_pending,  "rgba(0,0,0,0.5)");
-  gdk_rgba_parse (&priv->color_blackout, "rgba(0,0,0,0.5)");
+  priv->line_width = DEFAULT_LINE_WIDTH;
+  gdk_rgba_parse (&priv->color,          DEFAULT_COLOR);
+  gdk_rgba_parse (&priv->color_hover,    DEFAULT_HOVER_COLOR);
+  gdk_rgba_parse (&priv->color_pending,  DEFAULT_PENDING_COLOR);
+  gdk_rgba_parse (&priv->color_blackout, DEFAULT_BLACKOUT_COLOR);
 
   g_signal_connect_swapped (priv->model, "changed",
                             G_CALLBACK (hyscan_gtk_map_geomark_layer_model_changed), gm_layer);
@@ -1027,6 +1032,29 @@ hyscan_gtk_map_geomark_hint_find (HyScanGtkLayer *layer,
   return hint;
 }
 
+static gboolean
+hyscan_gtk_map_geomark_load_key_file (HyScanGtkLayer *gtk_layer,
+                                      GKeyFile       *key_file,
+                                      const gchar    *group)
+{
+  HyScanGtkMapGeomarkLayer *gm_layer = HYSCAN_GTK_MAP_GEOMARK_LAYER (gtk_layer);
+  HyScanGtkMapGeomarkLayerPrivate *priv = gm_layer->priv;
+  gdouble width;
+
+  width = g_key_file_get_double (key_file, group, "line-width", NULL);
+  priv->line_width = width > 0 ? width : DEFAULT_LINE_WIDTH;
+
+  hyscan_gtk_layer_load_key_file_rgba (&priv->color,          key_file, group, "color",          DEFAULT_COLOR);
+  hyscan_gtk_layer_load_key_file_rgba (&priv->color_hover,    key_file, group, "hover-color",    DEFAULT_HOVER_COLOR);
+  hyscan_gtk_layer_load_key_file_rgba (&priv->color_pending,  key_file, group, "pending-color",  DEFAULT_PENDING_COLOR);
+  hyscan_gtk_layer_load_key_file_rgba (&priv->color_blackout, key_file, group, "blackout-color", DEFAULT_BLACKOUT_COLOR);
+
+  if (priv->map != NULL)
+    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+  return TRUE;
+}
+
 static void
 hyscan_gtk_map_geomark_layer_interface_init (HyScanGtkLayerInterface *iface)
 {
@@ -1037,6 +1065,7 @@ hyscan_gtk_map_geomark_layer_interface_init (HyScanGtkLayerInterface *iface)
   iface->set_visible = hyscan_gtk_map_geomark_set_visible;
   iface->hint_find = hyscan_gtk_map_geomark_hint_find;
   iface->hint_shown = hyscan_gtk_map_geomark_hint_shown;
+  iface->load_key_file = hyscan_gtk_map_geomark_load_key_file;
 }
 
 /**
