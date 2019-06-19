@@ -700,7 +700,8 @@ on_track_activated (GtkTreeView        *treeview,
 
 static void
 list_store_insert (HyScanGtkMapKit *kit,
-                   HyScanMarkModel *model)
+                   HyScanMarkModel *model,
+                   gchar           *selected_id)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
@@ -744,6 +745,9 @@ list_store_insert (HyScanGtkMapKit *kit,
                           MARK_TYPE_NAME_COLUMN, type_name,
                           -1);
 
+      if (g_strcmp0 (selected_id, mark_id) == 0)
+        gtk_tree_selection_select_iter (gtk_tree_view_get_selection (priv->mark_tree), &tree_iter);
+
       g_free (time_str);
       g_date_time_unref (local);
     }
@@ -751,19 +755,42 @@ list_store_insert (HyScanGtkMapKit *kit,
   g_hash_table_unref (marks);
 }
 
+static gchar *
+mark_get_selected_id (HyScanGtkMapKit *kit)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+  GtkTreeSelection *selection;
+  GtkTreeIter iter;
+  gchar *mark_id;
+
+  selection = gtk_tree_view_get_selection (priv->mark_tree);
+  if (!gtk_tree_selection_get_selected (selection, NULL, &iter))
+    return NULL;
+
+  gtk_tree_model_get (GTK_TREE_MODEL (priv->mark_store), &iter, MARK_ID_COLUMN, &mark_id, -1);
+
+  return mark_id;
+}
+
 static void
 on_marks_changed (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
+  gchar *selected_id;
+
+
+  selected_id = mark_get_selected_id (kit);
 
   /* Удаляем все строки из mark_store. */
   gtk_list_store_clear (priv->mark_store);
 
   /* Добавляем метки из всех моделей. */
   if (priv->mark_model != NULL)
-    list_store_insert (kit, priv->mark_model);
+    list_store_insert (kit, priv->mark_model, selected_id);
   if (priv->mark_geo_model != NULL)
-    list_store_insert (kit, priv->mark_geo_model);
+    list_store_insert (kit, priv->mark_geo_model, selected_id);
+
+  g_free (selected_id);
 }
 
 /* Добавляет в панель навигации виджет просмотра меток. */
