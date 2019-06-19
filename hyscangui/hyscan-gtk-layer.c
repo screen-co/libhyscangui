@@ -48,7 +48,10 @@
  *
  * - hyscan_gtk_layer_added() - регистрирует слой в контейнере,
  * - hyscan_gtk_layer_set_visible() - устанавливает видимость слоя,
- * - hyscan_gtk_layer_grab_input() - передаёт право обработки ввода текущему слою.
+ * - hyscan_gtk_layer_grab_input() - передаёт право обработки ввода текущему слою,
+ * - hyscan_gtk_layer_hint_find() - ищет всплывающую подсказку в указанной точке,
+ * - hyscan_gtk_layer_hint_shown() - устанавливает, была ли показана найденная
+ *   ранее всплывающая подсказка.
  *
  * Объект слоя подобен GTK-виджетам в том смысле, что предназначен для
  * использования только внутри контейнера #HyScanGtkLayerContainer. Поэтому
@@ -268,4 +271,57 @@ hyscan_gtk_layer_grab_input (HyScanGtkLayer *layer)
     return (*iface->grab_input) (layer);
 
   return FALSE;
+}
+
+/**
+ * hyscan_gtk_layer_hint_find:
+ * @layer: указатель на слой #HyScanGtkLayer
+ * @x: координата x курсора мыши
+ * @y: координата y курсора мыши
+ * @distance: (out): расстояние до точки с подсказкой
+ *
+ * Ищет всплывающающую подсказку в окрестности точки (@x, @y). Если подсказка
+ * найдена, возвращает её текст и расстояние @distnance до неё.
+ *
+ * Returns: текст всплывающей подсказки или %NULL. Для удаления g_free().
+ */
+gchar *
+hyscan_gtk_layer_hint_find (HyScanGtkLayer  *layer,
+                            gdouble          x,
+                            gdouble          y,
+                            gdouble         *distance)
+{
+  HyScanGtkLayerInterface *iface;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_LAYER (layer), FALSE);
+
+  iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
+  if (iface->hint_find == NULL)
+    return NULL;
+
+  return (*iface->hint_find) (layer, x, y, distance);
+}
+
+/**
+ * hyscan_gtk_layer_hint_shown:
+ * @layer: указатель на слой #HyScanGtkLayer
+ * @shown: признак того, что подсказка показана
+ *
+ * Сообщает слою, была ли показана его всплывающая подсказка, запрошенная предыдущим
+ * вызовом hyscan_gtk_layer_hint_find().
+ *
+ * Если подсказка показана, то слою следует выделить элемент, который соответствует
+ * этой подсказке.
+ */
+void
+hyscan_gtk_layer_hint_shown (HyScanGtkLayer *layer,
+                             gboolean        shown)
+{
+  HyScanGtkLayerInterface *iface;
+
+  g_return_if_fail (HYSCAN_IS_GTK_LAYER (layer));
+
+  iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
+  if (iface->hint_shown != NULL)
+    iface->hint_shown (layer, shown);
 }

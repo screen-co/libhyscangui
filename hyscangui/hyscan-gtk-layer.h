@@ -61,6 +61,8 @@ typedef struct _HyScanGtkLayerContainer HyScanGtkLayerContainer;
  * @set_visible: Устанавливает, видно ли пользователю слой.
  * @get_visible: Возвращает, видно ли пользователю слой.
  * @get_icon_name: Возвращает имя иконки для слоя (см. #GtkIconTheme для подробностей).
+ * @hint_find: Определяет, есть ли на слое всплывающая подсказка для указанной точки.
+ * @hint_shown: Устанавливает, была ли показана всплывающаю подсказка, запрошенная последний раз.
  */
 struct _HyScanGtkLayerInterface
 {
@@ -77,6 +79,12 @@ struct _HyScanGtkLayerInterface
                                           gboolean                 visible);
   gboolean           (*get_visible)      (HyScanGtkLayer          *layer);
   const gchar *      (*get_icon_name)    (HyScanGtkLayer          *layer);
+  gchar *            (*hint_find)        (HyScanGtkLayer          *layer,
+                                          gdouble                  x,
+                                          gdouble                  y,
+                                          gdouble                 *distance);
+  void               (*hint_shown)       (HyScanGtkLayer          *layer,
+                                          gboolean                 shown);
 };
 
 HYSCAN_API
@@ -113,6 +121,16 @@ void          hyscan_gtk_layer_load_key_file_rgba     (GdkRGBA                 *
 
 HYSCAN_API
 const gchar * hyscan_gtk_layer_get_icon_name          (HyScanGtkLayer          *layer);
+
+HYSCAN_API
+gchar *       hyscan_gtk_layer_hint_find              (HyScanGtkLayer          *layer,
+                                                       gdouble                  x,
+                                                       gdouble                  y,
+                                                       gdouble                 *distance);
+
+HYSCAN_API
+void          hyscan_gtk_layer_hint_shown             (HyScanGtkLayer          *layer,
+                                                       gboolean                 shown);
 
 G_END_DECLS
 

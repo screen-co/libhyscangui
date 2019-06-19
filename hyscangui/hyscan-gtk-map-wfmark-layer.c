@@ -48,10 +48,6 @@
  * - "mark-color" - цвет контура метки
  * - "hover-mark-color" - цвет контура выделенной метки
  * - "line-width" - толщина линий
- * - "text-color" - цвет текста подписи
- * - "bg-color" - цвет подложки текста
- * - "text-margin" - отступ текста от границ подложки
- * - "tooltip-margin" - отступ всплывающей подсказки от курсора мыши
  */
 
 #include "hyscan-gtk-map-wfmark-layer.h"
@@ -64,11 +60,7 @@
 /* Оформление по умолчанию. */
 #define MARK_COLOR              "#61B243"                     /* Цвет обводки меток. */
 #define MARK_COLOR_HOVER        "#9443B2"                     /* Цвет обводки меток при наведении мыши. */
-#define BG_COLOR                "rgba(255, 255, 255, 0.6)"    /* Цвет фона подписи. */
-#define TEXT_COLOR              "rgba( 33,  33,  33, 1.0)"    /* Цвет текста подписи. */
 #define LINE_WIDTH              1.0                           /* Толщина линии обводки. */
-#define TEXT_MARGIN             5.0                           /* Отступт текста от границ. */
-#define TOOLTIP_MARGIN          5.0                           /* Отступ всплывающей подсказки от указателя мыши. */
 
 /* Раскомментируйте строку ниже для отладки положения меток относительно галса. */
 // #define DEBUG_TRACK_POINTS
@@ -102,26 +94,20 @@ typedef struct
 
 struct _HyScanGtkMapWfmarkLayerPrivate
 {
-  HyScanGtkMap       *map;                                /* Карта. */
-  gboolean            visible;                            /* Признак видимости слоя. */
+  HyScanGtkMap                          *map;             /* Карта. */
+  gboolean                               visible;         /* Признак видимости слоя. */
 
-  HyScanMarkLocModel *model;                              /* Модель данных. */
+  HyScanMarkLocModel                    *model;           /* Модель данных. */
 
-  GRWLock             mark_lock;                          /* Блокировка данных по меткам. .*/
-  GHashTable         *marks;                              /* Хэш-таблица меток #HyScanGtkMapWfmarkLayerLocation. */
+  GRWLock                                mark_lock;       /* Блокировка данных по меткам. .*/
+  GHashTable                            *marks;           /* Хэш-таблица меток #HyScanGtkMapWfmarkLayerLocation. */
 
   const HyScanGtkMapWfmarkLayerLocation *location_hover;  /* Метка, над которой находится курсор мышин. */
-  HyScanGeoCartesian2D                   cursor;          /* Координаты курсора в логической СК. */
 
   /* Стиль отображения. */
-  PangoLayout     *pango_layout;                /* Раскладка шрифта. */
-  GdkRGBA          color_default;               /* Цвет обводки меток. */
-  GdkRGBA          color_hover;                 /* Цвет обводки метки при наведении курсора мыши. */
-  GdkRGBA          color_bg;                    /* Цвет фона текста. */
-  GdkRGBA          color_text;                  /* Цвет текста.*/
-  gdouble          line_width;                  /* Толщина обводки. */
-  gdouble          text_margin;                 /* Отступ текст от границ подложки. */
-  gdouble          tooltip_margin;              /* Отступ всплывающей подсказки от указателя мыши. */
+  GdkRGBA                                color_default;   /* Цвет обводки меток. */
+  GdkRGBA                                color_hover;     /* Цвет обводки метки при наведении курсора мыши. */
+  gdouble                                line_width;      /* Толщина обводки. */
 };
 
 static void    hyscan_gtk_map_wfmark_layer_interface_init           (HyScanGtkLayerInterface *iface);
@@ -200,10 +186,6 @@ hyscan_gtk_map_wfmark_layer_object_constructed (GObject *object)
   /* Стиль оформления. */
   gdk_rgba_parse (&priv->color_default, MARK_COLOR);
   gdk_rgba_parse (&priv->color_hover, MARK_COLOR_HOVER);
-  gdk_rgba_parse (&priv->color_bg, BG_COLOR);
-  gdk_rgba_parse (&priv->color_text, TEXT_COLOR);
-  priv->text_margin = TEXT_MARGIN;
-  priv->tooltip_margin = TOOLTIP_MARGIN;
   priv->line_width = LINE_WIDTH;
 }
 
@@ -217,8 +199,6 @@ hyscan_gtk_map_wfmark_layer_object_finalize (GObject *object)
 
   g_hash_table_unref (priv->marks);
   g_object_unref (priv->model);
-
-  g_clear_object (&priv->pango_layout);
 
   G_OBJECT_CLASS (hyscan_gtk_map_wfmark_layer_parent_class)->finalize (object);
 }
@@ -334,19 +314,6 @@ hyscan_gtk_map_wfmark_layer_model_changed (HyScanGtkMapWfmarkLayer *wfm_layer)
   g_hash_table_unref (marks);
 }
 
-/* Обновление раскладки шрифта по сигналу "configure-event". */
-static gboolean
-hyscan_gtk_map_wfmark_layer_configure (HyScanGtkMapWfmarkLayer *wfm_layer,
-                                       GdkEvent                *screen)
-{
-  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
-
-  g_clear_object (&priv->pango_layout);
-  priv->pango_layout = gtk_widget_create_pango_layout (GTK_WIDGET (priv->map), NULL);
-
-  return FALSE;
-}
-
 /* Рисует слой по сигналу "visible-draw". */
 static void
 hyscan_gtk_map_wfmark_layer_draw (HyScanGtkMap            *map,
@@ -433,43 +400,14 @@ hyscan_gtk_map_wfmark_layer_draw (HyScanGtkMap            *map,
       cairo_restore (cairo);
     }
 
-  if (priv->location_hover)
-    {
-      const HyScanGtkMapWfmarkLayerLocation *hover = priv->location_hover;
-      gint text_width, text_height;
-      gdouble text_x, text_y;
-
-      gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &text_x, &text_y,
-                                             priv->cursor.x, priv->cursor.y);
-
-      pango_layout_set_text (priv->pango_layout, hover->mloc->mark->name, -1);
-      pango_layout_get_size (priv->pango_layout, &text_width, &text_height);
-      text_height /= PANGO_SCALE;
-      text_width /= PANGO_SCALE;
-
-      /* Вариант размещения текста под прямоугольником. */
-      // cairo_save (cairo);
-      // cairo_translate (cairo, x, y);
-      // gdouble bounding_height = fabs (width * sin (hover->angle)) + fabs (height * cos(hover->angle));
-      // cairo_move_to (cairo, -text_width / 2.0, bounding_height);
-
-      text_y -= text_height + priv->text_margin + priv->tooltip_margin;
-      gdk_cairo_set_source_rgba (cairo, &priv->color_bg);
-      cairo_rectangle (cairo, text_x - priv->text_margin, text_y - priv->text_margin,
-                       text_width + 2 * priv->text_margin, text_height + 2 * priv->text_margin);
-      cairo_fill (cairo);
-
-      cairo_move_to (cairo, text_x, text_y);
-      gdk_cairo_set_source_rgba (cairo, &priv->color_text);
-      pango_cairo_show_layout (cairo, priv->pango_layout);
-    }
-
   g_rw_lock_reader_unlock (&priv->mark_lock);
 }
 
 /* Находит метку под курсором мыши. */
-static HyScanGtkMapWfmarkLayerLocation *
-hyscan_gtk_map_wfmark_layer_find_hover (HyScanGtkMapWfmarkLayer *wfm_layer)
+static const HyScanGtkMapWfmarkLayerLocation *
+hyscan_gtk_map_wfmark_layer_find_hover (HyScanGtkMapWfmarkLayer *wfm_layer,
+                                        HyScanGeoCartesian2D    *cursor,
+                                        gdouble                 *distance)
 {
   HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
 
@@ -487,50 +425,23 @@ hyscan_gtk_map_wfmark_layer_find_hover (HyScanGtkMapWfmarkLayer *wfm_layer)
       if (!location->mloc->loaded)
         continue;
 
-      hyscan_cartesian_rotate (&priv->cursor, &location->center_c2d, location->angle, &rotated);
+      hyscan_cartesian_rotate (cursor, &location->center_c2d, location->angle, &rotated);
       if (hyscan_cartesian_is_point_inside (&rotated, &location->rect_from, &location->rect_to))
         {
-          gdouble distance;
+          gdouble mark_distance;
 
           /* Среди всех меток под курсором выбираем ту, чей центр ближе к курсору. */
-          distance = hyscan_cartesian_distance (&location->center_c2d, &priv->cursor);
-          if (distance < min_distance) {
-            min_distance = distance;
+          mark_distance = hyscan_cartesian_distance (&location->center_c2d, cursor);
+          if (mark_distance < min_distance) {
+            min_distance = mark_distance;
             hover = location;
           }
         }
     }
+    
+  *distance = min_distance;  
 
   return hover;
-}
-
-/* Обработчки ::motion-notify-event.
- * Определяет метку под курсором мыши. */
-static gboolean
-hyscan_gtk_map_wfmark_layer_motion_notify (GtkWidget      *widget,
-                                           GdkEventMotion *event,
-                                           gpointer        user_data)
-{
-  HyScanGtkMapWfmarkLayer *wfm_layer = HYSCAN_GTK_MAP_WFMARK_LAYER (user_data);
-  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
-  HyScanGtkMapWfmarkLayerLocation *hover;
-
-  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (wfm_layer)))
-    return;
-
-  g_rw_lock_reader_lock (&priv->mark_lock);
-
-  gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &priv->cursor.x, &priv->cursor.y);
-  hover = hyscan_gtk_map_wfmark_layer_find_hover (wfm_layer);
-
-  if (hover != NULL || hover != priv->location_hover)
-    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
-
-  priv->location_hover = hover;
-
-  g_rw_lock_reader_unlock (&priv->mark_lock);
-
-  return GDK_EVENT_PROPAGATE;
 }
 
 /* Обработчик сигнала HyScanGtkMap::notify::projection.
@@ -568,9 +479,7 @@ hyscan_gtk_map_wfmark_layer_added (HyScanGtkLayer          *gtk_layer,
   g_return_if_fail (priv->map == NULL);
 
   priv->map = g_object_ref (HYSCAN_GTK_MAP (container));
-  g_signal_connect (priv->map, "motion-notify-event", G_CALLBACK (hyscan_gtk_map_wfmark_layer_motion_notify), wfm_layer);
   g_signal_connect_after (priv->map, "visible-draw", G_CALLBACK (hyscan_gtk_map_wfmark_layer_draw), wfm_layer);
-  g_signal_connect_swapped (priv->map, "configure-event", G_CALLBACK (hyscan_gtk_map_wfmark_layer_configure), wfm_layer);
   g_signal_connect (priv->map, "notify::projection", G_CALLBACK (hyscan_gtk_map_wfmark_layer_proj_notify), wfm_layer);
 }
 
@@ -626,14 +535,6 @@ hyscan_gtk_map_wfmark_layer_load_key_file (HyScanGtkLayer *layer,
   priv->line_width = value > 0 ? value : LINE_WIDTH ;
   hyscan_gtk_layer_load_key_file_rgba (&priv->color_default, key_file, group, "mark-color", MARK_COLOR);
   hyscan_gtk_layer_load_key_file_rgba (&priv->color_hover, key_file, group, "hover-mark-color", MARK_COLOR_HOVER);
-  hyscan_gtk_layer_load_key_file_rgba (&priv->color_bg, key_file, group, "bg-color", BG_COLOR);
-  hyscan_gtk_layer_load_key_file_rgba (&priv->color_text, key_file, group, "text-color", TEXT_COLOR);
-
-  value = g_key_file_get_double (key_file, group, "text-margin", NULL);
-  priv->text_margin = value > 0 ? value : TEXT_MARGIN;
-
-  value = g_key_file_get_double (key_file, group, "tooltip-margin", NULL);
-  priv->text_margin = value > 0 ? value : TOOLTIP_MARGIN;
 
   g_rw_lock_writer_unlock (&priv->mark_lock);
 
@@ -641,6 +542,41 @@ hyscan_gtk_map_wfmark_layer_load_key_file (HyScanGtkLayer *layer,
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 
   return TRUE;
+}
+
+static void               
+hyscan_gtk_map_wfmark_layer_hint_shown (HyScanGtkLayer          *layer,
+                                        gboolean                 shown)
+{
+  HyScanGtkMapWfmarkLayer *wfm_layer = HYSCAN_GTK_MAP_WFMARK_LAYER (layer);
+  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
+
+  if (!shown)
+    priv->location_hover = NULL;
+}
+
+/* Ищет, есть ли на слое метка в точке (x, y) */
+static gchar * 
+hyscan_gtk_map_wfmark_layer_hint_find (HyScanGtkLayer *layer,
+                                       gdouble         x,
+                                       gdouble         y,
+                                       gdouble        *distance)
+{
+  HyScanGtkMapWfmarkLayer *wfm_layer = HYSCAN_GTK_MAP_WFMARK_LAYER (layer);
+  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
+  HyScanGeoCartesian2D cursor;
+  gchar *hint = NULL;
+  
+  g_rw_lock_reader_lock (&priv->mark_lock);
+
+  gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), x, y, &cursor.x, &cursor.y);
+  priv->location_hover = hyscan_gtk_map_wfmark_layer_find_hover (wfm_layer, &cursor, distance);
+  if (priv->location_hover != NULL)
+    hint = g_strdup (priv->location_hover->mloc->mark->name);
+
+  g_rw_lock_reader_unlock (&priv->mark_lock);
+  
+  return hint;
 }
 
 static void
@@ -651,6 +587,8 @@ hyscan_gtk_map_wfmark_layer_interface_init (HyScanGtkLayerInterface *iface)
   iface->set_visible = hyscan_gtk_map_wfmark_layer_set_visible;
   iface->get_visible = hyscan_gtk_map_wfmark_layer_get_visible;
   iface->load_key_file = hyscan_gtk_map_wfmark_layer_load_key_file;
+  iface->hint_find = hyscan_gtk_map_wfmark_layer_hint_find;
+  iface->hint_shown = hyscan_gtk_map_wfmark_layer_hint_shown;
 }
 
 /**

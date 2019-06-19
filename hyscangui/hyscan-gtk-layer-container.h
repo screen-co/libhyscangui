@@ -79,7 +79,7 @@ void                      hyscan_gtk_layer_container_remove              (HyScan
                                                                           HyScanGtkLayer          *layer);
 
 HYSCAN_API
-void                     hyscan_gtk_layer_container_remove_all           (HyScanGtkLayerContainer *container);
+void                      hyscan_gtk_layer_container_remove_all          (HyScanGtkLayerContainer *container);
 
 HYSCAN_API
 HyScanGtkLayer *          hyscan_gtk_layer_container_lookup              (HyScanGtkLayerContainer *container,

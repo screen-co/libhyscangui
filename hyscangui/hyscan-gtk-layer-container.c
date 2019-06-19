@@ -33,7 +33,7 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
- /**
+/**
  * SECTION: hyscan-gtk-layer-container
  * @Short_description: Контейнер слоёв виджета #GtkCifroArea
  * @Title: HyScanGtkLayerContainer
@@ -90,6 +90,16 @@
  *  - подключение к моменту HANDLER_RUN_FIRST через g_signal_connect(),
  *  - подключение к моменту HANDLER_RUN_LAST через g_signal_connect_after().
  *
+ * ## Всплывающие подсказки
+ *
+ * Каждый слой может изображать несколько элементов на поверхности виджета, по которым
+ * предлагаются всплывающие подсказки с дополнительной текстовой информацией. Например,
+ * можно навести курсор мыши на метку и увидеть название этой метки.
+ *
+ * Виджет #HyScanGtkLayerContainer координирует показ таких подсказок и
+ * гарантирует показ только одной всплывающей подсказки в каждый момент времени.
+ * Для этого слои с подсказками должны имплементировать #HyScanGtkLayerInterface.hint_find.
+ *
  * ## Регистрация слоёв
  *
  * Регистрация слоёв происходит с помощью функции hyscan_gtk_layer_container_add().
@@ -131,6 +141,9 @@
 #include "hyscan-gtk-layer-container.h"
 #include "hyscan-gui-marshallers.h"
 
+#define COLOR_TEXT_DEFAULT "rgb(0,0,0)"
+#define COLOR_BG_DEFAULT   "rgba(255, 255, 255, 0.9)"
+
 enum
 {
   PROP_O,
@@ -153,10 +166,23 @@ struct _HyScanGtkLayerContainerPrivate
 
   gconstpointer                iowner;            /* Слой, которому разрешён ввод. */
   gboolean                     changes_allowed;   /* Признак, что ввод в принципе разрешён пользователем. */
+
+  gchar                        *hint;             /* Текст всплывающей подсказки. */
+  gdouble                       hint_x;           /* Координата x положения всплывающей подсказки. */
+  gdouble                       hint_y;           /* Координата y положения всплывающей подсказки. */
+  PangoLayout                  *pango_layout;     /* Раскладка шрифта. */
+  GdkRGBA                       color_text;       /* Цвет текста всплывающей подсказки. */
+  GdkRGBA                       color_bg;         /* Фоновый цвет всплывающей подсказки. */
 };
 
 static void         hyscan_gtk_layer_container_object_constructed      (GObject                 *object);
 static void         hyscan_gtk_layer_container_object_finalize         (GObject                 *object);
+static gboolean     hyscan_gtk_layer_container_configure               (GtkWidget               *widget,
+                                                                        GdkEventConfigure       *event);
+static gboolean     hyscan_gtk_layer_container_motion_notify           (GtkWidget               *widget,
+                                                                        GdkEventMotion          *event);
+static void         hyscan_gtk_layer_container_draw                    (HyScanGtkLayerContainer *container,
+                                                                        cairo_t                 *cairo);
 static gboolean     hyscan_gtk_layer_container_button_release          (GtkWidget               *widget,
                                                                         GdkEventButton          *event);
 static void         hyscan_gtk_layer_container_unrealize               (GtkWidget               *widget);
@@ -183,6 +209,8 @@ hyscan_gtk_layer_container_class_init (HyScanGtkLayerContainerClass *klass)
   object_class->constructed = hyscan_gtk_layer_container_object_constructed;
   object_class->finalize = hyscan_gtk_layer_container_object_finalize;
 
+  widget_class->configure_event = hyscan_gtk_layer_container_configure;
+  widget_class->motion_notify_event = hyscan_gtk_layer_container_motion_notify;
   widget_class->button_release_event = hyscan_gtk_layer_container_button_release;
   widget_class->unrealize = hyscan_gtk_layer_container_unrealize;
 
@@ -242,6 +270,11 @@ hyscan_gtk_layer_container_object_constructed (GObject *object)
 
   priv->layers_table = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
   hyscan_gtk_layer_container_set_changes_allowed (container, TRUE);
+
+  gdk_rgba_parse (&priv->color_bg, COLOR_BG_DEFAULT);
+  gdk_rgba_parse (&priv->color_text, COLOR_TEXT_DEFAULT);
+
+  g_signal_connect_swapped (container, "area-draw", G_CALLBACK (hyscan_gtk_layer_container_draw), container);
 }
 
 static void
@@ -250,6 +283,8 @@ hyscan_gtk_layer_container_object_finalize (GObject *object)
   HyScanGtkLayerContainer *gtk_layer_container = HYSCAN_GTK_LAYER_CONTAINER (object);
   HyScanGtkLayerContainerPrivate *priv = gtk_layer_container->priv;
 
+  g_clear_object (&priv->pango_layout);
+  g_free (priv->hint);
   g_list_free_full (priv->layers, g_object_unref);
   g_hash_table_destroy (priv->layers_table);
   g_signal_handlers_disconnect_by_data (object, object);
@@ -308,6 +343,33 @@ hyscan_gtk_layer_container_release_handle (HyScanGtkLayerContainer *container,
   return GDK_EVENT_STOP;
 }
 
+/* Устанавливает всплывающую подсказку. */
+static void
+hyscan_gtk_layer_container_set_hint (HyScanGtkLayerContainer *container,
+                                     const gchar             *hint,
+                                     gdouble                  x,
+                                     gdouble                  y,
+                                     HyScanGtkLayer          *hint_layer)
+{
+  HyScanGtkLayerContainerPrivate *priv = container->priv;
+  GList *layer_l;
+
+  if (hint != NULL || priv->hint != NULL)
+    gtk_widget_queue_draw (GTK_WIDGET (container));
+
+  g_free (priv->hint);
+  priv->hint = g_strdup (hint);
+  priv->hint_x = x;
+  priv->hint_y = y;
+
+  for (layer_l = priv->layers; layer_l != NULL; layer_l = layer_l->next)
+    {
+      HyScanGtkLayer *layer = layer_l->data;
+
+      hyscan_gtk_layer_hint_shown (layer, layer == hint_layer);
+    }
+}
+
 /* Пытается захватить хэндл, эмитируя сигнал "handle-grab". */
 static gboolean
 hyscan_gtk_layer_container_grab_handle (HyScanGtkLayerContainer *container,
@@ -329,6 +391,69 @@ hyscan_gtk_layer_container_unrealize (GtkWidget *widget)
   HyScanGtkLayerContainer *container = HYSCAN_GTK_LAYER_CONTAINER (widget);
 
   hyscan_gtk_layer_container_remove_all (container);
+}
+
+/* Обработчик "configure-event". */
+static gboolean
+hyscan_gtk_layer_container_configure (GtkWidget         *widget,
+                                      GdkEventConfigure *event)
+{
+  HyScanGtkLayerContainer *container = HYSCAN_GTK_LAYER_CONTAINER (widget);
+  HyScanGtkLayerContainerPrivate *priv = container->priv;
+
+  g_clear_object (&priv->pango_layout);
+  priv->pango_layout = gtk_widget_create_pango_layout (widget, NULL);
+
+  return GTK_WIDGET_CLASS (hyscan_gtk_layer_container_parent_class)->configure_event (widget, event);
+}
+
+/* Обработчик "button-release-event". */
+static gboolean
+hyscan_gtk_layer_container_motion_notify (GtkWidget      *widget,
+                                          GdkEventMotion *event)
+{
+  HyScanGtkLayerContainer *container = HYSCAN_GTK_LAYER_CONTAINER (widget);
+  HyScanGtkLayerContainerPrivate *priv = container->priv;
+  GList *layer_l;
+
+  HyScanGtkLayer *hint_layer = NULL;
+  gchar *hint = NULL;
+  gdouble distance = G_MAXDOUBLE;
+
+  /* Если пользователь схватил хэндл, то не выводим подсказки. */
+  if (hyscan_gtk_layer_container_get_handle_grabbed (container) != NULL)
+    return GDK_EVENT_PROPAGATE;
+
+  /* Запрашивает у каждого видимого слоя всплывающую подсказку. */
+  for (layer_l = priv->layers; layer_l != NULL; layer_l = layer_l->next)
+    {
+      HyScanGtkLayer *layer = layer_l->data;
+      gchar *layer_hint = NULL;
+      gdouble layer_distance;
+
+      if (!hyscan_gtk_layer_get_visible (layer))
+        continue;
+
+      layer_hint = hyscan_gtk_layer_hint_find (layer, event->x, event->y, &layer_distance);
+      if (layer_hint == NULL || layer_distance > distance)
+        {
+          g_free (layer_hint);
+          continue;
+        }
+
+      /* Запоминаем текущую подсказку. */
+      distance = layer_distance;
+      g_free (hint);
+      hint = layer_hint;
+      hint_layer = layer;
+    }
+
+  /* Сообщаем слоям, была ли выбрана их подсказка для показа. */
+  hyscan_gtk_layer_container_set_hint (container, hint, event->x, event->y, hint_layer);
+
+  g_free (hint);
+
+  return GDK_EVENT_PROPAGATE;
 }
 
 /* Обработчик "button-release-event". */
@@ -380,6 +505,40 @@ hyscan_gtk_layer_container_layer_removed (HyScanGtkLayerContainerPrivate *priv,
   g_hash_table_foreach_remove (priv->layers_table, hyscan_gtk_layer_hash_table_remove, layer);
   hyscan_gtk_layer_removed (layer);
   g_object_unref (layer);
+}
+
+/* Обработчик сигнала "visible-draw". Рисует всплывающую подсказку. */
+static void
+hyscan_gtk_layer_container_draw (HyScanGtkLayerContainer *container,
+                                 cairo_t                 *cairo)
+{
+  HyScanGtkLayerContainerPrivate *priv = container->priv;
+  gint text_width, text_height;
+  gdouble x, y;
+  gdouble text_margin;
+  gdouble box_margin;
+
+  if (priv->hint == NULL)
+    return;
+
+  pango_layout_set_text (priv->pango_layout, priv->hint, -1);
+  pango_layout_get_size (priv->pango_layout, &text_width, &text_height);
+  text_height /= PANGO_SCALE;
+  text_width /= PANGO_SCALE;
+
+  text_margin = 0.1 * text_height;
+  box_margin = 0.3 * text_height;
+
+  x = priv->hint_x;
+  y = priv->hint_y + (text_height + text_margin + box_margin);
+  gdk_cairo_set_source_rgba (cairo, &priv->color_bg);
+  cairo_rectangle (cairo, x - text_margin, y - text_margin,
+                   text_width + 2.0 * text_margin, text_height + 2.0 * text_margin);
+  cairo_fill (cairo);
+
+  cairo_move_to (cairo, x, y);
+  gdk_cairo_set_source_rgba (cairo, &priv->color_text);
+  pango_cairo_show_layout (cairo, priv->pango_layout);
 }
 
 /**
@@ -552,6 +711,9 @@ hyscan_gtk_layer_container_set_handle_grabbed (HyScanGtkLayerContainer *containe
                                                gconstpointer            instance)
 {
   g_return_if_fail (HYSCAN_IS_GTK_LAYER_CONTAINER (container));
+
+  if (instance != NULL)
+    hyscan_gtk_layer_container_set_hint (container, NULL, 0, 0, NULL);
 
   container->priv->howner = instance;
 }
