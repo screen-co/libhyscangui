@@ -58,7 +58,6 @@
  */
 
 #include "hyscan-gtk-map-pin-layer.h"
-#include <hyscan-gtk-layer.h>
 #include <math.h>
 
 #define DEFAULT_SIZE          8

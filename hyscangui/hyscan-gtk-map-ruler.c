@@ -51,6 +51,7 @@
  */
 
 #include "hyscan-gtk-map-ruler.h"
+#include "hyscan-gtk-map.h"
 #include <hyscan-cartesian.h>
 #include <glib/gi18n.h>
 #include <math.h>

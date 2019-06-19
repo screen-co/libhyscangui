@@ -59,8 +59,8 @@
  */
 
 #include "hyscan-gtk-map-way-layer.h"
+#include "hyscan-gtk-map.h"
 #include <hyscan-cartesian.h>
-#include <hyscan-gtk-map.h>
 #include <hyscan-navigation-model.h>
 #include <glib/gi18n.h>
 #include <string.h>

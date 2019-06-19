@@ -58,9 +58,9 @@
  */
 
 #include "hyscan-gtk-map-tiled-layer.h"
+#include "hyscan-gtk-map.h"
 #include <hyscan-cartesian.h>
 #include <hyscan-task-queue.h>
-#include <hyscan-gtk-map.h>
 #include <hyscan-buffer.h>
 
 #define TILE_SIZE              256           /* Размер тайла. */

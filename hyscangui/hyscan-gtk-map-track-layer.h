@@ -38,7 +38,6 @@
 #include <hyscan-gtk-map-tiled-layer.h>
 #include <hyscan-gtk-map-track.h>
 #include <hyscan-db.h>
-#include <hyscan-cache.h>
 #include <hyscan-list-model.h>
 
 G_BEGIN_DECLS

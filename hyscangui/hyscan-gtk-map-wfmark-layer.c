@@ -51,8 +51,8 @@
  */
 
 #include "hyscan-gtk-map-wfmark-layer.h"
+#include "hyscan-gtk-map.h"
 #include <hyscan-cartesian.h>
-#include <hyscan-gtk-map.h>
 #include <math.h>
 
 #define DISTANCE_TO_METERS      0.001                         /* Коэффициент перевода размеров метки в метры. */

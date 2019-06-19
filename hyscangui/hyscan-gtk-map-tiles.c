@@ -52,8 +52,8 @@
  */
 
 #include "hyscan-gtk-map-tiles.h"
+#include "hyscan-gtk-map.h"
 #include <hyscan-task-queue.h>
-#include <hyscan-gtk-map.h>
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>

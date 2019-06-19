@@ -35,6 +35,7 @@
 #ifndef __HYSCAN_GTK_MAP_TILES_H__
 #define __HYSCAN_GTK_MAP_TILES_H__
 
+#include <hyscan-gtk-layer.h>
 #include <hyscan-gtk-map-tile-source.h>
 #include <hyscan-cache.h>
 

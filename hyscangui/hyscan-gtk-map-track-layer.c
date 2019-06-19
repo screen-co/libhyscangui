@@ -66,8 +66,8 @@
  */
 
 #include "hyscan-gtk-map-track-layer.h"
+#include "hyscan-gtk-map.h"
 #include <hyscan-cartesian.h>
-#include <hyscan-gtk-map.h>
 #include <hyscan-nmea-parser.h>
 #include <hyscan-projector.h>
 #include <hyscan-acoustic-data.h>

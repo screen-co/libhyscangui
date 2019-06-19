@@ -35,6 +35,7 @@
 #ifndef __HYSCAN_GTK_MAP_PIN_LAYER_H__
 #define __HYSCAN_GTK_MAP_PIN_LAYER_H__
 
+#include <hyscan-gtk-layer.h>
 #include <hyscan-gtk-map.h>
 
 G_BEGIN_DECLS

@@ -63,13 +63,13 @@
  */
 
 #include "hyscan-map-profile.h"
-#include <hyscan-merged-tile-source.h>
+#include "hyscan-network-map-tile-source.h"
+#include "hyscan-gtk-map-fs-tile-source.h"
+#include "hyscan-merged-tile-source.h"
+#include "hyscan-gtk-map-tiles.h"
 #include <hyscan-pseudo-mercator.h>
 #include <hyscan-mercator.h>
-#include <hyscan-gtk-map-tiles.h>
 #include <hyscan-cached.h>
-#include <hyscan-gtk-map-fs-tile-source.h>
-#include <hyscan-network-map-tile-source.h>
 #include <string.h>
 
 #define CACHE_SIZE     256
