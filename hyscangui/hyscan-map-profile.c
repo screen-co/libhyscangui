@@ -398,7 +398,7 @@ hyscan_map_profile_read (HyScanMapProfile *profile,
       dir_key = g_strdup_printf (INI_PREFIX_DIR"%s", suffix);
       cache_dir = g_key_file_get_string (priv->key_file, INI_GROUP, dir_key, NULL);
       if (cache_dir == NULL)
-        cache_dir = strdup ("");
+        cache_dir = g_strdup ("");
       
       g_free (dir_key);
 
