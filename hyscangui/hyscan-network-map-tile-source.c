@@ -528,8 +528,10 @@ hyscan_network_map_tile_source_task_new (HyScanNetworkMapTileSourcePrivate *priv
   task->url = url;
   task->soup_msg = soup_message_new ("GET", task->url);
   task->soup_session = soup_session_new_with_options (SOUP_SESSION_ADD_FEATURE_BY_TYPE, SOUP_TYPE_CONTENT_SNIFFER,
-                                                 SOUP_SESSION_USER_AGENT, USER_AGENT,
-                                                 NULL);
+                                                      SOUP_SESSION_USER_AGENT, USER_AGENT,
+                                                      /* На windows не базы данных сертификатов, поэтому отключаем их проверку. */
+                                                      SOUP_SESSION_SSL_STRICT, FALSE,
+                                                      NULL);
 
   /* Делаем HTTP-запрос с отдельным GCancellable,
    * потому что soup_session_send() может сделать g_cancellable_reset(). */
