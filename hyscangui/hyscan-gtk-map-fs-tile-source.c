@@ -62,6 +62,7 @@ struct _HyScanGtkMapFsTileSourcePrivate
 {
   gchar                       *source_dir;        /* Каталог для хранения тайлов. */
   HyScanGtkMapTileSource      *fallback_source;   /* Источник тайлов на случай, если файл с тайлом отсутствует. */
+  gboolean                     fallback_enabled;  /* Признак того, что fallback-источник можно использовать. */
 };
 
 static void       hyscan_gtk_map_fs_tile_source_interface_init           (HyScanGtkMapTileSourceInterface *iface);
@@ -218,6 +219,9 @@ hyscan_gtk_map_fs_tile_source_fill_tile (HyScanGtkMapTileSource *source,
   /* Пробуем загрузить из файла. */
   success = hyscan_gtk_map_fs_tile_source_fill_from_file (tile, tile_path);
 
+  if (!g_atomic_int_get (&priv->fallback_enabled))
+    return success;
+
   /* Если файл отсутствует, то загружаем поверхность из запасного источника. */
   if (!success && priv->fallback_source != NULL)
     {
@@ -274,8 +278,28 @@ HyScanGtkMapFsTileSource *
 hyscan_gtk_map_fs_tile_source_new (const gchar            *dir,
                                    HyScanGtkMapTileSource *fb_source)
 {
-  return g_object_new (HYSCAN_TYPE_GTK_MAP_FS_TILE_SOURCE,
-                       "dir", dir,
-                       "fallback-source", fb_source,
-                       NULL);
+  HyScanGtkMapFsTileSource *fs_source;
+
+  fs_source = g_object_new (HYSCAN_TYPE_GTK_MAP_FS_TILE_SOURCE,
+                            "dir", dir,
+                            "fallback-source", fb_source,
+                            NULL);
+
+  hyscan_gtk_map_fs_tile_source_fb_enable (fs_source, TRUE);
+
+  return fs_source;
+}
+
+/**
+ * hyscan_gtk_map_fs_tile_source_fb_enable:
+ * @fs_source: указатель на #HyScanGtkMapFsTileSource
+ * @enable: признак того, надо можно ли использовать fallback-источник
+ */
+void
+hyscan_gtk_map_fs_tile_source_fb_enable (HyScanGtkMapFsTileSource *fs_source,
+                                         gboolean                  enable)
+{
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_FS_TILE_SOURCE (fs_source));
+
+  g_atomic_int_set (&fs_source->priv->fallback_enabled, enable);
 }

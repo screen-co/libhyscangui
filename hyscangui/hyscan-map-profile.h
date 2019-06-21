@@ -88,6 +88,10 @@ gboolean               hyscan_map_profile_read             (HyScanMapProfile   *
                                                             const gchar        *filename);
 
 HYSCAN_API
+void                   hyscan_map_profile_set_offline      (HyScanMapProfile   *profile,
+                                                            gboolean            offline);
+
+HYSCAN_API
 gboolean               hyscan_map_profile_apply            (HyScanMapProfile   *profile,
                                                             HyScanGtkMap       *map);
 

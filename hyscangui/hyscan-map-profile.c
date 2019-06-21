@@ -86,6 +86,7 @@ struct _HyScanMapProfilePrivate
   gchar                       *projection;  /* Название проекции. */
   gchar                      **tiles_dir;   /* Имена подпапок внутри cache_dir для хранения загруженных тайлов. */
   gchar                      **url_format;  /* Формат URL тайла. */
+  gboolean                     offline;     /* Признак того, что необходимо работать оффлайн. */
 
   guint                        min_zoom;    /* Минимальный доступный уровень детализации. */
   guint                        max_zoom;    /* Максимальный доступный уровень детализации. */
@@ -214,8 +215,13 @@ hyscan_map_profile_create_tiles (HyScanMapProfilePrivate *priv,
       /* Если указана папка для кэширования, то используем источник HyscanGtkMapFsTileSource. */
       if (!g_str_equal (priv->tiles_dir[i], ""))
         {
+          HyScanGtkMapFsTileSource *file_source;
+
           cache_path = g_build_path (G_DIR_SEPARATOR_S, priv->cache_dir, priv->tiles_dir[i], NULL);
-          source = HYSCAN_GTK_MAP_TILE_SOURCE (hyscan_gtk_map_fs_tile_source_new (cache_path, nw_source));
+          file_source = hyscan_gtk_map_fs_tile_source_new (cache_path, nw_source);
+          hyscan_gtk_map_fs_tile_source_fb_enable (file_source, !priv->offline);
+
+          source = HYSCAN_GTK_MAP_TILE_SOURCE (file_source);
         }
       else
         {
@@ -230,7 +236,7 @@ hyscan_map_profile_create_tiles (HyScanMapProfilePrivate *priv,
     }
 
   cache = HYSCAN_CACHE (hyscan_cached_new (CACHE_SIZE));
-  tiles = hyscan_gtk_map_tiles_new (cache, HYSCAN_GTK_MAP_TILE_SOURCE(merged_source));
+  tiles = hyscan_gtk_map_tiles_new (cache, HYSCAN_GTK_MAP_TILE_SOURCE (merged_source));
 
   g_object_unref (cache);
   g_object_unref (merged_source);
@@ -321,6 +327,22 @@ hyscan_map_profile_new (const gchar *cache_dir)
     profile->priv->cache_dir = g_dir_make_tmp ("hyscan-map-XXXXXX", NULL);
 
   return profile;
+}
+
+/**
+ * hyscan_map_profile_set_offline:
+ * @profile: указатель на #HyScanMapProfile
+ * @offline: признак того, что необходимо работать оффлайн
+ *
+ * Установка режима работы оффлайн для профиля.
+ */
+void
+hyscan_map_profile_set_offline (HyScanMapProfile   *profile,
+                                gboolean            offline)
+{
+  g_return_if_fail (HYSCAN_IS_MAP_PROFILE (profile));
+
+  profile->priv->offline = offline;
 }
 
 /**
