@@ -410,7 +410,12 @@ hyscan_mark_loc_model_db_changed (HyScanMarkLocModel *ml_model)
   g_hash_table_remove_all (priv->track_names);
   g_hash_table_iter_init (&iter, tracks);
   while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &track_info))
-    g_hash_table_insert (priv->track_names, g_strdup (track_info->id), g_strdup (track_info->name));
+    {
+      if (track_info->id == NULL)
+        continue;
+
+      g_hash_table_insert (priv->track_names, g_strdup (track_info->id), g_strdup (track_info->name));
+    }
 
   /* Перезагружаем геолокационную информацию. */
   hyscan_mark_loc_model_reload_locations (ml_model);
