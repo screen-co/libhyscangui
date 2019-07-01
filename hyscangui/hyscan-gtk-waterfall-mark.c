@@ -116,8 +116,8 @@ struct _HyScanGtkWaterfallMarkPrivate
   GList                      *visible;        /* Список меток, которые реально есть на экране. */
   GList                      *cancellable;    /* Последняя метка (для отмены изменений). */
 
-  gint                        mode; // edit or create or wat
-  gint                        mouse_mode; // edit or create or wat
+  gint                        mode;           /* Режим слоя */
+  gint                        mouse_mode;     /* Режим мыши */
 
   HyScanCoordinates           press;
   HyScanCoordinates           release;
@@ -668,8 +668,12 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
 
   list = NULL;
 
+  /* Тут необходимо забрать метки из модели. */
+  hyscan_gtk_waterfall_mark_model_changed (priv->markmodel, self);
+
   while (!g_atomic_int_get (&priv->stop))
     {
+
       /* Ждем сигнализации об изменениях. */
       if (g_atomic_int_get (&priv->cond_flag) == 0)
         {
@@ -686,8 +690,6 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
         }
 
       g_atomic_int_set (&priv->cond_flag, 0);
-      GTimer *timer = g_timer_new();
-      g_timer_start(timer);
 
       /* Проверяем, требуется ли синхронизация. */
       if (g_atomic_int_get (&priv->state_changed))
@@ -741,7 +743,6 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
                   hyscan_projector_set_ship_speed (lproj, state->ship_speed);
                   hyscan_projector_set_sound_velocity (lproj, state->velocity);
                 }
-              // TEST PERFORMANCE PLS hyscan_projector_set_precalc_points (lproj, 10000);
             }
           if (rproj == NULL)
             {
@@ -751,7 +752,6 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
                   hyscan_projector_set_ship_speed (rproj, state->ship_speed);
                   hyscan_projector_set_sound_velocity (rproj, state->velocity);
                 }
-              // TEST PERFORMANCE PLS hyscan_projector_set_precalc_points (rproj, 10000);
             }
           if (depth == NULL)
             {
@@ -802,15 +802,15 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
             {
               mc.y = task->center.y;
               mc.x = ABS (task->center.x);
-              mw = 1000 * task->dx;
-              mh = 1000 * task->dy;
+              mw = task->dx;
+              mh = task->dy;
             }
           else /*if (state->display_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER)*/
             {
               mc.y = task->center.x;
               mc.x = ABS (task->center.y);
-              mw = 1000 * task->dy;
-              mh = 1000 * task->dx;
+              mw = task->dy;
+              mh = task->dx;
             }
 
           if (task->center.x >= 0)
@@ -893,8 +893,8 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               task->id = id;
               hyscan_projector_index_to_coord (_proj, mark->waterfall.index0, &mc.y);
               hyscan_projector_count_to_coord (_proj, mark->waterfall.count0, &mc.x, 0.0);
-              mw = mark->waterfall.width / 1000.0;
-              mh = mark->waterfall.height / 1000.0;
+              mw = mark->waterfall.width;
+              mh = mark->waterfall.height;
 
               if (state->display_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN)
                 {
