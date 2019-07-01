@@ -881,9 +881,9 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
                 continue;
 
               /* Фильтруем по источнику. */
-              if (mark->waterfall.source0 == state->lsource)
+              if (mark->waterfall.source == state->lsource)
                 _proj = lproj;
-              else if (mark->waterfall.source0 == state->rsource)
+              else if (mark->waterfall.source == state->rsource)
                 _proj = rproj;
               else
                 continue;
@@ -891,8 +891,8 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
               task->mark = mark;
               task->id = id;
-              hyscan_projector_index_to_coord (_proj, mark->waterfall.index0, &mc.y);
-              hyscan_projector_count_to_coord (_proj, mark->waterfall.count0, &mc.x, 0.0);
+              hyscan_projector_index_to_coord (_proj, mark->waterfall.index, &mc.y);
+              hyscan_projector_count_to_coord (_proj, mark->waterfall.count, &mc.x, 0.0);
               mw = mark->waterfall.width;
               mh = mark->waterfall.height;
 
@@ -903,7 +903,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
                   task->dx = mw;
                   task->dy = mh;
 
-                  if (mark->waterfall.source0 == state->lsource)
+                  if (mark->waterfall.source == state->lsource)
                     task->center.x *= -1;
 
                 }
