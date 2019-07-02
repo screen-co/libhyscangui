@@ -55,8 +55,6 @@
 #include <hyscan-cartesian.h>
 #include <math.h>
 
-#define DISTANCE_TO_METERS      0.001                         /* Коэффициент перевода размеров метки в метры. */
-
 /* Оформление по умолчанию. */
 #define MARK_COLOR              "#61B243"                     /* Цвет обводки меток. */
 #define MARK_COLOR_HOVER        "#9443B2"                     /* Цвет обводки меток при наведении мыши. */
@@ -219,8 +217,8 @@ hyscan_gtk_map_wfmark_layer_project_location (HyScanGtkMapWfmarkLayer         *w
 
   /* Переводим из метров в единицы картографической проекции. */
   scale = hyscan_gtk_map_get_value_scale (priv->map, &location->mloc->center_geo);
-  location->width = DISTANCE_TO_METERS * location->mloc->mark->width / scale;
-  location->height = DISTANCE_TO_METERS * location->mloc->mark->height / scale;
+  location->width = location->mloc->mark->width / scale;
+  location->height = location->mloc->mark->height / scale;
   offset = location->mloc->offset / scale;
 
   /* Определяем координаты центра метки в СК проекции. */
@@ -438,8 +436,8 @@ hyscan_gtk_map_wfmark_layer_find_hover (HyScanGtkMapWfmarkLayer *wfm_layer,
           }
         }
     }
-    
-  *distance = min_distance;  
+
+  *distance = min_distance;
 
   return hover;
 }
@@ -544,7 +542,7 @@ hyscan_gtk_map_wfmark_layer_load_key_file (HyScanGtkLayer *layer,
   return TRUE;
 }
 
-static void               
+static void
 hyscan_gtk_map_wfmark_layer_hint_shown (HyScanGtkLayer          *layer,
                                         gboolean                 shown)
 {
@@ -556,7 +554,7 @@ hyscan_gtk_map_wfmark_layer_hint_shown (HyScanGtkLayer          *layer,
 }
 
 /* Ищет, есть ли на слое метка в точке (x, y) */
-static gchar * 
+static gchar *
 hyscan_gtk_map_wfmark_layer_hint_find (HyScanGtkLayer *layer,
                                        gdouble         x,
                                        gdouble         y,
@@ -566,7 +564,7 @@ hyscan_gtk_map_wfmark_layer_hint_find (HyScanGtkLayer *layer,
   HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
   HyScanGeoCartesian2D cursor;
   gchar *hint = NULL;
-  
+
   g_rw_lock_reader_lock (&priv->mark_lock);
 
   gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), x, y, &cursor.x, &cursor.y);
@@ -575,7 +573,7 @@ hyscan_gtk_map_wfmark_layer_hint_find (HyScanGtkLayer *layer,
     hint = g_strdup (priv->location_hover->mloc->mark->name);
 
   g_rw_lock_reader_unlock (&priv->mark_lock);
-  
+
   return hint;
 }
 

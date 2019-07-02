@@ -725,7 +725,7 @@ list_store_insert (HyScanGtkMapKit *kit,
       gchar *type_name;
 
       /* Добавляем в список меток. */
-      local = g_date_time_new_from_unix_local (mark->modification_time / 1000000);
+      local = g_date_time_new_from_unix_local (mark->mtime / 1000000);
       time_str = g_date_time_format (local, "%d.%m %H:%M");
 
       if (mark->type == HYSCAN_MARK_WATERFALL)
@@ -740,7 +740,7 @@ list_store_insert (HyScanGtkMapKit *kit,
                           MARK_ID_COLUMN, mark_id,
                           MARK_NAME_COLUMN, mark->name,
                           MARK_MTIME_COLUMN, time_str,
-                          MARK_MTIME_SORT_COLUMN, mark->modification_time,
+                          MARK_MTIME_SORT_COLUMN, mark->mtime,
                           MARK_TYPE_COLUMN, mark->type,
                           MARK_TYPE_NAME_COLUMN, type_name,
                           -1);
