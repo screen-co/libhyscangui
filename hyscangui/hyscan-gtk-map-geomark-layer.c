@@ -50,7 +50,6 @@
 #include "hyscan-gtk-map.h"
 #include <hyscan-cartesian.h>
 
-#define DISTANCE_TO_METERS      0.001                         /* Коэффициент перевода размеров метки в метры. */
 #define HOVER_RADIUS            7                             /* Радиус хэндла. */
 #define DEFAULT_LINE_WIDTH      1.0
 #define DEFAULT_COLOR           "#B25D43"
@@ -251,8 +250,8 @@ hyscan_gtk_map_geomark_layer_project_location (HyScanGtkMapGeomarkLayer         
 
   /* Определяем размеры метки в логической СК. */
   scale = hyscan_gtk_map_get_value_scale (priv->map, &mark->center);
-  location->width = DISTANCE_TO_METERS * mark->width / scale;
-  location->height = DISTANCE_TO_METERS * mark->height / scale;
+  location->width = mark->width / scale;
+  location->height = mark->height / scale;
 
   /* Находим координаты центра и вершин прямоугольника. */
   hyscan_gtk_map_geo_to_value (priv->map, mark->center, &location->c2d);
@@ -753,8 +752,7 @@ hyscan_gtk_map_geomark_layer_handle_release (HyScanGtkLayerContainer  *container
 
   mark = (HyScanMark *) location->mark;
   scale = 1.0 / hyscan_gtk_map_get_value_scale (priv->map, &location->mark->center);
-  scale *= DISTANCE_TO_METERS;
-  hyscan_mark_set_size (mark, (guint) (location->width / scale), (guint) (location->height / scale));
+  hyscan_mark_set_size (mark, location->width / scale, location->height / scale);
   hyscan_mark_set_mtime (mark, g_get_real_time ());
 
   /* Обновляем модель меток. */
