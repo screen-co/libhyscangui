@@ -172,18 +172,29 @@ hyscan_gtk_map_fs_tile_source_save (HyScanGtkMapTile *tile,
                                     const gchar      *tile_path)
 {
   gchar *tile_dir;
+  gchar *tile_path_locale;
   cairo_surface_t *surface;
   cairo_status_t status;
 
   /* Создаём подкаталог для записи тайла. */
   tile_dir = g_path_get_dirname (tile_path);
-  g_mkdir_with_parents (tile_dir, 0755);
+
+#ifdef G_OS_WIN32
+  tile_path_locale = g_win32_locale_filename_from_utf8 (tile_path); 
+#else
+  tile_path_locale = g_strdup (tile_path);
+#endif
+
+  if (g_mkdir_with_parents (tile_dir, 0755) == -1)
+    g_warning ("HyScanGtkMapFsTileSource: failed to create dir %s", tile_dir);
+
   g_free (tile_dir);
 
   /* Записываем PNG-файл с тайлом. */
   surface = hyscan_gtk_map_tile_get_surface (tile);
-  status = cairo_surface_write_to_png (surface, tile_path);
+  status = cairo_surface_write_to_png (surface, tile_path_locale);
   cairo_surface_destroy (surface);
+  g_free (tile_path_locale);
 
   if (status != CAIRO_STATUS_SUCCESS)
     {
@@ -210,7 +221,7 @@ hyscan_gtk_map_fs_tile_source_fill_tile (HyScanGtkMapTileSource *source,
     return FALSE;
 
   /* Путь к файлу с тайлом. */
-  tile_path = g_strdup_printf ("%s/%d/%d/%d.png",
+  tile_path = g_strdup_printf ("%s" G_DIR_SEPARATOR_S "%d" G_DIR_SEPARATOR_S "%d" G_DIR_SEPARATOR_S "%d.png",
                                priv->source_dir,
                                hyscan_gtk_map_tile_get_zoom (tile),
                                hyscan_gtk_map_tile_get_x (tile),
