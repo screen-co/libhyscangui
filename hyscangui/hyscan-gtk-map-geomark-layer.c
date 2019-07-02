@@ -100,6 +100,7 @@ struct _HyScanGtkMapGeomarkLayerPrivate
   gchar                                   *drag_mark_id;       /* Идентификатор активной метки drag_mark. */
 
   gchar                                   *hover_id;           /* Идентификатор метки под курсором мыши */
+  gchar                                   *active_mark_id;     /* Идентификатор активной метки */
 
   gchar                                   *hover_handle_id;    /* Идентификатор метки, чей хэндл под курсором мыши. */
   HyScanGeoCartesian2D                     hover_handle;       /* Координаты хэндла. */
@@ -203,6 +204,7 @@ hyscan_gtk_map_geomark_layer_object_finalize (GObject *object)
   g_rw_lock_clear (&priv->mark_lock);
   g_free (priv->hover_handle_id);
   g_free (priv->hover_id);
+  g_free (priv->active_mark_id);
   g_clear_pointer (&priv->marks, g_hash_table_destroy);
 
   G_OBJECT_CLASS (hyscan_gtk_map_geomark_layer_parent_class)->finalize (object);
@@ -359,7 +361,11 @@ hyscan_gtk_map_geomark_layer_draw_location (HyScanGtkMapGeomarkLayer         *gm
   else
     color = &priv->color;
 
-  cairo_set_line_width (cairo, priv->line_width);
+  if (priv->active_mark_id != NULL && g_strcmp0 (location->mark_id, priv->active_mark_id) == 0)
+    cairo_set_line_width (cairo, 2.0 * priv->line_width);
+  else
+    cairo_set_line_width (cairo, priv->line_width);
+
   gdk_cairo_set_source_rgba (cairo, color);
 
   /* Контур метки. */
@@ -1080,6 +1086,33 @@ hyscan_gtk_map_geomark_layer_new (HyScanMarkModel *model)
 }
 
 /**
+ * hyscan_gtk_map_geomark_layer_mark_highlight:
+ * @wfm_layer
+ * @mark_id
+ *
+ * Выделяет метку на карте
+ */
+void
+hyscan_gtk_map_geomark_layer_mark_highlight (HyScanGtkMapGeomarkLayer *wfm_layer,
+                                             const gchar              *mark_id)
+{
+  HyScanGtkMapGeomarkLayerPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_GEOMARK_LAYER (wfm_layer));
+  priv = wfm_layer->priv;
+
+  if (priv->map == NULL)
+    return;
+
+  g_rw_lock_writer_lock (&priv->mark_lock);
+  g_free (priv->active_mark_id);
+  priv->active_mark_id = g_strdup (mark_id);
+  g_rw_lock_writer_unlock (&priv->mark_lock);
+
+  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+}
+
+/**
  * hyscan_gtk_map_wfmark_layer_mark_view:
  * @gm_layer: указатель на #HyScanGtkMapGeomarkLayer
  * @mark_id: идентификатор метки
@@ -1089,7 +1122,8 @@ hyscan_gtk_map_geomark_layer_new (HyScanMarkModel *model)
  */
 void
 hyscan_gtk_map_geomark_layer_mark_view (HyScanGtkMapGeomarkLayer *gm_layer,
-                                        const gchar              *mark_id)
+                                        const gchar              *mark_id,
+                                        gboolean                  zoom_in)
 {
   HyScanGtkMapGeomarkLayerPrivate *priv;
   HyScanGtkMapGeomarkLayerLocation *location;
@@ -1106,14 +1140,22 @@ hyscan_gtk_map_geomark_layer_mark_view (HyScanGtkMapGeomarkLayer *gm_layer,
   if (location != NULL)
     {
       gdouble x_margin, y_margin;
+      gdouble prev_scale, cur_scale;
 
       x_margin = 0.1 * location->width;
       y_margin = 0.1 * location->height;
+      gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &prev_scale, NULL);
       gtk_cifro_area_set_view (GTK_CIFRO_AREA (priv->map),
                                location->corner[0].x - x_margin, location->corner[2].x + x_margin,
                                location->corner[0].y - y_margin, location->corner[2].y + y_margin);
-      g_free (priv->hover_id);
-      priv->hover_id = g_strdup (location->mark_id);
+      gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &cur_scale, NULL);
+
+      /* Возвращаем прежний масштаб, если метка вместилась в видимую область. */
+      if (cur_scale < prev_scale && !zoom_in)
+        {
+          gtk_cifro_area_set_scale (GTK_CIFRO_AREA (priv->map), prev_scale, prev_scale,
+                                    location->c2d.x, location->c2d.y);
+        }
     }
 
   g_rw_lock_reader_unlock (&priv->mark_lock);

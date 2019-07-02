@@ -65,14 +65,19 @@ struct _HyScanGtkMapWfmarkLayerClass
 };
 
 HYSCAN_API
-GType            hyscan_gtk_map_wfmark_layer_get_type (void);
+GType            hyscan_gtk_map_wfmark_layer_get_type       (void);
 
 HYSCAN_API
-HyScanGtkLayer * hyscan_gtk_map_wfmark_layer_new      (HyScanMarkLocModel       *model);
+HyScanGtkLayer * hyscan_gtk_map_wfmark_layer_new            (HyScanMarkLocModel       *model);
 
 HYSCAN_API
-void             hyscan_gtk_map_wfmark_layer_mark_view (HyScanGtkMapWfmarkLayer *wfm_layer,
-                                                        const gchar             *mark_id);
+void             hyscan_gtk_map_wfmark_layer_mark_highlight (HyScanGtkMapWfmarkLayer *wfm_layer,
+                                                             const gchar             *mark_id);
+
+HYSCAN_API
+void             hyscan_gtk_map_wfmark_layer_mark_view      (HyScanGtkMapWfmarkLayer *wfm_layer,
+                                                             const gchar             *mark_id,
+                                                             gboolean                 zoom_in);
 
 G_END_DECLS
 

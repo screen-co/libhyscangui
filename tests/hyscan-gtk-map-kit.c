@@ -666,9 +666,9 @@ on_marks_activated (GtkTreeView        *treeview,
 
     gtk_tree_model_get (model, &iter, MARK_ID_COLUMN, &mark_id, MARK_TYPE_COLUMN, &mark_type, -1);
     if (mark_type == HYSCAN_MARK_WATERFALL && priv->wfmark_layer != NULL)
-      hyscan_gtk_map_wfmark_layer_mark_view (HYSCAN_GTK_MAP_WFMARK_LAYER (priv->wfmark_layer), mark_id);
+      hyscan_gtk_map_wfmark_layer_mark_view (HYSCAN_GTK_MAP_WFMARK_LAYER (priv->wfmark_layer), mark_id, FALSE);
     else if (mark_type == HYSCAN_MARK_GEO && priv->geomark_layer != NULL)
-      hyscan_gtk_map_geomark_layer_mark_view (HYSCAN_GTK_MAP_GEOMARK_LAYER (priv->geomark_layer), mark_id);
+      hyscan_gtk_map_geomark_layer_mark_view (HYSCAN_GTK_MAP_GEOMARK_LAYER (priv->geomark_layer), mark_id, FALSE);
 
     g_free (mark_id);
   }

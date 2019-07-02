@@ -42,7 +42,7 @@
  * указанного проекта.
  *
  * - hyscan_gtk_map_wfmark_layer_new() - создание нового слоя;
- * - hyscan_gtk_map_wfmark_layer_mark_view() - выделение указанной метки.
+ * - hyscan_gtk_map_wfmark_layer_mark_view() - переход к указанной метке.
  *
  * Стиль слоя может быть настроен с помощью ini-файла:
  * - "mark-color" - цвет контура метки
@@ -100,7 +100,8 @@ struct _HyScanGtkMapWfmarkLayerPrivate
   GRWLock                                mark_lock;       /* Блокировка данных по меткам. .*/
   GHashTable                            *marks;           /* Хэш-таблица меток #HyScanGtkMapWfmarkLayerLocation. */
 
-  const HyScanGtkMapWfmarkLayerLocation *location_hover;  /* Метка, над которой находится курсор мышин. */
+  const HyScanGtkMapWfmarkLayerLocation *location_hover;  /* Метка, над которой находится курсор мыши. */
+  gchar                                 *active_mark_id;  /* Выбранная метка. */
 
   /* Стиль отображения. */
   GdkRGBA                                color_default;   /* Цвет обводки меток. */
@@ -197,6 +198,7 @@ hyscan_gtk_map_wfmark_layer_object_finalize (GObject *object)
 
   g_hash_table_unref (priv->marks);
   g_object_unref (priv->model);
+  g_free (priv->active_mark_id);
 
   G_OBJECT_CLASS (hyscan_gtk_map_wfmark_layer_parent_class)->finalize (object);
 }
@@ -321,6 +323,7 @@ hyscan_gtk_map_wfmark_layer_draw (HyScanGtkMap            *map,
   HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
   GHashTableIter iter;
   HyScanGtkMapWfmarkLayerLocation *location;
+  gchar *mark_id;
 
   if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (wfm_layer)))
     return;
@@ -328,7 +331,7 @@ hyscan_gtk_map_wfmark_layer_draw (HyScanGtkMap            *map,
   g_rw_lock_reader_lock (&priv->mark_lock);
 
   g_hash_table_iter_init (&iter, priv->marks);
-  while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &location))
+  while (g_hash_table_iter_next (&iter, (gpointer *) &mark_id, (gpointer *) &location))
     {
       gdouble x, y;
       gdouble width, height;
@@ -382,7 +385,11 @@ hyscan_gtk_map_wfmark_layer_draw (HyScanGtkMap            *map,
       }
 #endif
 
-      cairo_set_line_width (cairo, priv->line_width);
+      if (mark_id != NULL && g_strcmp0 (mark_id, priv->active_mark_id) == 0)
+        cairo_set_line_width (cairo, 2.0 * priv->line_width);
+      else
+        cairo_set_line_width (cairo, priv->line_width);
+
       if (priv->location_hover == location)
         gdk_cairo_set_source_rgba (cairo, &priv->color_hover);
       else
@@ -603,17 +610,39 @@ hyscan_gtk_map_wfmark_layer_new (HyScanMarkLocModel *model)
                        NULL);
 }
 
+void
+hyscan_gtk_map_wfmark_layer_mark_highlight (HyScanGtkMapWfmarkLayer *wfm_layer,
+                                            const gchar             *mark_id)
+{
+  HyScanGtkMapWfmarkLayerPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_WFMARK_LAYER (wfm_layer));
+  priv = wfm_layer->priv;
+
+  if (priv->map == NULL)
+    return;
+
+  g_rw_lock_writer_lock (&priv->mark_lock);
+  g_free (priv->active_mark_id);
+  priv->active_mark_id = g_strdup (mark_id);
+  g_rw_lock_writer_unlock (&priv->mark_lock);
+
+  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+}
+
 /**
  * hyscan_gtk_map_wfmark_layer_mark_view:
  * @wfm_layer
  * @mark_id
+ * @keep_scale
  *
  * Перемещает область видимости карты в положение метки @mark_id и выделяет
  * эту метку.
  */
 void
 hyscan_gtk_map_wfmark_layer_mark_view (HyScanGtkMapWfmarkLayer *wfm_layer,
-                                       const gchar             *mark_id)
+                                       const gchar             *mark_id,
+                                       gboolean                 zoom_in)
 {
   HyScanGtkMapWfmarkLayerPrivate *priv;
   HyScanGtkMapWfmarkLayerLocation *location;
@@ -629,10 +658,20 @@ hyscan_gtk_map_wfmark_layer_mark_view (HyScanGtkMapWfmarkLayer *wfm_layer,
   location = g_hash_table_lookup (priv->marks, mark_id);
   if (location != NULL)
     {
+      gdouble prev_scale;
+
+      gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &prev_scale, NULL);
       gtk_cifro_area_set_view (GTK_CIFRO_AREA (priv->map),
                                location->extent_from.x, location->extent_to.x,
                                location->extent_from.y, location->extent_to.y);
-      priv->location_hover = location;
+
+      /* Возвращаем прежний масштаб. */
+      if (!zoom_in)
+        {
+          gtk_cifro_area_set_scale (GTK_CIFRO_AREA (priv->map), prev_scale, prev_scale,
+                                    location->center_c2d.x, location->center_c2d.y);
+        }
+
     }
 
   g_rw_lock_reader_unlock (&priv->mark_lock);
