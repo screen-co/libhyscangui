@@ -300,7 +300,7 @@ hyscan_map_profile_new_default (const gchar *cache_dir)
   gchar *cache_dirs[]  = {"osm", NULL};
 
   profile = hyscan_map_profile_new (cache_dir);
-  hyscan_gtk_map_profile_set_params (profile, "Default", url_formats, cache_dirs, PROJ_WEBMERC, 0, 19);
+  hyscan_gtk_map_profile_set_params (profile, "OpenStreetMap", url_formats, cache_dirs, PROJ_WEBMERC, 0, 19);
 
   return profile;
 }
