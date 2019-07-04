@@ -503,6 +503,8 @@ hyscan_gtk_waterfall_mark_model_changed (HyScanMarkModel        *model,
   GHashTable *marks;
 
   marks = hyscan_mark_model_get (model);
+  if (marks == NULL)
+    return;
 
   /* Переписываем метки в private. */
   g_mutex_lock (&priv->mmodel_lock);
