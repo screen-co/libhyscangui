@@ -74,7 +74,7 @@
 #define KEY_CHANNEL_STARBOARD "/channel-starboard"
 
 #define STRAIGHT_LINE_MAX_ANGLE 15.0   /* Максимальное изменение курса на прямолинейном участке, градусы. */
-#define STRAIGHT_LINE_MIN_DIST  20.0   /* Минимальная длина прямолинейного участка, метры. */
+#define STRAIGHT_LINE_MIN_DIST  30.0   /* Минимальная длина прямолинейного участка, метры. */
 
 /* Номера каналов по умолчанию. */
 #define DEFAULT_CHANNEL_RMC       1
@@ -118,6 +118,7 @@ typedef struct {
   gdouble                         dist;             /* Расстояние от начала галса. */
   gdouble                         l_dist;           /* Дальность по левому борту, единицы проекции. */
   gdouble                         r_dist;           /* Дальность по правому борту, единицы проекции. */
+  gdouble                         scale;            /* Масштаб перевода из метров в логические координаты. */
   gboolean                        straight;         /* Признак того, что точка находится на прямолинейном участке. */
 } HyScanGtkMapTrackLayerPoint;
 
@@ -688,42 +689,51 @@ exit:
 
 /* Определяет, находится ли точка на прямолинейном отрезке. */
 static gboolean
-hyscan_gtk_map_track_is_straight (GList   *l_point,
-                                  gdouble  scale)
+hyscan_gtk_map_track_is_straight (GList *l_point)
 {
   HyScanGtkMapTrackLayerPoint *point = l_point->data;
-  gdouble distance = 0.0;
-  gdouble track_delta = 0.0;
+  gdouble prev_dist, next_dist;
   gdouble min_distance;
+  gboolean is_straight = TRUE;
   GList *list;
 
-  min_distance = STRAIGHT_LINE_MIN_DIST / scale;
+  min_distance = STRAIGHT_LINE_MIN_DIST / point->scale;
 
   /* Смотрим предыдущие строки. */
   list = l_point->prev;
-  while (distance < min_distance && list != NULL)
+  prev_dist = 0.0;
+  while (prev_dist < min_distance && list != NULL)
     {
       HyScanGtkMapTrackLayerPoint *point_prev = list->data;
 
-      track_delta = MAX (track_delta, ABS (point->geo.h - point_prev->geo.h));
+      if (ABS (point->geo.h - point_prev->geo.h) > STRAIGHT_LINE_MAX_ANGLE)
+        {
+          is_straight = FALSE;
+          break;
+        }
 
-      distance = ABS (point->dist - point_prev->dist);
+      prev_dist = ABS (point->dist - point_prev->dist);
       list = list->prev;
     }
 
   /* Смотрим следующие строки. */
   list = l_point->next;
-  while (distance < min_distance && list != NULL)
+  next_dist = 0.0;
+  while (next_dist < min_distance && list != NULL)
     {
       HyScanGtkMapTrackLayerPoint *point_next = list->data;
 
-      track_delta = MAX (track_delta, ABS (point->geo.h - point_next->geo.h));
+      if (ABS (point->geo.h - point_next->geo.h) > STRAIGHT_LINE_MAX_ANGLE)
+        {
+          is_straight = FALSE;
+          break;
+        }
 
-      distance = ABS (point->dist - point_next->dist);
+      next_dist = ABS (point->dist - point_next->dist);
       list = list->next;
     }
 
-  return track_delta < STRAIGHT_LINE_MAX_ANGLE && distance >= min_distance;
+  return is_straight || (next_dist + prev_dist >= min_distance);
 }
 
 /* Вычисляет координаты галса в СК картографической проекции.
@@ -741,7 +751,6 @@ hyscan_gtk_map_track_cartesian (HyScanGtkMapTrack *track,
     {
       HyScanGtkMapTrackLayerPoint *point, *neighbour_point;
       GList *neighbour;
-      gdouble scale;
       gdouble angle;
       gdouble angle_sin, angle_cos;
 
@@ -762,21 +771,25 @@ hyscan_gtk_map_track_cartesian (HyScanGtkMapTrack *track,
           point->dist = 0;
         }
 
-      /* Масштаб перевода из метров в логические координаты. */
-      scale = hyscan_geo_projection_get_scale (priv->projection, point->geo);
-
       /* Правый и левый борт. */
       angle = point->geo.h / 180.0 * G_PI;
       angle_sin = sin (angle);
       angle_cos = cos (angle);
-      point->r_dist = point->r_width / scale;
-      point->l_dist = point->l_width / scale;
+      point->scale = hyscan_geo_projection_get_scale (priv->projection, point->geo);
+      point->r_dist = point->r_width / point->scale;
+      point->l_dist = point->l_width / point->scale;
       point->r_c2d.x = point->c2d.x + point->r_dist * angle_cos;
       point->r_c2d.y = point->c2d.y - point->r_dist * angle_sin;
       point->l_c2d.x = point->c2d.x - point->l_dist * angle_cos;
       point->l_c2d.y = point->c2d.y + point->l_dist * angle_sin;
-      point->straight = hyscan_gtk_map_track_is_straight (point_l, scale);
     }
+
+    for (point_l = points; point_l != NULL; point_l = reverse ? point_l->prev : point_l->next)
+      {
+        HyScanGtkMapTrackLayerPoint *point = point_l->data;
+
+        point->straight = hyscan_gtk_map_track_is_straight (point_l);
+      }
 }
 
 /* Вычисляет границы области, внутри которой размещается часть галса points. */
