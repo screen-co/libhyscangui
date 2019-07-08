@@ -218,7 +218,7 @@ hyscan_gtk_map_wfmark_layer_project_location (HyScanGtkMapWfmarkLayer         *w
     return;
 
   /* Переводим из метров в единицы картографической проекции. */
-  scale = hyscan_gtk_map_get_value_scale (priv->map, &location->mloc->center_geo);
+  scale = hyscan_gtk_map_get_value_scale (priv->map, location->mloc->center_geo);
   location->width = location->mloc->mark->width / scale;
   location->height = location->mloc->mark->height / scale;
   offset = location->mloc->offset / scale;

@@ -116,7 +116,7 @@ create_map (HyScanGtkMapKit *kit)
   gdouble *scales;
   gint scales_len;
 
-  map = HYSCAN_GTK_MAP (hyscan_gtk_map_new (&priv->center));
+  map = HYSCAN_GTK_MAP (hyscan_gtk_map_new (priv->center));
 
   /* Устанавливаем допустимые масштабы. */
   scales = hyscan_gtk_map_create_scales2 (1.0 / 1000, HYSCAN_GTK_MAP_EQUATOR_LENGTH / 1000, 4, &scales_len);

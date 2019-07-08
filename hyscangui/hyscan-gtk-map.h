@@ -88,7 +88,7 @@ HYSCAN_API
 GType                  hyscan_gtk_map_get_type         (void);
 
 HYSCAN_API
-GtkWidget *            hyscan_gtk_map_new              (HyScanGeoGeodetic      *center);
+GtkWidget *            hyscan_gtk_map_new              (HyScanGeoGeodetic       center);
 
 HYSCAN_API
 void                   hyscan_gtk_map_set_projection   (HyScanGtkMap           *map,
@@ -119,7 +119,7 @@ gdouble                hyscan_gtk_map_get_scale       (HyScanGtkMap            *
 
 HYSCAN_API
 gdouble                hyscan_gtk_map_get_value_scale (HyScanGtkMap            *map,
-                                                       const HyScanGeoGeodetic *coord);
+                                                       HyScanGeoGeodetic        coord);
 
 HYSCAN_API
 void                   hyscan_gtk_map_set_scales_meter(HyScanGtkMap            *map,

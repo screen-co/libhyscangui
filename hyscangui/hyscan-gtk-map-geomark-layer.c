@@ -251,7 +251,7 @@ hyscan_gtk_map_geomark_layer_project_location (HyScanGtkMapGeomarkLayer         
     return;
 
   /* Определяем размеры метки в логической СК. */
-  scale = hyscan_gtk_map_get_value_scale (priv->map, &mark->center);
+  scale = hyscan_gtk_map_get_value_scale (priv->map, mark->center);
   location->width = mark->width / scale;
   location->height = mark->height / scale;
 
@@ -757,7 +757,7 @@ hyscan_gtk_map_geomark_layer_handle_release (HyScanGtkLayerContainer  *container
   hyscan_mark_geo_set_center (location->mark, center);
 
   mark = (HyScanMark *) location->mark;
-  scale = 1.0 / hyscan_gtk_map_get_value_scale (priv->map, &location->mark->center);
+  scale = 1.0 / hyscan_gtk_map_get_value_scale (priv->map, location->mark->center);
   hyscan_mark_set_size (mark, location->width / scale, location->height / scale);
   hyscan_mark_set_mtime (mark, g_get_real_time ());
 
