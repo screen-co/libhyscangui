@@ -38,7 +38,7 @@
 #include <glib-object.h>
 #include <cairo.h>
 #include <hyscan-api.h>
-#include <hyscan-gtk-map-tile.h>
+#include <hyscan-map-tile.h>
 
 G_BEGIN_DECLS
 
@@ -61,10 +61,10 @@ struct _HyScanMapTileSourceInterface
   GTypeInterface           g_iface;
 
   gboolean               (*fill_tile)               (HyScanMapTileSource        *source,
-                                                     HyScanGtkMapTile           *tile,
+                                                     HyScanMapTile              *tile,
                                                      GCancellable               *cancellable);
 
-  HyScanGtkMapTileGrid * (*get_grid)                (HyScanMapTileSource        *source);
+  HyScanMapTileGrid *    (*get_grid)                (HyScanMapTileSource        *source);
 
   HyScanGeoProjection *  (*get_projection)          (HyScanMapTileSource        *source);
 };
@@ -73,15 +73,15 @@ HYSCAN_API
 GType                   hyscan_map_tile_source_get_type                  (void);
 
 HYSCAN_API
-HyScanGtkMapTileGrid *  hyscan_map_tile_source_get_grid                  (HyScanMapTileSource *source);
+HyScanMapTileGrid *     hyscan_map_tile_source_get_grid                  (HyScanMapTileSource *source);
 
 HYSCAN_API
 HyScanGeoProjection *   hyscan_map_tile_source_get_projection            (HyScanMapTileSource *source);
 
 HYSCAN_API
 gboolean                hyscan_map_tile_source_fill                      (HyScanMapTileSource *source,
-                                                                          HyScanGtkMapTile     *tile,
-                                                                          GCancellable         *cancellable);
+                                                                          HyScanMapTile       *tile,
+                                                                          GCancellable        *cancellable);
 
 
 G_END_DECLS

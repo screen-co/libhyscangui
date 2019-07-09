@@ -61,7 +61,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-map-geomark-layer.c
 
              #[[ Загрузка тайлов ]]
-             hyscan-gtk-map-tile.c
+             hyscan-map-tile.c
              hyscan-map-tile-source.c
              hyscan-map-tile-source-web.c
              hyscan-map-tile-source-file.c

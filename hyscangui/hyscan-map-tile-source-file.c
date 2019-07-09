@@ -71,12 +71,12 @@ static void       hyscan_map_tile_source_file_set_property             (GObject 
                                                                         const GValue                    *value,
                                                                         GParamSpec                      *pspec);
 static void       hyscan_map_tile_source_file_object_finalize          (GObject                         *object);
-static gboolean   hyscan_map_tile_source_file_fill_from_file           (HyScanGtkMapTile                *tile,
+static gboolean   hyscan_map_tile_source_file_fill_from_file           (HyScanMapTile                   *tile,
                                                                         const gchar                     *tile_path);
 static gboolean   hyscan_map_tile_source_file_fill_tile                (HyScanMapTileSource             *source,
-                                                                        HyScanGtkMapTile                *tile,
+                                                                        HyScanMapTile                   *tile,
                                                                         GCancellable                    *cancellable);
-static gboolean   hyscan_map_tile_source_file_save                     (HyScanGtkMapTile                *tile,
+static gboolean   hyscan_map_tile_source_file_save                     (HyScanMapTile                *tile,
                                                                         const gchar                     *tile_path);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanMapTileSourceFile, hyscan_map_tile_source_file, G_TYPE_OBJECT,
@@ -146,8 +146,8 @@ hyscan_map_tile_source_file_object_finalize (GObject *object)
 
 /* Загружает поверхность тайла из файла tile_path. */
 static gboolean
-hyscan_map_tile_source_file_fill_from_file (HyScanGtkMapTile *tile,
-                                            const gchar      *tile_path)
+hyscan_map_tile_source_file_fill_from_file (HyScanMapTile *tile,
+                                            const gchar   *tile_path)
 {
   GdkPixbuf *pixbuf;
   gboolean success;
@@ -160,7 +160,7 @@ hyscan_map_tile_source_file_fill_from_file (HyScanGtkMapTile *tile,
   if (pixbuf == NULL)
     return FALSE;
 
-  success = hyscan_gtk_map_tile_set_pixbuf (tile, pixbuf);
+  success = hyscan_map_tile_set_pixbuf (tile, pixbuf);
   g_object_unref (pixbuf);
 
   return success;
@@ -168,8 +168,8 @@ hyscan_map_tile_source_file_fill_from_file (HyScanGtkMapTile *tile,
 
 /* Сохраняет файл с тайлом на диск. */
 static gboolean
-hyscan_map_tile_source_file_save (HyScanGtkMapTile *tile,
-                                  const gchar      *tile_path)
+hyscan_map_tile_source_file_save (HyScanMapTile *tile,
+                                  const gchar   *tile_path)
 {
   gchar *tile_dir;
   gchar *tile_path_locale;
@@ -191,7 +191,7 @@ hyscan_map_tile_source_file_save (HyScanGtkMapTile *tile,
   g_free (tile_dir);
 
   /* Записываем PNG-файл с тайлом. */
-  surface = hyscan_gtk_map_tile_get_surface (tile);
+  surface = hyscan_map_tile_get_surface (tile);
   status = cairo_surface_write_to_png (surface, tile_path_locale);
   cairo_surface_destroy (surface);
   g_free (tile_path_locale);
@@ -205,10 +205,11 @@ hyscan_map_tile_source_file_save (HyScanGtkMapTile *tile,
   return TRUE;
 }
 
-/* Ищет указанный тайл и загружает его изображение. */
+/* Ищет указанный тайл и загружает его изображение.
+   Реализация #HyScanMapTileSourceInterface.fill_tile. */
 static gboolean
 hyscan_map_tile_source_file_fill_tile (HyScanMapTileSource *source,
-                                       HyScanGtkMapTile    *tile,
+                                       HyScanMapTile       *tile,
                                        GCancellable        *cancellable)
 {
   HyScanMapTileSourceFile *fsource = HYSCAN_MAP_TILE_SOURCE_FILE (source);
@@ -223,9 +224,9 @@ hyscan_map_tile_source_file_fill_tile (HyScanMapTileSource *source,
   /* Путь к файлу с тайлом. */
   tile_path = g_strdup_printf ("%s" G_DIR_SEPARATOR_S "%d" G_DIR_SEPARATOR_S "%d" G_DIR_SEPARATOR_S "%d.png",
                                priv->source_dir,
-                               hyscan_gtk_map_tile_get_zoom (tile),
-                               hyscan_gtk_map_tile_get_x (tile),
-                               hyscan_gtk_map_tile_get_y (tile));
+                               hyscan_map_tile_get_zoom (tile),
+                               hyscan_map_tile_get_x (tile),
+                               hyscan_map_tile_get_y (tile));
 
   /* Пробуем загрузить из файла. */
   success = hyscan_map_tile_source_file_fill_from_file (tile, tile_path);
@@ -246,7 +247,8 @@ hyscan_map_tile_source_file_fill_tile (HyScanMapTileSource *source,
   return success;
 }
 
-static HyScanGtkMapTileGrid *
+/* Реализация #HyScanMapTileSourceInterface.get_grid. */
+static HyScanMapTileGrid *
 hyscan_map_tile_source_file_get_grid (HyScanMapTileSource *source)
 {
   HyScanMapTileSourceFilePrivate *priv = HYSCAN_MAP_TILE_SOURCE_FILE (source)->priv;
@@ -256,6 +258,7 @@ hyscan_map_tile_source_file_get_grid (HyScanMapTileSource *source)
   return hyscan_map_tile_source_get_grid (priv->fallback_source);
 }
 
+/* Реализация #HyScanMapTileSourceInterface.get_projection. */
 static HyScanGeoProjection *
 hyscan_map_tile_source_file_get_projection (HyScanMapTileSource *source)
 {
@@ -304,7 +307,17 @@ hyscan_map_tile_source_file_new (const gchar         *dir,
 /**
  * hyscan_map_tile_source_file_fb_enable:
  * @fs_source: указатель на #HyScanMapTileSourceFile
- * @enable: признак того, надо можно ли использовать fallback-источник
+ * @enable: признак того, можно ли использовать fallback-источник
+ *
+ * Определяет возможность использования запасного источника "fallback-source",
+ * указанного при создании объекта.
+ *
+ * Если @enable = %FALSE, то при отстуствии файла с запрошенным тайлом
+ * #HyScanMapTileSourceFile не будет обращаться к запасному источнику и вернёт
+ * %FALSE.
+ *
+ * Функция позволяет ограничить доступ к запасному истоничку, например, если его
+ * использование связано с какими-либо затратами.
  */
 void
 hyscan_map_tile_source_file_fb_enable (HyScanMapTileSourceFile *fs_source,

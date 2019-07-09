@@ -88,7 +88,7 @@ typedef struct
   guint                     status;            /* Статус задачи. */
   GCond                     cond;              /* Сигнализатор изменения статуса. */
   GMutex                    mutex;             /* Мутекс статуса. */
-  HyScanGtkMapTile         *tile;              /* Тайл, который надо заполнить. */
+  HyScanMapTile            *tile;              /* Тайл, который надо заполнить. */
   gchar                    *url;               /* URL тайла. */
   GCancellable             *cancellable;       /* Объект для отмена задачи. */
   GCancellable             *soup_cancellable;  /* Объект для отмены, передаваемый в libsoup. */
@@ -127,7 +127,7 @@ struct _HyScanMapTileSourceWebPrivate
   guint                           min_zoom;      /* Минимальный доступный зум (уровень детализации). */
   guint                           max_zoom;      /* Максимальный доступный зум (уровень детализации). */
   guint                           tile_size;     /* Размер тайла, пикселы. */
-  HyScanGtkMapTileGrid           *grid;          /* Параметры тайловой сетки. */
+  HyScanMapTileGrid              *grid;          /* Параметры тайловой сетки. */
   HyScanGeoProjection            *projection;    /* Картографическая проекция источника тайлов. */
 
   GThreadPool                    *thread_pool;   /* Пул потоков, обрабатывающих задачи по загрузке тайлов. */
@@ -141,14 +141,14 @@ static void           hyscan_map_tile_source_web_set_property        (GObject   
 static void           hyscan_map_tile_source_web_object_constructed  (GObject                        *object);
 static void           hyscan_map_tile_source_web_object_finalize     (GObject                        *object);
 static gboolean       hyscan_map_tile_source_web_fill_tile           (HyScanMapTileSource            *source,
-                                                                      HyScanGtkMapTile               *tile,
+                                                                      HyScanMapTile                  *tile,
                                                                       GCancellable                   *cancellable);
 static void           hyscan_map_tile_source_web_set_format          (HyScanMapTileSourceWebPrivate  *priv,
                                                                       const gchar                    *url_tpl);
-static gchar *        hyscan_map_tile_source_web_get_quad            (HyScanGtkMapTile               *tile);
+static gchar *        hyscan_map_tile_source_web_get_quad            (HyScanMapTile                  *tile);
 static HyScanMapTileSourceWebTask *
                       hyscan_map_tile_source_web_task_new            (HyScanMapTileSourceWebPrivate *priv,
-                                                                      HyScanGtkMapTile              *tile,
+                                                                      HyScanMapTile                 *tile,
                                                                       GCancellable                  *cancellable);
 static gchar *        hyscan_map_tile_source_web_replace             (const gchar                   *url_tpl,
                                                                       gchar                        **find_replace);
@@ -293,7 +293,7 @@ hyscan_map_tile_source_web_task_do (gpointer data,
     }
 
   /* Устанавливаем загруженную поверхность в тайл. */
-  if (hyscan_gtk_map_tile_set_pixbuf (task->tile, pixbuf))
+  if (hyscan_map_tile_set_pixbuf (task->tile, pixbuf))
     task->status = STATUS_OK;
   else
     task->status = STATUS_FAILED;
@@ -338,8 +338,8 @@ hyscan_map_tile_source_web_object_constructed (GObject *object)
       nums[zoom - min_zoom] = 1u << zoom;
 
     hyscan_geo_projection_get_limits (priv->projection, &min_x, &max_x, &min_y, &max_y);
-    priv->grid = hyscan_gtk_map_tile_grid_new (min_x, max_x, min_y, max_y, priv->min_zoom, priv->tile_size);
-    hyscan_gtk_map_tile_grid_set_xnums (priv->grid, nums, nums_len);
+    priv->grid = hyscan_map_tile_grid_new (min_x, max_x, min_y, max_y, priv->min_zoom, priv->tile_size);
+    hyscan_map_tile_grid_set_xnums (priv->grid, nums, nums_len);
   }
 
   priv->thread_pool = g_thread_pool_new (hyscan_map_tile_source_web_task_do, nw_source, -1, FALSE, NULL);
@@ -434,7 +434,7 @@ hyscan_map_tile_source_web_set_format (HyScanMapTileSourceWebPrivate *priv,
 /* Гененрирует quadkey для bing maps. Для удаления g_free.
  * https://docs.microsoft.com/en-us/bingmaps/articles/bing-maps-tile-system#sample-code. */
 static gchar *
-hyscan_map_tile_source_web_get_quad (HyScanGtkMapTile *tile)
+hyscan_map_tile_source_web_get_quad (HyScanMapTile *tile)
 {
   guint x;
   guint y;
@@ -444,9 +444,9 @@ hyscan_map_tile_source_web_get_quad (HyScanGtkMapTile *tile)
 
   gchar *quad_key;
 
-  zoom = hyscan_gtk_map_tile_get_zoom (tile);
-  x = hyscan_gtk_map_tile_get_x (tile);
-  y = hyscan_gtk_map_tile_get_y (tile);
+  zoom = hyscan_map_tile_get_zoom (tile);
+  x = hyscan_map_tile_get_x (tile);
+  y = hyscan_map_tile_get_y (tile);
 
   quad_key = g_new (gchar, zoom + 1);
   for (i = zoom; i > 0; i--)
@@ -490,7 +490,7 @@ hyscan_map_tile_source_web_propagate_cancel (GCancellable               *cancell
 /* Формирует URL тайла и помещает его в буфер url длины max_length. */
 static HyScanMapTileSourceWebTask *
 hyscan_map_tile_source_web_task_new (HyScanMapTileSourceWebPrivate *priv,
-                                     HyScanGtkMapTile              *tile,
+                                     HyScanMapTile                 *tile,
                                      GCancellable                  *cancellable)
 {
   gchar *quad_key;
@@ -502,9 +502,9 @@ hyscan_map_tile_source_web_task_new (HyScanMapTileSourceWebPrivate *priv,
   switch (priv->url_type)
     {
     case URL_FORMAT_XYZ:
-      x = hyscan_gtk_map_tile_get_x (tile);
-      y = priv->inverse_y ? hyscan_gtk_map_tile_inv_y (tile) : hyscan_gtk_map_tile_get_y (tile);
-      z = hyscan_gtk_map_tile_get_zoom (tile);
+      x = hyscan_map_tile_get_x (tile);
+      y = priv->inverse_y ? hyscan_map_tile_inv_y (tile) : hyscan_map_tile_get_y (tile);
+      z = hyscan_map_tile_get_zoom (tile);
       url = g_strdup_printf (priv->url_format, x, y, z);
       break;
 
@@ -550,7 +550,7 @@ hyscan_map_tile_source_web_task_new (HyScanMapTileSourceWebPrivate *priv,
 /* Ищет указанный тайл и загружает его. */
 static gboolean
 hyscan_map_tile_source_web_fill_tile (HyScanMapTileSource *source,
-                                      HyScanGtkMapTile    *tile,
+                                      HyScanMapTile       *tile,
                                       GCancellable        *cancellable)
 {
   HyScanMapTileSourceWeb *nw_source = HYSCAN_MAP_TILE_SOURCE_WEB (source);
@@ -586,7 +586,7 @@ hyscan_map_tile_source_web_fill_tile (HyScanMapTileSource *source,
 }
 
 /* Реализация функции get_grid интерфейса HyScanMapTileSource.*/
-static HyScanGtkMapTileGrid *
+static HyScanMapTileGrid *
 hyscan_map_tile_source_web_get_grid (HyScanMapTileSource *source)
 {
   HyScanMapTileSourceWebPrivate *priv;

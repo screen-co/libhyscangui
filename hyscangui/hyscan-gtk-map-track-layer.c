@@ -127,7 +127,7 @@ static void     hyscan_gtk_map_track_layer_set_property             (GObject    
 static void     hyscan_gtk_map_track_layer_object_constructed       (GObject                        *object);
 static void     hyscan_gtk_map_track_layer_object_finalize          (GObject                        *object);
 static void     hyscan_gtk_map_track_layer_fill_tile                (HyScanGtkMapTiledLayer         *tiled_layer,
-                                                                     HyScanGtkMapTile               *tile);
+                                                                     HyScanMapTile                  *tile);
 static void     hyscan_gtk_map_track_layer_list_changed             (HyScanGtkMapTrackLayer         *track_layer);
 static HyScanGtkMapTrack * hyscan_gtk_map_track_layer_get_track     (HyScanGtkMapTrackLayer         *track_layer,
                                                                      const gchar                    *track_name,
@@ -271,7 +271,7 @@ hyscan_gtk_map_track_layer_list_changed (HyScanGtkMapTrackLayer *track_layer)
 
 static void
 hyscan_gtk_map_track_layer_fill_tile (HyScanGtkMapTiledLayer *tiled_layer,
-                                      HyScanGtkMapTile       *tile)
+                                      HyScanMapTile          *tile)
 {
   HyScanGtkMapTrackLayer *track_layer = HYSCAN_GTK_MAP_TRACK_LAYER (tiled_layer);
   HyScanGtkMapTrackLayerPrivate *priv = track_layer->priv;
@@ -284,9 +284,9 @@ hyscan_gtk_map_track_layer_fill_tile (HyScanGtkMapTiledLayer *tiled_layer,
   cairo_surface_t *surface;
   guint tile_size;
 
-  tile_size = hyscan_gtk_map_tile_get_size (tile);
-  hyscan_gtk_map_tile_get_bounds (tile, &from, &to);
-  scale = hyscan_gtk_map_tile_get_scale (tile);
+  tile_size = hyscan_map_tile_get_size (tile);
+  hyscan_map_tile_get_bounds (tile, &from, &to);
+  scale = hyscan_map_tile_get_scale (tile);
 
   surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, tile_size, tile_size);
   cairo = cairo_create (surface);
@@ -304,7 +304,7 @@ hyscan_gtk_map_track_layer_fill_tile (HyScanGtkMapTiledLayer *tiled_layer,
     }
   g_rw_lock_reader_unlock (&priv->a_lock);
 
-  hyscan_gtk_map_tile_set_surface (tile, surface);
+  hyscan_map_tile_set_surface (tile, surface);
 
   cairo_surface_destroy (surface);
   cairo_destroy (cairo);

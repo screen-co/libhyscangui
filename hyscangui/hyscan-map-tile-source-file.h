@@ -66,12 +66,12 @@ HYSCAN_API
 GType                      hyscan_map_tile_source_file_get_type  (void);
 
 HYSCAN_API
-HyScanMapTileSourceFile * hyscan_map_tile_source_file_new       (const gchar              *dir,
-                                                                 HyScanMapTileSource      *fb_source);
+HyScanMapTileSourceFile * hyscan_map_tile_source_file_new        (const gchar              *dir,
+                                                                  HyScanMapTileSource      *fb_source);
 
 HYSCAN_API
-void                       hyscan_map_tile_source_file_fb_enable (HyScanMapTileSourceFile *fs_source,
-                                                                  gboolean                 enable);
+void                       hyscan_map_tile_source_file_fb_enable (HyScanMapTileSourceFile  *fs_source,
+                                                                  gboolean                  enable);
 
 G_END_DECLS
 

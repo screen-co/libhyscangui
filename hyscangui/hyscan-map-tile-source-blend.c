@@ -62,7 +62,7 @@ struct _HyScanMapTileSourceBlendPrivate
   GList                             *sources;      /* Список источников тайлов. */
 
   HyScanGeoProjection               *projection;   /* Используемая картографическая проекция. */
-  HyScanGtkMapTileGrid              *grid;         /* Параметры тайловой сетки. */
+  HyScanMapTileGrid                 *grid;         /* Параметры тайловой сетки. */
   guint                              min_zoom;     /* Минимальный допустимый масштаб. */
   guint                              max_zoom;     /* Максимальный допустимый масштаб. */
 };
@@ -103,9 +103,10 @@ hyscan_map_tile_source_blend_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_map_tile_source_blend_parent_class)->finalize (object);
 }
 
+/* Реализация #HyScanMapTileSourceInterface.fill_tile. */
 static gboolean
 hyscan_map_tile_source_blend_fill_tile (HyScanMapTileSource *source,
-                                        HyScanGtkMapTile    *tile,
+                                        HyScanMapTile       *tile,
                                         GCancellable        *cancellable)
 {
   HyScanMapTileSourceBlend *blend = HYSCAN_MAP_TILE_SOURCE_BLEND (source);
@@ -126,7 +127,7 @@ hyscan_map_tile_source_blend_fill_tile (HyScanMapTileSource *source,
       if (fill_status == FALSE)
         continue;
 
-      surface = hyscan_gtk_map_tile_get_surface (tile);
+      surface = hyscan_map_tile_get_surface (tile);
       if (cairo == NULL)
         {
           cairo = cairo_create (surface);
@@ -145,7 +146,7 @@ hyscan_map_tile_source_blend_fill_tile (HyScanMapTileSource *source,
     return FALSE;
 
   /* Устанавливаем полученное изображение тайла. */
-  hyscan_gtk_map_tile_set_surface (tile, cairo_get_target (cairo));
+  hyscan_map_tile_set_surface (tile, cairo_get_target (cairo));
 
   /* Освобождаем память. */
   cairo_destroy (cairo);
@@ -153,7 +154,8 @@ hyscan_map_tile_source_blend_fill_tile (HyScanMapTileSource *source,
   return TRUE;
 }
 
-static HyScanGtkMapTileGrid *
+/* Реализация #HyScanMapTileSourceInterface.get_grid. */
+static HyScanMapTileGrid *
 hyscan_map_tile_source_blend_get_grid (HyScanMapTileSource *source)
 {
   HyScanMapTileSourceBlend *blend = HYSCAN_MAP_TILE_SOURCE_BLEND (source);
@@ -162,6 +164,7 @@ hyscan_map_tile_source_blend_get_grid (HyScanMapTileSource *source)
   return g_object_ref (priv->grid);
 }
 
+/* Реализация #HyScanMapTileSourceInterface.get_projection. */
 static HyScanGeoProjection *
 hyscan_map_tile_source_blend_get_projection (HyScanMapTileSource *source)
 {
@@ -226,7 +229,7 @@ hyscan_map_tile_source_blend_append (HyScanMapTileSourceBlend *blend,
       guint min_zoom, max_zoom;
       guint blend_hash, source_hash;
       HyScanGeoProjection *source_projection;
-      HyScanGtkMapTileGrid *grid;
+      HyScanMapTileGrid *grid;
 
       /* Проверяем, что добавляемый источник совместим с уже добавленными. */
       source_projection = hyscan_map_tile_source_get_projection (source);
@@ -243,7 +246,7 @@ hyscan_map_tile_source_blend_append (HyScanMapTileSourceBlend *blend,
       grid = hyscan_map_tile_source_get_grid (source);
 
       /* Расширяем диапазон доступных масштабов с учётом нового источника. */
-      hyscan_gtk_map_tile_grid_get_zoom_range (grid, &min_zoom, &max_zoom);
+      hyscan_map_tile_grid_get_zoom_range (grid, &min_zoom, &max_zoom);
       priv->min_zoom = MIN (min_zoom, priv->min_zoom);
       priv->max_zoom = MIN (max_zoom, priv->max_zoom);
       g_object_unref (grid);

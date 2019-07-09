@@ -124,26 +124,26 @@ hyscan_map_tile_loader_init (HyScanMapTileLoader *map_tile_loader)
 }
 
 static gpointer
-hyscan_gtk_map_tile_loader_func (gpointer data)
+hyscan_map_tile_loader_func (gpointer data)
 {
   HyScanMapTileLoader *loader =  HYSCAN_MAP_TILE_LOADER (data);
   HyScanMapTileLoaderPrivate *priv = loader->priv;
 
-  HyScanGtkMapTileGrid *grid;
+  HyScanMapTileGrid *grid;
   guint min_zoom, max_zoom, zoom;
 
   guint total = 0, processed = 0, failed = 0;
 
   grid = hyscan_map_tile_source_get_grid (priv->source);
 
-  hyscan_gtk_map_tile_grid_get_zoom_range (grid, &min_zoom, &max_zoom);
+  hyscan_map_tile_grid_get_zoom_range (grid, &min_zoom, &max_zoom);
 
   /* Определяем объем работы. */
   for (zoom = min_zoom; zoom <= max_zoom; zoom++)
     {
       gint x0, y0, xn, yn;
 
-      hyscan_gtk_map_tile_grid_get_view (grid, zoom, priv->from_x, priv->to_x, priv->from_y, priv->to_y,
+      hyscan_map_tile_grid_get_view (grid, zoom, priv->from_x, priv->to_x, priv->from_y, priv->to_y,
                                          &x0, &xn, &y0, &yn);
 
       total += (xn - x0 + 1) * (yn - y0 + 1);
@@ -155,18 +155,18 @@ hyscan_gtk_map_tile_loader_func (gpointer data)
       gint x0, y0, xn, yn;
       gint x, y;
 
-      hyscan_gtk_map_tile_grid_get_view (grid, zoom, priv->from_x, priv->to_x, priv->from_y, priv->to_y,
+      hyscan_map_tile_grid_get_view (grid, zoom, priv->from_x, priv->to_x, priv->from_y, priv->to_y,
                                          &x0, &xn, &y0, &yn);
 
       for (x = x0; x <= xn; ++x)
         for (y = y0; y <= yn; ++y)
           {
-            HyScanGtkMapTile *tile;
+            HyScanMapTile *tile;
 
             if (g_atomic_int_get (&priv->stop))
               break;
 
-            tile = hyscan_gtk_map_tile_new (grid, x, y, zoom);
+            tile = hyscan_map_tile_new (grid, x, y, zoom);
             if (!hyscan_map_tile_source_fill (priv->source, tile, NULL))
               {
                 ++failed;
@@ -248,7 +248,7 @@ hyscan_map_tile_loader_start (HyScanMapTileLoader *loader,
   priv->from_y = from_y;
   priv->to_y = to_y;
 
-  thread = g_thread_new ("tile-loader", hyscan_gtk_map_tile_loader_func, g_object_ref (loader));
+  thread = g_thread_new ("tile-loader", hyscan_map_tile_loader_func, g_object_ref (loader));
 
   return thread;
 }

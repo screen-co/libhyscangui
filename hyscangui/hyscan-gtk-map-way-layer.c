@@ -162,7 +162,7 @@ static void     hyscan_gtk_map_way_layer_model_changed           (HyScanGtkMapWa
                                                                   HyScanNavigationModelData     *data);
 static void     hyscan_gtk_map_way_layer_point_free              (HyScanGtkMapWayLayerPoint     *point);
 static void     hyscan_gtk_map_way_layer_fill_tile               (HyScanGtkMapTiledLayer        *tiled_layer,
-                                                                  HyScanGtkMapTile              *tile);
+                                                                  HyScanMapTile                 *tile);
 
 static HyScanGtkLayerInterface *hyscan_gtk_layer_parent_interface = NULL;
 
@@ -728,7 +728,7 @@ hyscan_gtk_map_way_layer_draw_region (HyScanGtkMapWayLayer *way_layer,
 /* Заполняет поверхность тайла. Возвращает номер состояния трека на момент рисования */
 static void
 hyscan_gtk_map_way_layer_fill_tile (HyScanGtkMapTiledLayer *tiled_layer,
-                                    HyScanGtkMapTile       *tile)
+                                    HyScanMapTile          *tile)
 {
   HyScanGtkMapWayLayer *way_layer = HYSCAN_GTK_MAP_WAY_LAYER (tiled_layer);
   cairo_t *tile_cairo;
@@ -738,17 +738,17 @@ hyscan_gtk_map_way_layer_fill_tile (HyScanGtkMapTiledLayer *tiled_layer,
   gint width;
   gdouble scale;
 
-  width = hyscan_gtk_map_tile_get_size (tile);
+  width = hyscan_map_tile_get_size (tile);
   surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, width, width);
   tile_cairo = cairo_create (surface);
 
   /* Заполняем поверхность тайла. */
-  hyscan_gtk_map_tile_get_bounds (tile, &from, &to);
-  scale = hyscan_gtk_map_tile_get_scale (tile);
+  hyscan_map_tile_get_bounds (tile, &from, &to);
+  scale = hyscan_map_tile_get_scale (tile);
   hyscan_gtk_map_way_layer_draw_region (way_layer, tile_cairo, from.x, to.x, from.y, to.y, scale);
 
   /* Записываем поверхность в тайл. */
-  hyscan_gtk_map_tile_set_surface (tile, surface);
+  hyscan_map_tile_set_surface (tile, surface);
 
   cairo_surface_destroy (surface);
   cairo_destroy (tile_cairo);

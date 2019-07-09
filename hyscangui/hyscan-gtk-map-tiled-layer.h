@@ -36,7 +36,7 @@
 #define __HYSCAN_GTK_MAP_TILED_LAYER_H__
 
 #include <hyscan-gtk-layer.h>
-#include <hyscan-gtk-map-tile.h>
+#include <hyscan-map-tile.h>
 #include <hyscan-cache.h>
 
 G_BEGIN_DECLS
@@ -68,7 +68,7 @@ struct _HyScanGtkMapTiledLayerClass
   GInitiallyUnownedClass parent_class;
 
   void                (*fill_tile)                     (HyScanGtkMapTiledLayer *tiled_layer,
-                                                        HyScanGtkMapTile       *tile);
+                                                        HyScanMapTile          *tile);
 };
 
 HYSCAN_API

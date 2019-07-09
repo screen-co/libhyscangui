@@ -71,7 +71,7 @@ hyscan_map_tile_source_default_init (HyScanMapTileSourceInterface *iface)
  */
 gboolean
 hyscan_map_tile_source_fill (HyScanMapTileSource *source,
-                             HyScanGtkMapTile    *tile,
+                             HyScanMapTile       *tile,
                              GCancellable        *cancellable)
 {
   HyScanMapTileSourceInterface *iface;
@@ -93,7 +93,7 @@ hyscan_map_tile_source_fill (HyScanMapTileSource *source,
  *
  * Returns: (transfer full): тайловая сетка источника
  */
-HyScanGtkMapTileGrid *
+HyScanMapTileGrid *
 hyscan_map_tile_source_get_grid (HyScanMapTileSource *source)
 {
   HyScanMapTileSourceInterface *iface;
