@@ -62,10 +62,10 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
 
              #[[ Загрузка тайлов ]]
              hyscan-gtk-map-tile.c
-             hyscan-gtk-map-tile-source.c
-             hyscan-network-map-tile-source.c
-             hyscan-gtk-map-fs-tile-source.c
-             hyscan-merged-tile-source.c
+             hyscan-map-tile-source.c
+             hyscan-map-tile-source-web.c
+             hyscan-map-tile-source-file.c
+             hyscan-map-tile-source-blend.c
              hyscan-map-tile-loader.c
 
              # [[ Модели ]]

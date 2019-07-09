@@ -39,7 +39,7 @@
  * @See_also: #HyScanGtkLayer, #HyScanGtkMap
  *
  * Слой #HyScanGtkMapTiles формирует изображение видимой области карты из тайлов.
- * Тайлы слой от источника, реализующего интерфейс #HyScanGtkMapTileSource.
+ * Тайлы слой от источника, реализующего интерфейс #HyScanMapTileSource.
  * В качестве источника тайлов может быть использован тайловый сервер Open Street
  * Map или любой другой сетевой ресурс.
  *
@@ -84,7 +84,7 @@ struct _HyScanGtkMapTilesPrivate
 {
   HyScanGtkMap                *map;                 /* Виджет карты, на котором показываются тайлы. */
   HyScanTaskQueue             *task_queue;          /* Очередь задач по созданию тайлов. */
-  HyScanGtkMapTileSource      *source;              /* Источник тайлов. */
+  HyScanMapTileSource         *source;              /* Источник тайлов. */
   HyScanGtkMapTileGrid        *tile_grid;           /* Тайловая сетка. */
 
   /* Кэш. */
@@ -168,11 +168,11 @@ hyscan_gtk_map_tiles_class_init (HyScanGtkMapTilesClass *klass)
                          HYSCAN_TYPE_CACHE,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_SOURCE,
-    g_param_spec_object ("source", "Tile source", "GtkMapTileSource object",
-                         HYSCAN_TYPE_GTK_MAP_TILE_SOURCE,
+    g_param_spec_object ("source", "Tile source", "MapTileSource object",
+                         HYSCAN_TYPE_MAP_TILE_SOURCE,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_PRELOAD_MARGIN,
-    g_param_spec_uint ("preload-margin", "Preload margin", "GtkMapTileSource object", 0, G_MAXUINT, 0,
+    g_param_spec_uint ("preload-margin", "Preload margin", "MapTileSource object", 0, G_MAXUINT, 0,
                        G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -222,7 +222,7 @@ hyscan_gtk_map_tiles_object_constructed (GObject *object)
   /* Создаём очередь задач по поиску тайлов. */
   hyscan_gtk_map_tiles_queue_start (gtk_map_tiles);
 
-  priv->tile_grid = hyscan_gtk_map_tile_source_get_grid (priv->source);
+  priv->tile_grid = hyscan_map_tile_source_get_grid (priv->source);
   priv->tile_size = hyscan_gtk_map_tile_grid_get_tile_size (priv->tile_grid);
   priv->dummy_tile = hyscan_gtk_map_tiles_create_dummy_tile (priv);
 
@@ -491,7 +491,7 @@ hyscan_gtk_map_tiles_load (HyScanGtkMapTile  *tile,
 
   /* Если удалось заполнить новый тайл, то запрашиваем обновление области
    * виджета с новым тайлом. */
-  if (hyscan_gtk_map_tile_source_fill (priv->source, tile, cancellable))
+  if (hyscan_map_tile_source_fill (priv->source, tile, cancellable))
     {
       hyscan_gtk_map_tiles_cache_set (priv, tile);
 
@@ -775,7 +775,7 @@ hyscan_gtk_map_tiles_verify_projection (HyScanGtkMapTiles *layer)
   HyScanGeoProjection *map_projection, *source_projection;
   guint map_hash, source_hash;
 
-  source_projection = hyscan_gtk_map_tile_source_get_projection (priv->source);
+  source_projection = hyscan_map_tile_source_get_projection (priv->source);
   map_projection = hyscan_gtk_map_get_projection (priv->map);
 
   map_hash = hyscan_geo_projection_hash (map_projection);
@@ -870,8 +870,8 @@ hyscan_gtk_map_tiles_draw (HyScanGtkMapTiles *layer,
  * Returns: указатель на #HyScanGtkMapTiles
  */
 HyScanGtkLayer *
-hyscan_gtk_map_tiles_new (HyScanCache             *cache,
-                          HyScanGtkMapTileSource  *source)
+hyscan_gtk_map_tiles_new (HyScanCache         *cache,
+                          HyScanMapTileSource *source)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_TILES,
                        "cache", cache,
@@ -884,9 +884,9 @@ hyscan_gtk_map_tiles_new (HyScanCache             *cache,
  *
  * Возвращает используемый источник тайлов слоя
  *
- * Returns: (transfer full): указатель на #HyScanGtkMapTileSource. Для удаления g_object_unref().
+ * Returns: (transfer full): указатель на #HyScanMapTileSource. Для удаления g_object_unref().
  */
-HyScanGtkMapTileSource *
+HyScanMapTileSource *
 hyscan_gtk_map_tiles_get_source (HyScanGtkMapTiles *tiles)
 {
   g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILES (tiles), NULL);

@@ -1,4 +1,4 @@
-/* hyscan-gtk-map-fs-tile-source.c
+/* hyscan-map-tile-source-file.c
  *
  * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *
@@ -33,23 +33,23 @@
  */
 
 /**
- * SECTION: hyscan-gtk-map-fs-tile-source
+ * SECTION: hyscan-map-tile-source-file
  * @Short_description: Файловый источник тайлов
- * @Title: HyScanGtkMapFsTileSource
- * @See_also: #HyScanGtkMapTileSource
+ * @Title: HyScanMapTileSourceFile
+ * @See_also: #HyScanMapTileSource
  *
  * Класс реализует интерфейс загрузки тайлов, загружая их из директории на
  * диске пользователя. Для создания объекта используется функция
- * hyscan_gtk_map_fs_tile_source_new().
+ * hyscan_map_tile_source_file_new().
  *
- * Если класс #HyScanGtkMapFsTileSource не находит файл с изображением тайла в
+ * Если класс #HyScanMapTileSourceFile не находит файл с изображением тайла в
  * каталоге тайлов на диске, то он загружает тайл из источника @fb_source, а
  * затем сохранят загруженный тайл в каталоге. Таким образом класс может быть
  * использован в качестве кэша тайлов для других источников.
  *
  */
 
-#include "hyscan-gtk-map-fs-tile-source.h"
+#include "hyscan-map-tile-source-file.h"
 
 enum
 {
@@ -58,43 +58,43 @@ enum
   PROP_FALLBACK_SOURCE,
 };
 
-struct _HyScanGtkMapFsTileSourcePrivate
+struct _HyScanMapTileSourceFilePrivate
 {
   gchar                       *source_dir;        /* Каталог для хранения тайлов. */
-  HyScanGtkMapTileSource      *fallback_source;   /* Источник тайлов на случай, если файл с тайлом отсутствует. */
+  HyScanMapTileSource         *fallback_source;   /* Источник тайлов на случай, если файл с тайлом отсутствует. */
   gboolean                     fallback_enabled;  /* Признак того, что fallback-источник можно использовать. */
 };
 
-static void       hyscan_gtk_map_fs_tile_source_interface_init           (HyScanGtkMapTileSourceInterface *iface);
-static void       hyscan_gtk_map_fs_tile_source_set_property             (GObject                         *object,
-                                                                          guint                            prop_id,
-                                                                          const GValue                    *value,
-                                                                          GParamSpec                      *pspec);
-static void       hyscan_gtk_map_fs_tile_source_object_finalize          (GObject                         *object);
-static gboolean   hyscan_gtk_map_fs_tile_source_fill_from_file           (HyScanGtkMapTile                *tile,
-                                                                          const gchar                     *tile_path);
-static gboolean   hyscan_gtk_map_fs_tile_source_fill_tile                (HyScanGtkMapTileSource          *source,
-                                                                          HyScanGtkMapTile                *tile,
-                                                                          GCancellable                    *cancellable);
-static gboolean   hyscan_gtk_map_fs_tile_source_save                     (HyScanGtkMapTile                *tile,
-                                                                          const gchar                     *tile_path);
+static void       hyscan_map_tile_source_file_interface_init           (HyScanMapTileSourceInterface    *iface);
+static void       hyscan_map_tile_source_file_set_property             (GObject                         *object,
+                                                                        guint                            prop_id,
+                                                                        const GValue                    *value,
+                                                                        GParamSpec                      *pspec);
+static void       hyscan_map_tile_source_file_object_finalize          (GObject                         *object);
+static gboolean   hyscan_map_tile_source_file_fill_from_file           (HyScanGtkMapTile                *tile,
+                                                                        const gchar                     *tile_path);
+static gboolean   hyscan_map_tile_source_file_fill_tile                (HyScanMapTileSource             *source,
+                                                                        HyScanGtkMapTile                *tile,
+                                                                        GCancellable                    *cancellable);
+static gboolean   hyscan_map_tile_source_file_save                     (HyScanGtkMapTile                *tile,
+                                                                        const gchar                     *tile_path);
 
-G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapFsTileSource, hyscan_gtk_map_fs_tile_source, G_TYPE_OBJECT,
-                         G_ADD_PRIVATE (HyScanGtkMapFsTileSource)
-                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_MAP_TILE_SOURCE, hyscan_gtk_map_fs_tile_source_interface_init))
+G_DEFINE_TYPE_WITH_CODE (HyScanMapTileSourceFile, hyscan_map_tile_source_file, G_TYPE_OBJECT,
+                         G_ADD_PRIVATE (HyScanMapTileSourceFile)
+                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_MAP_TILE_SOURCE, hyscan_map_tile_source_file_interface_init))
 
 static void
-hyscan_gtk_map_fs_tile_source_class_init (HyScanGtkMapFsTileSourceClass *klass)
+hyscan_map_tile_source_file_class_init (HyScanMapTileSourceFileClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
-  object_class->set_property = hyscan_gtk_map_fs_tile_source_set_property;
+  object_class->set_property = hyscan_map_tile_source_file_set_property;
 
-  object_class->finalize = hyscan_gtk_map_fs_tile_source_object_finalize;
+  object_class->finalize = hyscan_map_tile_source_file_object_finalize;
 
   g_object_class_install_property (object_class, PROP_FALLBACK_SOURCE,
-    g_param_spec_object ("fallback-source", "Fallback tile source", "HyScanGtkMapTileSource",
-                         HYSCAN_TYPE_GTK_MAP_TILE_SOURCE,
+    g_param_spec_object ("fallback-source", "Fallback tile source", "HyScanMapTileSource",
+                         HYSCAN_TYPE_MAP_TILE_SOURCE,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_SOURCE_DIR,
     g_param_spec_string ("dir", "Source dir", "Directory containing tiles", NULL,
@@ -102,19 +102,19 @@ hyscan_gtk_map_fs_tile_source_class_init (HyScanGtkMapFsTileSourceClass *klass)
 }
 
 static void
-hyscan_gtk_map_fs_tile_source_init (HyScanGtkMapFsTileSource *gtk_map_fs_tile_source)
+hyscan_map_tile_source_file_init (HyScanMapTileSourceFile *map_tile_source_file)
 {
-  gtk_map_fs_tile_source->priv = hyscan_gtk_map_fs_tile_source_get_instance_private (gtk_map_fs_tile_source);
+  map_tile_source_file->priv = hyscan_map_tile_source_file_get_instance_private (map_tile_source_file);
 }
 
 static void
-hyscan_gtk_map_fs_tile_source_set_property (GObject      *object,
-                                            guint         prop_id,
-                                            const GValue *value,
-                                            GParamSpec   *pspec)
+hyscan_map_tile_source_file_set_property (GObject      *object,
+                                          guint         prop_id,
+                                          const GValue *value,
+                                          GParamSpec   *pspec)
 {
-  HyScanGtkMapFsTileSource *gtk_map_fs_tile_source = HYSCAN_GTK_MAP_FS_TILE_SOURCE (object);
-  HyScanGtkMapFsTileSourcePrivate *priv = gtk_map_fs_tile_source->priv;
+  HyScanMapTileSourceFile *map_tile_source_file = HYSCAN_MAP_TILE_SOURCE_FILE (object);
+  HyScanMapTileSourceFilePrivate *priv = map_tile_source_file->priv;
 
   switch (prop_id)
     {
@@ -133,21 +133,21 @@ hyscan_gtk_map_fs_tile_source_set_property (GObject      *object,
 }
 
 static void
-hyscan_gtk_map_fs_tile_source_object_finalize (GObject *object)
+hyscan_map_tile_source_file_object_finalize (GObject *object)
 {
-  HyScanGtkMapFsTileSource *gtk_map_fs_tile_source = HYSCAN_GTK_MAP_FS_TILE_SOURCE (object);
-  HyScanGtkMapFsTileSourcePrivate *priv = gtk_map_fs_tile_source->priv;
+  HyScanMapTileSourceFile *map_tile_source_file = HYSCAN_MAP_TILE_SOURCE_FILE (object);
+  HyScanMapTileSourceFilePrivate *priv = map_tile_source_file->priv;
 
   g_clear_object (&priv->fallback_source);
   g_free (priv->source_dir);
 
-  G_OBJECT_CLASS (hyscan_gtk_map_fs_tile_source_parent_class)->finalize (object);
+  G_OBJECT_CLASS (hyscan_map_tile_source_file_parent_class)->finalize (object);
 }
 
 /* Загружает поверхность тайла из файла tile_path. */
 static gboolean
-hyscan_gtk_map_fs_tile_source_fill_from_file (HyScanGtkMapTile *tile,
-                                              const gchar      *tile_path)
+hyscan_map_tile_source_file_fill_from_file (HyScanGtkMapTile *tile,
+                                            const gchar      *tile_path)
 {
   GdkPixbuf *pixbuf;
   gboolean success;
@@ -168,8 +168,8 @@ hyscan_gtk_map_fs_tile_source_fill_from_file (HyScanGtkMapTile *tile,
 
 /* Сохраняет файл с тайлом на диск. */
 static gboolean
-hyscan_gtk_map_fs_tile_source_save (HyScanGtkMapTile *tile,
-                                    const gchar      *tile_path)
+hyscan_map_tile_source_file_save (HyScanGtkMapTile *tile,
+                                  const gchar      *tile_path)
 {
   gchar *tile_dir;
   gchar *tile_path_locale;
@@ -186,7 +186,7 @@ hyscan_gtk_map_fs_tile_source_save (HyScanGtkMapTile *tile,
 #endif
 
   if (g_mkdir_with_parents (tile_dir, 0755) == -1)
-    g_warning ("HyScanGtkMapFsTileSource: failed to create dir %s", tile_dir);
+    g_warning ("HyScanMapTileSourceFile: failed to create dir %s", tile_dir);
 
   g_free (tile_dir);
 
@@ -198,7 +198,7 @@ hyscan_gtk_map_fs_tile_source_save (HyScanGtkMapTile *tile,
 
   if (status != CAIRO_STATUS_SUCCESS)
     {
-      g_warning ("HyScanGtkMapFsTileSource: failed to save tile, %s", cairo_status_to_string (status));
+      g_warning ("HyScanMapTileSourceFile: failed to save tile, %s", cairo_status_to_string (status));
       return FALSE;
     }
 
@@ -207,12 +207,12 @@ hyscan_gtk_map_fs_tile_source_save (HyScanGtkMapTile *tile,
 
 /* Ищет указанный тайл и загружает его изображение. */
 static gboolean
-hyscan_gtk_map_fs_tile_source_fill_tile (HyScanGtkMapTileSource *source,
-                                         HyScanGtkMapTile       *tile,
-                                         GCancellable           *cancellable)
+hyscan_map_tile_source_file_fill_tile (HyScanMapTileSource *source,
+                                       HyScanGtkMapTile    *tile,
+                                       GCancellable        *cancellable)
 {
-  HyScanGtkMapFsTileSource *fsource = HYSCAN_GTK_MAP_FS_TILE_SOURCE (source);
-  HyScanGtkMapFsTileSourcePrivate *priv = fsource->priv;
+  HyScanMapTileSourceFile *fsource = HYSCAN_MAP_TILE_SOURCE_FILE (source);
+  HyScanMapTileSourceFilePrivate *priv = fsource->priv;
 
   gboolean success;
   gchar *tile_path;
@@ -228,7 +228,7 @@ hyscan_gtk_map_fs_tile_source_fill_tile (HyScanGtkMapTileSource *source,
                                hyscan_gtk_map_tile_get_y (tile));
 
   /* Пробуем загрузить из файла. */
-  success = hyscan_gtk_map_fs_tile_source_fill_from_file (tile, tile_path);
+  success = hyscan_map_tile_source_file_fill_from_file (tile, tile_path);
 
   if (!g_atomic_int_get (&priv->fallback_enabled))
     return success;
@@ -236,9 +236,9 @@ hyscan_gtk_map_fs_tile_source_fill_tile (HyScanGtkMapTileSource *source,
   /* Если файл отсутствует, то загружаем поверхность из запасного источника. */
   if (!success && priv->fallback_source != NULL)
     {
-      success = hyscan_gtk_map_tile_source_fill (priv->fallback_source, tile, cancellable);
+      success = hyscan_map_tile_source_fill (priv->fallback_source, tile, cancellable);
       if (success)
-        hyscan_gtk_map_fs_tile_source_save (tile, tile_path);
+        hyscan_map_tile_source_file_save (tile, tile_path);
     }
 
   g_free (tile_path);
@@ -247,70 +247,70 @@ hyscan_gtk_map_fs_tile_source_fill_tile (HyScanGtkMapTileSource *source,
 }
 
 static HyScanGtkMapTileGrid *
-hyscan_gtk_map_fs_tile_source_get_grid (HyScanGtkMapTileSource *source)
+hyscan_map_tile_source_file_get_grid (HyScanMapTileSource *source)
 {
-  HyScanGtkMapFsTileSourcePrivate *priv = HYSCAN_GTK_MAP_FS_TILE_SOURCE (source)->priv;
+  HyScanMapTileSourceFilePrivate *priv = HYSCAN_MAP_TILE_SOURCE_FILE (source)->priv;
 
   g_return_val_if_fail (priv->fallback_source != NULL, NULL);
 
-  return hyscan_gtk_map_tile_source_get_grid (priv->fallback_source);
+  return hyscan_map_tile_source_get_grid (priv->fallback_source);
 }
 
 static HyScanGeoProjection *
-hyscan_gtk_map_fs_tile_source_get_projection (HyScanGtkMapTileSource *source)
+hyscan_map_tile_source_file_get_projection (HyScanMapTileSource *source)
 {
-  HyScanGtkMapFsTileSourcePrivate *priv = HYSCAN_GTK_MAP_FS_TILE_SOURCE (source)->priv;
+  HyScanMapTileSourceFilePrivate *priv = HYSCAN_MAP_TILE_SOURCE_FILE (source)->priv;
 
   g_return_val_if_fail (priv->fallback_source != NULL, NULL);
 
-  return hyscan_gtk_map_tile_source_get_projection (priv->fallback_source);
+  return hyscan_map_tile_source_get_projection (priv->fallback_source);
 }
 
 static void
-hyscan_gtk_map_fs_tile_source_interface_init (HyScanGtkMapTileSourceInterface *iface)
+hyscan_map_tile_source_file_interface_init (HyScanMapTileSourceInterface *iface)
 {
-  iface->fill_tile = hyscan_gtk_map_fs_tile_source_fill_tile;
-  iface->get_grid = hyscan_gtk_map_fs_tile_source_get_grid;
-  iface->get_projection = hyscan_gtk_map_fs_tile_source_get_projection;
+  iface->fill_tile = hyscan_map_tile_source_file_fill_tile;
+  iface->get_grid = hyscan_map_tile_source_file_get_grid;
+  iface->get_projection = hyscan_map_tile_source_file_get_projection;
 }
 
 /**
- * hyscan_gtk_map_fs_tile_source_new:
+ * hyscan_map_tile_source_file_new:
  * @dir: каталог для хранения тайлов
- * @fb_source: запасной источник тайлов #HyScanGtkMapTileSource
+ * @fb_source: запасной источник тайлов #HyScanMapTileSource
  *
  * Создаёт новый файловый источник тайлов. Источник будет искать тайлы в каталоге
  * @dir; в случае, если файла с тайлом не окажется, тайл будет загружен из источника
  * @fb_source и сохранён в каталоге тайлов.
  *
- * Returns: новый объект #HyScanGtkMapFsTileSource. Для удаления g_object_unref()
+ * Returns: новый объект #HyScanMapTileSourceFile. Для удаления g_object_unref()
  */
-HyScanGtkMapFsTileSource *
-hyscan_gtk_map_fs_tile_source_new (const gchar            *dir,
-                                   HyScanGtkMapTileSource *fb_source)
+HyScanMapTileSourceFile *
+hyscan_map_tile_source_file_new (const gchar         *dir,
+                                 HyScanMapTileSource *fb_source)
 {
-  HyScanGtkMapFsTileSource *fs_source;
+  HyScanMapTileSourceFile *fs_source;
 
-  fs_source = g_object_new (HYSCAN_TYPE_GTK_MAP_FS_TILE_SOURCE,
+  fs_source = g_object_new (HYSCAN_TYPE_MAP_TILE_SOURCE_FILE,
                             "dir", dir,
                             "fallback-source", fb_source,
                             NULL);
 
-  hyscan_gtk_map_fs_tile_source_fb_enable (fs_source, TRUE);
+  hyscan_map_tile_source_file_fb_enable (fs_source, TRUE);
 
   return fs_source;
 }
 
 /**
- * hyscan_gtk_map_fs_tile_source_fb_enable:
- * @fs_source: указатель на #HyScanGtkMapFsTileSource
+ * hyscan_map_tile_source_file_fb_enable:
+ * @fs_source: указатель на #HyScanMapTileSourceFile
  * @enable: признак того, надо можно ли использовать fallback-источник
  */
 void
-hyscan_gtk_map_fs_tile_source_fb_enable (HyScanGtkMapFsTileSource *fs_source,
-                                         gboolean                  enable)
+hyscan_map_tile_source_file_fb_enable (HyScanMapTileSourceFile *fs_source,
+                                       gboolean                 enable)
 {
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_FS_TILE_SOURCE (fs_source));
+  g_return_if_fail (HYSCAN_IS_MAP_TILE_SOURCE_FILE (fs_source));
 
   g_atomic_int_set (&fs_source->priv->fallback_enabled, enable);
 }

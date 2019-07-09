@@ -19,9 +19,9 @@ typedef struct
 } DummyTileSourceClass;
 
 static gboolean
-dummy_tile_source_fill_tile (HyScanGtkMapTileSource *source,
-                             HyScanGtkMapTile       *tile,
-                             GCancellable           *cancellable)
+dummy_tile_source_fill_tile (HyScanMapTileSource *source,
+                             HyScanGtkMapTile    *tile,
+                             GCancellable        *cancellable)
 {
   g_atomic_int_inc (&filled_count);
 
@@ -29,13 +29,13 @@ dummy_tile_source_fill_tile (HyScanGtkMapTileSource *source,
 }
 
 static HyScanGtkMapTileGrid *
-dummy_tile_source_get_grid (HyScanGtkMapTileSource *source)
+dummy_tile_source_get_grid (HyScanMapTileSource *source)
 {
   return g_object_ref (grid);
 }
 
 static void
-dummy_tile_source_interface_init (HyScanGtkMapTileSourceInterface *iface)
+dummy_tile_source_interface_init (HyScanMapTileSourceInterface *iface)
 {
   iface->fill_tile = dummy_tile_source_fill_tile;
   iface->get_grid = dummy_tile_source_get_grid;
@@ -54,7 +54,7 @@ dummy_tile_source_init (DummyTileSource *source)
 }
 
 G_DEFINE_TYPE_WITH_CODE (DummyTileSource, dummy_tile_source, G_TYPE_OBJECT,
-                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_MAP_TILE_SOURCE, dummy_tile_source_interface_init))
+                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_MAP_TILE_SOURCE, dummy_tile_source_interface_init))
 
 
 static void
@@ -69,7 +69,7 @@ main (int argc,
       char **argv)
 {
   HyScanMapTileLoader *loader;
-  HyScanGtkMapTileSource *source;
+  HyScanMapTileSource *source;
   GThread *thread;
 
   /* Создаем dummy-источник тайлов. */

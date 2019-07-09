@@ -1015,7 +1015,7 @@ preload_start (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
   HyScanGtkLayer *layer;
-  HyScanGtkMapTileSource *source;
+  HyScanMapTileSource *source;
   gdouble from_x, to_x, from_y, to_y;
   GThread *thread;
 

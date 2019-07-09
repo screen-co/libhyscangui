@@ -1,4 +1,4 @@
-/* hyscan-gtk-map-tile-source.c
+/* hyscan-map-tile-source-blend.c
  *
  * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *
@@ -33,16 +33,16 @@
  */
 
 /**
- * SECTION: hyscan-merged-map-tile-source
+ * SECTION: hyscan-map-tile-source-blend
  * @Short_description: Композитный источник тайлов
- * @Title: HyScanMergedMapTileSource
+ * @Title: HyScanMapTileSourceBlend
  *
- * Класс реализует интерфейс #HyScanGtkMapTileSource.
+ * Класс реализует интерфейс #HyScanMapTileSource.
  *
  * Позволяет загружать тайлы из нескольних источником одновременно. Класс
  * накладывает изображения тайла из разных источников друг на друга, формируя
  * таким образом общую картинку. Для добавления источников используйте функцию
- * hyscan_merged_tile_source_append().
+ * hyscan_map_tile_source_blend_append().
  *
  * Верхние источники тайлов должны формировать изображение с прозрачностью, чтобы
  * было видно изображение нижних слоёв.
@@ -55,9 +55,9 @@
  *
  */
 
-#include "hyscan-merged-tile-source.h"
+#include "hyscan-map-tile-source-blend.h"
 
-struct _HyScanMergedTileSourcePrivate
+struct _HyScanMapTileSourceBlendPrivate
 {
   GList                             *sources;      /* Список источников тайлов. */
 
@@ -67,49 +67,49 @@ struct _HyScanMergedTileSourcePrivate
   guint                              max_zoom;     /* Максимальный допустимый масштаб. */
 };
 
-static void hyscan_merged_tile_source_interface_init (HyScanGtkMapTileSourceInterface *iface);
+static void hyscan_map_tile_source_blend_interface_init (HyScanMapTileSourceInterface *iface);
 
-static void hyscan_merged_tile_source_object_finalize (GObject *object);
+static void hyscan_map_tile_source_blend_object_finalize (GObject *object);
 
-G_DEFINE_TYPE_WITH_CODE (HyScanMergedTileSource, hyscan_merged_tile_source, G_TYPE_OBJECT,
-                         G_ADD_PRIVATE (HyScanMergedTileSource)
-                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_MAP_TILE_SOURCE,
-                                                hyscan_merged_tile_source_interface_init))
+G_DEFINE_TYPE_WITH_CODE (HyScanMapTileSourceBlend, hyscan_map_tile_source_blend, G_TYPE_OBJECT,
+                         G_ADD_PRIVATE (HyScanMapTileSourceBlend)
+                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_MAP_TILE_SOURCE,
+                                                hyscan_map_tile_source_blend_interface_init))
 
 static void
-hyscan_merged_tile_source_class_init (HyScanMergedTileSourceClass *klass)
+hyscan_map_tile_source_blend_class_init (HyScanMapTileSourceBlendClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
-  object_class->finalize = hyscan_merged_tile_source_object_finalize;
+  object_class->finalize = hyscan_map_tile_source_blend_object_finalize;
 }
 
 static void
-hyscan_merged_tile_source_init (HyScanMergedTileSource *merged_tile_source)
+hyscan_map_tile_source_blend_init (HyScanMapTileSourceBlend *map_tile_source_blend)
 {
-  merged_tile_source->priv = hyscan_merged_tile_source_get_instance_private (merged_tile_source);
+  map_tile_source_blend->priv = hyscan_map_tile_source_blend_get_instance_private (map_tile_source_blend);
 }
 
 static void
-hyscan_merged_tile_source_object_finalize (GObject *object)
+hyscan_map_tile_source_blend_object_finalize (GObject *object)
 {
-  HyScanMergedTileSource *merged_tile_source = HYSCAN_MERGED_TILE_SOURCE (object);
-  HyScanMergedTileSourcePrivate *priv = merged_tile_source->priv;
+  HyScanMapTileSourceBlend *map_tile_source_blend = HYSCAN_MAP_TILE_SOURCE_BLEND (object);
+  HyScanMapTileSourceBlendPrivate *priv = map_tile_source_blend->priv;
 
   g_list_free_full (priv->sources, g_object_unref);
   g_clear_object (&priv->projection);
   g_clear_object (&priv->grid);
 
-  G_OBJECT_CLASS (hyscan_merged_tile_source_parent_class)->finalize (object);
+  G_OBJECT_CLASS (hyscan_map_tile_source_blend_parent_class)->finalize (object);
 }
 
 static gboolean
-hyscan_merged_tile_source_fill_tile (HyScanGtkMapTileSource *source,
-                                     HyScanGtkMapTile       *tile,
-                                     GCancellable           *cancellable)
+hyscan_map_tile_source_blend_fill_tile (HyScanMapTileSource *source,
+                                        HyScanGtkMapTile    *tile,
+                                        GCancellable        *cancellable)
 {
-  HyScanMergedTileSource *merged = HYSCAN_MERGED_TILE_SOURCE (source);
-  HyScanMergedTileSourcePrivate *priv = merged->priv;
+  HyScanMapTileSourceBlend *blend = HYSCAN_MAP_TILE_SOURCE_BLEND (source);
+  HyScanMapTileSourceBlendPrivate *priv = blend->priv;
 
   GList *source_l;
   cairo_surface_t *surface;
@@ -122,7 +122,7 @@ hyscan_merged_tile_source_fill_tile (HyScanGtkMapTileSource *source,
     {
       gboolean fill_status;
 
-      fill_status = hyscan_gtk_map_tile_source_fill (source_l->data, tile, cancellable);
+      fill_status = hyscan_map_tile_source_fill (source_l->data, tile, cancellable);
       if (fill_status == FALSE)
         continue;
 
@@ -154,46 +154,46 @@ hyscan_merged_tile_source_fill_tile (HyScanGtkMapTileSource *source,
 }
 
 static HyScanGtkMapTileGrid *
-hyscan_merged_tile_source_get_grid (HyScanGtkMapTileSource *source)
+hyscan_map_tile_source_blend_get_grid (HyScanMapTileSource *source)
 {
-  HyScanMergedTileSource *merged = HYSCAN_MERGED_TILE_SOURCE (source);
-  HyScanMergedTileSourcePrivate *priv = merged->priv;
+  HyScanMapTileSourceBlend *blend = HYSCAN_MAP_TILE_SOURCE_BLEND (source);
+  HyScanMapTileSourceBlendPrivate *priv = blend->priv;
 
   return g_object_ref (priv->grid);
 }
 
 static HyScanGeoProjection *
-hyscan_merged_tile_source_get_projection (HyScanGtkMapTileSource *source)
+hyscan_map_tile_source_blend_get_projection (HyScanMapTileSource *source)
 {
-  HyScanMergedTileSource *merged = HYSCAN_MERGED_TILE_SOURCE (source);
-  HyScanMergedTileSourcePrivate *priv = merged->priv;
+  HyScanMapTileSourceBlend *blend = HYSCAN_MAP_TILE_SOURCE_BLEND (source);
+  HyScanMapTileSourceBlendPrivate *priv = blend->priv;
 
   return g_object_ref (priv->projection);
 }
 
 static void
-hyscan_merged_tile_source_interface_init (HyScanGtkMapTileSourceInterface *iface)
+hyscan_map_tile_source_blend_interface_init (HyScanMapTileSourceInterface *iface)
 {
-  iface->get_projection = hyscan_merged_tile_source_get_projection;
-  iface->get_grid = hyscan_merged_tile_source_get_grid;
-  iface->fill_tile = hyscan_merged_tile_source_fill_tile;
+  iface->get_projection = hyscan_map_tile_source_blend_get_projection;
+  iface->get_grid = hyscan_map_tile_source_blend_get_grid;
+  iface->fill_tile = hyscan_map_tile_source_blend_fill_tile;
 }
 
 /**
- * hyscan_merged_tile_source_new:
+ * hyscan_map_tile_source_blend_new:
  *
  * Returns: новый композитный источник тайлов. Для удаления g_object_unref().
  */
-HyScanMergedTileSource *
-hyscan_merged_tile_source_new (void)
+HyScanMapTileSourceBlend *
+hyscan_map_tile_source_blend_new (void)
 {
-  return g_object_new (HYSCAN_TYPE_MERGED_TILE_SOURCE, NULL);
+  return g_object_new (HYSCAN_TYPE_MAP_TILE_SOURCE_BLEND, NULL);
 }
 
 /**
- * hyscan_merged_tile_source_append:
- * @merged: указатель на #HyScanMergedTileSource
- * @source: дополнительный источник #HyScanGtkMapTileSource
+ * hyscan_map_tile_source_blend_append:
+ * @blend: указатель на #HyScanMapTileSourceBlend
+ * @source: дополнительный источник #HyScanMapTileSource
  *
  * Добавляет дополнительный источник тайлов, изображение которого будет размещено
  * поверх ранее добавленных источников.
@@ -208,39 +208,39 @@ hyscan_merged_tile_source_new (void)
  * Returns: %TRUE, если источник тайлов успешно добавлен
  */
 gboolean
-hyscan_merged_tile_source_append (HyScanMergedTileSource *merged,
-                                  HyScanGtkMapTileSource *source)
+hyscan_map_tile_source_blend_append (HyScanMapTileSourceBlend *blend,
+                                     HyScanMapTileSource      *source)
 {
-  HyScanMergedTileSourcePrivate *priv;
+  HyScanMapTileSourceBlendPrivate *priv;
 
-  g_return_val_if_fail (HYSCAN_IS_MERGED_TILE_SOURCE (merged), FALSE);
-  priv = merged->priv;
+  g_return_val_if_fail (HYSCAN_IS_MAP_TILE_SOURCE_BLEND (blend), FALSE);
+  priv = blend->priv;
 
   if (priv->sources == NULL)
     {
-      priv->grid = hyscan_gtk_map_tile_source_get_grid (source);
-      priv->projection = hyscan_gtk_map_tile_source_get_projection (source);
+      priv->grid = hyscan_map_tile_source_get_grid (source);
+      priv->projection = hyscan_map_tile_source_get_projection (source);
     }
   else
     {
       guint min_zoom, max_zoom;
-      guint merged_hash, source_hash;
+      guint blend_hash, source_hash;
       HyScanGeoProjection *source_projection;
       HyScanGtkMapTileGrid *grid;
 
       /* Проверяем, что добавляемый источник совместим с уже добавленными. */
-      source_projection = hyscan_gtk_map_tile_source_get_projection (source);
+      source_projection = hyscan_map_tile_source_get_projection (source);
       source_hash = hyscan_geo_projection_hash (priv->projection);
-      merged_hash = hyscan_geo_projection_hash (priv->projection);
+      blend_hash = hyscan_geo_projection_hash (priv->projection);
       g_object_unref (source_projection);
-      if (merged_hash != source_hash)
+      if (blend_hash != source_hash)
         {
-          g_warning ("HyScanMergedTileSource: source projection is not compatible with current one");
+          g_warning ("HyScanMapTileSourceBlend: source projection is not compatible with current one");
           return FALSE;
         }
 
       // todo: test tile grid compatibility?
-      grid = hyscan_gtk_map_tile_source_get_grid (source);
+      grid = hyscan_map_tile_source_get_grid (source);
 
       /* Расширяем диапазон доступных масштабов с учётом нового источника. */
       hyscan_gtk_map_tile_grid_get_zoom_range (grid, &min_zoom, &max_zoom);

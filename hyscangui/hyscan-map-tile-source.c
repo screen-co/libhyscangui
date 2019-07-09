@@ -1,4 +1,4 @@
-/* hyscan-gtk-map-tile-source.c
+/* hyscan-map-tile-source.c
  *
  * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *
@@ -33,13 +33,13 @@
  */
 
 /**
- * SECTION: hyscan-gtk-map-tile-source
+ * SECTION: hyscan-map-tile-source
  * @Short_description: Источник тайлов
- * @Title: HyScanGtkMapTileSource
+ * @Title: HyScanMapTileSource
  *
  * Интерфейс источника тайлов. Основная задача источника тайлов - это получение
  * изображения тайла по его координатам. Для заполнения тайла используется
- * функция hyscan_gtk_map_tile_source_fill()
+ * функция hyscan_map_tile_source_fill()
  *
  * Геометрические параметры источника определяется двумя параметрами:
  * - картографическая проекция, которая устанавливает взаимосвязь координат
@@ -48,37 +48,37 @@
  *   им область местности.
  *
  * Для получения этих параметров используются соответственно функции
- * hyscan_gtk_map_tile_source_get_projection() и hyscan_gtk_map_tile_source_get_grid().
+ * hyscan_map_tile_source_get_projection() и hyscan_map_tile_source_get_grid().
  *
  */
 
-#include "hyscan-gtk-map-tile-source.h"
+#include "hyscan-map-tile-source.h"
 
-G_DEFINE_INTERFACE (HyScanGtkMapTileSource, hyscan_gtk_map_tile_source, G_TYPE_OBJECT)
+G_DEFINE_INTERFACE (HyScanMapTileSource, hyscan_map_tile_source, G_TYPE_OBJECT)
 
 static void
-hyscan_gtk_map_tile_source_default_init (HyScanGtkMapTileSourceInterface *iface)
+hyscan_map_tile_source_default_init (HyScanMapTileSourceInterface *iface)
 {
 }
 
 /**
- * hyscan_gtk_map_tile_source_create:
- * @source: указатель на #HyScanGtkMapTileSource
+ * hyscan_map_tile_source_create:
+ * @source: указатель на #HyScanMapTileSource
  * @tile: тайл
  * @cancellable: #GCancellable для отмены заполнения тайла
  *
  * Заполнение тайла @tile из источника тайлов @source.
  */
 gboolean
-hyscan_gtk_map_tile_source_fill (HyScanGtkMapTileSource *source,
-                                 HyScanGtkMapTile       *tile,
-                                 GCancellable           *cancellable)
+hyscan_map_tile_source_fill (HyScanMapTileSource *source,
+                             HyScanGtkMapTile    *tile,
+                             GCancellable        *cancellable)
 {
-  HyScanGtkMapTileSourceInterface *iface;
+  HyScanMapTileSourceInterface *iface;
 
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE_SOURCE (source), FALSE);
+  g_return_val_if_fail (HYSCAN_IS_MAP_TILE_SOURCE (source), FALSE);
 
-  iface = HYSCAN_GTK_MAP_TILE_SOURCE_GET_IFACE (source);
+  iface = HYSCAN_MAP_TILE_SOURCE_GET_IFACE (source);
   if (iface->fill_tile != NULL)
     return (* iface->fill_tile) (source, tile, cancellable);
 
@@ -86,42 +86,42 @@ hyscan_gtk_map_tile_source_fill (HyScanGtkMapTileSource *source,
 }
 
 /**
- * hyscan_gtk_map_tile_source_get_grid:
- * @source: указатель на #HyScanGtkMapTileSource
+ * hyscan_map_tile_source_get_grid:
+ * @source: указатель на #HyScanMapTileSource
  *
  * Возвращает тайловую сетку источника тайлов
  *
  * Returns: (transfer full): тайловая сетка источника
  */
 HyScanGtkMapTileGrid *
-hyscan_gtk_map_tile_source_get_grid (HyScanGtkMapTileSource *source)
+hyscan_map_tile_source_get_grid (HyScanMapTileSource *source)
 {
-  HyScanGtkMapTileSourceInterface *iface;
+  HyScanMapTileSourceInterface *iface;
 
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE_SOURCE (source), NULL);
+  g_return_val_if_fail (HYSCAN_IS_MAP_TILE_SOURCE (source), NULL);
 
-  iface = HYSCAN_GTK_MAP_TILE_SOURCE_GET_IFACE (source);
+  iface = HYSCAN_MAP_TILE_SOURCE_GET_IFACE (source);
   g_return_val_if_fail (iface->get_grid != NULL, NULL);
 
   return (* iface->get_grid) (source);
 }
 
 /**
- * hyscan_gtk_map_tile_source_get_projection:
- * @source: указатель на #HyScanGtkMapTileSource
+ * hyscan_map_tile_source_get_projection:
+ * @source: указатель на #HyScanMapTileSource
  *
  * Возвращает картографическую проекцию источника тайлов
  *
  * Returns: (transfer full): картографическая проекция источника тайлов
  */
 HyScanGeoProjection *
-hyscan_gtk_map_tile_source_get_projection (HyScanGtkMapTileSource *source)
+hyscan_map_tile_source_get_projection (HyScanMapTileSource *source)
 {
-  HyScanGtkMapTileSourceInterface *iface;
+  HyScanMapTileSourceInterface *iface;
 
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TILE_SOURCE (source), NULL);
+  g_return_val_if_fail (HYSCAN_IS_MAP_TILE_SOURCE (source), NULL);
 
-  iface = HYSCAN_GTK_MAP_TILE_SOURCE_GET_IFACE (source);
+  iface = HYSCAN_MAP_TILE_SOURCE_GET_IFACE (source);
   g_return_val_if_fail (iface->get_projection != NULL, NULL);
 
   return (* iface->get_projection) (source);
