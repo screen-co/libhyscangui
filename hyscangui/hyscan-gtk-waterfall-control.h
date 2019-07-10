@@ -23,8 +23,8 @@
 #ifndef __HYSCAN_GTK_WATERFALL_CONTROL_H__
 #define __HYSCAN_GTK_WATERFALL_CONTROL_H__
 
-#include <hyscan-gtk-waterfall-layer.h>
-#include <hyscan-gtk-waterfall.h>
+#include "hyscan-gtk-layer.h"
+#include "hyscan-gtk-waterfall.h"
 
 G_BEGIN_DECLS
 
@@ -41,14 +41,14 @@ typedef struct _HyScanGtkWaterfallControlClass HyScanGtkWaterfallControlClass;
 
 struct _HyScanGtkWaterfallControl
 {
-  GObject parent_instance;
+  GInitiallyUnowned parent_instance;
 
   HyScanGtkWaterfallControlPrivate *priv;
 };
 
 struct _HyScanGtkWaterfallControlClass
 {
-  GObjectClass parent_class;
+  GInitiallyUnownedClass parent_class;
 };
 
 HYSCAN_API
@@ -64,7 +64,7 @@ GType                       hyscan_gtk_waterfall_control_get_type              (
  *
  */
 HYSCAN_API
-HyScanGtkWaterfallControl  *hyscan_gtk_waterfall_control_new                   (HyScanGtkWaterfall        *waterfall);
+HyScanGtkWaterfallControl  *hyscan_gtk_waterfall_control_new                   (void);
 
 /**
  *

@@ -141,11 +141,12 @@ main (int    argc,
   wf_state = HYSCAN_GTK_WATERFALL_STATE (wf_widget);
   wf = HYSCAN_GTK_WATERFALL (wf_widget);
 
-  control = hyscan_gtk_waterfall_control_new (wf);
-  grid = hyscan_gtk_waterfall_grid_new (wf);
-  mark = hyscan_gtk_waterfall_mark_new (wf, markmodel);
-  loopa = hyscan_gtk_waterfall_magnifier_new (wf);
+  control = hyscan_gtk_waterfall_control_new ();
+  // grid = hyscan_gtk_waterfall_grid_new (wf);
+  // mark = hyscan_gtk_waterfall_mark_new (wf, markmodel);
+  // loopa = hyscan_gtk_waterfall_magnifier_new (wf);
 
+  hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (wf), control, "control");
   hyscan_gtk_waterfall_layer_grab_input (HYSCAN_GTK_WATERFALL_LAYER (control));
 
   hyscan_gtk_waterfall_state_sidescan (wf_state, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, HYSCAN_SOURCE_SIDE_SCAN_PORT);

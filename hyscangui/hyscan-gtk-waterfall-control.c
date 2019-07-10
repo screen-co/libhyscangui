@@ -30,14 +30,8 @@
                                               (display_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER &&\
                                                dir == GDK_SCROLL_UP))
 
-enum
-{
-  PROP_WATERFALL = 1
-};
-
 struct _HyScanGtkWaterfallControlPrivate
 {
-  HyScanGtkWaterfallState   *wf_state;
   HyScanGtkWaterfall        *wfall;
 
   HyScanWaterfallDisplayType display_type;
@@ -56,16 +50,14 @@ struct _HyScanGtkWaterfallControlPrivate
 
 };
 
-static void     hyscan_gtk_waterfall_control_interface_init          (HyScanGtkWaterfallLayerInterface *iface);
-static void     hyscan_gtk_waterfall_control_set_property            (GObject                  *object,
-                                                                      guint                     prop_id,
-                                                                      const GValue             *value,
-                                                                      GParamSpec               *pspec);
-static void     hyscan_gtk_waterfall_control_object_constructed      (GObject                  *object);
+static void     hyscan_gtk_waterfall_control_interface_init          (HyScanGtkLayerInterface  *iface);
 static void     hyscan_gtk_waterfall_control_object_finalize         (GObject                  *object);
 
-static void     hyscan_gtk_waterfall_control_grab_input              (HyScanGtkWaterfallLayer  *layer);
-static const gchar* hyscan_gtk_waterfall_control_get_mnemonic        (HyScanGtkWaterfallLayer  *layer);
+static void     hyscan_gtk_waterfall_control_added                   (HyScanGtkLayer            *layer,
+                                                                      HyScanGtkLayerContainer   *container);
+static void     hyscan_gtk_waterfall_control_removed                 (HyScanGtkLayer            *layer);
+static gboolean     hyscan_gtk_waterfall_control_grab_input          (HyScanGtkLayer            *layer);
+static const gchar* hyscan_gtk_waterfall_control_get_mnemonic        (HyScanGtkLayer            *layer);
 
 static gboolean hyscan_gtk_waterfall_control_configure               (GtkWidget                 *widget,
                                                                       GdkEventConfigure         *event,
@@ -82,79 +74,25 @@ static gboolean hyscan_gtk_waterfall_control_keyboard                (GtkWidget 
 static gboolean hyscan_gtk_waterfall_control_mouse_wheel             (GtkWidget                 *widget,
                                                                       GdkEventScroll            *event,
                                                                       HyScanGtkWaterfallControl *data);
-static void     hyscan_gtk_waterfall_control_sources_changed         (HyScanGtkWaterfallState      *model,
+static void     hyscan_gtk_waterfall_control_sources_changed         (HyScanGtkWaterfallState   *model,
                                                                       HyScanGtkWaterfallControl *control);
 
-G_DEFINE_TYPE_WITH_CODE (HyScanGtkWaterfallControl, hyscan_gtk_waterfall_control, G_TYPE_OBJECT,
+G_DEFINE_TYPE_WITH_CODE (HyScanGtkWaterfallControl, hyscan_gtk_waterfall_control, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkWaterfallControl)
-                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_WATERFALL_LAYER,
-                                                hyscan_gtk_waterfall_control_interface_init));
+                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_LAYER, hyscan_gtk_waterfall_control_interface_init));
 
 static void
 hyscan_gtk_waterfall_control_class_init (HyScanGtkWaterfallControlClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
-  object_class->set_property = hyscan_gtk_waterfall_control_set_property;
-
-  object_class->constructed = hyscan_gtk_waterfall_control_object_constructed;
   object_class->finalize = hyscan_gtk_waterfall_control_object_finalize;
-
-  g_object_class_install_property (object_class, PROP_WATERFALL,
-    g_param_spec_object ("waterfall", "Waterfall", "GtkWaterfall object",
-                         HYSCAN_TYPE_GTK_WATERFALL,
-                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
 hyscan_gtk_waterfall_control_init (HyScanGtkWaterfallControl *self)
 {
   self->priv = hyscan_gtk_waterfall_control_get_instance_private (self);
-}
-
-
-static void
-hyscan_gtk_waterfall_control_set_property (GObject      *object,
-                                           guint         prop_id,
-                                           const GValue *value,
-                                           GParamSpec   *pspec)
-{
-  HyScanGtkWaterfallControl *self = HYSCAN_GTK_WATERFALL_CONTROL (object);
-
-  if (prop_id == PROP_WATERFALL)
-    {
-      self->priv->wfall = g_value_dup_object (value);
-      self->priv->wf_state = HYSCAN_GTK_WATERFALL_STATE (self->priv->wfall);
-    }
-  else
-    {
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-    }
-}
-
-static void
-hyscan_gtk_waterfall_control_object_constructed (GObject *object)
-{
-  HyScanGtkWaterfallControl *self = HYSCAN_GTK_WATERFALL_CONTROL (object);
-  HyScanGtkWaterfallControlPrivate *priv = self->priv;
-
-  G_OBJECT_CLASS (hyscan_gtk_waterfall_control_parent_class)->constructed (object);
-
-  /* Сигналы Gtk. */
-  g_signal_connect_after (priv->wfall, "configure-event", G_CALLBACK (hyscan_gtk_waterfall_control_configure), self);
-  g_signal_connect (priv->wfall, "button-press-event",    G_CALLBACK (hyscan_gtk_waterfall_control_mouse_button), self);
-  g_signal_connect (priv->wfall, "button-release-event",  G_CALLBACK (hyscan_gtk_waterfall_control_mouse_button), self);
-  g_signal_connect (priv->wfall, "motion-notify-event",   G_CALLBACK (hyscan_gtk_waterfall_control_mouse_motion), self);
-  g_signal_connect (priv->wfall, "scroll-event",          G_CALLBACK (hyscan_gtk_waterfall_control_mouse_wheel), self);
-  g_signal_connect (priv->wfall, "key-press-event",       G_CALLBACK (hyscan_gtk_waterfall_control_keyboard), self);
-
-  /* Сигналы модели. */
-  g_signal_connect (priv->wfall, "changed::sources", G_CALLBACK (hyscan_gtk_waterfall_control_sources_changed), self);
-
-  hyscan_gtk_waterfall_control_sources_changed (priv->wf_state, self);
-
-  /* Включаем видимость слоя. */
-  hyscan_gtk_waterfall_layer_set_visible (HYSCAN_GTK_WATERFALL_LAYER (self), TRUE);
 }
 
 static void
@@ -164,28 +102,64 @@ hyscan_gtk_waterfall_control_object_finalize (GObject *object)
   HyScanGtkWaterfallControlPrivate *priv = self->priv;
 
   /* Отключаемся от всех сигналов. */
-  g_signal_handlers_disconnect_by_data (priv->wfall, self);
-  g_signal_handlers_disconnect_by_data (priv->wfall, self);
-
-  g_clear_object (&priv->wfall);
+  if (priv->wfall != NULL)
+    g_signal_handlers_disconnect_by_data (priv->wfall, self);
   g_clear_object (&priv->wfall);
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_control_parent_class)->finalize (object);
 }
 
-/* Функция захыватывает ввод. */
 static void
-hyscan_gtk_waterfall_control_grab_input (HyScanGtkWaterfallLayer *iface)
+hyscan_gtk_waterfall_control_added (HyScanGtkLayer          *layer,
+                                    HyScanGtkLayerContainer *container)
+{
+  HyScanGtkWaterfall *wfall;
+  HyScanGtkWaterfallControl *self;
+
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (container));
+
+  self = HYSCAN_GTK_WATERFALL_CONTROL (layer);
+  wfall = HYSCAN_GTK_WATERFALL (container);
+  self->priv->wfall = g_object_ref (wfall);
+
+  /* Сигналы Gtk. */
+  g_signal_connect_after (wfall, "configure-event", G_CALLBACK (hyscan_gtk_waterfall_control_configure), self);
+  g_signal_connect (wfall, "button-press-event",    G_CALLBACK (hyscan_gtk_waterfall_control_mouse_button), self);
+  g_signal_connect (wfall, "button-release-event",  G_CALLBACK (hyscan_gtk_waterfall_control_mouse_button), self);
+  g_signal_connect (wfall, "motion-notify-event",   G_CALLBACK (hyscan_gtk_waterfall_control_mouse_motion), self);
+  g_signal_connect (wfall, "scroll-event",          G_CALLBACK (hyscan_gtk_waterfall_control_mouse_wheel), self);
+  g_signal_connect (wfall, "key-press-event",       G_CALLBACK (hyscan_gtk_waterfall_control_keyboard), self);
+
+  /* Сигналы модели. */
+  g_signal_connect (wfall, "changed::sources", G_CALLBACK (hyscan_gtk_waterfall_control_sources_changed), self);
+
+  /* Инициализация. */
+  hyscan_gtk_waterfall_control_sources_changed (HYSCAN_GTK_WATERFALL_STATE (wfall), self);
+}
+
+static void
+hyscan_gtk_waterfall_control_removed (HyScanGtkLayer *layer)
+{
+  HyScanGtkWaterfallControl *self = HYSCAN_GTK_WATERFALL_CONTROL (layer);
+
+  g_signal_handlers_disconnect_by_data (self->priv->wfall, self);
+  g_clear_object (&self->priv->wfall);
+}
+
+/* Функция захыватывает ввод. */
+static gboolean
+hyscan_gtk_waterfall_control_grab_input (HyScanGtkLayer *iface)
 {
   HyScanGtkWaterfallControl *self = HYSCAN_GTK_WATERFALL_CONTROL (iface);
 
-  hyscan_gtk_waterfall_state_set_input_owner (HYSCAN_GTK_WATERFALL_STATE (self->priv->wfall), GTK_WATERFALL_CONTROL_INPUT_ID);
-  hyscan_gtk_waterfall_state_set_changes_allowed (HYSCAN_GTK_WATERFALL_STATE (self->priv->wfall), FALSE);
+  hyscan_gtk_layer_container_set_input_owner (HYSCAN_GTK_LAYER_CONTAINER (self->priv->wfall), GTK_WATERFALL_CONTROL_INPUT_ID);
+
+  return TRUE;
 }
 
 /* Функция возвращает название иконки. */
 static const gchar*
-hyscan_gtk_waterfall_control_get_mnemonic (HyScanGtkWaterfallLayer *iface)
+hyscan_gtk_waterfall_control_get_mnemonic (HyScanGtkLayer *iface)
 {
   return "find-location-symbolic";
 }
@@ -199,7 +173,7 @@ hyscan_gtk_waterfall_control_configure (GtkWidget                 *widget,
                            &self->priv->width,
                            &self->priv->height);
 
-  return FALSE;
+  return GDK_EVENT_PROPAGATE;
 }
 
 /* Обработчик клавиш клавиатуры. */
@@ -287,14 +261,14 @@ hyscan_gtk_waterfall_control_keyboard (GtkWidget   *widget,
   if (IS_TO_START_KEY (key, priv->display_type))
     hyscan_gtk_waterfall_automove (priv->wfall, FALSE);
 
-  return FALSE;
+  return GDK_EVENT_PROPAGATE;
 }
 
 /* Обработчик нажатия кнопок мышки. */
 static gboolean
-hyscan_gtk_waterfall_control_mouse_button (GtkWidget      *widget,
-                                            GdkEventButton *event,
-                                            HyScanGtkWaterfallControl *self)
+hyscan_gtk_waterfall_control_mouse_button (GtkWidget                 *widget,
+                                           GdkEventButton            *event,
+                                           HyScanGtkWaterfallControl *self)
 {
   GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
   HyScanGtkWaterfallControlPrivate *priv = self->priv;
@@ -302,7 +276,7 @@ hyscan_gtk_waterfall_control_mouse_button (GtkWidget      *widget,
   gtk_widget_grab_focus (widget);
 
   if (event->button != 1)
-    return FALSE;
+    return GDK_EVENT_PROPAGATE;
 
   if (event->type == GDK_BUTTON_PRESS)
     {
@@ -328,7 +302,7 @@ hyscan_gtk_waterfall_control_mouse_button (GtkWidget      *widget,
       priv->move_area = FALSE;
     }
 
-  return FALSE;
+  return GDK_EVENT_PROPAGATE;
 }
 
 /* Обработчик движения мыши. */
@@ -345,7 +319,7 @@ hyscan_gtk_waterfall_control_mouse_motion (GtkWidget                 *widget,
 
   /* Режим перемещения - сдвигаем область. */
   if (!priv->move_area)
-    return FALSE;
+    return GDK_EVENT_PROPAGATE;
 
   gtk_cifro_area_point_to_value (carea, priv->move_from_x, priv->move_from_y, &x0, &y0);
   gtk_cifro_area_point_to_value (carea, event->x, event->y, &x1, &y1);
@@ -373,7 +347,7 @@ hyscan_gtk_waterfall_control_mouse_motion (GtkWidget                 *widget,
   if (received < stored - widget_size / 10.0)
     hyscan_gtk_waterfall_automove (priv->wfall, FALSE);
 
-  return FALSE;
+  return GDK_EVENT_PROPAGATE;
 }
 
 /* Обработчик колесика мыши. */
@@ -432,7 +406,7 @@ hyscan_gtk_waterfall_control_mouse_wheel (GtkWidget                 *widget,
         hyscan_gtk_waterfall_automove (priv->wfall, FALSE);
     }
 
-  return FALSE;
+  return GDK_EVENT_PROPAGATE;
 }
 
 /* Функция обрабатывает сигнал смены типа отображения. */
@@ -445,11 +419,9 @@ hyscan_gtk_waterfall_control_sources_changed (HyScanGtkWaterfallState   *model,
 
 /* Функция создает новый объект. */
 HyScanGtkWaterfallControl*
-hyscan_gtk_waterfall_control_new (HyScanGtkWaterfall *waterfall)
+hyscan_gtk_waterfall_control_new (void)
 {
-  return g_object_new (HYSCAN_TYPE_GTK_WATERFALL_CONTROL,
-                       "waterfall", waterfall,
-                       NULL);
+  return g_object_new (HYSCAN_TYPE_GTK_WATERFALL_CONTROL, NULL);
 }
 
 /* Функция задает поведение колесика мыши. */
@@ -480,9 +452,10 @@ hyscan_gtk_waterfall_control_zoom (HyScanGtkWaterfallControl *self,
 }
 
 static void
-hyscan_gtk_waterfall_control_interface_init (HyScanGtkWaterfallLayerInterface *iface)
+hyscan_gtk_waterfall_control_interface_init (HyScanGtkLayerInterface *iface)
 {
   iface->grab_input = hyscan_gtk_waterfall_control_grab_input;
-  iface->set_visible = NULL;
-  iface->get_mnemonic = hyscan_gtk_waterfall_control_get_mnemonic;
+  iface->get_icon_name = hyscan_gtk_waterfall_control_get_mnemonic;
+  iface->added = hyscan_gtk_waterfall_control_added;
+  iface->removed = hyscan_gtk_waterfall_control_removed;
 }

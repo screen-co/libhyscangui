@@ -88,7 +88,7 @@
 #include <hyscan-tile-common.h>
 #include <hyscan-amplitude-factory.h>
 #include <hyscan-depth-factory.h>
-#include <gtk-cifro-area.h>
+#include "hyscan-gtk-layer-container.h"
 
 G_BEGIN_DECLS
 
@@ -112,92 +112,18 @@ typedef struct _HyScanGtkWaterfallStateClass HyScanGtkWaterfallStateClass;
 
 struct _HyScanGtkWaterfallState
 {
-  GtkCifroArea parent_instance;
+  HyScanGtkLayerContainer parent_instance;
 
   HyScanGtkWaterfallStatePrivate *priv;
 };
 
 struct _HyScanGtkWaterfallStateClass
 {
-  GtkCifroAreaClass parent_class;
+  HyScanGtkLayerContainerClass parent_class;
 };
 
 HYSCAN_API
 GType                   hyscan_gtk_waterfall_state_get_type                    (void);
-
-/**
- *
- * Функция позволяет слою захватить ввод.
- *
- * Идентификатор может быть абсолютно любым, кроме NULL.
- * Рекомедуется использовать адрес вызывающего эту функцию слоя.
- *
- * \param state указатель на объект \link HyScanGtkWaterfall \endlink;
- * \param instance идентификатор объекта, желающего захватить ввод.
- *
- */
-HYSCAN_API
-void                    hyscan_gtk_waterfall_state_set_input_owner             (HyScanGtkWaterfallState *state,
-                                                                                gconstpointer            instance);
-/**
- *
- * Функция возвращает владельца ввода.
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- *
- * \return идентификатор владельца ввода или NULL, если владелец не установлен.
- *
- */
-HYSCAN_API
-gconstpointer           hyscan_gtk_waterfall_state_get_input_owner             (HyScanGtkWaterfallState *state);
-/**
- *
- * Функция позволяет слою захватить хэндл.
- *
- * Идентификатор может быть абсолютно любым, кроме NULL.
- * Рекомедуется использовать адрес вызывающего эту функцию слоя.
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param instance идентификатор объекта, желающего захватить хэндл.
- *
- */
-HYSCAN_API
-void                    hyscan_gtk_waterfall_state_set_handle_grabbed          (HyScanGtkWaterfallState *state,
-                                                                                gconstpointer            instance);
-/**
- *
- * Функция возвращает владельца хэндла.
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- *
- * \return идентификатор владельца хэндла или NULL, если владелец не установлен.
- *
- */
-HYSCAN_API
-gconstpointer           hyscan_gtk_waterfall_state_get_handle_grabbed          (HyScanGtkWaterfallState *state);
-
-/**
- *
- * Функция позволяет запретить или разрешить изменения.
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param allowed TRUE, чтобы разрешить изменения.
- *
- */
-HYSCAN_API
-void                    hyscan_gtk_waterfall_state_set_changes_allowed         (HyScanGtkWaterfallState *state,
-                                                                                gboolean                 allowed);
-/**
- *
- * Функция позволяет узнать, запрещены изменения или нет.
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- *
- * \return TRUE, если разрешены, FALSE, если запрещены.
- *
- */
-HYSCAN_API
-gboolean                hyscan_gtk_waterfall_state_get_changes_allowed         (HyScanGtkWaterfallState *state);
 
 /**
  *

@@ -17,7 +17,8 @@
 #ifndef __HYSCAN_GTK_WATERFALL_METER_H__
 #define __HYSCAN_GTK_WATERFALL_METER_H__
 
-#include <hyscan-gtk-waterfall-layer.h>
+#include "hyscan-gtk-layer.h"
+#include "hyscan-gtk-waterfall.h"
 
 G_BEGIN_DECLS
 
@@ -34,14 +35,14 @@ typedef struct _HyScanGtkWaterfallMeterClass HyScanGtkWaterfallMeterClass;
 
 struct _HyScanGtkWaterfallMeter
 {
-  GObject parent_instance;
+  GInitiallyUnowned parent_instance;
 
   HyScanGtkWaterfallMeterPrivate *priv;
 };
 
 struct _HyScanGtkWaterfallMeterClass
 {
-  GObjectClass parent_class;
+  GInitiallyUnownedClass parent_class;
 };
 
 HYSCAN_API
@@ -56,7 +57,7 @@ GType                           hyscan_gtk_waterfall_meter_get_type            (
  * \return новый слой HyScanGtkWaterfallMeter.
  */
 HYSCAN_API
-HyScanGtkWaterfallMeter        *hyscan_gtk_waterfall_meter_new                 (HyScanGtkWaterfall      *waterfall);
+HyScanGtkWaterfallMeter        *hyscan_gtk_waterfall_meter_new                 (void);
 
 /**
  *

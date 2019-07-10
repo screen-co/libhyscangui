@@ -225,7 +225,7 @@ hyscan_gtk_waterfall_object_constructed (GObject *object)
   cache = hyscan_gtk_waterfall_state_get_cache (HYSCAN_GTK_WATERFALL_STATE (self));
   af = hyscan_gtk_waterfall_state_get_amp_factory (HYSCAN_GTK_WATERFALL_STATE (self));
   df = hyscan_gtk_waterfall_state_get_dpt_factory (HYSCAN_GTK_WATERFALL_STATE (self));
-  // n_threads = 1;
+
   priv->queue = hyscan_tile_queue_new (n_threads, cache, af, df);
   priv->color = hyscan_tile_color_new (cache);
   priv->lrect = hyscan_track_rect_new (cache, af, df);
@@ -253,12 +253,12 @@ hyscan_gtk_waterfall_object_constructed (GObject *object)
   // g_signal_connect (self, "changed::amp-factory",  G_CALLBACK (hyscan_gtk_waterfall_depth_amp_changed), self);
   // g_signal_connect (self, "changed::dpt-factory",  G_CALLBACK (hyscan_gtk_waterfall_cache_dpt_changed), self);
 
-  hyscan_gtk_waterfall_sources_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
-  hyscan_gtk_waterfall_tile_flags_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
-  hyscan_gtk_waterfall_profile_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
-  hyscan_gtk_waterfall_track_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
-  hyscan_gtk_waterfall_speed_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
-  hyscan_gtk_waterfall_velocity_changed (HYSCAN_GTK_WATERFALL_STATE(self), self);
+  hyscan_gtk_waterfall_sources_changed (HYSCAN_GTK_WATERFALL_STATE (self), self);
+  hyscan_gtk_waterfall_tile_flags_changed (HYSCAN_GTK_WATERFALL_STATE (self), self);
+  hyscan_gtk_waterfall_profile_changed (HYSCAN_GTK_WATERFALL_STATE (self), self);
+  hyscan_gtk_waterfall_track_changed (HYSCAN_GTK_WATERFALL_STATE (self), self);
+  hyscan_gtk_waterfall_speed_changed (HYSCAN_GTK_WATERFALL_STATE (self), self);
+  hyscan_gtk_waterfall_velocity_changed (HYSCAN_GTK_WATERFALL_STATE (self), self);
 
   /* Инициализируем масштабы. */
   priv->zooms = g_malloc0 (ZOOM_LEVELS * sizeof (gdouble));
@@ -273,6 +273,7 @@ hyscan_gtk_waterfall_object_constructed (GObject *object)
   g_object_unref (cache);
   g_object_unref (af);
   g_object_unref (df);
+
 }
 
 static void
@@ -1128,6 +1129,8 @@ hyscan_gtk_waterfall_track_changed (HyScanGtkWaterfallState *model,
   g_free (project);
   g_free (track);
   g_object_unref (db);
+  g_object_unref (af);
+  g_object_unref (df);
 
   gtk_widget_queue_draw (GTK_WIDGET (self));
 
@@ -1170,6 +1173,7 @@ hyscan_gtk_waterfall_new (HyScanCache *cache)
 {
   return g_object_new (HYSCAN_TYPE_GTK_WATERFALL,
                        "cache", cache, NULL);
+
 }
 
 /* Функция запрашивает перерисовку виджета. */

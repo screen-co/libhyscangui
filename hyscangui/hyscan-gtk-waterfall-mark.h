@@ -96,7 +96,7 @@
 #ifndef __HYSCAN_GTK_WATERFALL_MARK_H__
 #define __HYSCAN_GTK_WATERFALL_MARK_H__
 
-#include "hyscan-gtk-waterfall-layer.h"
+#include "hyscan-gtk-layer.h"
 #include <hyscan-mark-model.h>
 
 G_BEGIN_DECLS
@@ -116,14 +116,14 @@ typedef struct _HyScanGtkWaterfallMarkClass HyScanGtkWaterfallMarkClass;
 
 struct _HyScanGtkWaterfallMark
 {
-  GObject parent_instance;
+  GInitiallyUnowned parent_instance;
 
   HyScanGtkWaterfallMarkPrivate *priv;
 };
 
 struct _HyScanGtkWaterfallMarkClass
 {
-  GObjectClass parent_class;
+  GInitiallyUnownedClass parent_class;
 };
 
 typedef enum
@@ -145,8 +145,7 @@ GType                    hyscan_gtk_waterfall_mark_get_type            (void);
  *
  */
 HYSCAN_API
-HyScanGtkWaterfallMark  *hyscan_gtk_waterfall_mark_new                 (HyScanGtkWaterfall         *waterfall,
-                                                                        HyScanMarkModel            *markmodel);
+HyScanGtkWaterfallMark  *hyscan_gtk_waterfall_mark_new                 (HyScanMarkModel            *markmodel);
 
 /**
  *

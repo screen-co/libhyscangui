@@ -152,7 +152,8 @@ enum
 
 enum
 {
-  SIGNAL_HANDLE,
+  SIGNAL_HANDLE_CREATE,
+  SIGNAL_HANDLE_GRAB,
   SIGNAL_HANDLE_RELEASE,
   SIGNAL_LAST
 };
@@ -216,6 +217,25 @@ hyscan_gtk_layer_container_class_init (HyScanGtkLayerContainerClass *klass)
   widget_class->unrealize = hyscan_gtk_layer_container_unrealize;
 
   /**
+   * HyScanGtkLayerContainer::handle-create:
+   * @container: объект, получивший сигнал
+   * @event: #GdkEventButton оригинального события "button-release-event"
+   *
+   * Сигнал отправляется при необходимости создания под указателем мыши,
+   * когда пользователь отпускает левую кнопку. Отправляется только если в данный
+   * момент никакой хэндл не захвачен.
+   *
+   * Returns: указатель на слой, если слой создал хэндл; %NULL, если хэндл не создан.
+   */
+  hyscan_gtk_layer_container_signals[SIGNAL_HANDLE_CREATE] =
+    g_signal_new ("handle-create", HYSCAN_TYPE_GTK_LAYER_CONTAINER,
+                  G_SIGNAL_RUN_LAST,
+                  0, hyscan_gtk_layer_container_grab_accu, NULL,
+                  hyscan_gui_marshal_POINTER__POINTER,
+                  G_TYPE_POINTER,
+                  1, G_TYPE_POINTER);
+
+  /**
    * HyScanGtkLayerContainer::handle-grab:
    * @container: объект, получивший сигнал
    * @event: #GdkEventButton оригинального события "button-release-event"
@@ -227,7 +247,7 @@ hyscan_gtk_layer_container_class_init (HyScanGtkLayerContainerClass *klass)
    * Returns: указатель на хэндл, если слой берет хэндл; или %NULL, если у слоя
    *          нет хэндла под указателем мыши.
    */
-  hyscan_gtk_layer_container_signals[SIGNAL_HANDLE] =
+  hyscan_gtk_layer_container_signals[SIGNAL_HANDLE_GRAB] =
     g_signal_new ("handle-grab", HYSCAN_TYPE_GTK_LAYER_CONTAINER,
                   G_SIGNAL_RUN_LAST,
                   0, hyscan_gtk_layer_container_grab_accu, NULL,
@@ -329,7 +349,7 @@ hyscan_gtk_layer_container_grab_accu (GSignalInvocationHint *ihint,
 
 /* Пытается отпустить хэндл, эмитируя сигнал "handle-release". */
 static gboolean
-hyscan_gtk_layer_container_release_handle (HyScanGtkLayerContainer *container,
+hyscan_gtk_layer_container_handle_release (HyScanGtkLayerContainer *container,
                                            gconstpointer            handle_owner,
                                            GdkEventButton          *event)
 {
@@ -371,17 +391,30 @@ hyscan_gtk_layer_container_set_hint (HyScanGtkLayerContainer *container,
     }
 }
 
+/* Пытается создать хэндл, эмитируя сигнал "handle-create". */
+static gboolean
+hyscan_gtk_layer_container_handle_create (HyScanGtkLayerContainer *container,
+                                          GdkEventButton          *event)
+{
+  gconstpointer handle_owner = NULL;
+
+  g_signal_emit (container, hyscan_gtk_layer_container_signals[SIGNAL_HANDLE_CREATE], 0, event, &handle_owner);
+  hyscan_gtk_layer_container_set_handle_grabbed (container, handle_owner);
+
+  return handle_owner != NULL;
+}
+
 /* Пытается захватить хэндл, эмитируя сигнал "handle-grab". */
 static gboolean
-hyscan_gtk_layer_container_grab_handle (HyScanGtkLayerContainer *container,
+hyscan_gtk_layer_container_handle_grab (HyScanGtkLayerContainer *container,
                                         GdkEventButton          *event)
 {
   gconstpointer handle_owner = NULL;
 
-  g_signal_emit (container, hyscan_gtk_layer_container_signals[SIGNAL_HANDLE], 0, event, &handle_owner);
+  g_signal_emit (container, hyscan_gtk_layer_container_signals[SIGNAL_HANDLE_GRAB], 0, event, &handle_owner);
   hyscan_gtk_layer_container_set_handle_grabbed (container, handle_owner);
 
-  return handle_owner != NULL ? GDK_EVENT_STOP : GDK_EVENT_PROPAGATE;
+  return handle_owner != NULL;
 }
 
 /* Обработчик "unrealize-event".
@@ -478,12 +511,20 @@ hyscan_gtk_layer_container_button_release (GtkWidget       *widget,
    *   спрашиваем, не хочет ли слой отпустить хэндл.
    * - handle_owner == NULL - значит, никто не обрабатывает взаимодействие,
    *   спрашиваем, не хочет ли какой-то слой схватить хэндл.
+   * - если никто не хочет, то предлагаем создать хэндл.
+   * - если никто не создал, позволяем событию случаться дальше.
    */
   handle_owner = hyscan_gtk_layer_container_get_handle_grabbed (container);
   if (handle_owner != NULL)
-    return hyscan_gtk_layer_container_release_handle (container, handle_owner, event);
-  else
-    return hyscan_gtk_layer_container_grab_handle (container, event);
+    return hyscan_gtk_layer_container_handle_release (container, handle_owner, event);
+
+  if (hyscan_gtk_layer_container_handle_grab (container, event))
+    return GDK_EVENT_STOP;
+
+  if (hyscan_gtk_layer_container_handle_create (container, event))
+    return GDK_EVENT_STOP;
+
+  return GDK_EVENT_PROPAGATE;
 
 }
 
@@ -662,7 +703,7 @@ hyscan_gtk_layer_container_load_key_file (HyScanGtkLayerContainer *container,
   GHashTableIter iter;
   gchar *key;
   HyScanGtkLayer *layer;
-  
+
   g_return_if_fail (HYSCAN_IS_GTK_LAYER_CONTAINER (container));
   priv = container->priv;
 

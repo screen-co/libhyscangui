@@ -28,8 +28,8 @@
 #ifndef __HYSCAN_GTK_WATERFALL_GRID_H__
 #define __HYSCAN_GTK_WATERFALL_GRID_H__
 
-#include <hyscan-gtk-waterfall-layer.h>
-#include <hyscan-gtk-waterfall.h>
+#include "hyscan-gtk-layer.h"
+#include "hyscan-gtk-waterfall.h"
 
 G_BEGIN_DECLS
 
@@ -54,18 +54,18 @@ typedef struct _HyScanGtkWaterfallGridClass HyScanGtkWaterfallGridClass;
 
 struct _HyScanGtkWaterfallGrid
 {
-  GObject parent_instance;
+  GInitiallyUnowned parent_instance;
 
   HyScanGtkWaterfallGridPrivate *priv;
 };
 
 struct _HyScanGtkWaterfallGridClass
 {
-  GObjectClass parent_class;
+  GInitiallyUnownedClass parent_class;
 };
 
 HYSCAN_API
-GType                   hyscan_gtk_waterfall_grid_get_type         (void);
+GType                   hyscan_gtk_waterfall_grid_get_type              (void);
 
 /**
  *
@@ -76,7 +76,7 @@ GType                   hyscan_gtk_waterfall_grid_get_type         (void);
  * \return новый виджет \link HyScanGtkWaterfallGrid \endlink
  */
 HYSCAN_API
-HyScanGtkWaterfallGrid *hyscan_gtk_waterfall_grid_new                   (HyScanGtkWaterfall     *waterfall);
+HyScanGtkWaterfallGrid *hyscan_gtk_waterfall_grid_new                   (void);
 /**
  *
  * Функция возвращает GtkAdjusment для горизонтальной оси.

@@ -1,6 +1,7 @@
 #include <hyscan-gtk-area.h>
 #include <hyscan-gtk-waterfall.h>
 #include <hyscan-gtk-waterfall-control.h>
+#include <hyscan-mark-model.h>
 #include <hyscan-gtk-waterfall-grid.h>
 #include <hyscan-gtk-waterfall-mark.h>
 #include <hyscan-gtk-waterfall-meter.h>
@@ -28,17 +29,17 @@ void       level_changed    (GtkScale  *white,
                              GtkScale  *gamma);
 
 void       color_changed    (GtkColorButton  *chooser);
-void       player_changed   (GtkScale                 *player_scale,
-                             HyScanGtkWaterfallPlayer *player);
-void       player_stop      (HyScanGtkWaterfallPlayer *player,
-                             GtkScale                 *scale);
+// void       player_changed   (GtkScale                 *player_scale,
+                             // HyScanGtkWaterfallPlayer *player);
+// void       player_stop      (HyScanGtkWaterfallPlayer *player,
+                             // GtkScale                 *scale);*/
 
 gchar     *uri_composer     (gchar    **path,
                              gchar     *prefix,
                              guint      cut);
 
-GtkWidget *make_layer_btn   (HyScanGtkWaterfallLayer *layer,
-                             GtkWidget          *from);
+GtkWidget *make_layer_btn   (HyScanGtkLayer *layer,
+                             GtkWidget      *from);
 GtkWidget *make_menu        (HyScanGtkWaterfall *wf,
                              gdouble             white,
                              gdouble             gamma);
@@ -51,11 +52,13 @@ void       open_db          (HyScanDB **db,
 
 static HyScanGtkWaterfallState   *wf_state;
 static HyScanGtkWaterfall        *wf;
-static HyScanGtkWaterfallGrid    *wf_grid;
 static HyScanGtkWaterfallControl *wf_ctrl;
-static HyScanGtkWaterfallMark    *wf_mark;
+static HyScanGtkWaterfallGrid    *wf_grid;
+static void    *wf_mark;
+// static HyScanGtkWaterfallMark    *wf_mark;
 static HyScanGtkWaterfallMeter   *wf_metr;
-static HyScanGtkWaterfallPlayer  *wf_play;
+static void  *wf_play;
+// static HyScanGtkWaterfallPlayer  *wf_play;
 
 static HyScanDB                  *db;
 static gchar                     *db_uri;
@@ -136,14 +139,19 @@ main (int    argc,
   wf  = HYSCAN_GTK_WATERFALL (wf_widget);
   wf_state  = HYSCAN_GTK_WATERFALL_STATE (wf_widget);
 
-  wf_grid = hyscan_gtk_waterfall_grid_new (wf);
-  wf_metr = hyscan_gtk_waterfall_meter_new (wf);
-  wf_mark = hyscan_gtk_waterfall_mark_new (wf, markmodel);
-  wf_ctrl = hyscan_gtk_waterfall_control_new (wf);
-  wf_play = hyscan_gtk_waterfall_player_new (wf);
+  wf_grid = hyscan_gtk_waterfall_grid_new ();
+  wf_ctrl = hyscan_gtk_waterfall_control_new ();
+  wf_metr = hyscan_gtk_waterfall_meter_new ();
+  wf_mark = hyscan_gtk_waterfall_mark_new (markmodel);
+  wf_play = hyscan_gtk_waterfall_player_new ();
 
   hyscan_gtk_waterfall_state_set_ship_speed (wf_state, speed);
 
+  hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (wf), HYSCAN_GTK_LAYER (wf_grid), "grid");
+  hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (wf), HYSCAN_GTK_LAYER (wf_ctrl), "control");
+  hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (wf), HYSCAN_GTK_LAYER (wf_metr), "meter");
+  hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (wf), HYSCAN_GTK_LAYER (wf_mark), "mark");
+  hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (wf), HYSCAN_GTK_LAYER (wf_play), "player");
   //hyscan_gtk_waterfall_echosounder (wf, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD);
 
   hyscan_gtk_waterfall_set_upsample (wf, 2);
@@ -172,7 +180,6 @@ main (int    argc,
 
   /* Начинаем работу. */
   gtk_main ();
-
   g_clear_object (&cache);
   g_clear_object (&db);
 
@@ -180,26 +187,19 @@ main (int    argc,
   g_free (track_name);
   g_free (db_uri);
 
-  g_clear_object (&wf_state);
-  g_clear_object (&wf_grid);
-  g_clear_object (&wf_ctrl);
-  g_clear_object (&wf_mark);
-  g_clear_object (&wf_metr);
-  g_clear_object (&wf_play);
-
   xmlCleanupParser ();
 
   return 0;
 }
 
 GtkWidget*
-make_layer_btn (HyScanGtkWaterfallLayer *layer,
-                GtkWidget               *from)
+make_layer_btn (HyScanGtkLayer *layer,
+                GtkWidget      *from)
 {
   GtkWidget *button;
   const gchar *icon;
 
-  icon = hyscan_gtk_waterfall_layer_get_mnemonic (layer);
+  icon = hyscan_gtk_layer_get_icon_name (layer);
   button = gtk_radio_button_new_from_widget (GTK_RADIO_BUTTON (from));
   gtk_toggle_button_set_mode (GTK_TOGGLE_BUTTON (button), FALSE);
   gtk_button_set_image (GTK_BUTTON (button), gtk_image_new_from_icon_name (icon, GTK_ICON_SIZE_BUTTON));
@@ -222,9 +222,9 @@ make_menu (HyScanGtkWaterfall *wf,
   GtkWidget *scale_player = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -10.0, 10.0, 0.1);
   GtkWidget *slant_ground_switch = gtk_switch_new ();
 
-  GtkWidget *lay_ctrl = make_layer_btn (HYSCAN_GTK_WATERFALL_LAYER (wf_ctrl), NULL);
-  GtkWidget *lay_mark = make_layer_btn (HYSCAN_GTK_WATERFALL_LAYER (wf_mark), lay_ctrl);
-  GtkWidget *lay_metr = make_layer_btn (HYSCAN_GTK_WATERFALL_LAYER (wf_metr), lay_mark);
+  GtkWidget *lay_ctrl = make_layer_btn (HYSCAN_GTK_LAYER (wf_ctrl), NULL);
+  GtkWidget *lay_mark = make_layer_btn (HYSCAN_GTK_LAYER (wf_mark), lay_ctrl);
+  GtkWidget *lay_metr = make_layer_btn (HYSCAN_GTK_LAYER (wf_metr), lay_mark);
 
   GtkWidget *lay_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
   GtkWidget *track_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
@@ -282,16 +282,16 @@ make_menu (HyScanGtkWaterfall *wf,
   g_signal_connect (zoom_btn_out, "clicked", G_CALLBACK (zoom_clicked), GINT_TO_POINTER (0));
   g_signal_connect (scale_white, "value-changed", G_CALLBACK (level_changed), scale_gamma);
   g_signal_connect_swapped (scale_gamma, "value-changed", G_CALLBACK (level_changed), scale_white);
-  g_signal_connect (scale_player, "value-changed", G_CALLBACK (player_changed), wf_play);
+  ///*g_signal_connect (scale_player, "value-changed", G_CALLBACK (player_changed), wf_play);*/
   g_signal_connect (color_chooser, "color-set", G_CALLBACK (color_changed), NULL);
-  g_signal_connect_swapped (lay_ctrl, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_ctrl));
-  g_signal_connect_swapped (lay_mark, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_mark));
-  g_signal_connect_swapped (lay_metr, "clicked", G_CALLBACK (hyscan_gtk_waterfall_layer_grab_input), HYSCAN_GTK_WATERFALL_LAYER (wf_metr));
+  g_signal_connect_swapped (lay_ctrl, "clicked", G_CALLBACK (hyscan_gtk_layer_grab_input), HYSCAN_GTK_LAYER (wf_ctrl));
+  g_signal_connect_swapped (lay_mark, "clicked", G_CALLBACK (hyscan_gtk_layer_grab_input), HYSCAN_GTK_LAYER (wf_mark));
+  g_signal_connect_swapped (lay_metr, "clicked", G_CALLBACK (hyscan_gtk_layer_grab_input), HYSCAN_GTK_LAYER (wf_metr));
   g_signal_connect (slant_ground_switch, "state-set", G_CALLBACK (slant_ground), wf);
 
-  g_signal_connect (wf_play, "player-stop", G_CALLBACK (player_stop), scale_player);
+  // g_signal_connect (wf_play, "player-stop", G_CALLBACK (player_stop), scale_player);
 
-  hyscan_gtk_waterfall_layer_grab_input (HYSCAN_GTK_WATERFALL_LAYER (wf_ctrl));
+  hyscan_gtk_layer_grab_input (HYSCAN_GTK_LAYER (wf_ctrl));
   gtk_widget_set_size_request (GTK_WIDGET (wf), 800, 600);
 
   // gtk_container_add (GTK_CONTAINER (overlay), GTK_WIDGET (wf));
@@ -378,7 +378,7 @@ level_changed (GtkScale  *white_scale,
 
   hyscan_gtk_waterfall_set_levels_for_all (wf, 0.0, gamma, (white > 0.0) ? white : 0.001);
 }
-
+/*
 void
 player_changed (GtkScale                 *player_scale,
                 HyScanGtkWaterfallPlayer *player)
@@ -388,7 +388,7 @@ player_changed (GtkScale                 *player_scale,
   gtk_range_set_fill_level (GTK_RANGE (player_scale), G_MAXDOUBLE);
   gtk_range_set_show_fill_level (GTK_RANGE (player_scale), speed != 0);
 
-  hyscan_gtk_waterfall_player_set_speed (player, speed);
+  // hyscan_gtk_waterfall_player_set_speed (player, speed);
 }
 
 void
@@ -396,7 +396,7 @@ player_stop (HyScanGtkWaterfallPlayer *player,
              GtkScale                 *scale)
 {
   gtk_range_set_value (GTK_RANGE (scale), 0.0);
-}
+}*/
 
 void
 color_changed (GtkColorButton *chooser)

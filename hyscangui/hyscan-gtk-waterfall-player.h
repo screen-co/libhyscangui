@@ -29,7 +29,7 @@
 #ifndef __HYSCAN_GTK_WATERFALL_PLAYER_H__
 #define __HYSCAN_GTK_WATERFALL_PLAYER_H__
 
-#include <hyscan-gtk-waterfall-layer.h>
+#include "hyscan-gtk-layer.h"
 
 G_BEGIN_DECLS
 
@@ -46,14 +46,14 @@ typedef struct _HyScanGtkWaterfallPlayerClass HyScanGtkWaterfallPlayerClass;
 
 struct _HyScanGtkWaterfallPlayer
 {
-  GObject parent_instance;
+  GInitiallyUnowned parent_instance;
 
   HyScanGtkWaterfallPlayerPrivate *priv;
 };
 
 struct _HyScanGtkWaterfallPlayerClass
 {
-  GObjectClass parent_class;
+  GInitiallyUnownedClass parent_class;
 };
 
 HYSCAN_API
@@ -68,7 +68,7 @@ GType           hyscan_gtk_waterfall_player_get_type    (void);
  * \return новый объект \link HyScanGtkWaterfallPlayer \endlink
  */
 HYSCAN_API
-HyScanGtkWaterfallPlayer* hyscan_gtk_waterfall_player_new (HyScanGtkWaterfall *waterfall);
+HyScanGtkWaterfallPlayer* hyscan_gtk_waterfall_player_new (void);
 
 /**
  *
@@ -95,6 +95,15 @@ void            hyscan_gtk_waterfall_player_set_fps     (HyScanGtkWaterfallPlaye
 HYSCAN_API
 void            hyscan_gtk_waterfall_player_set_speed   (HyScanGtkWaterfallPlayer *player,
                                                          gdouble                   speed);
+/**
+ *
+ * Функция задает скорость сдвижки.
+ *
+ * \param player указатель на объект \link HyScanGtkWaterfallPlayer \endlink
+ * \param speed скорость сдвижки в м/с.
+ */
+HYSCAN_API
+gdouble         hyscan_gtk_waterfall_player_get_speed   (HyScanGtkWaterfallPlayer *player);
 
 G_END_DECLS
 

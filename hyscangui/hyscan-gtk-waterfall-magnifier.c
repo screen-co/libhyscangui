@@ -9,18 +9,14 @@
  */
 
 #include "hyscan-gtk-waterfall-magnifier.h"
-#include <hyscan-gtk-waterfall-tools.h>
+#include "hyscan-gtk-waterfall-tools.h"
+#include "hyscan-gtk-waterfall.h"
 #include <math.h>
 
-enum
-{
-  PROP_WATERFALL = 1
-};
 
 struct _HyScanGtkWaterfallMagnifierPrivate
 {
   HyScanGtkWaterfall          *wfall;             /**< Водопад. */
-  HyScanGtkWaterfallState     *wf_state;          /**< Параметры водопада. */
   GtkCifroArea                *carea;             /**< Цифроариа. */
 
   gboolean                     layer_visibility;  /**< Видимость слоя. */
@@ -39,18 +35,16 @@ struct _HyScanGtkWaterfallMagnifierPrivate
   cairo_surface_t             *surface;           /**< Внутренний сёрфейс, который и увеличивается. */
 };
 
-static void     hyscan_gtk_waterfall_magnifier_interface_init           (HyScanGtkWaterfallLayerInterface *iface);
-static void     hyscan_gtk_waterfall_magnifier_set_property             (GObject                      *object,
-                                                                         guint                         prop_id,
-                                                                         const GValue                 *value,
-                                                                         GParamSpec                   *pspec);
+static void     hyscan_gtk_waterfall_magnifier_interface_init           (HyScanGtkLayerInterface      *iface);
 static void     hyscan_gtk_waterfall_magnifier_object_constructed       (GObject                      *object);
 static void     hyscan_gtk_waterfall_magnifier_object_finalize          (GObject                      *object);
 
-static void     hyscan_gtk_waterfall_magnifier_set_visible              (HyScanGtkWaterfallLayer      *layer,
+static void     hyscan_gtk_waterfall_magnifier_added                    (HyScanGtkLayer               *layer,
+                                                                         HyScanGtkLayerContainer      *container);
+static void     hyscan_gtk_waterfall_magnifier_removed                  (HyScanGtkLayer               *layer);
+static void     hyscan_gtk_waterfall_magnifier_set_visible              (HyScanGtkLayer               *layer,
                                                                          gboolean                      visible);
-
-static const gchar* hyscan_gtk_waterfall_magnifier_get_mnemonic         (HyScanGtkWaterfallLayer      *layer);
+static const gchar* hyscan_gtk_waterfall_magnifier_get_icon_name        (HyScanGtkLayer               *layer);
 
 static void     hyscan_gtk_waterfall_magnifier_draw                     (GtkWidget                    *widget,
                                                                          cairo_t                      *cairo,
@@ -61,28 +55,18 @@ static gboolean hyscan_gtk_waterfall_magnifier_motion                   (GtkWidg
 static gboolean hyscan_gtk_waterfall_magnifier_leave                    (GtkWidget                    *widget,
                                                                          GdkEventCrossing             *event,
                                                                          HyScanGtkWaterfallMagnifier  *self);
-static void     hyscan_gtk_waterfall_magnifier_update_surface           (cairo_surface_t             **surface,
-                                                                         gint                          width,
-                                                                         gint                          height);
 
-G_DEFINE_TYPE_WITH_CODE (HyScanGtkWaterfallMagnifier, hyscan_gtk_waterfall_magnifier, G_TYPE_OBJECT,
+G_DEFINE_TYPE_WITH_CODE (HyScanGtkWaterfallMagnifier, hyscan_gtk_waterfall_magnifier, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkWaterfallMagnifier)
-                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_WATERFALL_LAYER, hyscan_gtk_waterfall_magnifier_interface_init));
+                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_LAYER, hyscan_gtk_waterfall_magnifier_interface_init));
 
 static void
 hyscan_gtk_waterfall_magnifier_class_init (HyScanGtkWaterfallMagnifierClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
-  object_class->set_property = hyscan_gtk_waterfall_magnifier_set_property;
-
   object_class->constructed = hyscan_gtk_waterfall_magnifier_object_constructed;
   object_class->finalize = hyscan_gtk_waterfall_magnifier_object_finalize;
-
-  g_object_class_install_property (object_class, PROP_WATERFALL,
-    g_param_spec_object ("waterfall", "Waterfall", "Waterfall widget",
-                         HYSCAN_TYPE_GTK_WATERFALL_STATE,
-                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
@@ -92,38 +76,12 @@ hyscan_gtk_waterfall_magnifier_init (HyScanGtkWaterfallMagnifier *self)
 }
 
 static void
-hyscan_gtk_waterfall_magnifier_set_property (GObject      *object,
-                                             guint         prop_id,
-                                             const GValue *value,
-                                             GParamSpec   *pspec)
-{
-  HyScanGtkWaterfallMagnifier *self = HYSCAN_GTK_WATERFALL_MAGNIFIER (object);
-  HyScanGtkWaterfallMagnifierPrivate *priv = self->priv;
-
-  if (prop_id == PROP_WATERFALL)
-    {
-      priv->wfall = g_value_dup_object (value);
-      priv->wf_state = HYSCAN_GTK_WATERFALL_STATE (priv->wfall);
-      priv->carea = GTK_CIFRO_AREA (priv->wfall);
-    }
-  else
-    {
-      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-    }
-}
-
-static void
 hyscan_gtk_waterfall_magnifier_object_constructed (GObject *object)
 {
   GdkRGBA color_frame;
   HyScanGtkWaterfallMagnifier *self = HYSCAN_GTK_WATERFALL_MAGNIFIER (object);
-  HyScanGtkWaterfallMagnifierPrivate *priv = self->priv;
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_magnifier_parent_class)->constructed (object);
-
-  g_signal_connect (priv->carea, "visible-draw", G_CALLBACK (hyscan_gtk_waterfall_magnifier_draw), self);
-  g_signal_connect (priv->wfall, "motion-notify-event", G_CALLBACK (hyscan_gtk_waterfall_magnifier_motion), self);
-  g_signal_connect (priv->wfall, "leave-notify-event", G_CALLBACK (hyscan_gtk_waterfall_magnifier_leave), self);
 
   hyscan_gtk_waterfall_magnifier_set_size (self, 100, 100);
   hyscan_gtk_waterfall_magnifier_set_position (self, 16, 16);
@@ -135,7 +93,7 @@ hyscan_gtk_waterfall_magnifier_object_constructed (GObject *object)
   hyscan_gtk_waterfall_magnifier_set_zoom (self, 2);
 
   /* Включаем видимость слоя. */
-  hyscan_gtk_waterfall_layer_set_visible (HYSCAN_GTK_WATERFALL_LAYER (self), TRUE);
+  hyscan_gtk_layer_set_visible (HYSCAN_GTK_LAYER (self), TRUE);
 }
 
 static void
@@ -150,17 +108,49 @@ hyscan_gtk_waterfall_magnifier_object_finalize (GObject *object)
 }
 
 static void
-hyscan_gtk_waterfall_magnifier_set_visible (HyScanGtkWaterfallLayer *layer,
-                                            gboolean                 visible)
+hyscan_gtk_waterfall_magnifier_added (HyScanGtkLayer          *layer,
+                                      HyScanGtkLayerContainer *container)
+{
+  HyScanGtkWaterfall *wfall;
+  HyScanGtkWaterfallMagnifier *self;
+
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (container));
+
+  self = HYSCAN_GTK_WATERFALL_MAGNIFIER (layer);
+
+  wfall = HYSCAN_GTK_WATERFALL (container);
+  self->priv->wfall = g_object_ref (wfall);
+  self->priv->carea = GTK_CIFRO_AREA (wfall);
+
+  /* Сигналы. */
+  g_signal_connect (wfall, "visible-draw", G_CALLBACK (hyscan_gtk_waterfall_magnifier_draw), self);
+  g_signal_connect (wfall, "motion-notify-event", G_CALLBACK (hyscan_gtk_waterfall_magnifier_motion), self);
+  g_signal_connect (wfall, "leave-notify-event", G_CALLBACK (hyscan_gtk_waterfall_magnifier_leave), self);
+}
+
+static void
+hyscan_gtk_waterfall_magnifier_removed (HyScanGtkLayer *layer)
+{
+  HyScanGtkWaterfallMagnifier *self = HYSCAN_GTK_WATERFALL_MAGNIFIER (layer);
+
+  g_signal_handlers_disconnect_by_data (self->priv->wfall, self);
+  g_clear_object (&self->priv->wfall);
+  self->priv->carea = NULL;
+}
+
+static void
+hyscan_gtk_waterfall_magnifier_set_visible (HyScanGtkLayer *layer,
+                                            gboolean        visible)
 {
   HyScanGtkWaterfallMagnifier *self = HYSCAN_GTK_WATERFALL_MAGNIFIER (layer);
 
   self->priv->layer_visibility = visible;
-  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
+  if (self->priv->wfall != NULL)
+    hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 static const gchar*
-hyscan_gtk_waterfall_magnifier_get_mnemonic (HyScanGtkWaterfallLayer *layer)
+hyscan_gtk_waterfall_magnifier_get_icon_name (HyScanGtkLayer *layer)
 {
   return "edit-find-symbolic";
 }
@@ -245,7 +235,6 @@ hyscan_gtk_waterfall_magnifier_draw (GtkWidget                    *widget,
                    round (priv->width * priv->zoom),
                    round (priv->height * priv->zoom));
   cairo_stroke (cairo);
-
 }
 
 /* Обработчик движения мыши. */
@@ -272,25 +261,11 @@ hyscan_gtk_waterfall_magnifier_leave (GtkWidget                   *widget,
   return FALSE;
 }
 
-/* Вспомогательная функция очистки и создания cairo_surface_t. */
-static void
-hyscan_gtk_waterfall_magnifier_update_surface (cairo_surface_t **surface,
-                                               gint              width,
-                                               gint              height)
-{
-  if (*surface != NULL)
-    cairo_surface_destroy (*surface);
-
-  *surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, width, height);
-}
-
 /* Функция создает новый объект \link HyScanGtkWaterfallMagnifier \endlink */
 HyScanGtkWaterfallMagnifier*
-hyscan_gtk_waterfall_magnifier_new (HyScanGtkWaterfall *waterfall)
+hyscan_gtk_waterfall_magnifier_new (void)
 {
-  return g_object_new (HYSCAN_TYPE_GTK_WATERFALL_MAGNIFIER,
-                       "waterfall", waterfall,
-                       NULL);
+  return g_object_new (HYSCAN_TYPE_GTK_WATERFALL_MAGNIFIER, NULL);
 }
 
 
@@ -303,7 +278,8 @@ hyscan_gtk_waterfall_magnifier_set_zoom (HyScanGtkWaterfallMagnifier *self,
 
   self->priv->zoom = zoom;
 
-  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
+  if (self->priv->wfall != NULL)
+    hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 
@@ -321,9 +297,11 @@ hyscan_gtk_waterfall_magnifier_set_size (HyScanGtkWaterfallMagnifier *self,
   priv->height = height;
   priv->width = width;
 
-  hyscan_gtk_waterfall_magnifier_update_surface (&priv->surface, width, height);
+  g_clear_pointer (&priv->surface, cairo_surface_destroy);
+  priv->surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, width, height);
 
-  hyscan_gtk_waterfall_queue_draw (priv->wfall);
+  if (self->priv->wfall != NULL)
+    hyscan_gtk_waterfall_queue_draw (priv->wfall);
 }
 
 /* Функция задает начальную координату (левый верхний угол) окошка с увеличенным изображением. */
@@ -337,7 +315,8 @@ hyscan_gtk_waterfall_magnifier_set_position (HyScanGtkWaterfallMagnifier *self,
   self->priv->window.x = x;
   self->priv->window.y = y;
 
-  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
+  if (self->priv->wfall != NULL)
+    hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 
@@ -350,7 +329,8 @@ hyscan_gtk_waterfall_magnifier_set_frame_color (HyScanGtkWaterfallMagnifier *sel
 
   self->priv->frame_color = color;
 
-  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
+  if (self->priv->wfall != NULL)
+    hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 
@@ -363,13 +343,15 @@ hyscan_gtk_waterfall_magnifier_set_frame_width (HyScanGtkWaterfallMagnifier *sel
 
   self->priv->frame_width = width;
 
-  hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
+  if (self->priv->wfall != NULL)
+    hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 static void
-hyscan_gtk_waterfall_magnifier_interface_init (HyScanGtkWaterfallLayerInterface *iface)
+hyscan_gtk_waterfall_magnifier_interface_init (HyScanGtkLayerInterface *iface)
 {
-  iface->grab_input = NULL;
+  iface->added = hyscan_gtk_waterfall_magnifier_added;
+  iface->removed = hyscan_gtk_waterfall_magnifier_removed;
   iface->set_visible = hyscan_gtk_waterfall_magnifier_set_visible;
-  iface->get_mnemonic = hyscan_gtk_waterfall_magnifier_get_mnemonic;
+  iface->get_icon_name = hyscan_gtk_waterfall_magnifier_get_icon_name;
 }

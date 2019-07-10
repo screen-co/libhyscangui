@@ -26,7 +26,7 @@
 #ifndef __HYSCAN_GTK_WATERFALL_MAGNIFIER_H__
 #define __HYSCAN_GTK_WATERFALL_MAGNIFIER_H__
 
-#include <hyscan-gtk-waterfall-layer.h>
+#include "hyscan-gtk-layer.h"
 
 G_BEGIN_DECLS
 
@@ -43,14 +43,14 @@ typedef struct _HyScanGtkWaterfallMagnifierClass HyScanGtkWaterfallMagnifierClas
 
 struct _HyScanGtkWaterfallMagnifier
 {
-  GObject parent_instance;
+  GInitiallyUnowned parent_instance;
 
   HyScanGtkWaterfallMagnifierPrivate *priv;
 };
 
 struct _HyScanGtkWaterfallMagnifierClass
 {
-  GObjectClass parent_class;
+  GInitiallyUnownedClass parent_class;
 };
 
 HYSCAN_API
@@ -65,7 +65,7 @@ GType hyscan_gtk_waterfall_magnifier_get_type           (void);
  * \return новый объект \link HyScanGtkWaterfallMagnifier \endlink
  */
 HYSCAN_API
-HyScanGtkWaterfallMagnifier *hyscan_gtk_waterfall_magnifier_new (HyScanGtkWaterfall *waterfall);
+HyScanGtkWaterfallMagnifier *hyscan_gtk_waterfall_magnifier_new (void);
 
 /**
  *
