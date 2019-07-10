@@ -107,13 +107,13 @@ static void                     hyscan_gtk_map_ruler_draw_hover_section       (H
                                                                                cairo_t                  *cairo);
 static void                     hyscan_gtk_map_ruler_draw_label               (HyScanGtkMapRuler        *ruler,
                                                                                cairo_t                  *cairo);
-static void                     hyscan_gtk_map_ruler_draw_impl                (HyScanGtkMapPinLayer     *layer,
+static void                     hyscan_gtk_map_ruler_draw_impl                (HyScanGtkMapPin          *layer,
                                                                                cairo_t                  *cairo);
-static void                     hyscan_gtk_map_ruler_changed_impl             (HyScanGtkMapPinLayer     *layer);
+static void                     hyscan_gtk_map_ruler_changed_impl             (HyScanGtkMapPin          *layer);
 
 static HyScanGtkLayerInterface *hyscan_gtk_layer_parent_interface = NULL;
 
-G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapRuler, hyscan_gtk_map_ruler, HYSCAN_TYPE_GTK_MAP_PIN_LAYER,
+G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapRuler, hyscan_gtk_map_ruler, HYSCAN_TYPE_GTK_MAP_PIN,
                          G_ADD_PRIVATE (HyScanGtkMapRuler)
                          G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_LAYER, hyscan_gtk_map_ruler_interface_init))
 
@@ -121,7 +121,7 @@ static void
 hyscan_gtk_map_ruler_class_init (HyScanGtkMapRulerClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
-  HyScanGtkMapPinLayerClass *pin_class = HYSCAN_GTK_MAP_PIN_LAYER_CLASS (klass);
+  HyScanGtkMapPinClass *pin_class = HYSCAN_GTK_MAP_PIN_CLASS (klass);
 
   object_class->constructed = hyscan_gtk_map_ruler_object_constructed;
   object_class->finalize = hyscan_gtk_map_ruler_object_finalize;
@@ -140,7 +140,7 @@ static void
 hyscan_gtk_map_ruler_object_constructed (GObject *object)
 {
   HyScanGtkMapRuler *gtk_map_ruler = HYSCAN_GTK_MAP_RULER (object);
-  HyScanGtkMapPinLayer *pin_layer = HYSCAN_GTK_MAP_PIN_LAYER (object);
+  HyScanGtkMapPin *pin_layer = HYSCAN_GTK_MAP_PIN (object);
   HyScanGtkMapRulerPrivate *priv = gtk_map_ruler->priv;
 
   GdkRGBA color;
@@ -154,8 +154,8 @@ hyscan_gtk_map_ruler_object_constructed (GObject *object)
   hyscan_gtk_map_ruler_set_bg_color (gtk_map_ruler, color);
   gdk_rgba_parse (&color, LABEL_COLOR_DEFAULT);
   hyscan_gtk_map_ruler_set_label_color (gtk_map_ruler, color);
-  hyscan_gtk_map_pin_layer_set_pin_size (pin_layer, 4);
-  hyscan_gtk_map_pin_layer_set_pin_shape (pin_layer, HYSCAN_GTK_MAP_PIN_LAYER_SHAPE_CIRCLE);
+  hyscan_gtk_map_pin_set_pin_size (pin_layer, 4);
+  hyscan_gtk_map_pin_set_pin_shape (pin_layer, HYSCAN_GTK_MAP_PIN_SHAPE_CIRCLE);
 
   priv->label_padding = 5;
 }
@@ -183,15 +183,15 @@ hyscan_gtk_map_ruler_handle (HyScanGtkLayerContainer *container,
   GList *section;
   HyScanGtkMapPoint *new_point;
   HyScanGtkMapRulerPrivate *priv = ruler->priv;
-  HyScanGtkMapPinLayer *pin_layer = HYSCAN_GTK_MAP_PIN_LAYER (ruler);
+  HyScanGtkMapPin *pin_layer = HYSCAN_GTK_MAP_PIN (ruler);
 
   section = hyscan_gtk_map_ruler_get_segment_under_cursor (ruler, event);
   if (section == NULL)
     return NULL;
 
-  new_point = hyscan_gtk_map_pin_layer_insert_before (pin_layer, &priv->section_point, section);
+  new_point = hyscan_gtk_map_pin_insert_before (pin_layer, &priv->section_point, section);
 
-  return hyscan_gtk_map_pin_layer_start_drag (pin_layer, new_point);
+  return hyscan_gtk_map_pin_start_drag (pin_layer, new_point);
 }
 
 static void
@@ -359,7 +359,7 @@ hyscan_gtk_map_ruler_draw_label (HyScanGtkMapRuler *ruler,
 
   carea = GTK_CIFRO_AREA (priv->map);
 
-  points = hyscan_gtk_map_pin_layer_get_points (HYSCAN_GTK_MAP_PIN_LAYER (ruler));
+  points = hyscan_gtk_map_pin_get_points (HYSCAN_GTK_MAP_PIN (ruler));
   distance = hyscan_gtk_map_ruler_get_distance (priv->map, points);
 
   if (distance < 0.0)
@@ -448,7 +448,7 @@ hyscan_gtk_map_ruler_draw_line (HyScanGtkMapRuler *ruler,
   cairo_set_line_width (cairo, priv->line_width);
 
   cairo_new_path (cairo);
-  points = hyscan_gtk_map_pin_layer_get_points (HYSCAN_GTK_MAP_PIN_LAYER (ruler));
+  points = hyscan_gtk_map_pin_get_points (HYSCAN_GTK_MAP_PIN (ruler));
   for (point_l = points; point_l != NULL; point_l = point_l->next)
     {
       point = point_l->data;
@@ -461,28 +461,28 @@ hyscan_gtk_map_ruler_draw_line (HyScanGtkMapRuler *ruler,
 
 /* Обработчик изменения списка точек слоя. */
 static void
-hyscan_gtk_map_ruler_changed_impl (HyScanGtkMapPinLayer *layer)
+hyscan_gtk_map_ruler_changed_impl (HyScanGtkMapPin *layer)
 {
   HyScanGtkMapRuler *ruler = HYSCAN_GTK_MAP_RULER (layer);
   HyScanGtkMapRulerPrivate *priv = ruler->priv;
   GList *points;
 
   /* Вызываем обработчик родительского класса. */
-  HYSCAN_GTK_MAP_PIN_LAYER_CLASS (hyscan_gtk_map_ruler_parent_class)->changed (layer);
+  HYSCAN_GTK_MAP_PIN_CLASS (hyscan_gtk_map_ruler_parent_class)->changed (layer);
 
   if (priv->hover_section == NULL)
     return;
 
   /* Если отрезок под курсором был удалён, то очищаем указатель на него. */
-  points = hyscan_gtk_map_pin_layer_get_points (layer);
+  points = hyscan_gtk_map_pin_get_points (layer);
   if (g_list_position (points, priv->hover_section) == -1)
     priv->hover_section = NULL;
 }
 
 /* Рисует элементы линейки по сигналу "visible-draw". */
 static void
-hyscan_gtk_map_ruler_draw_impl (HyScanGtkMapPinLayer *layer,
-                                cairo_t              *cairo)
+hyscan_gtk_map_ruler_draw_impl (HyScanGtkMapPin *layer,
+                                cairo_t          *cairo)
 {
   HyScanGtkMapRuler *ruler = HYSCAN_GTK_MAP_RULER (layer);
 
@@ -491,7 +491,7 @@ hyscan_gtk_map_ruler_draw_impl (HyScanGtkMapPinLayer *layer,
   hyscan_gtk_map_ruler_draw_hover_section (ruler, cairo);
 
   /* Родительский класс рисует сами метки. */
-  HYSCAN_GTK_MAP_PIN_LAYER_CLASS (hyscan_gtk_map_ruler_parent_class)->draw (layer, cairo);
+  HYSCAN_GTK_MAP_PIN_CLASS (hyscan_gtk_map_ruler_parent_class)->draw (layer, cairo);
 
   hyscan_gtk_map_ruler_draw_label (ruler, cairo);
 }
@@ -530,7 +530,7 @@ hyscan_gtk_map_ruler_get_segment_under_cursor (HyScanGtkMapRuler *ruler,
   carea = GTK_CIFRO_AREA (map);
   gtk_cifro_area_get_scale (carea, &scale_x, &scale_y);
   gtk_cifro_area_point_to_value (carea, event->x, event->y, &cursor.x, &cursor.y);
-  points = hyscan_gtk_map_pin_layer_get_points (HYSCAN_GTK_MAP_PIN_LAYER (ruler));
+  points = hyscan_gtk_map_pin_get_points (HYSCAN_GTK_MAP_PIN (ruler));
   for (point_l = points; point_l != NULL; point_l = point_l->next)
     {
       HyScanGeoCartesian2D *point = &((HyScanGtkMapPoint *) point_l->data)->c2d;

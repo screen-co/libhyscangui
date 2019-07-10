@@ -465,12 +465,12 @@ hyscan_gtk_map_planner_start_drag (HyScanGtkMapPlanner      *layer,
   /* Проверяем, что хэндл свободен и мы ещё не в режиме перемещения. */
   if (howner != NULL)
     {
-      g_warning ("HyScanGtkMapPinLayer: failed to start drag - handle is grabbed");
+      g_warning ("HyScanGtkMapPlanner: failed to start drag - handle is grabbed");
       return NULL;
     }
   if (priv->mode == MODE_DRAG)
     {
-      g_warning ("HyScanGtkMapPinLayer: failed to start drag - already in drag mode");
+      g_warning ("HyScanGtkMapPlanner: failed to start drag - already in drag mode");
       return NULL;
     }
 

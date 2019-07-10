@@ -1,4 +1,4 @@
-/* hyscan-gtk-map-wfmark-layer.c
+/* hyscan-gtk-map-wfmark.c
  *
  * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *
@@ -33,16 +33,16 @@
  */
 
 /**
- * SECTION: hyscan-gtk-map-wfmark-layer
+ * SECTION: hyscan-gtk-map-wfmark
  * @Short_description: Класс слоя с метками водопада
- * @Title: HyScanGtkMapWfmarkLayer
- * @See_also: #HyScanGtkLayer, #HyScanGtkMapTiledLayer, #HyScanGtkMap, #GtkCifroArea
+ * @Title: HyScanGtkMapWfmark
+ * @See_also: #HyScanGtkLayer, #HyScanGtkMapTiled, #HyScanGtkMap, #GtkCifroArea
  *
- * Слой #HyScanGtkMapWfmarkLayer изображает на карте контуры меток водопада
+ * Слой #HyScanGtkMapWfmark изображает на карте контуры меток водопада
  * указанного проекта.
  *
- * - hyscan_gtk_map_wfmark_layer_new() - создание нового слоя;
- * - hyscan_gtk_map_wfmark_layer_mark_view() - переход к указанной метке.
+ * - hyscan_gtk_map_wfmark_new() - создание нового слоя;
+ * - hyscan_gtk_map_wfmark_mark_view() - переход к указанной метке.
  *
  * Стиль слоя может быть настроен с помощью ini-файла:
  * - "mark-color" - цвет контура метки
@@ -50,7 +50,7 @@
  * - "line-width" - толщина линий
  */
 
-#include "hyscan-gtk-map-wfmark-layer.h"
+#include "hyscan-gtk-map-wfmark.h"
 #include "hyscan-gtk-map.h"
 #include <hyscan-cartesian.h>
 #include <math.h>
@@ -88,9 +88,9 @@ typedef struct
   /* Extent - прямоугольник, внутри которого находится метка; стороны прямоугольника вдоль осей координат. */
   HyScanGeoCartesian2D         extent_from;     /* Координаты левой верхней вершины прямоугольника extent. */
   HyScanGeoCartesian2D         extent_to;       /* Координаты правой нижней вершины прямоугольника extent. */
-} HyScanGtkMapWfmarkLayerLocation;
+} HyScanGtkMapWfmarkLocation;
 
-struct _HyScanGtkMapWfmarkLayerPrivate
+struct _HyScanGtkMapWfmarkPrivate
 {
   HyScanGtkMap                          *map;             /* Карта. */
   gboolean                               visible;         /* Признак видимости слоя. */
@@ -98,9 +98,9 @@ struct _HyScanGtkMapWfmarkLayerPrivate
   HyScanMarkLocModel                    *model;           /* Модель данных. */
 
   GRWLock                                mark_lock;       /* Блокировка данных по меткам. .*/
-  GHashTable                            *marks;           /* Хэш-таблица меток #HyScanGtkMapWfmarkLayerLocation. */
+  GHashTable                            *marks;           /* Хэш-таблица меток #HyScanGtkMapWfmarkLocation. */
 
-  const HyScanGtkMapWfmarkLayerLocation *location_hover;  /* Метка, над которой находится курсор мыши. */
+  const HyScanGtkMapWfmarkLocation      *location_hover;  /* Метка, над которой находится курсор мыши. */
   gchar                                 *active_mark_id;  /* Выбранная метка. */
 
   /* Стиль отображения. */
@@ -109,28 +109,28 @@ struct _HyScanGtkMapWfmarkLayerPrivate
   gdouble                                line_width;      /* Толщина обводки. */
 };
 
-static void    hyscan_gtk_map_wfmark_layer_interface_init           (HyScanGtkLayerInterface *iface);
-static void    hyscan_gtk_map_wfmark_layer_set_property             (GObject                 *object,
-                                                                     guint                    prop_id,
-                                                                     const GValue            *value,
-                                                                     GParamSpec              *pspec);
-static void    hyscan_gtk_map_wfmark_layer_object_constructed       (GObject                 *object);
-static void    hyscan_gtk_map_wfmark_layer_object_finalize          (GObject                 *object);
-static void    hyscan_gtk_map_wfmark_layer_model_changed            (HyScanGtkMapWfmarkLayer *wfm_layer);
-static void    hyscan_gtk_map_wfmark_layer_location_free            (HyScanGtkMapWfmarkLayerLocation *location);
+static void    hyscan_gtk_map_wfmark_interface_init           (HyScanGtkLayerInterface    *iface);
+static void    hyscan_gtk_map_wfmark_set_property             (GObject                    *object,
+                                                               guint                       prop_id,
+                                                               const GValue               *value,
+                                                               GParamSpec                 *pspec);
+static void    hyscan_gtk_map_wfmark_object_constructed       (GObject                    *object);
+static void    hyscan_gtk_map_wfmark_object_finalize          (GObject                    *object);
+static void    hyscan_gtk_map_wfmark_model_changed            (HyScanGtkMapWfmark         *wfm_layer);
+static void    hyscan_gtk_map_wfmark_location_free            (HyScanGtkMapWfmarkLocation *location);
 
-G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapWfmarkLayer, hyscan_gtk_map_wfmark_layer, G_TYPE_INITIALLY_UNOWNED,
-                         G_ADD_PRIVATE (HyScanGtkMapWfmarkLayer)
-                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_LAYER, hyscan_gtk_map_wfmark_layer_interface_init))
+G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapWfmark, hyscan_gtk_map_wfmark, G_TYPE_INITIALLY_UNOWNED,
+                         G_ADD_PRIVATE (HyScanGtkMapWfmark)
+                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_LAYER, hyscan_gtk_map_wfmark_interface_init))
 
 static void
-hyscan_gtk_map_wfmark_layer_class_init (HyScanGtkMapWfmarkLayerClass *klass)
+hyscan_gtk_map_wfmark_class_init (HyScanGtkMapWfmarkClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
-  object_class->set_property = hyscan_gtk_map_wfmark_layer_set_property;
-  object_class->constructed = hyscan_gtk_map_wfmark_layer_object_constructed;
-  object_class->finalize = hyscan_gtk_map_wfmark_layer_object_finalize;
+  object_class->set_property = hyscan_gtk_map_wfmark_set_property;
+  object_class->constructed = hyscan_gtk_map_wfmark_object_constructed;
+  object_class->finalize = hyscan_gtk_map_wfmark_object_finalize;
 
   g_object_class_install_property (object_class, PROP_MODEL,
     g_param_spec_object ("mark-loc-model", "Mark location model",
@@ -141,19 +141,19 @@ hyscan_gtk_map_wfmark_layer_class_init (HyScanGtkMapWfmarkLayerClass *klass)
 }
 
 static void
-hyscan_gtk_map_wfmark_layer_init (HyScanGtkMapWfmarkLayer *gtk_map_wfmark_layer)
+hyscan_gtk_map_wfmark_init (HyScanGtkMapWfmark *gtk_map_wfmark)
 {
-  gtk_map_wfmark_layer->priv = hyscan_gtk_map_wfmark_layer_get_instance_private (gtk_map_wfmark_layer);
+  gtk_map_wfmark->priv = hyscan_gtk_map_wfmark_get_instance_private (gtk_map_wfmark);
 }
 
 static void
-hyscan_gtk_map_wfmark_layer_set_property (GObject      *object,
-                             guint         prop_id,
-                             const GValue *value,
-                             GParamSpec   *pspec)
+hyscan_gtk_map_wfmark_set_property (GObject      *object,
+                                    guint         prop_id,
+                                    const GValue *value,
+                                    GParamSpec   *pspec)
 {
-  HyScanGtkMapWfmarkLayer *gtk_map_wfmark_layer = HYSCAN_GTK_MAP_WFMARK_LAYER (object);
-  HyScanGtkMapWfmarkLayerPrivate *priv = gtk_map_wfmark_layer->priv;
+  HyScanGtkMapWfmark *gtk_map_wfmark = HYSCAN_GTK_MAP_WFMARK (object);
+  HyScanGtkMapWfmarkPrivate *priv = gtk_map_wfmark->priv;
 
   switch (prop_id)
     {
@@ -168,19 +168,19 @@ hyscan_gtk_map_wfmark_layer_set_property (GObject      *object,
 }
 
 static void
-hyscan_gtk_map_wfmark_layer_object_constructed (GObject *object)
+hyscan_gtk_map_wfmark_object_constructed (GObject *object)
 {
-  HyScanGtkMapWfmarkLayer *wfm_layer = HYSCAN_GTK_MAP_WFMARK_LAYER (object);
-  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
+  HyScanGtkMapWfmark *wfm_layer = HYSCAN_GTK_MAP_WFMARK (object);
+  HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
 
-  G_OBJECT_CLASS (hyscan_gtk_map_wfmark_layer_parent_class)->constructed (object);
+  G_OBJECT_CLASS (hyscan_gtk_map_wfmark_parent_class)->constructed (object);
 
   g_rw_lock_init (&priv->mark_lock);
   priv->marks = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
-                                       (GDestroyNotify) hyscan_gtk_map_wfmark_layer_location_free);
+                                       (GDestroyNotify) hyscan_gtk_map_wfmark_location_free);
 
   g_signal_connect_swapped (priv->model, "changed",
-                            G_CALLBACK (hyscan_gtk_map_wfmark_layer_model_changed), wfm_layer);
+                            G_CALLBACK (hyscan_gtk_map_wfmark_model_changed), wfm_layer);
 
   /* Стиль оформления. */
   gdk_rgba_parse (&priv->color_default, MARK_COLOR);
@@ -189,10 +189,10 @@ hyscan_gtk_map_wfmark_layer_object_constructed (GObject *object)
 }
 
 static void
-hyscan_gtk_map_wfmark_layer_object_finalize (GObject *object)
+hyscan_gtk_map_wfmark_object_finalize (GObject *object)
 {
-  HyScanGtkMapWfmarkLayer *gtk_map_wfmark_layer = HYSCAN_GTK_MAP_WFMARK_LAYER (object);
-  HyScanGtkMapWfmarkLayerPrivate *priv = gtk_map_wfmark_layer->priv;
+  HyScanGtkMapWfmark *gtk_map_wfmark = HYSCAN_GTK_MAP_WFMARK (object);
+  HyScanGtkMapWfmarkPrivate *priv = gtk_map_wfmark->priv;
 
   g_rw_lock_clear (&priv->mark_lock);
 
@@ -200,15 +200,15 @@ hyscan_gtk_map_wfmark_layer_object_finalize (GObject *object)
   g_object_unref (priv->model);
   g_free (priv->active_mark_id);
 
-  G_OBJECT_CLASS (hyscan_gtk_map_wfmark_layer_parent_class)->finalize (object);
+  G_OBJECT_CLASS (hyscan_gtk_map_wfmark_parent_class)->finalize (object);
 }
 
 /* Проецирует метку на текущую картографическую проекцию. */
 static void
-hyscan_gtk_map_wfmark_layer_project_location (HyScanGtkMapWfmarkLayer         *wfm_layer,
-                                              HyScanGtkMapWfmarkLayerLocation *location)
+hyscan_gtk_map_wfmark_project_location (HyScanGtkMapWfmark         *wfm_layer,
+                                        HyScanGtkMapWfmarkLocation *location)
 {
-  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
+  HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
 
   gdouble scale;
   gdouble offset;
@@ -258,32 +258,32 @@ hyscan_gtk_map_wfmark_layer_project_location (HyScanGtkMapWfmarkLayer         *w
 
 }
 
-static HyScanGtkMapWfmarkLayerLocation *
-hyscan_gtk_map_wfmark_layer_location_new (void)
+static HyScanGtkMapWfmarkLocation *
+hyscan_gtk_map_wfmark_location_new (void)
 {
-  return g_slice_new (HyScanGtkMapWfmarkLayerLocation);
+  return g_slice_new (HyScanGtkMapWfmarkLocation);
 }
 
 static void
-hyscan_gtk_map_wfmark_layer_location_free (HyScanGtkMapWfmarkLayerLocation *location)
+hyscan_gtk_map_wfmark_location_free (HyScanGtkMapWfmarkLocation *location)
 {
   hyscan_mark_location_free (location->mloc);
-  g_slice_free (HyScanGtkMapWfmarkLayerLocation, location);
+  g_slice_free (HyScanGtkMapWfmarkLocation, location);
 }
 
 static gboolean
-hyscan_gtk_map_wfmark_layer_insert_mark (gpointer  key,
-                                         gpointer  value,
-                                         gpointer  user_data)
+hyscan_gtk_map_wfmark_insert_mark (gpointer  key,
+                                   gpointer  value,
+                                   gpointer  user_data)
 {
-  HyScanGtkMapWfmarkLayer *wfm_layer = HYSCAN_GTK_MAP_WFMARK_LAYER (user_data);
-  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
-  HyScanGtkMapWfmarkLayerLocation *location;
+  HyScanGtkMapWfmark *wfm_layer = HYSCAN_GTK_MAP_WFMARK (user_data);
+  HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
+  HyScanGtkMapWfmarkLocation *location;
 
-  location = hyscan_gtk_map_wfmark_layer_location_new ();
+  location = hyscan_gtk_map_wfmark_location_new ();
   location->mloc = value;
 
-  hyscan_gtk_map_wfmark_layer_project_location (wfm_layer, location);
+  hyscan_gtk_map_wfmark_project_location (wfm_layer, location);
   g_hash_table_insert (priv->marks, key, location);
 
   return TRUE;
@@ -292,9 +292,9 @@ hyscan_gtk_map_wfmark_layer_insert_mark (gpointer  key,
 /* Обработчик сигнала HyScanMarkLocModel::changed.
  * Обновляет список меток. */
 static void
-hyscan_gtk_map_wfmark_layer_model_changed (HyScanGtkMapWfmarkLayer *wfm_layer)
+hyscan_gtk_map_wfmark_model_changed (HyScanGtkMapWfmark *wfm_layer)
 {
-  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
+  HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
   GHashTable *marks;
 
   /* Загружаем гео-данные по меткам. */
@@ -304,7 +304,7 @@ hyscan_gtk_map_wfmark_layer_model_changed (HyScanGtkMapWfmarkLayer *wfm_layer)
 
   priv->location_hover = NULL;
   g_hash_table_remove_all (priv->marks);
-  g_hash_table_foreach_steal (marks, hyscan_gtk_map_wfmark_layer_insert_mark, wfm_layer);
+  g_hash_table_foreach_steal (marks, hyscan_gtk_map_wfmark_insert_mark, wfm_layer);
 
   g_rw_lock_writer_unlock (&priv->mark_lock);
 
@@ -316,13 +316,13 @@ hyscan_gtk_map_wfmark_layer_model_changed (HyScanGtkMapWfmarkLayer *wfm_layer)
 
 /* Рисует слой по сигналу "visible-draw". */
 static void
-hyscan_gtk_map_wfmark_layer_draw (HyScanGtkMap            *map,
-                                  cairo_t                 *cairo,
-                                  HyScanGtkMapWfmarkLayer *wfm_layer)
+hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
+                            cairo_t            *cairo,
+                            HyScanGtkMapWfmark *wfm_layer)
 {
-  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
+  HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
   GHashTableIter iter;
-  HyScanGtkMapWfmarkLayerLocation *location;
+  HyScanGtkMapWfmarkLocation *location;
   gchar *mark_id;
 
   if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (wfm_layer)))
@@ -409,18 +409,18 @@ hyscan_gtk_map_wfmark_layer_draw (HyScanGtkMap            *map,
 }
 
 /* Находит метку под курсором мыши. */
-static const HyScanGtkMapWfmarkLayerLocation *
-hyscan_gtk_map_wfmark_layer_find_hover (HyScanGtkMapWfmarkLayer *wfm_layer,
-                                        HyScanGeoCartesian2D    *cursor,
-                                        gdouble                 *distance)
+static const HyScanGtkMapWfmarkLocation *
+hyscan_gtk_map_wfmark_find_hover (HyScanGtkMapWfmark   *wfm_layer,
+                                  HyScanGeoCartesian2D *cursor,
+                                  gdouble              *distance)
 {
-  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
+  HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
 
-  HyScanGtkMapWfmarkLayerLocation *hover = NULL;
+  HyScanGtkMapWfmarkLocation *hover = NULL;
   gdouble min_distance = G_MAXDOUBLE;
 
   GHashTableIter iter;
-  HyScanGtkMapWfmarkLayerLocation *location;
+  HyScanGtkMapWfmarkLocation *location;
 
   g_hash_table_iter_init (&iter, priv->marks);
   while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &location))
@@ -452,21 +452,21 @@ hyscan_gtk_map_wfmark_layer_find_hover (HyScanGtkMapWfmarkLayer *wfm_layer,
 /* Обработчик сигнала HyScanGtkMap::notify::projection.
  * Пересчитывает координаты меток, если изменяется картографическая проекция. */
 static void
-hyscan_gtk_map_wfmark_layer_proj_notify (HyScanGtkMap *map,
-                                         GParamSpec   *pspec,
-                                         gpointer      user_data)
+hyscan_gtk_map_wfmark_proj_notify (HyScanGtkMap *map,
+                                   GParamSpec   *pspec,
+                                   gpointer      user_data)
 {
-  HyScanGtkMapWfmarkLayer *wfm_layer = HYSCAN_GTK_MAP_WFMARK_LAYER (user_data);
-  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
+  HyScanGtkMapWfmark *wfm_layer = HYSCAN_GTK_MAP_WFMARK (user_data);
+  HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
   GHashTableIter iter;
-  HyScanGtkMapWfmarkLayerLocation *location;
+  HyScanGtkMapWfmarkLocation *location;
 
   g_rw_lock_writer_lock (&priv->mark_lock);
 
   /* Обновляем координаты меток согласно новой проекции. */
   g_hash_table_iter_init (&iter, priv->marks);
   while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &location))
-    hyscan_gtk_map_wfmark_layer_project_location (wfm_layer, location);
+    hyscan_gtk_map_wfmark_project_location (wfm_layer, location);
 
   g_rw_lock_writer_unlock (&priv->mark_lock);
 
@@ -474,25 +474,25 @@ hyscan_gtk_map_wfmark_layer_proj_notify (HyScanGtkMap *map,
 }
 
 static void
-hyscan_gtk_map_wfmark_layer_added (HyScanGtkLayer          *gtk_layer,
-                                   HyScanGtkLayerContainer *container)
+hyscan_gtk_map_wfmark_added (HyScanGtkLayer          *gtk_layer,
+                             HyScanGtkLayerContainer *container)
 {
-  HyScanGtkMapWfmarkLayer *wfm_layer = HYSCAN_GTK_MAP_WFMARK_LAYER (gtk_layer);
-  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
+  HyScanGtkMapWfmark *wfm_layer = HYSCAN_GTK_MAP_WFMARK (gtk_layer);
+  HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
 
   g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
   g_return_if_fail (priv->map == NULL);
 
   priv->map = g_object_ref (HYSCAN_GTK_MAP (container));
-  g_signal_connect_after (priv->map, "visible-draw", G_CALLBACK (hyscan_gtk_map_wfmark_layer_draw), wfm_layer);
-  g_signal_connect (priv->map, "notify::projection", G_CALLBACK (hyscan_gtk_map_wfmark_layer_proj_notify), wfm_layer);
+  g_signal_connect_after (priv->map, "visible-draw", G_CALLBACK (hyscan_gtk_map_wfmark_draw), wfm_layer);
+  g_signal_connect (priv->map, "notify::projection", G_CALLBACK (hyscan_gtk_map_wfmark_proj_notify), wfm_layer);
 }
 
 static void
-hyscan_gtk_map_wfmark_layer_removed (HyScanGtkLayer *gtk_layer)
+hyscan_gtk_map_wfmark_removed (HyScanGtkLayer *gtk_layer)
 {
-  HyScanGtkMapWfmarkLayer *wfm_layer = HYSCAN_GTK_MAP_WFMARK_LAYER (gtk_layer);
-  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
+  HyScanGtkMapWfmark *wfm_layer = HYSCAN_GTK_MAP_WFMARK (gtk_layer);
+  HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
 
   g_return_if_fail (priv->map != NULL);
 
@@ -501,11 +501,11 @@ hyscan_gtk_map_wfmark_layer_removed (HyScanGtkLayer *gtk_layer)
 }
 
 static void
-hyscan_gtk_map_wfmark_layer_set_visible (HyScanGtkLayer *layer,
-                                         gboolean        visible)
+hyscan_gtk_map_wfmark_set_visible (HyScanGtkLayer *layer,
+                                   gboolean        visible)
 {
-  HyScanGtkMapWfmarkLayer *wfm_layer = HYSCAN_GTK_MAP_WFMARK_LAYER (layer);
-  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
+  HyScanGtkMapWfmark *wfm_layer = HYSCAN_GTK_MAP_WFMARK (layer);
+  HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
 
   priv->visible = visible;
 
@@ -514,21 +514,21 @@ hyscan_gtk_map_wfmark_layer_set_visible (HyScanGtkLayer *layer,
 }
 
 static gboolean
-hyscan_gtk_map_wfmark_layer_get_visible (HyScanGtkLayer *layer)
+hyscan_gtk_map_wfmark_get_visible (HyScanGtkLayer *layer)
 {
-  HyScanGtkMapWfmarkLayer *wfm_layer = HYSCAN_GTK_MAP_WFMARK_LAYER (layer);
+  HyScanGtkMapWfmark *wfm_layer = HYSCAN_GTK_MAP_WFMARK (layer);
 
   return wfm_layer->priv->visible;
 }
 
 /* Загружает настройки слоя из ini-файла. */
 static gboolean
-hyscan_gtk_map_wfmark_layer_load_key_file (HyScanGtkLayer *layer,
-                                           GKeyFile       *key_file,
-                                           const gchar    *group)
+hyscan_gtk_map_wfmark_load_key_file (HyScanGtkLayer *layer,
+                                     GKeyFile       *key_file,
+                                     const gchar    *group)
 {
-  HyScanGtkMapWfmarkLayer *wfm_layer = HYSCAN_GTK_MAP_WFMARK_LAYER (layer);
-  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
+  HyScanGtkMapWfmark *wfm_layer = HYSCAN_GTK_MAP_WFMARK (layer);
+  HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
 
   gdouble value;
 
@@ -550,11 +550,11 @@ hyscan_gtk_map_wfmark_layer_load_key_file (HyScanGtkLayer *layer,
 }
 
 static void
-hyscan_gtk_map_wfmark_layer_hint_shown (HyScanGtkLayer          *layer,
-                                        gboolean                 shown)
+hyscan_gtk_map_wfmark_hint_shown (HyScanGtkLayer *layer,
+                                  gboolean        shown)
 {
-  HyScanGtkMapWfmarkLayer *wfm_layer = HYSCAN_GTK_MAP_WFMARK_LAYER (layer);
-  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
+  HyScanGtkMapWfmark *wfm_layer = HYSCAN_GTK_MAP_WFMARK (layer);
+  HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
 
   if (!shown)
     priv->location_hover = NULL;
@@ -562,20 +562,20 @@ hyscan_gtk_map_wfmark_layer_hint_shown (HyScanGtkLayer          *layer,
 
 /* Ищет, есть ли на слое метка в точке (x, y) */
 static gchar *
-hyscan_gtk_map_wfmark_layer_hint_find (HyScanGtkLayer *layer,
-                                       gdouble         x,
-                                       gdouble         y,
-                                       gdouble        *distance)
+hyscan_gtk_map_wfmark_hint_find (HyScanGtkLayer *layer,
+                                 gdouble         x,
+                                 gdouble         y,
+                                 gdouble        *distance)
 {
-  HyScanGtkMapWfmarkLayer *wfm_layer = HYSCAN_GTK_MAP_WFMARK_LAYER (layer);
-  HyScanGtkMapWfmarkLayerPrivate *priv = wfm_layer->priv;
+  HyScanGtkMapWfmark *wfm_layer = HYSCAN_GTK_MAP_WFMARK (layer);
+  HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
   HyScanGeoCartesian2D cursor;
   gchar *hint = NULL;
 
   g_rw_lock_reader_lock (&priv->mark_lock);
 
   gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), x, y, &cursor.x, &cursor.y);
-  priv->location_hover = hyscan_gtk_map_wfmark_layer_find_hover (wfm_layer, &cursor, distance);
+  priv->location_hover = hyscan_gtk_map_wfmark_find_hover (wfm_layer, &cursor, distance);
   if (priv->location_hover != NULL)
     hint = g_strdup (priv->location_hover->mloc->mark->name);
 
@@ -585,38 +585,38 @@ hyscan_gtk_map_wfmark_layer_hint_find (HyScanGtkLayer *layer,
 }
 
 static void
-hyscan_gtk_map_wfmark_layer_interface_init (HyScanGtkLayerInterface *iface)
+hyscan_gtk_map_wfmark_interface_init (HyScanGtkLayerInterface *iface)
 {
-  iface->removed = hyscan_gtk_map_wfmark_layer_removed;
-  iface->added = hyscan_gtk_map_wfmark_layer_added;
-  iface->set_visible = hyscan_gtk_map_wfmark_layer_set_visible;
-  iface->get_visible = hyscan_gtk_map_wfmark_layer_get_visible;
-  iface->load_key_file = hyscan_gtk_map_wfmark_layer_load_key_file;
-  iface->hint_find = hyscan_gtk_map_wfmark_layer_hint_find;
-  iface->hint_shown = hyscan_gtk_map_wfmark_layer_hint_shown;
+  iface->removed = hyscan_gtk_map_wfmark_removed;
+  iface->added = hyscan_gtk_map_wfmark_added;
+  iface->set_visible = hyscan_gtk_map_wfmark_set_visible;
+  iface->get_visible = hyscan_gtk_map_wfmark_get_visible;
+  iface->load_key_file = hyscan_gtk_map_wfmark_load_key_file;
+  iface->hint_find = hyscan_gtk_map_wfmark_hint_find;
+  iface->hint_shown = hyscan_gtk_map_wfmark_hint_shown;
 }
 
 /**
- * hyscan_gtk_map_wfmark_layer_new:
+ * hyscan_gtk_map_wfmark_new:
  * @model: указатель на модель данных положения меток
  *
- * Returns: создает новый объект #HyScanGtkMapWfmarkLayer. Для удаления g_object_unref().
+ * Returns: создает новый объект #HyScanGtkMapWfmark. Для удаления g_object_unref().
  */
 HyScanGtkLayer *
-hyscan_gtk_map_wfmark_layer_new (HyScanMarkLocModel *model)
+hyscan_gtk_map_wfmark_new (HyScanMarkLocModel *model)
 {
-  return g_object_new (HYSCAN_TYPE_GTK_MAP_WFMARK_LAYER,
+  return g_object_new (HYSCAN_TYPE_GTK_MAP_WFMARK,
                        "mark-loc-model", model,
                        NULL);
 }
 
 void
-hyscan_gtk_map_wfmark_layer_mark_highlight (HyScanGtkMapWfmarkLayer *wfm_layer,
-                                            const gchar             *mark_id)
+hyscan_gtk_map_wfmark_mark_highlight (HyScanGtkMapWfmark *wfm_layer,
+                                      const gchar        *mark_id)
 {
-  HyScanGtkMapWfmarkLayerPrivate *priv;
+  HyScanGtkMapWfmarkPrivate *priv;
 
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_WFMARK_LAYER (wfm_layer));
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_WFMARK (wfm_layer));
   priv = wfm_layer->priv;
 
   if (priv->map == NULL)
@@ -631,7 +631,7 @@ hyscan_gtk_map_wfmark_layer_mark_highlight (HyScanGtkMapWfmarkLayer *wfm_layer,
 }
 
 /**
- * hyscan_gtk_map_wfmark_layer_mark_view:
+ * hyscan_gtk_map_wfmark_mark_view:
  * @wfm_layer
  * @mark_id
  * @keep_scale
@@ -640,14 +640,14 @@ hyscan_gtk_map_wfmark_layer_mark_highlight (HyScanGtkMapWfmarkLayer *wfm_layer,
  * эту метку.
  */
 void
-hyscan_gtk_map_wfmark_layer_mark_view (HyScanGtkMapWfmarkLayer *wfm_layer,
-                                       const gchar             *mark_id,
-                                       gboolean                 zoom_in)
+hyscan_gtk_map_wfmark_mark_view (HyScanGtkMapWfmark *wfm_layer,
+                                 const gchar        *mark_id,
+                                 gboolean            zoom_in)
 {
-  HyScanGtkMapWfmarkLayerPrivate *priv;
-  HyScanGtkMapWfmarkLayerLocation *location;
+  HyScanGtkMapWfmarkPrivate *priv;
+  HyScanGtkMapWfmarkLocation *location;
 
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_WFMARK_LAYER (wfm_layer));
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_WFMARK (wfm_layer));
   priv = wfm_layer->priv;
 
   if (priv->map == NULL)

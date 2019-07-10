@@ -17,17 +17,17 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: hyscangui/hyscan-gtk-map-way-layer.c:858
+#: hyscangui/hyscan-gtk-map-nav.c:858
 msgctxt "Heading"
 msgid "COG"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-way-layer.c:858
+#: hyscangui/hyscan-gtk-map-nav.c:858
 msgctxt "Heading"
 msgid "HDG"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-way-layer.c:852
+#: hyscangui/hyscan-gtk-map-nav.c:852
 msgid "Signal lost"
 msgstr ""
 
@@ -44,7 +44,7 @@ msgstr ""
 msgid "m"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-way-layer.c:860
+#: hyscangui/hyscan-gtk-map-nav.c:860
 msgid "m/s"
 msgstr ""
 
