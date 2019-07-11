@@ -19,17 +19,17 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
 "%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
-#: hyscangui/hyscan-gtk-map-way-layer.c:858
+#: hyscangui/hyscan-gtk-map-nav.c:858
 msgctxt "Heading"
 msgid "COG"
 msgstr "ПУ"
 
-#: hyscangui/hyscan-gtk-map-way-layer.c:858
+#: hyscangui/hyscan-gtk-map-nav.c:858
 msgctxt "Heading"
 msgid "HDG"
 msgstr "ИК"
 
-#: hyscangui/hyscan-gtk-map-way-layer.c:852
+#: hyscangui/hyscan-gtk-map-nav.c:852
 msgid "Signal lost"
 msgstr "Нет сигнала"
 
@@ -46,7 +46,7 @@ msgstr "км"
 msgid "m"
 msgstr "м"
 
-#: hyscangui/hyscan-gtk-map-way-layer.c:860
+#: hyscangui/hyscan-gtk-map-nav.c:860
 msgid "m/s"
 msgstr "м/с"
 

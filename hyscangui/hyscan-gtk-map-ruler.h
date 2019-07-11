@@ -35,7 +35,7 @@
 #ifndef __HYSCAN_GTK_MAP_RULER_H__
 #define __HYSCAN_GTK_MAP_RULER_H__
 
-#include <hyscan-gtk-map-pin-layer.h>
+#include <hyscan-gtk-map-pin.h>
 
 G_BEGIN_DECLS
 
@@ -52,14 +52,14 @@ typedef struct _HyScanGtkMapRulerClass HyScanGtkMapRulerClass;
 
 struct _HyScanGtkMapRuler
 {
-  HyScanGtkMapPinLayer parent_instance;
+  HyScanGtkMapPin parent_instance;
 
   HyScanGtkMapRulerPrivate *priv;
 };
 
 struct _HyScanGtkMapRulerClass
 {
-  HyScanGtkMapPinLayerClass parent_class;
+  HyScanGtkMapPinClass parent_class;
 };
 
 HYSCAN_API

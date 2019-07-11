@@ -32,7 +32,7 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
-#include <hyscan-gtk-map-tile.h>
+#include <hyscan-map-tile.h>
 
 typedef struct {
   guint   zoom;
@@ -62,31 +62,31 @@ int
 main (int    argc,
       char **argv)
 {
-  HyScanGtkMapTileGrid *grid;
-  guint i;
+  HyScanMapTileGrid *grid;
+  gsize i;
 
-  grid = hyscan_gtk_map_tile_grid_new (-100.0, 100.0, -100.0, 100.0, 0, 256);
-  hyscan_gtk_map_tile_grid_set_scales (grid, scales, G_N_ELEMENTS (scales));
+  grid = hyscan_map_tile_grid_new (-100.0, 100.0, -100.0, 100.0, 0, 256);
+  hyscan_map_tile_grid_set_scales (grid, scales, G_N_ELEMENTS (scales));
 
   for (i = 0; i < G_N_ELEMENTS (points); i++)
     {
       HyScanGeoCartesian2D from, to;
       gdouble x_val, y_val, x_tile, y_tile;
-      HyScanGtkMapTile *tile;
+      HyScanMapTile *tile;
 
       TestPoint *point = &points[i];
 
-      tile = hyscan_gtk_map_tile_new (grid, (guint) point->x_tile, (guint) point->y_tile, point->zoom);
+      tile = hyscan_map_tile_new (grid, (guint) point->x_tile, (guint) point->y_tile, point->zoom);
 
-      hyscan_gtk_map_tile_grid_tile_to_value (grid, point->zoom, point->x_tile, point->y_tile, &x_val, &y_val);
+      hyscan_map_tile_grid_tile_to_value (grid, point->zoom, point->x_tile, point->y_tile, &x_val, &y_val);
       g_assert_cmpfloat (point->x_val, ==, x_val);
       g_assert_cmpfloat (point->y_val, ==, y_val);
 
-      hyscan_gtk_map_tile_grid_value_to_tile (grid, point->zoom, point->x_val, point->y_val, &x_tile, &y_tile);
+      hyscan_map_tile_grid_value_to_tile (grid, point->zoom, point->x_val, point->y_val, &x_tile, &y_tile);
       g_assert_cmpfloat (point->x_tile, ==, x_tile);
       g_assert_cmpfloat (point->y_tile, ==, y_tile);
 
-      hyscan_gtk_map_tile_get_bounds (tile, &from, &to);
+      hyscan_map_tile_get_bounds (tile, &from, &to);
       g_assert_cmpfloat (from.x, ==, point->x_val);
       g_assert_cmpfloat (from.y, ==, point->y_val);
       g_assert_cmpfloat (to.x,   ==, point->x_val + scales[point->zoom]);

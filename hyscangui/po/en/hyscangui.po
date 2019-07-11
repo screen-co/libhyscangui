@@ -17,17 +17,17 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: hyscangui/hyscan-gtk-map-way-layer.c:858
+#: hyscangui/hyscan-gtk-map-nav.c:858
 msgctxt "Heading"
 msgid "COG"
 msgstr "COG"
 
-#: hyscangui/hyscan-gtk-map-way-layer.c:858
+#: hyscangui/hyscan-gtk-map-nav.c:858
 msgctxt "Heading"
 msgid "HDG"
 msgstr "HDG"
 
-#: hyscangui/hyscan-gtk-map-way-layer.c:852
+#: hyscangui/hyscan-gtk-map-nav.c:852
 msgid "Signal lost"
 msgstr "Signal lost"
 
@@ -44,7 +44,7 @@ msgstr "km"
 msgid "m"
 msgstr "m"
 
-#: hyscangui/hyscan-gtk-map-way-layer.c:860
+#: hyscangui/hyscan-gtk-map-nav.c:860
 msgid "m/s"
 msgstr "m/s"
 

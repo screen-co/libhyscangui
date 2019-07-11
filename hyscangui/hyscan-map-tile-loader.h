@@ -35,7 +35,7 @@
 #ifndef __HYSCAN_MAP_TILE_LOADER_H__
 #define __HYSCAN_MAP_TILE_LOADER_H__
 
-#include <hyscan-gtk-map-tile-source.h>
+#include <hyscan-map-tile-source.h>
 
 G_BEGIN_DECLS
 
@@ -70,7 +70,7 @@ HyScanMapTileLoader *  hyscan_map_tile_loader_new              (void);
 
 HYSCAN_API
 GThread *              hyscan_map_tile_loader_start            (HyScanMapTileLoader    *loader,
-                                                                HyScanGtkMapTileSource *source,
+                                                                HyScanMapTileSource    *source,
                                                                 gdouble                 from_x,
                                                                 gdouble                 to_x,
                                                                 gdouble                 from_y,

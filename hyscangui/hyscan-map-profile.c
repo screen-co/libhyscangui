@@ -63,9 +63,9 @@
  */
 
 #include "hyscan-map-profile.h"
-#include "hyscan-network-map-tile-source.h"
-#include "hyscan-gtk-map-fs-tile-source.h"
-#include "hyscan-merged-tile-source.h"
+#include "hyscan-map-tile-source-web.h"
+#include "hyscan-map-tile-source-file.h"
+#include "hyscan-map-tile-source-blend.h"
 #include "hyscan-gtk-map-tiles.h"
 #include <hyscan-pseudo-mercator.h>
 #include <hyscan-mercator.h>
@@ -195,40 +195,40 @@ hyscan_map_profile_create_tiles (HyScanMapProfilePrivate *priv,
   HyScanGtkLayer *tiles;
 
   HyScanCache *cache;
-  HyScanMergedTileSource *merged_source;
+  HyScanMapTileSourceBlend *merged_source;
 
   gint i;
 
-  merged_source = hyscan_merged_tile_source_new ();
+  merged_source = hyscan_map_tile_source_blend_new ();
   for (i = 0; priv->url_format[i] != NULL; ++i)
     {
-      HyScanGtkMapTileSource *nw_source;
-      HyScanGtkMapTileSource *source = NULL;
+      HyScanMapTileSource *nw_source;
+      HyScanMapTileSource *source = NULL;
 
       gchar *cache_path = NULL;
 
-      nw_source = HYSCAN_GTK_MAP_TILE_SOURCE (hyscan_network_map_tile_source_new (priv->url_format[i],
-                                                                                  projection,
-                                                                                  priv->min_zoom,
-                                                                                  priv->max_zoom));
+      nw_source = HYSCAN_MAP_TILE_SOURCE (hyscan_map_tile_source_web_new (priv->url_format[i],
+                                                                          projection,
+                                                                          priv->min_zoom,
+                                                                          priv->max_zoom));
 
-      /* Если указана папка для кэширования, то используем источник HyscanGtkMapFsTileSource. */
+      /* Если указана папка для кэширования, то используем источник HyscanMapTileSourceFile. */
       if (!g_str_equal (priv->tiles_dir[i], ""))
         {
-          HyScanGtkMapFsTileSource *file_source;
+          HyScanMapTileSourceFile *file_source;
 
           cache_path = g_build_path (G_DIR_SEPARATOR_S, priv->cache_dir, priv->tiles_dir[i], NULL);
-          file_source = hyscan_gtk_map_fs_tile_source_new (cache_path, nw_source);
-          hyscan_gtk_map_fs_tile_source_fb_enable (file_source, !priv->offline);
+          file_source = hyscan_map_tile_source_file_new (cache_path, nw_source);
+          hyscan_map_tile_source_file_fb_enable (file_source, !priv->offline);
 
-          source = HYSCAN_GTK_MAP_TILE_SOURCE (file_source);
+          source = HYSCAN_MAP_TILE_SOURCE (file_source);
         }
       else
         {
           source = g_object_ref (nw_source);
         }
 
-      hyscan_merged_tile_source_append (merged_source, source);
+      hyscan_map_tile_source_blend_append (merged_source, source);
 
       g_clear_object (&nw_source);
       g_clear_object (&source);
@@ -236,7 +236,7 @@ hyscan_map_profile_create_tiles (HyScanMapProfilePrivate *priv,
     }
 
   cache = HYSCAN_CACHE (hyscan_cached_new (CACHE_SIZE));
-  tiles = hyscan_gtk_map_tiles_new (cache, HYSCAN_GTK_MAP_TILE_SOURCE (merged_source));
+  tiles = hyscan_gtk_map_tiles_new (cache, HYSCAN_MAP_TILE_SOURCE (merged_source));
 
   g_object_unref (cache);
   g_object_unref (merged_source);

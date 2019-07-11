@@ -1,4 +1,4 @@
-/* hyscan-gtk-map-tile-source.h
+/* hyscan-map-tile-source.h
  *
  * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *
@@ -32,58 +32,58 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
-#ifndef __HYSCAN_GTK_MAP_TILE_SOURCE_H__
-#define __HYSCAN_GTK_MAP_TILE_SOURCE_H__
+#ifndef __HYSCAN_MAP_TILE_SOURCE_H__
+#define __HYSCAN_MAP_TILE_SOURCE_H__
 
 #include <glib-object.h>
 #include <cairo.h>
 #include <hyscan-api.h>
-#include <hyscan-gtk-map-tile.h>
+#include <hyscan-map-tile.h>
 
 G_BEGIN_DECLS
 
-#define HYSCAN_TYPE_GTK_MAP_TILE_SOURCE            (hyscan_gtk_map_tile_source_get_type ())
-#define HYSCAN_GTK_MAP_TILE_SOURCE(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_MAP_TILE_SOURCE, HyScanGtkMapTileSource))
-#define HYSCAN_IS_GTK_MAP_TILE_SOURCE(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_MAP_TILE_SOURCE))
-#define HYSCAN_GTK_MAP_TILE_SOURCE_GET_IFACE(obj)  (G_TYPE_INSTANCE_GET_INTERFACE ((obj), HYSCAN_TYPE_GTK_MAP_TILE_SOURCE, HyScanGtkMapTileSourceInterface))
+#define HYSCAN_TYPE_MAP_TILE_SOURCE            (hyscan_map_tile_source_get_type ())
+#define HYSCAN_MAP_TILE_SOURCE(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_MAP_TILE_SOURCE, HyScanMapTileSource))
+#define HYSCAN_IS_MAP_TILE_SOURCE(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_MAP_TILE_SOURCE))
+#define HYSCAN_MAP_TILE_SOURCE_GET_IFACE(obj)  (G_TYPE_INSTANCE_GET_INTERFACE ((obj), HYSCAN_TYPE_MAP_TILE_SOURCE, HyScanMapTileSourceInterface))
 
-typedef struct _HyScanGtkMapTileSource HyScanGtkMapTileSource;
-typedef struct _HyScanGtkMapTileSourceInterface HyScanGtkMapTileSourceInterface;
+typedef struct _HyScanMapTileSource HyScanMapTileSource;
+typedef struct _HyScanMapTileSourceInterface HyScanMapTileSourceInterface;
 
 /**
- * HyScanGtkMapTileSourceInterface:
+ * HyScanMapTileSourceInterface:
  * @fill_tile: заполняет тайл изображением
  * @get_grid: возвращает тайловую сетку источника
  * @get_projection: возвращает картографическую проекцию источника
  */
-struct _HyScanGtkMapTileSourceInterface
+struct _HyScanMapTileSourceInterface
 {
   GTypeInterface           g_iface;
 
-  gboolean               (*fill_tile)               (HyScanGtkMapTileSource        *source,
-                                                     HyScanGtkMapTile              *tile,
-                                                     GCancellable                  *cancellable);
+  gboolean               (*fill_tile)               (HyScanMapTileSource        *source,
+                                                     HyScanMapTile              *tile,
+                                                     GCancellable               *cancellable);
 
-  HyScanGtkMapTileGrid * (*get_grid)                (HyScanGtkMapTileSource        *source);
+  HyScanMapTileGrid *    (*get_grid)                (HyScanMapTileSource        *source);
 
-  HyScanGeoProjection *  (*get_projection)          (HyScanGtkMapTileSource        *source);
+  HyScanGeoProjection *  (*get_projection)          (HyScanMapTileSource        *source);
 };
 
 HYSCAN_API
-GType                   hyscan_gtk_map_tile_source_get_type                  (void);
+GType                   hyscan_map_tile_source_get_type                  (void);
 
 HYSCAN_API
-HyScanGtkMapTileGrid *  hyscan_gtk_map_tile_source_get_grid                  (HyScanGtkMapTileSource *source);
+HyScanMapTileGrid *     hyscan_map_tile_source_get_grid                  (HyScanMapTileSource *source);
 
 HYSCAN_API
-HyScanGeoProjection *   hyscan_gtk_map_tile_source_get_projection            (HyScanGtkMapTileSource *source);
+HyScanGeoProjection *   hyscan_map_tile_source_get_projection            (HyScanMapTileSource *source);
 
 HYSCAN_API
-gboolean                hyscan_gtk_map_tile_source_fill                      (HyScanGtkMapTileSource *source,
-                                                                              HyScanGtkMapTile       *tile,
-                                                                              GCancellable           *cancellable);
+gboolean                hyscan_map_tile_source_fill                      (HyScanMapTileSource *source,
+                                                                          HyScanMapTile       *tile,
+                                                                          GCancellable        *cancellable);
 
 
 G_END_DECLS
 
-#endif /* __HYSCAN_GTK_MAP_TILE_SOURCE_H__ */
+#endif /* __HYSCAN_MAP_TILE_SOURCE_H__ */

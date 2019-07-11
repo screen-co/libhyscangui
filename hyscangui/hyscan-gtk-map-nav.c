@@ -1,4 +1,4 @@
-/* hyscan-gtk-map-way-layer.c
+/* hyscan-gtk-map-nav.c
  *
  * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *
@@ -33,9 +33,9 @@
  */
 
 /**
- * SECTION: hyscan-gtk-map-way-layer
+ * SECTION: hyscan-gtk-map-nav
  * @Short_description: слой карты с треком движения объекта
- * @Title: HyScanGtkMapWayLayer
+ * @Title: HyScanGtkMapNav
  * @See_also: #HyScanGtkLayer
  *
  * Класс позволяет выводить на карте #HyScanGtkMap слой с изображением движения
@@ -56,11 +56,11 @@
  * - "bg-color"
  *
  * Выводимые данные получаются из модели #HyScanNavigationModel, которая
- * указывается при создании слоя в hyscan_gtk_map_way_layer_new().
+ * указывается при создании слоя в hyscan_gtk_map_nav_new().
  *
  */
 
-#include "hyscan-gtk-map-way-layer.h"
+#include "hyscan-gtk-map-nav.h"
 #include "hyscan-gtk-map.h"
 #include <hyscan-cartesian.h>
 #include <hyscan-navigation-model.h>
@@ -97,16 +97,16 @@ typedef struct
   gboolean                             true_heading;   /* Курс истинный? */
   gdouble                              time;           /* Время фиксации точки. */
   gboolean                             start;          /* Признак того, что точка является началом куска. */
-} HyScanGtkMapWayLayerPoint;
+} HyScanGtkMapNavPoint;
 
 typedef struct
 {
   cairo_surface_t            *surface;   /* Поверхность с изображением стрелки. */
   gdouble                     x;         /* Координата x положения судна на поверхности surface. */
   gdouble                     y;         /* Координата y положения судна на поверхности surface. */
-} HyScanGtkMapWayLayerArrow;
+} HyScanGtkMapNavArrow;
 
-struct _HyScanGtkMapWayLayerPrivate
+struct _HyScanGtkMapNavPrivate
 {
   HyScanGtkMap                 *map;                        /* Виджет карты, на котором размещен слой. */
   gboolean                      has_cache;                  /* Флаг, используется ли кэш? */
@@ -123,8 +123,8 @@ struct _HyScanGtkMapWayLayerPrivate
   GMutex                        track_lock;                 /* Блокировка доступа к точкам трека.  */
 
   /* Внешний вид. */
-  HyScanGtkMapWayLayerArrow     arrow_default;              /* Маркер объекта в обычном режиме. */
-  HyScanGtkMapWayLayerArrow     arrow_lost;                 /* Маркер объекта, если сигнал потерян. */
+  HyScanGtkMapNavArrow          arrow_default;              /* Маркер объекта в обычном режиме. */
+  HyScanGtkMapNavArrow          arrow_lost;                 /* Маркер объекта, если сигнал потерян. */
   GdkRGBA                       line_color;                 /* Цвет линии трека. */
   GdkRGBA                       line_lost_color;            /* Цвет линии при обрыве связи. */
   gdouble                       line_width;                 /* Ширина линии трека. */
@@ -134,53 +134,53 @@ struct _HyScanGtkMapWayLayerPrivate
   GdkRGBA                       bg_color;                   /* Фоновый цвет панели навигационной информации. */
 };
 
-static void    hyscan_gtk_map_way_layer_interface_init           (HyScanGtkLayerInterface       *iface);
-static void    hyscan_gtk_map_way_layer_set_property             (GObject                       *object,
-                                                                  guint                          prop_id,
-                                                                  const GValue                  *value,
-                                                                  GParamSpec                    *pspec);
-static void     hyscan_gtk_map_way_layer_object_constructed      (GObject                       *object);
-static void     hyscan_gtk_map_way_layer_object_finalize         (GObject                       *object);
-static gboolean hyscan_gtk_map_way_layer_load_key_file           (HyScanGtkLayer                *layer,
-                                                                  GKeyFile                      *key_file,
-                                                                  const gchar                   *group);
-static void     hyscan_gtk_map_way_layer_removed                 (HyScanGtkLayer                *layer);
-static void     hyscan_gtk_map_way_layer_draw                    (HyScanGtkMap                  *map,
-                                                                  cairo_t                       *cairo,
-                                                                  HyScanGtkMapWayLayer          *way_layer);
-static void     hyscan_gtk_map_way_layer_proj_notify             (HyScanGtkMapWayLayer          *way_layer,
-                                                                  GParamSpec                    *pspec);
-static void     hyscan_gtk_map_way_layer_added                   (HyScanGtkLayer                *layer,
-                                                                  HyScanGtkLayerContainer       *container);
-static gboolean hyscan_gtk_map_way_layer_get_visible             (HyScanGtkLayer                *layer);
-static void     hyscan_gtk_map_way_layer_set_visible             (HyScanGtkLayer                *layer,
-                                                                  gboolean                       visible);
-static void     hyscan_gtk_map_track_create_arrow                (HyScanGtkMapWayLayerArrow     *arrow,
-                                                                  GdkRGBA                       *color_fill,
-                                                                  GdkRGBA                       *color_stroke);
-static void     hyscan_gtk_map_way_layer_model_changed           (HyScanGtkMapWayLayer          *way_layer,
-                                                                  HyScanNavigationModelData     *data);
-static void     hyscan_gtk_map_way_layer_point_free              (HyScanGtkMapWayLayerPoint     *point);
-static void     hyscan_gtk_map_way_layer_fill_tile               (HyScanGtkMapTiledLayer        *tiled_layer,
-                                                                  HyScanGtkMapTile              *tile);
+static void    hyscan_gtk_map_nav_interface_init           (HyScanGtkLayerInterface       *iface);
+static void    hyscan_gtk_map_nav_set_property             (GObject                       *object,
+                                                            guint                          prop_id,
+                                                            const GValue                  *value,
+                                                            GParamSpec                    *pspec);
+static void     hyscan_gtk_map_nav_object_constructed      (GObject                       *object);
+static void     hyscan_gtk_map_nav_object_finalize         (GObject                       *object);
+static gboolean hyscan_gtk_map_nav_load_key_file           (HyScanGtkLayer                *layer,
+                                                            GKeyFile                      *key_file,
+                                                            const gchar                   *group);
+static void     hyscan_gtk_map_nav_removed                 (HyScanGtkLayer                *layer);
+static void     hyscan_gtk_map_nav_draw                    (HyScanGtkMap                  *map,
+                                                            cairo_t                       *cairo,
+                                                            HyScanGtkMapNav               *nav_layer);
+static void     hyscan_gtk_map_nav_proj_notify             (HyScanGtkMapNav               *nav_layer,
+                                                            GParamSpec                    *pspec);
+static void     hyscan_gtk_map_nav_added                   (HyScanGtkLayer                *layer,
+                                                            HyScanGtkLayerContainer       *container);
+static gboolean hyscan_gtk_map_nav_get_visible             (HyScanGtkLayer                *layer);
+static void     hyscan_gtk_map_nav_set_visible             (HyScanGtkLayer                *layer,
+                                                            gboolean                       visible);
+static void     hyscan_gtk_map_nav_create_arrow            (HyScanGtkMapNavArrow          *arrow,
+                                                            GdkRGBA                       *color_fill,
+                                                            GdkRGBA                       *color_stroke);
+static void     hyscan_gtk_map_nav_model_changed           (HyScanGtkMapNav               *nav_layer,
+                                                           HyScanNavigationModelData      *data);
+static void     hyscan_gtk_map_nav_point_free              (HyScanGtkMapNavPoint          *point);
+static void     hyscan_gtk_map_nav_fill_tile               (HyScanGtkMapTiled             *tiled_layer,
+                                                            HyScanMapTile                 *tile);
 
 static HyScanGtkLayerInterface *hyscan_gtk_layer_parent_interface = NULL;
 
-G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapWayLayer, hyscan_gtk_map_way_layer, HYSCAN_TYPE_GTK_MAP_TILED_LAYER,
-                         G_ADD_PRIVATE (HyScanGtkMapWayLayer)
-                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_LAYER, hyscan_gtk_map_way_layer_interface_init))
+G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapNav, hyscan_gtk_map_nav, HYSCAN_TYPE_GTK_MAP_TILED,
+                         G_ADD_PRIVATE (HyScanGtkMapNav)
+                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_LAYER, hyscan_gtk_map_nav_interface_init))
 
 static void
-hyscan_gtk_map_way_layer_class_init (HyScanGtkMapWayLayerClass *klass)
+hyscan_gtk_map_nav_class_init (HyScanGtkMapNavClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
-  HyScanGtkMapTiledLayerClass *tiled_class = HYSCAN_GTK_MAP_TILED_LAYER_CLASS (klass);
+  HyScanGtkMapTiledClass *tiled_class = HYSCAN_GTK_MAP_TILED_CLASS (klass);
 
-  object_class->set_property = hyscan_gtk_map_way_layer_set_property;
-  object_class->constructed = hyscan_gtk_map_way_layer_object_constructed;
-  object_class->finalize = hyscan_gtk_map_way_layer_object_finalize;
+  object_class->set_property = hyscan_gtk_map_nav_set_property;
+  object_class->constructed = hyscan_gtk_map_nav_object_constructed;
+  object_class->finalize = hyscan_gtk_map_nav_object_finalize;
 
-  tiled_class->fill_tile = hyscan_gtk_map_way_layer_fill_tile;
+  tiled_class->fill_tile = hyscan_gtk_map_nav_fill_tile;
 
   g_object_class_install_property (object_class, PROP_NAV_MODEL,
     g_param_spec_object ("nav-model", "Navigation model", "HyScanNavigationModel",
@@ -192,19 +192,19 @@ hyscan_gtk_map_way_layer_class_init (HyScanGtkMapWayLayerClass *klass)
 }
 
 static void
-hyscan_gtk_map_way_layer_init (HyScanGtkMapWayLayer *gtk_map_way_layer)
+hyscan_gtk_map_nav_init (HyScanGtkMapNav *gtk_map_nav)
 {
-  gtk_map_way_layer->priv = hyscan_gtk_map_way_layer_get_instance_private (gtk_map_way_layer);
+  gtk_map_nav->priv = hyscan_gtk_map_nav_get_instance_private (gtk_map_nav);
 }
 
 static void
-hyscan_gtk_map_way_layer_set_property (GObject     *object,
-                                        guint         prop_id,
-                                        const GValue *value,
-                                        GParamSpec   *pspec)
+hyscan_gtk_map_nav_set_property (GObject     *object,
+                                guint         prop_id,
+                                const GValue *value,
+                                GParamSpec   *pspec)
 {
-  HyScanGtkMapWayLayer *gtk_map_way_layer = HYSCAN_GTK_MAP_WAY_LAYER (object);
-  HyScanGtkMapWayLayerPrivate *priv = gtk_map_way_layer->priv;
+  HyScanGtkMapNav *gtk_map_nav = HYSCAN_GTK_MAP_NAV (object);
+  HyScanGtkMapNavPrivate *priv = gtk_map_nav->priv;
 
   switch (prop_id)
     {
@@ -223,12 +223,12 @@ hyscan_gtk_map_way_layer_set_property (GObject     *object,
 }
 
 static void
-hyscan_gtk_map_way_layer_object_constructed (GObject *object)
+hyscan_gtk_map_nav_object_constructed (GObject *object)
 {
-  HyScanGtkMapWayLayer *way_layer = HYSCAN_GTK_MAP_WAY_LAYER (object);
-  HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
+  HyScanGtkMapNav *nav_layer = HYSCAN_GTK_MAP_NAV (object);
+  HyScanGtkMapNavPrivate *priv = nav_layer->priv;
 
-  G_OBJECT_CLASS (hyscan_gtk_map_way_layer_parent_class)->constructed (object);
+  G_OBJECT_CLASS (hyscan_gtk_map_nav_parent_class)->constructed (object);
 
   priv->track = g_queue_new ();
 
@@ -238,7 +238,7 @@ hyscan_gtk_map_way_layer_object_constructed (GObject *object)
   {
     GdkRGBA color_fill, color_stroke;
 
-    hyscan_gtk_map_way_layer_set_lifetime (way_layer, LIFETIME);
+    hyscan_gtk_map_nav_set_lifetime (nav_layer, LIFETIME);
     priv->line_width = LINE_WIDTH;
 
     gdk_rgba_parse (&priv->line_color, LINE_COLOR);
@@ -246,60 +246,60 @@ hyscan_gtk_map_way_layer_object_constructed (GObject *object)
 
     gdk_rgba_parse (&color_fill, ARROW_DEFAULT_FILL);
     gdk_rgba_parse (&color_stroke, ARROW_DEFAULT_STROKE);
-    hyscan_gtk_map_track_create_arrow (&priv->arrow_default, &color_fill, &color_stroke);
+    hyscan_gtk_map_nav_create_arrow (&priv->arrow_default, &color_fill, &color_stroke);
 
     gdk_rgba_parse (&color_fill, ARROW_LOST_FILL);
     gdk_rgba_parse (&color_stroke, ARROW_LOST_STROKE);
-    hyscan_gtk_map_track_create_arrow (&priv->arrow_lost, &color_fill, &color_stroke);
+    hyscan_gtk_map_nav_create_arrow (&priv->arrow_lost, &color_fill, &color_stroke);
 
     gdk_rgba_parse (&priv->text_color, TEXT_COLOR);
     gdk_rgba_parse (&priv->bg_color,   BG_COLOR);
   }
 
-  g_signal_connect_swapped (priv->nav_model, "changed", G_CALLBACK (hyscan_gtk_map_way_layer_model_changed), way_layer);
+  g_signal_connect_swapped (priv->nav_model, "changed", G_CALLBACK (hyscan_gtk_map_nav_model_changed), nav_layer);
 }
 
 static void
-hyscan_gtk_map_way_layer_object_finalize (GObject *object)
+hyscan_gtk_map_nav_object_finalize (GObject *object)
 {
-  HyScanGtkMapWayLayer *way_layer = HYSCAN_GTK_MAP_WAY_LAYER (object);
-  HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
+  HyScanGtkMapNav *nav_layer = HYSCAN_GTK_MAP_NAV (object);
+  HyScanGtkMapNavPrivate *priv = nav_layer->priv;
 
-  g_signal_handlers_disconnect_by_data (priv->nav_model, way_layer);
+  g_signal_handlers_disconnect_by_data (priv->nav_model, nav_layer);
   g_clear_object (&priv->nav_model);
   g_clear_pointer (&priv->arrow_default.surface, cairo_surface_destroy);
   g_clear_pointer (&priv->arrow_lost.surface, cairo_surface_destroy);
   g_clear_object (&priv->pango_layout);
 
   g_mutex_lock (&priv->track_lock);
-  g_queue_free_full (priv->track, (GDestroyNotify) hyscan_gtk_map_way_layer_point_free);
+  g_queue_free_full (priv->track, (GDestroyNotify) hyscan_gtk_map_nav_point_free);
   g_mutex_unlock (&priv->track_lock);
 
   g_mutex_clear (&priv->track_lock);
 
-  G_OBJECT_CLASS (hyscan_gtk_map_way_layer_parent_class)->finalize (object);
+  G_OBJECT_CLASS (hyscan_gtk_map_nav_parent_class)->finalize (object);
 }
 
 static void
-hyscan_gtk_map_way_layer_interface_init (HyScanGtkLayerInterface *iface)
+hyscan_gtk_map_nav_interface_init (HyScanGtkLayerInterface *iface)
 {
   hyscan_gtk_layer_parent_interface = g_type_interface_peek_parent (iface);
 
-  iface->added = hyscan_gtk_map_way_layer_added;
-  iface->removed = hyscan_gtk_map_way_layer_removed;
-  iface->set_visible = hyscan_gtk_map_way_layer_set_visible;
-  iface->get_visible = hyscan_gtk_map_way_layer_get_visible;
-  iface->load_key_file = hyscan_gtk_map_way_layer_load_key_file;
+  iface->added = hyscan_gtk_map_nav_added;
+  iface->removed = hyscan_gtk_map_nav_removed;
+  iface->set_visible = hyscan_gtk_map_nav_set_visible;
+  iface->get_visible = hyscan_gtk_map_nav_get_visible;
+  iface->load_key_file = hyscan_gtk_map_nav_load_key_file;
 }
 
 /* Загружает настройки слоя из ini-файла. */
 static gboolean
-hyscan_gtk_map_way_layer_load_key_file (HyScanGtkLayer *layer,
-                                          GKeyFile       *key_file,
-                                          const gchar    *group)
+hyscan_gtk_map_nav_load_key_file (HyScanGtkLayer *layer,
+                                  GKeyFile       *key_file,
+                                  const gchar    *group)
 {
-  HyScanGtkMapWayLayer *way_layer = HYSCAN_GTK_MAP_WAY_LAYER (layer);
-  HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
+  HyScanGtkMapNav *nav_layer = HYSCAN_GTK_MAP_NAV (layer);
+  HyScanGtkMapNavPrivate *priv = nav_layer->priv;
 
   gdouble line_width;
   GdkRGBA color_fill, color_stroke;
@@ -316,12 +316,12 @@ hyscan_gtk_map_way_layer_load_key_file (HyScanGtkLayer *layer,
   /* Маркер в обычном состоянии. */
   hyscan_gtk_layer_load_key_file_rgba (&color_fill, key_file, group, "arrow-color", ARROW_DEFAULT_FILL);
   hyscan_gtk_layer_load_key_file_rgba (&color_stroke, key_file, group, "arrow-stroke-color", ARROW_DEFAULT_STROKE);
-  hyscan_gtk_map_track_create_arrow (&priv->arrow_default, &color_fill, &color_stroke);
+  hyscan_gtk_map_nav_create_arrow (&priv->arrow_default, &color_fill, &color_stroke);
 
   /* Маркер при потери сигнала. */
   hyscan_gtk_layer_load_key_file_rgba (&color_fill, key_file, group, "lost-arrow-color", ARROW_LOST_FILL);
   hyscan_gtk_layer_load_key_file_rgba (&color_stroke, key_file, group, "lost-arrow-stroke-color", ARROW_LOST_STROKE);
-  hyscan_gtk_map_track_create_arrow (&priv->arrow_lost, &color_fill, &color_stroke);
+  hyscan_gtk_map_nav_create_arrow (&priv->arrow_lost, &color_fill, &color_stroke);
 
   hyscan_gtk_layer_load_key_file_rgba (&priv->text_color, key_file, group, "text-color", TEXT_COLOR);
   hyscan_gtk_layer_load_key_file_rgba (&priv->bg_color,   key_file, group, "bg-color",   BG_COLOR);
@@ -329,9 +329,9 @@ hyscan_gtk_map_way_layer_load_key_file (HyScanGtkLayer *layer,
   g_mutex_unlock (&priv->track_lock);
 
   /* Фиксируем изменение параметров. */
-  hyscan_gtk_map_tiled_layer_set_param_mod (HYSCAN_GTK_MAP_TILED_LAYER (way_layer));
+  hyscan_gtk_map_tiled_set_param_mod (HYSCAN_GTK_MAP_TILED (nav_layer));
   /* Ставим флаг о необходимости перерисовки. */
-  hyscan_gtk_map_tiled_layer_request_draw (HYSCAN_GTK_MAP_TILED_LAYER (way_layer));
+  hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (nav_layer));
 
   return TRUE;
 }
@@ -343,10 +343,10 @@ hyscan_gtk_map_way_layer_load_key_file (HyScanGtkLayer *layer,
  *
  * Функция должна вызываться за мьютексом! */
 static void
-hyscan_gtk_map_way_layer_set_expired_mod (HyScanGtkMapWayLayer *way_layer,
-                                          gdouble               time)
+hyscan_gtk_map_nav_set_expired_mod (HyScanGtkMapNav *nav_layer,
+                                    gdouble          time)
 {
-  HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
+  HyScanGtkMapNavPrivate *priv = nav_layer->priv;
 
   GList *track_l;
   GList *new_tail;
@@ -360,7 +360,7 @@ hyscan_gtk_map_way_layer_set_expired_mod (HyScanGtkMapWayLayer *way_layer,
   delete_time = time - priv->life_time;
   for (new_tail = priv->track->tail; new_tail != NULL; new_tail = new_tail->prev)
     {
-      HyScanGtkMapWayLayerPoint *cur_point = new_tail->data;
+      HyScanGtkMapNavPoint *cur_point = new_tail->data;
 
       if (cur_point->time > delete_time)
         break;
@@ -369,15 +369,15 @@ hyscan_gtk_map_way_layer_set_expired_mod (HyScanGtkMapWayLayer *way_layer,
   /* 2. Делаем недействительными всё тайлы, которые содержат устаревшие точки. */
   for (track_l = priv->track->tail; track_l != new_tail; track_l = track_l->prev)
     {
-      HyScanGtkMapWayLayerPoint *prev_point;
-      HyScanGtkMapWayLayerPoint *cur_point;
+      HyScanGtkMapNavPoint *prev_point;
+      HyScanGtkMapNavPoint *cur_point;
 
       if (track_l->prev == NULL)
         continue;
 
       prev_point = track_l->prev->data;
       cur_point  = track_l->data;
-      hyscan_gtk_map_tiled_layer_set_area_mod (HYSCAN_GTK_MAP_TILED_LAYER (way_layer),
+      hyscan_gtk_map_tiled_set_area_mod (HYSCAN_GTK_MAP_TILED (nav_layer),
                                                &cur_point->coord.c2d, &prev_point->coord.c2d);
     }
 
@@ -385,10 +385,10 @@ hyscan_gtk_map_way_layer_set_expired_mod (HyScanGtkMapWayLayer *way_layer,
   for (track_l = priv->track->tail; track_l != new_tail; )
     {
       GList *prev_l = track_l->prev;
-      HyScanGtkMapWayLayerPoint *cur_point = track_l->data;
+      HyScanGtkMapNavPoint *cur_point = track_l->data;
 
       g_queue_delete_link (priv->track, track_l);
-      hyscan_gtk_map_way_layer_point_free (cur_point);
+      hyscan_gtk_map_nav_point_free (cur_point);
 
       track_l = prev_l;
     }
@@ -399,12 +399,12 @@ hyscan_gtk_map_way_layer_set_expired_mod (HyScanGtkMapWayLayer *way_layer,
  *
  * Функция должна вызываться за мьютексом! */
 static void
-hyscan_gtk_map_way_layer_set_head_mod (HyScanGtkMapWayLayer *way_layer)
+hyscan_gtk_map_nav_set_head_mod (HyScanGtkMapNav *nav_layer)
 {
-  HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
+  HyScanGtkMapNavPrivate *priv = nav_layer->priv;
 
   GList *head_l;
-  HyScanGtkMapWayLayerPoint *track_point0, *track_point1 = NULL;
+  HyScanGtkMapNavPoint *track_point0, *track_point1 = NULL;
 
   if (!priv->has_cache || priv->map == NULL)
     return;
@@ -418,24 +418,24 @@ hyscan_gtk_map_way_layer_set_head_mod (HyScanGtkMapWayLayer *way_layer)
   track_point1 = head_l->next->data;
 
   /* Актуализируем тайлы, содержащие найденный отрезок. */
-  hyscan_gtk_map_tiled_layer_set_area_mod (HYSCAN_GTK_MAP_TILED_LAYER (way_layer),
+  hyscan_gtk_map_tiled_set_area_mod (HYSCAN_GTK_MAP_TILED (nav_layer),
                                            &track_point0->coord.c2d, &track_point1->coord.c2d);
 }
 
-/* Освобождает память, занятую структурой HyScanGtkMapWayLayerPoint. */
+/* Освобождает память, занятую структурой HyScanGtkMapNavPoint. */
 static void
-hyscan_gtk_map_way_layer_point_free (HyScanGtkMapWayLayerPoint *point)
+hyscan_gtk_map_nav_point_free (HyScanGtkMapNavPoint *point)
 {
-  g_slice_free (HyScanGtkMapWayLayerPoint, point);
+  g_slice_free (HyScanGtkMapNavPoint, point);
 }
 
-/* Копирует структуру HyScanGtkMapWayLayerPoint. */
-static HyScanGtkMapWayLayerPoint *
-hyscan_gtk_map_way_layer_point_copy (HyScanGtkMapWayLayerPoint *point)
+/* Копирует структуру HyScanGtkMapNavPoint. */
+static HyScanGtkMapNavPoint *
+hyscan_gtk_map_nav_point_copy (HyScanGtkMapNavPoint *point)
 {
-  HyScanGtkMapWayLayerPoint *copy;
+  HyScanGtkMapNavPoint *copy;
 
-  copy = g_slice_new (HyScanGtkMapWayLayerPoint);
+  copy = g_slice_new (HyScanGtkMapNavPoint);
   *copy = *point;
 
   return copy;
@@ -443,10 +443,10 @@ hyscan_gtk_map_way_layer_point_copy (HyScanGtkMapWayLayerPoint *point)
 
 /* Обработчик сигнала "changed" модели. */
 static void
-hyscan_gtk_map_way_layer_model_changed (HyScanGtkMapWayLayer      *way_layer,
-                                        HyScanNavigationModelData *data)
+hyscan_gtk_map_nav_model_changed (HyScanGtkMapNav           *nav_layer,
+                                  HyScanNavigationModelData *data)
 {
-  HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
+  HyScanGtkMapNavPrivate *priv = nav_layer->priv;
 
   g_mutex_lock (&priv->track_lock);
 
@@ -456,7 +456,7 @@ hyscan_gtk_map_way_layer_model_changed (HyScanGtkMapWayLayer      *way_layer,
   /* Добавляем новую точку в трек. */
   if (data->loaded)
     {
-      HyScanGtkMapWayLayerPoint point;
+      HyScanGtkMapNavPoint point;
 
       point.time = data->time;
       point.start = priv->track_lost;
@@ -468,28 +468,28 @@ hyscan_gtk_map_way_layer_model_changed (HyScanGtkMapWayLayer      *way_layer,
       if (priv->map != NULL)
         hyscan_gtk_map_geo_to_value (priv->map, point.coord.geo, &point.coord.c2d);
 
-      g_queue_push_head (priv->track, hyscan_gtk_map_way_layer_point_copy (&point));
+      g_queue_push_head (priv->track, hyscan_gtk_map_nav_point_copy (&point));
 
-      hyscan_gtk_map_way_layer_set_head_mod (way_layer);
+      hyscan_gtk_map_nav_set_head_mod (nav_layer);
     }
 
   /* Фиксируем обрыв. */
   priv->track_lost = !data->loaded;
 
   /* Удаляем устаревшие по life_time точки. */
-  hyscan_gtk_map_way_layer_set_expired_mod (way_layer, data->time);
+  hyscan_gtk_map_nav_set_expired_mod (nav_layer, data->time);
 
   g_mutex_unlock (&priv->track_lock);
 
-  if (hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (way_layer)))
-    hyscan_gtk_map_tiled_layer_request_draw (HYSCAN_GTK_MAP_TILED_LAYER (way_layer));
+  if (hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (nav_layer)))
+    hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (nav_layer));
 }
 
 /* Создаёт cairo-поверхность с изображением стрелки в голове трека. */
 static void
-hyscan_gtk_map_track_create_arrow (HyScanGtkMapWayLayerArrow *arrow,
-                                   GdkRGBA                   *color_fill,
-                                   GdkRGBA                   *color_stroke)
+hyscan_gtk_map_nav_create_arrow (HyScanGtkMapNavArrow *arrow,
+                                 GdkRGBA              *color_fill,
+                                 GdkRGBA              *color_stroke)
 {
   cairo_t *cairo;
   guint line_width = 1;
@@ -539,24 +539,24 @@ hyscan_gtk_map_track_create_arrow (HyScanGtkMapWayLayerArrow *arrow,
 /* Реализация HyScanGtkLayerInterface.set_visible.
  * Устанавливает видимость слоя. */
 static void
-hyscan_gtk_map_way_layer_set_visible (HyScanGtkLayer *layer,
-                                      gboolean        visible)
+hyscan_gtk_map_nav_set_visible (HyScanGtkLayer *layer,
+                                gboolean        visible)
 {
-  HyScanGtkMapWayLayer *way_layer = HYSCAN_GTK_MAP_WAY_LAYER (layer);
-  HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
+  HyScanGtkMapNav *nav_layer = HYSCAN_GTK_MAP_NAV (layer);
+  HyScanGtkMapNavPrivate *priv = nav_layer->priv;
 
   priv->visible = visible;
 
-  hyscan_gtk_map_tiled_layer_request_draw (HYSCAN_GTK_MAP_TILED_LAYER (way_layer));
+  hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (nav_layer));
 }
 
 /* Реализация HyScanGtkLayerInterface.get_visible.
  * Возвращает видимость слоя. */
 static gboolean
-hyscan_gtk_map_way_layer_get_visible (HyScanGtkLayer *layer)
+hyscan_gtk_map_nav_get_visible (HyScanGtkLayer *layer)
 {
-  HyScanGtkMapWayLayer *way_layer = HYSCAN_GTK_MAP_WAY_LAYER (layer);
-  HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
+  HyScanGtkMapNav *nav_layer = HYSCAN_GTK_MAP_NAV (layer);
+  HyScanGtkMapNavPrivate *priv = nav_layer->priv;
 
   return priv->visible;
 }
@@ -564,10 +564,10 @@ hyscan_gtk_map_way_layer_get_visible (HyScanGtkLayer *layer)
 /* Реализация HyScanGtkLayerInterface.removed.
  * Отключается от сигналов карты при удалении слоя с карты. */
 static void
-hyscan_gtk_map_way_layer_removed (HyScanGtkLayer *layer)
+hyscan_gtk_map_nav_removed (HyScanGtkLayer *layer)
 {
-  HyScanGtkMapWayLayer *way_layer = HYSCAN_GTK_MAP_WAY_LAYER (layer);
-  HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
+  HyScanGtkMapNav *nav_layer = HYSCAN_GTK_MAP_NAV (layer);
+  HyScanGtkMapNavPrivate *priv = nav_layer->priv;
 
   hyscan_gtk_layer_parent_interface->removed (layer);
 
@@ -578,17 +578,17 @@ hyscan_gtk_map_way_layer_removed (HyScanGtkLayer *layer)
 
 /* Рисует кусок трека от chunk_start до chunk_end. */
 static void
-hyscan_gtk_map_way_layer_draw_chunk (HyScanGtkMapWayLayer *way_layer,
-                                       cairo_t                *cairo,
-                                       gdouble                 from_x,
-                                       gdouble                 to_x,
-                                       gdouble                 from_y,
-                                       gdouble                 to_y,
-                                       gdouble                 scale,
-                                       GList                  *chunk_start,
-                                       GList                  *chunk_end)
+hyscan_gtk_map_nav_draw_chunk (HyScanGtkMapNav *nav_layer,
+                               cairo_t         *cairo,
+                               gdouble          from_x,
+                               gdouble          to_x,
+                               gdouble          from_y,
+                               gdouble          to_y,
+                               gdouble          scale,
+                               GList           *chunk_start,
+                               GList           *chunk_end)
 {
-  HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
+  HyScanGtkMapNavPrivate *priv = nav_layer->priv;
 
   GList *chunk_l;
   gboolean finish;
@@ -602,7 +602,7 @@ hyscan_gtk_map_way_layer_draw_chunk (HyScanGtkMapWayLayer *way_layer,
   finish = (chunk_l == NULL);
   while (!finish)
     {
-      HyScanGtkMapWayLayerPoint *track_point = chunk_l->data;
+      HyScanGtkMapNavPoint *track_point = chunk_l->data;
       HyScanGeoCartesian2D *point = &track_point->coord.c2d;
       gdouble x, y;
 
@@ -643,15 +643,15 @@ hyscan_gtk_map_way_layer_draw_chunk (HyScanGtkMapWayLayer *way_layer,
 
 /* Рисует трек в указанном регионе. Возвращает mod_count нарисованного трека.  */
 static guint
-hyscan_gtk_map_way_layer_draw_region (HyScanGtkMapWayLayer *way_layer,
-                                        cairo_t                *cairo,
-                                        gdouble                 from_x,
-                                        gdouble                 to_x,
-                                        gdouble                 from_y,
-                                        gdouble                 to_y,
-                                        gdouble                 scale)
+hyscan_gtk_map_nav_draw_region (HyScanGtkMapNav *nav_layer,
+                                cairo_t         *cairo,
+                                gdouble          from_x,
+                                gdouble          to_x,
+                                gdouble          from_y,
+                                gdouble          to_y,
+                                gdouble          scale)
 {
-  HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
+  HyScanGtkMapNavPrivate *priv = nav_layer->priv;
   GList *track_l;
 
   GList *chunk_start = NULL;
@@ -676,7 +676,7 @@ hyscan_gtk_map_way_layer_draw_region (HyScanGtkMapWayLayer *way_layer,
   /* Ищем куски трека, которые полностью попадают в указанный регион и рисуем покусочно. */
   for (track_l = priv->track->head; track_l != NULL; track_l = track_l->next, point1_l = point0_l)
     {
-      HyScanGtkMapWayLayerPoint *track_point0, *track_point1;
+      HyScanGtkMapNavPoint *track_point0, *track_point1;
       HyScanGeoCartesian2D *point0, *point1;
       gboolean is_inside;
 
@@ -703,7 +703,7 @@ hyscan_gtk_map_way_layer_draw_region (HyScanGtkMapWayLayer *way_layer,
         /* Фиксируем конец куска. */
         {
           chunk_end = point0_l;
-          hyscan_gtk_map_way_layer_draw_chunk (way_layer, cairo,
+          hyscan_gtk_map_nav_draw_chunk (nav_layer, cairo,
                                                from_x, to_x, from_y, to_y, scale,
                                                chunk_start, chunk_end);
 
@@ -715,7 +715,7 @@ hyscan_gtk_map_way_layer_draw_region (HyScanGtkMapWayLayer *way_layer,
   /* Рисуем последний кусок. */
   if (chunk_start != NULL)
     {
-      hyscan_gtk_map_way_layer_draw_chunk (way_layer, cairo,
+      hyscan_gtk_map_nav_draw_chunk (nav_layer, cairo,
                                            from_x, to_x, from_y, to_y, scale,
                                            chunk_start, chunk_end);
     }
@@ -727,10 +727,10 @@ hyscan_gtk_map_way_layer_draw_region (HyScanGtkMapWayLayer *way_layer,
 
 /* Заполняет поверхность тайла. Возвращает номер состояния трека на момент рисования */
 static void
-hyscan_gtk_map_way_layer_fill_tile (HyScanGtkMapTiledLayer *tiled_layer,
-                                    HyScanGtkMapTile       *tile)
+hyscan_gtk_map_nav_fill_tile (HyScanGtkMapTiled *tiled_layer,
+                              HyScanMapTile     *tile)
 {
-  HyScanGtkMapWayLayer *way_layer = HYSCAN_GTK_MAP_WAY_LAYER (tiled_layer);
+  HyScanGtkMapNav *nav_layer = HYSCAN_GTK_MAP_NAV (tiled_layer);
   cairo_t *tile_cairo;
 
   HyScanGeoCartesian2D from, to;
@@ -738,31 +738,31 @@ hyscan_gtk_map_way_layer_fill_tile (HyScanGtkMapTiledLayer *tiled_layer,
   gint width;
   gdouble scale;
 
-  width = hyscan_gtk_map_tile_get_size (tile);
+  width = hyscan_map_tile_get_size (tile);
   surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, width, width);
   tile_cairo = cairo_create (surface);
 
   /* Заполняем поверхность тайла. */
-  hyscan_gtk_map_tile_get_bounds (tile, &from, &to);
-  scale = hyscan_gtk_map_tile_get_scale (tile);
-  hyscan_gtk_map_way_layer_draw_region (way_layer, tile_cairo, from.x, to.x, from.y, to.y, scale);
+  hyscan_map_tile_get_bounds (tile, &from, &to);
+  scale = hyscan_map_tile_get_scale (tile);
+  hyscan_gtk_map_nav_draw_region (nav_layer, tile_cairo, from.x, to.x, from.y, to.y, scale);
 
   /* Записываем поверхность в тайл. */
-  hyscan_gtk_map_tile_set_surface (tile, surface);
+  hyscan_map_tile_set_surface (tile, surface);
 
   cairo_surface_destroy (surface);
   cairo_destroy (tile_cairo);
 }
 
 /* Рисует трек сразу на всю видимую область.
- * Альтернатива рисованию тайлами hyscan_gtk_map_way_layer_draw_tiles().
+ * Альтернатива рисованию тайлами hyscan_gtk_map_nav_draw_tiles().
  * При небольшом треке экономит время, потому что не надо определять тайлы и
  * лезть в кэш. */
 static void
-hyscan_gtk_map_way_layer_draw_full (HyScanGtkMapWayLayer *way_layer,
-                                      cairo_t                *cairo)
+hyscan_gtk_map_nav_draw_full (HyScanGtkMapNav *nav_layer,
+                              cairo_t         *cairo)
 {
-  HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
+  HyScanGtkMapNavPrivate *priv = nav_layer->priv;
   gdouble from_x, to_x, from_y, to_y;
   gdouble scale;
 
@@ -778,7 +778,7 @@ hyscan_gtk_map_way_layer_draw_full (HyScanGtkMapWayLayer *way_layer,
   /* Рисуем трек на слое. */
   gtk_cifro_area_get_view (GTK_CIFRO_AREA (priv->map), &from_x, &to_x, &from_y, &to_y);
   hyscan_gtk_map_get_scale_idx (priv->map, &scale);
-  hyscan_gtk_map_way_layer_draw_region (way_layer, layer_cairo, from_x, to_x, from_y, to_y, scale);
+  hyscan_gtk_map_nav_draw_region (nav_layer, layer_cairo, from_x, to_x, from_y, to_y, scale);
 
   /* Переносим слой на поверхность виджета. */
   cairo_set_source_surface (cairo, layer_surface, 0, 0);
@@ -791,17 +791,17 @@ hyscan_gtk_map_way_layer_draw_full (HyScanGtkMapWayLayer *way_layer,
 /* Обработчик сигнала "visible-draw".
  * Рисует на карте движение объекта. */
 static void
-hyscan_gtk_map_way_layer_draw (HyScanGtkMap         *map,
-                               cairo_t              *cairo,
-                               HyScanGtkMapWayLayer *way_layer)
+hyscan_gtk_map_nav_draw (HyScanGtkMap    *map,
+                         cairo_t         *cairo,
+                         HyScanGtkMapNav *nav_layer)
 {
-  HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
+  HyScanGtkMapNavPrivate *priv = nav_layer->priv;
 
   gdouble x, y;
   gdouble bearing, speed;
   gboolean true_heading;
 
-  HyScanGtkMapWayLayerArrow *arrow;
+  HyScanGtkMapNavArrow *arrow;
 
 #ifdef HYSCAN_GTK_MAP_DEBUG_FPS
   static GTimer *debug_timer;
@@ -814,12 +814,12 @@ hyscan_gtk_map_way_layer_draw (HyScanGtkMap         *map,
   frame_idx++;
 #endif
 
-  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (way_layer)))
+  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (nav_layer)))
     return;
 
   /* Получаем координаты последней точки - маркера текущего местоположения. */
   {
-    HyScanGtkMapWayLayerPoint *last_track_point;
+    HyScanGtkMapNavPoint *last_track_point;
     HyScanGtkMapPoint *last_point;
 
     g_mutex_lock (&priv->track_lock);
@@ -843,9 +843,9 @@ hyscan_gtk_map_way_layer_draw (HyScanGtkMap         *map,
 
   /* Рисуем трек тайлами по одной из стратегий: _draw_full() или _draw_tiles(). */
   if (priv->has_cache)
-    hyscan_gtk_map_tiled_layer_draw (HYSCAN_GTK_MAP_TILED_LAYER (way_layer), cairo);
+    hyscan_gtk_map_tiled_draw (HYSCAN_GTK_MAP_TILED (nav_layer), cairo);
   else
-    hyscan_gtk_map_way_layer_draw_full (way_layer, cairo);
+    hyscan_gtk_map_nav_draw_full (nav_layer, cairo);
 
   /* Рисуем маркер движущегося объекта. */
   cairo_save (cairo);
@@ -914,7 +914,7 @@ hyscan_gtk_map_way_layer_draw (HyScanGtkMap         *map,
       dbg_time += frame_time[dbg_i];
 
     dbg_time /= (gdouble) dbg_frames;
-    g_message ("hyscan_gtk_map_way_layer_draw: %.2f fps; length = %d",
+    g_message ("hyscan_gtk_map_nav_draw: %.2f fps; length = %d",
                1.0 / dbg_time,
                g_queue_get_length (priv->track));
   }
@@ -923,9 +923,9 @@ hyscan_gtk_map_way_layer_draw (HyScanGtkMap         *map,
 
 /* Переводит координаты путевых точек трека из географичекских в СК проекции карты. */
 static void
-hyscan_gtk_map_way_layer_update_points (HyScanGtkMapWayLayerPrivate *priv)
+hyscan_gtk_map_nav_update_points (HyScanGtkMapNavPrivate *priv)
 {
-  HyScanGtkMapWayLayerPoint *point;
+  HyScanGtkMapNavPoint *point;
   GList *track_l;
 
   g_mutex_lock (&priv->track_lock);
@@ -942,24 +942,24 @@ hyscan_gtk_map_way_layer_update_points (HyScanGtkMapWayLayerPrivate *priv)
 /* Обработчик сигнала "notify::projection".
  * Пересчитывает координаты точек, если изменяется картографическая проекция. */
 static void
-hyscan_gtk_map_way_layer_proj_notify (HyScanGtkMapWayLayer *way_layer,
-                                      GParamSpec           *pspec)
+hyscan_gtk_map_nav_proj_notify (HyScanGtkMapNav *nav_layer,
+                                GParamSpec      *pspec)
 {
-  HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
+  HyScanGtkMapNavPrivate *priv = nav_layer->priv;
 
   /* Обновляем координаты точек согласно новой проекции. */
-  hyscan_gtk_map_way_layer_update_points (priv);
+  hyscan_gtk_map_nav_update_points (priv);
 
   /* Фиксируем изменение параметров. */
-  hyscan_gtk_map_tiled_layer_set_param_mod (HYSCAN_GTK_MAP_TILED_LAYER (way_layer));
+  hyscan_gtk_map_tiled_set_param_mod (HYSCAN_GTK_MAP_TILED (nav_layer));
 }
 
 /* Обновление раскладки шрифта по сигналу "configure-event". */
 static gboolean
-hyscan_gtk_map_way_layer_configure (HyScanGtkMapWayLayer *way_layer,
-                                    GdkEvent             *screen)
+hyscan_gtk_map_nav_configure (HyScanGtkMapNav *nav_layer,
+                              GdkEvent        *screen)
 {
-  HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
+  HyScanGtkMapNavPrivate *priv = nav_layer->priv;
   gint height;
 
   g_clear_object (&priv->pango_layout);
@@ -978,50 +978,50 @@ hyscan_gtk_map_way_layer_configure (HyScanGtkMapWayLayer *way_layer,
 /* Реализация HyScanGtkLayerInterface.added.
  * Подключается к сигналам карты при добавлении слоя на карту. */
 static void
-hyscan_gtk_map_way_layer_added (HyScanGtkLayer          *layer,
-                                HyScanGtkLayerContainer *container)
+hyscan_gtk_map_nav_added (HyScanGtkLayer          *layer,
+                          HyScanGtkLayerContainer *container)
 {
-  HyScanGtkMapWayLayer *way_layer = HYSCAN_GTK_MAP_WAY_LAYER (layer);
-  HyScanGtkMapWayLayerPrivate *priv = way_layer->priv;
+  HyScanGtkMapNav *nav_layer = HYSCAN_GTK_MAP_NAV (layer);
+  HyScanGtkMapNavPrivate *priv = nav_layer->priv;
 
   g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
 
   /* Подключаемся к карте. */
   priv->map = g_object_ref (HYSCAN_GTK_MAP (container));
-  hyscan_gtk_map_way_layer_update_points (way_layer->priv);
-  g_signal_connect_after (priv->map, "visible-draw", G_CALLBACK (hyscan_gtk_map_way_layer_draw), way_layer);
-  g_signal_connect_swapped (priv->map, "notify::projection", G_CALLBACK (hyscan_gtk_map_way_layer_proj_notify), way_layer);
-  g_signal_connect_swapped (priv->map, "configure-event", G_CALLBACK (hyscan_gtk_map_way_layer_configure), way_layer);
+  hyscan_gtk_map_nav_update_points (nav_layer->priv);
+  g_signal_connect_after (priv->map, "visible-draw", G_CALLBACK (hyscan_gtk_map_nav_draw), nav_layer);
+  g_signal_connect_swapped (priv->map, "notify::projection", G_CALLBACK (hyscan_gtk_map_nav_proj_notify), nav_layer);
+  g_signal_connect_swapped (priv->map, "configure-event", G_CALLBACK (hyscan_gtk_map_nav_configure), nav_layer);
 
   hyscan_gtk_layer_parent_interface->added (layer, container);
 }
 
 /**
- * hyscan_gtk_map_way_layer_new:
+ * hyscan_gtk_map_nav_new:
  * @nav_model: указатель на модель навигационных данных #HyScanNavigationModel
  *
  * Создает новый слой с треком движения объекта.
  *
- * Returns: указатель на #HyScanGtkMapWayLayer
+ * Returns: указатель на #HyScanGtkMapNav
  */
 HyScanGtkLayer *
-hyscan_gtk_map_way_layer_new (HyScanNavigationModel *nav_model)
+hyscan_gtk_map_nav_new (HyScanNavigationModel *nav_model)
 {
-  return g_object_new (HYSCAN_TYPE_GTK_MAP_WAY_LAYER,
+  return g_object_new (HYSCAN_TYPE_GTK_MAP_NAV,
                        "nav-model", nav_model,
                        NULL);
 }
 
 /**
- * hyscan_gtk_map_way_layer_set_lifetime:
- * @way_layer: указатель на #HyScanGtkMapWayLayer
+ * hyscan_gtk_map_nav_set_lifetime:
+ * @nav_layer: указатель на #HyScanGtkMapNav
  * @lifetime: время жизни точек трека, секунды
  */
 void
-hyscan_gtk_map_way_layer_set_lifetime (HyScanGtkMapWayLayer *way_layer,
-                                         guint64                 lifetime)
+hyscan_gtk_map_nav_set_lifetime (HyScanGtkMapNav *nav_layer,
+                                 guint64          lifetime)
 {
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_WAY_LAYER (way_layer));
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_NAV (nav_layer));
 
-  way_layer->priv->life_time = lifetime;
+  nav_layer->priv->life_time = lifetime;
 }

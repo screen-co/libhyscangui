@@ -90,11 +90,6 @@ static void     hyscan_gtk_map_get_limits               (GtkCifroArea          *
                                                          gdouble               *max_x,
                                                          gdouble               *min_y,
                                                          gdouble               *max_y);
-static void     hyscan_gtk_map_get_border               (GtkCifroArea          *carea,
-                                                         guint                 *border_top,
-                                                         guint                 *border_bottom,
-                                                         guint                 *border_left,
-                                                         guint                 *border_right);
 static void     hyscan_gtk_map_check_scale              (GtkCifroArea          *carea,
                                                          gdouble               *scale_x,
                                                          gdouble               *scale_y);
@@ -112,15 +107,10 @@ hyscan_gtk_map_get_property (GObject    *object,
   HyScanGtkMap *gtk_map = HYSCAN_GTK_MAP (object);
   HyScanGtkMapPrivate *priv = gtk_map->priv;
 
-  switch ( prop_id )
-    {
-    case PROP_PROJECTION:
-      g_value_set_object (value, priv->projection);
-      break;
-
-    default:
-      break;
-    }
+  if (prop_id == PROP_PROJECTION)
+    g_value_set_object (value, priv->projection);
+  else
+    G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
 }
 
 static void
@@ -138,22 +128,30 @@ hyscan_gtk_map_class_init (HyScanGtkMapClass *klass)
 
   /* Реализация виртуальных функций GtkCifroArea. */
   carea_class->get_limits = hyscan_gtk_map_get_limits;
-  carea_class->get_border = hyscan_gtk_map_get_border;
   carea_class->check_scale = hyscan_gtk_map_check_scale;
 
-  /* Сигналы GTKWidget. */
+  /* Реализация виртуальных функций GTKWidget. */
   widget_class->configure_event = hyscan_gtk_map_configure;
 
-  pspec = g_param_spec_object ("projection", "Projection", "HyScanGeoProjection", HYSCAN_TYPE_GEO_PROJECTION,
+  pspec = g_param_spec_object ("projection", "Projection", "HyScanGeoProjection",
+                               HYSCAN_TYPE_GEO_PROJECTION,
                                G_PARAM_WRITABLE | G_PARAM_READABLE);
   g_object_class_install_property (object_class, PROP_PROJECTION, pspec);
   hyscan_gtk_map_properties[PROP_PROJECTION] = pspec;
 
   pspec = g_param_spec_pointer ("init-center", "Initial Center", "HyScanGeoGeodetic",
                                 G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY);
+  hyscan_gtk_map_properties[PROP_INIT_CENTER] = pspec;
   g_object_class_install_property (object_class, PROP_INIT_CENTER, pspec);
 }
 
+static void
+hyscan_gtk_map_init (HyScanGtkMap *gtk_map)
+{
+  gtk_map->priv = hyscan_gtk_map_get_instance_private (gtk_map);
+}
+
+/* Обработка "configure-event". Определяет PPI монитора. */
 static gboolean
 hyscan_gtk_map_configure (GtkWidget         *widget,
                           GdkEventConfigure *event)
@@ -181,7 +179,7 @@ hyscan_gtk_map_configure (GtkWidget         *widget,
 
   /* Вычисляем PPI. */
   ppi = diagonal_pix / diagonal_mm;
-  if (isnan (ppi) || isinf(ppi) || ppi <= 0.0 || monitor_h <= 0 || monitor_w <= 0)
+  if (isnan (ppi) || isinf (ppi) || ppi <= 0.0 || monitor_h <= 0 || monitor_w <= 0)
     ppi = DEFAULT_PPI;
 
   priv->ppi = ppi;
@@ -189,21 +187,12 @@ hyscan_gtk_map_configure (GtkWidget         *widget,
   return GTK_WIDGET_CLASS (hyscan_gtk_map_parent_class)->configure_event (widget, event);
 }
 
-static void
-hyscan_gtk_map_init (HyScanGtkMap *gtk_map)
-{
-  gtk_map->priv = hyscan_gtk_map_get_instance_private (gtk_map);
-}
-
 /* Устанавливает координаты центра карты при ее загрузке. */
 static void
 hyscan_gtk_map_set_init_center (HyScanGtkMapPrivate *priv,
-                                HyScanGeoGeodetic   *center)
+                                HyScanGeoGeodetic    center)
 {
-  if (center == NULL)
-    return;
-
-  priv->init_center = *center;
+  priv->init_center = center;
 }
 
 static void
@@ -222,7 +211,7 @@ hyscan_gtk_map_set_property (GObject      *object,
       break;
 
     case PROP_INIT_CENTER:
-      hyscan_gtk_map_set_init_center (priv, g_value_get_pointer (value));
+      hyscan_gtk_map_set_init_center (priv, *((HyScanGeoGeodetic *) g_value_get_pointer (value)));
       break;
 
     default:
@@ -231,7 +220,7 @@ hyscan_gtk_map_set_property (GObject      *object,
     }
 }
 
-/* Инициализирует область просмотра карты и, следовательно, масштаб. */
+/* Инициализирует видимую область карты и, следовательно, масштаб. */
 static gboolean
 hyscan_gtk_map_init_view (GtkWidget         *widget,
                           GdkEventConfigure *event)
@@ -243,7 +232,8 @@ hyscan_gtk_map_init_view (GtkWidget         *widget,
 
   HyScanGeoGeodetic coord;
   HyScanGeoCartesian2D from, to;
-  gdouble view_size = .005;
+
+  gdouble view_margin = .005;        /* Отступ от центра карты до границ видимой области в градусах широты и долготы. */
 
   /* При нулевых размерах виджета инициализироваться не выйдет. */
   gtk_cifro_area_get_visible_size (GTK_CIFRO_AREA (map), &width, &height);
@@ -251,14 +241,15 @@ hyscan_gtk_map_init_view (GtkWidget         *widget,
     return FALSE;
 
   coord = priv->init_center;
-  coord.lat -= view_size;
-  coord.lon -= view_size;
+  coord.lat -= view_margin;
+  coord.lon -= view_margin;
   hyscan_gtk_map_geo_to_value (map, coord, &from);
 
   coord = priv->init_center;
-  coord.lat += view_size;
-  coord.lon += view_size;
+  coord.lat += view_margin;
+  coord.lon += view_margin;
   hyscan_gtk_map_geo_to_value (map, coord, &to);
+
   gtk_cifro_area_set_view (GTK_CIFRO_AREA (map), from.x, to.x, from.y, to.y);
 
   /* Отключаем этот обработчик, т.к. инициализируемся только раз. */
@@ -278,6 +269,7 @@ hyscan_gtk_map_object_constructed (GObject *object)
 
   g_signal_connect_after (gtk_map, "configure-event", G_CALLBACK (hyscan_gtk_map_init_view), NULL);
 
+  /* Устанавливаем проекцию и масштабы по умолчанию. */
   priv->projection = hyscan_pseudo_mercator_new ();
   hyscan_gtk_map_set_scales_meter (gtk_map, scales, G_N_ELEMENTS (scales));
 }
@@ -294,7 +286,8 @@ hyscan_gtk_map_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_parent_class)->finalize (object);
 }
 
-/* Ищет ближайший по значению допустимый масштаб. */
+/* Ищет ближайший по значению допустимый масштаб.
+ * Возвращает -1 в случае ошибки. */
 static gdouble
 hyscan_gtk_map_find_closest_scale (HyScanGtkMap *map,
                                    gdouble       scale,
@@ -359,19 +352,6 @@ hyscan_gtk_map_check_scale (GtkCifroArea *carea,
   *scale_y = scale;
 }
 
-static void
-hyscan_gtk_map_get_border (GtkCifroArea *carea,
-                           guint        *border_top,
-                           guint        *border_bottom,
-                           guint        *border_left,
-                           guint        *border_right)
-{
-  (border_bottom != NULL) ? *border_bottom = 0 : 0;
-  (border_top != NULL) ? *border_top = 0 : 0;
-  (border_left != NULL) ? *border_left = 0 : 0;
-  (border_right != NULL) ? *border_right = 0 : 0;
-}
-
 /* Границы системы координат карты. */
 static void
 hyscan_gtk_map_get_limits (GtkCifroArea *carea,
@@ -402,7 +382,7 @@ hyscan_gtk_map_set_projection_real (HyScanGtkMapPrivate *priv,
 {
   gdouble prev_size;
   gdouble size;
-  guint i;
+  gsize i;
 
   /* Размер проекции в логических единицах, чтобы сохранить доступные масштабы. */
   prev_size = hyscan_gtk_map_get_logic_size (priv);
@@ -425,10 +405,10 @@ hyscan_gtk_map_set_projection_real (HyScanGtkMapPrivate *priv,
  * Returns: указатель на #HyScanGtkMap
  */
 GtkWidget *
-hyscan_gtk_map_new (HyScanGeoGeodetic   *center)
+hyscan_gtk_map_new (HyScanGeoGeodetic center)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP,
-                       "init-center", center, NULL);
+                       "init-center", &center, NULL);
 }
 
 /**
@@ -518,35 +498,35 @@ hyscan_gtk_map_move_to (HyScanGtkMap      *map,
                            center_2d.x - width / 2.0, center_2d.x + width / 2.0,
                            center_2d.y - height / 2.0, center_2d.y + height / 2.0);
 
-  hyscan_gtk_map_set_init_center (priv, &center);
+  hyscan_gtk_map_set_init_center (priv, center);
 }
 
 /**
  * hyscan_gtk_map_get_value_scale:
- * @map:
- * @coord:
+ * @map: указатель на объект #HyScanGtkMap
+ * @coord: координаты точки на карте
  *
  * Определяет размер единичного отрезка на проекции в метрах в точке с
  * координатами @coord.
  *
- * Returns: размер единичного отрезка на проекции в метрах
+ * Returns: размер единичного отрезка на проекции в метрах или -1.0 в случае ошибки.
  */
 gdouble
-hyscan_gtk_map_get_value_scale (HyScanGtkMap            *map,
-                                const HyScanGeoGeodetic *coord)
+hyscan_gtk_map_get_value_scale (HyScanGtkMap      *map,
+                                HyScanGeoGeodetic  coord)
 {
   g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), -1.0);
 
-  return hyscan_geo_projection_get_scale (map->priv->projection, *coord);
+  return hyscan_geo_projection_get_scale (map->priv->projection, coord);
 }
 
 /**
  * hyscan_gtk_map_get_pixel_scale:
  * @map: указатель на #HyScanGtkMap
  *
- * Определяет масштаб в центре карты.
+ * Определяет масштаб в центре карты в писелах на метр.
  *
- * Returns: количество пикселов в одном метре вдоль ширины виджета
+ * Returns: количество пикселов в одном метре вдоль ширины виджета или -1.0 в случае ошибки.
  */
 gdouble
 hyscan_gtk_map_get_pixel_scale (HyScanGtkMap *map)
@@ -575,7 +555,7 @@ hyscan_gtk_map_get_pixel_scale (HyScanGtkMap *map)
 
   /* Определяем размер единичного отрезка на проекции в пикселях. */
   gtk_cifro_area_get_scale (GTK_CIFRO_AREA (map), &scale, NULL);
-  dist_pixels = 1 / scale;
+  dist_pixels = 1.0 / scale;
 
   return dist_pixels / dist_metres;
 }
@@ -585,7 +565,7 @@ hyscan_gtk_map_get_pixel_scale (HyScanGtkMap *map)
  * @map: указатель на #HyScanGtkMap
  *
  * Определяет маштаб карты с учетом разрешающей способности монитора: во сколько
- * раз изображение на карте меньше по сравнению с его реальным размером.
+ * раз изображение на экране меньше по сравнению с его реальным размером.
  *
  * Returns: масштаб карты с учетом PPI-монитора или отрицательное число в случае
  *    ошибки.
@@ -716,12 +696,18 @@ hyscan_gtk_map_geo_to_value (HyScanGtkMap         *map,
 /**
  * hyscan_gtk_map_set_scales:
  * @map: указатель на карту #HyScanGtkMap
- * @scales: (array length=scales_len): допустимые масштабы в метр на пиксель
- *          на экваторе
+ * @scales: (array length=scales_len): допустимые масштабы
  * @scales_len: длина массива scales
  *
- * Устанавливает допустимые масштабы карты. Сгенерировать масштабы можно с
- * помощью функции hyscan_gtk_map_create_scales2().
+ * Устанавливает допустимые масштабы карты - никакие другие масштабы не могут быть
+ * выбраны пользоателем. Это значит, что при установке произвольного масштаба с
+ * помошью gtk_cifro_area_set_scale() будет установлено ближайшее значение из массива
+ * @scales.
+ *
+ * Масштабы указываются в метрах на пиксель для экватора. Поэтому установленный масштаб
+ * 1 м/px в средних широтах для проекции меркатора будет равен примерно 0.5 м/px.
+ *
+ * Сгенерировать масштабы можно с помощью функции hyscan_gtk_map_create_scales2().
  */
 void
 hyscan_gtk_map_set_scales_meter (HyScanGtkMap  *map,
@@ -730,7 +716,7 @@ hyscan_gtk_map_set_scales_meter (HyScanGtkMap  *map,
 {
   HyScanGtkMapPrivate *priv;
 
-  guint i = 0;
+  gsize i;
   gdouble size;
 
   g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
@@ -764,7 +750,7 @@ hyscan_gtk_map_get_scales_cifro (HyScanGtkMap *map,
 {
   HyScanGtkMapPrivate *priv;
   gdouble *scales;
-  guint i;
+  gsize i;
 
   g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), NULL);
   priv = map->priv;
@@ -782,7 +768,7 @@ hyscan_gtk_map_get_scales_cifro (HyScanGtkMap *map,
  * hyscan_gtk_map_get_scale_idx:
  * @map: указатель на виджет карты #HyScanGtkMap
  *
- * Определяет индекс текущего масштаба карта. См. hyscan_gtk_map_set_scale_idx().
+ * Определяет индекс текущего масштаба карты. См. hyscan_gtk_map_set_scale_idx().
  *
  * Returns: индекс текущего масштаба или -1 в случае ошибки
  */
@@ -836,8 +822,8 @@ hyscan_gtk_map_set_scale_idx (HyScanGtkMap *map,
  * @steps: количество шагов масштаба между увеличением в 2 раза
  * @scales_len: длина массива масштабов
  *
- * Составляет массив допустимых масштабов от @min_scale до @max_scale в виде
- * степеней двойки.
+ * Составляет массив допустимых масштабов от @min_scale до @max_scale, при этом
+ * увеличение в два раза происходит за @steps шагов.
  *
  * Такой набор масштабов наиболее соответствует тайловым картам web-сервисов,
  * где доступны масштабы 2ᶻ * %HYSCAN_GTK_MAP_EQUATOR_LENGTH / 256px, z = 0..19.

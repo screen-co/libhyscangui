@@ -1,4 +1,4 @@
-#include <hyscan-network-map-tile-source.h>
+#include <hyscan-map-tile-source-web.h>
 #include <math.h>
 #include <hyscan-pseudo-mercator.h>
 
@@ -17,27 +17,27 @@ int
 main (int    argc,
       char **argv)
 {
-  HyScanNetworkMapTileSource *source;
+  HyScanMapTileSourceWeb *source;
   HyScanGeoProjection *mercator;
-  HyScanGtkMapTileGrid *grid;
-  HyScanGtkMapTile *tile;
-  guint i;
+  HyScanMapTileGrid *grid;
+  HyScanMapTile *tile;
+  gsize i;
 
   mercator = hyscan_pseudo_mercator_new ();
   for (i = 0; i < G_N_ELEMENTS (test_data); i++)
     {
       gboolean result;
 
-      g_message ("Test data %d: %s", i, test_data[i].url_format);
+      g_message ("Test data %lu: %s", i, test_data[i].url_format);
 
-      source = hyscan_network_map_tile_source_new (test_data[i].url_format, mercator,
-                                                   test_data[i].min_zoom,
-                                                   test_data[i].max_zoom);
+      source = hyscan_map_tile_source_web_new (test_data[i].url_format, mercator,
+                                               test_data[i].min_zoom,
+                                               test_data[i].max_zoom);
 
-      grid = hyscan_gtk_map_tile_source_get_grid (HYSCAN_GTK_MAP_TILE_SOURCE (source));
-      tile = hyscan_gtk_map_tile_new (grid, 10, 10, 5);
+      grid = hyscan_map_tile_source_get_grid (HYSCAN_MAP_TILE_SOURCE (source));
+      tile = hyscan_map_tile_new (grid, 10, 10, 5);
 
-      result = hyscan_gtk_map_tile_source_fill (HYSCAN_GTK_MAP_TILE_SOURCE (source), tile, NULL);
+      result = hyscan_map_tile_source_fill (HYSCAN_MAP_TILE_SOURCE (source), tile, NULL);
       g_assert_true (test_data[i].valid == result);
 
       g_clear_object (&grid);

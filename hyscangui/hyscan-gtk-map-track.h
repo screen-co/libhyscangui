@@ -1,4 +1,4 @@
-/* hyscan-gtk-map-track.h
+/* hyscan-gtk-map-track-layer.h
  *
  * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *
@@ -35,12 +35,10 @@
 #ifndef __HYSCAN_GTK_MAP_TRACK_H__
 #define __HYSCAN_GTK_MAP_TRACK_H__
 
-#include <hyscan-param.h>
-#include <hyscan-gtk-map-tiled-layer.h>
-#include <hyscan-geo-projection.h>
+#include <hyscan-gtk-map-tiled.h>
+#include <hyscan-gtk-map-track-item.h>
 #include <hyscan-db.h>
-#include <hyscan-cache.h>
-#include <gdk/gdk.h>
+#include <hyscan-list-model.h>
 
 G_BEGIN_DECLS
 
@@ -55,72 +53,58 @@ typedef struct _HyScanGtkMapTrack HyScanGtkMapTrack;
 typedef struct _HyScanGtkMapTrackPrivate HyScanGtkMapTrackPrivate;
 typedef struct _HyScanGtkMapTrackClass HyScanGtkMapTrackClass;
 
-/**
- * HyScanGtkMapTrackStyle:
- *
- * @color_left: Цвет левого борта.
- * @color_right: Цвет правого борта.
- * @color_track: Цвет линии движения.
- * @color_stroke: Цвет обводки.
- * @color_shadow: Цвет затенения (рекомендуется полупрозрачный чёрный).
- * @bar_width: Толщина линии дальности.
- * @bar_margin: Расстояние между соседними линиями дальности.
- * @line_width: Толщина линии движения.
- * @stroke_width: Толщина линии обводки.
- *
- */
-typedef struct {
-  GdkRGBA color_left;
-  GdkRGBA color_right;
-  GdkRGBA color_track;
-  GdkRGBA color_stroke;
-  GdkRGBA color_shadow;
-  gdouble bar_width;
-  gdouble bar_margin;
-  gdouble line_width;
-  gdouble stroke_width;
-} HyScanGtkMapTrackStyle;
-
 struct _HyScanGtkMapTrack
 {
-  GObject                   parent_instance;
+  HyScanGtkMapTiled parent_instance;
+
   HyScanGtkMapTrackPrivate *priv;
 };
 
 struct _HyScanGtkMapTrackClass
 {
-  GObjectClass parent_class;
+  HyScanGtkMapTiledClass parent_class;
 };
 
-HYSCAN_API
-GType                  hyscan_gtk_map_track_get_type         (void);
 
 HYSCAN_API
-HyScanGtkMapTrack *    hyscan_gtk_map_track_new              (HyScanDB               *db,
-                                                              HyScanCache            *cache,
-                                                              const gchar            *project_name,
-                                                              const gchar            *track_name,
-                                                              HyScanGtkMapTiledLayer *tiled_layer,
-                                                              HyScanGeoProjection    *projection);
-HYSCAN_API
-void                   hyscan_gtk_map_track_draw             (HyScanGtkMapTrack      *track,
-                                                              cairo_t                *cairo,
-                                                              gdouble                 scale,
-                                                              HyScanGeoCartesian2D   *from,
-                                                              HyScanGeoCartesian2D   *to,
-                                                              HyScanGtkMapTrackStyle *style);
+GType                     hyscan_gtk_map_track_get_type            (void);
 
 HYSCAN_API
-gboolean               hyscan_gtk_map_track_view             (HyScanGtkMapTrack      *track,
-                                                              HyScanGeoCartesian2D   *from,
-                                                              HyScanGeoCartesian2D   *to);
+HyScanGtkLayer *          hyscan_gtk_map_track_new                 (HyScanDB           *db,
+                                                                    HyScanListModel    *model,
+                                                                    HyScanCache        *cache);
 
 HYSCAN_API
-gboolean               hyscan_gtk_map_track_update           (HyScanGtkMapTrack      *track);
+void                      hyscan_gtk_map_track_set_project         (HyScanGtkMapTrack  *track_layer,
+                                                                    const gchar        *project);
 
 HYSCAN_API
-void                   hyscan_gtk_map_track_set_projection   (HyScanGtkMapTrack      *track,
-                                                              HyScanGeoProjection    *projection);
+gboolean                  hyscan_gtk_map_track_track_view          (HyScanGtkMapTrack  *track_layer,
+                                                                    const gchar        *track_name);
+
+HYSCAN_API
+void                      hyscan_gtk_map_track_set_color_track     (HyScanGtkMapTrack  *track_layer,
+                                                                    GdkRGBA             color);
+
+HYSCAN_API
+void                      hyscan_gtk_map_track_set_color_port      (HyScanGtkMapTrack  *track_layer,
+                                                                    GdkRGBA             color);
+
+HYSCAN_API
+void                      hyscan_gtk_map_track_set_color_starboard (HyScanGtkMapTrack  *track_layer,
+                                                                    GdkRGBA             color);
+
+HYSCAN_API
+void                      hyscan_gtk_map_track_set_bar_width       (HyScanGtkMapTrack  *track_layer,
+                                                                    gboolean            bar_width);
+
+HYSCAN_API
+void                      hyscan_gtk_map_track_set_bar_margin      (HyScanGtkMapTrack  *track_layer,
+                                                                    gdouble             bar_margin);
+
+HYSCAN_API
+HyScanGtkMapTrackItem *   hyscan_gtk_map_track_lookup              (HyScanGtkMapTrack  *track_layer,
+                                                                    const gchar        *track_name);
 
 G_END_DECLS
 

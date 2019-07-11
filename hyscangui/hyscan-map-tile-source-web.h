@@ -1,4 +1,4 @@
-/* hyscan-gtk-map-tiles.h
+/* hyscan-map-tile-source.h
  *
  * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *
@@ -32,48 +32,45 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
-#ifndef __HYSCAN_GTK_MAP_TILES_H__
-#define __HYSCAN_GTK_MAP_TILES_H__
+#ifndef __HYSCAN_MAP_TILE_SOURCE_WEB_H__
+#define __HYSCAN_MAP_TILE_SOURCE_WEB_H__
 
-#include <hyscan-gtk-layer.h>
 #include <hyscan-map-tile-source.h>
-#include <hyscan-cache.h>
 
 G_BEGIN_DECLS
 
-#define HYSCAN_TYPE_GTK_MAP_TILES             (hyscan_gtk_map_tiles_get_type ())
-#define HYSCAN_GTK_MAP_TILES(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_MAP_TILES, HyScanGtkMapTiles))
-#define HYSCAN_IS_GTK_MAP_TILES(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_MAP_TILES))
-#define HYSCAN_GTK_MAP_TILES_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_MAP_TILES, HyScanGtkMapTilesClass))
-#define HYSCAN_IS_GTK_MAP_TILES_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_MAP_TILES))
-#define HYSCAN_GTK_MAP_TILES_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_MAP_TILES, HyScanGtkMapTilesClass))
+#define HYSCAN_TYPE_MAP_TILE_SOURCE_WEB             (hyscan_map_tile_source_web_get_type ())
+#define HYSCAN_MAP_TILE_SOURCE_WEB(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_MAP_TILE_SOURCE_WEB, HyScanMapTileSourceWeb))
+#define HYSCAN_IS_MAP_TILE_SOURCE_WEB(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_MAP_TILE_SOURCE_WEB))
+#define hyscan_map_tile_source_web_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_MAP_TILE_SOURCE_WEB, HyScanMapTileSourceWebClass))
+#define HYSCAN_IS_MAP_TILE_SOURCE_WEB_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_MAP_TILE_SOURCE_WEB))
+#define hyscan_map_tile_source_web_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_MAP_TILE_SOURCE_WEB, HyScanMapTileSourceWebClass))
 
-typedef struct _HyScanGtkMapTiles HyScanGtkMapTiles;
-typedef struct _HyScanGtkMapTilesPrivate HyScanGtkMapTilesPrivate;
-typedef struct _HyScanGtkMapTilesClass HyScanGtkMapTilesClass;
+typedef struct _HyScanMapTileSourceWeb HyScanMapTileSourceWeb;
+typedef struct _HyScanMapTileSourceWebPrivate HyScanMapTileSourceWebPrivate;
+typedef struct _HyScanMapTileSourceWebClass HyScanMapTileSourceWebClass;
 
-struct _HyScanGtkMapTiles
+struct _HyScanMapTileSourceWeb
 {
   GObject parent_instance;
 
-  HyScanGtkMapTilesPrivate *priv;
+  HyScanMapTileSourceWebPrivate *priv;
 };
 
-struct _HyScanGtkMapTilesClass
+struct _HyScanMapTileSourceWebClass
 {
   GObjectClass parent_class;
 };
 
 HYSCAN_API
-GType                    hyscan_gtk_map_tiles_get_type   (void);
+GType                      hyscan_map_tile_source_web_get_type         (void);
 
 HYSCAN_API
-HyScanGtkLayer *         hyscan_gtk_map_tiles_new        (HyScanCache          *cache,
-                                                          HyScanMapTileSource  *source);
-
-HYSCAN_API
-HyScanMapTileSource *    hyscan_gtk_map_tiles_get_source (HyScanGtkMapTiles    *tiles);
+HyScanMapTileSourceWeb *   hyscan_map_tile_source_web_new              (const gchar         *url_format,
+                                                                        HyScanGeoProjection *projection,
+                                                                        guint                min_zoom,
+                                                                        guint                max_zoom);
 
 G_END_DECLS
 
-#endif /* __HYSCAN_GTK_MAP_TILES_H__ */
+#endif /* __HYSCAN_MAP_TILE_SOURCE_WEB_H__ */

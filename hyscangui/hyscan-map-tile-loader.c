@@ -40,10 +40,10 @@
  * Класс выполняет загрузку всех тайлов определнной области карты из указанного
  * источника по всем доступным масштабам.
  *
- * Хотя класс может выполнять загрузку тайлов из любого источника #HyScanGtkMapTileSource,
+ * Хотя класс может выполнять загрузку тайлов из любого источника #HyScanMapTileSource,
  * его основное практическое применение - это сохранение тайлов из сети на жесткий
  * диск, чтобы пользователь мог работать с картами офф-лайн. В этом случае в
- * качестве источника тайлов следует использовать #HyScanGtkMapFsTileSource.
+ * качестве источника тайлов следует использовать #HyScanMapTileSourceFile.
  *
  * Методы класса:
  * - hyscan_map_tile_loader_new() - создает новый объект класса,
@@ -69,7 +69,7 @@ struct _HyScanMapTileLoaderPrivate
   gboolean                     busy;       /* Признак того, что идёт загрузка. */
   gboolean                     stop;       /* Флаг, что надо остановить загрузку. */
 
-  HyScanGtkMapTileSource      *source;     /* Указатель на источник тайлов. */
+  HyScanMapTileSource         *source;     /* Указатель на источник тайлов. */
   gdouble                      from_x;     /* Координата x начала области загрузки. */
   gdouble                      to_x;       /* Координата x конца области загрузки. */
   gdouble                      from_y;     /* Координата y начала области загрузки. */
@@ -124,26 +124,26 @@ hyscan_map_tile_loader_init (HyScanMapTileLoader *map_tile_loader)
 }
 
 static gpointer
-hyscan_gtk_map_tile_loader_func (gpointer data)
+hyscan_map_tile_loader_func (gpointer data)
 {
   HyScanMapTileLoader *loader =  HYSCAN_MAP_TILE_LOADER (data);
   HyScanMapTileLoaderPrivate *priv = loader->priv;
 
-  HyScanGtkMapTileGrid *grid;
+  HyScanMapTileGrid *grid;
   guint min_zoom, max_zoom, zoom;
 
   guint total = 0, processed = 0, failed = 0;
 
-  grid = hyscan_gtk_map_tile_source_get_grid (priv->source);
+  grid = hyscan_map_tile_source_get_grid (priv->source);
 
-  hyscan_gtk_map_tile_grid_get_zoom_range (grid, &min_zoom, &max_zoom);
+  hyscan_map_tile_grid_get_zoom_range (grid, &min_zoom, &max_zoom);
 
   /* Определяем объем работы. */
   for (zoom = min_zoom; zoom <= max_zoom; zoom++)
     {
       gint x0, y0, xn, yn;
 
-      hyscan_gtk_map_tile_grid_get_view (grid, zoom, priv->from_x, priv->to_x, priv->from_y, priv->to_y,
+      hyscan_map_tile_grid_get_view (grid, zoom, priv->from_x, priv->to_x, priv->from_y, priv->to_y,
                                          &x0, &xn, &y0, &yn);
 
       total += (xn - x0 + 1) * (yn - y0 + 1);
@@ -155,19 +155,19 @@ hyscan_gtk_map_tile_loader_func (gpointer data)
       gint x0, y0, xn, yn;
       gint x, y;
 
-      hyscan_gtk_map_tile_grid_get_view (grid, zoom, priv->from_x, priv->to_x, priv->from_y, priv->to_y,
+      hyscan_map_tile_grid_get_view (grid, zoom, priv->from_x, priv->to_x, priv->from_y, priv->to_y,
                                          &x0, &xn, &y0, &yn);
 
       for (x = x0; x <= xn; ++x)
         for (y = y0; y <= yn; ++y)
           {
-            HyScanGtkMapTile *tile;
+            HyScanMapTile *tile;
 
             if (g_atomic_int_get (&priv->stop))
               break;
 
-            tile = hyscan_gtk_map_tile_new (grid, x, y, zoom);
-            if (!hyscan_gtk_map_tile_source_fill (priv->source, tile, NULL))
+            tile = hyscan_map_tile_new (grid, x, y, zoom);
+            if (!hyscan_map_tile_source_fill (priv->source, tile, NULL))
               {
                 ++failed;
                 g_warning ("HyScanMapTileLoader: failed to load tile %d/%d/%d", zoom, x, y);
@@ -223,12 +223,12 @@ hyscan_map_tile_loader_new (void)
  *          %NULL в случае ошибки. Для удаления g_thread_unref() или g_thread_join().
  */
 GThread *
-hyscan_map_tile_loader_start (HyScanMapTileLoader    *loader,
-                              HyScanGtkMapTileSource *source,
-                              gdouble                 from_x,
-                              gdouble                 to_x,
-                              gdouble                 from_y,
-                              gdouble                 to_y)
+hyscan_map_tile_loader_start (HyScanMapTileLoader *loader,
+                              HyScanMapTileSource *source,
+                              gdouble              from_x,
+                              gdouble              to_x,
+                              gdouble              from_y,
+                              gdouble              to_y)
 {
   HyScanMapTileLoaderPrivate *priv;
   GThread *thread;
@@ -248,7 +248,7 @@ hyscan_map_tile_loader_start (HyScanMapTileLoader    *loader,
   priv->from_y = from_y;
   priv->to_y = to_y;
 
-  thread = g_thread_new ("tile-loader", hyscan_gtk_map_tile_loader_func, g_object_ref (loader));
+  thread = g_thread_new ("tile-loader", hyscan_map_tile_loader_func, g_object_ref (loader));
 
   return thread;
 }

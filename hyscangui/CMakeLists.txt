@@ -47,24 +47,24 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-layer-container.c
              hyscan-gtk-layer.c
              hyscan-gtk-map-tiles.c
-             hyscan-gtk-map-tiled-layer.c
+        hyscan-gtk-map-tiled.c
              hyscan-gtk-map-control.c
              hyscan-gtk-map-ruler.c
              hyscan-gtk-map-grid.c
-             hyscan-gtk-map-pin-layer.c
-             hyscan-gtk-map-way-layer.c
-             hyscan-gtk-map-track.c
-             hyscan-gtk-map-track-layer.c
-             hyscan-gtk-map-wfmark-layer.c
+        hyscan-gtk-map-pin.c
+        hyscan-gtk-map-nav.c
+        hyscan-gtk-map-track-item.c
+        hyscan-gtk-map-track.c
+        hyscan-gtk-map-wfmark.c
              hyscan-gtk-map-planner.c
-             hyscan-gtk-map-geomark-layer.c
+        hyscan-gtk-map-geomark.c
 
              #[[ Загрузка тайлов ]]
-             hyscan-gtk-map-tile.c
-             hyscan-gtk-map-tile-source.c
-             hyscan-network-map-tile-source.c
-             hyscan-gtk-map-fs-tile-source.c
-             hyscan-merged-tile-source.c
+             hyscan-map-tile.c
+             hyscan-map-tile-source.c
+             hyscan-map-tile-source-web.c
+             hyscan-map-tile-source-file.c
+             hyscan-map-tile-source-blend.c
              hyscan-map-tile-loader.c
 
              # [[ Модели ]]

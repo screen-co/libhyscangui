@@ -3,21 +3,20 @@
 #include <hyscan-gtk-map-control.h>
 #include <hyscan-gtk-map-ruler.h>
 #include <hyscan-gtk-map-grid.h>
-#include <hyscan-gtk-map-pin-layer.h>
-#include <hyscan-gtk-map-way-layer.h>
-#include <hyscan-gtk-map-track-layer.h>
+#include <hyscan-gtk-map-pin.h>
+#include <hyscan-gtk-map-nav.h>
+#include <hyscan-gtk-map-track.h>
 #include <hyscan-cached.h>
-#include <hyscan-driver.h>
 #include <hyscan-map-profile.h>
 #include <hyscan-map-tile-loader.h>
 #include <hyscan-db-info.h>
 #include <hyscan-gtk-param-tree.h>
-#include <hyscan-gtk-map-wfmark-layer.h>
+#include <hyscan-gtk-map-wfmark.h>
 #include <hyscan-list-model.h>
 #include <hyscan-mark-model.h>
 #include <hyscan-gtk-map-planner.h>
 #include <glib/gi18n.h>
-#include <hyscan-gtk-map-geomark-layer.h>
+#include <hyscan-gtk-map-geomark.h>
 
 #define DEFAULT_PROFILE_NAME "default"    /* Имя профиля карты по умолчанию. */
 #define PRELOAD_STATE_DONE   1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
@@ -116,7 +115,7 @@ create_map (HyScanGtkMapKit *kit)
   gdouble *scales;
   gint scales_len;
 
-  map = HYSCAN_GTK_MAP (hyscan_gtk_map_new (&priv->center));
+  map = HYSCAN_GTK_MAP (hyscan_gtk_map_new (priv->center));
 
   /* Устанавливаем допустимые масштабы. */
   scales = hyscan_gtk_map_create_scales2 (1.0 / 1000, HYSCAN_GTK_MAP_EQUATOR_LENGTH / 1000, 4, &scales_len);
@@ -370,7 +369,7 @@ on_locate_track_clicked (GtkButton *button,
       if (gtk_tree_model_get_iter (GTK_TREE_MODEL (priv->track_store), &iter, path))
         {
           gtk_tree_model_get (GTK_TREE_MODEL (priv->track_store), &iter, TRACK_COLUMN, &track_name, -1);
-          hyscan_gtk_map_track_layer_track_view (HYSCAN_GTK_MAP_TRACK_LAYER (priv->track_layer), track_name);
+          hyscan_gtk_map_track_track_view (HYSCAN_GTK_MAP_TRACK (priv->track_layer), track_name);
 
           g_free (track_name);
         }
@@ -469,10 +468,10 @@ on_configure_track_clicked (GtkButton *button,
       if (gtk_tree_model_get_iter (GTK_TREE_MODEL (priv->track_store), &iter, path))
         {
           GtkWidget *window;
-          HyScanGtkMapTrack *track;
+          HyScanGtkMapTrackItem *track;
 
           gtk_tree_model_get (GTK_TREE_MODEL (priv->track_store), &iter, TRACK_COLUMN, &track_name, -1);
-          track = hyscan_gtk_map_track_layer_lookup (HYSCAN_GTK_MAP_TRACK_LAYER (priv->track_layer), track_name);
+          track = hyscan_gtk_map_track_lookup (HYSCAN_GTK_MAP_TRACK (priv->track_layer), track_name);
 
           window = create_param_settings_window (kit, _("Track settings"), HYSCAN_PARAM (track));
           gtk_widget_show_all (window);
@@ -666,9 +665,9 @@ on_marks_activated (GtkTreeView        *treeview,
 
     gtk_tree_model_get (model, &iter, MARK_ID_COLUMN, &mark_id, MARK_TYPE_COLUMN, &mark_type, -1);
     if (mark_type == HYSCAN_MARK_WATERFALL && priv->wfmark_layer != NULL)
-      hyscan_gtk_map_wfmark_layer_mark_view (HYSCAN_GTK_MAP_WFMARK_LAYER (priv->wfmark_layer), mark_id, FALSE);
+      hyscan_gtk_map_wfmark_mark_view (HYSCAN_GTK_MAP_WFMARK (priv->wfmark_layer), mark_id, FALSE);
     else if (mark_type == HYSCAN_MARK_GEO && priv->geomark_layer != NULL)
-      hyscan_gtk_map_geomark_layer_mark_view (HYSCAN_GTK_MAP_GEOMARK_LAYER (priv->geomark_layer), mark_id, FALSE);
+      hyscan_gtk_map_geomark_mark_view (HYSCAN_GTK_MAP_GEOMARK (priv->geomark_layer), mark_id, FALSE);
 
     g_free (mark_id);
   }
@@ -692,7 +691,7 @@ on_track_activated (GtkTreeView        *treeview,
     gchar *track_name;
 
     gtk_tree_model_get (model, &iter, TRACK_COLUMN, &track_name, -1);
-    hyscan_gtk_map_track_layer_track_view (HYSCAN_GTK_MAP_TRACK_LAYER (priv->track_layer), track_name);
+    hyscan_gtk_map_track_track_view (HYSCAN_GTK_MAP_TRACK (priv->track_layer), track_name);
 
     g_free (track_name);
   }
@@ -1015,7 +1014,7 @@ preload_start (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
   HyScanGtkLayer *layer;
-  HyScanGtkMapTileSource *source;
+  HyScanMapTileSource *source;
   gdouble from_x, to_x, from_y, to_y;
   GThread *thread;
 
@@ -1066,7 +1065,7 @@ create_ruler_toolbox (HyScanGtkLayer *layer,
 
   ctrl_widget = gtk_button_new ();
   gtk_button_set_label (GTK_BUTTON (ctrl_widget), label);
-  g_signal_connect_swapped (ctrl_widget, "clicked", G_CALLBACK (hyscan_gtk_map_pin_layer_clear), layer);
+  g_signal_connect_swapped (ctrl_widget, "clicked", G_CALLBACK (hyscan_gtk_map_pin_clear), layer);
 
   gtk_box_pack_start (GTK_BOX (box), ctrl_widget, TRUE, FALSE, 10);
 
@@ -1305,7 +1304,7 @@ create_layers (HyScanGtkMapKit *kit)
 
   priv->map_grid = hyscan_gtk_map_grid_new ();
   priv->ruler = hyscan_gtk_map_ruler_new ();
-  priv->pin_layer = hyscan_gtk_map_pin_layer_new ();
+  priv->pin_layer = hyscan_gtk_map_pin_new ();
 
   hyscan_gtk_layer_set_visible (priv->map_grid, TRUE);
   hyscan_gtk_layer_set_visible (priv->ruler, TRUE);
@@ -1313,7 +1312,7 @@ create_layers (HyScanGtkMapKit *kit)
 
   /* Слой с галсами. */
   if (priv->db != NULL && priv->list_model != NULL)
-    priv->track_layer = hyscan_gtk_map_track_layer_new (priv->db, priv->list_model, priv->cache);
+    priv->track_layer = hyscan_gtk_map_track_new (priv->db, priv->list_model, priv->cache);
 }
 
 /* Создает модели данных. */
@@ -1440,7 +1439,7 @@ hyscan_gtk_map_kit_set_project (HyScanGtkMapKit *kit,
     hyscan_mark_loc_model_set_project (priv->ml_model, priv->project_name);
 
   if (priv->track_layer != NULL)
-    hyscan_gtk_map_track_layer_set_project (HYSCAN_GTK_MAP_TRACK_LAYER (priv->track_layer), priv->project_name);
+    hyscan_gtk_map_track_set_project (HYSCAN_GTK_MAP_TRACK (priv->track_layer), priv->project_name);
 }
 
 
@@ -1569,7 +1568,7 @@ hyscan_gtk_map_kit_add_nav (HyScanGtkMapKit *kit,
   gtk_widget_set_sensitive (priv->locate_button, TRUE);
 
   /* Слой с траекторией движения судна. */
-  priv->way_layer = hyscan_gtk_map_way_layer_new (priv->nav_model);
+  priv->way_layer = hyscan_gtk_map_nav_new (priv->nav_model);
   add_layer_row (kit, priv->way_layer, "way", _("Navigation"));
 }
 
@@ -1588,7 +1587,7 @@ hyscan_gtk_map_kit_add_marks_wf (HyScanGtkMapKit *kit)
   g_signal_connect_swapped (priv->mark_model, "changed", G_CALLBACK (on_marks_changed), kit);
 
   /* Слой с метками. */
-  priv->wfmark_layer = hyscan_gtk_map_wfmark_layer_new (priv->ml_model);
+  priv->wfmark_layer = hyscan_gtk_map_wfmark_new (priv->ml_model);
   add_layer_row (kit, priv->wfmark_layer, "wfmark", _("Waterfall Marks"));
 
   /* Виджет навигации по меткам. */
@@ -1615,7 +1614,7 @@ hyscan_gtk_map_kit_add_marks_geo (HyScanGtkMapKit   *kit)
   g_signal_connect_swapped (priv->mark_geo_model, "changed", G_CALLBACK (on_marks_changed), kit);
 
   /* Слой с геометками. */
-  priv->geomark_layer = hyscan_gtk_map_geomark_layer_new (priv->mark_geo_model);
+  priv->geomark_layer = hyscan_gtk_map_geomark_new (priv->mark_geo_model);
   add_layer_row (kit, priv->geomark_layer, "geomark", _("Geo Marks"));
 
   /* Виджет навигации по меткам. */
