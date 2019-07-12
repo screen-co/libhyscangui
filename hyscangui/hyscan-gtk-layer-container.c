@@ -374,7 +374,8 @@ hyscan_gtk_layer_container_handle_create (HyScanGtkLayerContainer *container,
 {
   gboolean created = FALSE;
 
-  g_signal_emit (container, hyscan_gtk_layer_container_signals[SIGNAL_HANDLE_CREATE], 0, event, &created);
+  g_signal_emit (container, hyscan_gtk_layer_container_signals[SIGNAL_HANDLE_CREATE],
+                 0, event, &created);
 
   return created;
 }
@@ -386,7 +387,8 @@ hyscan_gtk_layer_container_handle_grab (HyScanGtkLayerContainer *container,
 {
   gconstpointer handle_owner = NULL;
 
-  g_signal_emit (container, hyscan_gtk_layer_container_signals[SIGNAL_HANDLE_GRAB], 0, event, &handle_owner);
+  g_signal_emit (container, hyscan_gtk_layer_container_signals[SIGNAL_HANDLE_GRAB],
+                 0, event, &handle_owner);
   hyscan_gtk_layer_container_set_handle_grabbed (container, handle_owner);
 
   return handle_owner != NULL;
@@ -400,8 +402,8 @@ hyscan_gtk_layer_container_handle_release (HyScanGtkLayerContainer *container,
 {
   gboolean released;
 
-  g_signal_emit (container, hyscan_gtk_layer_container_signals[SIGNAL_HANDLE_RELEASE], 0,
-                 event, handle_owner, &released);
+  g_signal_emit (container, hyscan_gtk_layer_container_signals[SIGNAL_HANDLE_RELEASE],
+                 0, event, handle_owner, &released);
 
   if (released)
     hyscan_gtk_layer_container_set_handle_grabbed (container, NULL);

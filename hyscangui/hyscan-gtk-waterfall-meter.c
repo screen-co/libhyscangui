@@ -72,7 +72,7 @@ static void     hyscan_gtk_waterfall_meter_object_finalize         (GObject     
 
 static gint     hyscan_gtk_waterfall_meter_find_by_id              (gconstpointer            a,
                                                                     gconstpointer            b);
-static gpointer hyscan_gtk_waterfall_meter_handle_create           (HyScanGtkLayerContainer *container,
+static gboolean hyscan_gtk_waterfall_meter_handle_create           (HyScanGtkLayerContainer *container,
                                                                     GdkEventButton          *event,
                                                                     HyScanGtkWaterfallMeter *self);
 static gpointer hyscan_gtk_waterfall_meter_handle_grab             (HyScanGtkLayerContainer *container,
@@ -294,7 +294,7 @@ hyscan_gtk_waterfall_meter_find_closest (HyScanGtkWaterfallMeter *self,
 }
 
 /* Функция хватает или создает хэндл. */
-static gpointer
+static gboolean
 hyscan_gtk_waterfall_meter_handle_create (HyScanGtkLayerContainer *container,
                                           GdkEventButton          *event,
                                           HyScanGtkWaterfallMeter *self)
@@ -305,19 +305,19 @@ hyscan_gtk_waterfall_meter_handle_create (HyScanGtkLayerContainer *container,
   mouse.y = event->y;
 
   if (self != hyscan_gtk_layer_container_get_input_owner (container))
-    return NULL;
+    return FALSE;
 
   /* Мы не можем обрабатывать действия, если слой отключен. */
   if (!self->priv->layer_visibility)
-    return NULL;
+    return FALSE;
 
   if (hyscan_gtk_waterfall_tools_distance (&priv->press, &mouse) > 2)
-    return NULL;
+    return FALSE;
 
   if (priv->editing)
     {
       g_warning ("HyScanGtkWaterfallMeter: wrong flow");
-      return NULL;
+      return FALSE;
     }
 
   /* Создание хэндла. */
@@ -333,7 +333,8 @@ hyscan_gtk_waterfall_meter_handle_create (HyScanGtkLayerContainer *container,
   if (priv->wfall != NULL)
     hyscan_gtk_waterfall_queue_draw (priv->wfall);
 
-  return self;
+  hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->wfall), self);
+  return TRUE;
 }
 
 /* Функция хватает или создает хэндл. */

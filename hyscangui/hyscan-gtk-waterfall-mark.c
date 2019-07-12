@@ -183,7 +183,7 @@ static gpointer hyscan_gtk_waterfall_mark_processing              (gpointer     
 static gint     hyscan_gtk_waterfall_mark_find_by_id              (gconstpointer            a,
                                                                    gconstpointer            b);
 
-static gpointer hyscan_gtk_waterfall_mark_handle_create           (HyScanGtkLayerContainer *container,
+static gboolean hyscan_gtk_waterfall_mark_handle_create           (HyScanGtkLayerContainer *container,
                                                                    GdkEventButton          *event,
                                                                    HyScanGtkWaterfallMark  *self);
 static gboolean hyscan_gtk_waterfall_mark_handle_release          (HyScanGtkLayerContainer *container,
@@ -1108,7 +1108,7 @@ hyscan_gtk_waterfall_mark_find_closest (HyScanGtkWaterfallMark *self,
   return mlink;
 }
 
-static gpointer
+static gboolean
 hyscan_gtk_waterfall_mark_handle_create (HyScanGtkLayerContainer *container,
                                          GdkEventButton          *event,
                                          HyScanGtkWaterfallMark  *self)
@@ -1116,12 +1116,12 @@ hyscan_gtk_waterfall_mark_handle_create (HyScanGtkLayerContainer *container,
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
 
   if (self != hyscan_gtk_layer_container_get_input_owner (container))
-    return NULL;
+    return FALSE;
 
   if (priv->mode != LOCAL_EMPTY)
     {
       g_warning ("HyScanGtkWaterfallMark: wrong flow");
-      return NULL;
+      return FALSE;
     }
 
   priv->mode = LOCAL_CREATE;
@@ -1135,7 +1135,8 @@ hyscan_gtk_waterfall_mark_handle_create (HyScanGtkLayerContainer *container,
   priv->current.dx = priv->current.dy = 0;
   priv->current.action = TASK_CREATE;
 
-  return self;
+  hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->wfall), self);
+  return TRUE;
 }
 
 /* Функция определяет, есть ли хэндл под указателем. */
