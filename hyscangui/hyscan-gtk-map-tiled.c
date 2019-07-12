@@ -137,9 +137,9 @@ hyscan_gtk_map_tiled_init (HyScanGtkMapTiled *gtk_map_tiled)
 
 static void
 hyscan_gtk_map_tiled_set_property (GObject      *object,
-                                         guint         prop_id,
-                                         const GValue *value,
-                                         GParamSpec   *pspec)
+                                   guint         prop_id,
+                                   const GValue *value,
+                                   GParamSpec   *pspec)
 {
   HyScanGtkMapTiled *gtk_map_tiled = HYSCAN_GTK_MAP_TILED (object);
   HyScanGtkMapTiledPrivate *priv = gtk_map_tiled->priv;
@@ -492,7 +492,14 @@ hyscan_gtk_map_tiled_interface_init (HyScanGtkLayerInterface *iface)
   iface->removed = hyscan_gtk_map_tiled_removed;
 }
 
-/* Рисует трек по тайлам. */
+/**
+ * hyscan_gtk_map_tiled_draw:
+ * @tiled_layer:
+ * @cairo:
+ *
+ * Рисует тайлы на поверхности cairo. Может быть использована в качестве обработчика
+ * сигнала #GtkCifroArea::visible-draw.
+ */
 void
 hyscan_gtk_map_tiled_draw (HyScanGtkMapTiled *tiled_layer,
                            cairo_t           *cairo)
@@ -568,7 +575,6 @@ hyscan_gtk_map_tiled_draw (HyScanGtkMapTiled *tiled_layer,
  * например, из-за поступления новых данных. Тайлы всех масштабов, содержащие
  * изображение этой области, будут считаться более  невалидными и при следующем
  * выводе потребуют перерисовки.
- *
  */
 void
 hyscan_gtk_map_tiled_set_area_mod (HyScanGtkMapTiled    *tiled_layer,
@@ -603,6 +609,17 @@ hyscan_gtk_map_tiled_set_area_mod (HyScanGtkMapTiled    *tiled_layer,
   g_rw_lock_writer_unlock (&priv->rw_lock);
 }
 
+/**
+ * hyscan_gtk_map_tiled_set_param_mod:
+ * @tiled_layer: указатель на #HyScanGtkMapTiled
+ *
+ * Сообщает, что некоторые параметры слоя были изменены. В этом случае все ранее
+ * сгенерированные тайлы считаются невалидными и при следующем выводе потребуют
+ * перерисовки.
+ *
+ * Если также необходимо перерисовать слой, используйте функцию
+ * hyscan_gtk_map_tiled_request_draw().
+ */
 void
 hyscan_gtk_map_tiled_set_param_mod (HyScanGtkMapTiled *tiled_layer)
 {
@@ -616,6 +633,13 @@ hyscan_gtk_map_tiled_set_param_mod (HyScanGtkMapTiled *tiled_layer)
   hyscan_gtk_map_tiled_cache_clean (tiled_layer);
 }
 
+/**
+ * hyscan_gtk_map_tiled_request_draw:
+ * @tiled_layer: указатель на #HyScanGtkMapTiled
+ *
+ * Устанавливает необходимость перерисовки слоя.
+ * Функция является потокобезопасной.
+ */
 void
 hyscan_gtk_map_tiled_request_draw (HyScanGtkMapTiled *tiled_layer)
 {

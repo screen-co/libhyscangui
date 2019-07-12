@@ -44,6 +44,11 @@
  * - изменять размер существующих меток,
  * - удалять метки.
  *
+ * Функции:
+ * - hyscan_gtk_map_geomark_new() - создание слоя
+ * - hyscan_gtk_map_geomark_mark_highlight() - подсветка метки
+ * - hyscan_gtk_map_geomark_mark_view() - переход к метке
+ *
  */
 
 #include "hyscan-gtk-map-geomark.h"

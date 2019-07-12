@@ -702,7 +702,7 @@ hyscan_gtk_map_track_set_bar_width (HyScanGtkMapTrack *track_layer,
  * @track_layer: указатель на #HyScanGtkMapTrack
  * @bar_margin: отступ в пикселях вдоль линии трека
  *
- * Устанавливает расстоянием между двумя соседними линиями дальности.
+ * Устанавливает расстояние между двумя соседними линиями дальности.
  */
 void
 hyscan_gtk_map_track_set_bar_margin (HyScanGtkMapTrack *track_layer,

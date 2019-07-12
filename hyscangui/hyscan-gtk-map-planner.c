@@ -38,7 +38,7 @@
  * @Title: HyScanGtkMapPlanner
  * @See_also: #HyScanGtkLayer, #HyScanGtkMap
  *
- * Данный слой планировать галсы для будущих миссий
+ * Данный слой позволяет просматривать и редактировать запланированные галсы.
  */
 
 #include "hyscan-gtk-map-planner.h"
@@ -765,7 +765,14 @@ hyscan_gtk_map_planner_interface_init (HyScanGtkLayerInterface *iface)
   iface->load_key_file = hyscan_gtk_map_planner_load_key_file;
 }
 
-
+/**
+ * hyscan_gtk_map_planner_new:
+ * @planner: указатель на #HyScanPlanner
+ *
+ * Создаёт слой с запланированными галсами.
+ *
+ * Returns: новый слой с запланированными галсами
+ */
 HyScanGtkLayer *
 hyscan_gtk_map_planner_new (HyScanPlanner *planner)
 {
