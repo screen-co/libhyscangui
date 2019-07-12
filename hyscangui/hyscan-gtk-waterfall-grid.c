@@ -62,9 +62,6 @@ struct _HyScanGtkWaterfallGridPrivate
   HyScanGtkWaterfall *wfall;
   gboolean            layer_visibility;
 
-  GtkAdjustment      *hadjustment;
-  GtkAdjustment      *vadjustment;
-
   PangoLayout        *font;              /* Раскладка шрифта. */
   gint                text_height;       /* Максимальная высота текста. */
   gint                virtual_border;    /* Виртуальная граница изображения. */
@@ -121,7 +118,6 @@ static void     hyscan_gtk_waterfall_grid_draw                   (GtkWidget     
                                                                   cairo_t               *cairo,
                                                                   HyScanGtkWaterfallGrid *self);
 
-static void     hyscan_gtk_waterfall_grid_changed                (HyScanGtkWaterfallGrid *self);
 static void     hyscan_gtk_waterfall_grid_vertical               (GtkWidget             *widget,
                                                                   cairo_t               *cairo,
                                                                   HyScanGtkWaterfallGrid *self);
@@ -172,12 +168,6 @@ hyscan_gtk_waterfall_grid_object_constructed (GObject *object)
 
   hyscan_gtk_waterfall_grid_set_grid_step (self, 100, 100);
   hyscan_gtk_waterfall_grid_set_condence (self, 1);
-
-  priv->hadjustment = gtk_adjustment_new (0, 0, 0, 0, 1, 1);
-  priv->vadjustment = gtk_adjustment_new (0, 0, 0, 0, 1, 1);
-
-  g_signal_connect_swapped (priv->hadjustment, "value-changed", G_CALLBACK (hyscan_gtk_waterfall_grid_changed), self);
-  g_signal_connect_swapped (priv->vadjustment, "value-changed", G_CALLBACK (hyscan_gtk_waterfall_grid_changed), self);
 
   /* Включаем видимость слоя. */
   hyscan_gtk_layer_set_visible (HYSCAN_GTK_LAYER (self), TRUE);
@@ -256,22 +246,6 @@ HyScanGtkWaterfallGrid*
 hyscan_gtk_waterfall_grid_new (void)
 {
   return g_object_new (HYSCAN_TYPE_GTK_WATERFALL_GRID, NULL);
-}
-
-GtkAdjustment*
-hyscan_gtk_waterfall_grid_get_hadjustment (HyScanGtkWaterfallGrid *self)
-{
-  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (self), NULL);
-
-  return self->priv->hadjustment;
-}
-
-GtkAdjustment*
-hyscan_gtk_waterfall_grid_get_vadjustment (HyScanGtkWaterfallGrid *self)
-{
-  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (self), NULL);
-
-  return self->priv->vadjustment;
 }
 
 /* Функция обработки сигнала изменения параметров дисплея. */
@@ -362,46 +336,6 @@ hyscan_gtk_waterfall_grid_draw (GtkWidget *widget,
       hyscan_gtk_waterfall_grid_vertical (widget, cairo, self);
       hyscan_gtk_waterfall_grid_horisontal (widget, cairo, self);
     }
-
-  {
-    gdouble from_x, to_x, from_y, to_y, min_x, max_x, min_y, max_y;
-    gtk_cifro_area_get_view (GTK_CIFRO_AREA (widget), &from_x, &to_x, &from_y, &to_y);
-    gtk_cifro_area_get_limits (GTK_CIFRO_AREA (widget), &min_x, &max_x, &min_y, &max_y);
-
-    g_signal_handlers_block_by_func (priv->hadjustment, hyscan_gtk_waterfall_grid_changed, self);
-    g_signal_handlers_block_by_func (priv->vadjustment, hyscan_gtk_waterfall_grid_changed, self);
-
-    gtk_adjustment_set_lower (priv->hadjustment, min_x);
-    gtk_adjustment_set_upper (priv->hadjustment, max_x);
-    gtk_adjustment_set_value (priv->hadjustment, from_x);
-    gtk_adjustment_set_page_size (priv->hadjustment, ABS (to_x - from_x));
-
-    gtk_adjustment_set_lower (priv->vadjustment, min_y);
-    gtk_adjustment_set_upper (priv->vadjustment, max_y);
-    gtk_adjustment_set_value (priv->vadjustment, from_y);
-    gtk_adjustment_set_page_size (priv->vadjustment, ABS (to_y - from_y));
-
-    g_signal_handlers_unblock_by_func (priv->hadjustment, hyscan_gtk_waterfall_grid_changed, self);
-    g_signal_handlers_unblock_by_func (priv->vadjustment, hyscan_gtk_waterfall_grid_changed, self);
-  }
-}
-
-static void
-hyscan_gtk_waterfall_grid_changed (HyScanGtkWaterfallGrid *self)
-{
-  HyScanGtkWaterfallGridPrivate *priv = self->priv;
-  gdouble from_x, to_x, from_y, to_y;
-  g_object_get (priv->hadjustment,
-                "value", &from_x,
-                "page-size", &to_x,
-                NULL);
-
-  g_object_get (priv->vadjustment,
-                "value", &from_y,
-                "page-size", &to_y,
-                NULL);
-
-  gtk_cifro_area_set_view (GTK_CIFRO_AREA (priv->wfall), from_x, from_x + to_x, from_y, from_y + to_y);
 }
 
 /* Функция рисует сетку по горизонтальной оси. */
@@ -943,7 +877,6 @@ hyscan_gtk_waterfall_grid_set_condence (HyScanGtkWaterfallGrid *self,
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-
 static void
 hyscan_gtk_waterfall_grid_interface_init (HyScanGtkLayerInterface *iface)
 {
@@ -951,30 +884,4 @@ hyscan_gtk_waterfall_grid_interface_init (HyScanGtkLayerInterface *iface)
   iface->removed = hyscan_gtk_waterfall_grid_removed;
   iface->set_visible = hyscan_gtk_waterfall_grid_set_visible;
   iface->get_icon_name = hyscan_gtk_waterfall_grid_get_icon_name;
-}
-
-GtkWidget *
-hyscan_gtk_waterfall_grid_make_grid (HyScanGtkWaterfallGrid *grid,
-                                     GtkWidget              *child)
-{
-  GtkWidget * container;
-  GtkWidget * hscroll, * vscroll;
-  GtkAdjustment * hadj, * vadj;
-
-  container = gtk_grid_new ();
-  hadj = hyscan_gtk_waterfall_grid_get_hadjustment (grid);
-  vadj = hyscan_gtk_waterfall_grid_get_vadjustment (grid);
-
-  hscroll = gtk_scrollbar_new (GTK_ORIENTATION_HORIZONTAL, hadj);
-  vscroll = gtk_scrollbar_new (GTK_ORIENTATION_VERTICAL, vadj);
-
-  gtk_widget_set_hexpand (child, TRUE);
-  gtk_widget_set_vexpand (child, TRUE);
-  gtk_range_set_inverted (GTK_RANGE (vscroll), TRUE);
-
-  gtk_grid_attach (GTK_GRID (container), child,   0, 0, 1, 1);
-  gtk_grid_attach (GTK_GRID (container), hscroll, 0, 1, 1, 1);
-  gtk_grid_attach (GTK_GRID (container), vscroll, 1, 0, 1, 1);
-
-  return container;
 }

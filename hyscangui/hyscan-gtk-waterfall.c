@@ -41,7 +41,8 @@
  * Он содержит объекты HyScanTileQueue и HyScanTileColor, которые занимаются
  * генерацией и раскрашиванием тайлов.
  *
- * Помимо этого он берет на себя ещё две задачи: организация масштабов и автосдвижка.
+ * Помимо этого он берет на себя ещё три задачи: организация масштабов,
+ * ограничение области просмотра и автосдвижка.
  * Метод #hyscan_gtk_waterfall_get_scale позволяет получить
  * список масштабов и номер текущего масштаба.
  * При смене масштаба эмиттируется #HyScanGtkWaterfall::waterfall-zoom.
@@ -161,6 +162,9 @@ struct _HyScanGtkWaterfallPrivate
   guint                  regen_period;       /* Интервал между перегенерациями. */
   gboolean               regen_sent;         /* Интервал между перегенерациями. */
   gboolean               regen_allowed;      /* Интервал между перегенерациями. */
+
+  GtkAdjustment         *hadjustment;
+  GtkAdjustment         *vadjustment;
 };
 
 /* Внутренние методы класса. */
@@ -235,6 +239,9 @@ static void     hyscan_gtk_waterfall_velocity_changed        (HyScanGtkWaterfall
                                                               HyScanGtkWaterfall            *self);
 
 static guint    hyscan_gtk_waterfall_signals[SIGNAL_LAST] = {0};
+
+static void
+hyscan_gtk_waterfall_changed (HyScanGtkWaterfall *self);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkWaterfall, hyscan_gtk_waterfall, HYSCAN_TYPE_GTK_WATERFALL_STATE);
 
@@ -314,9 +321,15 @@ hyscan_gtk_waterfall_object_constructed (GObject *object)
   priv->lrect = hyscan_track_rect_new (cache, af, df);
   priv->rrect = hyscan_track_rect_new (cache, af, df);
 
+  priv->hadjustment = gtk_adjustment_new (0, 0, 0, 0, 1, 1);
+  priv->vadjustment = gtk_adjustment_new (0, 0, 0, 0, 1, 1);
+
+  g_signal_connect_swapped (priv->hadjustment, "value-changed", G_CALLBACK (hyscan_gtk_waterfall_changed), self);
+  g_signal_connect_swapped (priv->vadjustment, "value-changed", G_CALLBACK (hyscan_gtk_waterfall_changed), self);
+
   /* Параметры GtkCifroArea по умолчанию. */
   gtk_cifro_area_set_scale_on_resize (GTK_CIFRO_AREA (self), FALSE);
-  gtk_cifro_area_set_view (GTK_CIFRO_AREA (self), -50, 50, 0, 100 );
+  gtk_cifro_area_set_view (GTK_CIFRO_AREA (self), -1, 1, -1, 1);
 
   /* Сигналы HyScanTileQueue. */
   g_signal_connect_swapped (priv->queue, "tile-queue-image", G_CALLBACK (hyscan_gtk_waterfall_image_generated), self);
@@ -603,6 +616,18 @@ hyscan_gtk_waterfall_image_generated (HyScanGtkWaterfall *self,
   hyscan_gtk_waterfall_queue_draw (self);
 }
 
+static void
+hyscan_gtk_waterfall_changed (HyScanGtkWaterfall *self)
+{
+  HyScanGtkWaterfallPrivate *priv = self->priv;
+  gdouble from_x, to_x, from_y, to_y;
+
+  g_object_get (priv->hadjustment, "value", &from_x, "page-size", &to_x, NULL);
+  g_object_get (priv->vadjustment, "value", &from_y, "page-size", &to_y, NULL);
+
+  gtk_cifro_area_set_view (GTK_CIFRO_AREA (self), from_x, from_x + to_x, from_y, from_y + to_y);
+}
+
 /* Обработчик сигнала visible-draw. */
 static void
 hyscan_gtk_waterfall_visible_draw (GtkWidget *widget,
@@ -636,6 +661,12 @@ hyscan_gtk_waterfall_visible_draw (GtkWidget *widget,
     }
 
   gtk_cifro_area_get_view	(GTK_CIFRO_AREA (widget), &from_x, &to_x, &from_y, &to_y);
+
+  if (isnan (from_x)|| isnan (to_x)|| isnan (from_y)|| isnan (to_y))
+    {
+      g_warning ("Carea");
+      return;
+    }
 
   from_x *= 1000.0;
   to_x   *= 1000.0;
@@ -734,6 +765,28 @@ hyscan_gtk_waterfall_visible_draw (GtkWidget *widget,
 
   /* Необходимо сообщить тайл-менеджеру, что view закончился. */
   hyscan_tile_queue_add_finished (priv->queue, priv->view_id);
+
+  {
+    gdouble from_x, to_x, from_y, to_y, min_x, max_x, min_y, max_y;
+    gtk_cifro_area_get_view (GTK_CIFRO_AREA (widget), &from_x, &to_x, &from_y, &to_y);
+    gtk_cifro_area_get_limits (GTK_CIFRO_AREA (widget), &min_x, &max_x, &min_y, &max_y);
+
+    g_signal_handlers_block_by_func (priv->hadjustment, hyscan_gtk_waterfall_changed, self);
+    g_signal_handlers_block_by_func (priv->vadjustment, hyscan_gtk_waterfall_changed, self);
+
+    gtk_adjustment_set_lower (priv->hadjustment, min_x);
+    gtk_adjustment_set_upper (priv->hadjustment, max_x);
+    gtk_adjustment_set_value (priv->hadjustment, from_x);
+    gtk_adjustment_set_page_size (priv->hadjustment, ABS (to_x - from_x));
+
+    gtk_adjustment_set_lower (priv->vadjustment, min_y);
+    gtk_adjustment_set_upper (priv->vadjustment, max_y);
+    gtk_adjustment_set_value (priv->vadjustment, from_y);
+    gtk_adjustment_set_page_size (priv->vadjustment, ABS (to_y - from_y));
+
+    g_signal_handlers_unblock_by_func (priv->hadjustment, hyscan_gtk_waterfall_changed, self);
+    g_signal_handlers_unblock_by_func (priv->vadjustment, hyscan_gtk_waterfall_changed, self);
+  }
 }
 
 /* Функция отрисовывает заглушку на весь виджет. */
@@ -961,6 +1014,7 @@ hyscan_gtk_waterfall_cifroarea_get_limits (GtkCifroArea *carea,
 {
   HyScanGtkWaterfall *self = HYSCAN_GTK_WATERFALL (carea);
   HyScanGtkWaterfallPrivate *priv = self->priv;
+
   if (G_LIKELY (priv->init))
     {
       if (priv->widget_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN)
@@ -980,8 +1034,15 @@ hyscan_gtk_waterfall_cifroarea_get_limits (GtkCifroArea *carea,
     }
   else
     {
-      *min_x = *max_x = *min_y = *max_y = 0;
+      *min_x = *min_y = -1;
+      *max_x = *max_y = +1;
     }
+
+
+  gtk_adjustment_set_lower (priv->hadjustment, *min_x);
+  gtk_adjustment_set_upper (priv->hadjustment, *max_x);
+  gtk_adjustment_set_lower (priv->vadjustment, *min_y);
+  gtk_adjustment_set_upper (priv->vadjustment, *max_y);
 }
 
 /* Функция определяет, к какой границе прилипает изображение. */
@@ -1055,8 +1116,8 @@ hyscan_gtk_waterfall_automover (gpointer data)
     return G_SOURCE_CONTINUE;
 
   length = writeable ? MIN (l_length, r_length) : MAX (l_length, r_length);
-  priv->lwidth = lwidth;
-  priv->rwidth = rwidth;
+  priv->lwidth = lwidth + 0.1;
+  priv->rwidth = rwidth + 0.1;
   priv->writeable = writeable;
 
   if (G_UNLIKELY (!priv->once))
@@ -1263,6 +1324,38 @@ hyscan_gtk_waterfall_new (HyScanCache *cache)
   return g_object_new (HYSCAN_TYPE_GTK_WATERFALL,
                        "cache", cache, NULL);
 
+}
+
+/**
+ * hyscan_gtk_waterfall_get_hadjustment:
+ * @self: объект #HyScanGtkWaterfall
+ *
+ * Функция возвращает #GtkAdjustment, соответствующий горизонтальной оси.
+ *
+ * Returns: (transfer none): #GtkAdjustment
+ */
+GtkAdjustment *
+hyscan_gtk_waterfall_get_hadjustment (HyScanGtkWaterfall *self)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (self), NULL);
+
+  return self->priv->hadjustment;
+}
+
+/**
+ * hyscan_gtk_waterfall_get_vadjustment:
+ * @self: объект #HyScanGtkWaterfall
+ *
+ * Функция возвращает #GtkAdjustment, соответствующий вертикальной оси.
+ *
+ * Returns: (transfer none): #GtkAdjustment
+ */
+GtkAdjustment *
+hyscan_gtk_waterfall_get_vadjustment (HyScanGtkWaterfall *self)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (self), NULL);
+
+  return self->priv->vadjustment;
 }
 
 /**
@@ -1518,4 +1611,37 @@ hyscan_gtk_waterfall_set_substrate (HyScanGtkWaterfall *self,
   hyscan_gtk_waterfall_create_dummy (self);
 
   gtk_widget_queue_draw (GTK_WIDGET (self));
+}
+
+/**
+ * hyscan_gtk_waterfall_make_grid:
+ * @wfall: виджет #HyScanGtkWaterfall
+ *
+ * Функция упаковывает виджет в #GtkGrid и добавляет вертикальную прокрутку.
+ */
+GtkWidget *
+hyscan_gtk_waterfall_make_grid (HyScanGtkWaterfall *wfall)
+{
+  GtkWidget * container;
+  GtkWidget * hscroll, * vscroll;
+  GtkAdjustment * hadj, * vadj;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (wfall), NULL);
+
+  container = gtk_grid_new ();
+  hadj = hyscan_gtk_waterfall_get_hadjustment (wfall);
+  vadj = hyscan_gtk_waterfall_get_vadjustment (wfall);
+
+  hscroll = gtk_scrollbar_new (GTK_ORIENTATION_HORIZONTAL, hadj);
+  vscroll = gtk_scrollbar_new (GTK_ORIENTATION_VERTICAL, vadj);
+  gtk_range_set_inverted (GTK_RANGE (vscroll), TRUE);
+
+  gtk_widget_set_hexpand (GTK_WIDGET (wfall), TRUE);
+  gtk_widget_set_vexpand (GTK_WIDGET (wfall), TRUE);
+
+  gtk_grid_attach (GTK_GRID (container), GTK_WIDGET (wfall),   0, 0, 1, 1);
+  gtk_grid_attach (GTK_GRID (container), hscroll, 0, 1, 1, 1);
+  gtk_grid_attach (GTK_GRID (container), vscroll, 1, 0, 1, 1);
+
+  return container;
 }

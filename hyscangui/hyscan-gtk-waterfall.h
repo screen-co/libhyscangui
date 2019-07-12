@@ -122,6 +122,8 @@ HYSCAN_API
 void                    hyscan_gtk_waterfall_set_substrate              (HyScanGtkWaterfall *wfall,
                                                                          guint32             substrate);
 
+HYSCAN_API
+GtkWidget *             hyscan_gtk_waterfall_make_grid                  (HyScanGtkWaterfall *wfall);
 G_END_DECLS
 
 #endif /* __HYSCAN_GTK_WATERFALL_H__ */

@@ -166,7 +166,7 @@ main (int    argc,
   left = make_menu (wf, white, gamma);
   hyscan_gtk_area_set_left (HYSCAN_GTK_AREA (area), left);
 
-  central = hyscan_gtk_waterfall_grid_make_grid (wf_grid, GTK_WIDGET (wf));
+  central = hyscan_gtk_waterfall_make_grid (wf);
   hyscan_gtk_area_set_central (HYSCAN_GTK_AREA (area), central);
 
   gtk_container_add (GTK_CONTAINER (window), area);

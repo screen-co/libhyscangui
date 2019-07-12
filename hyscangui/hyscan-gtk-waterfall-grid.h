@@ -197,12 +197,6 @@ void                    hyscan_gtk_waterfall_grid_set_shadow_color      (HyScanG
 HYSCAN_API
 void                    hyscan_gtk_waterfall_grid_set_condence          (HyScanGtkWaterfallGrid *grid,
                                                                          gdouble                 condence);
-/**
- *hyscan_gtk_waterfall_grid_make_grid:
- */
-HYSCAN_API
-GtkWidget *             hyscan_gtk_waterfall_grid_make_grid             (HyScanGtkWaterfallGrid *grid,
-                                                                         GtkWidget              *child);
 
 G_END_DECLS
 
