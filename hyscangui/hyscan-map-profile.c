@@ -373,7 +373,7 @@ hyscan_map_profile_read (HyScanMapProfile *profile,
 
   g_return_val_if_fail (HYSCAN_IS_MAP_PROFILE (profile), FALSE);
   priv = profile->priv;
-  
+
   g_key_file_load_from_file (priv->key_file, filename, G_KEY_FILE_NONE, &error);
   if (error != NULL)
     goto exit;
@@ -408,7 +408,7 @@ hyscan_map_profile_read (HyScanMapProfile *profile,
 
       if (g_strrstr (keys[i], INI_PREFIX_URL) != keys[i])
         continue;
-      
+
       suffix = keys[i] + strlen (INI_PREFIX_URL);
 
       /* Получаем формат ссылки источника тайлов. */
@@ -421,7 +421,7 @@ hyscan_map_profile_read (HyScanMapProfile *profile,
       cache_dir = g_key_file_get_string (priv->key_file, INI_GROUP, dir_key, NULL);
       if (cache_dir == NULL)
         cache_dir = g_strdup ("");
-      
+
       g_free (dir_key);
 
       g_array_append_val (url_formats_arr, url_format);
@@ -481,7 +481,7 @@ hyscan_map_profile_apply (HyScanMapProfile *profile,
   HyScanGtkLayerContainer *container;
   HyScanGeoProjection *projection;
 
-  HyScanGtkLayer *tiles_old;
+  // HyScanGtkLayer *tiles_old;
 
   g_return_val_if_fail (HYSCAN_IS_MAP_PROFILE (profile), FALSE);
 
@@ -493,9 +493,9 @@ hyscan_map_profile_apply (HyScanMapProfile *profile,
     return FALSE;
 
   /* Убираем старый слой тайлов. */
-  tiles_old = hyscan_gtk_layer_container_lookup (container, TILES_LAYER_ID);
-  if (tiles_old != NULL)
-    hyscan_gtk_layer_container_remove (container, tiles_old);
+  // tiles_old = hyscan_gtk_layer_container_lookup (container, TILES_LAYER_ID);
+  // if (tiles_old != NULL)
+  //   hyscan_gtk_layer_container_remove (container, tiles_old);
 
   /* Заменяем проекцию. */
   hyscan_gtk_map_set_projection (map, projection);

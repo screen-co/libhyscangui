@@ -562,7 +562,6 @@ hyscan_gtk_waterfall_meter_draw_task (HyScanGtkWaterfallMeter     *self,
   mid = hyscan_gtk_waterfall_tools_middle (&start, &end);
   dist_px = hyscan_gtk_waterfall_tools_distance(&start, &end);
 
-
   text = g_strdup_printf ("%3.2f", dist);
   pango_layout_set_text (priv->font, text, -1);
   g_free (text);
@@ -642,8 +641,6 @@ hyscan_gtk_waterfall_meter_draw (GtkWidget               *widget,
                            &priv->view._0.y,
                            &priv->view._1.y);
 
-
-
   /* Очищаем список отрисованных меток. */
   g_list_free_full (priv->visible, g_free);
   priv->visible = NULL;
@@ -675,8 +672,8 @@ hyscan_gtk_waterfall_meter_draw (GtkWidget               *widget,
             HyScanGtkWaterfallMeterItem *drawn = link->data;
             HyScanCoordinates *co;
 
-            rs = hyscan_gtk_waterfall_tools_distance(&priv->pointer, &drawn->px_start);
-            re = hyscan_gtk_waterfall_tools_distance(&priv->pointer, &drawn->px_end);
+            rs = hyscan_gtk_waterfall_tools_distance (&priv->pointer, &drawn->px_start);
+            re = hyscan_gtk_waterfall_tools_distance (&priv->pointer, &drawn->px_end);
 
             if (rs < re)
               co = &drawn->px_start;

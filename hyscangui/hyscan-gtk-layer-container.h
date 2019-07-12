@@ -76,7 +76,7 @@ void                      hyscan_gtk_layer_container_add                 (HyScan
 
 HYSCAN_API
 void                      hyscan_gtk_layer_container_remove              (HyScanGtkLayerContainer *container,
-                                                                          HyScanGtkLayer          *layer);
+                                                                          const gchar             *key);
 
 HYSCAN_API
 void                      hyscan_gtk_layer_container_remove_all          (HyScanGtkLayerContainer *container);
@@ -88,6 +88,12 @@ HyScanGtkLayer *          hyscan_gtk_layer_container_lookup              (HyScan
 HYSCAN_API
 void                      hyscan_gtk_layer_container_load_key_file       (HyScanGtkLayerContainer *container,
                                                                           GKeyFile                *key_file);
+
+HYSCAN_API
+void                      hyscan_gtk_layer_container_set_changes_allowed (HyScanGtkLayerContainer *container,
+                                                                          gboolean                 changes_allowed);
+HYSCAN_API
+gboolean                  hyscan_gtk_layer_container_get_changes_allowed (HyScanGtkLayerContainer *container);
 
 HYSCAN_API
 void                      hyscan_gtk_layer_container_set_input_owner     (HyScanGtkLayerContainer *container,
@@ -102,12 +108,6 @@ void                      hyscan_gtk_layer_container_set_handle_grabbed  (HyScan
 
 HYSCAN_API
 gconstpointer             hyscan_gtk_layer_container_get_handle_grabbed  (HyScanGtkLayerContainer *container);
-
-HYSCAN_API
-void                      hyscan_gtk_layer_container_set_changes_allowed (HyScanGtkLayerContainer *container,
-                                                                          gboolean                 changes_allowed);
-HYSCAN_API
-gboolean                  hyscan_gtk_layer_container_get_changes_allowed (HyScanGtkLayerContainer *container);
 
 
 G_END_DECLS

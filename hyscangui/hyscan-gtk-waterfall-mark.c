@@ -457,7 +457,7 @@ hyscan_gtk_waterfall_mark_open_projector (HyScanGtkWaterfallMark *self,
   HyScanAmplitudeFactory *af;
   HyScanAmplitude *dc;
 
-  af = hyscan_gtk_waterfall_state_get_amp_factory (self->priv->wfall);
+  af = hyscan_gtk_waterfall_state_get_amp_factory (HYSCAN_GTK_WATERFALL_STATE (self->priv->wfall));
   dc = hyscan_amplitude_factory_produce (af, source);
   projector = hyscan_projector_new (dc);
 
@@ -784,7 +784,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
           if (depth == NULL)
             {
               HyScanDepthFactory *df;
-              df = hyscan_gtk_waterfall_state_get_dpt_factory (priv->wfall);
+              df = hyscan_gtk_waterfall_state_get_dpt_factory (HYSCAN_GTK_WATERFALL_STATE (priv->wfall));
               depth = hyscan_depth_factory_produce (df);
               g_object_unref (df);
             }
