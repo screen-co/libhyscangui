@@ -548,12 +548,12 @@ hyscan_gtk_map_planner_handle_release (HyScanGtkLayerContainer *container,
   return TRUE;
 }
 
-/* Обработка "button-release-event" на слое.
+/* Обработка "handle-create" на слое.
  * Создаёт новую точку в том месте, где пользователь кликнул мышью. */
 static gboolean
-hyscan_gtk_map_planner_button_release (GtkWidget      *widget,
-                                       GdkEventButton *event,
-                                       HyScanGtkLayer *layer)
+hyscan_gtk_map_planner_handle_create (GtkWidget      *widget,
+                                      GdkEventButton *event,
+                                      HyScanGtkLayer *layer)
 {
   HyScanGtkMapPlanner *planner_layer = HYSCAN_GTK_MAP_PLANNER (layer);
   HyScanGtkMapPlannerPrivate *priv = planner_layer->priv;
@@ -668,9 +668,8 @@ hyscan_gtk_map_planner_added (HyScanGtkLayer          *layer,
   /* Сигналы контейнера. */
   g_signal_connect (container, "handle-grab", G_CALLBACK (hyscan_gtk_map_planner_handle_grab), planner_layer);
   g_signal_connect (container, "handle-release", G_CALLBACK (hyscan_gtk_map_planner_handle_release), planner_layer);
+  g_signal_connect (container, "handle-create", G_CALLBACK (hyscan_gtk_map_planner_handle_create), planner_layer);
 
-  g_signal_connect_after (container, "button-release-event",
-                          G_CALLBACK (hyscan_gtk_map_planner_button_release),planner_layer);
   g_signal_connect_swapped (container, "key-press-event",
                             G_CALLBACK (hyscan_gtk_map_planner_key_press), planner_layer);
 

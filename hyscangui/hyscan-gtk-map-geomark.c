@@ -635,12 +635,12 @@ hyscan_gtk_map_geomark_proj_notify (HyScanGtkMap *map,
   g_rw_lock_writer_unlock (&priv->mark_lock);
 }
 
-/* Обработка "button-release-event" на слое.
+/* Обработка "handle-create" на слое.
  * Создаёт новую точку в том месте, где пользователь кликнул мышью. */
 static gboolean
-hyscan_gtk_map_geomark_button_release (GtkWidget      *widget,
-                                       GdkEventButton *event,
-                                       HyScanGtkLayer *layer)
+hyscan_gtk_map_geomark_handle_create (GtkWidget      *widget,
+                                      GdkEventButton *event,
+                                      HyScanGtkLayer *layer)
 {
   HyScanGtkMapGeomark *gm_layer = HYSCAN_GTK_MAP_GEOMARK (layer);
   HyScanGtkMapGeomarkPrivate *priv = gm_layer->priv;
@@ -907,10 +907,8 @@ hyscan_gtk_map_geomark_added (HyScanGtkLayer          *gtk_layer,
   g_signal_connect (priv->map, "notify::projection", G_CALLBACK (hyscan_gtk_map_geomark_proj_notify), gm_layer);
   g_signal_connect (priv->map, "handle-release", G_CALLBACK (hyscan_gtk_map_geomark_handle_release), gm_layer);
   g_signal_connect (priv->map, "handle-grab", G_CALLBACK (hyscan_gtk_map_geomark_handle_grab), gm_layer);
+  g_signal_connect (priv->map, "handle-create", G_CALLBACK (hyscan_gtk_map_geomark_handle_create), gm_layer);
   g_signal_connect_swapped (priv->map, "key-press-event", G_CALLBACK (hyscan_gtk_map_geomark_key_press), gm_layer);
-
-  g_signal_connect_after (container, "button-release-event",
-                          G_CALLBACK (hyscan_gtk_map_geomark_button_release), gm_layer);
 }
 
 /* Обработка удаления слоя с карты. */
