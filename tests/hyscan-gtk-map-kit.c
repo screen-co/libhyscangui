@@ -60,7 +60,7 @@ struct _HyScanGtkMapKitPrivate
   HyScanMarkLocModel    *ml_model;         /* Модель местоположения меток водопада. */
   HyScanDB              *db;
   HyScanCache           *cache;
-  HyScanNavigationModel *nav_model;
+  HyScanNavModel        *nav_model;
   HyScanPlanner         *planner;
   gchar                 *project_name;
 
@@ -905,9 +905,9 @@ static void
 on_locate_click (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
-  HyScanNavigationModelData data;
+  HyScanNavModelData data;
 
-  if (hyscan_navigation_model_get (priv->nav_model, &data, NULL))
+  if (hyscan_nav_model_get (priv->nav_model, &data, NULL))
     hyscan_gtk_map_move_to (HYSCAN_GTK_MAP (kit->map), data.coord);
 }
 
@@ -1558,10 +1558,10 @@ hyscan_gtk_map_kit_add_nav (HyScanGtkMapKit *kit,
   g_return_if_fail (priv->nav_model == NULL);
 
   /* Навигационные данные. */
-  priv->nav_model = hyscan_navigation_model_new ();
-  hyscan_navigation_model_set_sensor (priv->nav_model, sensor);
-  hyscan_navigation_model_set_sensor_name (priv->nav_model, sensor_name);
-  hyscan_navigation_model_set_delay (priv->nav_model, delay_time);
+  priv->nav_model = hyscan_nav_model_new ();
+  hyscan_nav_model_set_sensor (priv->nav_model, sensor);
+  hyscan_nav_model_set_sensor_name (priv->nav_model, sensor_name);
+  hyscan_nav_model_set_delay (priv->nav_model, delay_time);
 
   /* Определение местоположения. */
   g_signal_connect_swapped (priv->locate_button, "clicked", G_CALLBACK (on_locate_click), kit);

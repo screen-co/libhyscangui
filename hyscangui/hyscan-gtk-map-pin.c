@@ -129,7 +129,7 @@ static void          hyscan_gtk_map_pin_interface_init            (HyScanGtkLaye
 static void          hyscan_gtk_map_pin_draw                      (HyScanGtkMap             *map,
                                                                    cairo_t                  *cairo,
                                                                    HyScanGtkMapPin          *pin_layer);
-static gboolean      hyscan_gtk_map_pin_button_release            (GtkWidget                *widget,
+static gboolean      hyscan_gtk_map_pin_handle_create             (GtkWidget                *widget,
                                                                    GdkEventButton           *event,
                                                                    HyScanGtkLayer           *layer);
 static gboolean      hyscan_gtk_map_pin_motion_notify             (HyScanGtkMapPin          *pin_layer,
@@ -479,6 +479,7 @@ hyscan_gtk_map_pin_added (HyScanGtkLayer          *gtk_layer,
   /* Сигналы контейнера. */
   g_signal_connect (container, "handle-grab", G_CALLBACK (hyscan_gtk_map_pin_handle_grab), gtk_layer);
   g_signal_connect (container, "handle-release", G_CALLBACK (hyscan_gtk_map_pin_handle_release), gtk_layer);
+  g_signal_connect (container, "handle-create", G_CALLBACK (hyscan_gtk_map_pin_handle_create), gtk_layer);
 
   /* Сигналы карты. */
   g_signal_connect (container, "notify::projection", G_CALLBACK (hyscan_gtk_map_pin_projection_notify), gtk_layer);
@@ -488,8 +489,6 @@ hyscan_gtk_map_pin_added (HyScanGtkLayer          *gtk_layer,
                           G_CALLBACK (hyscan_gtk_map_pin_draw), gtk_layer);
 
   /* Сигналы GtkWidget. */
-  g_signal_connect_after (container, "button-release-event",
-                          G_CALLBACK (hyscan_gtk_map_pin_button_release), gtk_layer);
   g_signal_connect_swapped (container, "configure-event",
                             G_CALLBACK (hyscan_gtk_map_pin_configure), gtk_layer);
   g_signal_connect_swapped (container, "key-press-event",
@@ -718,12 +717,12 @@ hyscan_gtk_map_pin_key_press (HyScanGtkMapPin *pin_layer,
   return GDK_EVENT_PROPAGATE;
 }
 
-/* Обработка "button-release-event" на слое.
+/* Обработка "handle-create" на слое.
  * Создаёт новую точку в том месте, где пользователь кликнул мышью. */
 static gboolean
-hyscan_gtk_map_pin_button_release (GtkWidget      *widget,
-                                   GdkEventButton *event,
-                                   HyScanGtkLayer *layer)
+hyscan_gtk_map_pin_handle_create (GtkWidget      *widget,
+                                  GdkEventButton *event,
+                                  HyScanGtkLayer *layer)
 {
   HyScanGtkMapPin *pin_layer = HYSCAN_GTK_MAP_PIN (layer);
   HyScanGtkMapPinPrivate *priv = pin_layer->priv;

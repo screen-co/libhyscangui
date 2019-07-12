@@ -55,7 +55,7 @@
  * - "text-color"
  * - "bg-color"
  *
- * Выводимые данные получаются из модели #HyScanNavigationModel, которая
+ * Выводимые данные получаются из модели #HyScanNavModel, которая
  * указывается при создании слоя в hyscan_gtk_map_nav_new().
  *
  */
@@ -63,7 +63,7 @@
 #include "hyscan-gtk-map-nav.h"
 #include "hyscan-gtk-map.h"
 #include <hyscan-cartesian.h>
-#include <hyscan-navigation-model.h>
+#include <hyscan-nav-model.h>
 #include <glib/gi18n.h>
 #include <string.h>
 #include <math.h>
@@ -110,7 +110,7 @@ struct _HyScanGtkMapNavPrivate
 {
   HyScanGtkMap                 *map;                        /* Виджет карты, на котором размещен слой. */
   gboolean                      has_cache;                  /* Флаг, используется ли кэш? */
-  HyScanNavigationModel        *nav_model;                  /* Модель навигационных данных, которые отображаются. */
+  HyScanNavModel               *nav_model;                  /* Модель навигационных данных, которые отображаются. */
   guint64                       life_time;                  /* Время жизни точки трека, секунды. */
   PangoLayout                  *pango_layout;               /* Раскладка шрифта. */
 
@@ -159,7 +159,7 @@ static void     hyscan_gtk_map_nav_create_arrow            (HyScanGtkMapNavArrow
                                                             GdkRGBA                       *color_fill,
                                                             GdkRGBA                       *color_stroke);
 static void     hyscan_gtk_map_nav_model_changed           (HyScanGtkMapNav               *nav_layer,
-                                                           HyScanNavigationModelData      *data);
+                                                           HyScanNavModelData             *data);
 static void     hyscan_gtk_map_nav_point_free              (HyScanGtkMapNavPoint          *point);
 static void     hyscan_gtk_map_nav_fill_tile               (HyScanGtkMapTiled             *tiled_layer,
                                                             HyScanMapTile                 *tile);
@@ -183,9 +183,9 @@ hyscan_gtk_map_nav_class_init (HyScanGtkMapNavClass *klass)
   tiled_class->fill_tile = hyscan_gtk_map_nav_fill_tile;
 
   g_object_class_install_property (object_class, PROP_NAV_MODEL,
-    g_param_spec_object ("nav-model", "Navigation model", "HyScanNavigationModel",
-                          HYSCAN_TYPE_NAVIGATION_MODEL,
-                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+    g_param_spec_object ("nav-model", "Navigation model", "HyScanNavModel",
+                         HYSCAN_TYPE_NAV_MODEL,
+                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_USE_CACHE,
     g_param_spec_boolean ("use-cache", "Cache layer in tiles", "Set TRUE to draw layer with tiles", TRUE,
                           G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
@@ -443,8 +443,8 @@ hyscan_gtk_map_nav_point_copy (HyScanGtkMapNavPoint *point)
 
 /* Обработчик сигнала "changed" модели. */
 static void
-hyscan_gtk_map_nav_model_changed (HyScanGtkMapNav           *nav_layer,
-                                  HyScanNavigationModelData *data)
+hyscan_gtk_map_nav_model_changed (HyScanGtkMapNav    *nav_layer,
+                                  HyScanNavModelData *data)
 {
   HyScanGtkMapNavPrivate *priv = nav_layer->priv;
 
@@ -998,14 +998,14 @@ hyscan_gtk_map_nav_added (HyScanGtkLayer          *layer,
 
 /**
  * hyscan_gtk_map_nav_new:
- * @nav_model: указатель на модель навигационных данных #HyScanNavigationModel
+ * @nav_model: указатель на модель навигационных данных #HyScanNavModel
  *
  * Создает новый слой с треком движения объекта.
  *
  * Returns: указатель на #HyScanGtkMapNav
  */
 HyScanGtkLayer *
-hyscan_gtk_map_nav_new (HyScanNavigationModel *nav_model)
+hyscan_gtk_map_nav_new (HyScanNavModel *nav_model)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_NAV,
                        "nav-model", nav_model,

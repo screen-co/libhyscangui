@@ -67,7 +67,10 @@
 #define MIN_SCALE_SIZE_PX   50.0      /* Минимальная длина линейки масштаба. */
 #define LINE_POINTS_NUM     5         /* Количество точек, по которым строится линия сетки. */
 
-#define LINE_WIDTH          0.5
+#define LINE_WIDTH          0.5       /* Толщина линии координатной сетки. */
+#define GRID_STEP           200       /* Среднее расстояние между соседними линиями сетки. */
+#define SCALE_WIDTH         2.0       /* Толщина линии линейки масштаба. */
+
 #define LINE_COLOR_DEFAULT  "rgba( 80, 120, 180, 0.5)"   /* Цвет линий по умолчанию. */
 #define LABEL_COLOR_DEFAULT "rgba( 33,  33,  33, 1.0)"   /* Цвет текста подписей по умолчанию. */
 #define BG_COLOR_DEFAULT    "rgba(255, 255, 255, 0.6)"   /* Цвет фона подписей по умолчанию. */
@@ -151,9 +154,9 @@ hyscan_gtk_map_grid_object_constructed (GObject *object)
   hyscan_gtk_map_grid_set_bg_color (gtk_map_grid, color);
 
   hyscan_gtk_map_grid_set_line_width (gtk_map_grid, LINE_WIDTH);
-  hyscan_gtk_map_grid_set_scale_width (gtk_map_grid, 2.0);
+  hyscan_gtk_map_grid_set_scale_width (gtk_map_grid, SCALE_WIDTH);
 
-  hyscan_gtk_map_grid_set_step_width (gtk_map_grid, 200);
+  hyscan_gtk_map_grid_set_step_width (gtk_map_grid, GRID_STEP);
 }
 
 static void

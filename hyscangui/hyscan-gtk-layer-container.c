@@ -247,14 +247,14 @@ hyscan_gtk_layer_container_class_init (HyScanGtkLayerContainerClass *klass)
    * когда пользователь отпускает левую кнопку. Отправляется только если в данный
    * момент никакой хэндл не захвачен.
    *
-   * Returns: указатель на слой, если слой создал хэндл; %NULL, если хэндл не создан.
+   * Returns: %TRUE, если слой создал хэндл; %FALSE, если хэндл не создан.
    */
   hyscan_gtk_layer_container_signals[SIGNAL_HANDLE_CREATE] =
     g_signal_new ("handle-create", HYSCAN_TYPE_GTK_LAYER_CONTAINER,
                   G_SIGNAL_RUN_LAST,
-                  0, hyscan_gtk_layer_container_grab_accu, NULL,
+                  0, hyscan_gtk_layer_container_release_accu, NULL,
                   hyscan_gui_marshal_POINTER__POINTER,
-                  G_TYPE_POINTER,
+                  G_TYPE_BOOLEAN,
                   1, G_TYPE_POINTER);
 
   /**
@@ -333,7 +333,7 @@ hyscan_gtk_layer_container_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_layer_container_parent_class)->finalize (object);
 }
 
-/* Аккумулятор эмиссии сигнала "handle-release". */
+/* Аккумулятор эмиссии сигнала "handle-release" и "handle-create". */
 static gboolean
 hyscan_gtk_layer_container_release_accu (GSignalInvocationHint *ihint,
                                          GValue                *return_accu,
@@ -372,12 +372,11 @@ static gboolean
 hyscan_gtk_layer_container_handle_create (HyScanGtkLayerContainer *container,
                                           GdkEventButton          *event)
 {
-  gconstpointer handle_owner = NULL;
+  gboolean created = FALSE;
 
-  g_signal_emit (container, hyscan_gtk_layer_container_signals[SIGNAL_HANDLE_CREATE], 0, event, &handle_owner);
-  hyscan_gtk_layer_container_set_handle_grabbed (container, handle_owner);
+  g_signal_emit (container, hyscan_gtk_layer_container_signals[SIGNAL_HANDLE_CREATE], 0, event, &created);
 
-  return handle_owner != NULL;
+  return created;
 }
 
 /* Пытается захватить хэндл, эмитируя сигнал "handle-grab". */

@@ -37,7 +37,7 @@
 
 #include <hyscan-gtk-layer.h>
 #include <hyscan-cache.h>
-#include <hyscan-navigation-model.h>
+#include <hyscan-nav-model.h>
 #include "hyscan-gtk-map-tiled.h"
 
 G_BEGIN_DECLS
@@ -69,7 +69,7 @@ HYSCAN_API
 GType                    hyscan_gtk_map_nav_get_type     (void);
 
 HYSCAN_API
-HyScanGtkLayer *         hyscan_gtk_map_nav_new          (HyScanNavigationModel *nav_model);
+HyScanGtkLayer *         hyscan_gtk_map_nav_new          (HyScanNavModel        *nav_model);
 
 HYSCAN_API
 void                     hyscan_gtk_map_nav_set_lifetime (HyScanGtkMapNav       *nav_layer,
