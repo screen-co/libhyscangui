@@ -1,11 +1,83 @@
-/*
- * \file hyscan-gtk-waterfall.c
+/* hyscan-gtk-waterfall.c
  *
- * \brief Исходный файл виджета водопад
- * \author Dmitriev Alexander (m1n7@yandex.ru)
- * \date 2017
- * \license Проприетарная лицензия ООО "Экран"
+ * Copyright 2017-2019 Screen LLC, Alexander Dmitriev <m1n7@yandex.ru>
  *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-waterfall
+ * @Title: HyScanGtkWaterfall
+ * @Short_description: отображение гидролокационных данных в режиме водопад
+ *
+ * Данный виджет занимается всем, что связано с отрисовкой тайлов.
+ * Он содержит объекты HyScanTileQueue и HyScanTileColor, которые занимаются
+ * генерацией и раскрашиванием тайлов.
+ *
+ * Помимо этого он берет на себя ещё две задачи: организация масштабов и автосдвижка.
+ * Метод #hyscan_gtk_waterfall_get_scale позволяет получить
+ * список масштабов и номер текущего масштаба.
+ * При смене масштаба эмиттируется #HyScanGtkWaterfall::waterfall-zoom.
+ *
+ * Метод #hyscan_gtk_waterfall_set_upsample позволяет задать
+ * величину передискретизации. Это единственная публичная настройка
+ * генератора тайлов. Остальные параметры (тип отображения, источники, флаги)
+ * берутся из родителя.
+ *
+ * Настройка раскрашивания тайлов выполняется следующими функциями:
+ * - #hyscan_gtk_waterfall_set_colormap для установки цветовой
+ *    схемы для конкретного источника данных;
+ * - #hyscan_gtk_waterfall_set_colormap_for_all для установки
+ *    цветовой схемы для всех источников сразу;
+ * - #hyscan_gtk_waterfall_set_levels для установки уровней
+ *    черной и белой точки и гамма-коррекции для конкретного источника
+ *    данных;
+ * - #hyscan_gtk_waterfall_set_levels_for_all для установки
+ *    уровней для всех источников сразу.
+ *
+ * Автосдвижка:
+ * - #hyscan_gtk_waterfall_automove включает и выключает автосдвижку;
+ * - #hyscan_gtk_waterfall_set_automove_period задает период
+ *    автосдвижки.
+ *
+ * Всякий раз при изменении состояния автосдвижки эмиттируется
+ * #HyScanGtkWaterfall::automove-state
+ *
+ * Для снижения нагрузки на систему можно использовать метод
+ * #hyscan_gtk_waterfall_set_regeneration_period. Все тайлы,
+ * которые не были обнаружены в кэше, будут в любом случае отправлены
+ * на генерацию. Те тайлы, которые в кэше есть, но помечены как требующие
+ * перегенерации, будут отправлены не раньше, чем закончится указанное
+ * время. При этом дистанция на изображении будет отличаться от реальной
+ * на величину, соответствующую скорости судна умноженной на период
+ * перегенерации.
  */
 
 #include "hyscan-gtk-waterfall.h"
@@ -21,14 +93,8 @@
 
 enum
 {
-  PROP_MODEL = 1
-};
-
-enum
-{
   SIGNAL_AUTOMOVE_STATE,
   SIGNAL_ZOOM,
-  SIGNAL_INPUT_GRABBED,
   SIGNAL_LAST
 };
 
@@ -44,8 +110,8 @@ static const gdouble zooms_gost[ZOOM_LEVELS] = {5000.0, 2000.0, 1000.0, 800.0, 5
 
 struct _HyScanGtkWaterfallPrivate
 {
-  gfloat                 ppi;                /**< PPI. */
-  cairo_surface_t       *surface;            /**< Поверхность тайла. */
+  gfloat                 ppi;                /* PPI. */
+  cairo_surface_t       *surface;            /* Поверхность тайла. */
 
   HyScanTileQueue       *queue;
   HyScanTileColor       *color;
@@ -53,29 +119,29 @@ struct _HyScanGtkWaterfallPrivate
   guint64                view_id;
   guint32                tq_hash;
 
-  gdouble               *zooms;              /**< Масштабы с учетом PPI. */
+  gdouble               *zooms;              /* Масштабы с учетом PPI. */
   gint                   zoom_index;
 
-  gboolean               open;               /**< Флаг "галс открыт". */
-  gboolean               request_redraw;     /**< Флаг "требуется перерисовка". */
+  gboolean               open;               /* Флаг "галс открыт". */
+  gboolean               request_redraw;     /* Флаг "требуется перерисовка". */
   guint                  redraw_tag;
 
-  gboolean               view_finalised;     /**< "Все тайлы для этого вью найдены и показаны". */
+  gboolean               view_finalised;     /* "Все тайлы для этого вью найдены и показаны". */
 
-  cairo_surface_t       *dummy;              /**< Поверхность заглушки. */
-  guint32                dummy_color;        /**< Цвет подложки. */
+  cairo_surface_t       *dummy;              /* Поверхность заглушки. */
+  guint32                dummy_color;        /* Цвет подложки. */
 
-  guint                  tile_upsample;      /**< Величина передискретизации. */
-  HyScanTileFlags        tile_flags;         /**< Флаги генерации. */
+  guint                  tile_upsample;      /* Величина передискретизации. */
+  HyScanTileFlags        tile_flags;         /* Флаги генерации. */
 
   HyScanTrackRect       *lrect;
   HyScanTrackRect       *rrect;
   gboolean               writeable;
   gboolean               init;
   gboolean               once;
-  gdouble                length;             /**< Длина галса. */
-  gdouble                lwidth;             /**< Ширина по левому борту. */
-  gdouble                rwidth;             /**< Ширина по правому борту. */
+  gdouble                length;             /* Длина галса. */
+  gdouble                lwidth;             /* Ширина по левому борту. */
+  gdouble                rwidth;             /* Ширина по правому борту. */
 
   guint                  widget_width;
   guint                  widget_height;
@@ -86,15 +152,15 @@ struct _HyScanGtkWaterfallPrivate
 
   gfloat                 ship_speed;
   gint64                 prev_time;
-  gboolean               automove;           /**< Включение и выключение режима автоматической сдвижки. */
-  guint                  auto_tag;           /**< Идентификатор функции сдвижки. */
-  guint                  automove_time;      /**< Период обновления экрана. */
+  gboolean               automove;           /* Включение и выключение режима автоматической сдвижки. */
+  guint                  auto_tag;           /* Идентификатор функции сдвижки. */
+  guint                  automove_time;      /* Период обновления экрана. */
 
-  guint                  regen_time;         /**< Время предыдущей генерации. */
-  guint                  regen_time_prev;    /**< Время предыдущей генерации. */
-  guint                  regen_period;       /**< Интервал между перегенерациями. */
-  gboolean               regen_sent;         /**< Интервал между перегенерациями. */
-  gboolean               regen_allowed;      /**< Интервал между перегенерациями. */
+  guint                  regen_time;         /* Время предыдущей генерации. */
+  guint                  regen_time_prev;    /* Время предыдущей генерации. */
+  guint                  regen_period;       /* Интервал между перегенерациями. */
+  gboolean               regen_sent;         /* Интервал между перегенерациями. */
+  gboolean               regen_allowed;      /* Интервал между перегенерациями. */
 };
 
 /* Внутренние методы класса. */
@@ -186,6 +252,14 @@ hyscan_gtk_waterfall_class_init (HyScanGtkWaterfallClass *klass)
   carea->get_stick = hyscan_gtk_waterfall_cifroarea_get_stick;
   carea->zoom = hyscan_gtk_waterfall_cifroarea_zoom;
 
+  /**
+   * HyScanGtkWaterfall::automove-state:
+   * @waterfall: объект, получивший сигнал
+   * @state: состояние автосдвижки (%TRUE, если включена)
+   * @user_data: данные, определенные в момент подключения к сигналу
+   *
+   * Сигнал отправляется когда изменяются параметры автосдвижки
+   */
   hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE] =
     g_signal_new ("automove-state", HYSCAN_TYPE_GTK_WATERFALL,
                   G_SIGNAL_RUN_LAST, 0,
@@ -194,6 +268,15 @@ hyscan_gtk_waterfall_class_init (HyScanGtkWaterfallClass *klass)
                   G_TYPE_NONE,
                   1, G_TYPE_BOOLEAN);
 
+  /**
+   * HyScanGtkWaterfall::waterfall-zoom:
+   * @waterfall: объект, получивший сигнал
+   * @num: номер масштаба
+   * @zoom: человекочитаемый масштаб (1:zoom)
+   * @user_data: данные, определенные в момент подключения к сигналу
+   *
+   * Сигнал отправляется когда изменяются параметры автосдвижки
+   */
   hyscan_gtk_waterfall_signals[SIGNAL_ZOOM] =
     g_signal_new ("waterfall-zoom", HYSCAN_TYPE_GTK_WATERFALL,
                   G_SIGNAL_RUN_LAST, 0,
@@ -1167,7 +1250,13 @@ hyscan_gtk_waterfall_velocity_changed (HyScanGtkWaterfallState *model,
     g_array_unref (velocity);
 }
 
-/* Функция создает новый виджет водопада. */
+/**
+ * hyscan_gtk_waterfall_new:
+ * @cache: объект #HyScanCache
+ * Функция создает новый виджет #HyScanGtkWaterfall
+ *
+ * Returns: (transfer full): #HyScanGtkWaterfall
+ */
 GtkWidget*
 hyscan_gtk_waterfall_new (HyScanCache *cache)
 {
@@ -1176,7 +1265,12 @@ hyscan_gtk_waterfall_new (HyScanCache *cache)
 
 }
 
-/* Функция запрашивает перерисовку виджета. */
+/**
+ * hyscan_gtk_waterfall_queue_draw:
+ * @wfall: объект #HyScanGtkWaterfall
+ *
+ * Функция потокобезопасно инициирует перерисовку виджета.
+ */
 void
 hyscan_gtk_waterfall_queue_draw (HyScanGtkWaterfall *self)
 {
@@ -1185,7 +1279,13 @@ hyscan_gtk_waterfall_queue_draw (HyScanGtkWaterfall *self)
   g_atomic_int_set (&self->priv->request_redraw, TRUE);
 }
 
-/* Функция обновляет параметры HyScanTileQueue. */
+/**
+ * hyscan_gtk_waterfall_set_upsample:
+ * @wfall: объект #HyScanGtkWaterfall
+ * @upsample: величина передискретизации
+ *
+ * Функция устанавливает величину передискретизации.
+ */
 void
 hyscan_gtk_waterfall_set_upsample (HyScanGtkWaterfall *self,
                                    gint                upsample)
@@ -1195,7 +1295,18 @@ hyscan_gtk_waterfall_set_upsample (HyScanGtkWaterfall *self,
   self->priv->tile_upsample = upsample;
 }
 
-/* Функция устанавливает цветовую схему. */
+/**
+ * hyscan_gtk_waterfall_set_colormap:
+ * @wfall: объект #HyScanGtkWaterfall
+ * @source: тип источника, для которого будет применена цветовая схема
+ * @colormap: (in) (array length=length): цветовая схема
+ * @length: количество элементов в цветовой схеме
+ * @background: цвет фона
+ *
+ * Функция обновляет цветовую схему объекта #HyScanTileColor.
+ *
+ * Returns: TRUE, если параметры успешно скопированы.
+ */
 gboolean
 hyscan_gtk_waterfall_set_colormap (HyScanGtkWaterfall *self,
                                    HyScanSourceType    source,
@@ -1210,7 +1321,17 @@ hyscan_gtk_waterfall_set_colormap (HyScanGtkWaterfall *self,
   return hyscan_tile_color_set_colormap (self->priv->color, source, colormap, length, background);
 }
 
-/* Функция устанавливает цветовую схему для всех источников. */
+/**
+ * hyscan_gtk_waterfall_set_colormap_for_all:
+ * @wfall: объект #HyScanGtkWaterfall
+ * @colormap: (in) (array length=length): цветовая схема
+ * @length: количество элементов в цветовой схеме
+ * @background: цвет фона
+ *
+ * Функция обновляет цветовую схему объекта #HyScanTileColor.
+ *
+ * Returns: TRUE, если параметры успешно скопированы.
+ */
 gboolean
 hyscan_gtk_waterfall_set_colormap_for_all (HyScanGtkWaterfall *self,
                                            guint32            *colormap,
@@ -1224,7 +1345,18 @@ hyscan_gtk_waterfall_set_colormap_for_all (HyScanGtkWaterfall *self,
   return hyscan_tile_color_set_colormap_for_all (self->priv->color, colormap, length, background);
 }
 
-/* Функция устанавливает уровни. */
+/**
+ * hyscan_gtk_waterfall_set_levels:
+ * @wfall: объект #HyScanGtkWaterfall
+ * @source: тип источника, для которого будет применена цветовая схема
+ * @black: уровень черной точки
+ * @gamma: гамма
+ * @white: уровень белой точки
+ *
+ * Функция обновляет параметры объекта #HyScanTileColor.
+ *
+ * Returns: TRUE, если параметры успешно скопированы.
+ */
 gboolean
 hyscan_gtk_waterfall_set_levels (HyScanGtkWaterfall *self,
                                  HyScanSourceType    source,
@@ -1239,7 +1371,17 @@ hyscan_gtk_waterfall_set_levels (HyScanGtkWaterfall *self,
   return hyscan_tile_color_set_levels (self->priv->color, source, black, gamma, white);
 }
 
-/* Функция устанавливает уровни для всех источников. */
+/**
+ * hyscan_gtk_waterfall_set_levels_for_all:
+ * @wfall: объект #HyScanGtkWaterfall
+ * @black: уровень черной точки
+ * @gamma: гамма
+ * @white: уровень белой точки
+ *
+ * Функция обновляет параметры объекта #HyScanTileColor.
+ *
+ * Returns: TRUE, если параметры успешно скопированы.
+ */
 gboolean
 hyscan_gtk_waterfall_set_levels_for_all (HyScanGtkWaterfall *self,
                                          gdouble             black,
@@ -1253,7 +1395,16 @@ hyscan_gtk_waterfall_set_levels_for_all (HyScanGtkWaterfall *self,
   return hyscan_tile_color_set_levels_for_all (self->priv->color, black, gamma, white);
 }
 
-/* Функция возвращает текущий масштаб. */
+/**
+ * hyscan_gtk_waterfall_get_scale:
+ * @wfall: объект #HyScanGtkWaterfall
+ * @zooms: (out) (optional): указатель на массив масштабов
+ * @num: (out) (optional): число масштабов
+ *
+ * Функция возвращает масштабы и индекс текущего масштаба.
+ *
+ * Returns: номер масштаба; -1 в случае ошибки.
+ */
 gint
 hyscan_gtk_waterfall_get_scale (HyScanGtkWaterfall *self,
                                 const gdouble     **zooms,
@@ -1269,7 +1420,13 @@ hyscan_gtk_waterfall_get_scale (HyScanGtkWaterfall *self,
   return self->priv->zoom_index;
 }
 
-/* Функция включает и выключает автосдвижку. */
+/**
+ * hyscan_gtk_waterfall_automove:
+ * @wfall: объект #HyScanGtkWaterfall
+ * @automove: TRUE для включения и FALSE для отключения автосдвижки
+ *
+ * Функция включает и выключает автосдвижку изображения.
+ */
 gboolean
 hyscan_gtk_waterfall_automove (HyScanGtkWaterfall *self,
                                gboolean            automove)
@@ -1296,7 +1453,13 @@ hyscan_gtk_waterfall_automove (HyScanGtkWaterfall *self,
   return automove;
 }
 
-/* Функция задает период автосдвижки. */
+/**
+ * hyscan_gtk_waterfall_set_automove_period:
+ * @wfall: объект #HyScanGtkWaterfall
+ * @usecs: время в микросекундах между сдвижками
+ *
+ * Функция устанавливает период автосдвижки.
+ */
 void
 hyscan_gtk_waterfall_set_automove_period (HyScanGtkWaterfall *self,
                                           gint64              usecs)
@@ -1322,7 +1485,13 @@ hyscan_gtk_waterfall_set_automove_period (HyScanGtkWaterfall *self,
                                   self);
 }
 
-/* Функция задает период перегенерации данных. */
+/**
+ * hyscan_gtk_waterfall_set_regeneration_period:
+ * @wfall: объект #HyScanGtkWaterfall
+ * @usecs: время в микросекундах между перегенерацией
+ *
+ * Функция устанавливает период перегенерации тайлов.
+ */
 void
 hyscan_gtk_waterfall_set_regeneration_period (HyScanGtkWaterfall *self,
                                               gint64              usecs)
@@ -1332,7 +1501,13 @@ hyscan_gtk_waterfall_set_regeneration_period (HyScanGtkWaterfall *self,
   self->priv->regen_period = usecs;
 }
 
-/* Функция задает цвет подложки. */
+/**
+ * hyscan_gtk_waterfall_set_substrate:
+ * @wfall: объект #HyScanGtkWaterfall
+ * @substrate: цвет подложки
+ *
+ * Функция устанавливает цвет подложки.
+ */
 void
 hyscan_gtk_waterfall_set_substrate (HyScanGtkWaterfall *self,
                                     guint32             substrate)

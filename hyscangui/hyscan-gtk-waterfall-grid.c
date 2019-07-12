@@ -1,13 +1,44 @@
-/*
- * \file hyscan-gtk-waterfall-grid.c
+/* hyscan-gtk-waterfall-grid.h
  *
- * \brief Исходный файл сетки для виджета водопад
- * \author Dmitriev Alexander (m1n7@yandex.ru)
- * \date 2017
- * \license Проприетарная лицензия ООО "Экран"
+ * Copyright 2017-2019 Screen LLC, Alexander Dmitriev <m1n7@yandex.ru>
  *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
  */
 
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-waterfall-grid
+ * @Title: HyScanGtkWaterfallGrid
+ * @Short_description: Координатная сетка для водопада
+ *
+ * Слой #HyScanGtkWaterfallGrid рисует координатную сетку для отображаемой области.
+ */
 #include "hyscan-gtk-waterfall-grid.h"
 #include "hyscan-gtk-waterfall-tools.h"
 #include <hyscan-tile-color.h>
@@ -28,36 +59,36 @@ enum
 
 struct _HyScanGtkWaterfallGridPrivate
 {
-  HyScanGtkWaterfall      *wfall;
-  gboolean                 layer_visibility;
+  HyScanGtkWaterfall *wfall;
+  gboolean            layer_visibility;
 
-  GtkAdjustment    *hadjustment;
-  GtkAdjustment    *vadjustment;
+  GtkAdjustment      *hadjustment;
+  GtkAdjustment      *vadjustment;
 
-  PangoLayout      *font;              /* Раскладка шрифта. */
-  gint              text_height;       /* Максимальная высота текста. */
-  gint              virtual_border;    /* Виртуальная граница изображения. */
+  PangoLayout        *font;              /* Раскладка шрифта. */
+  gint                text_height;       /* Максимальная высота текста. */
+  gint                virtual_border;    /* Виртуальная граница изображения. */
 
-  GdkRGBA           grid_color;        /* Цвет осей. */
-  GdkRGBA           text_color;        /* Цвет подписей. */
-  GdkRGBA           shad_color;        /* Цвет подложки. */
+  GdkRGBA             grid_color;        /* Цвет осей. */
+  GdkRGBA             text_color;        /* Цвет подписей. */
+  GdkRGBA             shad_color;        /* Цвет подложки. */
 
-  gchar            *x_axis_name;       /* Подпись горизонтальной оси. */
-  gchar            *y_axis_name;       /* Подпись вертикальной оси. */
+  gchar              *x_axis_name;       /* Подпись горизонтальной оси. */
+  gchar              *y_axis_name;       /* Подпись вертикальной оси. */
 
-  gboolean          show_info;         /* Рисовать ли информационное окошко. */
-  gint              info_coordinates;  /* Как вычислять координаты окошка. */
-  gint              info_x;            /* Абсолютная координата x информационного окошка. */
-  gint              info_y;            /* Абсолютная координата y информационного окошка. */
-  gdouble           info_x_perc;       /* Процентная координата x информационного окошка. */
-  gdouble           info_y_perc;       /* Процентная координата y информационного окошка. */
+  gboolean            show_info;         /* Рисовать ли информационное окошко. */
+  gint                info_coordinates;  /* Как вычислять координаты окошка. */
+  gint                info_x;            /* Абсолютная координата x информационного окошка. */
+  gint                info_y;            /* Абсолютная координата y информационного окошка. */
+  gdouble             info_x_perc;       /* Процентная координата x информационного окошка. */
+  gdouble             info_y_perc;       /* Процентная координата y информационного окошка. */
 
-  gint              mouse_x;           /* Координата x мышки. */
-  gint              mouse_y;           /* Координата y мышки. */
+  gint                mouse_x;           /* Координата x мышки. */
+  gint                mouse_y;           /* Координата y мышки. */
 
-  gboolean          draw_grid;         /* Рисовать ли линии сетки. */
-  gdouble           x_grid_step;       /* Шаг горизонтальных линий в метрах. 0 для автоматического рассчета. */
-  gdouble           y_grid_step;       /* Шаг вертикальных линий в метрах. 0 для автоматического рассчета. */
+  gboolean            draw_grid;         /* Рисовать ли линии сетки. */
+  gdouble             x_grid_step;       /* Шаг горизонтальных линий в метрах. 0 для автоматического рассчета. */
+  gdouble             y_grid_step;       /* Шаг вертикальных линий в метрах. 0 для автоматического рассчета. */
 
   HyScanWaterfallDisplayType display_type;
 

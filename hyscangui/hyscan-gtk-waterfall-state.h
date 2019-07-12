@@ -1,84 +1,35 @@
-/**
- * \file hyscan-gtk-waterfall-state.h
+/* hyscan-gtk-waterfall-state.h
  *
- * \brief Виджет "водопад"
+ * Copyright 2017-2019 Screen LLC, Alexander Dmitriev <m1n7@yandex.ru>
  *
- * \author Dmitriev Alexander (m1n7@yandex.ru)
- * \date 2017
- * \license Проприетарная лицензия ООО "Экран"
- * \defgroup HyScanGtkWaterfallState HyScanGtkWaterfallState - хранение параметров водопада
+ * This file is part of HyScanGui library.
  *
- * Данный класс решает две задачи. Первая - хранение основных параметров водопада.
- * Вторая - хранения прав доступа к пользовательским воздействиям.
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Хранение параметров водопада.
- * С помощью функций-сеттеров устанавливаются параметры и в этот же момент
- * эмиттируется детализированный сигнал "changed".
- * \code
- * void
- * changed_cb (HyScanGtkWaterfallState *state,
- *             gpointer                 userdata);
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * \endcode
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
  *
- * Сигнал "handle" интересен только разработчикам новых слоёв и более подробно
- * описан в документации к интерфейсу \link HyScanGtkWaterfallLayer \endlink
- * \code
- * gconstpointer
- * handle_cb (HyScanGtkWaterfallState *state,
- *            GdkEventButton          *event,
- *            gpointer                *userdata)
- * \endcode
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
  *
- * - Тип тайла (наклонная / горизонтальная дальность):
- *     \link hyscan_gtk_waterfall_state_set_tile_type сеттер, \endlink
- *     \link hyscan_gtk_waterfall_state_get_tile_type геттер, \endlink
- *     сигнал "changed::tile-type"
- * - Система кэширования:
- *     \link hyscan_gtk_waterfall_state_set_cache сеттер, \endlink
- *     \link hyscan_gtk_waterfall_state_get_cache геттер, \endlink
- *     сигнал "changed::profile"
- * - Текущие БД, проект и галс:
- *     \link hyscan_gtk_waterfall_state_set_track сеттер, \endlink
- *     \link hyscan_gtk_waterfall_state_get_track геттер, \endlink
- *     сигнал "changed::track"
- * - Скорость судна:
- *     \link hyscan_gtk_waterfall_state_set_ship_speed сеттер, \endlink
- *     \link hyscan_gtk_waterfall_state_get_ship_speed геттер, \endlink
- *     сигнал "changed::speed"
- * - Профиль скорости звука:
- *     \link hyscan_gtk_waterfall_state_set_sound_velocity сеттер, \endlink
- *     \link hyscan_gtk_waterfall_state_get_sound_velocity геттер, \endlink
- *     сигнал "changed::velocity"
-  *
- * Отдельно стоит функция задания типа отображения (водопад и эхолот):
- * - #hyscan_gtk_waterfall_state_echosounder задает режим отображения "эхолот"
- *   (один борт, более поздние данные справа)
- * - #hyscan_gtk_waterfall_state_sidescan задает режим отображения "ГБО"
- *   (два борта, более поздние данные сверху)
- * - #hyscan_gtk_waterfall_state_get_sources возвращает режим отображения и
- *   выбранные источники.
- * Сигнал - "changed::sources"
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
  *
- * Разграничение доступа.
- *
- * Некоторые слои (см. HyScanGtkWaterfallLayer) могут уметь взаимодействовать
- * с пользователем. Поскольку пользовательский опыт унифицирован, на одно и то же
- * воздействие (щелчок кнопкой мыши, нажатие кнопки) могут отреагировать несколько
- * слоёв сразу. А потому введены понятия "владелец ввода" и "держатель хэндла (ручки)".
- * Программисту, встраивающему водопад в свою программу, эти методы не интересны.
- * Для разработки новых слоев надо обратиться к документации HyScanGtkWaterfallLayer,
- * где и описано разграничение доступа.
- *
- * - #hyscan_gtk_waterfall_state_set_input_owner
- * - #hyscan_gtk_waterfall_state_get_input_owner
- * - #hyscan_gtk_waterfall_state_set_handle_grabbed
- * - #hyscan_gtk_waterfall_state_get_handle_grabbed
- * - #hyscan_gtk_waterfall_state_set_changes_allowed
- * - #hyscan_gtk_waterfall_state_get_changes_allowed
- *
- * Класс не является потокобезопасным и предназначен для использования в главном потоке.
- *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
 #ifndef __HYSCAN_GTK_WATERFALL_STATE_H__
@@ -92,11 +43,17 @@
 
 G_BEGIN_DECLS
 
-/** \brief Типы отображения */
+/**
+ * HyScanWaterfallDisplayType:
+ * @HYSCAN_WATERFALL_DISPLAY_SIDESCAN: ГБО
+ * @HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER: Эхолот
+ *
+ * Типы отображения.
+ */
 typedef enum
 {
-  HYSCAN_WATERFALL_DISPLAY_SIDESCAN      = 100,   /**< ГБО. */
-  HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER   = 101,   /**< Эхолот. */
+  HYSCAN_WATERFALL_DISPLAY_SIDESCAN,
+  HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER,
 } HyScanWaterfallDisplayType;
 
 #define HYSCAN_TYPE_GTK_WATERFALL_STATE             (hyscan_gtk_waterfall_state_get_type ())
@@ -125,175 +82,59 @@ struct _HyScanGtkWaterfallStateClass
 HYSCAN_API
 GType                   hyscan_gtk_waterfall_state_get_type                    (void);
 
-/**
- *
- * Функция устанавливает режим отображения эхолот.
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param source отображаемый тип данных.
- *
- */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_echosounder                 (HyScanGtkWaterfallState *state,
                                                                                 HyScanSourceType         source);
-/**
- *
- * Функция устанавливает режим отображения водопад.
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param lsource тип данных, отображаемый слева;
- * \param rsource тип данных, отображаемый справа.
- *
- */
+
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_sidescan                    (HyScanGtkWaterfallState *state,
                                                                                 HyScanSourceType         lsource,
                                                                                 HyScanSourceType         rsource);
-/**
- *
- * Функция устанавливает тип тайла (наклонная или горизонтальная дальность).
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param type тип тайла.
- *
- */
+
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_set_tile_flags              (HyScanGtkWaterfallState *state,
                                                                                 HyScanTileFlags          flags);
 
-/**
- *
- * Функция задает БД, проект и галс
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param db указатель на объект \link HyScanDB \endlink;
- * \param project имя проекта;
- * \param track имя галса;
- * \param raw использовать ли сырые данные.
- *
- */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_set_track                   (HyScanGtkWaterfallState *state,
                                                                                 HyScanDB                *db,
                                                                                 const gchar             *project,
                                                                                 const gchar             *track);
 
-/**
- *
- * Функция устанавливает скорость судна.
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param speed скорость судна в м/с.
- *
- */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_set_ship_speed              (HyScanGtkWaterfallState *state,
                                                                                 gfloat                   speed);
-/**
- *
- * Функция устанавливает скорость звука.
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param velocity профиль скорости звука.
- *
- */
+
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_set_sound_velocity          (HyScanGtkWaterfallState *state,
                                                                                 GArray                  *velocity);
 
-/**
- *
- * Функция возвращает тип отображения и источники, как противоположность
- * функциям hyscan_gtk_waterfall_state_echosounder и hyscan_gtk_waterfall_state_sidescan.
- * В случае режима эхолот источники справа и слева будут идентичны.
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param lsource тип данных слева;
- * \param rsource тип данных справа.
- *
- */
 HYSCAN_API
 HyScanWaterfallDisplayType  hyscan_gtk_waterfall_state_get_sources             (HyScanGtkWaterfallState *state,
                                                                                 HyScanSourceType        *lsource,
                                                                                 HyScanSourceType        *rsource);
-/**
- *
- * Функция возвращает тип тайла.
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param type тип тайла.
- *
- */
+
 HYSCAN_API
 HyScanTileFlags         hyscan_gtk_waterfall_state_get_tile_flags              (HyScanGtkWaterfallState *state);
 
-/**
- *
- * Функция возвращает систему кэширования.
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param cache указатель на объект \link HyScanCache \endlink;
- *
- */
 HYSCAN_API
 HyScanAmplitudeFactory * hyscan_gtk_waterfall_state_get_amp_factory            (HyScanGtkWaterfallState *state);
 
-/**
- *
- * Функция возвращает систему кэширования.
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param cache указатель на объект \link HyScanCache \endlink;
- *
- */
 HYSCAN_API
 HyScanDepthFactory *    hyscan_gtk_waterfall_state_get_dpt_factory            (HyScanGtkWaterfallState *state);
 
-/**
- *
- * Функция возвращает систему кэширования.
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param cache указатель на объект \link HyScanCache \endlink;
- *
- */
 HYSCAN_API
 HyScanCache *           hyscan_gtk_waterfall_state_get_cache                   (HyScanGtkWaterfallState *state);
-/**
- *
- * Функция возвращает БД, проект и галс.
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param db указатель на \link HyScanDB \endlink;
- * \param project имя проекта;
- * \param track имя галса;
- * \param raw использовать ли сырые данные.
- *
- */
+
 HYSCAN_API
 void                    hyscan_gtk_waterfall_state_get_track                   (HyScanGtkWaterfallState *state,
                                                                                 HyScanDB               **db,
                                                                                 gchar                  **project,
                                                                                 gchar                  **track);
 
-/**
- *
- * Функция возвращает скорость судна.
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param speed скорость судна.
- *
- */
 HYSCAN_API
 gfloat                  hyscan_gtk_waterfall_state_get_ship_speed              (HyScanGtkWaterfallState *state);
-/**
- *
- * Функция возвращает профиль скорости звука.
- *
- * \param state указатель на объект \link HyScanGtkWaterfallState \endlink;
- * \param velocity профиль скорости звука.
- *
- */
+
 HYSCAN_API
 GArray *                hyscan_gtk_waterfall_state_get_sound_velocity          (HyScanGtkWaterfallState *state);
 

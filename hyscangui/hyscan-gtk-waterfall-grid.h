@@ -1,28 +1,35 @@
-/**
- * \file hyscan-gtk-waterfall-grid.h
+/* hyscan-gtk-waterfall-grid.h
  *
- * \brief Координатная сетка для виджета водопад
+ * Copyright 2017-2019 Screen LLC, Alexander Dmitriev <m1n7@yandex.ru>
  *
- * \author Dmitriev Alexander (m1n7@yandex.ru)
- * \date 2017
- * \license Проприетарная лицензия ООО "Экран"
- * \defgroup HyScanGtkWaterfallGrid HyScanGtkWaterfallGrid - координатная сетка для водопада
+ * This file is part of HyScanGui library.
  *
- * Виджет создается методом #hyscan_gtk_waterfall_grid_new.
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Виджет обрабатывает сигнал "visible-draw" от \link GtkCifroArea \endlink.
- * В этом обработчике он рисует координатную сетку для отображаемой области.
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Методы этого класса предоставляют богатые возможности по настройке отображения.
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
  *
- * - #hyscan_gtk_waterfall_grid_show_grid - включение и выключение сетки;
- * - #hyscan_gtk_waterfall_grid_show_position - включение и выключение линеек местоположения;
- * - #hyscan_gtk_waterfall_grid_show_info - включение и выключение информационного окна;
- * - #hyscan_gtk_waterfall_grid_set_info_position - задает местоположение информационного окна;
- * - #hyscan_gtk_waterfall_grid_set_grid_step - шаг сетки;
- * - #hyscan_gtk_waterfall_grid_set_grid_color - цвет сетки;
- * - #hyscan_gtk_waterfall_grid_set_main_color - цвет подписей.
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
  *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
 #ifndef __HYSCAN_GTK_WATERFALL_GRID_H__
@@ -68,30 +75,30 @@ HYSCAN_API
 GType                   hyscan_gtk_waterfall_grid_get_type              (void);
 
 /**
+ * hyscan_gtk_waterfall_grid_new:
+ * Функция создает новый виджет #HyScanGtkWaterfallGrid
  *
- * Функция создает новый виджет \link HyScanGtkWaterfallGrid \endlink
+ * \param waterfall указатель на виджет #HyScanGtkWaterfall
  *
- * \param waterfall указатель на виджет \link HyScanGtkWaterfall \endlink
- *
- * \return новый виджет \link HyScanGtkWaterfallGrid \endlink
+ * \return новый виджет #HyScanGtkWaterfallGrid
  */
 HYSCAN_API
 HyScanGtkWaterfallGrid *hyscan_gtk_waterfall_grid_new                   (void);
 /**
- *
+ * hyscan_gtk_waterfall_grid_get_hadjustment:
  * Функция возвращает GtkAdjusment для горизонтальной оси.
  *
- * \param grid указатель на слой \link HyScanGtkWaterfallGrid \endlink
+ * \param grid указатель на слой #HyScanGtkWaterfallGrid
  *
  * \return GtkAdjusment для горизонтальной оси
  */
 HYSCAN_API
 GtkAdjustment          *hyscan_gtk_waterfall_grid_get_hadjustment       (HyScanGtkWaterfallGrid  *grid);
 /**
- *
+ * hyscan_gtk_waterfall_grid_get_vadjustment:
  * Функция возвращает GtkAdjusment для вертикальной оси.
  *
- * \param grid указатель на слой \link HyScanGtkWaterfallGrid \endlink
+ * \param grid указатель на слой #HyScanGtkWaterfallGrid
  *
  * \return GtkAdjusment для вертикальной оси
  */
@@ -99,10 +106,10 @@ HYSCAN_API
 GtkAdjustment          *hyscan_gtk_waterfall_grid_get_vadjustment       (HyScanGtkWaterfallGrid  *grid);
 
 /**
- *
+ * hyscan_gtk_waterfall_grid_show_grid:
  * Функция позволяет включить или отключить координатную сетку.
  *
- * \param grid - указатель на объект \link HyScanGtkWaterfallGrid \endlink;
+ * \param grid - указатель на объект #HyScanGtkWaterfallGrid;
  * \param draw_grid - TRUE, чтобы показать линии сетки, FALSE, чтобы скрыть.
  *
  */
@@ -111,10 +118,10 @@ void                    hyscan_gtk_waterfall_grid_show_grid             (HyScanG
                                                                          gboolean                draw_grid);
 
 /**
- *
+ * hyscan_gtk_waterfall_grid_show_info:
  * Функция позволяет включить или отключить информационное окошко.
  *
- * \param grid - указатель на объект \link HyScanGtkWaterfallGrid \endlink;
+ * \param grid - указатель на объект #HyScanGtkWaterfallGrid;
  * \param show_info - TRUE, чтобы показать информацию, FALSE, чтобы скрыть.
  *
  */
@@ -123,10 +130,10 @@ void                    hyscan_gtk_waterfall_grid_show_info             (HyScanG
                                                                          gboolean                show_info);
 
 /**
- *
+ * hyscan_gtk_waterfall_grid_set_info_position:
  * Функция задает местоположение информационного окошка по умолчанию.
  *
- * \param grid - указатель на объект \link HyScanGtkWaterfallGrid \endlink;
+ * \param grid - указатель на объект #HyScanGtkWaterfallGrid;
  * \param position - местоположение информационного окошка;
  *
  */
@@ -135,12 +142,12 @@ void                    hyscan_gtk_waterfall_grid_set_info_position    (HyScanGt
                                                                         HyScanGtkWaterfallGridInfoPosition  position);
 
 /**
- *
+ * hyscan_gtk_waterfall_grid_set_grid_step:
  * Функция позволяет задать шаг предпочтительный шаг координатной сетки в пикселях.
  * Если передать значение 0, сетка рассчитывается автоматически. При этом не гарантируется,
  * что расстояние будет строго равно запрошенному.
  *
- * \param grid - указатель на объект \link HyScanGtkWaterfallGrid \endlink;
+ * \param grid - указатель на объект #HyScanGtkWaterfallGrid;
  * \param step_horisontal - шаг горизонтальных координатных линий;
  * \param step_vertical - шаг вертикальных координатных линий.
  *
@@ -152,10 +159,10 @@ gboolean                hyscan_gtk_waterfall_grid_set_grid_step         (HyScanG
                                                                          gdouble                 step_vertical);
 
 /**
- *
+ * hyscan_gtk_waterfall_grid_set_grid_color:
  * Функция позволяет задать цвет координатной сетки.
  *
- * \param grid - указатель на объект \link HyScanGtkWaterfallGrid \endlink;
+ * \param grid - указатель на объект #HyScanGtkWaterfallGrid;
  * \param color - цвет.
  *
  */
@@ -163,10 +170,10 @@ HYSCAN_API
 void                    hyscan_gtk_waterfall_grid_set_grid_color        (HyScanGtkWaterfallGrid *grid,
                                                                          guint32                 color);
 /**
- *
+ * hyscan_gtk_waterfall_grid_set_main_color:
  * Функция позволяет задать цвет подписей.
  *
- * \param grid - указатель на объект \link HyScanGtkWaterfallGrid \endlink;
+ * \param grid - указатель на объект #HyScanGtkWaterfallGrid;
  * \param color - цвет.
  *
  */
@@ -174,21 +181,25 @@ HYSCAN_API
 void                    hyscan_gtk_waterfall_grid_set_main_color       (HyScanGtkWaterfallGrid *grid,
                                                                          guint32                 color);
 /**
- *
+ * hyscan_gtk_waterfall_grid_set_shadow_color:
  * Функция позволяет задать цвет подложки под подписями.
  *
- * \param grid - указатель на объект \link HyScanGtkWaterfallGrid \endlink;
+ * \param grid - указатель на объект #HyScanGtkWaterfallGrid;
  * \param color - цвет.
  *
  */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_grid_set_shadow_color      (HyScanGtkWaterfallGrid *grid,
                                                                          guint32                 color);
-
+/**
+ *hyscan_gtk_waterfall_grid_set_condence:
+ */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_grid_set_condence          (HyScanGtkWaterfallGrid *grid,
                                                                          gdouble                 condence);
-
+/**
+ *hyscan_gtk_waterfall_grid_make_grid:
+ */
 HYSCAN_API
 GtkWidget *             hyscan_gtk_waterfall_grid_make_grid             (HyScanGtkWaterfallGrid *grid,
                                                                          GtkWidget              *child);

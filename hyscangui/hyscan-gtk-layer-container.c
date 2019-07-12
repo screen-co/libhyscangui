@@ -166,7 +166,7 @@ typedef struct
 
 struct _HyScanGtkLayerContainerPrivate
 {
-  GList         *layers;           /* Упорядоченный список зарегистрированных слоёв. */
+  GList         *layers;           /* Упорядоченный список слоёв, HyScanGtkLayerContainerInfo. */
 
   /* Хэндл — это интерактивный элемент слоя, который можно "взять" кликом мыши. */
   gconstpointer  howner;           /* Текущий активный хэндл, с которым взаимодействует пользователь. */
@@ -581,6 +581,7 @@ hyscan_gtk_layer_container_set_hint (HyScanGtkLayerContainer *container,
     }
 }
 
+/* Функция создает новую HyScanGtkLayerContainerInfo. */
 static HyScanGtkLayerContainerInfo *
 hyscan_gtk_layer_container_info_new (HyScanGtkLayer *layer,
                                      const gchar    *key)
@@ -593,6 +594,7 @@ hyscan_gtk_layer_container_info_new (HyScanGtkLayer *layer,
   return info;
 }
 
+/* Функция освобождает HyScanGtkLayerContainerInfo. */
 static void
 hyscan_gtk_layer_container_info_free (gpointer data)
 {
@@ -604,6 +606,7 @@ hyscan_gtk_layer_container_info_free (gpointer data)
   g_slice_free (HyScanGtkLayerContainerInfo, info);
 }
 
+/* Функция поиска по ключу. */
 static gint
 hyscan_gtk_layer_container_info_find (gconstpointer _a,
                                       gconstpointer _b)
@@ -620,8 +623,8 @@ hyscan_gtk_layer_container_info_find (gconstpointer _a,
  * @key: уникальный идентификатор слоя
  * @layer: слой #HyScanGtkLayer
  *
- * Добавляет в контейнер новый слой @layer. Если слой с таким идентификатором уже
- * существует, то ключ @key теперь будет связан с новым слоем @layer.
+ * Добавляет в контейнер новый слой @layer. Если слой с таким идентификатором
+ * уже существует, то старый слой будет удален.
  */
 void
 hyscan_gtk_layer_container_add (HyScanGtkLayerContainer *container,

@@ -1,11 +1,49 @@
-/*
- * \file hyscan-gtk-waterfall-control.c
+/* hyscan-gtk-waterfall-control.c
  *
- * \brief Исходный файл класса управления виджетом водопада.
- * \author Dmitriev Alexander (m1n7@yandex.ru)
- * \date 2017
- * \license Проприетарная лицензия ООО "Экран"
+ * Copyright 2017-2019 Screen LLC, Alexander Dmitriev <m1n7@yandex.ru>
  *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-waterfall-control
+ * @Title HyScanGtkWaterfallControl
+ * @Short_description Управление видимой областью водопада
+ *
+ * Слой HyScanGtkWaterfallControl предназначен для управления видимой областью.
+ * Это включает в себя зуммирование и перемещение.
+ *
+ * Класс умеет обрабатывать движения мыши, прокрутку колеса и нажатия кнопок
+ * клавиатуры: стрелки, +/-, PgUp, PgDown, Home, End.
+ * Если пользователь переместит указатель мыши на 10% от размеров окна к началу
+ * галса с зажатой левой кнопкой, будет отключена автосдвижка.
  */
 
 #include "hyscan-gtk-waterfall-control.h"
@@ -32,50 +70,47 @@
 
 struct _HyScanGtkWaterfallControlPrivate
 {
-  HyScanGtkWaterfall        *wfall;
+  HyScanGtkWaterfall        *wfall;          /* Водопад. */
+  HyScanWaterfallDisplayType display_type;   /* Тип отображения. */
 
-  HyScanWaterfallDisplayType display_type;
-
-  guint                  width;
-  guint                  height;
-
-  gboolean               move_area;          /* Признак перемещения при нажатой клавише мыши. */
-  gdouble                move_from_y;        /* Y-координата мыши в момент нажатия кнопки.    */
-  gdouble                move_from_x;        /* X-координата мыши в момент нажатия кнопки.    */
-  gdouble                start_from_x;       /* Начальная граница отображения по оси X.       */
-  gdouble                start_to_x;         /* Начальная граница отображения по оси X.       */
-  gdouble                start_from_y;       /* Начальная граница отображения по оси Y.       */
-  gdouble                start_to_y;         /* Начальная граница отображения по оси Y.       */
-  gboolean               scroll_without_ctrl;
-
+  guint     width;               /* Ширина виджета. */
+  guint     height;              /* Высота виджета. */
+  gboolean  move_area;           /* Признак перемещения при нажатой клавише мыши. */
+  gdouble   move_from_y;         /* Y-координата мыши в момент нажатия кнопки.    */
+  gdouble   move_from_x;         /* X-координата мыши в момент нажатия кнопки.    */
+  gdouble   start_from_x;        /* Начальная граница отображения по оси X.       */
+  gdouble   start_to_x;          /* Начальная граница отображения по оси X.       */
+  gdouble   start_from_y;        /* Начальная граница отображения по оси Y.       */
+  gdouble   start_to_y;          /* Начальная граница отображения по оси Y.       */
+  gboolean  scroll_without_ctrl; /* Режим прокрутки. */
 };
 
-static void     hyscan_gtk_waterfall_control_interface_init          (HyScanGtkLayerInterface  *iface);
-static void     hyscan_gtk_waterfall_control_object_finalize         (GObject                  *object);
+static void         hyscan_gtk_waterfall_control_interface_init  (HyScanGtkLayerInterface   *iface);
+static void         hyscan_gtk_waterfall_control_object_finalize (GObject                   *object);
 
-static void     hyscan_gtk_waterfall_control_added                   (HyScanGtkLayer            *layer,
-                                                                      HyScanGtkLayerContainer   *container);
-static void     hyscan_gtk_waterfall_control_removed                 (HyScanGtkLayer            *layer);
-static gboolean     hyscan_gtk_waterfall_control_grab_input          (HyScanGtkLayer            *layer);
-static const gchar* hyscan_gtk_waterfall_control_get_mnemonic        (HyScanGtkLayer            *layer);
+static void         hyscan_gtk_waterfall_control_added           (HyScanGtkLayer            *layer,
+                                                                  HyScanGtkLayerContainer   *container);
+static void         hyscan_gtk_waterfall_control_removed         (HyScanGtkLayer            *layer);
+static gboolean     hyscan_gtk_waterfall_control_grab_input      (HyScanGtkLayer            *layer);
+static const gchar* hyscan_gtk_waterfall_control_get_mnemonic    (HyScanGtkLayer            *layer);
 
-static gboolean hyscan_gtk_waterfall_control_configure               (GtkWidget                 *widget,
-                                                                      GdkEventConfigure         *event,
-                                                                      HyScanGtkWaterfallControl *control);
-static gboolean hyscan_gtk_waterfall_control_mouse_button            (GtkWidget                 *widget,
-                                                                      GdkEventButton            *event,
-                                                                      HyScanGtkWaterfallControl *data);
-static gboolean hyscan_gtk_waterfall_control_mouse_motion            (GtkWidget                 *widget,
-                                                                      GdkEventMotion            *event,
-                                                                      HyScanGtkWaterfallControl *data);
-static gboolean hyscan_gtk_waterfall_control_keyboard                (GtkWidget                 *widget,
-                                                                      GdkEventKey               *event,
-                                                                      HyScanGtkWaterfallControl *data);
-static gboolean hyscan_gtk_waterfall_control_mouse_wheel             (GtkWidget                 *widget,
-                                                                      GdkEventScroll            *event,
-                                                                      HyScanGtkWaterfallControl *data);
-static void     hyscan_gtk_waterfall_control_sources_changed         (HyScanGtkWaterfallState   *model,
-                                                                      HyScanGtkWaterfallControl *control);
+static gboolean     hyscan_gtk_waterfall_control_configure       (GtkWidget                 *widget,
+                                                                  GdkEventConfigure         *event,
+                                                                  HyScanGtkWaterfallControl *control);
+static gboolean     hyscan_gtk_waterfall_control_mouse_button    (GtkWidget                 *widget,
+                                                                  GdkEventButton            *event,
+                                                                  HyScanGtkWaterfallControl *data);
+static gboolean     hyscan_gtk_waterfall_control_mouse_motion    (GtkWidget                 *widget,
+                                                                  GdkEventMotion            *event,
+                                                                  HyScanGtkWaterfallControl *data);
+static gboolean     hyscan_gtk_waterfall_control_keyboard        (GtkWidget                 *widget,
+                                                                  GdkEventKey               *event,
+                                                                  HyScanGtkWaterfallControl *data);
+static gboolean     hyscan_gtk_waterfall_control_mouse_wheel     (GtkWidget                 *widget,
+                                                                  GdkEventScroll            *event,
+                                                                  HyScanGtkWaterfallControl *data);
+static void         hyscan_gtk_waterfall_control_sources_changed (HyScanGtkWaterfallState   *model,
+                                                                  HyScanGtkWaterfallControl *control);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkWaterfallControl, hyscan_gtk_waterfall_control, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkWaterfallControl)
@@ -417,33 +452,54 @@ hyscan_gtk_waterfall_control_sources_changed (HyScanGtkWaterfallState   *model,
   self->priv->display_type = hyscan_gtk_waterfall_state_get_sources (model, NULL, NULL);
 }
 
-/* Функция создает новый объект. */
+/**
+ * hyscan_gtk_waterfall_control_new:
+ *
+ * Функция создает новый объект.
+ *
+ * Returns: (transfer full): #HyScanGtkWaterfallControl.
+ */
 HyScanGtkWaterfallControl*
 hyscan_gtk_waterfall_control_new (void)
 {
   return g_object_new (HYSCAN_TYPE_GTK_WATERFALL_CONTROL, NULL);
 }
 
-/* Функция задает поведение колесика мыши. */
+/**
+ * hyscan_gtk_waterfall_control_set_wheel_behaviour:
+ * @control: указатель на объект #HyScanGtkWaterfallControl;
+ * @scroll_without_ctrl: %TRUE, чтобы колесо мыши отвечало за прокрутку, %FALSE,
+ *  чтобы колесо мыши отвечало за зуммирование.
+ *
+ * Функция задает поведение колесика мыши.
+ * Колесико мыши может быть настроено на прокрутку или зуммирование.
+ * Альтернативное действие будет выполняться с нажатой клавишей Ctrl.
+ */
 void
-hyscan_gtk_waterfall_control_set_wheel_behaviour (HyScanGtkWaterfallControl *self,
+hyscan_gtk_waterfall_control_set_wheel_behaviour (HyScanGtkWaterfallControl *control,
                                                   gboolean                   scroll_without_ctrl)
 {
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_CONTROL (self));
-  self->priv->scroll_without_ctrl = scroll_without_ctrl;
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_CONTROL (control));
+  control->priv->scroll_without_ctrl = scroll_without_ctrl;
 }
 
-/* Функция масштабирует изображение относительно центра. */
+/**
+ * hyscan_gtk_waterfall_control_zoom:
+ * @wfall: указатель на объект #HyScanGtkWaterfall;
+ * @zoom_in: направление масштабирования (%TRUE - увеличение, %FALSE - уменьшение).
+ *
+ * Функция масштабирует изображение относительно центра.
+ */
 void
-hyscan_gtk_waterfall_control_zoom (HyScanGtkWaterfallControl *self,
-                                   gboolean            zoom_in)
+hyscan_gtk_waterfall_control_zoom (HyScanGtkWaterfallControl *control,
+                                   gboolean                   zoom_in)
 {
   GtkCifroArea *carea;
   GtkCifroAreaZoomType dir;
   gdouble x0, x1, y0, y1;
 
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_CONTROL (self));
-  carea = GTK_CIFRO_AREA (self->priv->wfall);
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_CONTROL (control));
+  carea = GTK_CIFRO_AREA (control->priv->wfall);
 
   dir = zoom_in ? GTK_CIFRO_AREA_ZOOM_IN : GTK_CIFRO_AREA_ZOOM_OUT;
 

@@ -1,12 +1,54 @@
-/*
- * \file hyscan-gtk-waterfall-state.c
+/* hyscan-gtk-waterfall-state.c
  *
- * \brief Исходный файл класса хранения параметров водопада.
- * \author Dmitriev Alexander (m1n7@yandex.ru)
- * \date 2017
- * \license Проприетарная лицензия ООО "Экран"
+ * Copyright 2017-2019 Screen LLC, Alexander Dmitriev <m1n7@yandex.ru>
  *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
  */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-waterfall-state
+ * @Title: HyScanGtkWaterfallState
+ * @Short_description: хранение параметров водопада
+ *
+ * С помощью функций-сеттеров устанавливаются параметры и в этот же момент
+ * эмиттируется детализированный сигнал "changed".
+ *
+ * Есть 2 функции для задания типа отображения (водопад или эхолот):
+ * - #hyscan_gtk_waterfall_state_echosounder задает режим отображения "эхолот"
+ *   (один борт, более поздние данные справа)
+ * - #hyscan_gtk_waterfall_state_sidescan задает режим отображения "ГБО"
+ *   (два борта, более поздние данные сверху)
+ * - #hyscan_gtk_waterfall_state_get_sources возвращает режим отображения и
+ *   выбранные источники.
+ */
+
 #include "hyscan-gtk-waterfall-state.h"
 #include <hyscan-gui-marshallers.h>
 #include <string.h>
@@ -76,6 +118,19 @@ hyscan_gtk_waterfall_state_class_init (HyScanGtkWaterfallStateClass *klass)
   obj_class->constructed = hyscan_gtk_waterfall_state_object_constructed;
   obj_class->finalize = hyscan_gtk_waterfall_state_object_finalize;
 
+  /**
+   * HyScanGtkWaterfallState::changed:
+   * @state: объект, получивший сигнал
+   * @user_data: данные, определенные в момент подключения к сигналу
+   *
+   * Сигнал отправляется когда изменяются параметры водопада. Сигнал поддерживает
+   * детализацию и можно подписаться только на определенные изменения.
+   * |[<!-- language="C" -->
+   * g_signal_connect (state, "changed::track",
+   *                   G_CALLBACK (concrete_layer_track_changed),
+   *                   layer)
+   * ]|
+   */
   hyscan_gtk_waterfall_state_signals[SIGNAL_CHANGED] =
     g_signal_new ("changed", HYSCAN_TYPE_GTK_WATERFALL_STATE,
                   G_SIGNAL_RUN_LAST | G_SIGNAL_DETAILED,
@@ -162,7 +217,14 @@ hyscan_gtk_waterfall_state_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_waterfall_state_parent_class)->finalize (object);
 }
 
-/* Функция устанавливает режим отображения эхолот. */
+/**
+ * hyscan_gtk_waterfall_state_echosounder:
+ * @self: объект #HyScanGtkWaterfallState
+ * @source: отображаемый тип данных
+ *
+ * Функция устанавливает режим отображения эхолот.
+ * Эмиттирует #GtkAdjustment::changed с "sources".
+ */
 void
 hyscan_gtk_waterfall_state_echosounder (HyScanGtkWaterfallState *self,
                                         HyScanSourceType         source)
@@ -179,7 +241,15 @@ hyscan_gtk_waterfall_state_echosounder (HyScanGtkWaterfallState *self,
                        hyscan_gtk_waterfall_state_details[DETAIL_SOURCES], NULL);
 }
 
-/* Функция устанавливает режим отображения водопад. */
+/**
+ * hyscan_gtk_waterfall_state_sidescan:
+ * @self: объект #HyScanGtkWaterfallState
+ * @lsource: тип данных, отображаемый слева
+ * @rsource: тип данных, отображаемый справа
+ *
+ * Функция устанавливает режим отображения водопад.
+ * Эмиттирует #GtkAdjustment::changed с ":sources".
+ */
 void
 hyscan_gtk_waterfall_state_sidescan (HyScanGtkWaterfallState *self,
                                      HyScanSourceType         lsource,
@@ -198,7 +268,14 @@ hyscan_gtk_waterfall_state_sidescan (HyScanGtkWaterfallState *self,
                        hyscan_gtk_waterfall_state_details[DETAIL_SOURCES], NULL);
 }
 
-/* Функция устанавливает тип тайла (наклонная или горизонтальная дальность). */
+/**
+ * hyscan_gtk_waterfall_state_set_tile_flags:
+ * @self: объект #HyScanGtkWaterfallState
+ * @type: флаги тайлогенерации
+ *
+ * Функция устанавливает флаги тайлогенератора.
+ * Эмиттирует #GtkAdjustment::changed с ":tile-flags".
+ */
 void
 hyscan_gtk_waterfall_state_set_tile_flags (HyScanGtkWaterfallState *self,
                                            HyScanTileFlags          flags)
@@ -210,7 +287,17 @@ hyscan_gtk_waterfall_state_set_tile_flags (HyScanGtkWaterfallState *self,
                        hyscan_gtk_waterfall_state_details[DETAIL_TILE_FLAGS], NULL);
 }
 
-/* Функция задает БД, проект и галс */
+/**
+ * hyscan_gtk_waterfall_state_set_track:
+ * @self: объект #HyScanGtkWaterfallState
+ * @db: объект #HyScanDB
+ * @project: имя проекта
+ * @track: имя галса
+ *
+ * Функция задает БД, проект и галс
+ * Эмиттирует последовательно #GtkAdjustment::changed с ":track",
+ * #GtkAdjustment::changed с ":amp-factory", #GtkAdjustment::changed с ":dpt-factory".
+ */
 void
 hyscan_gtk_waterfall_state_set_track (HyScanGtkWaterfallState *self,
                                       HyScanDB                *db,
@@ -244,7 +331,14 @@ hyscan_gtk_waterfall_state_set_track (HyScanGtkWaterfallState *self,
                        hyscan_gtk_waterfall_state_details[DETAIL_DPTFACT_PARAMS], NULL);
 }
 
-/* Функция устанавливает скорость судна. */
+/**
+ * hyscan_gtk_waterfall_state_set_ship_speed:
+ * @self: объект #HyScanGtkWaterfallState
+ * @speed: скорость судна в м/с
+ *
+ * Функция устанавливает скорость судна.
+ * Эмиттирует #GtkAdjustment::changed с ":speed".
+ */
 void
 hyscan_gtk_waterfall_state_set_ship_speed (HyScanGtkWaterfallState *self,
                                            gfloat                   speed)
@@ -259,7 +353,14 @@ hyscan_gtk_waterfall_state_set_ship_speed (HyScanGtkWaterfallState *self,
                        hyscan_gtk_waterfall_state_details[DETAIL_SPEED], NULL);
 }
 
-/* Функция устанавливает скорость звука. */
+/**
+ * hyscan_gtk_waterfall_state_set_sound_velocity:
+ * @self: объект #HyScanGtkWaterfallState
+ * @velocity: профиль скорости звука
+ *
+ * Функция устанавливает скорость звука.
+ * Эмиттирует #GtkAdjustment::changed с ":velocity".
+ */
 void
 hyscan_gtk_waterfall_state_set_sound_velocity (HyScanGtkWaterfallState *self,
                                                GArray                  *velocity)
@@ -285,7 +386,18 @@ hyscan_gtk_waterfall_state_set_sound_velocity (HyScanGtkWaterfallState *self,
                        hyscan_gtk_waterfall_state_details[DETAIL_VELOCITY], NULL);
 }
 
-/* Функция возвращает тип отображения и источники. */
+/**
+ * hyscan_gtk_waterfall_state_get_sources:
+ * @self: объект #HyScanGtkWaterfallState
+ * @lsource: (out) (optional): тип данных слева
+ * @rsource: (out) (optional): тип данных справа
+
+ * Функция возвращает тип отображения и источники, как противоположность
+ * функциям hyscan_gtk_waterfall_state_echosounder и hyscan_gtk_waterfall_state_sidescan.
+ * В случае режима эхолот источники справа и слева будут идентичны.
+ *
+ * Returns: тип отображения.
+ */
 HyScanWaterfallDisplayType
 hyscan_gtk_waterfall_state_get_sources (HyScanGtkWaterfallState *self,
                                         HyScanSourceType        *lsource,
@@ -304,7 +416,14 @@ hyscan_gtk_waterfall_state_get_sources (HyScanGtkWaterfallState *self,
   return priv->disp_type;
 }
 
-/* Функция возвращает тип тайла. */
+/**
+ * hyscan_gtk_waterfall_state_get_tile_flags:
+ * @self: объект #HyScanGtkWaterfallState
+ *
+ * Функция возвращает тип тайла.
+ *
+ * Returns: тип тайла.
+ */
 HyScanTileFlags
 hyscan_gtk_waterfall_state_get_tile_flags (HyScanGtkWaterfallState *self)
 {
@@ -312,6 +431,14 @@ hyscan_gtk_waterfall_state_get_tile_flags (HyScanGtkWaterfallState *self)
   return self->priv->tile_flags;
 }
 
+/**
+ * hyscan_gtk_waterfall_state_get_amp_factory:
+ * @self: объект #HyScanGtkWaterfallState
+ *
+ * Функция возвращает фабрику акустических данных.
+ *
+ * Returns: (transfer full): #HyScanAmplitudeFactory.
+ */
 HyScanAmplitudeFactory *
 hyscan_gtk_waterfall_state_get_amp_factory (HyScanGtkWaterfallState *self)
 {
@@ -319,6 +446,14 @@ hyscan_gtk_waterfall_state_get_amp_factory (HyScanGtkWaterfallState *self)
   return g_object_ref (self->priv->af);
 }
 
+/**
+ * hyscan_gtk_waterfall_state_get_dpt_factory:
+ * @self: объект #HyScanGtkWaterfallState
+ *
+ * Функция возвращает фабрику данных глубины.
+ *
+ * Returns: (transfer full): #HyScanDepthFactory.
+ */
 HyScanDepthFactory *
 hyscan_gtk_waterfall_state_get_dpt_factory (HyScanGtkWaterfallState *self)
 {
@@ -326,7 +461,14 @@ hyscan_gtk_waterfall_state_get_dpt_factory (HyScanGtkWaterfallState *self)
   return g_object_ref (self->priv->df);
 }
 
-/* Функция возвращает систему кэширования. */
+/**
+ * hyscan_gtk_waterfall_state_get_cache:
+ * @self: объект #HyScanGtkWaterfallState
+ *
+ * Функция возвращает систему кэширования.
+ *
+ * Returns: (transfer full): объект #HyScanCache.
+ */
 HyScanCache *
 hyscan_gtk_waterfall_state_get_cache (HyScanGtkWaterfallState *self)
 {
@@ -334,6 +476,15 @@ hyscan_gtk_waterfall_state_get_cache (HyScanGtkWaterfallState *self)
   return (self->priv->cache != NULL) ? g_object_ref (self->priv->cache) : NULL;
 }
 
+/**
+ * hyscan_gtk_waterfall_state_get_track:
+ * @self: объект #HyScanGtkWaterfallState
+ * @db: (out) (optional): объект #HyScanDB
+ * @project: (out) (optional): имя проекта
+ * @track: (out) (optional): имя галса
+ *
+ * Функция возвращает БД, проект и галс.
+ */
 void
 hyscan_gtk_waterfall_state_get_track (HyScanGtkWaterfallState *self,
                                       HyScanDB               **db,
@@ -352,7 +503,14 @@ hyscan_gtk_waterfall_state_get_track (HyScanGtkWaterfallState *self,
     *track = (priv->track != NULL) ? g_strdup (priv->track) : NULL;
 }
 
-/* Функция возвращает скорость судна. */
+/**
+ * hyscan_gtk_waterfall_state_get_ship_speed:
+ * @self: объект #HyScanGtkWaterfallState
+ *
+ * Функция возвращает скорость судна
+ *
+ * Returns: скорость судна.
+ */
 gfloat
 hyscan_gtk_waterfall_state_get_ship_speed (HyScanGtkWaterfallState *self)
 {
@@ -360,7 +518,16 @@ hyscan_gtk_waterfall_state_get_ship_speed (HyScanGtkWaterfallState *self)
   return self->priv->speed;
 }
 
-/* Функция возвращает профиль скорости звука. */
+/**
+ * hyscan_gtk_waterfall_state_get_sound_velocity:
+ * @self: объект #HyScanGtkWaterfallState
+ *
+ * Функция возвращает профиль скорости звука.
+ *
+ * Returns: (element-type HyScanSoundVelocity) (transfer container):
+ * профиль скорости звука.
+ *
+ */
 GArray *
 hyscan_gtk_waterfall_state_get_sound_velocity (HyScanGtkWaterfallState *self)
 {
