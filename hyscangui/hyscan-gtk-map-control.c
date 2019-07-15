@@ -239,7 +239,7 @@ hyscan_gtk_map_control_motion_notify (HyScanGtkMapControl *control,
       gdk_event_request_motions (event);
     }
 
-  return FALSE;
+  return GDK_EVENT_PROPAGATE;
 }
 
 /* Обработчик нажатия кнопок мышки: "button-release-event", "button-press-event". */

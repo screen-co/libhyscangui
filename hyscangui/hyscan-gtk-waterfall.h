@@ -69,6 +69,12 @@ HYSCAN_API
 GtkWidget *             hyscan_gtk_waterfall_new                        (HyScanCache        *cache);
 
 HYSCAN_API
+GtkAdjustment *         hyscan_gtk_waterfall_get_hadjustment            (HyScanGtkWaterfall *wfall);
+
+HYSCAN_API
+GtkAdjustment *         hyscan_gtk_waterfall_get_vadjustment            (HyScanGtkWaterfall *wfall);
+
+HYSCAN_API
 void                    hyscan_gtk_waterfall_queue_draw                 (HyScanGtkWaterfall *wfall);
 
 HYSCAN_API

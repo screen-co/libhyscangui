@@ -1114,8 +1114,12 @@ hyscan_gtk_waterfall_mark_handle_create (HyScanGtkLayerContainer *container,
                                          HyScanGtkWaterfallMark  *self)
 {
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
+  HyScanCoordinates mouse = {.x = event->x, .y = event->y};
 
   if (self != hyscan_gtk_layer_container_get_input_owner (container))
+    return FALSE;
+
+  if (hyscan_gtk_waterfall_tools_distance (&priv->press, &mouse) > 2)
     return FALSE;
 
   if (priv->mode != LOCAL_EMPTY)
@@ -1223,6 +1227,7 @@ hyscan_gtk_waterfall_mark_handle_release (HyScanGtkLayerContainer *container,
 {
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
   HyScanGtkWaterfallMarkTask *task = NULL;
+  HyScanCoordinates mouse = {.x = event->x, .y = event->y};
 
   /* Отпускание хэндла -- это либо создание новой метки (LOCAL_CREATE),
    * либо завершение редактирования (LOCAL_EDIT_CENTER, LOCAL_EDIT_BORDER) */
@@ -1233,6 +1238,9 @@ hyscan_gtk_waterfall_mark_handle_release (HyScanGtkLayerContainer *container,
     {
       return FALSE;
     }
+
+  if (hyscan_gtk_waterfall_tools_distance (&priv->press, &mouse) > 2)
+    return FALSE;
 
   g_list_free_full (priv->cancellable, hyscan_gtk_waterfall_mark_free_task);
   priv->cancellable = NULL;

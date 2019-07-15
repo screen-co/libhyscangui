@@ -1,3 +1,4 @@
+
 /* hyscan-gtk-waterfall-control.c
  *
  * Copyright 2017-2019 Screen LLC, Alexander Dmitriev <m1n7@yandex.ru>
@@ -68,6 +69,13 @@
                                               (display_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER &&\
                                                dir == GDK_SCROLL_UP))
 
+enum
+{
+  MOVE_NONE,
+  MOVE_START,
+  MOVE_DONE
+};
+
 struct _HyScanGtkWaterfallControlPrivate
 {
   HyScanGtkWaterfall        *wfall;          /* Водопад. */
@@ -92,7 +100,7 @@ static void         hyscan_gtk_waterfall_control_added           (HyScanGtkLayer
                                                                   HyScanGtkLayerContainer   *container);
 static void         hyscan_gtk_waterfall_control_removed         (HyScanGtkLayer            *layer);
 static gboolean     hyscan_gtk_waterfall_control_grab_input      (HyScanGtkLayer            *layer);
-static const gchar* hyscan_gtk_waterfall_control_get_mnemonic    (HyScanGtkLayer            *layer);
+static const gchar* hyscan_gtk_waterfall_control_get_icon_name    (HyScanGtkLayer            *layer);
 
 static gboolean     hyscan_gtk_waterfall_control_configure       (GtkWidget                 *widget,
                                                                   GdkEventConfigure         *event,
@@ -194,7 +202,7 @@ hyscan_gtk_waterfall_control_grab_input (HyScanGtkLayer *iface)
 
 /* Функция возвращает название иконки. */
 static const gchar*
-hyscan_gtk_waterfall_control_get_mnemonic (HyScanGtkLayer *iface)
+hyscan_gtk_waterfall_control_get_icon_name (HyScanGtkLayer *iface)
 {
   return "find-location-symbolic";
 }
@@ -326,7 +334,7 @@ hyscan_gtk_waterfall_control_mouse_button (GtkWidget                 *widget,
         {
           priv->move_from_x = event->x;
           priv->move_from_y = event->y;
-          priv->move_area = TRUE;
+          priv->move_area = MOVE_START;
           gtk_cifro_area_get_view (carea, &priv->start_from_x, &priv->start_to_x,
                                           &priv->start_from_y, &priv->start_to_y);
         }
@@ -334,7 +342,16 @@ hyscan_gtk_waterfall_control_mouse_button (GtkWidget                 *widget,
 
   else if (event->type == GDK_BUTTON_RELEASE)
     {
-      priv->move_area = FALSE;
+      if (priv->move_area == MOVE_START)
+        {
+          priv->move_area = MOVE_NONE;
+          return GDK_EVENT_PROPAGATE;
+        }
+      if (priv->move_area == MOVE_DONE)
+        {
+          priv->move_area = MOVE_NONE;
+          return GDK_EVENT_STOP;
+        }
     }
 
   return GDK_EVENT_PROPAGATE;
@@ -353,8 +370,10 @@ hyscan_gtk_waterfall_control_mouse_motion (GtkWidget                 *widget,
   guint widget_size;
 
   /* Режим перемещения - сдвигаем область. */
-  if (!priv->move_area)
+  if (priv->move_area == MOVE_NONE)
     return GDK_EVENT_PROPAGATE;
+
+  priv->move_area = MOVE_DONE;
 
   gtk_cifro_area_point_to_value (carea, priv->move_from_x, priv->move_from_y, &x0, &y0);
   gtk_cifro_area_point_to_value (carea, event->x, event->y, &x1, &y1);
@@ -511,7 +530,7 @@ static void
 hyscan_gtk_waterfall_control_interface_init (HyScanGtkLayerInterface *iface)
 {
   iface->grab_input = hyscan_gtk_waterfall_control_grab_input;
-  iface->get_icon_name = hyscan_gtk_waterfall_control_get_mnemonic;
+  iface->get_icon_name = hyscan_gtk_waterfall_control_get_icon_name;
   iface->added = hyscan_gtk_waterfall_control_added;
   iface->removed = hyscan_gtk_waterfall_control_removed;
 }

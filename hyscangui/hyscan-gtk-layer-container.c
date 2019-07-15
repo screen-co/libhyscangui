@@ -253,7 +253,7 @@ hyscan_gtk_layer_container_class_init (HyScanGtkLayerContainerClass *klass)
     g_signal_new ("handle-create", HYSCAN_TYPE_GTK_LAYER_CONTAINER,
                   G_SIGNAL_RUN_LAST,
                   0, hyscan_gtk_layer_container_release_accu, NULL,
-                  hyscan_gui_marshal_POINTER__POINTER,
+                  hyscan_gui_marshal_BOOLEAN__POINTER,
                   G_TYPE_BOOLEAN,
                   1, G_TYPE_POINTER);
 
