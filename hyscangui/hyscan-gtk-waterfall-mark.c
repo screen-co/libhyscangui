@@ -1,11 +1,44 @@
-/*
- * \file hyscan-gtk-waterfall-mark.c
+/* hyscan-gtk-waterfall-mark.c
  *
- * \brief Исходный файл слоя меток
- * \author Dmitriev Alexander (m1n7@yandex.ru)
- * \date 2018
- * \license Проприетарная лицензия ООО "Экран"
+ * Copyright 2017-2019 Screen LLC, Alexander Dmitriev <m1n7@yandex.ru>
  *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-waterfall-mark
+ * @Title HyScanGtkWaterfallMark
+ * @Short_description Слой меток водопада
+ *
+ * Слой HyScanGtkWaterfallMark предназначен для отображения, создания,
+ * редактирования и удаления меток.
  */
 
 #include "hyscan-gtk-waterfall-mark.h"
@@ -1763,7 +1796,14 @@ hyscan_gtk_waterfall_mark_sound_velocity_changed (HyScanGtkWaterfallState *model
   g_cond_signal (&priv->cond);
 }
 
-/* Функция создает новый объект HyScanGtkWaterfallMark. */
+/**
+ * hyscan_gtk_waterfall_mark_new:
+ * @markmodel: указатель на #HyScanMarkModel
+ *
+ * Функция создает новый объект #HyScanGtkWaterfallMark.
+ *
+ * Returns: (transfer full): новый объект HyScanGtkWaterfallMark.
+ */
 HyScanGtkWaterfallMark*
 hyscan_gtk_waterfall_mark_new (HyScanMarkModel *markmodel)
 {
@@ -1772,7 +1812,13 @@ hyscan_gtk_waterfall_mark_new (HyScanMarkModel *markmodel)
                        NULL);
 }
 
-/* Функция задает фильтр меток. */
+/**
+ * hyscan_gtk_waterfall_mark_set_mark_filter:
+ * @mark: указатель на объект #HyScanGtkWaterfallMark
+ * @filter: битовая маска меток
+ *
+ * Функция задает фильтр меток.
+ */
 void
 hyscan_gtk_waterfall_mark_set_mark_filter (HyScanGtkWaterfallMark *self,
                                            guint64                 filter)
@@ -1787,7 +1833,13 @@ hyscan_gtk_waterfall_mark_set_mark_filter (HyScanGtkWaterfallMark *self,
     hyscan_gtk_waterfall_queue_draw (priv->wfall);
 }
 
-/* Функция задает тип отображения и пока что не работает. */
+/**
+ * hyscan_gtk_waterfall_mark_set_draw_type:
+ * @mark: указатель на объект #HyScanGtkWaterfallMark
+ * @type
+ *
+ * Функция задает тип отображения и пока что не работает.
+ */
 void
 hyscan_gtk_waterfall_mark_set_draw_type (HyScanGtkWaterfallMark     *self,
                                          HyScanGtkWaterfallMarksDraw type)
@@ -1797,7 +1849,14 @@ hyscan_gtk_waterfall_mark_set_draw_type (HyScanGtkWaterfallMark     *self,
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-/* Функция задает основной цвет. */
+/**
+ * hyscan_gtk_waterfall_mark_set_main_color:
+ * @mark: указатель на объект #HyScanGtkWaterfallMark
+ * @color: основной цвет
+ *
+ * Функция задает основной цвет.
+ * Влияет на цвет меток и подписей.
+ */
 void
 hyscan_gtk_waterfall_mark_set_main_color (HyScanGtkWaterfallMark *self,
                                           GdkRGBA                 color)
@@ -1809,7 +1868,13 @@ hyscan_gtk_waterfall_mark_set_main_color (HyScanGtkWaterfallMark *self,
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-/* Функция задает толщину основных линий. */
+/**
+ * hyscan_gtk_waterfall_mark_set_mark_width:
+ * @mark: указатель на объект #HyScanGtkWaterfallMark
+ * @width: толщина в пикселях
+ *
+ * Функция задает толщину основных линий.
+ */
 void
 hyscan_gtk_waterfall_mark_set_mark_width (HyScanGtkWaterfallMark *self,
                                           gdouble                 width)
@@ -1821,7 +1886,13 @@ hyscan_gtk_waterfall_mark_set_mark_width (HyScanGtkWaterfallMark *self,
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-/* Функция задает цвет рамки вокруг текста. */
+/**
+ * hyscan_gtk_waterfall_mark_set_frame_color:
+ * @mark: указатель на объект #HyScanGtkWaterfallMark
+ * @color: цвет рамки
+ *
+ * Функция задает цвет рамки вокруг текста.
+ */
 void
 hyscan_gtk_waterfall_mark_set_frame_color (HyScanGtkWaterfallMark *self,
                                            GdkRGBA                 color)
@@ -1833,7 +1904,14 @@ hyscan_gtk_waterfall_mark_set_frame_color (HyScanGtkWaterfallMark *self,
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-/* Функция задает цвет подложки. */
+/**
+ * hyscan_gtk_waterfall_mark_set_shadow_color:
+ * @mark: указатель на объект #HyScanGtkWaterfallMark
+ * @color: цвет подложки
+ *
+ * Функция задает цвет подложки.
+ * Подложка рисуется под текстом и линиями метки.
+ */
 void
 hyscan_gtk_waterfall_mark_set_shadow_color (HyScanGtkWaterfallMark *self,
                                             GdkRGBA                 color)
@@ -1844,7 +1922,14 @@ hyscan_gtk_waterfall_mark_set_shadow_color (HyScanGtkWaterfallMark *self,
   if (self->priv->wfall != NULL)
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
-/* Функция задает ширину линий подложки. */
+
+/**
+ * hyscan_gtk_waterfall_mark_set_shadow_width:
+ * @mark: указатель на объект #HyScanGtkWaterfallMark
+ * @width: ширина линий
+ *
+ * Функция задает ширину линий подложки.
+ */
 void
 hyscan_gtk_waterfall_mark_set_shadow_width (HyScanGtkWaterfallMark *self,
                                             gdouble                 width)
@@ -1856,7 +1941,13 @@ hyscan_gtk_waterfall_mark_set_shadow_width (HyScanGtkWaterfallMark *self,
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-/* Функция задает цвет затемнения. */
+/**
+ * hyscan_gtk_waterfall_mark_set_blackout_color:
+ * @mark: указатель на объект #HyScanGtkWaterfallMark
+ * @color: цвет затемнения
+ *
+ * Функция задает цвет затемнения. Затемнение рисуется в момент создания метки.
+ */
 void
 hyscan_gtk_waterfall_mark_set_blackout_color (HyScanGtkWaterfallMark     *self,
                                               GdkRGBA                     color)

@@ -1,27 +1,37 @@
-/**
- * \file hyscan-gtk-waterfall-magnifier.h
+/* hyscan-gtk-waterfall-magnifier.h
  *
- * \brief Лупа для виджета водопад
+ * Copyright 2017-2019 Screen LLC, Alexander Dmitriev <m1n7@yandex.ru>
  *
- * \author Dmitriev Alexander (m1n7@yandex.ru)
- * \date 2018
- * \license Проприетарная лицензия ООО "Экран"
- * \defgroup HyScanGtkWaterfallMagnifier HyScanGtkWaterfallMagnifier - лупа для водопада
+ * This file is part of HyScanGui library.
  *
- * Виджет создается методом #hyscan_gtk_waterfall_magnifier_new.
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Виджет обрабатывает сигнал "visible-draw" от \link GtkCifroArea \endlink.
- * В этом обработчике он рисует окошко с увеличенной частью отображаемой области.
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * - #hyscan_gtk_waterfall_magnifier_set_size задает размер увеличиваемой части
- * - #hyscan_gtk_waterfall_magnifier_set_zoom задает степень увеличения
- * - #hyscan_gtk_waterfall_magnifier_set_position задает положение окошка
- * - #hyscan_gtk_waterfall_magnifier_set_frame_color задает цвет рамки
- * - #hyscan_gtk_waterfall_magnifier_set_frame_width задает толщину рамки
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
  *
- * Класс не потокобезопасен и должен использоваться в главном потоке.
- *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
  */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
 
 #ifndef __HYSCAN_GTK_WATERFALL_MAGNIFIER_H__
 #define __HYSCAN_GTK_WATERFALL_MAGNIFIER_H__
@@ -56,71 +66,27 @@ struct _HyScanGtkWaterfallMagnifierClass
 HYSCAN_API
 GType hyscan_gtk_waterfall_magnifier_get_type           (void);
 
-/**
- *
- * Функция создает новый объект \link HyScanGtkWaterfallMagnifier \endlink
- *
- * \param waterfall указатель на виджет \link HyScanGtkWaterfall \endlink;
- *
- * \return новый объект \link HyScanGtkWaterfallMagnifier \endlink
- */
 HYSCAN_API
 HyScanGtkWaterfallMagnifier *hyscan_gtk_waterfall_magnifier_new (void);
 
-/**
- *
- * Функция задает степень увеличения.
- *
- * \param magnifier указатель на объект \link HyScanGtkWaterfallMagnifier \endlink;
- * \param zoom степень увеличения; 0 отключает зуммирование.
- */
 HYSCAN_API
 void  hyscan_gtk_waterfall_magnifier_set_zoom           (HyScanGtkWaterfallMagnifier *magnifier,
                                                          guint                        zoom);
 
-/**
- *
- * Функция задает размеры области под указатем, которая зуммируется.
- *
- * \param magnifier указатель на объект \link HyScanGtkWaterfallMagnifier \endlink;
- * \param width ширина области;
- * \param height высота области;
- */
 HYSCAN_API
 void  hyscan_gtk_waterfall_magnifier_set_size           (HyScanGtkWaterfallMagnifier *magnifier,
                                                          gdouble                      width,
                                                          gdouble                      height);
-/**
- *
- * Функция задает начальную координату (левый верхний угол) окошка с увеличенным изображением.
- *
- * \param magnifier указатель на объект \link HyScanGtkWaterfallMagnifier \endlink;
- * \param x горизонтальная координата;
- * \param y вертикальная координата.
- */
+
 HYSCAN_API
 void  hyscan_gtk_waterfall_magnifier_set_position       (HyScanGtkWaterfallMagnifier *magnifier,
                                                          gdouble                      x,
                                                          gdouble                      y);
 
-/**
- *
- * Функция задает цвет рамки.
- *
- * \param magnifier указатель на объект \link HyScanGtkWaterfallMagnifier \endlink;
- * \param color цвет рамки.
- */
 HYSCAN_API
 void  hyscan_gtk_waterfall_magnifier_set_frame_color    (HyScanGtkWaterfallMagnifier *magnifier,
                                                          GdkRGBA                      color);
 
-/**
- *
- * Функция задает ширину рамки.
- *
- * \param magnifier указатель на объект \link HyScanGtkWaterfallMagnifier \endlink;
- * \param width ширина рамки.
- */
 HYSCAN_API
 void  hyscan_gtk_waterfall_magnifier_set_frame_width    (HyScanGtkWaterfallMagnifier *magnifier,
                                                          gdouble                      width);

@@ -1,11 +1,45 @@
+/* hyscan-gtk-waterfall-player.c
+ *
+ * Copyright 2017-2019 Screen LLC, Alexander Dmitriev <m1n7@yandex.ru>
+ *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
 /**
- * \file hyscan-gtk-waterfall-player.h
+ * SECTION: hyscan-gtk-waterfall-player
+ * @Title HyScanGtkWaterfallPlayer
+ * @Short_description Плеер для водопада
  *
- * \brief Исходный файл плеера для водопада
- * \author Dmitriev Alexander (m1n7@yandex.ru)
- * \date 2018
- * \license Проприетарная лицензия ООО "Экран"
- *
+ * Данный слой реализует простой плеер для водопада. Он прокручивает изображение
+ * с постоянной скоростью и эмиттирует #HyScanGtkWaterfallPlayer::player-stop
+ * когда прокручивать изображение больше некуда.
  */
 
 #include "hyscan-gtk-waterfall-player.h"
@@ -52,6 +86,13 @@ hyscan_gtk_waterfall_player_class_init (HyScanGtkWaterfallPlayerClass *klass)
   object_class->constructed = hyscan_gtk_waterfall_player_object_constructed;
   object_class->finalize = hyscan_gtk_waterfall_player_object_finalize;
 
+  /**
+   * HyScanGtkWaterfallPlayer::player-stop:
+   * @waterfall: объект, получивший сигнал
+   * @user_data: данные, определенные в момент подключения к сигналу
+   *
+   * Сигнал отправляется когда сдвигаться больше некуда
+   */
   hyscan_gtk_waterfall_player_signals[SIGNAL_STOP] =
     g_signal_new ("player-stop", HYSCAN_TYPE_GTK_WATERFALL_PLAYER,
                    G_SIGNAL_RUN_LAST,
@@ -237,22 +278,38 @@ next:
  /* Если пора остановиться: выполняем сдвижку (чтобы гарантированно прийти в
  *  начало или конец галса), эмиттируем сигнал, удаляем функцию из главного потока. */
 stop:
+  priv->player_tag = 0;
+
   gtk_cifro_area_set_view (priv->carea, from_x, to_x, from_y, to_y);
   g_signal_emit (self, hyscan_gtk_waterfall_player_signals[SIGNAL_STOP], 0);
 
-  priv->player_tag = 0;
   return G_SOURCE_REMOVE;
 }
 
 
-/* Функция создает новый объект. */
+/**
+ * hyscan_gtk_waterfall_player_new:
+ *
+ * Функция создает новый объект #HyScanGtkWaterfallPlayer
+ *
+ * Returns: (transfer full): новый объект #HyScanGtkWaterfallPlayer
+ */
 HyScanGtkWaterfallPlayer*
 hyscan_gtk_waterfall_player_new (void)
 {
   return g_object_new (HYSCAN_TYPE_GTK_WATERFALL_PLAYER, NULL);
 }
 
-/* Функция задает количество кадров в секунду. */
+/**
+ * hyscan_gtk_waterfall_player_set_fps:
+ * @player: указатель на объект #HyScanGtkWaterfallPlayer
+ * @fps: количество кадров в секунду
+ *
+ * Функция задает количество кадров в секунду
+ * Каждую секунду будет сделано именно столько сдвижек. Это позволяет настроить
+ * плавность проигрывания. Реальное количество кадров в секунду может отличаться
+ * от запрошенного.
+ */
 void
 hyscan_gtk_waterfall_player_set_fps (HyScanGtkWaterfallPlayer *self,
                                      guint                     fps)
@@ -267,7 +324,13 @@ hyscan_gtk_waterfall_player_set_fps (HyScanGtkWaterfallPlayer *self,
   hyscan_gtk_waterfall_player_starter (self);
 }
 
-/* Функция задает скорость сдвижки. */
+/**
+ * hyscan_gtk_waterfall_player_set_speed:
+ * @player: указатель на объект #HyScanGtkWaterfallPlayer
+ * @speed: скорость сдвижки в м/с.
+ *
+ * Функция задает скорость сдвижки.
+ */
 void
 hyscan_gtk_waterfall_player_set_speed (HyScanGtkWaterfallPlayer *self,
                                        gdouble             speed)
@@ -279,6 +342,14 @@ hyscan_gtk_waterfall_player_set_speed (HyScanGtkWaterfallPlayer *self,
   hyscan_gtk_waterfall_player_starter (self);
 }
 
+/**
+ * hyscan_gtk_waterfall_player_get_speed:
+ * @player: указатель на объект #HyScanGtkWaterfallPlayer
+ *
+ * Функция возвращает скорость сдвижки.
+ *
+ * Returns: скорость сдвижки в м/с.
+ */
 gdouble
 hyscan_gtk_waterfall_player_get_speed (HyScanGtkWaterfallPlayer *self)
 {

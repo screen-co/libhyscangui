@@ -1,18 +1,49 @@
-/*
- * \file hyscan-gtk-waterfall-magnifier.c
+/* hyscan-gtk-waterfall-magnifier.c
  *
- * \brief Исходный файл лупы для виджета водопад
- * \author Dmitriev Alexander (m1n7@yandex.ru)
- * \date 2018
- * \license Проприетарная лицензия ООО "Экран"
+ * Copyright 2017-2019 Screen LLC, Alexander Dmitriev <m1n7@yandex.ru>
  *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-waterfall-magnifier
+ * @Title HyScanGtkWaterfallMagnifier
+ * @Short_description Лупа водопада
+ *
+ * Виджет рисует окошко с увеличенной областью просмотра.
  */
 
 #include "hyscan-gtk-waterfall-magnifier.h"
 #include "hyscan-gtk-waterfall-tools.h"
 #include "hyscan-gtk-waterfall.h"
 #include <math.h>
-
 
 struct _HyScanGtkWaterfallMagnifierPrivate
 {
@@ -261,15 +292,26 @@ hyscan_gtk_waterfall_magnifier_leave (GtkWidget                   *widget,
   return FALSE;
 }
 
-/* Функция создает новый объект \link HyScanGtkWaterfallMagnifier \endlink */
+/**
+ * hyscan_gtk_waterfall_magnifier_new:
+ *
+ * Функция создает новый объект #HyScanGtkWaterfallMagnifier
+ *
+ * Returns: (transfer full): новый объект #HyScanGtkWaterfallMagnifier
+ */
 HyScanGtkWaterfallMagnifier*
 hyscan_gtk_waterfall_magnifier_new (void)
 {
   return g_object_new (HYSCAN_TYPE_GTK_WATERFALL_MAGNIFIER, NULL);
 }
 
-
-/* Функция задает степень увеличения. */
+/**
+ * hyscan_gtk_waterfall_magnifier_set_zoom:
+ * @magnifier: объект #HyScanGtkWaterfallMagnifier
+ * @zoom: степень увеличения; 0 отключает зуммирование
+ *
+ * Функция задает степень увеличения.
+ */
 void
 hyscan_gtk_waterfall_magnifier_set_zoom (HyScanGtkWaterfallMagnifier *self,
                                          guint                        zoom)
@@ -282,8 +324,14 @@ hyscan_gtk_waterfall_magnifier_set_zoom (HyScanGtkWaterfallMagnifier *self,
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-
-/* Функция задает размеры области под указатем, которая зуммируется. */
+/**
+ * hyscan_gtk_waterfall_magnifier_set_size:
+ * @magnifier: объект #HyScanGtkWaterfallMagnifier
+ * @width: ширина области
+ * @height: высота области
+ *
+ * Функция задает размеры области под указатем, которая зуммируется.
+ */
 void
 hyscan_gtk_waterfall_magnifier_set_size (HyScanGtkWaterfallMagnifier *self,
                                          gdouble                      width,
@@ -304,7 +352,14 @@ hyscan_gtk_waterfall_magnifier_set_size (HyScanGtkWaterfallMagnifier *self,
     hyscan_gtk_waterfall_queue_draw (priv->wfall);
 }
 
-/* Функция задает начальную координату (левый верхний угол) окошка с увеличенным изображением. */
+/**
+ * hyscan_gtk_waterfall_magnifier_set_position:
+ * @magnifier: объект #HyScanGtkWaterfallMagnifier
+ * @x: горизонтальная координата
+ * @y: вертикальная координата
+ *
+ * Функция задает начальную координату (левый верхний угол) окошка с увеличенным изображением.
+ */
 void
 hyscan_gtk_waterfall_magnifier_set_position (HyScanGtkWaterfallMagnifier *self,
                                              gdouble                      x,
@@ -319,8 +374,13 @@ hyscan_gtk_waterfall_magnifier_set_position (HyScanGtkWaterfallMagnifier *self,
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-
-/* Функция задает цвет рамки. */
+/**
+ * hyscan_gtk_waterfall_magnifier_set_frame_color:
+ * @magnifier: объект #HyScanGtkWaterfallMagnifier
+ *
+ * Функция задает цвет рамки.
+ * @color: цвет рамки
+ */
 void
 hyscan_gtk_waterfall_magnifier_set_frame_color (HyScanGtkWaterfallMagnifier *self,
                                                 GdkRGBA                      color)
@@ -333,8 +393,13 @@ hyscan_gtk_waterfall_magnifier_set_frame_color (HyScanGtkWaterfallMagnifier *sel
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-
-/* Функция задает ширину рамки. */
+/**
+ * hyscan_gtk_waterfall_magnifier_set_frame_width:
+ * @magnifier: объект #HyScanGtkWaterfallMagnifier
+ * @width: ширина рамки
+ *
+ * Функция задает ширину рамки.
+ */
 void
 hyscan_gtk_waterfall_magnifier_set_frame_width (HyScanGtkWaterfallMagnifier *self,
                                                 gdouble                      width)

@@ -1,4 +1,3 @@
-
 /* hyscan-gtk-waterfall-control.c
  *
  * Copyright 2017-2019 Screen LLC, Alexander Dmitriev <m1n7@yandex.ru>

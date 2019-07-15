@@ -74,126 +74,39 @@ struct _HyScanGtkWaterfallGridClass
 HYSCAN_API
 GType                   hyscan_gtk_waterfall_grid_get_type              (void);
 
-/**
- * hyscan_gtk_waterfall_grid_new:
- * Функция создает новый виджет #HyScanGtkWaterfallGrid
- *
- * \param waterfall указатель на виджет #HyScanGtkWaterfall
- *
- * \return новый виджет #HyScanGtkWaterfallGrid
- */
+
 HYSCAN_API
 HyScanGtkWaterfallGrid *hyscan_gtk_waterfall_grid_new                   (void);
-/**
- * hyscan_gtk_waterfall_grid_get_hadjustment:
- * Функция возвращает GtkAdjusment для горизонтальной оси.
- *
- * \param grid указатель на слой #HyScanGtkWaterfallGrid
- *
- * \return GtkAdjusment для горизонтальной оси
- */
-HYSCAN_API
-GtkAdjustment          *hyscan_gtk_waterfall_grid_get_hadjustment       (HyScanGtkWaterfallGrid  *grid);
-/**
- * hyscan_gtk_waterfall_grid_get_vadjustment:
- * Функция возвращает GtkAdjusment для вертикальной оси.
- *
- * \param grid указатель на слой #HyScanGtkWaterfallGrid
- *
- * \return GtkAdjusment для вертикальной оси
- */
-HYSCAN_API
-GtkAdjustment          *hyscan_gtk_waterfall_grid_get_vadjustment       (HyScanGtkWaterfallGrid  *grid);
 
-/**
- * hyscan_gtk_waterfall_grid_show_grid:
- * Функция позволяет включить или отключить координатную сетку.
- *
- * \param grid - указатель на объект #HyScanGtkWaterfallGrid;
- * \param draw_grid - TRUE, чтобы показать линии сетки, FALSE, чтобы скрыть.
- *
- */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_grid_show_grid             (HyScanGtkWaterfallGrid *grid,
                                                                          gboolean                draw_grid);
 
-/**
- * hyscan_gtk_waterfall_grid_show_info:
- * Функция позволяет включить или отключить информационное окошко.
- *
- * \param grid - указатель на объект #HyScanGtkWaterfallGrid;
- * \param show_info - TRUE, чтобы показать информацию, FALSE, чтобы скрыть.
- *
- */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_grid_show_info             (HyScanGtkWaterfallGrid *grid,
                                                                          gboolean                show_info);
 
-/**
- * hyscan_gtk_waterfall_grid_set_info_position:
- * Функция задает местоположение информационного окошка по умолчанию.
- *
- * \param grid - указатель на объект #HyScanGtkWaterfallGrid;
- * \param position - местоположение информационного окошка;
- *
- */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_grid_set_info_position    (HyScanGtkWaterfallGrid             *grid,
                                                                         HyScanGtkWaterfallGridInfoPosition  position);
 
-/**
- * hyscan_gtk_waterfall_grid_set_grid_step:
- * Функция позволяет задать шаг предпочтительный шаг координатной сетки в пикселях.
- * Если передать значение 0, сетка рассчитывается автоматически. При этом не гарантируется,
- * что расстояние будет строго равно запрошенному.
- *
- * \param grid - указатель на объект #HyScanGtkWaterfallGrid;
- * \param step_horisontal - шаг горизонтальных координатных линий;
- * \param step_vertical - шаг вертикальных координатных линий.
- *
- * \return FALSE, если шаг отрицательный. Иначе TRUE.
- */
 HYSCAN_API
 gboolean                hyscan_gtk_waterfall_grid_set_grid_step         (HyScanGtkWaterfallGrid *grid,
                                                                          gdouble                 step_horisontal,
                                                                          gdouble                 step_vertical);
 
-/**
- * hyscan_gtk_waterfall_grid_set_grid_color:
- * Функция позволяет задать цвет координатной сетки.
- *
- * \param grid - указатель на объект #HyScanGtkWaterfallGrid;
- * \param color - цвет.
- *
- */
 HYSCAN_API
 void                    hyscan_gtk_waterfall_grid_set_grid_color        (HyScanGtkWaterfallGrid *grid,
                                                                          guint32                 color);
-/**
- * hyscan_gtk_waterfall_grid_set_main_color:
- * Функция позволяет задать цвет подписей.
- *
- * \param grid - указатель на объект #HyScanGtkWaterfallGrid;
- * \param color - цвет.
- *
- */
+
 HYSCAN_API
 void                    hyscan_gtk_waterfall_grid_set_main_color       (HyScanGtkWaterfallGrid *grid,
                                                                          guint32                 color);
-/**
- * hyscan_gtk_waterfall_grid_set_shadow_color:
- * Функция позволяет задать цвет подложки под подписями.
- *
- * \param grid - указатель на объект #HyScanGtkWaterfallGrid;
- * \param color - цвет.
- *
- */
+
 HYSCAN_API
 void                    hyscan_gtk_waterfall_grid_set_shadow_color      (HyScanGtkWaterfallGrid *grid,
                                                                          guint32                 color);
-/**
- *hyscan_gtk_waterfall_grid_set_condence:
- */
+
 HYSCAN_API
 void                    hyscan_gtk_waterfall_grid_set_condence          (HyScanGtkWaterfallGrid *grid,
                                                                          gdouble                 condence);

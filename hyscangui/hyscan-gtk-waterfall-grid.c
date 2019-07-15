@@ -241,7 +241,13 @@ hyscan_gtk_waterfall_grid_get_icon_name (HyScanGtkLayer *iface)
   return "waterfall-grid";
 }
 
-/* Функция создает новый виджет HyScanGtkWaterfallGrid. */
+/**
+ * hyscan_gtk_waterfall_grid_new:
+ *
+ * Функция создает новый виджет #HyScanGtkWaterfallGrid
+ *
+ * Returns: новый виджет #HyScanGtkWaterfallGrid
+ */
 HyScanGtkWaterfallGrid*
 hyscan_gtk_waterfall_grid_new (void)
 {
@@ -763,7 +769,15 @@ hyscan_gtk_waterfall_grid_info (GtkWidget *widget,
 
 }
 
-/* Функция включает и отключает линии сетки. */
+/**
+ * hyscan_gtk_waterfall_grid_show_grid:
+ *
+ * Функция позволяет включить или отключить координатную сетку.
+ *
+ * @grid: указатель на объект #HyScanGtkWaterfallGrid
+ * @draw_grid: TRUE, чтобы показать линии сетки, FALSE, чтобы скрыть
+ *
+ */
 void
 hyscan_gtk_waterfall_grid_show_grid (HyScanGtkWaterfallGrid *self,
                                      gboolean                draw)
@@ -776,7 +790,15 @@ hyscan_gtk_waterfall_grid_show_grid (HyScanGtkWaterfallGrid *self,
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-/* Функция позволяет включить и выключить отображение окошка с координатой. */
+/**
+ * hyscan_gtk_waterfall_grid_show_info:
+ *
+ * Функция позволяет включить или отключить информационное окошко.
+ *
+ * @grid: указатель на объект #HyScanGtkWaterfallGrid
+ * @show_info: TRUE, чтобы показать информацию, FALSE, чтобы скрыть
+ *
+ */
 void
 hyscan_gtk_waterfall_grid_show_info (HyScanGtkWaterfallGrid *self,
                                      gboolean                show_info)
@@ -789,7 +811,15 @@ hyscan_gtk_waterfall_grid_show_info (HyScanGtkWaterfallGrid *self,
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-/* Функция задает координаты информационного окна по умолчанию. */
+/**
+ * hyscan_gtk_waterfall_grid_set_info_position:
+ *
+ * Функция задает местоположение информационного окошка по умолчанию.
+ *
+ * @grid: указатель на объект #HyScanGtkWaterfallGrid
+ * @position: местоположение информационного окошка
+ *
+ */
 void
 hyscan_gtk_waterfall_grid_set_info_position (HyScanGtkWaterfallGrid             *self,
                                              HyScanGtkWaterfallGridInfoPosition  position)
@@ -802,7 +832,18 @@ hyscan_gtk_waterfall_grid_set_info_position (HyScanGtkWaterfallGrid             
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-/* Функция устанавливает шаг координатной сетки. */
+/**
+ * hyscan_gtk_waterfall_grid_set_grid_step:
+ * @grid: указатель на объект #HyScanGtkWaterfallGrid
+ * @step_horisontal: шаг горизонтальных координатных линий
+ * @step_vertical: шаг вертикальных координатных линий
+ *
+ * Функция позволяет задать шаг предпочтительный шаг координатной сетки в пикселях.
+ * Если передать значение 0, сетка рассчитывается автоматически. При этом не гарантируется,
+ * что расстояние будет строго равно запрошенному.
+ *
+ * Returns: FALSE, если шаг отрицательный. Иначе TRUE.
+ */
 gboolean
 hyscan_gtk_waterfall_grid_set_grid_step (HyScanGtkWaterfallGrid *self,
                                          gdouble    step_horisontal,
@@ -820,7 +861,13 @@ hyscan_gtk_waterfall_grid_set_grid_step (HyScanGtkWaterfallGrid *self,
   return TRUE;
 }
 
-/* Функция устанавливает цвет координатной сетки. */
+/**
+ * hyscan_gtk_waterfall_grid_set_grid_color:
+ * @grid: указатель на объект #HyScanGtkWaterfallGrid
+ * @color: цвет
+ *
+ * Функция позволяет задать цвет координатной сетки.
+ */
 void
 hyscan_gtk_waterfall_grid_set_grid_color (HyScanGtkWaterfallGrid *self,
                                           guint32                 color)
@@ -835,7 +882,13 @@ hyscan_gtk_waterfall_grid_set_grid_color (HyScanGtkWaterfallGrid *self,
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-/* Функция устанавливает цвет подписей. */
+/**
+ * hyscan_gtk_waterfall_grid_set_main_color:
+ * @grid: указатель на объект #HyScanGtkWaterfallGrid
+ * @color: цвет
+ *
+ * Функция позволяет задать цвет подписей.
+ */
 void
 hyscan_gtk_waterfall_grid_set_main_color (HyScanGtkWaterfallGrid *self,
                                            guint32                 color)
@@ -850,7 +903,13 @@ hyscan_gtk_waterfall_grid_set_main_color (HyScanGtkWaterfallGrid *self,
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-/* Функция устанавливает цвет подписей. */
+/**
+ * hyscan_gtk_waterfall_grid_set_shadow_color:
+ * @grid: указатель на объект #HyScanGtkWaterfallGrid
+ * @color: цвет
+ *
+ * Функция позволяет задать цвет подложки под подписями.
+ */
 void
 hyscan_gtk_waterfall_grid_set_shadow_color (HyScanGtkWaterfallGrid *self,
                                             guint32                 color)
@@ -865,6 +924,13 @@ hyscan_gtk_waterfall_grid_set_shadow_color (HyScanGtkWaterfallGrid *self,
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
+/**
+ * hyscan_gtk_waterfall_grid_set_condence:
+ * @grid: указатель на объект #HyScanGtkWaterfallGrid
+ * @color: степень сжатия
+ *
+ * Функция позволяет сжать координатную сетку.
+ */
 void
 hyscan_gtk_waterfall_grid_set_condence (HyScanGtkWaterfallGrid *self,
                                         gdouble                 condence)

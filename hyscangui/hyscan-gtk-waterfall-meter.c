@@ -1,13 +1,46 @@
-/*
- * \file hyscan-gtk-waterfall-meter.c
+/* hyscan-gtk-waterfall-meter.c
  *
- * \brief Исходный файл слоя измерений
- * \author Dmitriev Alexander (m1n7@yandex.ru)
- * \date 2018
- * \license Проприетарная лицензия ООО "Экран"
+ * Copyright 2017-2019 Screen LLC, Alexander Dmitriev <m1n7@yandex.ru>
  *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
  */
 
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-waterfall-meter
+ * @Title HyScanGtkWaterfallMeter
+ * @Short_description Слой линеек водопада
+ *
+ * Данный слой позволяет производить простые линейные измерения на водопаде.
+ * Он поддерживает бесконечное число линеек, каждая из которых состоит из
+ * двух точек.
+ */
 #include "hyscan-gtk-waterfall-meter.h"
 #include "hyscan-gtk-waterfall-tools.h"
 #include <math.h>
@@ -721,14 +754,27 @@ hyscan_gtk_waterfall_meter_track_changed (HyScanGtkWaterfallState *state,
   priv->editing = FALSE;
 }
 
-/* Функция создает новый слой HyScanGtkWaterfallMeter. */
+/**
+ * hyscan_gtk_waterfall_meter_new:
+ *
+ * Функция создает новый слой HyScanGtkWaterfallMeter.
+ *
+ * Returns: (transfer full): новый слой HyScanGtkWaterfallMeter.
+ */
 HyScanGtkWaterfallMeter*
 hyscan_gtk_waterfall_meter_new (void)
 {
   return g_object_new (HYSCAN_TYPE_GTK_WATERFALL_METER, NULL);
 }
 
-/* Функция задает основной цвет. */
+/**
+ * hyscan_gtk_waterfall_meter_set_main_color:
+ * @meter: объект #HyScanGtkWaterfallMeter
+ * @color: основной цвет
+ *
+ * Функция задает основной цвет.
+ * Влияет на цвет линеек и текста.
+ */
 void
 hyscan_gtk_waterfall_meter_set_main_color (HyScanGtkWaterfallMeter *self,
                                            GdkRGBA                  color)
@@ -740,7 +786,14 @@ hyscan_gtk_waterfall_meter_set_main_color (HyScanGtkWaterfallMeter *self,
      hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-/* Функция устанавливает цвет подложки. */
+/**
+ * hyscan_gtk_waterfall_meter_set_shadow_color:
+ * @meter: объект #HyScanGtkWaterfallMeter
+ * @color: цвет подложки
+ *
+ * Функция устанавливает цвет подложки.
+ * Подложки рисуются под линейками и текстом.
+ */
 void
 hyscan_gtk_waterfall_meter_set_shadow_color (HyScanGtkWaterfallMeter *self,
                                              GdkRGBA                  color)
@@ -752,7 +805,14 @@ hyscan_gtk_waterfall_meter_set_shadow_color (HyScanGtkWaterfallMeter *self,
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-/* Функция задает цвет рамки. */
+/**
+ * hyscan_gtk_waterfall_meter_set_frame_color:
+ * @meter: объект #HyScanGtkWaterfallMeter
+ * @color: цвет рамок
+ *
+ * Функция задает цвет рамки.
+ * Рамки рисуются вокруг подложки под текстом.
+ */
 void
 hyscan_gtk_waterfall_meter_set_frame_color (HyScanGtkWaterfallMeter *self,
                                             GdkRGBA                  color)
@@ -764,7 +824,13 @@ hyscan_gtk_waterfall_meter_set_frame_color (HyScanGtkWaterfallMeter *self,
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-/* Функция задает толщину основных линий. */
+/**
+ * hyscan_gtk_waterfall_meter_set_meter_width:
+ * @meter: объект #HyScanGtkWaterfallMeter
+ * @width: толщина основных линий
+ *
+ * Функция задает толщину основных линий.
+ */
 void
 hyscan_gtk_waterfall_meter_set_meter_width (HyScanGtkWaterfallMeter *self,
                                             gdouble                  width)
@@ -776,7 +842,13 @@ hyscan_gtk_waterfall_meter_set_meter_width (HyScanGtkWaterfallMeter *self,
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
-/* Функция задает толщину подложки. */
+/**
+ * hyscan_gtk_waterfall_meter_set_shadow_width:
+ * @meter: объект #HyScanGtkWaterfallMeter
+ * @width: толщина подложки
+ *
+ * Функция задает толщину подложки.
+ */
 void
 hyscan_gtk_waterfall_meter_set_shadow_width (HyScanGtkWaterfallMeter *self,
                                              gdouble                  width)

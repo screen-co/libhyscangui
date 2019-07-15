@@ -1,29 +1,35 @@
-/**
- * \file hyscan-gtk-waterfall-player.h
+/* hyscan-gtk-waterfall-player.h
  *
- * \brief Плеер для водопада
+ * Copyright 2017-2019 Screen LLC, Alexander Dmitriev <m1n7@yandex.ru>
  *
- * \author Dmitriev Alexander (m1n7@yandex.ru)
- * \date 2017
- * \license Проприетарная лицензия ООО "Экран"
- * \defgroup HyScanGtkWaterfallPlayer HyScanGtkWaterfallPlayer - плеер для водопада
+ * This file is part of HyScanGui library.
  *
- * Данный слой реализует простой плеер для водопада. Он прокручивает изображение
- * с постоянной скоростью и эмиттирует сигнал "player-stop" когда прокручивать
- * изображение больше некуда.
- * Коллбэк сигнала:
- * \code
- * void player_stop_cb (HyScanGtkWaterfallPlayer *player,
- *                      gpointer                  user_data);
- * \endcode
- * В обработчике сигнала нельзя вызывать методы класса.
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Новый объект создается функцией #hyscan_gtk_waterfall_player_new,
- * настройка выполняется функциями #hyscan_gtk_waterfall_player_set_fps и
- * #hyscan_gtk_waterfall_player_set_speed.
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Класс не потокобезопасен и должен использоваться только из главного потока.
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
  *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
 #ifndef __HYSCAN_GTK_WATERFALL_PLAYER_H__
@@ -59,49 +65,17 @@ struct _HyScanGtkWaterfallPlayerClass
 HYSCAN_API
 GType           hyscan_gtk_waterfall_player_get_type    (void);
 
-/**
- *
- * Функция создает новый объект \link HyScanGtkWaterfallPlayer \endlink
- *
- * \param waterfall указатель на объект \link HyScanGtkWaterfall \endlink
- *
- * \return новый объект \link HyScanGtkWaterfallPlayer \endlink
- */
 HYSCAN_API
 HyScanGtkWaterfallPlayer* hyscan_gtk_waterfall_player_new (void);
 
-/**
- *
- * Функция задает количество кадров в секунду
- *
- * Каждую секунду будет сделано именно столько сдвижек. Это позволяет настроить
- * плавность проигрывания. Реальное количество кадров в секунду может отличаться
- * от запрошенного.
- *
- * \param player указатель на объект \link HyScanGtkWaterfallPlayer \endlink
- * \param fps количество кадров в секунду
- */
 HYSCAN_API
 void            hyscan_gtk_waterfall_player_set_fps     (HyScanGtkWaterfallPlayer *player,
                                                          guint                     fps);
 
-/**
- *
- * Функция задает скорость сдвижки.
- *
- * \param player указатель на объект \link HyScanGtkWaterfallPlayer \endlink
- * \param speed скорость сдвижки в м/с.
- */
 HYSCAN_API
 void            hyscan_gtk_waterfall_player_set_speed   (HyScanGtkWaterfallPlayer *player,
-                                                         gdouble                   speed);
-/**
- *
- * Функция задает скорость сдвижки.
- *
- * \param player указатель на объект \link HyScanGtkWaterfallPlayer \endlink
- * \param speed скорость сдвижки в м/с.
- */
+                                                        gdouble                   speed);
+
 HYSCAN_API
 gdouble         hyscan_gtk_waterfall_player_get_speed   (HyScanGtkWaterfallPlayer *player);
 
