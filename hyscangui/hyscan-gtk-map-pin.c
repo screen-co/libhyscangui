@@ -78,22 +78,34 @@ typedef enum
   MODE_DRAG,               /* Режим перетаскивания точки. */
 } HyScanGtkMapPinMode;
 
+/* Отдельная метка. */
+struct _HyScanGtkMapPinItem
+{
+  HyScanGtkMapPoint  point;   /* Координаты. */
+  gchar             *title;   /* Название. */
+  gint               number;  /* Порядковый номер. */
+};
+
+/* Маркер - визуальное представление метки. */
 typedef struct
 {
   cairo_surface_t           *surface;      /* Поверхность маркера. */
 
   gdouble                    offset_x;     /* Координата x целевой точки на поверхности маркера. */
   gdouble                    offset_y;     /* Координата y целевой точки на поверхности маркера. */
+  gboolean                   has_text;     /* Признак возможности размещения текста на маркере. */
+  gdouble                    text_x;       /* Координата x положения текста на маркере. */
+  gdouble                    text_y;       /* Координата y положения текста на маркере. */
 
   /* Область на поверхности маркера, клик по которой считается захватом хэндла. */
   gdouble                    handle_x0;    /* Координата x верхней левой точки хэндла. */
   gdouble                    handle_y0;    /* Координата y верхней левой точки хэндла. */
   gdouble                    handle_x1;    /* Координата x нижней правой точки хэндла. */
   gdouble                    handle_y1;    /* Координата y нижней правой точки хэндла. */
-} HyScanGtkMapPinItem;
+} HyScanGtkMapPinMarker;
 
-typedef HyScanGtkMapPinItem * (*HyScanGtkMapPinFactory) (HyScanGtkMapPin *layer,
-                                                         guint            state);
+typedef HyScanGtkMapPinMarker * (*HyScanGtkMapPinFactory) (HyScanGtkMapPin *layer,
+                                                           guint            state);
 
 struct _HyScanGtkMapPinPrivate
 {
@@ -104,8 +116,8 @@ struct _HyScanGtkMapPinPrivate
   HyScanGtkMapPinMode        mode;                     /* Режим работы слоя. */
 
   GList                     *points;                   /* Список вершин ломаной, длину которой необходимо измерить. */
-  HyScanGtkMapPoint         *hover_point;              /* Вершина ломаной под курсором мыши. */
-  HyScanGtkMapPoint         *drag_point;               /* Вершина ломаной, которая перемещается в данный момент. */
+  HyScanGtkMapPinItem       *hover_point;              /* Вершина ломаной под курсором мыши. */
+  HyScanGtkMapPinItem       *drag_item;                /* Вершина ломаной, которая перемещается в данный момент. */
   HyScanGtkMapPoint          drag_origin;              /* Оригинальное положение точки, которая перемещается. */
 
   /* Стиль оформления. */
@@ -118,8 +130,8 @@ struct _HyScanGtkMapPinPrivate
 
   gboolean                   visible;                  /* Признак того, что слой виден. */
 
-  HyScanGtkMapPinItem       *pin;                      /* Внешний вид обычного маркера. */
-  HyScanGtkMapPinItem       *pin_hover;                /* Внешний вид маркера под указателем мыши. */
+  HyScanGtkMapPinMarker     *pin;                      /* Внешний вид обычного маркера. */
+  HyScanGtkMapPinMarker     *pin_hover;                /* Внешний вид маркера под указателем мыши. */
   HyScanGtkMapPinFactory     pin_create_func;          /* Фабрика маркеров. */
 };
 
@@ -146,29 +158,30 @@ static gboolean      hyscan_gtk_map_pin_configure                 (HyScanGtkMapP
 static void          hyscan_gtk_map_pin_draw_vertices             (HyScanGtkMapPin          *pin_layer,
                                                                    cairo_t                  *cairo);
 static void          hyscan_gtk_map_pin_changed                   (HyScanGtkMapPin          *layer);
-static HyScanGtkMapPoint *   hyscan_gtk_map_pin_get_point_at      (HyScanGtkMapPin          *pin_layer,
+static HyScanGtkMapPinItem *
+                     hyscan_gtk_map_pin_get_item_at               (HyScanGtkMapPin          *pin_layer,
                                                                    gdouble                   x,
                                                                    gdouble                   y);
 static gconstpointer hyscan_gtk_map_pin_handle_grab               (HyScanGtkLayerContainer  *container,
                                                                    GdkEventMotion           *event,
                                                                    HyScanGtkMapPin          *layer);
-static void          hyscan_gtk_map_pin_update_marker             (HyScanGtkMapPin          *layer);
-static void          hyscan_gtk_map_pin_pin_free                  (HyScanGtkMapPinItem      *pin);
+static void          hyscan_gtk_map_pin_marker_update             (HyScanGtkMapPin          *layer);
+static void          hyscan_gtk_map_pin_marker_free               (HyScanGtkMapPinMarker    *pin);
 static void          hyscan_gtk_map_pin_added                     (HyScanGtkLayer           *gtk_layer,
                                                                    HyScanGtkLayerContainer  *container);
 static void          hyscan_gtk_map_pin_set_visible               (HyScanGtkLayer           *layer,
                                                                    gboolean                  visible);
 static gboolean      hyscan_gtk_map_pin_get_visible               (HyScanGtkLayer           *layer);
 
-static HyScanGtkMapPinItem *
+static HyScanGtkMapPinMarker *
                      hyscan_gtk_map_pin_create_marker_pin         (HyScanGtkMapPin          *layer,
                                                                    guint                     state);
-static HyScanGtkMapPinItem *                                                                
+static HyScanGtkMapPinMarker *
                      hyscan_gtk_map_pin_create_marker_circle      (HyScanGtkMapPin          *layer,
                                                                    guint                     state);
-static inline HyScanGtkMapPinItem *                                                         
-                     hyscan_gtk_map_pin_get_pin                   (HyScanGtkMapPinPrivate   *priv,
-                                                                   HyScanGtkMapPoint        *point);
+static inline HyScanGtkMapPinMarker *
+                     hyscan_gtk_map_pin_get_marker                   (HyScanGtkMapPinPrivate   *priv,
+                                                                      HyScanGtkMapPinItem      *item);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapPin, hyscan_gtk_map_pin, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapPin)
@@ -200,7 +213,7 @@ hyscan_gtk_map_pin_stop_drag (HyScanGtkMapPin *layer)
   if (priv->mode != MODE_DRAG)
     return;
 
-  priv->drag_point = NULL;
+  priv->drag_item = NULL;
   priv->hover_point = NULL;
   priv->mode = MODE_NONE;
   hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);
@@ -212,7 +225,7 @@ hyscan_gtk_map_pin_changed (HyScanGtkMapPin *layer)
   HyScanGtkMapPinPrivate *priv = layer->priv;
   GList *points;
 
-  if (priv->hover_point == NULL && priv->drag_point == NULL)
+  if (priv->hover_point == NULL && priv->drag_item == NULL)
     return;
 
   points = hyscan_gtk_map_pin_get_points (layer);
@@ -222,12 +235,12 @@ hyscan_gtk_map_pin_changed (HyScanGtkMapPin *layer)
     priv->hover_point = NULL;
 
   /* Завершаем перетаскивание, если перетаскиваемая точка была удалена. */
-  if (priv->drag_point != NULL && !g_list_find (points, priv->drag_point))
+  if (priv->drag_item != NULL && !g_list_find (points, priv->drag_item))
     hyscan_gtk_map_pin_stop_drag (layer);
 }
 
 /* Создаёт метку в виде круга. */
-static HyScanGtkMapPinItem *
+static HyScanGtkMapPinMarker *
 hyscan_gtk_map_pin_create_marker_circle (HyScanGtkMapPin *layer,
                                          guint            state)
 {
@@ -236,7 +249,7 @@ hyscan_gtk_map_pin_create_marker_circle (HyScanGtkMapPin *layer,
   gdouble margin;
   guint width;
 
-  HyScanGtkMapPinItem *pin;
+  HyScanGtkMapPinMarker *marker;
   cairo_t *cairo;
 
   /* Увеличиваем размер для выделенных меток. */
@@ -245,18 +258,19 @@ hyscan_gtk_map_pin_create_marker_circle (HyScanGtkMapPin *layer,
   margin = 2.0 * priv->pin_stroke_width;
   width = (guint) ceil (2.0 * radius + 2.0 * margin);
 
-  pin = g_slice_new (HyScanGtkMapPinItem);
-  pin->surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, width, width);
-  pin->offset_x = radius + margin;
-  pin->offset_y = radius + margin;
-  pin->handle_x0 = -radius;
-  pin->handle_y0 = -radius;
-  pin->handle_x1 = radius;
-  pin->handle_y1 = radius;
+  marker = g_slice_new (HyScanGtkMapPinMarker);
+  marker->surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, width, width);
+  marker->has_text = FALSE;
+  marker->offset_x = radius + margin;
+  marker->offset_y = radius + margin;
+  marker->handle_x0 = -radius;
+  marker->handle_y0 = -radius;
+  marker->handle_x1 = radius;
+  marker->handle_y1 = radius;
 
   /* Основной внешний круг. */
-  cairo = cairo_create (pin->surface);
-  cairo_arc (cairo, pin->offset_x, pin->offset_y, radius, 0, 2.0 * G_PI);
+  cairo = cairo_create (marker->surface);
+  cairo_arc (cairo, marker->offset_x, marker->offset_y, radius, 0, 2.0 * G_PI);
   gdk_cairo_set_source_rgba (cairo, &priv->pin_color_prime);
   cairo_fill_preserve (cairo);
   cairo_set_line_width (cairo, priv->pin_stroke_width);
@@ -264,53 +278,71 @@ hyscan_gtk_map_pin_create_marker_circle (HyScanGtkMapPin *layer,
   cairo_stroke (cairo);
 
   /* Внутренний круг белого цвета. */
-  cairo_arc (cairo, pin->offset_x, pin->offset_y, .5 * radius, 0, 2.0 * G_PI);
+  cairo_arc (cairo, marker->offset_x, marker->offset_y, .5 * radius, 0, 2.0 * G_PI);
   gdk_cairo_set_source_rgba (cairo, &priv->pin_color_second);
   cairo_fill (cairo);
 
   cairo_destroy (cairo);
 
-  return pin;
+  return marker;
 }
 
 /* Создаёт маркер в виде булавки. */
-static HyScanGtkMapPinItem *
+static HyScanGtkMapPinMarker *
 hyscan_gtk_map_pin_create_marker_pin (HyScanGtkMapPin *layer,
                                       guint            state)
 {
   HyScanGtkMapPinPrivate *priv = layer->priv;
 
-  HyScanGtkMapPinItem *pin;
+  HyScanGtkMapPinMarker *marker;
   cairo_t *cairo;
 
+  gdouble default_size;
+  gint label_height;
   gdouble radius;
   gdouble r_shadow;
   gdouble bezier_param;
   gdouble x, y;
   guint w, h;
 
+  if (priv->pango_layout != NULL)
+    {
+      pango_layout_set_text (priv->pango_layout, "0123456789", -1);
+      pango_layout_get_size (priv->pango_layout, NULL, &label_height);
+      label_height /= PANGO_SCALE;
+    }
+  else
+    {
+      label_height = priv->pin_size;
+    }
+
+  default_size = MAX (priv->pin_size, label_height);
+
   /* Увеличиваем размер для выделенных меток. */
-  radius = (state == PIN_HOVER) ? 1.2 * priv->pin_size : priv->pin_size;
+  radius = (state == PIN_HOVER) ? 1.2 * default_size : default_size;
 
   /* Определяем размеры пропорционально радиусу. */
   r_shadow = radius * 0.1;
-  bezier_param = radius * 4.0;
+  bezier_param = radius * 2.5;
   x = bezier_param * .33;
   y = bezier_param * .77;
 
   w = (guint) ceil (2.0 * x);
   h = (guint) ceil (y + r_shadow);
 
-  pin = g_slice_new (HyScanGtkMapPinItem);
-  pin->surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, w, h);
-  pin->offset_x = x;
-  pin->offset_y = h;
-  pin->handle_x0 = -x;
-  pin->handle_y0 = -y;
-  pin->handle_x1 = x;
-  pin->handle_y1 = 0;
+  marker = g_slice_new (HyScanGtkMapPinMarker);
+  marker->surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, w, h);
+  marker->has_text = TRUE;
+  marker->text_x = 0;
+  marker->text_y = 0.6 * h - label_height / 2.0;
+  marker->offset_x = x;
+  marker->offset_y = h;
+  marker->handle_x0 = -x;
+  marker->handle_y0 = -y;
+  marker->handle_x1 = x;
+  marker->handle_y1 = 0;
 
-  cairo = cairo_create (pin->surface);
+  cairo = cairo_create (marker->surface);
   /* Тень под маркером. */
   {
     cairo_save (cairo);
@@ -340,35 +372,29 @@ hyscan_gtk_map_pin_create_marker_pin (HyScanGtkMapPin *layer,
     cairo_set_line_width (cairo, priv->pin_stroke_width);
     gdk_cairo_set_source_rgba (cairo, &priv->pin_color_stroke);
     cairo_stroke (cairo);
-
-    /* Круглое ушко в булавке. */
-    cairo_new_sub_path (cairo);
-    cairo_arc (cairo, x, y * .33, 0.5 * radius, 0, 2.0 * G_PI);
-    gdk_cairo_set_source_rgba (cairo, &priv->pin_color_second);
-    cairo_fill (cairo);
   }
 
   cairo_destroy (cairo);
 
-  return pin;
+  return marker;
 }
 
 /* Освобождает память, занятую структурой pin. */
 static void
-hyscan_gtk_map_pin_pin_free (HyScanGtkMapPinItem *pin)
+hyscan_gtk_map_pin_marker_free (HyScanGtkMapPinMarker *pin)
 {
   g_clear_pointer (&pin->surface, cairo_surface_destroy);
-  g_slice_free (HyScanGtkMapPinItem, pin);
+  g_slice_free (HyScanGtkMapPinMarker, pin);
 }
 
 /* Пересоздаёт маркеры. */
 static void
-hyscan_gtk_map_pin_update_marker (HyScanGtkMapPin *layer)
+hyscan_gtk_map_pin_marker_update (HyScanGtkMapPin *layer)
 {
   HyScanGtkMapPinPrivate *priv = layer->priv;
 
-  g_clear_pointer (&priv->pin, hyscan_gtk_map_pin_pin_free);
-  g_clear_pointer (&priv->pin_hover, hyscan_gtk_map_pin_pin_free);
+  g_clear_pointer (&priv->pin, hyscan_gtk_map_pin_marker_free);
+  g_clear_pointer (&priv->pin_hover, hyscan_gtk_map_pin_marker_free);
   priv->pin = priv->pin_create_func (layer, PIN_NORMAL);
   priv->pin_hover = priv->pin_create_func (layer, PIN_HOVER);
 }
@@ -401,11 +427,11 @@ hyscan_gtk_map_pin_handle_grab (HyScanGtkLayerContainer *container,
                                 GdkEventMotion          *event,
                                 HyScanGtkMapPin         *layer)
 {
-  HyScanGtkMapPoint *point;
+  HyScanGtkMapPinItem *item;
 
-  point = hyscan_gtk_map_pin_get_point_at (layer, event->x, event->y);
-  if (point != NULL)
-    return hyscan_gtk_map_pin_start_drag (layer, point);
+  item = hyscan_gtk_map_pin_get_item_at (layer, event->x, event->y);
+  if (item != NULL)
+    return hyscan_gtk_map_pin_start_drag (layer, item);
 
   return NULL;
 }
@@ -428,7 +454,7 @@ hyscan_gtk_map_pin_handle_release (HyScanGtkLayerContainer *container,
     return FALSE;
 
   priv->mode = MODE_NONE;
-  drag_point = priv->drag_point;
+  drag_point = &priv->drag_item->point;
   hyscan_gtk_map_value_to_geo (priv->map, &drag_point->geo, drag_point->c2d);
 
   return TRUE;
@@ -579,8 +605,8 @@ hyscan_gtk_map_pin_object_finalize (GObject *object)
 
   g_list_free_full (priv->points, (GDestroyNotify) hyscan_gtk_map_point_free);
   g_clear_object (&priv->pango_layout);
-  g_clear_pointer (&priv->pin, hyscan_gtk_map_pin_pin_free);
-  g_clear_pointer (&priv->pin_hover, hyscan_gtk_map_pin_pin_free);
+  g_clear_pointer (&priv->pin, hyscan_gtk_map_pin_marker_free);
+  g_clear_pointer (&priv->pin_hover, hyscan_gtk_map_pin_marker_free);
 
   G_OBJECT_CLASS (hyscan_gtk_map_pin_parent_class)->finalize (object);
 }
@@ -594,6 +620,7 @@ hyscan_gtk_map_pin_configure (HyScanGtkMapPin *pin_layer,
 
   g_clear_object (&priv->pango_layout);
   priv->pango_layout = gtk_widget_create_pango_layout (GTK_WIDGET (priv->map), NULL);
+  hyscan_gtk_map_pin_marker_update (pin_layer);
 
   return FALSE;
 }
@@ -607,18 +634,33 @@ hyscan_gtk_map_pin_draw_vertices (HyScanGtkMapPin *pin_layer,
   GList *point_l;
   HyScanGtkMapPinPrivate *priv = pin_layer->priv;
   GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
-  HyScanGtkMapPinItem *pin;
+  HyScanGtkMapPinMarker *marker;
 
   for (point_l = priv->points; point_l != NULL; point_l = point_l->next)
     {
-      HyScanGtkMapPoint *point = point_l->data;
+      HyScanGtkMapPinItem *item = point_l->data;
+      HyScanGtkMapPoint *point = &item->point;
       gdouble x, y;
 
       gtk_cifro_area_visible_value_to_point (carea, &x, &y, point->c2d.x, point->c2d.y);
-      pin = hyscan_gtk_map_pin_get_pin (priv, point);
+      marker = hyscan_gtk_map_pin_get_marker (priv, item);
 
-      cairo_set_source_surface (cairo, pin->surface, x - pin->offset_x, y - pin->offset_y);
+      cairo_set_source_surface (cairo, marker->surface, x - marker->offset_x, y - marker->offset_y);
       cairo_paint (cairo);
+
+      /* Размещаем текст на маркере. */
+      if (marker->has_text && item->title != NULL)
+        {
+          gint width, height;
+
+          pango_layout_set_text (priv->pango_layout, item->title, -1);
+          pango_layout_get_size (priv->pango_layout, &width, &height);
+          width /= PANGO_SCALE;
+          height /= PANGO_SCALE;
+          cairo_move_to (cairo, x - marker->text_x - width / 2.0, y - marker->text_y - height);
+          gdk_cairo_set_source_rgba (cairo, &priv->pin_color_second);
+          pango_cairo_show_layout (cairo, priv->pango_layout);
+        }
     }
 }
 
@@ -652,10 +694,10 @@ hyscan_gtk_map_pin_motion_hover (HyScanGtkMapPin     *pin_layer,
                                  GdkEventMotion      *event)
 {
   HyScanGtkMapPinPrivate *priv = pin_layer->priv;
-  HyScanGtkMapPoint *hover_point;
+  HyScanGtkMapPinItem *hover_point;
 
   /* Под курсором мыши находится конец какого-то отрезка. */
-  hover_point = hyscan_gtk_map_pin_get_point_at (pin_layer, event->x, event->y);
+  hover_point = hyscan_gtk_map_pin_get_item_at (pin_layer, event->x, event->y);
   if (hover_point != priv->hover_point)
     {
       priv->hover_point = hover_point;
@@ -671,11 +713,18 @@ hyscan_gtk_map_pin_motion_notify (HyScanGtkMapPin *pin_layer,
   HyScanGtkMapPinPrivate *priv = pin_layer->priv;
 
   if (priv->mode == MODE_DRAG)
-    hyscan_gtk_map_pin_motion_drag (priv, event, priv->drag_point);
+    hyscan_gtk_map_pin_motion_drag (priv, event, &priv->drag_item->point);
   else
     hyscan_gtk_map_pin_motion_hover (pin_layer, event);
 
   return FALSE;
+}
+
+static void
+hyscan_gtk_map_pin_item_free (HyScanGtkMapPinItem *item)
+{
+  g_free (item->title);
+  g_slice_free (HyScanGtkMapPinItem, item);
 }
 
 /* Обработка Gdk-событий, которые дошли из контейнера. */
@@ -691,8 +740,8 @@ hyscan_gtk_map_pin_key_press (HyScanGtkMapPin *pin_layer,
   if (event->keyval == GDK_KEY_Delete)
     {
       /* Удаляем перетаскиваемую точку. */
-      priv->points = g_list_remove (priv->points, priv->drag_point);
-      hyscan_gtk_map_point_free (priv->drag_point);
+      priv->points = g_list_remove (priv->points, priv->drag_item);
+      hyscan_gtk_map_pin_item_free (priv->drag_item);
       hyscan_gtk_map_pin_stop_drag (pin_layer);
 
       /* Сообщаем, что список точек изменился. */
@@ -706,7 +755,7 @@ hyscan_gtk_map_pin_key_press (HyScanGtkMapPin *pin_layer,
   else if (event->keyval == GDK_KEY_Escape)
     {
       /* Возвращаем перетаскиваемую точку обратно. */
-      *priv->drag_point = priv->drag_origin;
+      priv->drag_item->point = priv->drag_origin;
       hyscan_gtk_map_pin_stop_drag (pin_layer);
 
       gtk_widget_queue_draw (GTK_WIDGET (priv->map));
@@ -758,24 +807,24 @@ hyscan_gtk_map_pin_handle_create (GtkWidget      *widget,
 }
 
 /* Возвращает маркер, соответствующий точке point. */
-static inline HyScanGtkMapPinItem *
-hyscan_gtk_map_pin_get_pin (HyScanGtkMapPinPrivate *priv,
-                            HyScanGtkMapPoint      *point)
+static inline HyScanGtkMapPinMarker *
+hyscan_gtk_map_pin_get_marker (HyScanGtkMapPinPrivate *priv,
+                               HyScanGtkMapPinItem    *item)
 {
-  return (point == priv->hover_point) ? priv->pin_hover : priv->pin;
+  return (item == priv->hover_point) ? priv->pin_hover : priv->pin;
 }
 
 /* Находит точку на слое в окрестности указанных координат виджета. */
-static HyScanGtkMapPoint *
-hyscan_gtk_map_pin_get_point_at (HyScanGtkMapPin *pin_layer,
-                                 gdouble          x,
-                                 gdouble          y)
+static HyScanGtkMapPinItem *
+hyscan_gtk_map_pin_get_item_at (HyScanGtkMapPin *pin_layer,
+                                gdouble          x,
+                                gdouble          y)
 {
   HyScanGtkMapPinPrivate *priv = pin_layer->priv;
   GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
-  HyScanGtkMapPoint *hover_point;
+  HyScanGtkMapPinItem *hover_item;
   GList *point_l;
-  HyScanGtkMapPinItem *pin;
+  HyScanGtkMapPinMarker *marker;
 
   gconstpointer howner;
 
@@ -795,24 +844,44 @@ hyscan_gtk_map_pin_get_point_at (HyScanGtkMapPin *pin_layer,
     return NULL;
 
   /* Проверяем каждую точку, лежит ли она в поле. */
-  hover_point = NULL;
+  hover_item = NULL;
   for (point_l = priv->points; point_l != NULL; point_l = point_l->next)
     {
-      HyScanGtkMapPoint *point = point_l->data;
+      HyScanGtkMapPinItem *item = point_l->data;
+      HyScanGtkMapPoint *point = &item->point;
       gdouble x_point, y_point;
 
       gtk_cifro_area_value_to_point (carea, &x_point, &y_point, point->c2d.x, point->c2d.y);
-      pin = hyscan_gtk_map_pin_get_pin (priv, point);
+      marker = hyscan_gtk_map_pin_get_marker (priv, item);
 
-      if (x_point + pin->handle_x0 < x && x < x_point + pin->handle_x1 &&
-          y_point + pin->handle_y0 < y && y < y_point + pin->handle_y1)
+      if (x_point + marker->handle_x0 < x && x < x_point + marker->handle_x1 &&
+          y_point + marker->handle_y0 < y && y < y_point + marker->handle_y1)
         {
-          hover_point = point;
+          hover_item = item;
           break;
         }
     }
 
-  return hover_point;
+  return hover_item;
+}
+
+/* Даёт автоматические названия маркерам. */
+static void
+hyscan_gtk_map_pin_item_auto_title (HyScanGtkMapPin     *pin_layer,
+                                    HyScanGtkMapPinItem *item)
+{
+  HyScanGtkMapPinPrivate *priv = pin_layer->priv;
+  GList *last_point;
+  gint last_number = 0;
+
+  if ((last_point = g_list_last (priv->points)) != NULL)
+    {
+      HyScanGtkMapPinItem *last_item = last_point->data;
+      last_number = last_item->number;
+    }
+
+  item->number = last_number + 1;
+  item->title = item->number < 10 ? g_strdup_printf ("%d", item->number) : NULL;
 }
 
 static void
@@ -854,7 +923,7 @@ hyscan_gtk_map_pin_clear (HyScanGtkMapPin *layer)
   if (priv->points == NULL)
     return;
 
-  g_list_free_full (priv->points, (GDestroyNotify) hyscan_gtk_map_point_free);
+  g_list_free_full (priv->points, (GDestroyNotify) hyscan_gtk_map_pin_item_free);
   priv->points = NULL;
 
   HYSCAN_GTK_MAP_PIN_GET_CLASS (layer)->changed (layer);
@@ -888,22 +957,26 @@ hyscan_gtk_map_pin_get_points (HyScanGtkMapPin *layer)
  *
  * Returns: (transfer none): указатель на добавленную точку
  */
-HyScanGtkMapPoint *
+HyScanGtkMapPinItem *
 hyscan_gtk_map_pin_insert_before  (HyScanGtkMapPin   *pin_layer,
                                    HyScanGtkMapPoint *point,
                                    GList             *sibling)
 {
   HyScanGtkMapPinPrivate *priv = pin_layer->priv;
-  HyScanGtkMapPoint *new_point;
+  HyScanGtkMapPinItem *item;
 
-  new_point = hyscan_gtk_map_point_copy (point);
-  hyscan_gtk_map_value_to_geo (priv->map, &new_point->geo, new_point->c2d);
-  priv->points = g_list_insert_before (priv->points, sibling, new_point);
+
+  item = g_slice_new (HyScanGtkMapPinItem);
+  item->point = *point;
+  hyscan_gtk_map_value_to_geo (priv->map, &item->point.geo, item->point.c2d);
+  hyscan_gtk_map_pin_item_auto_title (pin_layer, item);
+
+  priv->points = g_list_insert_before (priv->points, sibling, item);
 
   /* Оповещаем, что список точек был изменён. */
   HYSCAN_GTK_MAP_PIN_GET_CLASS (pin_layer)->changed (pin_layer);
 
-  return new_point;
+  return item;
 }
 
 /**
@@ -916,8 +989,8 @@ hyscan_gtk_map_pin_insert_before  (HyScanGtkMapPin   *pin_layer,
  * Returns: указатель на хэндл, если началось перетаскивание; иначе %NULL
  */
 gconstpointer
-hyscan_gtk_map_pin_start_drag (HyScanGtkMapPin   *layer,
-                               HyScanGtkMapPoint *handle_point)
+hyscan_gtk_map_pin_start_drag (HyScanGtkMapPin     *layer,
+                               HyScanGtkMapPinItem *handle_point)
 {
   HyScanGtkMapPinPrivate *priv = HYSCAN_GTK_MAP_PIN (layer)->priv;
   gconstpointer howner;
@@ -939,8 +1012,8 @@ hyscan_gtk_map_pin_start_drag (HyScanGtkMapPin   *layer,
     }
 
   priv->mode = MODE_DRAG;
-  priv->drag_origin = *handle_point;
-  priv->drag_point = handle_point;
+  priv->drag_origin = handle_point->point;
+  priv->drag_item = handle_point;
 
   gtk_widget_grab_focus (GTK_WIDGET (priv->map));
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
@@ -963,7 +1036,7 @@ hyscan_gtk_map_pin_set_pin_size (HyScanGtkMapPin *layer,
   g_return_if_fail (HYSCAN_IS_GTK_MAP_PIN (layer));
 
   layer->priv->pin_size = size;
-  hyscan_gtk_map_pin_update_marker (layer);
+  hyscan_gtk_map_pin_marker_update (layer);
   hyscan_gtk_map_pin_queue_draw (layer);
 }
 
@@ -981,7 +1054,7 @@ hyscan_gtk_map_pin_set_color_prime (HyScanGtkMapPin *layer,
   g_return_if_fail (HYSCAN_IS_GTK_MAP_PIN (layer));
 
   layer->priv->pin_color_prime = color;
-  hyscan_gtk_map_pin_update_marker (layer);
+  hyscan_gtk_map_pin_marker_update (layer);
   hyscan_gtk_map_pin_queue_draw (layer);
 }
 
@@ -999,7 +1072,7 @@ hyscan_gtk_map_pin_set_color_second (HyScanGtkMapPin *layer,
   g_return_if_fail (HYSCAN_IS_GTK_MAP_PIN (layer));
 
   layer->priv->pin_color_second = color;
-  hyscan_gtk_map_pin_update_marker (layer);
+  hyscan_gtk_map_pin_marker_update (layer);
   hyscan_gtk_map_pin_queue_draw (layer);
 }
 
@@ -1017,7 +1090,7 @@ hyscan_gtk_map_pin_set_color_stroke (HyScanGtkMapPin *layer,
   g_return_if_fail (HYSCAN_IS_GTK_MAP_PIN (layer));
 
   layer->priv->pin_color_stroke = color;
-  hyscan_gtk_map_pin_update_marker (layer);
+  hyscan_gtk_map_pin_marker_update (layer);
   hyscan_gtk_map_pin_queue_draw (layer);
 }
 
@@ -1051,6 +1124,6 @@ hyscan_gtk_map_pin_set_pin_shape (HyScanGtkMapPin          *layer,
       return;
     }
 
-  hyscan_gtk_map_pin_update_marker (layer);
+  hyscan_gtk_map_pin_marker_update (layer);
   hyscan_gtk_map_pin_queue_draw (layer);
 }

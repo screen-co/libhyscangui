@@ -50,6 +50,7 @@ G_BEGIN_DECLS
 typedef struct _HyScanGtkMapPin HyScanGtkMapPin;
 typedef struct _HyScanGtkMapPinPrivate HyScanGtkMapPinPrivate;
 typedef struct _HyScanGtkMapPinClass HyScanGtkMapPinClass;
+typedef struct _HyScanGtkMapPinItem HyScanGtkMapPinItem;
 
 /**
  * HyScanGtkMapPinItemShape:
@@ -99,7 +100,7 @@ HYSCAN_API
 GList*                 hyscan_gtk_map_pin_get_points       (HyScanGtkMapPin          *layer);
 
 HYSCAN_API
-HyScanGtkMapPoint *    hyscan_gtk_map_pin_insert_before    (HyScanGtkMapPin          *layer,
+HyScanGtkMapPinItem *  hyscan_gtk_map_pin_insert_before    (HyScanGtkMapPin          *layer,
                                                             HyScanGtkMapPoint        *point,
                                                             GList                    *sibling);
 
@@ -109,7 +110,7 @@ void                   hyscan_gtk_map_pin_set_pin_size     (HyScanGtkMapPin     
 
 HYSCAN_API
 gconstpointer          hyscan_gtk_map_pin_start_drag       (HyScanGtkMapPin          *layer,
-                                                            HyScanGtkMapPoint        *handle_point);
+                                                            HyScanGtkMapPinItem      *handle_point);
 
 HYSCAN_API
 void                   hyscan_gtk_map_pin_set_color_prime  (HyScanGtkMapPin          *layer,

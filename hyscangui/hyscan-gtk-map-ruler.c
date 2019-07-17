@@ -181,7 +181,7 @@ hyscan_gtk_map_ruler_handle (HyScanGtkLayerContainer *container,
                              HyScanGtkMapRuler       *ruler)
 {
   GList *section;
-  HyScanGtkMapPoint *new_point;
+  HyScanGtkMapPinItem *new_item;
   HyScanGtkMapRulerPrivate *priv = ruler->priv;
   HyScanGtkMapPin *pin_layer = HYSCAN_GTK_MAP_PIN (ruler);
 
@@ -189,9 +189,9 @@ hyscan_gtk_map_ruler_handle (HyScanGtkLayerContainer *container,
   if (section == NULL)
     return NULL;
 
-  new_point = hyscan_gtk_map_pin_insert_before (pin_layer, &priv->section_point, section);
+  new_item = hyscan_gtk_map_pin_insert_before (pin_layer, &priv->section_point, section);
 
-  return hyscan_gtk_map_pin_start_drag (pin_layer, new_point);
+  return hyscan_gtk_map_pin_start_drag (pin_layer, new_item);
 }
 
 static void
