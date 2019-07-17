@@ -17,6 +17,7 @@
 #include <hyscan-gtk-map-planner.h>
 #include <glib/gi18n.h>
 #include <hyscan-gtk-map-geomark.h>
+#include <hyscan-gtk-map-scale.h>
 
 #define DEFAULT_PROFILE_NAME "default"    /* Имя профиля карты по умолчанию. */
 #define PRELOAD_STATE_DONE   1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
@@ -114,6 +115,7 @@ create_map (HyScanGtkMapKit *kit)
   HyScanGtkMap *map;
   gdouble *scales;
   gint scales_len;
+  HyScanGtkLayer *control, *scale;
 
   map = HYSCAN_GTK_MAP (hyscan_gtk_map_new (priv->center));
 
@@ -122,8 +124,12 @@ create_map (HyScanGtkMapKit *kit)
   hyscan_gtk_map_set_scales_meter (map, scales, scales_len);
   g_free (scales);
 
-  /* По умолчанию добавляем слой управления картой. */
-  hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), hyscan_gtk_map_control_new (), "control");
+  /* По умолчанию добавляем слой управления картой и масштаб. */
+  control = hyscan_gtk_map_control_new ();
+  scale = hyscan_gtk_map_scale_new ();
+  hyscan_gtk_layer_set_visible (scale, TRUE);
+  hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), control, "control");
+  hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), scale,   "scale");
 
   /* Чтобы виджет карты занял всё доступное место. */
   gtk_widget_set_hexpand (GTK_WIDGET (map), TRUE);

@@ -38,11 +38,7 @@
  * @Title: HyScanGtkMapGrid
  * @See_also: #HyScanGtkLayer, #HyScanGtkMap
  *
- * Слой с изображением координатной сетки и текущего масштаба карты. Масштаб карты
- * выводится в двух видах:
- * 1. численный масштаб в виде дроби, показывающий степень уменьшения проекции,
- *    например, 1:10000; степень уменьшения рассчитывается на основе PPI дисплея;
- * 2. графическое изображение линейки с подписью соответствующей её длины на местности.
+ * Слой с изображением координатной сетки.
  *
  * Стиль оформления сетки можно задать с помощью функций класса или свойств из файла
  * конфигурации:
@@ -52,7 +48,6 @@
  * - hyscan_gtk_map_grid_set_line_color()    "line-color"
  * - hyscan_gtk_map_grid_set_line_width()    "line-width"
  * - hyscan_gtk_map_grid_set_step_width()
- * - hyscan_gtk_map_grid_set_scale_width()
  *
  * Загрузить конфигурационный файл можно функциями hyscan_gtk_layer_load_key_file()
  * или hyscan_gtk_layer_container_load_key_file().
@@ -64,12 +59,10 @@
 
 #define MAX_LAT             90.0      /* Максимальное по модулю значение широты. */
 #define MAX_LON             180.0     /* Максимальное по модулю значение долготы. */
-#define MIN_SCALE_SIZE_PX   50.0      /* Минимальная длина линейки масштаба. */
 #define LINE_POINTS_NUM     5         /* Количество точек, по которым строится линия сетки. */
 
 #define LINE_WIDTH          0.5       /* Толщина линии координатной сетки. */
 #define GRID_STEP           200       /* Среднее расстояние между соседними линиями сетки. */
-#define SCALE_WIDTH         2.0       /* Толщина линии линейки масштаба. */
 
 #define LINE_COLOR_DEFAULT  "rgba( 80, 120, 180, 0.5)"   /* Цвет линий по умолчанию. */
 #define LABEL_COLOR_DEFAULT "rgba( 33,  33,  33, 1.0)"   /* Цвет текста подписей по умолчанию. */
@@ -85,14 +78,12 @@ struct _HyScanGtkMapGridPrivate
   HyScanGtkMap                     *map;                /* Виджет карты, на котором показывается сетка. */
 
   PangoLayout                      *pango_layout;       /* Раскладка шрифта. */
-  guint                             min_scale_size;     /* Минимальная длина линейки масштаба. */
 
   GdkRGBA                           line_color;         /* Цвет линий координатной сетки. */
   gdouble                           line_width;         /* Ширина линии координатной сетки. */
   GdkRGBA                           label_color;        /* Цвет подписей. */
   GdkRGBA                           bg_color;           /* Фоновый цвет подписей. */
   guint                             label_padding;      /* Отступы подписей от края видимой области. */
-  gdouble                           scale_width;        /* Ширина линии линейки масштаба. */
 
   guint                             step_width;         /* Шаг сетки в пикселях. */
 
@@ -108,10 +99,6 @@ static void     hyscan_gtk_map_grid_draw                    (HyScanGtkMap       
                                                              HyScanGtkMapGrid        *grid);
 static gboolean hyscan_gtk_map_grid_configure               (HyScanGtkMapGrid        *grid,
                                                              GdkEvent                *screen);
-static void     hyscan_gtk_map_grid_draw_grid               (HyScanGtkMapGrid        *grid,
-                                                             cairo_t                 *cairo);
-static void     hyscan_gtk_map_grid_draw_scale              (HyScanGtkMapGrid        *grid,
-                                                             cairo_t                 *cairo);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapGrid, hyscan_gtk_map_grid, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapGrid)
@@ -142,7 +129,6 @@ hyscan_gtk_map_grid_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_grid_parent_class)->constructed (object);
 
   priv->label_padding = 2;
-  priv->min_scale_size = MIN_SCALE_SIZE_PX;
 
   gdk_rgba_parse (&color, LINE_COLOR_DEFAULT);
   hyscan_gtk_map_grid_set_line_color (gtk_map_grid, color);
@@ -154,7 +140,6 @@ hyscan_gtk_map_grid_object_constructed (GObject *object)
   hyscan_gtk_map_grid_set_bg_color (gtk_map_grid, color);
 
   hyscan_gtk_map_grid_set_line_width (gtk_map_grid, LINE_WIDTH);
-  hyscan_gtk_map_grid_set_scale_width (gtk_map_grid, SCALE_WIDTH);
 
   hyscan_gtk_map_grid_set_step_width (gtk_map_grid, GRID_STEP);
 }
@@ -259,7 +244,6 @@ hyscan_gtk_map_grid_configure (HyScanGtkMapGrid *grid,
 
   width /= PANGO_SCALE;
   priv->label_padding = width / 20;
-  priv->min_scale_size = 2 * priv->label_padding + MAX (MIN_SCALE_SIZE_PX, width);
 
   return GDK_EVENT_PROPAGATE;
 }
@@ -515,136 +499,11 @@ hyscan_gtk_map_grid_adjust_step (gdouble  step_length,
   *power = power_ret;
 }
 
-/* Рисует координатную сетку и масштаб по сигналу "area-draw". */
+/* Рисует координатную сетку по сигналу "area-draw". */
 static void
 hyscan_gtk_map_grid_draw (HyScanGtkMap     *map,
                           cairo_t          *cairo,
                           HyScanGtkMapGrid *grid)
-{
-  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (grid)))
-    return;
-
-  hyscan_gtk_map_grid_draw_scale (grid, cairo);
-  hyscan_gtk_map_grid_draw_grid (grid, cairo);
-}
-
-/* Рисует линейку масштаба карты. */
-static void
-hyscan_gtk_map_grid_draw_scale (HyScanGtkMapGrid *grid,
-                                cairo_t          *cairo)
-{
-  HyScanGtkMapGridPrivate *priv = grid->priv;
-  GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
-
-  guint width, height;
-  gdouble x0, y0;
-
-  gdouble scale;
-  gdouble metres;
-
-  /* Координаты размещения линейки. */
-  gtk_cifro_area_get_visible_size (carea, &width, &height);
-  x0 = width - priv->label_padding;
-  y0 = height - priv->label_padding;
-
-  /* Определяем размер линейки, чтобы он был круглым числом метров. */
-  scale = hyscan_gtk_map_get_pixel_scale (priv->map);
-  metres = 1.6 * priv->min_scale_size / scale;
-  metres = pow (10, floor (log10 (metres)));
-  while (metres * scale < priv->min_scale_size)
-    metres *= 2.0;
-
-  /* Рисуем линейку и подпись к ней. */
-  {
-    PangoRectangle inc_rect, logical_rect;
-
-    gchar label[128];
-    gint label_width, label_height;
-
-    gchar scale_name[128];
-    gint scale_name_width, scale_name_height;
-
-    gdouble ruler_width;
-
-    gdouble spacing;
-
-    gdouble real_scale;
-
-    real_scale = 1.0 / hyscan_gtk_map_get_scale (priv->map);
-
-    /* Название масштаба. */
-    if (real_scale > 10.0)
-      g_snprintf (scale_name, sizeof (scale_name), "1:%.0f", real_scale);
-    else if (real_scale > 1.0)
-      g_snprintf (scale_name, sizeof (scale_name), "1:%.1f", real_scale);
-    else if (real_scale > 0.1)
-      g_snprintf (scale_name, sizeof (scale_name), "%.1f:1", 1 / real_scale);
-    else
-      g_snprintf (scale_name, sizeof (scale_name), "%.0f:1", 1 / real_scale);
-
-    /* Различный форматы записи длины линейки масштаба. */
-    if (metres > 1000.0)
-      g_snprintf (label, sizeof (label), "%.0f %s", metres / 1000.0, _("km"));
-    else if (metres > 1.0)
-      g_snprintf (label, sizeof (label), "%.0f %s", metres, _("m"));
-    else if (metres > 0.01)
-      g_snprintf (label, sizeof (label), "%.0f %s", metres * 100.0, _("cm"));
-    else
-      g_snprintf (label, sizeof (label), "%.0f %s", metres * 1000.0, _("mm"));
-
-    /* Вычисляем размеры подписи линейки. */
-    pango_layout_set_text (priv->pango_layout, label, -1);
-    pango_layout_get_pixel_extents (priv->pango_layout, &inc_rect, &logical_rect);
-    label_width = logical_rect.width;
-    label_height = logical_rect.height;
-    spacing = label_height;
-
-    /* Вычисляем размеры названия масштаба. */
-    pango_layout_set_text (priv->pango_layout, scale_name, -1);
-    pango_layout_get_pixel_extents (priv->pango_layout, &inc_rect, &logical_rect);
-    scale_name_width = logical_rect.width;
-    scale_name_height = logical_rect.height;
-
-    ruler_width = metres * scale;
-
-    /* Рисуем подложку. */
-    gdk_cairo_set_source_rgba (cairo, &priv->bg_color);
-    cairo_rectangle (cairo, x0 + priv->label_padding, y0 + priv->label_padding,
-                     - (scale_name_width + ruler_width + spacing + 2.0 * priv->label_padding),
-                     - (label_height + 2.0 * priv->label_padding + priv->scale_width));
-    cairo_fill (cairo);
-
-    /* Рисуем линейку масштаба. */
-    cairo_move_to (cairo, x0 - priv->scale_width / 2.0, y0 - label_height / 2.0);
-    cairo_rel_line_to (cairo, 0, label_height / 2.0);
-    cairo_rel_line_to (cairo, -ruler_width, 0);
-    cairo_rel_line_to (cairo, 0, -label_height / 2.0);
-    gdk_cairo_set_source_rgba (cairo, &priv->label_color);
-    cairo_set_line_width (cairo, priv->scale_width);
-    cairo_stroke (cairo);
-
-    /* Рисуем название масштаба. */
-    pango_layout_set_text (priv->pango_layout, scale_name, -1);
-    cairo_move_to (cairo,
-                   x0 - ruler_width - spacing - scale_name_width,
-                   y0 - scale_name_height - priv->scale_width);
-    pango_cairo_show_layout (cairo, priv->pango_layout);
-
-    /* Рисуем подпись линейке. */
-    {
-      pango_layout_set_text (priv->pango_layout, label, -1);
-      cairo_move_to (cairo,
-                     x0 - label_width / 2.0 - ruler_width / 2.0,
-                     y0 - label_height - priv->scale_width);
-      pango_cairo_show_layout (cairo, priv->pango_layout);
-    }
-  }
-}
-
-/* Рисует координатную сетку с подписями. */
-static void
-hyscan_gtk_map_grid_draw_grid (HyScanGtkMapGrid *grid,
-                               cairo_t          *cairo)
 {
   HyScanGtkMapGridPrivate *priv = grid->priv;
   GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
@@ -664,6 +523,9 @@ hyscan_gtk_map_grid_draw_grid (HyScanGtkMapGrid *grid,
 
   HyScanGeoGeodetic from_geo, to_geo;
   HyScanGeoCartesian2D from, to;
+
+  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (grid)))
+    return;
 
   /* Определяем размеры видимой области. */
   gtk_cifro_area_get_visible_size (carea, &width, &height);
@@ -803,24 +665,6 @@ hyscan_gtk_map_grid_set_line_width (HyScanGtkMapGrid *grid,
   g_return_if_fail (width > 0);
 
   grid->priv->line_width = width;
-  hyscan_gtk_map_grid_queue_draw (grid);
-}
-
-/**
- * hyscan_gtk_map_grid_set_scale_width:
- * @grid: указатель на #HyScanGtkMapGrid
- * @width: толщина линии в изображении линейки масштаба
- *
- * Устанавливает толщину линии в изображении линейки масштаба.
- */
-void
-hyscan_gtk_map_grid_set_scale_width (HyScanGtkMapGrid *grid,
-                                     gdouble           width)
-{
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_GRID (grid));
-  g_return_if_fail (width > 0);
-
-  grid->priv->scale_width = width;
   hyscan_gtk_map_grid_queue_draw (grid);
 }
 

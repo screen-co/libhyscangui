@@ -1,0 +1,86 @@
+/* hyscan-gtk-map-scale.h
+ *
+ * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
+ *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+#ifndef __HYSCAN_GTK_MAP_SCALE_H__
+#define __HYSCAN_GTK_MAP_SCALE_H__
+
+#include <hyscan-gtk-map.h>
+
+G_BEGIN_DECLS
+
+#define HYSCAN_TYPE_GTK_MAP_SCALE             (hyscan_gtk_map_scale_get_type ())
+#define HYSCAN_GTK_MAP_SCALE(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_MAP_SCALE, HyScanGtkMapScale))
+#define HYSCAN_IS_GTK_MAP_SCALE(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_MAP_SCALE))
+#define HYSCAN_GTK_MAP_SCALE_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_MAP_SCALE, HyScanGtkMapScaleClass))
+#define HYSCAN_IS_GTK_MAP_SCALE_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_MAP_SCALE))
+#define HYSCAN_GTK_MAP_SCALE_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_MAP_SCALE, HyScanGtkMapScaleClass))
+
+typedef struct _HyScanGtkMapScale HyScanGtkMapScale;
+typedef struct _HyScanGtkMapScalePrivate HyScanGtkMapScalePrivate;
+typedef struct _HyScanGtkMapScaleClass HyScanGtkMapScaleClass;
+
+struct _HyScanGtkMapScale
+{
+  GInitiallyUnowned parent_instance;
+
+  HyScanGtkMapScalePrivate *priv;
+};
+
+struct _HyScanGtkMapScaleClass
+{
+  GInitiallyUnownedClass parent_class;
+};
+
+HYSCAN_API
+GType                  hyscan_gtk_map_scale_get_type           (void);
+
+HYSCAN_API
+HyScanGtkLayer *       hyscan_gtk_map_scale_new                (void);
+
+HYSCAN_API
+void                   hyscan_gtk_map_scale_set_scale_width    (HyScanGtkMapScale *scale,
+                                                                gdouble           width);
+
+HYSCAN_API
+void                   hyscan_gtk_map_scale_set_label_color    (HyScanGtkMapScale *scale,
+                                                                GdkRGBA           color);
+
+HYSCAN_API
+void                   hyscan_gtk_map_scale_set_bg_color       (HyScanGtkMapScale *scale,
+                                                                GdkRGBA           color);
+
+
+G_END_DECLS
+
+#endif /* __HYSCAN_GTK_MAP_SCALE_H__ */
