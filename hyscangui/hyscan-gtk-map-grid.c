@@ -59,7 +59,7 @@
  */
 
 #include "hyscan-gtk-map-grid.h"
-#include <glib/gi18n.h>
+#include <glib/gi18n-lib.h>
 #include <math.h>
 
 #define MAX_LAT             90.0      /* Максимальное по модулю значение широты. */

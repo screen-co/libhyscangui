@@ -53,7 +53,7 @@
 #include "hyscan-gtk-map-ruler.h"
 #include "hyscan-gtk-map.h"
 #include <hyscan-cartesian.h>
-#include <glib/gi18n.h>
+#include <glib/gi18n-lib.h>
 #include <math.h>
 
 #define SNAP_DISTANCE       6.0           /* Максимальное расстояние прилипания курсора мыши к звену ломаной. */

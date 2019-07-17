@@ -43,7 +43,7 @@
 #include "hyscan-gtk-waterfall-tools.h"
 #include <hyscan-tile-color.h>
 #include <math.h>
-#include <glib/gi18n.h>
+#include <glib/gi18n-lib.h>
 #include <gtk/gtk.h>
 
 #define SIGN(x) ((x)/(ABS(x)))
