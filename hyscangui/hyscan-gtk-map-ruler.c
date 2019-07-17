@@ -56,7 +56,7 @@
 #include <glib/gi18n-lib.h>
 #include <math.h>
 
-#define SNAP_DISTANCE       6.0           /* Максимальное расстояние прилипания курсора мыши к звену ломаной. */
+#define SNAP_DISTANCE       10.0          /* Максимальное расстояние прилипания курсора мыши к звену ломаной. */
 #define EARTH_RADIUS        6378137.0     /* Радиус Земли. */
 
 #define LINE_WIDTH_DEFAULT  1.0
@@ -154,7 +154,7 @@ hyscan_gtk_map_ruler_object_constructed (GObject *object)
   hyscan_gtk_map_ruler_set_bg_color (gtk_map_ruler, color);
   gdk_rgba_parse (&color, LABEL_COLOR_DEFAULT);
   hyscan_gtk_map_ruler_set_label_color (gtk_map_ruler, color);
-  hyscan_gtk_map_pin_set_pin_size (pin_layer, 4);
+  hyscan_gtk_map_pin_set_pin_size (pin_layer, SNAP_DISTANCE / 2.0);
   hyscan_gtk_map_pin_set_pin_shape (pin_layer, HYSCAN_GTK_MAP_PIN_SHAPE_CIRCLE);
 
   priv->label_padding = 5;
