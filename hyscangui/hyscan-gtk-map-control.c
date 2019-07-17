@@ -48,6 +48,7 @@
 
 #include "hyscan-gtk-map-control.h"
 #include <math.h>
+#include <glib/gi18n-lib.h>
 
 #define MOVE_THRESHOLD 5 /* Сдвиг мыши, при котором активируется режим перемещения карты. */
 
@@ -69,6 +70,8 @@ struct _HyScanGtkMapControlPrivate
 
   /* Обработка перемещения карты мышью. */
   gint                            mode;
+  gdouble                         cursor_x;      /* Текущие координаты мыши. */
+  gdouble                         cursor_y;      /* Текущие координаты мыши. */
   gdouble                         start_from_x;  /* Начальная граница отображения по оси X. */
   gdouble                         start_to_x;    /* Начальная граница отображения по оси X. */
   gdouble                         start_from_y;  /* Начальная граница отображения по оси Y. */
@@ -82,6 +85,8 @@ static gboolean hyscan_gtk_map_control_button_press_release (HyScanGtkMapControl
                                                              GdkEventButton             *event);
 static gboolean hyscan_gtk_map_control_motion_notify        (HyScanGtkMapControl        *control,
                                                              GdkEventMotion             *event);
+static gboolean hyscan_gtk_map_control_key_press            (HyScanGtkMapControl        *control,
+                                                             GdkEventKey                *event);
 static gboolean hyscan_gtk_map_control_scroll               (HyScanGtkMapControl        *control,
                                                              GdkEventScroll             *event);
 static void     hyscan_gtk_map_control_set_mode             (HyScanGtkMapControl        *control,
@@ -133,6 +138,7 @@ hyscan_gtk_map_control_added (HyScanGtkLayer          *gtk_layer,
   g_signal_connect_swapped (priv->map, "button-release-event",  G_CALLBACK (hyscan_gtk_map_control_button_press_release), gtk_map_control);
   g_signal_connect_swapped (priv->map, "motion-notify-event",   G_CALLBACK (hyscan_gtk_map_control_motion_notify), gtk_map_control);
   g_signal_connect_swapped (priv->map, "scroll-event",          G_CALLBACK (hyscan_gtk_map_control_scroll), gtk_map_control);
+  g_signal_connect_swapped (priv->map, "key-press-event",       G_CALLBACK (hyscan_gtk_map_control_key_press), gtk_map_control);
 }
 
 static void
@@ -140,6 +146,51 @@ hyscan_gtk_map_control_interface_init (HyScanGtkLayerInterface *iface)
 {
   iface->added = hyscan_gtk_map_control_added;
   iface->removed = hyscan_gtk_map_control_removed;
+}
+
+/* Обработчик сигнала "key-press-event".
+ * Копирует координаты в буфер обмена. */
+static gboolean
+hyscan_gtk_map_control_key_press (HyScanGtkMapControl *control,
+                                  GdkEventKey         *event)
+{
+  HyScanGtkMapControlPrivate *priv = control->priv;
+  HyScanGeoCartesian2D val;
+  HyScanGeoGeodetic coords;
+
+  GtkClipboard *clipboard;
+  GtkWidget *dialog;
+
+  gchar lat_text[16], lon_text[16], text[64];
+
+  if (!(event->keyval == GDK_KEY_Insert && (event->state & GDK_CONTROL_MASK)))
+    return GDK_EVENT_PROPAGATE;
+
+  /* Копируем координаты точки. */
+  gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), priv->cursor_x, priv->cursor_y, &val.x, &val.y);
+  hyscan_gtk_map_value_to_geo (priv->map, &coords, val);
+
+  g_snprintf (lat_text, sizeof (lat_text), "%.8f", coords.lat);
+  g_snprintf (lon_text, sizeof (lat_text), "%.8f", coords.lon);
+  /* Меняем запятые на точки. */
+  g_strcanon (lat_text, "-0123456789.", '.');
+  g_strcanon (lon_text, "-0123456789.", '.');
+
+  g_snprintf (text, sizeof (text), "%s, %s", lat_text, lon_text);
+
+  clipboard = gtk_clipboard_get (GDK_SELECTION_CLIPBOARD);
+  gtk_clipboard_set_text (clipboard, text, -1);
+
+  dialog = gtk_message_dialog_new (GTK_WINDOW (gtk_widget_get_toplevel (GTK_WIDGET (priv->map))),
+                                   GTK_DIALOG_DESTROY_WITH_PARENT,
+                                   GTK_MESSAGE_INFO,
+                                   GTK_BUTTONS_CLOSE,
+                                   _("Mouse coordinates copied to clipboard:\n\n%s"),
+                                   text);
+  gtk_dialog_run (GTK_DIALOG (dialog));
+  gtk_widget_destroy (dialog);
+
+  return GDK_EVENT_STOP;
 }
 
 /* Обработчик событий прокрутки колёсика мышки "scroll-event". */
@@ -208,6 +259,9 @@ hyscan_gtk_map_control_motion_notify (HyScanGtkMapControl *control,
   HyScanGtkMapControlPrivate *priv = control->priv;
   HyScanGtkMap *map = HYSCAN_GTK_MAP (priv->map);
   GtkCifroArea *carea = GTK_CIFRO_AREA (map);
+
+  priv->cursor_x = event->x;
+  priv->cursor_y = event->y;
 
   /* Если после нажатия кнопки сдвинулись больше 3 пикселей - начинаем сдвиг. */
   if (priv->mode == MODE_AWAIT)
