@@ -118,7 +118,7 @@ struct _HyScanGtkWaterfallPrivate
   HyScanTileColor       *color;
 
   guint64                view_id;
-  guint32                tq_hash;
+  gpointer               tq_hash;
 
   gdouble               *zooms;              /* Масштабы с учетом PPI. */
   gint                   zoom_index;
@@ -185,12 +185,12 @@ static gboolean hyscan_gtk_waterfall_get_tile                (HyScanGtkWaterfall
                                                               HyScanTile                    *tile,
                                                               cairo_surface_t              **tile_surface);
 static void     hyscan_gtk_waterfall_hash_changed            (HyScanGtkWaterfall            *self,
-                                                              guint32                        hash);
+                                                              gulong                         hash);
 static void     hyscan_gtk_waterfall_image_generated         (HyScanGtkWaterfall            *self,
                                                               HyScanTile                    *tile,
                                                               gfloat                        *img,
                                                               gint                           size,
-                                                              guint32                        hash);
+                                                              gulong                         hash);
 
 static void     hyscan_gtk_waterfall_visible_draw            (GtkWidget                     *widget,
                                                               cairo_t                       *cairo);
@@ -583,9 +583,12 @@ hyscan_gtk_waterfall_get_tile (HyScanGtkWaterfall *self,
 /* Функция отлавливает сигнал "tile-queue-hash". */
 static void
 hyscan_gtk_waterfall_hash_changed (HyScanGtkWaterfall *self,
-                                   guint32             hash)
+                                   gulong              hash)
 {
-  g_atomic_int_set (&self->priv->tq_hash, hash);
+  /* gsize -- это typedef unsigned long, поэтому я считаю безопасным
+   * использовать GSIZE_TO_POINTER.
+   */
+  g_atomic_pointer_set (&self->priv->tq_hash, GSIZE_TO_POINTER (hash));
 }
 
 /* Функция асинхронно разукрашивает тайл. */
@@ -594,15 +597,15 @@ hyscan_gtk_waterfall_image_generated (HyScanGtkWaterfall *self,
                                       HyScanTile         *tile,
                                       gfloat             *img,
                                       gint                size,
-                                      guint32             hash)
+                                      gulong              hash)
 {
   HyScanGtkWaterfallPrivate *priv = self->priv;
   HyScanTileSurface surface;
-  gint tq_hash;
+  gpointer tq_hash;
 
-  tq_hash = g_atomic_int_get (&priv->tq_hash);
+  tq_hash = g_atomic_pointer_get (&priv->tq_hash);
 
-  if (hash != *(guint32*)&tq_hash)
+  if (hash != GPOINTER_TO_SIZE (tq_hash))
     return;
 
   surface.width = tile->w;

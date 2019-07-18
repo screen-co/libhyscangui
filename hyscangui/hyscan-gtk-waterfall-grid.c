@@ -84,6 +84,7 @@ struct _HyScanGtkWaterfallGridPrivate
   gint                mouse_y;           /* Координата y мышки. */
 
   gboolean            draw_grid;         /* Рисовать ли линии сетки. */
+  gboolean            draw_marks;        /* Рисовать ли числовые метки. */
   gdouble             x_grid_step;       /* Шаг горизонтальных линий в метрах. 0 для автоматического рассчета. */
   gdouble             y_grid_step;       /* Шаг вертикальных линий в метрах. 0 для автоматического рассчета. */
 
@@ -159,6 +160,7 @@ hyscan_gtk_waterfall_grid_object_constructed (GObject *object)
   priv->x_axis_name = g_strdup ("↔");
   priv->y_axis_name = g_strdup ("↕");
   priv->draw_grid = TRUE;
+  priv->draw_marks = TRUE;
   priv->show_info = TRUE;
   priv->info_coordinates = HYSCAN_GTK_WATERFALL_GRID_TOP_RIGHT;
 
@@ -337,7 +339,7 @@ hyscan_gtk_waterfall_grid_draw (GtkWidget *widget,
     }
 
   /* Сетка и подписи. */
-  if (priv->draw_grid)
+  if (priv->draw_grid || priv->draw_marks)
     {
       hyscan_gtk_waterfall_grid_vertical (widget, cairo, self);
       hyscan_gtk_waterfall_grid_horisontal (widget, cairo, self);
@@ -346,8 +348,8 @@ hyscan_gtk_waterfall_grid_draw (GtkWidget *widget,
 
 /* Функция рисует сетку по горизонтальной оси. */
 static void
-hyscan_gtk_waterfall_grid_vertical (GtkWidget *widget,
-                                    cairo_t   *cairo,
+hyscan_gtk_waterfall_grid_vertical (GtkWidget              *widget,
+                                    cairo_t                *cairo,
                                     HyScanGtkWaterfallGrid *self)
 {
   GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
@@ -389,86 +391,78 @@ hyscan_gtk_waterfall_grid_vertical (GtkWidget *widget,
   gtk_cifro_area_get_axis_step (axis_scale, step, &axis_from, &axis_step, &axis_range, &axis_power);
 
   /* Линии. */
-  {
-    hyscan_cairo_set_source_gdk_rgba (cairo, &priv->grid_color);
-    cairo_set_line_width (cairo, 1.0);
+  if (priv->draw_grid)
+    {
+      hyscan_cairo_set_source_gdk_rgba (cairo, &priv->grid_color);
+      cairo_set_line_width (cairo, 1.0);
 
-    axis = axis_from - axis_step;
-    while (axis <= axis_to)
-      {
-        gtk_cifro_area_value_to_point (carea, &axis_pos, NULL, axis, 0.0);
+      axis = axis_from - axis_step;
+      while (axis <= axis_to)
+        {
+          gtk_cifro_area_value_to_point (carea, &axis_pos, NULL, axis, 0.0);
 
-        axis += axis_step;
-        if (axis_pos <= priv->virtual_border)
-          continue;
-        if (axis_pos >= area_width - 1)
-          continue;
+          axis += axis_step;
+          if (axis_pos <= priv->virtual_border)
+            continue;
+          if (axis_pos >= area_width - 1)
+            continue;
 
-        cairo_move_to (cairo, (gint) axis_pos + 0.5, text_height * 1.2);
-        cairo_line_to (cairo, (gint) axis_pos + 0.5, area_height);
-      }
-    cairo_stroke (cairo);
-  }
+          cairo_move_to (cairo, (gint) axis_pos + 0.5, text_height * 1.2);
+          cairo_line_to (cairo, (gint) axis_pos + 0.5, area_height);
+        }
+      cairo_stroke (cairo);
+    }
 
   /* Рисуем подписи на оси. */
-  {
-    if (axis_power > 0)
-      axis_power = 0;
-    g_snprintf (text_format, sizeof(text_format), "%%.%df", (gint) ABS (axis_power));
+  if (priv->draw_marks)
+    {
+      if (axis_power > 0)
+        axis_power = 0;
+      g_snprintf (text_format, sizeof(text_format), "%%.%df", (gint) ABS (axis_power));
 
-    axis = axis_from;
-    while (axis <= axis_to)
-      {
-        gdouble x, y;
-        g_ascii_formatd (text_str, sizeof(text_str), text_format, axis * priv->condence);
-        pango_layout_set_text (font, text_str, -1);
-        pango_layout_get_size (font, &text_width, NULL);
-        text_width /= PANGO_SCALE;
+      axis = axis_from;
+      while (axis <= axis_to)
+        {
+          gdouble x, y;
+          g_ascii_formatd (text_str, sizeof(text_str), text_format, axis * priv->condence);
+          pango_layout_set_text (font, text_str, -1);
+          pango_layout_get_size (font, &text_width, NULL);
+          text_width /= PANGO_SCALE;
 
-        gtk_cifro_area_value_to_point (carea, &axis_pos, NULL, axis, 0.0);
-        axis += axis_step;
+          gtk_cifro_area_value_to_point (carea, &axis_pos, NULL, axis, 0.0);
+          axis += axis_step;
 
-        if (axis_pos <= priv->virtual_border)
-          continue;
+          if (axis_pos <= priv->virtual_border)
+            continue;
 
-        axis_pos -= text_width / 2;
+          axis_pos -= text_width / 2;
 
-        if (axis_pos <= priv->virtual_border)
-          {
-            x = priv->virtual_border;
-            y = text_height * 0.1;
-          }
-        else
-          {
-            x = axis_pos;
-            y = text_height * 0.1;
-          }
+          if (axis_pos <= priv->virtual_border)
+            {
+              x = priv->virtual_border;
+              y = text_height * 0.1;
+            }
+          else
+            {
+              x = axis_pos;
+              y = text_height * 0.1;
+            }
 
-          /* Подложка под осью. */
-          {
-            cairo_rectangle (cairo, x - text_width * 0.1, y, text_width * 1.2, text_height);
-            hyscan_cairo_set_source_gdk_rgba (cairo, &priv->shad_color);
-            cairo_fill (cairo);
-            hyscan_cairo_set_source_gdk_rgba (cairo, &priv->grid_color);
-            cairo_rectangle (cairo, x - text_width * 0.1, y, text_width * 1.2, text_height);
-            cairo_stroke (cairo);
-          }
+            /* Подложка под осью. */
+            {
+              cairo_rectangle (cairo, x - text_width * 0.1, y, text_width * 1.2, text_height);
+              hyscan_cairo_set_source_gdk_rgba (cairo, &priv->shad_color);
+              cairo_fill (cairo);
+              hyscan_cairo_set_source_gdk_rgba (cairo, &priv->grid_color);
+              cairo_rectangle (cairo, x - text_width * 0.1, y, text_width * 1.2, text_height);
+              cairo_stroke (cairo);
+            }
 
-        hyscan_cairo_set_source_gdk_rgba (cairo, &priv->text_color);
-        cairo_move_to (cairo, x, y);
-        pango_cairo_show_layout (cairo, font);
-      }
-  }
-
-  /* Рисуем название оси. */
-  pango_layout_set_text (font, "m", -1);
-
-  pango_layout_get_size (font, &text_width, &text_height);
-  text_width /= PANGO_SCALE;
-  text_height /= PANGO_SCALE;
-
-  cairo_move_to (cairo, text_width * 0.1, text_height * 0.1);
-  pango_cairo_show_layout (cairo, font);
+          hyscan_cairo_set_source_gdk_rgba (cairo, &priv->text_color);
+          cairo_move_to (cairo, x, y);
+          pango_cairo_show_layout (cairo, font);
+        }
+    }
 }
 
 /* Функция рисует сетку по вертикальной оси. */
@@ -516,90 +510,97 @@ hyscan_gtk_waterfall_grid_horisontal (GtkWidget *widget,
   gtk_cifro_area_get_axis_step (axis_scale, step, &axis_from, &axis_step, &axis_range, &axis_power);
 
   /* Рисуем линии сетки. */
-  hyscan_cairo_set_source_gdk_rgba (cairo, &priv->grid_color);
-  cairo_set_line_width (cairo, 1.0);
-
-  axis = axis_from - axis_step;
-  while (axis <= axis_to)
+  if (priv->draw_grid)
     {
-      gtk_cifro_area_value_to_point (carea, NULL, &axis_pos, 0.0, axis);
+      hyscan_cairo_set_source_gdk_rgba (cairo, &priv->grid_color);
+      cairo_set_line_width (cairo, 1.0);
 
-      axis += axis_step;
-      if (axis_pos <= priv->virtual_border)
-        continue;
-      if (axis_pos >= area_height - 1)
-        continue;
+      axis = axis_from - axis_step;
+      while (axis <= axis_to)
+        {
+          gtk_cifro_area_value_to_point (carea, NULL, &axis_pos, 0.0, axis);
 
-      cairo_move_to (cairo, 0, (gint) axis_pos + 0.5);
-      cairo_line_to (cairo, area_width, (gint) axis_pos + 0.5);
+          axis += axis_step;
+          if (axis_pos <= priv->virtual_border)
+            continue;
+          if (axis_pos >= area_height - 1)
+            continue;
+
+          cairo_move_to (cairo, 0, (gint) axis_pos + 0.5);
+          cairo_line_to (cairo, area_width, (gint) axis_pos + 0.5);
+        }
+
+      cairo_stroke (cairo);
     }
 
-  cairo_stroke (cairo);
-
   /* Рисуем подписи на оси. */
-  if (axis_power > 0)
-    axis_power = 0;
-  g_snprintf (text_format, sizeof(text_format), "%%.%df", (gint) ABS (axis_power));
 
-  axis = axis_from;
-  while (axis <= axis_to)
+  if (priv->draw_marks)
     {
-      gdouble x, y;
+      if (axis_power > 0)
+        axis_power = 0;
+      g_snprintf (text_format, sizeof(text_format), "%%.%df", (gint) ABS (axis_power));
 
-      if (priv->display_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN)
-        g_ascii_formatd (text_str, sizeof(text_str), text_format, axis);
-      else
-        g_ascii_formatd (text_str, sizeof(text_str), text_format, ABS (axis));
+      axis = axis_from;
+      while (axis <= axis_to)
+        {
+          gdouble x, y;
 
-      pango_layout_set_text (font, text_str, -1);
+          if (priv->display_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN)
+            g_ascii_formatd (text_str, sizeof(text_str), text_format, axis);
+          else
+            g_ascii_formatd (text_str, sizeof(text_str), text_format, ABS (axis));
+
+          pango_layout_set_text (font, text_str, -1);
+          pango_layout_get_size (font, &text_width, &text_height);
+
+          text_width /= PANGO_SCALE;
+          text_height /= PANGO_SCALE;
+
+          gtk_cifro_area_value_to_point (carea, NULL, &axis_pos, 0.0, axis);
+          axis += axis_step;
+
+          if (axis_pos <= priv->virtual_border)
+            continue;
+
+
+          if (axis_pos - text_height <= priv->virtual_border)
+            {
+              x = text_height * 0.1;
+              y = priv->virtual_border;
+            }
+          else
+            {
+              x = text_height * 0.1;
+              y = (gint)axis_pos + 0.5 - text_height;
+            }
+
+          /* Подложка под осью. */
+          {
+            cairo_rectangle (cairo, x - text_width * 0.1, y, text_width * 1.2, text_height);
+            hyscan_cairo_set_source_gdk_rgba (cairo, &priv->shad_color);
+            cairo_fill (cairo);
+
+            cairo_rectangle (cairo, x - text_width * 0.1, y, text_width * 1.2, text_height);
+            hyscan_cairo_set_source_gdk_rgba (cairo, &priv->grid_color);
+            cairo_stroke (cairo);
+          }
+
+          cairo_move_to (cairo, x, y);
+
+          hyscan_cairo_set_source_gdk_rgba (cairo, &priv->text_color);
+          pango_cairo_show_layout (cairo, font);
+        }
+
+      /* Рисуем название оси. */
+      pango_layout_set_text (font, _("m"), -1);
       pango_layout_get_size (font, &text_width, &text_height);
-
       text_width /= PANGO_SCALE;
       text_height /= PANGO_SCALE;
 
-      gtk_cifro_area_value_to_point (carea, NULL, &axis_pos, 0.0, axis);
-      axis += axis_step;
-
-      if (axis_pos <= priv->virtual_border)
-        continue;
-
-
-      if (axis_pos - text_height <= priv->virtual_border)
-        {
-          x = text_height * 0.1;
-          y = priv->virtual_border;
-        }
-      else
-        {
-          x = text_height * 0.1;
-          y = (gint)axis_pos + 0.5 - text_height;
-        }
-
-      /* Подложка под осью. */
-      {
-        cairo_rectangle (cairo, x - text_width * 0.1, y, text_width * 1.2, text_height);
-        hyscan_cairo_set_source_gdk_rgba (cairo, &priv->shad_color);
-        cairo_fill (cairo);
-
-        cairo_rectangle (cairo, x - text_width * 0.1, y, text_width * 1.2, text_height);
-        hyscan_cairo_set_source_gdk_rgba (cairo, &priv->grid_color);
-        cairo_stroke (cairo);
-      }
-
-      cairo_move_to (cairo, x, y);
-
-      hyscan_cairo_set_source_gdk_rgba (cairo, &priv->text_color);
+      cairo_move_to (cairo, text_width * 0.1, text_height * 0.1);
       pango_cairo_show_layout (cairo, font);
     }
-
-  /* Рисуем название оси. */
-  pango_layout_set_text (font, _("m"), -1);
-  pango_layout_get_size (font, &text_width, &text_height);
-  text_width /= PANGO_SCALE;
-  text_height /= PANGO_SCALE;
-
-  cairo_move_to (cairo, text_width * 0.1, text_height * 0.1);
-  pango_cairo_show_layout (cairo, font);
 }
 
 /* Функция рисует информационное окошко. */
@@ -785,6 +786,27 @@ hyscan_gtk_waterfall_grid_show_grid (HyScanGtkWaterfallGrid *self,
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (self));
 
   self->priv->draw_grid = draw;
+
+  if (self->priv->wfall != NULL)
+    hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
+}
+
+/**
+ * hyscan_gtk_waterfall_grid_show_marks:
+ *
+ * Функция позволяет включить или отключить числовые метки.
+ *
+ * @grid: указатель на объект #HyScanGtkWaterfallGrid
+ * @draw_grid: TRUE, чтобы показать числовые метки, FALSE, чтобы скрыть
+ *
+ */
+void
+hyscan_gtk_waterfall_grid_show_marks (HyScanGtkWaterfallGrid *self,
+                                     gboolean                draw)
+{
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_GRID (self));
+
+  self->priv->draw_marks = draw;
 
   if (self->priv->wfall != NULL)
     hyscan_gtk_waterfall_queue_draw (self->priv->wfall);

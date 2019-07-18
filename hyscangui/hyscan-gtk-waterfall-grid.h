@@ -81,6 +81,9 @@ HyScanGtkWaterfallGrid *hyscan_gtk_waterfall_grid_new                   (void);
 HYSCAN_API
 void                    hyscan_gtk_waterfall_grid_show_grid             (HyScanGtkWaterfallGrid *grid,
                                                                          gboolean                draw_grid);
+HYSCAN_API
+void                    hyscan_gtk_waterfall_grid_show_marks            (HyScanGtkWaterfallGrid *grid,
+                                                                         gboolean                draw_grid);
 
 HYSCAN_API
 void                    hyscan_gtk_waterfall_grid_show_info             (HyScanGtkWaterfallGrid *grid,

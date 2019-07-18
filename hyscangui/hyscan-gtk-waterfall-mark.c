@@ -1152,6 +1152,10 @@ hyscan_gtk_waterfall_mark_handle_create (HyScanGtkLayerContainer *container,
   if (self != hyscan_gtk_layer_container_get_input_owner (container))
     return FALSE;
 
+  /* Мы не можем обрабатывать действия, если слой отключен. */
+  if (!priv->layer_visibility)
+    return FALSE;
+
   if (hyscan_gtk_waterfall_tools_distance (&priv->press, &mouse) > 2)
     return FALSE;
 
