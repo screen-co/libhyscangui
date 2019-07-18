@@ -80,7 +80,8 @@ void                      hyscan_gtk_map_track_set_project         (HyScanGtkMap
 
 HYSCAN_API
 gboolean                  hyscan_gtk_map_track_track_view          (HyScanGtkMapTrack  *track_layer,
-                                                                    const gchar        *track_name);
+                                                                    const gchar        *track_name,
+                                                                    gboolean            zoom_in);
 
 HYSCAN_API
 void                      hyscan_gtk_map_track_set_color_track     (HyScanGtkMapTrack  *track_layer,

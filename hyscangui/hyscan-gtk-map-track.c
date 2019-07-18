@@ -594,19 +594,23 @@ hyscan_gtk_map_track_set_project (HyScanGtkMapTrack *track_layer,
  * hyscan_gtk_map_track_track_view:
  * @track_layer: указатель на слой #HyScanGtkMapTrack
  * @track_name: название галса
+ * @zoom_in: надо ли вписывать галс в видимую область
  *
- * Показывает галс @track_name на карте. Функция устанавливает границы видимой
- * области карты так, чтобы галс был виден полностью.
+ * Перемешает видимую область карты к галсу с названием @track_name. Если установлен
+ * флаг @zoom_in, то функция устанавливает границы видимой области карты так,
+ * чтобы галс был виден полностью.
  *
  * Returns: %TRUE, если получилось определить границы галса; иначе %FALSE
  */
 gboolean 
 hyscan_gtk_map_track_track_view (HyScanGtkMapTrack *track_layer,
-                                 const gchar       *track_name)
+                                 const gchar       *track_name,
+                                 gboolean           zoom_in)
 {
   HyScanGtkMapTrackPrivate *priv;
   HyScanGtkMapTrackItem *track;
   HyScanGeoCartesian2D from, to;
+  gdouble prev_scale = -1.0;
 
   g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track_layer), FALSE);
   g_return_val_if_fail (track_name != NULL, FALSE);
@@ -619,8 +623,17 @@ hyscan_gtk_map_track_track_view (HyScanGtkMapTrack *track_layer,
   if (track == NULL)
     return FALSE;
 
+  if (!zoom_in)
+    gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &prev_scale, NULL);
+
   hyscan_gtk_map_track_item_view (track, &from, &to);
   gtk_cifro_area_set_view (GTK_CIFRO_AREA (priv->map), from.x, to.x, from.y, to.y);
+
+  if (!zoom_in)
+    {
+      gtk_cifro_area_set_scale (GTK_CIFRO_AREA (priv->map), prev_scale, prev_scale,
+                                (from.x + to.x) / 2.0, (from.y + to.y) / 2.0);
+    }
 
   return TRUE;
 }

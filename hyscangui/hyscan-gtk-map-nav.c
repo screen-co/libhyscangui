@@ -64,7 +64,7 @@
 #include "hyscan-gtk-map.h"
 #include <hyscan-cartesian.h>
 #include <hyscan-nav-model.h>
-#include <glib/gi18n.h>
+#include <glib/gi18n-lib.h>
 #include <string.h>
 #include <math.h>
 

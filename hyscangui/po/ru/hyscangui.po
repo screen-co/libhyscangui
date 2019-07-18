@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-06-05 16:05+0300\n"
+"POT-Creation-Date: 2019-07-17 15:48+0300\n"
 "PO-Revision-Date: 2019-05-31 17:01+0300\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -19,37 +19,49 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
 "%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
-#: hyscangui/hyscan-gtk-map-nav.c:858
+#: hyscangui/hyscan-gtk-map-nav.c:875
 msgctxt "Heading"
 msgid "COG"
 msgstr "ПУ"
 
-#: hyscangui/hyscan-gtk-map-nav.c:858
+#: hyscangui/hyscan-gtk-map-nav.c:875
 msgctxt "Heading"
 msgid "HDG"
 msgstr "ИК"
 
-#: hyscangui/hyscan-gtk-map-nav.c:852
+#: hyscangui/hyscan-gtk-map-control.c:187
+#, c-format
+msgid ""
+"Mouse coordinates copied to clipboard:\n"
+"\n"
+"%s"
+msgstr ""
+"Координаты курсора скопированы в буфер обмена:\n"
+"\n"
+"%s"
+
+#: hyscangui/hyscan-gtk-map-nav.c:869
 msgid "Signal lost"
 msgstr "Нет сигнала"
 
-#: hyscangui/hyscan-gtk-map-grid.c:580 hyscangui/hyscan-gtk-map-ruler.c:368
+#: hyscangui/hyscan-gtk-map-grid.c:591 hyscangui/hyscan-gtk-map-ruler.c:369
 msgid "cm"
 msgstr "см"
 
-#: hyscangui/hyscan-gtk-map-grid.c:576 hyscangui/hyscan-gtk-map-ruler.c:374
+#: hyscangui/hyscan-gtk-map-grid.c:587 hyscangui/hyscan-gtk-map-ruler.c:375
 msgid "km"
 msgstr "км"
 
-#: hyscangui/hyscan-gtk-map-grid.c:578 hyscangui/hyscan-gtk-map-ruler.c:370
-#: hyscangui/hyscan-gtk-map-ruler.c:372
+#: hyscangui/hyscan-gtk-map-grid.c:589 hyscangui/hyscan-gtk-map-ruler.c:371
+#: hyscangui/hyscan-gtk-map-ruler.c:373
+#: hyscangui/hyscan-gtk-waterfall-grid.c:596
 msgid "m"
 msgstr "м"
 
-#: hyscangui/hyscan-gtk-map-nav.c:860
+#: hyscangui/hyscan-gtk-map-nav.c:877
 msgid "m/s"
 msgstr "м/с"
 
-#: hyscangui/hyscan-gtk-map-grid.c:582
+#: hyscangui/hyscan-gtk-map-grid.c:593
 msgid "mm"
 msgstr "мм"

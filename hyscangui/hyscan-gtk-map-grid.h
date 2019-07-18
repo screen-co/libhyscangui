@@ -69,10 +69,6 @@ HYSCAN_API
 HyScanGtkLayer *       hyscan_gtk_map_grid_new                (void);
 
 HYSCAN_API
-void                   hyscan_gtk_map_grid_set_scale_width    (HyScanGtkMapGrid *grid,
-                                                               gdouble           width);
-
-HYSCAN_API
 void                   hyscan_gtk_map_grid_set_line_color     (HyScanGtkMapGrid *grid,
                                                                GdkRGBA           color);
 

@@ -53,10 +53,10 @@
 #include "hyscan-gtk-map-ruler.h"
 #include "hyscan-gtk-map.h"
 #include <hyscan-cartesian.h>
-#include <glib/gi18n.h>
+#include <glib/gi18n-lib.h>
 #include <math.h>
 
-#define SNAP_DISTANCE       6.0           /* Максимальное расстояние прилипания курсора мыши к звену ломаной. */
+#define SNAP_DISTANCE       10.0          /* Максимальное расстояние прилипания курсора мыши к звену ломаной. */
 #define EARTH_RADIUS        6378137.0     /* Радиус Земли. */
 
 #define LINE_WIDTH_DEFAULT  1.0
@@ -154,7 +154,7 @@ hyscan_gtk_map_ruler_object_constructed (GObject *object)
   hyscan_gtk_map_ruler_set_bg_color (gtk_map_ruler, color);
   gdk_rgba_parse (&color, LABEL_COLOR_DEFAULT);
   hyscan_gtk_map_ruler_set_label_color (gtk_map_ruler, color);
-  hyscan_gtk_map_pin_set_pin_size (pin_layer, 4);
+  hyscan_gtk_map_pin_set_pin_size (pin_layer, SNAP_DISTANCE / 2.0);
   hyscan_gtk_map_pin_set_pin_shape (pin_layer, HYSCAN_GTK_MAP_PIN_SHAPE_CIRCLE);
 
   priv->label_padding = 5;
@@ -181,7 +181,7 @@ hyscan_gtk_map_ruler_handle (HyScanGtkLayerContainer *container,
                              HyScanGtkMapRuler       *ruler)
 {
   GList *section;
-  HyScanGtkMapPoint *new_point;
+  HyScanGtkMapPinItem *new_item;
   HyScanGtkMapRulerPrivate *priv = ruler->priv;
   HyScanGtkMapPin *pin_layer = HYSCAN_GTK_MAP_PIN (ruler);
 
@@ -189,9 +189,9 @@ hyscan_gtk_map_ruler_handle (HyScanGtkLayerContainer *container,
   if (section == NULL)
     return NULL;
 
-  new_point = hyscan_gtk_map_pin_insert_before (pin_layer, &priv->section_point, section);
+  new_item = hyscan_gtk_map_pin_insert_before (pin_layer, &priv->section_point, section);
 
-  return hyscan_gtk_map_pin_start_drag (pin_layer, new_point);
+  return hyscan_gtk_map_pin_start_drag (pin_layer, new_item);
 }
 
 static void

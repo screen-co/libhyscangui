@@ -258,6 +258,16 @@ hyscan_gtk_map_init_view (GtkWidget         *widget,
   return FALSE;
 }
 
+/* Захватывает фокус клавиатуры по "button-release-event'. */
+static gboolean
+hyscan_gtk_map_grab_focus (HyScanGtkMap *map,
+                           GdkEvent     *event)
+{
+  gtk_widget_grab_focus (GTK_WIDGET (map));
+
+  return GDK_EVENT_PROPAGATE;
+}
+
 static void
 hyscan_gtk_map_object_constructed (GObject *object)
 {
@@ -268,6 +278,7 @@ hyscan_gtk_map_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_parent_class)->constructed (object);
 
   g_signal_connect_after (gtk_map, "configure-event", G_CALLBACK (hyscan_gtk_map_init_view), NULL);
+  g_signal_connect_swapped (gtk_map, "button-release-event", G_CALLBACK (hyscan_gtk_map_grab_focus), gtk_map);
 
   /* Устанавливаем проекцию и масштабы по умолчанию. */
   priv->projection = hyscan_pseudo_mercator_new ();
