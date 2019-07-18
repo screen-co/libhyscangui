@@ -58,6 +58,7 @@
 /* Оформление по умолчанию. */
 #define MARK_COLOR              "#61B243"                     /* Цвет обводки меток. */
 #define MARK_COLOR_HOVER        "#9443B2"                     /* Цвет обводки меток при наведении мыши. */
+#define MARK_COLOR_BG           "rgba(255, 255, 255, 0.8)"    /* Цвет фона текста. */
 #define LINE_WIDTH              1.0                           /* Толщина линии обводки. */
 
 /* Раскомментируйте строку ниже для отладки положения меток относительно галса. */
@@ -106,7 +107,9 @@ struct _HyScanGtkMapWfmarkPrivate
   /* Стиль отображения. */
   GdkRGBA                                color_default;   /* Цвет обводки меток. */
   GdkRGBA                                color_hover;     /* Цвет обводки метки при наведении курсора мыши. */
+  GdkRGBA                                color_bg;        /* Фоновый цвет текста. */
   gdouble                                line_width;      /* Толщина обводки. */
+  PangoLayout                           *pango_layout;    /* Шрифт. */
 };
 
 static void    hyscan_gtk_map_wfmark_interface_init           (HyScanGtkLayerInterface    *iface);
@@ -185,6 +188,7 @@ hyscan_gtk_map_wfmark_object_constructed (GObject *object)
   /* Стиль оформления. */
   gdk_rgba_parse (&priv->color_default, MARK_COLOR);
   gdk_rgba_parse (&priv->color_hover, MARK_COLOR_HOVER);
+  gdk_rgba_parse (&priv->color_bg, MARK_COLOR_BG);
   priv->line_width = LINE_WIDTH;
 }
 
@@ -336,6 +340,8 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       gdouble x, y;
       gdouble width, height;
       gdouble scale;
+      gboolean selected;
+      GdkRGBA *color;
 
       if (!location->mloc->loaded)
         continue;
@@ -385,22 +391,44 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       }
 #endif
 
-      if (mark_id != NULL && g_strcmp0 (mark_id, priv->active_mark_id) == 0)
-        cairo_set_line_width (cairo, 2.0 * priv->line_width);
-      else
-        cairo_set_line_width (cairo, priv->line_width);
+      selected = (mark_id != NULL && g_strcmp0 (mark_id, priv->active_mark_id) == 0);
 
       if (priv->location_hover == location)
-        gdk_cairo_set_source_rgba (cairo, &priv->color_hover);
+        color = &priv->color_hover;
       else
-        gdk_cairo_set_source_rgba (cairo, &priv->color_default);
+        color = &priv->color_default;
 
       cairo_save (cairo);
       cairo_translate (cairo, x, y);
-      cairo_rotate (cairo, location->angle);
 
-      cairo_rectangle (cairo, -width, -height, 2.0 * width, 2.0 * height);
-      cairo_stroke (cairo);
+      /* Контур метки. */
+      {
+        cairo_save (cairo);
+        cairo_rotate (cairo, location->angle);
+        cairo_rectangle (cairo, -width, -height, 2.0 * width, 2.0 * height);
+        cairo_set_line_width (cairo, selected ? 2.0 * priv->line_width : priv->line_width);
+        gdk_cairo_set_source_rgba (cairo, color);
+        cairo_stroke (cairo);
+        cairo_restore (cairo);
+      }
+
+      /* Название метки. */
+      {
+        gint text_width, text_height;
+
+        pango_layout_set_text (priv->pango_layout, location->mloc->mark->name, -1);
+        pango_layout_get_size (priv->pango_layout, &text_width, &text_height);
+        text_width /= PANGO_SCALE;
+        text_height /= PANGO_SCALE;
+
+        cairo_rectangle (cairo, -text_width / 2.0, -text_height / 2.0, text_width, text_height);
+        gdk_cairo_set_source_rgba (cairo, &priv->color_bg);
+        cairo_fill (cairo);
+
+        cairo_move_to (cairo, -text_width / 2.0, -text_height / 2.0);
+        gdk_cairo_set_source_rgba (cairo, color);
+        pango_cairo_show_layout (cairo, priv->pango_layout);
+      }
 
       cairo_restore (cairo);
     }
@@ -473,6 +501,19 @@ hyscan_gtk_map_wfmark_proj_notify (HyScanGtkMap *map,
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }
 
+/* Обновление раскладки шрифта по сигналу "configure-event". */
+static gboolean
+hyscan_gtk_map_wfmark_configure (HyScanGtkMapWfmark *wfmark,
+                                 GdkEvent           *event)
+{
+  HyScanGtkMapWfmarkPrivate *priv = wfmark->priv;
+
+  g_clear_object (&priv->pango_layout);
+  priv->pango_layout = gtk_widget_create_pango_layout (GTK_WIDGET (priv->map), NULL);
+
+  return GDK_EVENT_PROPAGATE;
+}
+
 static void
 hyscan_gtk_map_wfmark_added (HyScanGtkLayer          *gtk_layer,
                              HyScanGtkLayerContainer *container)
@@ -486,6 +527,7 @@ hyscan_gtk_map_wfmark_added (HyScanGtkLayer          *gtk_layer,
   priv->map = g_object_ref (HYSCAN_GTK_MAP (container));
   g_signal_connect_after (priv->map, "visible-draw", G_CALLBACK (hyscan_gtk_map_wfmark_draw), wfm_layer);
   g_signal_connect (priv->map, "notify::projection", G_CALLBACK (hyscan_gtk_map_wfmark_proj_notify), wfm_layer);
+  g_signal_connect_swapped (priv->map, "configure-event", G_CALLBACK (hyscan_gtk_map_wfmark_configure), wfm_layer);
 }
 
 static void
@@ -540,6 +582,7 @@ hyscan_gtk_map_wfmark_load_key_file (HyScanGtkLayer *layer,
   priv->line_width = value > 0 ? value : LINE_WIDTH ;
   hyscan_gtk_layer_load_key_file_rgba (&priv->color_default, key_file, group, "color",       MARK_COLOR);
   hyscan_gtk_layer_load_key_file_rgba (&priv->color_hover,   key_file, group, "hover-color", MARK_COLOR_HOVER);
+  hyscan_gtk_layer_load_key_file_rgba (&priv->color_bg,   key_file, group, "bg-color", MARK_COLOR_BG);
 
   g_rw_lock_writer_unlock (&priv->mark_lock);
 

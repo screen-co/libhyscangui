@@ -56,11 +56,12 @@
 #include <hyscan-cartesian.h>
 
 #define HOVER_RADIUS            7                             /* Радиус хэндла. */
-#define DEFAULT_LINE_WIDTH      1.0
-#define DEFAULT_COLOR           "#B25D43"
-#define DEFAULT_HOVER_COLOR     "#9443B2"
-#define DEFAULT_PENDING_COLOR   "rgba(0,0,0,0.5)"
-#define DEFAULT_BLACKOUT_COLOR  "rgba(0,0,0,0.5)"
+#define DEFAULT_LINE_WIDTH      1.0                           /* Толщина линии контура метки. */
+#define DEFAULT_COLOR           "#B25D43"                     /* Цвет контура метки. */
+#define DEFAULT_HOVER_COLOR     "#9443B2"                     /* Цвет контура метки при наведении мыши. */
+#define DEFAULT_PENDING_COLOR   "rgba(0,0,0,0.5)"             /* Цвет контура метки во время записи. */
+#define DEFAULT_BLACKOUT_COLOR  "rgba(0,0,0,0.5)"             /* Цвет затенения. */
+#define DEFAULT_BG_COLOR        "rgba(255,255,255,0.8)"       /* Цвет фона текста. */
 
 enum
 {
@@ -116,6 +117,8 @@ struct _HyScanGtkMapGeomarkPrivate
   GdkRGBA                                  color_hover;        /* Цвет метки под курсором мыши. */
   GdkRGBA                                  color_pending;      /* Цвет обрабатываемой метки. */
   GdkRGBA                                  color_blackout;     /* Цвет затемнения. */
+  GdkRGBA                                  color_bg;           /* Цвет фона текста. */
+  PangoLayout                             *pango_layout;       /* Шрифт. */
 };
 
 static void    hyscan_gtk_map_geomark_interface_init       (HyScanGtkLayerInterface          *iface);
@@ -192,6 +195,7 @@ hyscan_gtk_map_geomark_object_constructed (GObject *object)
   gdk_rgba_parse (&priv->color_hover,    DEFAULT_HOVER_COLOR);
   gdk_rgba_parse (&priv->color_pending,  DEFAULT_PENDING_COLOR);
   gdk_rgba_parse (&priv->color_blackout, DEFAULT_BLACKOUT_COLOR);
+  gdk_rgba_parse (&priv->color_bg,       DEFAULT_BG_COLOR);
 
   g_signal_connect_swapped (priv->model, "changed",
                             G_CALLBACK (hyscan_gtk_map_geomark_model_changed), gm_layer);
@@ -390,6 +394,27 @@ hyscan_gtk_map_geomark_draw_location (HyScanGtkMapGeomark         *gm_layer,
   cairo_fill (cairo);
   cairo_arc (cairo,  width / 2.0,  height / 2.0, dot_radius, 0, 2.0 * G_PI);
   cairo_fill (cairo);
+
+  /* Название. */
+  {
+    gint text_width, text_height;
+    gdouble text_x, text_y;
+
+    pango_layout_set_text (priv->pango_layout, location->mark->name, -1);
+    pango_layout_get_size (priv->pango_layout, &text_width, &text_height);
+    text_width /= PANGO_SCALE;
+    text_height /= PANGO_SCALE;
+
+    text_x = -text_width / 2.0;
+    text_y = height / 2.0 + 0.3 * text_height;
+    cairo_rectangle (cairo, text_x, text_y, text_width, text_height);
+    gdk_cairo_set_source_rgba (cairo, &priv->color_bg);
+    cairo_fill (cairo);
+
+    cairo_move_to (cairo, text_x, text_y);
+    gdk_cairo_set_source_rgba (cairo, color);
+    pango_cairo_show_layout (cairo, priv->pango_layout);
+  }
 
   cairo_restore (cairo);
 }
@@ -890,6 +915,19 @@ hyscan_gtk_map_geomark_key_press (HyScanGtkMapGeomark *gm_layer,
   return GDK_EVENT_PROPAGATE;
 }
 
+/* Обновление раскладки шрифта по сигналу "configure-event". */
+static gboolean
+hyscan_gtk_map_geomark_configure (HyScanGtkMapGeomark *geomark,
+                                  GdkEvent            *event)
+{
+  HyScanGtkMapGeomarkPrivate *priv = geomark->priv;
+
+  g_clear_object (&priv->pango_layout);
+  priv->pango_layout = gtk_widget_create_pango_layout (GTK_WIDGET (priv->map), NULL);
+
+  return GDK_EVENT_PROPAGATE;
+}
+
 /* Обработка добавления слоя на карту. */
 static void
 hyscan_gtk_map_geomark_added (HyScanGtkLayer          *gtk_layer,
@@ -909,6 +947,7 @@ hyscan_gtk_map_geomark_added (HyScanGtkLayer          *gtk_layer,
   g_signal_connect (priv->map, "handle-grab", G_CALLBACK (hyscan_gtk_map_geomark_handle_grab), gm_layer);
   g_signal_connect (priv->map, "handle-create", G_CALLBACK (hyscan_gtk_map_geomark_handle_create), gm_layer);
   g_signal_connect_swapped (priv->map, "key-press-event", G_CALLBACK (hyscan_gtk_map_geomark_key_press), gm_layer);
+  g_signal_connect_swapped (priv->map, "configure-event", G_CALLBACK (hyscan_gtk_map_geomark_configure), gm_layer);
 }
 
 /* Обработка удаления слоя с карты. */
@@ -1055,6 +1094,7 @@ hyscan_gtk_map_geomark_load_key_file (HyScanGtkLayer *gtk_layer,
   hyscan_gtk_layer_load_key_file_rgba (&priv->color_hover,    key_file, group, "hover-color",    DEFAULT_HOVER_COLOR);
   hyscan_gtk_layer_load_key_file_rgba (&priv->color_pending,  key_file, group, "pending-color",  DEFAULT_PENDING_COLOR);
   hyscan_gtk_layer_load_key_file_rgba (&priv->color_blackout, key_file, group, "blackout-color", DEFAULT_BLACKOUT_COLOR);
+  hyscan_gtk_layer_load_key_file_rgba (&priv->color_bg,       key_file, group, "bg-color",       DEFAULT_BG_COLOR);
 
   if (priv->map != NULL)
     gtk_widget_queue_draw (GTK_WIDGET (priv->map));
