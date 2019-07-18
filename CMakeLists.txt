@@ -74,5 +74,6 @@ else ()
 endif ()
 
 add_definitions (-DG_LOG_DOMAIN="HyScanGUI")
+add_definitions (-DGETTEXT_PACKAGE="hyscangui")
 add_subdirectory (hyscangui)
 add_subdirectory (tests)
