@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-06-05 16:05+0300\n"
+"POT-Creation-Date: 2019-07-18 15:43+0300\n"
 "PO-Revision-Date: 2019-05-31 17:01+0300\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -17,37 +17,62 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: hyscangui/hyscan-gtk-map-nav.c:858
+#: hyscangui/hyscan-gtk-map-nav.c:875
 msgctxt "Heading"
 msgid "COG"
 msgstr "COG"
 
-#: hyscangui/hyscan-gtk-map-nav.c:858
+#: hyscangui/hyscan-gtk-map-track-item.c:585
+msgid "Configure track channel data"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-map-nav.c:875
 msgctxt "Heading"
 msgid "HDG"
 msgstr "HDG"
 
-#: hyscangui/hyscan-gtk-map-nav.c:852
+#: hyscangui/hyscan-gtk-map-control.c:188
+#, c-format
+msgid ""
+"Mouse coordinates copied to clipboard:\n"
+"\n"
+"%s"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-map-track-item.c:591
+msgid "RMC Channel"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-map-nav.c:869
 msgid "Signal lost"
 msgstr "Signal lost"
 
-#: hyscangui/hyscan-gtk-map-grid.c:580 hyscangui/hyscan-gtk-map-ruler.c:368
+#: hyscangui/hyscan-gtk-map-track-item.c:592
+msgid "The NMEA-channel with RMC sentences"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-map-track-item.c:585
+msgid "Track settings"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-map-scale.c:301 hyscangui/hyscan-gtk-map-ruler.c:369
 msgid "cm"
 msgstr "cm"
 
-#: hyscangui/hyscan-gtk-map-grid.c:576 hyscangui/hyscan-gtk-map-ruler.c:374
+#: hyscangui/hyscan-gtk-map-scale.c:297 hyscangui/hyscan-gtk-map-ruler.c:375
 msgid "km"
 msgstr "km"
 
-#: hyscangui/hyscan-gtk-map-grid.c:578 hyscangui/hyscan-gtk-map-ruler.c:370
-#: hyscangui/hyscan-gtk-map-ruler.c:372
+#: hyscangui/hyscan-gtk-map-scale.c:299 hyscangui/hyscan-gtk-map-ruler.c:371
+#: hyscangui/hyscan-gtk-map-ruler.c:373
+#: hyscangui/hyscan-gtk-waterfall-grid.c:596
 msgid "m"
 msgstr "m"
 
-#: hyscangui/hyscan-gtk-map-nav.c:860
+#: hyscangui/hyscan-gtk-map-nav.c:877
 msgid "m/s"
 msgstr "m/s"
 
-#: hyscangui/hyscan-gtk-map-grid.c:582
+#: hyscangui/hyscan-gtk-map-scale.c:303
 msgid "mm"
 msgstr "mm"

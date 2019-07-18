@@ -42,6 +42,7 @@
  */
 
 #include "hyscan-gtk-param-tree.h"
+#include <glib/gi18n-lib.h>
 
 enum
 {
@@ -235,13 +236,13 @@ hyscan_gtk_param_tree_make_tree (HyScanGtkParamTree  *self,
   gtk_tree_view_append_column (tree, column);
 
   renderer = gtk_cell_renderer_text_new ();
-  column = gtk_tree_view_column_new_with_attributes ("Name", renderer,
+  column = gtk_tree_view_column_new_with_attributes (_("Name"), renderer,
                                                      "text", NAME_COL,
                                                      NULL);
   gtk_tree_view_append_column (tree, column);
 
   renderer = gtk_cell_renderer_text_new ();
-  column = gtk_tree_view_column_new_with_attributes ("Description", renderer,
+  column = gtk_tree_view_column_new_with_attributes (_("Description"), renderer,
                                                      "markup", DESCRIPTION_COL,
                                                      NULL);
   gtk_tree_view_append_column (tree, column);

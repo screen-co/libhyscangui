@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-07-17 15:48+0300\n"
+"POT-Creation-Date: 2019-07-18 16:01+0300\n"
 "PO-Revision-Date: 2019-05-31 17:01+0300\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -24,12 +24,28 @@ msgctxt "Heading"
 msgid "COG"
 msgstr "ПУ"
 
+#: hyscangui/hyscan-gtk-map-track-item.c:585
+msgid "Configure track channel data"
+msgstr "Настройка каналов данных галса"
+
+#: hyscangui/hyscan-gtk-map-track-item.c:596
+msgid "DPT Channel"
+msgstr "Канал DPT"
+
+#: hyscangui/hyscan-gtk-param-tree.c:245
+msgid "Description"
+msgstr "Описание"
+
+#: hyscangui/hyscan-gtk-map-track-item.c:514
+msgid "Disabled"
+msgstr "Отключен"
+
 #: hyscangui/hyscan-gtk-map-nav.c:875
 msgctxt "Heading"
 msgid "HDG"
 msgstr "ИК"
 
-#: hyscangui/hyscan-gtk-map-control.c:187
+#: hyscangui/hyscan-gtk-map-control.c:188
 #, c-format
 msgid ""
 "Mouse coordinates copied to clipboard:\n"
@@ -40,19 +56,55 @@ msgstr ""
 "\n"
 "%s"
 
+#: hyscangui/hyscan-gtk-param-tree.c:239
+msgid "Name"
+msgstr "Название"
+
+#: hyscangui/hyscan-gtk-map-track-item.c:602
+msgid "Port Channel"
+msgstr "Левый борт"
+
+#: hyscangui/hyscan-gtk-map-track-item.c:591
+msgid "RMC Channel"
+msgstr "Канал RMC"
+
+#: hyscangui/hyscan-gtk-map-track-item.c:603
+msgid "Show side-scan port channel data"
+msgstr "Показывать левый борт"
+
+#: hyscangui/hyscan-gtk-map-track-item.c:610
+msgid "Show side-scan starboard channel data"
+msgstr "Показывать правый борт"
+
 #: hyscangui/hyscan-gtk-map-nav.c:869
 msgid "Signal lost"
 msgstr "Нет сигнала"
 
-#: hyscangui/hyscan-gtk-map-grid.c:591 hyscangui/hyscan-gtk-map-ruler.c:369
+#: hyscangui/hyscan-gtk-map-track-item.c:609
+msgid "Starboard Channel"
+msgstr "Правый борт"
+
+#: hyscangui/hyscan-gtk-map-track-item.c:597
+msgid "The NMEA-channel with DPT sentences"
+msgstr "Канал NMEA с сообщениями DPT"
+
+#: hyscangui/hyscan-gtk-map-track-item.c:592
+msgid "The NMEA-channel with RMC sentences"
+msgstr "Канал NMEA с сообщениями RMC"
+
+#: hyscangui/hyscan-gtk-map-track-item.c:585
+msgid "Track settings"
+msgstr "Настройки галса"
+
+#: hyscangui/hyscan-gtk-map-scale.c:301 hyscangui/hyscan-gtk-map-ruler.c:369
 msgid "cm"
 msgstr "см"
 
-#: hyscangui/hyscan-gtk-map-grid.c:587 hyscangui/hyscan-gtk-map-ruler.c:375
+#: hyscangui/hyscan-gtk-map-scale.c:297 hyscangui/hyscan-gtk-map-ruler.c:375
 msgid "km"
 msgstr "км"
 
-#: hyscangui/hyscan-gtk-map-grid.c:589 hyscangui/hyscan-gtk-map-ruler.c:371
+#: hyscangui/hyscan-gtk-map-scale.c:299 hyscangui/hyscan-gtk-map-ruler.c:371
 #: hyscangui/hyscan-gtk-map-ruler.c:373
 #: hyscangui/hyscan-gtk-waterfall-grid.c:596
 msgid "m"
@@ -62,6 +114,6 @@ msgstr "м"
 msgid "m/s"
 msgstr "м/с"
 
-#: hyscangui/hyscan-gtk-map-grid.c:593
+#: hyscangui/hyscan-gtk-map-scale.c:303
 msgid "mm"
 msgstr "мм"

@@ -18,6 +18,7 @@ case "$1" in
     find ${SRC_DIR[@]} -iname *.c -o -iname *.ui | xargs \
     xgettext --sort-output \
     --keyword=_ \
+    --keyword=N_ \
     --keyword=C_:1c,2 \
     --keyword=Q_:1g \
     --from-code=UTF-8 \

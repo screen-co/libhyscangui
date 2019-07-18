@@ -1575,7 +1575,7 @@ hyscan_gtk_map_kit_add_nav (HyScanGtkMapKit *kit,
 
   /* Слой с траекторией движения судна. */
   priv->way_layer = hyscan_gtk_map_nav_new (priv->nav_model);
-  add_layer_row (kit, priv->way_layer, "way", _("Navigation"));
+  add_layer_row (kit, priv->way_layer, "nav", _("Navigation"));
 }
 
 void
