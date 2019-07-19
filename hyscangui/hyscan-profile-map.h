@@ -1,4 +1,4 @@
-/* hyscan-gtk-map-profile.h
+/* hyscan-profile-map.h
  *
  * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *
@@ -32,47 +32,49 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
-#ifndef __HYSCAN_MAP_PROFILE_H__
-#define __HYSCAN_MAP_PROFILE_H__
+#ifndef __HYSCAN_PROFILE_MAP_H__
+#define __HYSCAN_PROFILE_MAP_H__
 
 #include <hyscan-gtk-map.h>
+#include <hyscan-profile.h>
 
 G_BEGIN_DECLS
 
-#define HYSCAN_TYPE_MAP_PROFILE             (hyscan_map_profile_get_type ())
-#define HYSCAN_MAP_PROFILE(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_MAP_PROFILE, HyScanMapProfile))
+#define HYSCAN_TYPE_MAP_PROFILE             (hyscan_profile_map_get_type ())
+#define HYSCAN_PROFILE_MAP(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_MAP_PROFILE, HyScanProfileMap))
 #define HYSCAN_IS_MAP_PROFILE(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_MAP_PROFILE))
-#define HYSCAN_MAP_PROFILE_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_MAP_PROFILE, HyScanMapProfileClass))
+#define HYSCAN_PROFILE_MAP_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_MAP_PROFILE, HyScanProfileMapClass))
 #define HYSCAN_IS_MAP_PROFILE_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_MAP_PROFILE))
-#define HYSCAN_MAP_PROFILE_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_MAP_PROFILE, HyScanMapProfileClass))
+#define HYSCAN_PROFILE_MAP_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_MAP_PROFILE, HyScanProfileMapClass))
 
-typedef struct _HyScanMapProfile HyScanMapProfile;
-typedef struct _HyScanMapProfilePrivate HyScanMapProfilePrivate;
-typedef struct _HyScanMapProfileClass HyScanMapProfileClass;
+typedef struct _HyScanProfileMap HyScanProfileMap;
+typedef struct _HyScanProfileMapPrivate HyScanProfileMapPrivate;
+typedef struct _HyScanProfileMapClass HyScanProfileMapClass;
 
-struct _HyScanMapProfile
+struct _HyScanProfileMap
 {
-  GObject parent_instance;
+  HyScanProfile parent_instance;
 
-  HyScanMapProfilePrivate *priv;
+  HyScanProfileMapPrivate *priv;
 };
 
-struct _HyScanMapProfileClass
+struct _HyScanProfileMapClass
 {
-  GObjectClass parent_class;
+  HyScanProfileClass parent_class;
 };
 
 HYSCAN_API
-GType                  hyscan_map_profile_get_type         (void);
+GType                  hyscan_profile_map_get_type         (void);
 
 HYSCAN_API
-HyScanMapProfile *     hyscan_map_profile_new              (const gchar        *cache_dir);
+HyScanProfileMap *     hyscan_profile_map_new              (const gchar        *cache_dir,
+                                                            const gchar        *file_name);
 
 HYSCAN_API
-HyScanMapProfile *     hyscan_map_profile_new_default      (const gchar        *cache_dir);
+HyScanProfileMap *     hyscan_profile_map_new_default      (const gchar        *cache_dir);
 
 HYSCAN_API
-HyScanMapProfile *     hyscan_map_profile_new_full         (const gchar        *title,
+HyScanProfileMap *     hyscan_profile_map_new_full         (const gchar        *title,
                                                             const gchar        *url_format,
                                                             const gchar        *cache_dir,
                                                             const gchar        *cache_subdir,
@@ -81,20 +83,13 @@ HyScanMapProfile *     hyscan_map_profile_new_full         (const gchar        *
                                                             guint               max_zoom);
 
 HYSCAN_API
-gchar *                hyscan_map_profile_get_title        (HyScanMapProfile   *profile);
-
-HYSCAN_API
-gboolean               hyscan_map_profile_read             (HyScanMapProfile   *profile,
-                                                            const gchar        *filename);
-
-HYSCAN_API
-void                   hyscan_map_profile_set_offline      (HyScanMapProfile   *profile,
+void                   hyscan_profile_map_set_offline      (HyScanProfileMap   *profile,
                                                             gboolean            offline);
 
 HYSCAN_API
-gboolean               hyscan_map_profile_apply            (HyScanMapProfile   *profile,
+gboolean               hyscan_profile_map_apply            (HyScanProfileMap   *profile,
                                                             HyScanGtkMap       *map);
 
 G_END_DECLS
 
-#endif /* __HYSCAN_MAP_PROFILE_H__ */
+#endif /* __HYSCAN_PROFILE_MAP_H__ */

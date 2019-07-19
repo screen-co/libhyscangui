@@ -7,7 +7,7 @@
 #include <hyscan-gtk-map-nav.h>
 #include <hyscan-gtk-map-track.h>
 #include <hyscan-cached.h>
-#include <hyscan-map-profile.h>
+#include <hyscan-profile-map.h>
 #include <hyscan-map-tile-loader.h>
 #include <hyscan-db-info.h>
 #include <hyscan-gtk-param-tree.h>
@@ -188,19 +188,17 @@ combo_box_update (HyScanGtkMapKit *kit)
 
   GHashTableIter iter;
   const gchar *key;
-  HyScanMapProfile *profile;
+  HyScanProfileMap *profile;
 
   gtk_combo_box_text_remove_all (GTK_COMBO_BOX_TEXT (combo));
 
   g_hash_table_iter_init (&iter, priv->profiles);
   while (g_hash_table_iter_next (&iter, (gpointer *) &key, (gpointer *) &profile))
     {
-      gchar *title;
+      const gchar *title;
 
-      title = hyscan_map_profile_get_title (profile);
+      title = hyscan_profile_get_name (HYSCAN_PROFILE (profile));
       gtk_combo_box_text_append (GTK_COMBO_BOX_TEXT (combo), key, title);
-
-      g_free (title);
     }
 
   if (priv->profile_active != NULL)
@@ -210,7 +208,7 @@ combo_box_update (HyScanGtkMapKit *kit)
 static void
 add_profile (HyScanGtkMapKit  *kit,
              const gchar      *profile_name,
-             HyScanMapProfile *profile)
+             HyScanProfileMap *profile)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
@@ -1380,9 +1378,9 @@ hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
 
   /* Добавляем профиль по умолчанию. */
   {
-    HyScanMapProfile *profile;
+    HyScanProfileMap *profile;
 
-    profile = hyscan_map_profile_new_default (priv->tile_cache_dir);
+    profile = hyscan_profile_map_new_default (priv->tile_cache_dir);
 
     add_profile (kit, DEFAULT_PROFILE_NAME, profile);
     hyscan_gtk_map_kit_set_profile_name (kit, DEFAULT_PROFILE_NAME);
@@ -1455,7 +1453,7 @@ hyscan_gtk_map_kit_set_profile_name (HyScanGtkMapKit *kit,
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
   HyScanGtkMap *map = HYSCAN_GTK_MAP (kit->map);
-  HyScanMapProfile *profile;
+  HyScanProfileMap *profile;
 
   g_return_val_if_fail (profile_name != NULL, FALSE);
 
@@ -1465,7 +1463,7 @@ hyscan_gtk_map_kit_set_profile_name (HyScanGtkMapKit *kit,
 
   g_free (priv->profile_active);
   priv->profile_active = g_strdup (profile_name);
-  hyscan_map_profile_apply (profile, map);
+  hyscan_profile_map_apply (profile, map);
 
   g_signal_handlers_block_by_func (priv->profiles_box, on_profile_change, kit);
   gtk_combo_box_set_active_id (GTK_COMBO_BOX (priv->profiles_box), priv->profile_active);
@@ -1498,10 +1496,10 @@ hyscan_gtk_map_kit_load_profiles (HyScanGtkMapKit *kit,
   config_files = list_profiles (profile_dir);
   for (conf_i = 0; config_files[conf_i] != NULL; ++conf_i)
     {
-      HyScanMapProfile *profile;
+      HyScanProfileMap *profile;
       gchar *profile_name, *extension_ptr;
 
-      profile = hyscan_map_profile_new (priv->tile_cache_dir);
+      profile = hyscan_profile_map_new (priv->tile_cache_dir, config_files[conf_i]);
 
       /* Обрезаем имя файла по последней точке - это будет название профиля. */
       profile_name = g_path_get_basename (config_files[conf_i]);
@@ -1510,7 +1508,7 @@ hyscan_gtk_map_kit_load_profiles (HyScanGtkMapKit *kit,
         *extension_ptr = '\0';
 
       /* Читаем профиль и добавляем его в карту. */
-      if (hyscan_map_profile_read (profile, config_files[conf_i]))
+      if (hyscan_profile_read (HYSCAN_PROFILE (profile)))
         add_profile (kit, profile_name, profile);
 
       g_free (profile_name);

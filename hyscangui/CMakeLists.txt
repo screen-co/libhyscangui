@@ -41,7 +41,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
 
              #[[ Виджет карты ]]
              hyscan-gtk-map.c
-             hyscan-map-profile.c
+             hyscan-profile-map.c
 
              #[[ Слои ]]
              hyscan-gtk-layer-container.c
@@ -111,6 +111,29 @@ install (FILES hyscan-gtk-area.h
                hyscan-gtk-waterfall-meter.h
                hyscan-gtk-waterfall-player.h
                hyscan-gtk-waterfall-magnifier.h
+               hyscan-gtk-layer-container.h
+               hyscan-gtk-layer.h
+               hyscan-gtk-map.h
+               hyscan-profile-map.h
+               hyscan-gtk-map-tiles.h
+               hyscan-gtk-map-tiled.h
+               hyscan-gtk-map-control.h
+               hyscan-gtk-map-ruler.h
+               hyscan-gtk-map-grid.h
+               hyscan-gtk-map-scale.h
+               hyscan-gtk-map-pin.h
+               hyscan-gtk-map-nav.h
+               hyscan-gtk-map-track-item.h
+               hyscan-gtk-map-track.h
+               hyscan-gtk-map-wfmark.h
+               hyscan-gtk-map-planner.h
+               hyscan-gtk-map-geomark.h
+               hyscan-map-tile.h
+               hyscan-map-tile-source.h
+               hyscan-map-tile-source-web.h
+               hyscan-map-tile-source-file.h
+               hyscan-map-tile-source-blend.h
+               hyscan-map-tile-loader.h
          COMPONENT development
          DESTINATION "include/hyscan-${HYSCAN_MAJOR_VERSION}/hyscangui"
          PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
