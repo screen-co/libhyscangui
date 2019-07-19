@@ -103,9 +103,10 @@ struct _HyScanGtkMapTiledPrivate
 
 static void    hyscan_gtk_map_tiled_interface_init           (HyScanGtkLayerInterface *iface);
 static void    hyscan_gtk_map_tiled_set_property             (GObject                *object,
-                                                                    guint                   prop_id,
-                                                                    const GValue           *value,
-                                                                    GParamSpec             *pspec);
+                                                              guint                   prop_id,
+                                                              const GValue           *value,
+                                                              GParamSpec             *pspec);
+static void    hyscan_gtk_map_tiled_cache_free               (HyScanGtkMapTiledCache *cache);
 static void    hyscan_gtk_map_tiled_object_constructed       (GObject                *object);
 static void    hyscan_gtk_map_tiled_object_finalize          (GObject                *object);
 
@@ -175,7 +176,7 @@ hyscan_gtk_map_tiled_object_finalize (GObject *object)
   HyScanGtkMapTiledPrivate *priv = gtk_map_tiled->priv;
 
   g_rw_lock_clear (&priv->rw_lock);
-  g_queue_free (priv->cached_tiles);
+  g_queue_free_full (priv->cached_tiles, (GDestroyNotify) hyscan_gtk_map_tiled_cache_free);
 
   G_OBJECT_CLASS (hyscan_gtk_map_tiled_parent_class)->finalize (object);
 }

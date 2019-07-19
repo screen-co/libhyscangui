@@ -4,6 +4,7 @@
 #include <hyscan-driver.h>
 #include <glib/gi18n.h>
 #include <locale.h>
+#include <hyscan-gtk-area.h>
 
 #define GPS_SENSOR_NAME "my-nmea-sensor"
 
@@ -115,7 +116,6 @@ int main (int     argc,
           gchar **argv)
 {
   GtkWidget *window;
-  GtkWidget *grid;
 
   HyScanDB *db = NULL;
   HyScanSensor *sensor;
@@ -150,7 +150,7 @@ int main (int     argc,
 
     if (!g_option_context_parse (context, &argc, &argv, &error))
       {
-        g_message (error->message);
+        g_message ("%s", error->message);
         return -1;
       }
 
@@ -181,15 +181,6 @@ int main (int     argc,
   bind_textdomain_codeset (GETTEXT_PACKAGE, "UTF-8");
   textdomain (GETTEXT_PACKAGE);
 
-  /* Grid-виджет. */
-  grid = gtk_grid_new ();
-  gtk_grid_set_row_spacing (GTK_GRID (grid), 20);
-  gtk_grid_set_column_spacing (GTK_GRID (grid), 20);
-  gtk_widget_set_margin_start (grid, 20);
-  gtk_widget_set_margin_end (grid, 20);
-  gtk_widget_set_margin_top (grid, 20);
-  gtk_widget_set_margin_bottom (grid, 20);
-
   /* Добавляем виджет карты в окно. */
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_window_set_default_size (GTK_WINDOW (window), 1024, 600);
@@ -216,12 +207,27 @@ int main (int     argc,
       hyscan_gtk_map_kit_add_marks_wf (kit);
     }
 
-  gtk_grid_attach (GTK_GRID (grid), kit->navigation, 0, 0, 1, 1);
-  gtk_grid_attach (GTK_GRID (grid), kit->map,        1, 0, 1, 1);
-  gtk_grid_attach (GTK_GRID (grid), kit->control,    2, 0, 1, 1);
+  /* Стоим интерфейс. */
+  {
+    GtkWidget *area;
+    GtkWidget *map_box;
 
-  gtk_container_add (GTK_CONTAINER (window), grid);
-  g_signal_connect (G_OBJECT (window), "destroy", G_CALLBACK (destroy_callback), NULL);
+    area = hyscan_gtk_area_new ();
+    gtk_widget_set_margin_top (area, 20);
+    gtk_grid_set_column_spacing (GTK_GRID (area), 10);
+
+    map_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+
+    gtk_box_pack_start (GTK_BOX (map_box), kit->map, TRUE, TRUE, 0);
+    gtk_box_pack_start (GTK_BOX (map_box), kit->status_bar, FALSE, TRUE, 0);
+
+    hyscan_gtk_area_set_central (HYSCAN_GTK_AREA (area), map_box);
+    hyscan_gtk_area_set_left (HYSCAN_GTK_AREA (area), kit->navigation);
+    hyscan_gtk_area_set_right (HYSCAN_GTK_AREA (area), kit->control);
+
+    gtk_container_add (GTK_CONTAINER (window), area);
+    g_signal_connect (G_OBJECT (window), "destroy", G_CALLBACK (destroy_callback), NULL);
+  }
 
   gtk_widget_show_all (window);
 

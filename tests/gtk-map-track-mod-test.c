@@ -1,6 +1,4 @@
 #include <hyscan-data-writer.h>
-#include <hyscan-acoustic-data.h>
-#include <hyscan-core-schemas.h>
 #include "hyscan-gtk-map-kit.h"
 
 #define N_CHANNELS 4

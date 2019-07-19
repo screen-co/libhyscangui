@@ -201,6 +201,7 @@ hyscan_gtk_map_wfmark_object_finalize (GObject *object)
   g_rw_lock_clear (&priv->mark_lock);
 
   g_hash_table_unref (priv->marks);
+  g_object_unref (priv->pango_layout);
   g_object_unref (priv->model);
   g_free (priv->active_mark_id);
 

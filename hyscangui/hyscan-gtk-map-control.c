@@ -42,6 +42,9 @@
  * - перемещение по карте с помощью мыши (drag and drop),
  * - изменение масштаба колесом мыши.
  *
+ * Также слой географические координаты курсора мыши в буфер обмена по нажатию
+ * Ctrl + Ins.
+ *
  * Слой не выводит на карте никакого изображения.
  *
  */
@@ -51,11 +54,6 @@
 #include <glib/gi18n-lib.h>
 
 #define MOVE_THRESHOLD 5 /* Сдвиг мыши, при котором активируется режим перемещения карты. */
-
-enum
-{
-  PROP_O,
-};
 
 enum
 {
@@ -69,7 +67,7 @@ struct _HyScanGtkMapControlPrivate
   HyScanGtkMap                   *map;           /* Gtk-виджет карты. */
 
   /* Обработка перемещения карты мышью. */
-  gint                            mode;
+  gint                            mode;          /* Состояние слоя. */
   gdouble                         cursor_x;      /* Текущие координаты мыши. */
   gdouble                         cursor_y;      /* Текущие координаты мыши. */
   gdouble                         start_from_x;  /* Начальная граница отображения по оси X. */
@@ -134,11 +132,16 @@ hyscan_gtk_map_control_added (HyScanGtkLayer          *gtk_layer,
   priv->map = g_object_ref (HYSCAN_GTK_MAP (container));
 
   /* Обработчики взаимодействия мышки пользователя с картой. */
-  g_signal_connect_swapped (priv->map, "button-press-event",    G_CALLBACK (hyscan_gtk_map_control_button_press_release), gtk_map_control);
-  g_signal_connect_swapped (priv->map, "button-release-event",  G_CALLBACK (hyscan_gtk_map_control_button_press_release), gtk_map_control);
-  g_signal_connect_swapped (priv->map, "motion-notify-event",   G_CALLBACK (hyscan_gtk_map_control_motion_notify), gtk_map_control);
-  g_signal_connect_swapped (priv->map, "scroll-event",          G_CALLBACK (hyscan_gtk_map_control_scroll), gtk_map_control);
-  g_signal_connect_swapped (priv->map, "key-press-event",       G_CALLBACK (hyscan_gtk_map_control_key_press), gtk_map_control);
+  g_signal_connect_swapped (priv->map, "button-press-event",
+                            G_CALLBACK (hyscan_gtk_map_control_button_press_release), gtk_map_control);
+  g_signal_connect_swapped (priv->map, "button-release-event",
+                            G_CALLBACK (hyscan_gtk_map_control_button_press_release), gtk_map_control);
+  g_signal_connect_swapped (priv->map, "motion-notify-event",
+                            G_CALLBACK (hyscan_gtk_map_control_motion_notify), gtk_map_control);
+  g_signal_connect_swapped (priv->map, "scroll-event",
+                            G_CALLBACK (hyscan_gtk_map_control_scroll), gtk_map_control);
+  g_signal_connect_swapped (priv->map, "key-press-event",
+                            G_CALLBACK (hyscan_gtk_map_control_key_press), gtk_map_control);
 }
 
 static void
@@ -241,7 +244,7 @@ hyscan_gtk_map_control_set_mode (HyScanGtkMapControl *control,
       display = gdk_window_get_display (window);
       cursor = gdk_cursor_new_from_name (display, "grabbing");
 
-      /* Если никакой хэндл не взят, то сами его берём, а вернём на отжатие мыши. */
+      /* Если другие слои ещё не взяли хэндл, то сами его берём, а вернём на отжатие мыши. */
       howner = hyscan_gtk_layer_container_get_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map));
       if (howner == NULL)
         hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), control);
@@ -263,7 +266,7 @@ hyscan_gtk_map_control_motion_notify (HyScanGtkMapControl *control,
   priv->cursor_x = event->x;
   priv->cursor_y = event->y;
 
-  /* Если после нажатия кнопки сдвинулись больше 3 пикселей - начинаем сдвиг. */
+  /* Если после нажатия кнопки сдвинулись больше MOVE_THRESHOLD пикселей - начинаем сдвиг. */
   if (priv->mode == MODE_AWAIT)
     {
       if (fabs (priv->move_from_x - event->x) + fabs (priv->move_from_y - event->y) > MOVE_THRESHOLD)
@@ -339,7 +342,7 @@ hyscan_gtk_map_control_button_press_release (HyScanGtkMapControl *control,
     {
       gboolean stop_propagation = GDK_EVENT_PROPAGATE;
 
-      if (priv->mode == MODE_MOVE) /* priv->mode != MODE_AWAIT */
+      if (priv->mode == MODE_MOVE)
         {
           gconstpointer howner;
 

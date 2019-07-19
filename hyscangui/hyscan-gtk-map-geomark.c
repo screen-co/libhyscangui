@@ -419,7 +419,8 @@ hyscan_gtk_map_geomark_draw_location (HyScanGtkMapGeomark         *gm_layer,
   cairo_restore (cairo);
 }
 
-/* Функция должна вызываться за g_rw_lock_reader_lock(&priv->mark_lock). */
+/* Определяет наличие хэндла в точку (x, y) и возвращает идентификатор соответствующей метки.
+ * Функция должна вызываться за g_rw_lock_reader_lock(&priv->mark_lock). */
 static gchar *
 hyscan_gtk_map_geomark_handle_at (HyScanGtkMapGeomark  *gm_layer,
                                   gdouble               x,
@@ -465,7 +466,7 @@ hyscan_gtk_map_geomark_handle_at (HyScanGtkMapGeomark  *gm_layer,
   g_hash_table_iter_init (&iter, priv->marks);
   while (g_hash_table_iter_next (&iter, (gpointer *) &mark_id, (gpointer *) &location))
     {
-      guint i;
+      gsize i;
       gdouble dist;
 
       if (location->pending)
