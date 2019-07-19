@@ -362,6 +362,12 @@ hyscan_mark_loc_model_load_location (HyScanMarkLocModel *ml_model,
     acoustic_data = hyscan_acoustic_data_new (priv->db, priv->cache,
                                               priv->project, track_name,
                                               mark->source, ACOUSTIC_CHANNEL, FALSE);
+    if (acoustic_data == NULL)
+      {
+        g_warning ("HyScanMarkLocModel: failed to open acousitc data");
+        return FALSE;
+      }
+
     projector = hyscan_projector_new (HYSCAN_AMPLITUDE (acoustic_data));
     hyscan_projector_count_to_coord (projector, mark->count, &location->offset, 0);
     if (hyscan_mark_loc_model_is_starboard(mark->source))

@@ -1038,6 +1038,9 @@ hyscan_gtk_map_track_item_open (HyScanGtkMapTrackItem *track)
                                                                               priv->name,
                                                                               HYSCAN_SOURCE_SIDE_SCAN_STARBOARD,
                                                                               priv->channel_starboard, FALSE));
+      if (priv->starboard.amplitude == NULL)
+        g_warning ("HyScanGtkMapTrackItem: failed to open acoustic data");
+
       priv->starboard.projector = hyscan_projector_new (priv->starboard.amplitude);
     }
   if (priv->channel_port > 0)
