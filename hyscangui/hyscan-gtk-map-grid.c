@@ -314,6 +314,9 @@ hyscan_gtk_map_grid_draw_lat (HyScanGtkMapGrid *grid,
   pango_cairo_show_layout (cairo, priv->pango_layout);
   cairo_restore (cairo);
 
+  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (grid)))
+    return;
+
   /* Рисуем линию. */
   cairo_new_path (cairo);
   step = (to_lon - from_lon) / (LINE_POINTS_NUM - 1);
@@ -355,20 +358,6 @@ hyscan_gtk_map_grid_draw_lon (HyScanGtkMapGrid *grid,
   geo.lon = longitude;
   geo.lat = to_lat;
 
-  /* Рисуем линию. */
-  cairo_new_path (cairo);
-  step = (to_lat - from_lat) / (LINE_POINTS_NUM - 1);
-  for (i = 0; i < LINE_POINTS_NUM; ++i)
-    {
-      geo.lat = from_lat + step * i;
-      hyscan_gtk_map_geo_to_value (priv->map, geo, &point);
-      gtk_cifro_area_visible_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
-      cairo_line_to (cairo, grid_x, grid_y);
-    }
-  cairo_set_line_width (cairo, priv->line_width);
-  gdk_cairo_set_source_rgba (cairo, &priv->line_color);
-  cairo_stroke (cairo);
-
   /* Рисуем подпись. */
   cairo_save (cairo);
   hyscan_gtk_map_geo_to_value (priv->map, geo, &point);
@@ -389,6 +378,23 @@ hyscan_gtk_map_grid_draw_lon (HyScanGtkMapGrid *grid,
   gdk_cairo_set_source_rgba (cairo, &priv->label_color);
   pango_cairo_show_layout (cairo, priv->pango_layout);
   cairo_restore (cairo);
+
+  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (grid)))
+    return;
+
+  /* Рисуем линию. */
+  cairo_new_path (cairo);
+  step = (to_lat - from_lat) / (LINE_POINTS_NUM - 1);
+  for (i = 0; i < LINE_POINTS_NUM; ++i)
+    {
+      geo.lat = from_lat + step * i;
+      hyscan_gtk_map_geo_to_value (priv->map, geo, &point);
+      gtk_cifro_area_visible_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
+      cairo_line_to (cairo, grid_x, grid_y);
+    }
+  cairo_set_line_width (cairo, priv->line_width);
+  gdk_cairo_set_source_rgba (cairo, &priv->line_color);
+  cairo_stroke (cairo);
 }
 
 /* Выравнивает шаги координатной сетки при больших значениях шага. */
@@ -523,9 +529,6 @@ hyscan_gtk_map_grid_draw (HyScanGtkMap     *map,
 
   HyScanGeoGeodetic from_geo, to_geo;
   HyScanGeoCartesian2D from, to;
-
-  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (grid)))
-    return;
 
   /* Определяем размеры видимой области. */
   gtk_cifro_area_get_visible_size (carea, &width, &height);
