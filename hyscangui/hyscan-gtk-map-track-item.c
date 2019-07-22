@@ -1334,6 +1334,22 @@ hyscan_gtk_map_track_item_new (HyScanDB            *db,
 }
 
 /**
+ * hyscan_gtk_map_track_item_has_nmea:
+ * @track: указатель на #HyScanGtkMapTrackItem
+ *
+ * Определяет, установлен ли в галсе канал навигационных данных
+ *
+ * Returns: возвращает %TRUE, если канал навигационных данных установлен
+ */
+gboolean
+hyscan_gtk_map_track_item_has_nmea (HyScanGtkMapTrackItem *track)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TRACK_ITEM (track), FALSE);
+
+  return track->priv->channel_rmc > 0;
+}
+
+/**
  * hyscan_gtk_map_track_item_draw:
  * @track: указатель на #HyScanGtkMapTrackItem
  * @cairo: поверхность для рисования

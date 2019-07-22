@@ -530,7 +530,7 @@ hyscan_gtk_map_track_get_track (HyScanGtkMapTrack *track_layer,
 
       projection = hyscan_gtk_map_get_projection (priv->map);
       track = hyscan_gtk_map_track_item_new (priv->db, priv->cache, priv->project, track_name,
-                                        HYSCAN_GTK_MAP_TILED (track_layer), projection);
+                                             HYSCAN_GTK_MAP_TILED (track_layer), projection);
       g_hash_table_insert (priv->tracks, g_strdup (track_name), track);
       g_object_unref (projection);
     }
@@ -611,6 +611,7 @@ hyscan_gtk_map_track_track_view (HyScanGtkMapTrack *track_layer,
   HyScanGtkMapTrackItem *track;
   HyScanGeoCartesian2D from, to;
   gdouble prev_scale = -1.0;
+  gdouble margin = 0;
 
   g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track_layer), FALSE);
   g_return_val_if_fail (track_name != NULL, FALSE);
@@ -623,11 +624,18 @@ hyscan_gtk_map_track_track_view (HyScanGtkMapTrack *track_layer,
   if (track == NULL)
     return FALSE;
 
+  if (!hyscan_gtk_map_track_item_view (track, &from, &to))
+    return FALSE;
+
   if (!zoom_in)
     gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &prev_scale, NULL);
 
-  hyscan_gtk_map_track_item_view (track, &from, &to);
-  gtk_cifro_area_set_view (GTK_CIFRO_AREA (priv->map), from.x, to.x, from.y, to.y);
+  if (from.x == to.x || from.y == to.y)
+    margin = prev_scale;
+
+  gtk_cifro_area_set_view (GTK_CIFRO_AREA (priv->map),
+                           from.x - margin, to.x + margin,
+                           from.y - margin, to.y + margin);
 
   if (!zoom_in)
     {

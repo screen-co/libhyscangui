@@ -102,6 +102,10 @@ HyScanGtkMapTrackItem * hyscan_gtk_map_track_item_new           (HyScanDB       
                                                                  const gchar                *track_name,
                                                                  HyScanGtkMapTiled          *tiled_layer,
                                                                  HyScanGeoProjection        *projection);
+
+HYSCAN_API
+gboolean                hyscan_gtk_map_track_item_has_nmea      (HyScanGtkMapTrackItem      *track);
+
 HYSCAN_API                                                      
 void                    hyscan_gtk_map_track_item_draw          (HyScanGtkMapTrackItem      *track,
                                                                  cairo_t                    *cairo,
