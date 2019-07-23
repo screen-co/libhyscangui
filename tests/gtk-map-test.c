@@ -15,7 +15,6 @@
 static gchar *db_uri;                        /* Ссылка на базу данных. */
 static gchar *project_name;                  /* Ссылка на базу данных. */
 static gchar *profile_dir;                   /* Путь к каталогу, где хранятся профили карты. */
-static gchar *planner_ini;                   /* Путь к файлу со списком запланированных галсов. */
 static gchar *track_file;                    /* Путь к файлу с NMEA-строками. */
 static gchar *origin;                        /* Координаты центра карты. */
 static gchar *udp_host;                      /* Хост для подключения к GPS-приемнику. */
@@ -138,7 +137,6 @@ int main (int     argc,
         { "db-uri",          'D', 0, G_OPTION_ARG_STRING, &db_uri,            "Database uri", NULL},
         { "project-name",    'p', 0, G_OPTION_ARG_STRING, &project_name,      "Project name", NULL},
         { "origin",          '0', 0, G_OPTION_ARG_STRING, &origin,            "Map origin, lat,lon", NULL},
-        { "mission",         'm', 0, G_OPTION_ARG_STRING, &planner_ini,       "Path to mission planner ini-file", NULL},
         { "delay",             0, 0, G_OPTION_ARG_DOUBLE, &delay_time,        "Delay in navigation data to smooth real time track", NULL},
         { NULL }
       };
@@ -194,9 +192,6 @@ int main (int     argc,
   hyscan_gtk_map_kit_set_project (kit, project_name);
   if (profile_dir != NULL)
     hyscan_gtk_map_kit_load_profiles (kit, profile_dir);
-
-  if (planner_ini != NULL)
-    hyscan_gtk_map_kit_add_planner (kit, planner_ini);
 
   if (sensor != NULL)
     hyscan_gtk_map_kit_add_nav (kit, sensor, GPS_SENSOR_NAME, delay_time);
