@@ -40,6 +40,15 @@
 
 G_BEGIN_DECLS
 
+/**
+ * HYSCAN_PROFILE_MAP_BASE_ID:
+ * Идентификатор, используемый при добавлении слоя подложки на карту.
+ *
+ * Передав в hyscan_gtk_layer_container_lookup() в качестве аргумента этот
+ * идентификатор можно получить слой подложки.
+ */
+#define HYSCAN_PROFILE_MAP_BASE_ID          "base-layer"
+
 #define HYSCAN_TYPE_MAP_PROFILE             (hyscan_profile_map_get_type ())
 #define HYSCAN_PROFILE_MAP(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_MAP_PROFILE, HyScanProfileMap))
 #define HYSCAN_IS_MAP_PROFILE(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_MAP_PROFILE))

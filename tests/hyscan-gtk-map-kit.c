@@ -1,5 +1,5 @@
 #include "hyscan-gtk-map-kit.h"
-#include <hyscan-gtk-map-tiles.h>
+#include <hyscan-gtk-map-base.h>
 #include <hyscan-gtk-map-control.h>
 #include <hyscan-gtk-map-ruler.h>
 #include <hyscan-gtk-map-grid.h>
@@ -1019,11 +1019,10 @@ preload_start (HyScanGtkMapKit *kit)
   gdouble from_x, to_x, from_y, to_y;
   GThread *thread;
 
-  // todo: надо бы найти слой каким-то другим образом, а не по ключу "tiles-layer"
-  layer = hyscan_gtk_layer_container_lookup (HYSCAN_GTK_LAYER_CONTAINER (kit->map), "tiles-layer");
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_TILES (layer));
+  layer = hyscan_gtk_layer_container_lookup (HYSCAN_GTK_LAYER_CONTAINER (kit->map), HYSCAN_PROFILE_MAP_BASE_ID);
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_BASE (layer));
 
-  source = hyscan_gtk_map_tiles_get_source (HYSCAN_GTK_MAP_TILES (layer));
+  source = hyscan_gtk_map_base_get_source (HYSCAN_GTK_MAP_BASE (layer));
   priv->loader = hyscan_map_tile_loader_new ();
   g_object_unref (source);
 

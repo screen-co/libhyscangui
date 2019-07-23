@@ -46,7 +46,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              #[[ Слои ]]
              hyscan-gtk-layer-container.c
              hyscan-gtk-layer.c
-             hyscan-gtk-map-tiles.c
+             hyscan-gtk-map-base.c
              hyscan-gtk-map-tiled.c
              hyscan-gtk-map-control.c
              hyscan-gtk-map-ruler.c
@@ -114,7 +114,7 @@ install (FILES hyscan-gtk-area.h
                hyscan-gtk-layer.h
                hyscan-gtk-map.h
                hyscan-profile-map.h
-               hyscan-gtk-map-tiles.h
+               hyscan-gtk-map-base.h
                hyscan-gtk-map-tiled.h
                hyscan-gtk-map-control.h
                hyscan-gtk-map-ruler.h

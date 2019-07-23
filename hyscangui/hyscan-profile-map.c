@@ -57,8 +57,10 @@
  * Чтобы применить профиль к карте необходимо воспользоваться функцией hyscan_profile_map_apply() -
  * её можно использовать как для первоначальной конфигурации виджета, так и для
  * изменения конфигурации карты во время выполнения. Применение профиля приводит
- * к размещению на карте слоя с тайлами #HyScanGtkMapTiles, настроенного на
+ * к размещению на карте слоя подложки #HyScanGtkMapBase, настроенного на
  * загрузку тайлов по сети и их кэширование в некоторой папке на диске.
+ *
+ * Слою подложки будет присвоен идентификатор %HYSCAN_PROFILE_MAP_BASE_ID.
  *
  */
 
@@ -66,14 +68,13 @@
 #include "hyscan-map-tile-source-web.h"
 #include "hyscan-map-tile-source-file.h"
 #include "hyscan-map-tile-source-blend.h"
-#include "hyscan-gtk-map-tiles.h"
+#include "hyscan-gtk-map-base.h"
 #include <hyscan-pseudo-mercator.h>
 #include <hyscan-mercator.h>
 #include <hyscan-cached.h>
 #include <string.h>
 
 #define CACHE_SIZE     256
-#define TILES_LAYER_ID "tiles-layer"
 #define PROJ_MERC      "merc"
 #define PROJ_WEBMERC   "webmerc"
 #define INI_PREFIX_URL "url"
@@ -184,10 +185,10 @@ hyscan_profile_map_create_projection (HyScanProfileMapPrivate *priv)
 
 /* Создаёт тайловый слой, соответствующий профилю. */
 static HyScanGtkLayer *
-hyscan_profile_map_create_tiles (HyScanProfileMapPrivate *priv,
-                                 HyScanGeoProjection     *projection)
+hyscan_profile_map_create_base (HyScanProfileMapPrivate *priv,
+                                HyScanGeoProjection     *projection)
 {
-  HyScanGtkLayer *tiles;
+  HyScanGtkLayer *base;
 
   HyScanCache *cache;
   HyScanMapTileSourceBlend *merged_source;
@@ -231,12 +232,12 @@ hyscan_profile_map_create_tiles (HyScanProfileMapPrivate *priv,
     }
 
   cache = HYSCAN_CACHE (hyscan_cached_new (CACHE_SIZE));
-  tiles = hyscan_gtk_map_tiles_new (cache, HYSCAN_MAP_TILE_SOURCE (merged_source));
+  base = hyscan_gtk_map_base_new (cache, HYSCAN_MAP_TILE_SOURCE (merged_source));
 
   g_object_unref (cache);
   g_object_unref (merged_source);
 
-  return HYSCAN_GTK_LAYER (tiles);
+  return base;
 }
 
 /**
@@ -461,7 +462,9 @@ hyscan_profile_map_apply (HyScanProfileMap *profile,
   hyscan_gtk_map_set_projection (map, projection);
 
   /* Устанавливаем новый слой тайлов в самый низ. */
-  hyscan_gtk_layer_container_add (container, hyscan_profile_map_create_tiles (priv, projection), TILES_LAYER_ID);
+  hyscan_gtk_layer_container_add (container,
+                                  hyscan_profile_map_create_base (priv, projection),
+                                  HYSCAN_PROFILE_MAP_BASE_ID);
 
   /* Конфигурируем остальные слои. */
   file_name = hyscan_profile_get_file (HYSCAN_PROFILE (profile));
