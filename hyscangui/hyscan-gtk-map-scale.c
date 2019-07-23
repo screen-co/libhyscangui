@@ -258,7 +258,7 @@ hyscan_gtk_map_scale_draw (HyScanGtkMap      *map,
   y0 = height - priv->label_padding;
 
   /* Определяем размер линейки, чтобы он был круглым числом метров. */
-  scale = hyscan_gtk_map_get_pixel_scale (priv->map);
+  scale = hyscan_gtk_map_get_scale_px (priv->map);
   metres = 1.6 * priv->min_scale_size / scale;
   metres = pow (10, floor (log10 (metres)));
   while (metres * scale < priv->min_scale_size)
@@ -280,7 +280,7 @@ hyscan_gtk_map_scale_draw (HyScanGtkMap      *map,
 
     gdouble real_scale;
 
-    real_scale = 1.0 / hyscan_gtk_map_get_scale (priv->map);
+    real_scale = 1.0 / hyscan_gtk_map_get_scale_ratio (priv->map);
 
     /* Название масштаба. */
     if (real_scale > 10.0)

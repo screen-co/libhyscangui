@@ -108,17 +108,17 @@ gdouble *              hyscan_gtk_map_create_scales2  (gdouble                  
                                                        gint                    *scales_len);
 
 HYSCAN_API
-void                   hyscan_gtk_map_set_pixel_scale (HyScanGtkMap            *map,
+void                   hyscan_gtk_map_set_scale_px    (HyScanGtkMap            *map,
                                                        gdouble                  scale);
 
 HYSCAN_API
-gdouble                hyscan_gtk_map_get_pixel_scale (HyScanGtkMap            *map);
+gdouble                hyscan_gtk_map_get_scale_px    (HyScanGtkMap            *map);
 
 HYSCAN_API
-gdouble                hyscan_gtk_map_get_scale       (HyScanGtkMap            *map);
+gdouble                hyscan_gtk_map_get_scale_ratio (HyScanGtkMap            *map);
 
 HYSCAN_API
-gdouble                hyscan_gtk_map_get_value_scale (HyScanGtkMap            *map,
+gdouble                hyscan_gtk_map_get_scale_value (HyScanGtkMap            *map,
                                                        HyScanGeoGeodetic        coord);
 
 HYSCAN_API
@@ -137,7 +137,7 @@ void                   hyscan_gtk_map_set_scale_idx   (HyScanGtkMap            *
                                                        gdouble                  center_y);
 
 HYSCAN_API
-gdouble *              hyscan_gtk_map_get_scales_cifro(HyScanGtkMap            *map,
+gdouble *              hyscan_gtk_map_get_scales      (HyScanGtkMap            *map,
                                                        guint                   *scales_len);
 
 HYSCAN_API

@@ -598,12 +598,19 @@ hyscan_gtk_map_pin_interface_init (HyScanGtkLayerInterface *iface)
 }
 
 static void
+hyscan_gtk_map_pin_item_free (HyScanGtkMapPinItem *item)
+{
+  g_free (item->title);
+  g_slice_free (HyScanGtkMapPinItem, item);
+}
+
+static void
 hyscan_gtk_map_pin_object_finalize (GObject *object)
 {
   HyScanGtkMapPin *gtk_map_pin = HYSCAN_GTK_MAP_PIN (object);
   HyScanGtkMapPinPrivate *priv = gtk_map_pin->priv;
 
-  g_list_free_full (priv->points, (GDestroyNotify) hyscan_gtk_map_point_free);
+  g_list_free_full (priv->points, (GDestroyNotify) hyscan_gtk_map_pin_item_free);
   g_clear_object (&priv->pango_layout);
   g_clear_pointer (&priv->pin, hyscan_gtk_map_pin_marker_free);
   g_clear_pointer (&priv->pin_hover, hyscan_gtk_map_pin_marker_free);
@@ -718,13 +725,6 @@ hyscan_gtk_map_pin_motion_notify (HyScanGtkMapPin *pin_layer,
     hyscan_gtk_map_pin_motion_hover (pin_layer, event);
 
   return FALSE;
-}
-
-static void
-hyscan_gtk_map_pin_item_free (HyScanGtkMapPinItem *item)
-{
-  g_free (item->title);
-  g_slice_free (HyScanGtkMapPinItem, item);
 }
 
 /* Обработка Gdk-событий, которые дошли из контейнера. */

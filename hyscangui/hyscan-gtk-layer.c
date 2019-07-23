@@ -188,9 +188,9 @@ hyscan_gtk_layer_get_visible (HyScanGtkLayer *layer)
  * Returns: %TRUE, если слой сконфигурировался; иначе %FALSE.
  */
 gboolean
-hyscan_gtk_layer_load_key_file (HyScanGtkLayer          *layer,
-                                GKeyFile                *key_file,
-                                const gchar             *group)
+hyscan_gtk_layer_load_key_file (HyScanGtkLayer *layer,
+                                GKeyFile       *key_file,
+                                const gchar    *group)
 {
   HyScanGtkLayerInterface *iface;
 
@@ -205,13 +205,15 @@ hyscan_gtk_layer_load_key_file (HyScanGtkLayer          *layer,
 
 /**
  * hyscan_gtk_layer_load_key_file_color:
- * @color
- * @key_file
- * @group_name
- * @key
- * @default_spec
+ * @color: (out): указатель на #GdkRGBA
+ * @key_file: файл конфигурации #GKeyFile
+ * @group_name: имя группы
+ * @key: имя ключа
+ * @default_spec: цвет по умолчанию
  *
- * Парсит цвет из конфигурационного файла.
+ * Парсит цвет из конфигурационного файла. Если в файле цвет не указан, или
+ * указанное значение не может быть распознано, то используется значение по
+ * умолчанию @default_spec.
  */
 void
 hyscan_gtk_layer_load_key_file_rgba (GdkRGBA     *color,
@@ -253,7 +255,7 @@ hyscan_gtk_layer_get_icon_name (HyScanGtkLayer *layer)
  * hyscan_gtk_layer_grab_input:
  * @layer: указатель на слой #HyScanGtkLayer
  *
- * Захватывает пользовательский ввод в контейнер. Слой, захвативший ввод имеет
+ * Захватывает пользовательский ввод в контейнер. Слой, захвативший ввод, имеет
  * право обрабатывать действия пользователя (за исключением работы с хэндлами).
  * Подробнее про разграничение ввода в документации класса #HyScanGtkLayerContainer.
  *
@@ -286,10 +288,10 @@ hyscan_gtk_layer_grab_input (HyScanGtkLayer *layer)
  * Returns: текст всплывающей подсказки или %NULL. Для удаления g_free().
  */
 gchar *
-hyscan_gtk_layer_hint_find (HyScanGtkLayer  *layer,
-                            gdouble          x,
-                            gdouble          y,
-                            gdouble         *distance)
+hyscan_gtk_layer_hint_find (HyScanGtkLayer *layer,
+                            gdouble         x,
+                            gdouble         y,
+                            gdouble        *distance)
 {
   HyScanGtkLayerInterface *iface;
 

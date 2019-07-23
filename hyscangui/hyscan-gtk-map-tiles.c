@@ -34,20 +34,22 @@
 
 /**
  * SECTION: hyscan-gtk-map-tiles
- * @Short_description: Тайловый слой.
+ * @Short_description: Слой тайловой подложки
  * @Title: HyScanGtkMapTiles
  * @See_also: #HyScanGtkLayer, #HyScanGtkMap
  *
  * Слой #HyScanGtkMapTiles формирует изображение видимой области карты из тайлов.
- * Тайлы слой от источника, реализующего интерфейс #HyScanMapTileSource.
- * В качестве источника тайлов может быть использован тайловый сервер Open Street
- * Map или любой другой сетевой ресурс.
+ *
+ * В качестве источника тайлов может быть использован класс, реализующий ##HyScanMapTileSource.
+ * Например:
+ * - #HyScanMapTileSourceWeb - тайловый сервер OSM или любой другой сетевой ресурс,
+ * - #HyScanMapTileSourceFile - тайлы, предварительно загруженные на компьютер,
+ * - #HyScanMapTileSourceBlend - комбинация нескольких источников.
  *
  * Благодаря тому, что остальные слои карты подключаются к сигналу #GtkCifroArea::visible-draw
  * в последнюю очередь (через g_signal_connect_after()), #HyScanGtkMapTiles получает
  * этот сигнал раньше всех, таким образом его изображение всегда находится ниже
  * других слоёв и формирует подложку для всех остальных.
- *
  *
  */
 

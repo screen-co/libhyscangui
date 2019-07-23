@@ -38,12 +38,12 @@
  * @Title: HyScanGtkMapTiled
  * @See_also: #HyScanGtkLayer, #HyScanGtkMap, #GtkCifroArea
  *
- * Класс реализует интерфейса слоя #HyScanGtkLayer и предназначен для изображения
+ * Класс реализует интерфейс слоя #HyScanGtkLayer и предназначен для изображения
  * вычислительно сложного слоя с изменяемым содержимым в виде тайлов.
  *
  * Слой разбивает всю область рисования на тайлы и рисует изображаемую область
- * потайлово. Заполнение тайлов выполняет только при изменении параметров слоя
- * или входных данных. В остальное время слой получает тайлы из кэша, и таким
+ * потайлово. Заполнение тайлов выполняется только при изменении параметров слоя
+ * или изменении входных данных. В остальное время слой получает тайлы из кэша, и таким
  * образом экономит вычислительные ресурсы.
  *
  * Для использования тайлового слоя необходимо унаследовать класс #HyScanGtkMapTiled
@@ -241,7 +241,7 @@ hyscan_gtk_map_tiled_update_grid (HyScanGtkMapTiledPrivate *priv)
   guint scales_len, i;
   gdouble *scales;
 
-  scales = hyscan_gtk_map_get_scales_cifro (priv->map, &scales_len);
+  scales = hyscan_gtk_map_get_scales (priv->map, &scales_len);
   for (i = 0; i < scales_len; ++i)
     scales[i] *= TILE_SIZE;
 

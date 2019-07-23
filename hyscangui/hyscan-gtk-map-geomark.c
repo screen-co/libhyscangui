@@ -45,9 +45,9 @@
  * - удалять метки.
  *
  * Функции:
- * - hyscan_gtk_map_geomark_new() - создание слоя
- * - hyscan_gtk_map_geomark_mark_highlight() - подсветка метки
- * - hyscan_gtk_map_geomark_mark_view() - переход к метке
+ * - hyscan_gtk_map_geomark_new() - создание слоя,
+ * - hyscan_gtk_map_geomark_mark_highlight() - подсветка метки,
+ * - hyscan_gtk_map_geomark_mark_view() - переход к метке.
  *
  */
 
@@ -260,7 +260,7 @@ hyscan_gtk_map_geomark_project_location (HyScanGtkMapGeomark         *layer,
     return;
 
   /* Определяем размеры метки в логической СК. */
-  scale = hyscan_gtk_map_get_value_scale (priv->map, mark->center);
+  scale = hyscan_gtk_map_get_scale_value (priv->map, mark->center);
   location->width = mark->width / scale;
   location->height = mark->height / scale;
 
@@ -788,7 +788,7 @@ hyscan_gtk_map_geomark_handle_release (HyScanGtkLayerContainer *container,
   hyscan_mark_geo_set_center (location->mark, center);
 
   mark = (HyScanMark *) location->mark;
-  scale = 1.0 / hyscan_gtk_map_get_value_scale (priv->map, location->mark->center);
+  scale = 1.0 / hyscan_gtk_map_get_scale_value (priv->map, location->mark->center);
   hyscan_mark_set_size (mark, location->width / scale, location->height / scale);
   hyscan_mark_set_mtime (mark, g_get_real_time ());
 

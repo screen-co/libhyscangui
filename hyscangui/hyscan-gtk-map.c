@@ -40,12 +40,53 @@
  * Класс расширяет #GtkCifroArea, позволяя отображать картографическую проекцию
  * местности в виджете.
  *
- * Картографическая проекция #HyScanGeoProjection определяет перевод координат из географических
- * в координаты на плоскости и указывается при создании виджета карты в
- * функции hyscan_gtk_map_new().
+ * ## Картографическая проекция
  *
- * Для размещения тайлового слоя с изображением карты необходимо воспользоваться
- * классом #HyScanGtkMapTiles.
+ * Картографическая проекция #HyScanGeoProjection определяет перевод координат
+ * из географических в координаты на плоскости. Для получения и установки текущей
+ * проекции используйте функции:
+ * - hyscan_gtk_map_set_projection()
+ * - hyscan_gtk_map_get_projection()
+ *
+ * Для удобного перевода географических координат в координаты на плоскости и
+ * обратно существуют функции:
+ * - hyscan_gtk_map_value_to_geo()
+ * - hyscan_gtk_map_geo_to_value()
+ * - hyscan_gtk_map_point_to_geo()
+ *
+ * ## Масштабы
+ *
+ * В классе используется несколько единиц измерения масштаба:
+ *
+ * - численный масштаб, например, 1:100. Показывает, сколько сантиметров на местности
+ *   соотвествует одному сантиметру на карте. Зависит от PPI монитора.
+ * - метры на пиксель (м/px). Показывает, сколько метров на местности соответствует
+ *   одному пикселю в системе координат виджета.
+ * - метры на единицу проекции (м/ед). Показывает, сколько метров на местности соотвествует
+ *   единичному отрезку в системе координат картографической проекции,
+ * - единицы проекции на пиксель (ед/px). Показывает, сколько единиц проекции соответствует
+ *   одному пикселю в системе координат виджета. Аналогичен масштабу #GtkCifroArea.
+ *
+ * Масштаб карты меняется дискретно и может принимать только заранее заданные
+ * пользователем значения. Для работы с масштабом существуют следующие функции:
+ *
+ * - hyscan_gtk_map_create_scales2() - создаёт массив масштабов,
+ * - hyscan_gtk_map_set_scales_meter() - устанавливает допустимые масштабы (м/px),
+ * - hyscan_gtk_map_get_scales() - возвращает массив допустимых масштабов (ед/px),
+ * - hyscan_gtk_map_get_scale_idx() - возвращает индекс текущего масштаба,
+ * - hyscan_gtk_map_set_scale_idx() - устанавливает текущий масштаб по его индексу.
+ *
+ * Для установки масштаба и изменения видимой области можно использовать функции
+ * класса #GtkCifroArea или воспользоваться специальнымим функциями карты:
+ *
+ * - hyscan_gtk_map_move_to() - перемещение центра карты в указанную точку,
+ * - hyscan_gtk_map_set_scale_px() - устанавливает масштаб в центре карты (px/м),
+ * - hyscan_gtk_map_get_scale_px() - получает масштаб в центре карты (px/м),
+ * - hyscan_gtk_map_get_scale_ratio() - получает численный масштаб в центре карты с учётом PPI экрана,
+ * - hyscan_gtk_map_get_scale_value() - получает масштаб для указанной точки (м/ед).
+ *
+ * Для размещения тайлового слоя с изображением карты (подложки) необходимо
+ * воспользоваться классом #HyScanGtkMapTiles.
  *
  * Данный класс корректно работает только с GMainLoop.
  *
@@ -100,9 +141,9 @@ G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMap, hyscan_gtk_map, HYSCAN_TYPE_GTK_LAYER_
 
 static void
 hyscan_gtk_map_get_property (GObject    *object,
-                              guint       prop_id,
-                              GValue     *value,
-                              GParamSpec *pspec)
+                             guint       prop_id,
+                             GValue     *value,
+                             GParamSpec *pspec)
 {
   HyScanGtkMap *gtk_map = HYSCAN_GTK_MAP (object);
   HyScanGtkMapPrivate *priv = gtk_map->priv;
@@ -513,7 +554,7 @@ hyscan_gtk_map_move_to (HyScanGtkMap      *map,
 }
 
 /**
- * hyscan_gtk_map_get_value_scale:
+ * hyscan_gtk_map_get_scale_value:
  * @map: указатель на объект #HyScanGtkMap
  * @coord: координаты точки на карте
  *
@@ -523,7 +564,7 @@ hyscan_gtk_map_move_to (HyScanGtkMap      *map,
  * Returns: размер единичного отрезка на проекции в метрах или -1.0 в случае ошибки.
  */
 gdouble
-hyscan_gtk_map_get_value_scale (HyScanGtkMap      *map,
+hyscan_gtk_map_get_scale_value (HyScanGtkMap      *map,
                                 HyScanGeoGeodetic  coord)
 {
   g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), -1.0);
@@ -532,7 +573,7 @@ hyscan_gtk_map_get_value_scale (HyScanGtkMap      *map,
 }
 
 /**
- * hyscan_gtk_map_get_pixel_scale:
+ * hyscan_gtk_map_get_scale_px:
  * @map: указатель на #HyScanGtkMap
  *
  * Определяет масштаб в центре карты в писелах на метр.
@@ -540,7 +581,7 @@ hyscan_gtk_map_get_value_scale (HyScanGtkMap      *map,
  * Returns: количество пикселов в одном метре вдоль ширины виджета или -1.0 в случае ошибки.
  */
 gdouble
-hyscan_gtk_map_get_pixel_scale (HyScanGtkMap *map)
+hyscan_gtk_map_get_scale_px (HyScanGtkMap *map)
 {
   HyScanGtkMapPrivate *priv;
   gdouble scale;
@@ -572,7 +613,7 @@ hyscan_gtk_map_get_pixel_scale (HyScanGtkMap *map)
 }
 
 /**
- * hyscan_gtk_map_get_scale:
+ * hyscan_gtk_map_get_scale_ratio:
  * @map: указатель на #HyScanGtkMap
  *
  * Определяет маштаб карты с учетом разрешающей способности монитора: во сколько
@@ -582,7 +623,7 @@ hyscan_gtk_map_get_pixel_scale (HyScanGtkMap *map)
  *    ошибки.
  */
 gdouble
-hyscan_gtk_map_get_scale (HyScanGtkMap *map)
+hyscan_gtk_map_get_scale_ratio (HyScanGtkMap *map)
 {
   HyScanGtkMapPrivate *priv;
   gdouble ppm;
@@ -593,19 +634,19 @@ hyscan_gtk_map_get_scale (HyScanGtkMap *map)
   /* Pixels per meter. */
   ppm = priv->ppi / (1e-3 * MM_PER_INCH);
 
-  return hyscan_gtk_map_get_pixel_scale (map) / ppm;
+  return hyscan_gtk_map_get_scale_px (map) / ppm;
 }
 
 /**
- * hyscan_gtk_map_set_pixel_scale:
+ * hyscan_gtk_map_set_scale_px:
  * @map: указатель на #HyScanGtkMap
  * @scale: масштаб (количество пикселов в одном метре вдоль ширины виджета)
  *
  * Устанавливает указанный масштаб в центре карты.
  */
 void
-hyscan_gtk_map_set_pixel_scale (HyScanGtkMap *map,
-                                gdouble       scale)
+hyscan_gtk_map_set_scale_px (HyScanGtkMap *map,
+                             gdouble       scale)
 {
   HyScanGtkMapPrivate *priv;
   gdouble scale_px;
@@ -747,7 +788,7 @@ hyscan_gtk_map_set_scales_meter (HyScanGtkMap  *map,
 }
 
 /**
- * hyscan_gtk_map_get_scales_cifro:
+ * hyscan_gtk_map_get_scales:
  * @map: указатель на виджет карты #HyScanGtkMap
  * @scales_len: длина массива масштабов
  *
@@ -756,8 +797,8 @@ hyscan_gtk_map_set_scales_meter (HyScanGtkMap  *map,
  * Returns: (array length=scales_len): массив масштабов. Для удаления g_free()
  */
 gdouble *
-hyscan_gtk_map_get_scales_cifro (HyScanGtkMap *map,
-                                 guint        *scales_len)
+hyscan_gtk_map_get_scales (HyScanGtkMap *map,
+                           guint        *scales_len)
 {
   HyScanGtkMapPrivate *priv;
   gdouble *scales;
@@ -843,10 +884,10 @@ hyscan_gtk_map_set_scale_idx (HyScanGtkMap *map,
  *    g_free().
  */
 gdouble *
-hyscan_gtk_map_create_scales2 (gdouble min_scale,
-                               gdouble max_scale,
-                               gint    steps,
-                               gint   *scales_len)
+hyscan_gtk_map_create_scales2 (gdouble  min_scale,
+                               gdouble  max_scale,
+                               gint     steps,
+                               gint    *scales_len)
 {
   gint exp_start;
   gint exp_end;

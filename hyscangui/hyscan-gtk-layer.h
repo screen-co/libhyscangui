@@ -71,18 +71,26 @@ struct _HyScanGtkLayerInterface
   gboolean           (*load_key_file)    (HyScanGtkLayer          *gtk_layer,
                                           GKeyFile                *key_file,
                                           const gchar             *group);
+
   void               (*added)            (HyScanGtkLayer          *gtk_layer,
                                           HyScanGtkLayerContainer *container);
+
   void               (*removed)          (HyScanGtkLayer          *gtk_layer);
+
   gboolean           (*grab_input)       (HyScanGtkLayer          *layer);
+
   void               (*set_visible)      (HyScanGtkLayer          *layer,
                                           gboolean                 visible);
+
   gboolean           (*get_visible)      (HyScanGtkLayer          *layer);
+
   const gchar *      (*get_icon_name)    (HyScanGtkLayer          *layer);
+
   gchar *            (*hint_find)        (HyScanGtkLayer          *layer,
                                           gdouble                  x,
                                           gdouble                  y,
                                           gdouble                 *distance);
+
   void               (*hint_shown)       (HyScanGtkLayer          *layer,
                                           gboolean                 shown);
 };

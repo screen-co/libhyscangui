@@ -76,6 +76,8 @@
  *
  * ## Блок-схема эмиссии сигнала "button-release-event"
  *
+ * Отправляемые контейнером сигналы зависят от того, есть ли в каком-либо слое
+ * активный хэндл handle или нет.
  *
  *                                [ HANDLER_RUN_FIRST ]
  *                                          v
@@ -83,14 +85,20 @@
  *                                         + +
  *                                     yes | | no
  *                     v-------------------+ +----------------------v
- *              emit "handle-grab"                       emit "handle-release"
+ *           ( emit "handle-grab" )                     ( emit "handle-release" )
  *                    + +                                          + +
  *              found | | not found                       released | | not released
  *         v----------+ +----------+                    v----------+ +----------v
  *  handle = h_found;              |                 handle = NULL;       STOP EMISSION
  *  STOP EMISSION                  |                 STOP EMISSION
  *                                 v
- *                        [ HANDLER_RUN_LAST ]
+ *                      ( emit "handle-create" )
+ *                                + +
+ *                        created | | not created
+ *                        +-------+ +---------+
+ *                        v                   V
+ *                  handle = NULL;    [ HANDLER_RUN_LAST ]
+ *                  STOP EMISSION
  *
  *  - подключение к моменту HANDLER_RUN_FIRST через g_signal_connect(),
  *  - подключение к моменту HANDLER_RUN_LAST через g_signal_connect_after().
