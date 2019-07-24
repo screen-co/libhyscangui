@@ -258,6 +258,7 @@ static gboolean
 hyscan_mark_loc_model_load_location (HyScanMarkLocModel *ml_model,
                                      HyScanMarkLocation *location)
 {
+  HyScanSourceType source;
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
 
   const HyScanMarkWaterfall *mark = location->mark;
@@ -276,7 +277,8 @@ hyscan_mark_loc_model_load_location (HyScanMarkLocModel *ml_model,
     gint32 project_id, track_id, channel_id;
     const gchar *acoustic_channel_name;
 
-    acoustic_channel_name = hyscan_channel_get_id_by_types (mark->source, HYSCAN_CHANNEL_DATA, ACOUSTIC_CHANNEL);
+    source = hyscan_source_get_type_by_id (mark->source);
+    acoustic_channel_name = hyscan_channel_get_id_by_types (source, HYSCAN_CHANNEL_DATA, ACOUSTIC_CHANNEL);
     project_id = hyscan_db_project_open (priv->db, priv->project);
     track_id = hyscan_db_track_open (priv->db, project_id, track_name);
     channel_id = hyscan_db_channel_open (priv->db, track_id, acoustic_channel_name);
@@ -358,10 +360,10 @@ hyscan_mark_loc_model_load_location (HyScanMarkLocModel *ml_model,
     HyScanProjector *projector;
     HyScanAcousticData *acoustic_data;
 
-
+    source = hyscan_source_get_type_by_id (mark->source);
     acoustic_data = hyscan_acoustic_data_new (priv->db, priv->cache,
                                               priv->project, track_name,
-                                              mark->source, ACOUSTIC_CHANNEL, FALSE);
+                                              source, ACOUSTIC_CHANNEL, FALSE);
     if (acoustic_data == NULL)
       {
         g_warning ("HyScanMarkLocModel: failed to open acousitc data");
@@ -370,7 +372,7 @@ hyscan_mark_loc_model_load_location (HyScanMarkLocModel *ml_model,
 
     projector = hyscan_projector_new (HYSCAN_AMPLITUDE (acoustic_data));
     hyscan_projector_count_to_coord (projector, mark->count, &location->offset, 0);
-    if (hyscan_mark_loc_model_is_starboard(mark->source))
+    if (hyscan_mark_loc_model_is_starboard (source))
       location->offset *= -1.0;
 
     g_object_unref (acoustic_data);

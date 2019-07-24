@@ -902,7 +902,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               hyscan_mark_set_ctime  (mark, mtime);
               hyscan_mark_set_mtime  (mark, mtime);
               hyscan_mark_set_size   (mark, mw, mh);
-              hyscan_mark_waterfall_set_center (&mark->waterfall, source, index0, count0);
+              hyscan_mark_waterfall_set_center_by_type (&mark->waterfall, source, index0, count0);
               hyscan_mark_waterfall_set_track  (&mark->waterfall, track_id);
 
               hyscan_mark_model_add_mark (priv->markmodel, mark);
@@ -915,7 +915,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
 
               hyscan_mark_set_mtime (mark, g_get_real_time ());
               hyscan_mark_set_size (mark, mw, mh);
-              hyscan_mark_waterfall_set_center (&mark->waterfall, source, index0, count0);
+              hyscan_mark_waterfall_set_center_by_type (&mark->waterfall, source, index0, count0);
 
               hyscan_mark_model_modify_mark (priv->markmodel, task->id, mark);
               hyscan_mark_free (mark);
@@ -942,9 +942,10 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
                 continue;
 
               /* Фильтруем по источнику. */
-              if (mark->waterfall.source == state->lsource)
+              source = hyscan_source_get_type_by_id (mark->waterfall.source);
+              if (source == state->lsource)
                 _proj = lproj;
-              else if (mark->waterfall.source == state->rsource)
+              else if (source == state->rsource)
                 _proj = rproj;
               else
                 continue;
@@ -964,7 +965,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
                   task->dx = mw;
                   task->dy = mh;
 
-                  if (mark->waterfall.source == state->lsource)
+                  if (source == state->lsource)
                     task->center.x *= -1;
 
                 }
