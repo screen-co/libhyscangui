@@ -370,7 +370,7 @@ on_locate_track_clicked (GtkButton *button,
       if (gtk_tree_model_get_iter (GTK_TREE_MODEL (priv->track_store), &iter, path))
         {
           gtk_tree_model_get (GTK_TREE_MODEL (priv->track_store), &iter, TRACK_COLUMN, &track_name, -1);
-          hyscan_gtk_map_track_track_view (HYSCAN_GTK_MAP_TRACK (priv->track_layer), track_name, FALSE);
+          hyscan_gtk_map_track_view (HYSCAN_GTK_MAP_TRACK (priv->track_layer), track_name, FALSE);
 
           g_free (track_name);
         }
@@ -692,7 +692,7 @@ on_track_activated (GtkTreeView        *treeview,
     gchar *track_name;
 
     gtk_tree_model_get (model, &iter, TRACK_COLUMN, &track_name, -1);
-    hyscan_gtk_map_track_track_view (HYSCAN_GTK_MAP_TRACK (priv->track_layer), track_name, FALSE);
+    hyscan_gtk_map_track_view (HYSCAN_GTK_MAP_TRACK (priv->track_layer), track_name, FALSE);
 
     g_free (track_name);
   }

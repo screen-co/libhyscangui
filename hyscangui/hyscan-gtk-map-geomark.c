@@ -128,8 +128,8 @@ static void    hyscan_gtk_map_geomark_set_property         (GObject             
                                                             GParamSpec                       *pspec);
 static void    hyscan_gtk_map_geomark_object_constructed   (GObject                          *object);
 static void    hyscan_gtk_map_geomark_object_finalize      (GObject                          *object);
-static void    hyscan_gtk_map_geomark_model_changed        (HyScanGtkMapGeomark         *gm_layer);
-static void    hyscan_gtk_map_geomark_location_free        (HyScanGtkMapGeomarkLocation *location);
+static void    hyscan_gtk_map_geomark_model_changed        (HyScanGtkMapGeomark              *gm_layer);
+static void    hyscan_gtk_map_geomark_location_free        (HyScanGtkMapGeomarkLocation      *location);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapGeomark, hyscan_gtk_map_geomark, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapGeomark)
@@ -286,9 +286,9 @@ hyscan_gtk_map_geomark_project_location (HyScanGtkMapGeomark         *layer,
 /* Добавляет метку в список меток слоя.
  * Функция должна вызываться за g_rw_lock_writer_lock (&priv->mark_lock). */
 static gboolean
-hyscan_gtk_map_geomark_insert_mark (gpointer  key,
-                                    gpointer  value,
-                                    gpointer  user_data)
+hyscan_gtk_map_geomark_insert_mark (gpointer key,
+                                    gpointer value,
+                                    gpointer user_data)
 {
   HyScanGtkMapGeomark *gm_layer = HYSCAN_GTK_MAP_GEOMARK (user_data);
   HyScanGtkMapGeomarkPrivate *priv = gm_layer->priv;

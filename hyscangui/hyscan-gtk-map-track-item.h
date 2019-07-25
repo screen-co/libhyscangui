@@ -68,6 +68,8 @@ typedef struct _HyScanGtkMapTrackItemClass HyScanGtkMapTrackItemClass;
  * @line_width: Толщина линии движения.
  * @stroke_width: Толщина линии обводки.
  *
+ * Стиль оформления галса.
+ *
  */
 typedef struct {
   GdkRGBA color_left;
@@ -83,7 +85,7 @@ typedef struct {
 
 struct _HyScanGtkMapTrackItem
 {
-  GObject                   parent_instance;
+  GObject                       parent_instance;
   HyScanGtkMapTrackItemPrivate *priv;
 };
 

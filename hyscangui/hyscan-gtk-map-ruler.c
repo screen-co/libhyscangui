@@ -154,8 +154,8 @@ hyscan_gtk_map_ruler_object_constructed (GObject *object)
   hyscan_gtk_map_ruler_set_bg_color (gtk_map_ruler, color);
   gdk_rgba_parse (&color, LABEL_COLOR_DEFAULT);
   hyscan_gtk_map_ruler_set_label_color (gtk_map_ruler, color);
-  hyscan_gtk_map_pin_set_pin_size (pin_layer, SNAP_DISTANCE / 2.0);
-  hyscan_gtk_map_pin_set_pin_shape (pin_layer, HYSCAN_GTK_MAP_PIN_SHAPE_CIRCLE);
+  hyscan_gtk_map_pin_set_marker_size (pin_layer, SNAP_DISTANCE / 2.0);
+  hyscan_gtk_map_pin_set_marker_shape (pin_layer, HYSCAN_GTK_MAP_PIN_SHAPE_CIRCLE);
 
   priv->label_padding = 5;
 }

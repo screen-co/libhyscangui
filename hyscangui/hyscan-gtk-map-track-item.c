@@ -133,7 +133,7 @@ struct _HyScanGtkMapTrackItemPrivate
 {
   HyScanDB                       *db;                /* База данных. */
   HyScanCache                    *cache;             /* Кэш. */
-  HyScanGtkMapTiled         *tiled_layer;       /* Тайловый слой, на котором размещён галс. */
+  HyScanGtkMapTiled              *tiled_layer;       /* Тайловый слой, на котором размещён галс. */
   HyScanGeoProjection            *projection;        /* Картографическая проекция. */
   HyScanDataSchema               *schema;            /* Схема параметров галса (номера каналов данных). */
 
@@ -883,9 +883,9 @@ hyscan_gtk_map_track_item_load_range (HyScanGtkMapTrackItem *track,
 
       /* Определяем ширину отснятых данных в этот момент. */
       point->r_width = hyscan_gtk_map_track_item_width (&priv->starboard, priv->depthometer, time,
-                                                               &point->r_find_status);
+                                                        &point->r_find_status);
       point->l_width = hyscan_gtk_map_track_item_width (&priv->port, priv->depthometer, time,
-                                                               &point->l_find_status);
+                                                        &point->l_find_status);
 
       points = g_list_append (points, point);
     }
@@ -996,7 +996,7 @@ hyscan_gtk_map_track_item_load_edges (HyScanGtkMapTrackItem *track,
   if (priv->points == NULL)
     {
       priv->points = hyscan_gtk_map_track_item_load_range (track, NULL, NULL,
-                                                      first_index, last_index);
+                                                           first_index, last_index);
       return;
     }
 
@@ -1004,14 +1004,14 @@ hyscan_gtk_map_track_item_load_edges (HyScanGtkMapTrackItem *track,
   if (priv->first_index > first_index)
     {
       priv->points = hyscan_gtk_map_track_item_load_range (track, NULL, priv->points,
-                                                      first_index, priv->first_index - 1);
+                                                           first_index, priv->first_index - 1);
     }
 
   /* Добавляем точки в конец списка. */
   if (priv->last_index < last_index)
     {
       priv->points = hyscan_gtk_map_track_item_load_range (track, priv->points, NULL,
-                                                      priv->last_index + 1, last_index);
+                                                           priv->last_index + 1, last_index);
     }
 }
 
@@ -1400,7 +1400,6 @@ hyscan_gtk_map_track_item_draw (HyScanGtkMapTrackItem      *track,
     /* Координаты точки на поверхности cairo. */
     x = (start_point->c2d.x - from->x) / scale;
     y = (from->y - to->y) / scale - (start_point->c2d.y - to->y) / scale;
-
 
     cairo_arc (cairo, x, y, 2.0 * style->line_width, 0, 2.0 * G_PI);
 

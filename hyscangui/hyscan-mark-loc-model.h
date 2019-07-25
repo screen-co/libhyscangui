@@ -69,8 +69,8 @@ HYSCAN_API
 GType                  hyscan_mark_loc_model_get_type         (void);
 
 HYSCAN_API
-HyScanMarkLocModel *   hyscan_mark_loc_model_new              (HyScanDB    *db,
-                                                               HyScanCache *cache);
+HyScanMarkLocModel *   hyscan_mark_loc_model_new              (HyScanDB           *db,
+                                                               HyScanCache        *cache);
 
 HYSCAN_API
 void                   hyscan_mark_loc_model_set_project      (HyScanMarkLocModel *ml_model,

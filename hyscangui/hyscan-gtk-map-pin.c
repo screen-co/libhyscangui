@@ -41,11 +41,11 @@
  * Данный слой позволяет отмечать на карте некоторые целевые точки. Каждая точка
  * отмечается маркером, внешний вид которого можно задать с помощью функций:
  *
- * - hyscan_gtk_map_pin_set_color_prime()    "prime-color"
- * - hyscan_gtk_map_pin_set_color_second()   "second-color"
- * - hyscan_gtk_map_pin_set_color_stroke()   "stroke-color"
- * - hyscan_gtk_map_pin_set_pin_size()
- * - hyscan_gtk_map_pin_set_pin_shape()
+ * - hyscan_gtk_map_pin_set_color_prime(), "prime-color" - основной цвет,
+ * - hyscan_gtk_map_pin_set_color_second(), "second-color" - вспомогательный цвет,
+ * - hyscan_gtk_map_pin_set_color_stroke(), "stroke-color" - цвет обводки
+ * - hyscan_gtk_map_pin_set_marker_size() - размер маркера
+ * - hyscan_gtk_map_pin_set_marker_shape() - форма маркера
  *
  * Пользователь может взаимодействовать со слоем:
  * - чтобы добавить точку, необходимо передать право ввода слою и кликнуть по карте.
@@ -121,7 +121,7 @@ struct _HyScanGtkMapPinPrivate
   HyScanGtkMapPoint          drag_origin;              /* Оригинальное положение точки, которая перемещается. */
 
   /* Стиль оформления. */
-  gdouble                    pin_size;                 /* Размер маркера (фактический размер макера зависит от
+  gdouble                    marker_size;                 /* Размер маркера (фактический размер макера зависит от
                                                         * его формы, см. pin_create_func). */
   GdkRGBA                    pin_color_prime;          /* Основной цвет маркера. */
   GdkRGBA                    pin_color_second;         /* Вспомогательный цвет маркера. */
@@ -253,7 +253,7 @@ hyscan_gtk_map_pin_create_marker_circle (HyScanGtkMapPin *layer,
   cairo_t *cairo;
 
   /* Увеличиваем размер для выделенных меток. */
-  radius = (state == PIN_HOVER) ? 2.0 * priv->pin_size : priv->pin_size;
+  radius = (state == PIN_HOVER) ? 2.0 * priv->marker_size : priv->marker_size;
 
   margin = 2.0 * priv->pin_stroke_width;
   width = (guint) ceil (2.0 * radius + 2.0 * margin);
@@ -313,10 +313,10 @@ hyscan_gtk_map_pin_create_marker_pin (HyScanGtkMapPin *layer,
     }
   else
     {
-      label_height = priv->pin_size;
+      label_height = priv->marker_size;
     }
 
-  default_size = MAX (priv->pin_size, label_height);
+  default_size = MAX (priv->marker_size, label_height);
 
   /* Увеличиваем размер для выделенных меток. */
   radius = (state == PIN_HOVER) ? 1.2 * default_size : default_size;
@@ -411,8 +411,8 @@ hyscan_gtk_map_pin_object_constructed (GObject *object)
   priv->mode = MODE_NONE;
   gtk_map_pin->priv->pin_stroke_width = 1.0;
 
-  hyscan_gtk_map_pin_set_pin_shape (gtk_map_pin, HYSCAN_GTK_MAP_PIN_SHAPE_PIN);
-  hyscan_gtk_map_pin_set_pin_size (gtk_map_pin, DEFAULT_SIZE);
+  hyscan_gtk_map_pin_set_marker_shape (gtk_map_pin, HYSCAN_GTK_MAP_PIN_SHAPE_PIN);
+  hyscan_gtk_map_pin_set_marker_size (gtk_map_pin, DEFAULT_SIZE);
   gdk_rgba_parse (&color, DEFAULT_COLOR_PRIME);
   hyscan_gtk_map_pin_set_color_prime (gtk_map_pin, color);
   gdk_rgba_parse (&color, DEFAULT_COLOR_STROKE);
@@ -1022,20 +1022,20 @@ hyscan_gtk_map_pin_start_drag (HyScanGtkMapPin     *layer,
 }
 
 /**
- * hyscan_gtk_map_pin_set_pin_size:
+ * hyscan_gtk_map_pin_set_marker_size:
  * @layer: указатель на слой #HyScanGtkMapPin
  * @size: характерный размер метки в пикселах
  *
  * Устанавливает характерный размер метки в пикселах. Фактический размер метки
- * зависит от её формы, которая определяетя функцией hyscan_gtk_map_pin_set_pin_shape().
+ * зависит от её формы, которая определяетя функцией hyscan_gtk_map_pin_set_marker_shape().
  */
 void
-hyscan_gtk_map_pin_set_pin_size (HyScanGtkMapPin *layer,
-                                 guint            size)
+hyscan_gtk_map_pin_set_marker_size (HyScanGtkMapPin *layer,
+                                    guint            size)
 {
   g_return_if_fail (HYSCAN_IS_GTK_MAP_PIN (layer));
 
-  layer->priv->pin_size = size;
+  layer->priv->marker_size = size;
   hyscan_gtk_map_pin_marker_update (layer);
   hyscan_gtk_map_pin_queue_draw (layer);
 }
@@ -1096,16 +1096,16 @@ hyscan_gtk_map_pin_set_color_stroke (HyScanGtkMapPin *layer,
 
 
 /**
- * hyscan_gtk_map_pin_set_pin_shape:
+ * hyscan_gtk_map_pin_set_marker_shape:
  * @layer: указатель на слой #HyScanGtkMapPin
  * @shape: устанавливает форму маркера
  *
- * Устанваливает форму маркера. Смотри #HyScanGtkMapPinItemShape для списка
+ * Устанваливает форму маркера. Смотри #HyScanGtkMapPinMarkerShape для списка
  * доступных форм.
  */
 void
-hyscan_gtk_map_pin_set_pin_shape (HyScanGtkMapPin          *layer,
-                                  HyScanGtkMapPinItemShape  shape)
+hyscan_gtk_map_pin_set_marker_shape (HyScanGtkMapPin            *layer,
+                                     HyScanGtkMapPinMarkerShape  shape)
 {
   HyScanGtkMapPinPrivate *priv = layer->priv;
 

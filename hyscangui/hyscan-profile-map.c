@@ -46,8 +46,8 @@
  * менять цвет на более светлый.
  *
  * Существует несколько способов создания профиля карты:
- * - конструктор по умолчанию hyscan_profile_map_new_default()
- * - конструктор hyscan_profile_map_new_full() с указанием всех параметров
+ * - конструктор по умолчанию hyscan_profile_map_new_default(),
+ * - конструктор hyscan_profile_map_new_full() с указанием всех параметров,
  * - конструктор hyscan_profile_map_new(), а затем чтения ini-файла конфигурации
  *   с помощью функции hyscan_profile_read().
  *
@@ -143,13 +143,13 @@ hyscan_profile_map_object_finalize (GObject *object)
  * если для какого-то источника папка кэширования не указана, то указывается
  * пустая строка "" != NULL. */
 static void
-hyscan_gtk_map_profile_set_params (HyScanProfileMap *profile,
-                                   const gchar      *title,
-                                   gchar           **url_format,
-                                   gchar           **cache_dir,
-                                   const gchar      *projection,
-                                   guint             min_zoom,
-                                   guint             max_zoom)
+hyscan_gtk_map_profile_set_params (HyScanProfileMap  *profile,
+                                   const gchar       *title,
+                                   gchar            **url_format,
+                                   gchar            **cache_dir,
+                                   const gchar       *projection,
+                                   guint              min_zoom,
+                                   guint              max_zoom)
 {
   HyScanProfileMapPrivate *priv = profile->priv;
 
@@ -255,13 +255,13 @@ hyscan_profile_map_create_base (HyScanProfileMapPrivate *priv,
  * Returns: указатель на новый профиль. Для удаления g_object_unref().
  */
 HyScanProfileMap *
-hyscan_profile_map_new_full (const gchar   *title,
-                             const gchar   *url_format,
-                             const gchar   *cache_dir,
-                             const gchar   *cache_subdir,
-                             const gchar   *projection,
-                             guint          min_zoom,
-                             guint          max_zoom)
+hyscan_profile_map_new_full (const gchar *title,
+                             const gchar *url_format,
+                             const gchar *cache_dir,
+                             const gchar *cache_subdir,
+                             const gchar *projection,
+                             guint        min_zoom,
+                             guint        max_zoom)
 {
   HyScanProfileMap *profile;
   gchar *url_formats[2];
@@ -317,7 +317,7 @@ hyscan_profile_map_new (const gchar *cache_dir,
 {
   HyScanProfileMap *profile;
 
-  profile =  g_object_new (HYSCAN_TYPE_MAP_PROFILE, "file", file_name, NULL);
+  profile = g_object_new (HYSCAN_TYPE_MAP_PROFILE, "file", file_name, NULL);
 
   if (cache_dir != NULL)
     profile->priv->cache_dir = g_strdup (cache_dir);
@@ -335,8 +335,8 @@ hyscan_profile_map_new (const gchar *cache_dir,
  * Установка режима работы оффлайн для профиля.
  */
 void
-hyscan_profile_map_set_offline (HyScanProfileMap   *profile,
-                                gboolean            offline)
+hyscan_profile_map_set_offline (HyScanProfileMap *profile,
+                                gboolean          offline)
 {
   g_return_if_fail (HYSCAN_IS_MAP_PROFILE (profile));
 

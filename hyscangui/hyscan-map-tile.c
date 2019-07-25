@@ -34,7 +34,7 @@
 
 /**
  * SECTION: hyscan-gtk-map-tile
- * @Short_description: класс для работы с тайлами и тайловой сеткой
+ * @Short_description: классы для работы с тайлами и тайловой сеткой
  * @Title: HyScanMapTile
  *
  * Тайловая сетка — это разбиение некоторой области логической системы координат
@@ -43,7 +43,7 @@
  * минимальной детализации вся область может покрываться одним тайлом, а при
  * максимальной - тысячами и более.
  *
- * Направление осей логической и тайловой СК
+ * Направление осей логической и тайловой СК различаются:
  *
  *   Ось | Логическая СК  | Тайловая СК
  *  +----+----------------+--------------+
@@ -55,31 +55,38 @@
  *       |  |             |  |
  *       |  +-----> X     |  v Y
  *
- * Классы #HyScanMapTile и #HyScanMapTileGrid предназначены для рисования
- * на поверхности #GtkCifroArea, поэтому используют этот виджет для получения
- * пределов логической СК и видимой области.
+ * Функции для создания тайловой сетки:
+ * - hyscan_map_tile_grid_new() - границы логической СК передаются в виде
+ *   аргументов,
+ * - hyscan_map_tile_grid_new_from_cifro() - границы логической СК берутся из
+ *   виджета #GtkCifroArea
  *
- * Чтобы создать тайловую сетку #HyScanMapTileGrid необходимо указать ее
- * границы в логической СК и размер тайла в пикселях. Для этого доступны две
- * функции:
- * - hyscan_map_tile_grid_new(),
- * - hyscan_map_tile_grid_new_from_cifro().
- *
- * Чтобы установить доступные степени детализации можно использовать одну из
- * двух функций:
+ * Кроме того при инициализации тайловой сетки следует установить доступные
+ * степени детализации (число зумов) с помощью одной из двух функций:
  * - hyscan_map_tile_grid_set_scales(),
  * - hyscan_map_tile_grid_set_xnums().
  *
+ * Прочие функции тайловой сетки:
+ * - hyscan_map_tile_grid_get_zoom_range() - диапазон доступных зумов,
+ * - hyscan_map_tile_grid_get_scale() - масштаб, соответствующий указанному зуму,
+ * - hyscan_map_tile_grid_adjust_zoom() - наиболее подходящий зум для указанного масштаба,
+ * - hyscan_map_tile_grid_get_view() - координаты тайлов, полность покрывающих указанную
+ *   область в логической СК
+ * - hyscan_map_tile_grid_get_view_cifro() - координаты тайлов, полностью покрывающих
+ *   видимую область виджета #GtkCifroArea
+ *
  * Каждый тайл #HyScanMapTile однозначно определяется тремя параметрами:
- * координаты x, y и zoom. Для создания тайла используется функция
- * hyscan_map_tile_new(). Тайл содержит в себе изображение покрываемой им
- * области со степенью детализации zoom. Для установки этого изображения доступны
- * несколько функций:
+ * координаты x, y и zoom. Для создания тайла используется функция:
+ * - hyscan_map_tile_new().
+ *
+ * Тайл содержит в себе изображение покрываемой им области со степенью
+ * детализации zoom. Для установки этого изображения доступны несколько функций:
  * - hyscan_map_tile_set_surface(),
  * - hyscan_map_tile_set_surface_data(),
  * - hyscan_map_tile_set_pixbuf().
  *
- * Для получения изображения - hyscan_map_tile_get_surface().
+ * Для получения изображения используется функция:
+ * - hyscan_map_tile_get_surface().
  *
  * Класс #HyScanMapTileGrid позволяет переводить координаты из логической
  * системы координат в тайловую и обратно, а также определять покрываемую тайлами
@@ -196,9 +203,9 @@ hyscan_map_tile_init (HyScanMapTile *gtk_map_tile)
 
 static void
 hyscan_map_tile_set_property (GObject      *object,
-                             guint         prop_id,
-                             const GValue *value,
-                             GParamSpec   *pspec)
+                              guint         prop_id,
+                              const GValue *value,
+                              GParamSpec   *pspec)
 {
   HyScanMapTile *gtk_map_tile = HYSCAN_MAP_TILE (object);
   HyScanMapTilePrivate *priv = gtk_map_tile->priv;
@@ -390,8 +397,8 @@ hyscan_map_tile_grid_set_xnums (HyScanMapTileGrid *grid,
  *    в логических единицах
  * @scales_len: количество масштабов
  *
- * Устанавливает масштабы тайловой сетки в формате длины стороны тайла в
- * логических единицах.
+ * Устанавливает масштабы тайловой сетки. Каждый элемент массива @scales показвает
+ * длину стороны тайла в логических единицах на соответствующему уровне детализации.
  */
 void
 hyscan_map_tile_grid_set_scales (HyScanMapTileGrid *grid,
@@ -399,7 +406,7 @@ hyscan_map_tile_grid_set_scales (HyScanMapTileGrid *grid,
                                  gsize              scales_len)
 {
   HyScanMapTileGridPrivate *priv;
-  guint i;
+  gsize i;
 
   g_return_if_fail (HYSCAN_IS_MAP_TILE_GRID (grid));
   priv = grid->priv;
@@ -422,6 +429,8 @@ hyscan_map_tile_grid_set_scales (HyScanMapTileGrid *grid,
  * hyscan_map_tile_grid_get_scale:
  * @grid: указатель на тайловую сетку #HyScanMapTileGrid
  *
+ * Возвращает размер одного пикселя в логической системе координат.
+ *
  * Returns: размер одного пикселя тайла в логических единицах
  */
 gdouble
@@ -441,11 +450,14 @@ hyscan_map_tile_grid_get_scale (HyScanMapTileGrid *grid,
  * @grid: указатель на тайловую сетку #HyScanMapTileGrid
  * @min_zoom: (out): (nullable): минимальный номер масштаба
  * @max_zoom: (out): (nullable): максимальный номер масштаба
+ *
+ * Возвращает диапазон степеней детализаци тайловой сетки: номер минимального
+ * и номер максимального масштабов.
  */
 void
-hyscan_map_tile_grid_get_zoom_range(HyScanMapTileGrid *grid,
-                                    guint             *min_zoom,
-                                    guint             *max_zoom)
+hyscan_map_tile_grid_get_zoom_range (HyScanMapTileGrid *grid,
+                                     guint             *min_zoom,
+                                     guint             *max_zoom)
 {
   HyScanMapTileGridPrivate *priv;
 
@@ -478,7 +490,7 @@ hyscan_map_tile_grid_adjust_zoom (HyScanMapTileGrid *grid,
   guint optimal_zoom;
   gdouble optimal_err = G_MAXDOUBLE;
 
-  guint i;
+  gsize i;
 
   g_return_val_if_fail (HYSCAN_IS_MAP_TILE_GRID (grid), 0);
   priv = grid->priv;
@@ -628,7 +640,7 @@ hyscan_map_tile_get_scale (HyScanMapTile *tile)
  * @data: пиксельные данные
  * @size: размер @data
  *
- * Устанавливает поверхность данные @data в качестве поверхности тайла.
+ * Устанавливает данные @data в качестве поверхности тайла.
  *
  * Область памяти @data должна существовать, пока не будет установлена другая
  * поверхность или пока тайл не будет уничтожен. Поэтому после использования
@@ -749,7 +761,8 @@ hyscan_map_tile_get_surface (HyScanMapTile *tile)
  * @a: указатель на #HyScanMapTile
  * @b: указатель на #HyScanMapTile
  *
- * Сравнивает тайлы @a и @b.
+ * Сравнивает тайлы @a и @b. Тайлы считаются одинаковыми, если их координаты
+ * и уровень детализации совпадают.
  *
  * Returns: Возвращает 0, если тайлы одинаковые.
  */

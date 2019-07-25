@@ -53,7 +53,7 @@ typedef struct _HyScanGtkMapPinClass HyScanGtkMapPinClass;
 typedef struct _HyScanGtkMapPinItem HyScanGtkMapPinItem;
 
 /**
- * HyScanGtkMapPinItemShape:
+ * HyScanGtkMapPinMarkerShape:
  * @HYSCAN_GTK_MAP_PIN_SHAPE_CIRCLE: маркера в форме круга, целевая точка
  *   расположена в центре круга
  * @HYSCAN_GTK_MAP_PIN_SHAPE_PIN: маркер в форме булавки, целевая точка
@@ -63,7 +63,7 @@ typedef enum
 {
   HYSCAN_GTK_MAP_PIN_SHAPE_CIRCLE,
   HYSCAN_GTK_MAP_PIN_SHAPE_PIN,
-} HyScanGtkMapPinItemShape;
+} HyScanGtkMapPinMarkerShape;
 
 struct _HyScanGtkMapPin
 {
@@ -94,39 +94,39 @@ HYSCAN_API
 HyScanGtkLayer *       hyscan_gtk_map_pin_new              (void);
 
 HYSCAN_API
-void                   hyscan_gtk_map_pin_clear            (HyScanGtkMapPin          *layer);
+void                   hyscan_gtk_map_pin_clear            (HyScanGtkMapPin            *layer);
 
 HYSCAN_API
-GList*                 hyscan_gtk_map_pin_get_points       (HyScanGtkMapPin          *layer);
+GList*                 hyscan_gtk_map_pin_get_points       (HyScanGtkMapPin            *layer);
 
 HYSCAN_API
-HyScanGtkMapPinItem *  hyscan_gtk_map_pin_insert_before    (HyScanGtkMapPin          *layer,
-                                                            HyScanGtkMapPoint        *point,
-                                                            GList                    *sibling);
+HyScanGtkMapPinItem *  hyscan_gtk_map_pin_insert_before    (HyScanGtkMapPin            *layer,
+                                                            HyScanGtkMapPoint          *point,
+                                                            GList                      *sibling);
 
 HYSCAN_API
-void                   hyscan_gtk_map_pin_set_pin_size     (HyScanGtkMapPin          *layer,
-                                                            guint                     size);
+void                   hyscan_gtk_map_pin_set_marker_size  (HyScanGtkMapPin            *layer,
+                                                            guint                       size);
 
 HYSCAN_API
-gconstpointer          hyscan_gtk_map_pin_start_drag       (HyScanGtkMapPin          *layer,
-                                                            HyScanGtkMapPinItem      *handle_point);
+void                   hyscan_gtk_map_pin_set_marker_shape (HyScanGtkMapPin            *layer,
+                                                            HyScanGtkMapPinMarkerShape  shape);
 
 HYSCAN_API
-void                   hyscan_gtk_map_pin_set_color_prime  (HyScanGtkMapPin          *layer,
-                                                            GdkRGBA                   color);
+gconstpointer          hyscan_gtk_map_pin_start_drag       (HyScanGtkMapPin            *layer,
+                                                            HyScanGtkMapPinItem        *handle_point);
 
 HYSCAN_API
-void                   hyscan_gtk_map_pin_set_color_second (HyScanGtkMapPin          *layer,
-                                                            GdkRGBA                   color);
+void                   hyscan_gtk_map_pin_set_color_prime  (HyScanGtkMapPin            *layer,
+                                                            GdkRGBA                     color);
 
 HYSCAN_API
-void                   hyscan_gtk_map_pin_set_color_stroke (HyScanGtkMapPin          *layer,
-                                                            GdkRGBA                   color);
+void                   hyscan_gtk_map_pin_set_color_second (HyScanGtkMapPin            *layer,
+                                                            GdkRGBA                     color);
 
 HYSCAN_API
-void                   hyscan_gtk_map_pin_set_pin_shape    (HyScanGtkMapPin          *layer,
-                                                            HyScanGtkMapPinItemShape  shape);
+void                   hyscan_gtk_map_pin_set_color_stroke (HyScanGtkMapPin            *layer,
+                                                            GdkRGBA                     color);
 
 G_END_DECLS
 

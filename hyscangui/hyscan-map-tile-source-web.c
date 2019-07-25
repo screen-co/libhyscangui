@@ -58,12 +58,10 @@
  */
 
 #include "hyscan-map-tile-source-web.h"
-#include <math.h>
 #include <gio/gio.h>
 #include <string.h>
 #include <libsoup/soup.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
-#include <gdk/gdk.h>
 
 #define USER_AGENT     "Mozilla/5.0 (X11; Linux x86_64; rv:60.0) " \
                        "Gecko/20100101 Firefox/60.0"                      /* Заголовок "User-agent" для HTTP-запросов. */
@@ -147,11 +145,11 @@ static void           hyscan_map_tile_source_web_set_format          (HyScanMapT
                                                                       const gchar                    *url_tpl);
 static gchar *        hyscan_map_tile_source_web_get_quad            (HyScanMapTile                  *tile);
 static HyScanMapTileSourceWebTask *
-                      hyscan_map_tile_source_web_task_new            (HyScanMapTileSourceWebPrivate *priv,
-                                                                      HyScanMapTile                 *tile,
-                                                                      GCancellable                  *cancellable);
-static gchar *        hyscan_map_tile_source_web_replace             (const gchar                   *url_tpl,
-                                                                      gchar                        **find_replace);
+                      hyscan_map_tile_source_web_task_new            (HyScanMapTileSourceWebPrivate  *priv,
+                                                                      HyScanMapTile                  *tile,
+                                                                      GCancellable                   *cancellable);
+static gchar *        hyscan_map_tile_source_web_replace             (const gchar                    *url_tpl,
+                                                                      gchar                         **find_replace);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanMapTileSourceWeb, hyscan_map_tile_source_web, G_TYPE_OBJECT,
                          G_ADD_PRIVATE (HyScanMapTileSourceWeb)
@@ -365,11 +363,10 @@ static gchar *
 hyscan_map_tile_source_web_replace (const gchar  *url_tpl,
                                     gchar       **find_replace)
 {
-  gchar *format;
-
+  gchar *result;
   guint i;
 
-  format = g_strdup (url_tpl);
+  result = g_strdup (url_tpl);
   for (i = 0; find_replace[i] != NULL; ++i)
     {
       gchar **tokens;
@@ -378,19 +375,21 @@ hyscan_map_tile_source_web_replace (const gchar  *url_tpl,
       find    = find_replace[i];
       replace = find_replace[++i];
 
-      tokens = g_strsplit (format, find, 2);
-      g_clear_pointer (&format, g_free);
+      /* Разбиваем строку на две части строкой find. */
+      tokens = g_strsplit (result, find, 2);
+      g_clear_pointer (&result, g_free);
 
+      /* Склеиваем строку обратно, заменяя find на replace. */
       if (tokens[1] != NULL)
-        format = g_strconcat (tokens[0], replace, tokens[1], NULL);
+        result = g_strconcat (tokens[0], replace, tokens[1], NULL);
 
       g_strfreev (tokens);
 
-      if (format == NULL)
+      if (result == NULL)
         break;
     }
 
-  return format;
+  return result;
 }
 
 /* Устанавливает printf-формат URL на основе шаблона url_tpl. */

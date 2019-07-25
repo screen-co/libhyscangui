@@ -102,13 +102,13 @@ struct _HyScanGtkMapTiledPrivate
 };
 
 static void    hyscan_gtk_map_tiled_interface_init           (HyScanGtkLayerInterface *iface);
-static void    hyscan_gtk_map_tiled_set_property             (GObject                *object,
-                                                              guint                   prop_id,
-                                                              const GValue           *value,
-                                                              GParamSpec             *pspec);
-static void    hyscan_gtk_map_tiled_cache_free               (HyScanGtkMapTiledCache *cache);
-static void    hyscan_gtk_map_tiled_object_constructed       (GObject                *object);
-static void    hyscan_gtk_map_tiled_object_finalize          (GObject                *object);
+static void    hyscan_gtk_map_tiled_set_property             (GObject                 *object,
+                                                              guint                    prop_id,
+                                                              const GValue            *value,
+                                                              GParamSpec              *pspec);
+static void    hyscan_gtk_map_tiled_cache_free               (HyScanGtkMapTiledCache  *cache);
+static void    hyscan_gtk_map_tiled_object_constructed       (GObject                 *object);
+static void    hyscan_gtk_map_tiled_object_finalize          (GObject                 *object);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapTiled, hyscan_gtk_map_tiled, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapTiled)
@@ -235,6 +235,8 @@ hyscan_gtk_map_tiled_cache_get (HyScanGtkMapTiled *tiled_layer,
   return found;
 }
 
+/* Обновляет используемую сетку тайлов.
+ * Функция должна вызывать только в потоке GMainLoop. */
 static void
 hyscan_gtk_map_tiled_update_grid (HyScanGtkMapTiledPrivate *priv)
 {
@@ -245,7 +247,6 @@ hyscan_gtk_map_tiled_update_grid (HyScanGtkMapTiledPrivate *priv)
   for (i = 0; i < scales_len; ++i)
     scales[i] *= TILE_SIZE;
 
-  // todo: lock mutex when use/update tile_grid?
   g_clear_object (&priv->tile_grid);
   priv->tile_grid = hyscan_map_tile_grid_new_from_cifro (GTK_CIFRO_AREA (priv->map), 0, TILE_SIZE);
   hyscan_map_tile_grid_set_scales (priv->tile_grid, scales, scales_len);
@@ -303,11 +304,6 @@ hyscan_gtk_map_tiled_fill_tile (HyScanGtkMapTiled *tiled_layer,
                            0.1);
     cairo_paint (cairo);
     cairo_set_source_rgb (cairo, 0.2, 0.2, 0);
-
-    /* Название тайла. */
-    // g_snprintf (tile_num, sizeof (tile_num), "tile %d, %d", x, y);
-    // cairo_move_to (cairo, tile_size / 2.0, tile_size / 2.0);
-    // cairo_show_text (cairo, tile_num); // here
 
     cairo_surface_destroy (surface);
     cairo_destroy (cairo);
@@ -495,10 +491,10 @@ hyscan_gtk_map_tiled_interface_init (HyScanGtkLayerInterface *iface)
 
 /**
  * hyscan_gtk_map_tiled_draw:
- * @tiled_layer:
- * @cairo:
+ * @tiled_layer: указатель на #HyScanGtkMapTiled
+ * @cairo: объект #cairo_t для рисования
  *
- * Рисует тайлы на поверхности cairo. Может быть использована в качестве обработчика
+ * Рисует тайлы на поверхности @cairo. Может быть использована в качестве обработчика
  * сигнала #GtkCifroArea::visible-draw.
  */
 void

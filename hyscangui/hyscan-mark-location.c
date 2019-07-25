@@ -37,7 +37,7 @@
 /**
  * hyscan_mark_location_new:
  *
- * Создаёт структуру с информацией о положении метки
+ * Создаёт структуру с информацией о положении метки.
  *
  * Returns: указатель на #HyScanMarkLocation. Для удаления hyscan_mark_location_free().
  */

@@ -34,7 +34,7 @@
 
 /**
  * SECTION: hyscan-mark-loc-model
- * @Short_description: Модель местоположения меток
+ * @Short_description: Модель местоположения акустических меток
  * @Title: HyScanMarkLocModel
  * @See_also: #HyScanMarkLocation, #HyScanMarkModel
  *
@@ -58,10 +58,9 @@
 #include <hyscan-projector.h>
 #include <hyscan-acoustic-data.h>
 #include <hyscan-nmea-parser.h>
-#include <hyscan-mark-data-waterfall.h>
 
-#define ACOUSTIC_CHANNEL        1                    /* Канал с акустическими данными. */
-#define NMEA_RMC_CHANNEL        1                    /* Канал с навигационными данными. */
+#define ACOUSTIC_CHANNEL 1   /* Канал с акустическими данными. */
+#define NMEA_RMC_CHANNEL 1   /* Канал с навигационными данными. */
 
 enum
 {
@@ -270,7 +269,6 @@ hyscan_mark_loc_model_load_location (HyScanMarkLocModel *ml_model,
   track_name = g_hash_table_lookup (priv->track_names, mark->track);
   if (track_name == NULL)
     return location->loaded;
-  // todo: Cache objects: amplitude, projector, lat_data, lon_data...
 
   /* Получаем временную метку из канала акустических данных. */
   {
@@ -371,6 +369,7 @@ hyscan_mark_loc_model_load_location (HyScanMarkLocModel *ml_model,
       }
 
     projector = hyscan_projector_new (HYSCAN_AMPLITUDE (acoustic_data));
+    // todo: определять глубину и передавать её в hyscan_projector_count_to_coord()
     hyscan_projector_count_to_coord (projector, mark->count, &location->offset, 0);
     if (hyscan_mark_loc_model_is_starboard (source))
       location->offset *= -1.0;
@@ -466,7 +465,6 @@ hyscan_mark_loc_model_model_changed (HyScanMarkLocModel *ml_model)
   g_rw_lock_writer_lock (&priv->mark_lock);
 
   /* Загружаем гео-данные по меткам. */
-  // todo: сделать обновление текущего списка меток priv->marks, а не полную перезагрузку
   g_hash_table_remove_all (priv->locations);
   g_hash_table_foreach_steal (wfmarks, hyscan_mark_loc_model_model_append_mark, ml_model);
   hyscan_mark_loc_model_reload_locations (ml_model);

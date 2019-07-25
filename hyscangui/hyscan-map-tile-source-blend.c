@@ -233,7 +233,7 @@ hyscan_map_tile_source_blend_append (HyScanMapTileSourceBlend *blend,
 
       /* Проверяем, что добавляемый источник совместим с уже добавленными. */
       source_projection = hyscan_map_tile_source_get_projection (source);
-      source_hash = hyscan_geo_projection_hash (priv->projection);
+      source_hash = hyscan_geo_projection_hash (source_projection);
       blend_hash = hyscan_geo_projection_hash (priv->projection);
       g_object_unref (source_projection);
       if (blend_hash != source_hash)
@@ -242,7 +242,6 @@ hyscan_map_tile_source_blend_append (HyScanMapTileSourceBlend *blend,
           return FALSE;
         }
 
-      // todo: test tile grid compatibility?
       grid = hyscan_map_tile_source_get_grid (source);
 
       /* Расширяем диапазон доступных масштабов с учётом нового источника. */

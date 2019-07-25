@@ -34,29 +34,29 @@
 
 /**
  * SECTION: hyscan-gtk-map-nav
- * @Short_description: слой карты с треком движения объекта
+ * @Short_description: слой карты с траекторией движения объекта
  * @Title: HyScanGtkMapNav
  * @See_also: #HyScanGtkLayer
  *
  * Класс позволяет выводить на карте #HyScanGtkMap слой с изображением движения
  * объекта в режиме реального времени.
  *
- * Слой изображет трек движения в виде линии пройденного маршрута, а текущее
- * положение объекта в виде стрелки, направленной по курсе движения. Стиль
- * оформления можно задать параметрами конфигурации:
+ * Слой изображет траекторию движения в виде линии пройденного маршрута, а текущее
+ * положение объекта в виде стрелки, направленной по курсу движения. Стиль
+ * оформления можно задать параметрами конфигурации (см. hyscan_gtk_layer_container_load_key_file()):
  *
- * - "line-width"
- * - "line-color"
- * - "arrow-color"
- * - "arrow-stroke-color"
- * - "lost-line-color"
- * - "lost-arrow-color"
- * - "lost-arrow-stroke-color"
- * - "text-color"
- * - "bg-color"
+ * - "line-width" - толщина линии траектории,
+ * - "line-color" - цвет линии траектории,
+ * - "arrow-color" - цвет стрелки,
+ * - "arrow-stroke-color" - цвет обводки стрелки,
+ * - "lost-line-color" - цвет линии при потере сигнала,
+ * - "lost-arrow-color" - цвет стрелки при потере сигнала,
+ * - "lost-arrow-stroke-color" - цвет обводки стрелки при потере сигнала,
+ * - "text-color" - цвет текста,
+ * - "bg-color" - цвет фона текста.
  *
- * Выводимые данные получаются из модели #HyScanNavModel, которая
- * указывается при создании слоя в hyscan_gtk_map_nav_new().
+ * Выводимые данные получаются из модели #HyScanNavModel, которая указывается
+ * при создании слоя в hyscan_gtk_map_nav_new().
  *
  */
 
@@ -1016,6 +1016,9 @@ hyscan_gtk_map_nav_new (HyScanNavModel *nav_model)
  * hyscan_gtk_map_nav_set_lifetime:
  * @nav_layer: указатель на #HyScanGtkMapNav
  * @lifetime: время жизни точек трека, секунды
+ *
+ * Устанавливает время жизни точек траектории. Все точки, которые были добавлены
+ * более @lifetime секунд назад, не будут выводиться.
  */
 void
 hyscan_gtk_map_nav_set_lifetime (HyScanGtkMapNav *nav_layer,

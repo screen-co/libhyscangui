@@ -190,9 +190,9 @@ hyscan_gtk_map_grid_added (HyScanGtkLayer          *gtk_layer,
 }
 
 static gboolean
-hyscan_gtk_map_grid_load_key_file (HyScanGtkLayer          *gtk_layer,
-                                   GKeyFile                *key_file,
-                                   const gchar             *group)
+hyscan_gtk_map_grid_load_key_file (HyScanGtkLayer *gtk_layer,
+                                   GKeyFile       *key_file,
+                                   const gchar    *group)
 {
   HyScanGtkMapGrid *grid_layer = HYSCAN_GTK_MAP_GRID (gtk_layer);
   HyScanGtkMapGridPrivate *priv = grid_layer->priv;
@@ -624,7 +624,7 @@ hyscan_gtk_map_grid_new (void)
  * @grid: указатель на #HyScanGtkMapGrid
  * @color: цвет подложки подписей
  *
- * Устанавливает цвет подложки подписей
+ * Устанавливает цвет подложки подписей.
  */
 void
 hyscan_gtk_map_grid_set_bg_color (HyScanGtkMapGrid *grid,
@@ -676,7 +676,7 @@ hyscan_gtk_map_grid_set_line_width (HyScanGtkMapGrid *grid,
  * @grid: указатель на #HyScanGtkMapGrid
  * @color: цвет текста подписей
  *
- * Устанавливает цвет текста подписей
+ * Устанавливает цвет текста подписей.
  */
 void
 hyscan_gtk_map_grid_set_label_color (HyScanGtkMapGrid *grid,

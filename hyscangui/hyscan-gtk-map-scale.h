@@ -70,15 +70,15 @@ HyScanGtkLayer *       hyscan_gtk_map_scale_new                (void);
 
 HYSCAN_API
 void                   hyscan_gtk_map_scale_set_scale_width    (HyScanGtkMapScale *scale,
-                                                                gdouble           width);
+                                                                gdouble            width);
 
 HYSCAN_API
 void                   hyscan_gtk_map_scale_set_label_color    (HyScanGtkMapScale *scale,
-                                                                GdkRGBA           color);
+                                                                GdkRGBA            color);
 
 HYSCAN_API
 void                   hyscan_gtk_map_scale_set_bg_color       (HyScanGtkMapScale *scale,
-                                                                GdkRGBA           color);
+                                                                GdkRGBA            color);
 
 
 G_END_DECLS

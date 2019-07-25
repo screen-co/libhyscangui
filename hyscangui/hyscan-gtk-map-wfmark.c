@@ -277,9 +277,9 @@ hyscan_gtk_map_wfmark_location_free (HyScanGtkMapWfmarkLocation *location)
 }
 
 static gboolean
-hyscan_gtk_map_wfmark_insert_mark (gpointer  key,
-                                   gpointer  value,
-                                   gpointer  user_data)
+hyscan_gtk_map_wfmark_insert_mark (gpointer key,
+                                   gpointer value,
+                                   gpointer user_data)
 {
   HyScanGtkMapWfmark *wfm_layer = HYSCAN_GTK_MAP_WFMARK (user_data);
   HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;

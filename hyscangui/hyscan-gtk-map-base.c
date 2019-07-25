@@ -735,11 +735,11 @@ hyscan_gtk_map_base_surface_make (HyScanGtkMapBasePrivate *priv,
  * Возвращает %TRUE, если поверхность была перерисована. */
 static gboolean
 hyscan_gtk_map_base_refresh_surface (HyScanGtkMapBasePrivate *priv,
-                                     guint                     x0,
-                                     guint                     xn,
-                                     guint                     y0,
-                                     guint                     yn,
-                                     guint                     zoom)
+                                     guint                    x0,
+                                     guint                    xn,
+                                     guint                    y0,
+                                     guint                    yn,
+                                     guint                    zoom)
 {
   g_return_val_if_fail (x0 <= xn && y0 <= yn, FALSE);
 

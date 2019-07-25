@@ -90,16 +90,7 @@ struct _HyScanMapTileGridClass
 };
 
 HYSCAN_API
-GType                  hyscan_map_tile_get_type               (void);
-
-HYSCAN_API
 GType                  hyscan_map_tile_grid_get_type          (void);
-
-HYSCAN_API
-HyScanMapTile *        hyscan_map_tile_new                    (HyScanMapTileGrid    *grid,
-                                                               guint                 x,
-                                                               guint                 y,
-                                                               guint                 z);
 
 HYSCAN_API
 HyScanMapTileGrid *    hyscan_map_tile_grid_new_from_cifro    (GtkCifroArea         *carea,
@@ -107,12 +98,84 @@ HyScanMapTileGrid *    hyscan_map_tile_grid_new_from_cifro    (GtkCifroArea     
                                                                guint                 tile_size);
 
 HYSCAN_API
-HyScanMapTileGrid *    hyscan_map_tile_grid_new                (gdouble              min_x,
-                                                                gdouble              max_x,
-                                                                gdouble              min_y,
-                                                                gdouble              max_y,
-                                                                guint                min_zoom,
-                                                                guint                tile_size);
+HyScanMapTileGrid *    hyscan_map_tile_grid_new               (gdouble               min_x,
+                                                               gdouble               max_x,
+                                                               gdouble               min_y,
+                                                               gdouble               max_y,
+                                                               guint                 min_zoom,
+                                                               guint                 tile_size);
+
+HYSCAN_API
+void                   hyscan_map_tile_grid_set_xnums         (HyScanMapTileGrid    *grid,
+                                                               const guint          *xnums,
+                                                               gsize                 xnums_len);
+
+HYSCAN_API
+void                   hyscan_map_tile_grid_set_scales        (HyScanMapTileGrid    *grid,
+                                                               const gdouble        *scales,
+                                                               gsize                 scales_len);
+
+HYSCAN_API
+guint                  hyscan_map_tile_grid_get_tile_size     (HyScanMapTileGrid    *grid);
+
+HYSCAN_API
+gdouble                hyscan_map_tile_grid_get_scale         (HyScanMapTileGrid    *grid,
+                                                               guint                 zoom);
+
+HYSCAN_API
+void                   hyscan_map_tile_grid_get_zoom_range    (HyScanMapTileGrid    *grid,
+                                                               guint                *min_zoom,
+                                                               guint                *max_zoom);
+
+HYSCAN_API
+guint                  hyscan_map_tile_grid_adjust_zoom       (HyScanMapTileGrid    *grid,
+                                                               gdouble               scale);
+
+HYSCAN_API
+void                   hyscan_map_tile_grid_get_view_cifro    (HyScanMapTileGrid    *grid,
+                                                               GtkCifroArea         *carea,
+                                                               guint                 zoom,
+                                                               gint                 *from_tile_x,
+                                                               gint                 *to_tile_x,
+                                                               gint                 *from_tile_y,
+                                                               gint                 *to_tile_y);
+
+HYSCAN_API
+void                   hyscan_map_tile_grid_get_view          (HyScanMapTileGrid    *grid,
+                                                               guint                 zoom,
+                                                               gdouble               from_x,
+                                                               gdouble               to_x,
+                                                               gdouble               from_y,
+                                                               gdouble               to_y,
+                                                               gint                 *from_tile_x,
+                                                               gint                 *to_tile_x,
+                                                               gint                 *from_tile_y,
+                                                               gint                 *to_tile_y);
+
+HYSCAN_API
+void                   hyscan_map_tile_grid_tile_to_value     (HyScanMapTileGrid    *grid,
+                                                               guint                 zoom,
+                                                               gdouble               tile_x,
+                                                               gdouble               tile_y,
+                                                               gdouble              *x_val,
+                                                               gdouble              *y_val);
+
+HYSCAN_API
+void                   hyscan_map_tile_grid_value_to_tile     (HyScanMapTileGrid    *grid,
+                                                               guint                 zoom,
+                                                               gdouble               x_val,
+                                                               gdouble               y_val,
+                                                               gdouble              *x_tile,
+                                                               gdouble              *y_tile);
+
+HYSCAN_API
+GType                  hyscan_map_tile_get_type               (void);
+
+HYSCAN_API
+HyScanMapTile *        hyscan_map_tile_new                    (HyScanMapTileGrid    *grid,
+                                                               guint                 x,
+                                                               guint                 y,
+                                                               guint                 z);
 
 HYSCAN_API
 guint                  hyscan_map_tile_get_x                  (HyScanMapTile        *tile);
@@ -156,69 +219,6 @@ cairo_surface_t *      hyscan_map_tile_get_surface            (HyScanMapTile    
 HYSCAN_API
 gint                   hyscan_map_tile_compare                (HyScanMapTile        *a,
                                                                HyScanMapTile        *b);
-
-HYSCAN_API
-guint                  hyscan_map_tile_grid_get_tile_size     (HyScanMapTileGrid    *grid);
-
-HYSCAN_API
-gdouble                hyscan_map_tile_grid_get_scale         (HyScanMapTileGrid    *grid,
-                                                               guint                 zoom);
-
-HYSCAN_API
-void                   hyscan_map_tile_grid_get_zoom_range    (HyScanMapTileGrid    *grid,
-                                                               guint                *min_zoom,
-                                                               guint                *max_zoom);
-
-HYSCAN_API
-void                   hyscan_map_tile_grid_set_xnums         (HyScanMapTileGrid    *grid,
-                                                               const guint          *xnums,
-                                                               gsize                 xnums_len);
-
-HYSCAN_API
-void                   hyscan_map_tile_grid_set_scales        (HyScanMapTileGrid    *grid,
-                                                               const gdouble        *scales,
-                                                               gsize                 scales_len);
-
-HYSCAN_API
-guint                  hyscan_map_tile_grid_adjust_zoom       (HyScanMapTileGrid    *grid,
-                                                               gdouble               scale);
-
-HYSCAN_API
-void                   hyscan_map_tile_grid_get_view_cifro    (HyScanMapTileGrid    *grid,
-                                                               GtkCifroArea         *carea,
-                                                               guint                 zoom,
-                                                               gint                 *from_tile_x,
-                                                               gint                 *to_tile_x,
-                                                               gint                 *from_tile_y,
-                                                               gint                 *to_tile_y);
-
-HYSCAN_API
-void                   hyscan_map_tile_grid_get_view          (HyScanMapTileGrid    *grid,
-                                                               guint                 zoom,
-                                                               gdouble               from_x,
-                                                               gdouble               to_x,
-                                                               gdouble               from_y,
-                                                               gdouble               to_y,
-                                                               gint                 *from_tile_x,
-                                                               gint                 *to_tile_x,
-                                                               gint                 *from_tile_y,
-                                                               gint                 *to_tile_y);
-
-HYSCAN_API
-void                   hyscan_map_tile_grid_tile_to_value     (HyScanMapTileGrid    *grid,
-                                                               guint                 zoom,
-                                                               gdouble               tile_x,
-                                                               gdouble               tile_y,
-                                                               gdouble              *x_val,
-                                                               gdouble              *y_val);
-
-HYSCAN_API
-void                   hyscan_map_tile_grid_value_to_tile     (HyScanMapTileGrid    *grid,
-                                                               guint                 zoom,
-                                                               gdouble               x_val,
-                                                               gdouble               y_val,
-                                                               gdouble              *x_tile,
-                                                               gdouble              *y_tile);
 
 G_END_DECLS
 

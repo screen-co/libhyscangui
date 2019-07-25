@@ -308,9 +308,9 @@ hyscan_gtk_map_track_fill_tile (HyScanGtkMapTiled *tiled_layer,
 
 /* Рисует слой по сигналу "visible-draw". */
 static void
-hyscan_gtk_map_track_draw (HyScanGtkMap       *map,
-                           cairo_t            *cairo,
-                           HyScanGtkMapTrack  *track_layer)
+hyscan_gtk_map_track_draw (HyScanGtkMap      *map,
+                           cairo_t           *cairo,
+                           HyScanGtkMapTrack *track_layer)
 {
 #ifdef HYSCAN_GTK_MAP_DEBUG_FPS
   static GTimer *debug_timer;
@@ -591,7 +591,29 @@ hyscan_gtk_map_track_set_project (HyScanGtkMapTrack *track_layer,
 }
 
 /**
- * hyscan_gtk_map_track_track_view:
+ * hyscan_gtk_map_track_lookup:
+ * @track_layer: указатель на #HyScanGtkMapTrack
+ * @track_name: название галса
+ *
+ * Returns: (transfer full): указатель на найденный галс #HyScanGtkMapTrackItem.
+ *   Для удаления g_object_unref().
+ */
+HyScanGtkMapTrackItem *
+hyscan_gtk_map_track_lookup (HyScanGtkMapTrack *track_layer,
+                             const gchar       *track_name)
+{
+  HyScanGtkMapTrackItem *track;
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track_layer), NULL);
+
+  track = hyscan_gtk_map_track_get_track (track_layer, track_name, TRUE);
+  if (track == NULL)
+    return NULL;
+
+  return g_object_ref (track);
+}
+
+/**
+ * hyscan_gtk_map_track_view:
  * @track_layer: указатель на слой #HyScanGtkMapTrack
  * @track_name: название галса
  * @zoom_in: надо ли вписывать галс в видимую область
@@ -603,9 +625,9 @@ hyscan_gtk_map_track_set_project (HyScanGtkMapTrack *track_layer,
  * Returns: %TRUE, если получилось определить границы галса; иначе %FALSE
  */
 gboolean 
-hyscan_gtk_map_track_track_view (HyScanGtkMapTrack *track_layer,
-                                 const gchar       *track_name,
-                                 gboolean           zoom_in)
+hyscan_gtk_map_track_view (HyScanGtkMapTrack *track_layer,
+                           const gchar       *track_name,
+                           gboolean           zoom_in)
 {
   HyScanGtkMapTrackPrivate *priv;
   HyScanGtkMapTrackItem *track;
@@ -735,26 +757,4 @@ hyscan_gtk_map_track_set_bar_margin (HyScanGtkMapTrack *track_layer,
 
   hyscan_gtk_map_tiled_set_param_mod (HYSCAN_GTK_MAP_TILED (track_layer));
   hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (track_layer));
-}
-
-/**
- * hyscan_gtk_map_track_lookup:
- * @track_layer: указатель на #HyScanGtkMapTrack
- * @track_name: название галса
- *
- * Returns: (transfer full): указатель на найденный галс #HyScanGtkMapTrackItem.
- *   Для удаления g_object_unref().
- */
-HyScanGtkMapTrackItem *
-hyscan_gtk_map_track_lookup (HyScanGtkMapTrack *track_layer,
-                             const gchar       *track_name)
-{
-  HyScanGtkMapTrackItem *track;
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track_layer), NULL);
-
-  track = hyscan_gtk_map_track_get_track (track_layer, track_name, TRUE);
-  if (track == NULL)
-    return NULL;
-
-  return g_object_ref (track);
 }

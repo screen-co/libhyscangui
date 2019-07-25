@@ -144,7 +144,7 @@ hyscan_map_tile_loader_func (gpointer data)
       gint x0, y0, xn, yn;
 
       hyscan_map_tile_grid_get_view (grid, zoom, priv->from_x, priv->to_x, priv->from_y, priv->to_y,
-                                         &x0, &xn, &y0, &yn);
+                                     &x0, &xn, &y0, &yn);
 
       total += (xn - x0 + 1) * (yn - y0 + 1);
     }
@@ -156,7 +156,7 @@ hyscan_map_tile_loader_func (gpointer data)
       gint x, y;
 
       hyscan_map_tile_grid_get_view (grid, zoom, priv->from_x, priv->to_x, priv->from_y, priv->to_y,
-                                         &x0, &xn, &y0, &yn);
+                                     &x0, &xn, &y0, &yn);
 
       for (x = x0; x <= xn; ++x)
         for (y = y0; y <= yn; ++y)

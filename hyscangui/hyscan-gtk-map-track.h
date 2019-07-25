@@ -79,7 +79,11 @@ void                      hyscan_gtk_map_track_set_project         (HyScanGtkMap
                                                                     const gchar        *project);
 
 HYSCAN_API
-gboolean                  hyscan_gtk_map_track_track_view          (HyScanGtkMapTrack  *track_layer,
+HyScanGtkMapTrackItem *   hyscan_gtk_map_track_lookup              (HyScanGtkMapTrack  *track_layer,
+                                                                    const gchar        *track_name);
+
+HYSCAN_API
+gboolean                  hyscan_gtk_map_track_view                (HyScanGtkMapTrack  *track_layer,
                                                                     const gchar        *track_name,
                                                                     gboolean            zoom_in);
 
@@ -102,10 +106,6 @@ void                      hyscan_gtk_map_track_set_bar_width       (HyScanGtkMap
 HYSCAN_API
 void                      hyscan_gtk_map_track_set_bar_margin      (HyScanGtkMapTrack  *track_layer,
                                                                     gdouble             bar_margin);
-
-HYSCAN_API
-HyScanGtkMapTrackItem *   hyscan_gtk_map_track_lookup              (HyScanGtkMapTrack  *track_layer,
-                                                                    const gchar        *track_name);
 
 G_END_DECLS
 

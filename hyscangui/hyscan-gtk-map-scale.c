@@ -46,8 +46,8 @@
  * Стиль оформления слоя можно задать с помощью функций класса или свойств из файла
  * конфигурации:
  *
- * - hyscan_gtk_map_scale_set_bg_color()      "bg-color"
- * - hyscan_gtk_map_scale_set_label_color()   "label-color"
+ * - hyscan_gtk_map_scale_set_bg_color() "bg-color" - цвет фона
+ * - hyscan_gtk_map_scale_set_label_color() "label-color" - цвет текста
  * - hyscan_gtk_map_scale_set_scale_width()
  *
  * Загрузить конфигурационный файл можно функциями hyscan_gtk_layer_load_key_file()
@@ -59,7 +59,6 @@
 #include <math.h>
 
 #define MIN_SCALE_SIZE_PX   50.0      /* Минимальная длина линейки масштаба. */
-
 #define SCALE_WIDTH         2.0       /* Толщина линии линейки масштаба. */
 
 #define LINE_COLOR_DEFAULT  "rgba( 80, 120, 180, 0.5)"   /* Цвет линий по умолчанию. */
@@ -182,9 +181,9 @@ hyscan_gtk_map_scale_added (HyScanGtkLayer          *gtk_layer,
 }
 
 static gboolean
-hyscan_gtk_map_scale_load_key_file (HyScanGtkLayer          *gtk_layer,
-                                    GKeyFile                *key_file,
-                                    const gchar             *group)
+hyscan_gtk_map_scale_load_key_file (HyScanGtkLayer *gtk_layer,
+                                    GKeyFile       *key_file,
+                                    const gchar    *group)
 {
   HyScanGtkMapScale *scale_layer = HYSCAN_GTK_MAP_SCALE (gtk_layer);
   HyScanGtkMapScalePrivate *priv = scale_layer->priv;
@@ -215,7 +214,7 @@ hyscan_gtk_map_scale_interface_init (HyScanGtkLayerInterface *iface)
 /* Обновление раскладки шрифта по сигналу "configure-event". */
 static gboolean
 hyscan_gtk_map_scale_configure (HyScanGtkMapScale *scale,
-                                GdkEvent         *screen)
+                                GdkEvent          *screen)
 {
   HyScanGtkMapScalePrivate *priv = scale->priv;
   gint width;
@@ -376,11 +375,11 @@ hyscan_gtk_map_scale_new (void)
  * @scale: указатель на #HyScanGtkMapScale
  * @color: цвет подложки подписей
  *
- * Устанавливает цвет подложки подписей
+ * Устанавливает цвет подложки подписей.
  */
 void
 hyscan_gtk_map_scale_set_bg_color (HyScanGtkMapScale *scale,
-                                   GdkRGBA           color)
+                                   GdkRGBA            color)
 {
   g_return_if_fail (HYSCAN_IS_GTK_MAP_SCALE (scale));
 
@@ -397,7 +396,7 @@ hyscan_gtk_map_scale_set_bg_color (HyScanGtkMapScale *scale,
  */
 void
 hyscan_gtk_map_scale_set_scale_width (HyScanGtkMapScale *scale,
-                                      gdouble           width)
+                                      gdouble            width)
 {
   g_return_if_fail (HYSCAN_IS_GTK_MAP_SCALE (scale));
   g_return_if_fail (width > 0);
@@ -411,11 +410,11 @@ hyscan_gtk_map_scale_set_scale_width (HyScanGtkMapScale *scale,
  * @scale: указатель на #HyScanGtkMapScale
  * @color: цвет текста
  *
- * Устанавливает цвет текста
+ * Устанавливает цвет текста подписей.
  */
 void
 hyscan_gtk_map_scale_set_label_color (HyScanGtkMapScale *scale,
-                                      GdkRGBA           color)
+                                      GdkRGBA            color)
 {
   g_return_if_fail (HYSCAN_IS_GTK_MAP_SCALE (scale));
 
