@@ -114,9 +114,9 @@ hyscan_gtk_param_list_add_widgets (HyScanGtkParamList   *self,
       hyscan_param_list_add (plist, key->id);
 
       /* Виджет (с твиками) в контейнер. */
-      g_object_set (widget, "margin-start", 12, "margin-end", 12, NULL);
+      g_object_set (widget, "margin-start", 12, "margin-end", 12, "margin-bottom", 6, NULL);
       hyscan_gtk_param_key_add_to_size_group (HYSCAN_GTK_PARAM_KEY (widget), size);
-      gtk_box_pack_start (GTK_BOX (container), widget, TRUE, TRUE, 0);
+      gtk_box_pack_start (GTK_BOX (container), widget, FALSE, TRUE, 0);
     }
 }
 
