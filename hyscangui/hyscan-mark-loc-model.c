@@ -59,8 +59,10 @@
 #include <hyscan-acoustic-data.h>
 #include <hyscan-nmea-parser.h>
 
-#define ACOUSTIC_CHANNEL 1   /* Канал с акустическими данными. */
-#define NMEA_RMC_CHANNEL 1   /* Канал с навигационными данными. */
+// todo: вместо этих макросов брать номера каналов из каких-то пользовательских настроек
+#define ACOUSTIC_CHANNEL 1   /* Канал ГБО с акустическими данными. */
+#define NMEA_RMC_CHANNEL 1   /* Канал NMEA с навигационными данными. */
+#define NMEA_DPT_CHANNEL 2   /* Канал NMEA с данными эхолота. */
 
 enum
 {
@@ -230,16 +232,13 @@ hyscan_mark_loc_model_is_starboard (HyScanSourceType source_type)
     }
 }
 
-/* Загружает геолокационные данные по метке.
+/* Определяет географические координаты метки.
  * Функция должна вызываться за g_rw_lock_reader_lock (&priv->mark_lock). */
 static void
 hyscan_mark_loc_model_load_coord (HyScanMarkLocation *location)
 {
   HyScanGeoCartesian2D position;
   HyScanGeo *geo;
-
-  if (!location->loaded)
-    return;
 
   /* Положение метки относительно судна. */
   position.x = 0;
@@ -251,16 +250,188 @@ hyscan_mark_loc_model_load_coord (HyScanMarkLocation *location)
   g_object_unref (geo);
 }
 
+/* Определяет время фиксации метки.
+ * Функция должна вызываться за g_rw_lock_reader_lock (&priv->mark_lock). */
+static gboolean
+hyscan_mark_loc_model_load_time (HyScanMarkLocModel *ml_model,
+                                 HyScanMarkLocation *location,
+                                 const gchar        *track_name,
+                                 HyScanSourceType    source)
+{
+  HyScanMarkLocModelPrivate *priv = ml_model->priv;
+  const HyScanMarkWaterfall *mark = location->mark;
+
+  gint32 project_id, track_id, channel_id;
+  const gchar *acoustic_channel_name;
+
+  acoustic_channel_name = hyscan_channel_get_id_by_types (source, HYSCAN_CHANNEL_DATA, ACOUSTIC_CHANNEL);
+  project_id = hyscan_db_project_open (priv->db, priv->project);
+  track_id = hyscan_db_track_open (priv->db, project_id, track_name);
+  channel_id = hyscan_db_channel_open (priv->db, track_id, acoustic_channel_name);
+
+  if (channel_id > 0)
+    location->time = hyscan_db_channel_get_data_time (priv->db, channel_id, mark->index);
+  else
+    location->time = -1;
+
+  hyscan_db_close (priv->db, channel_id);
+  hyscan_db_close (priv->db, track_id);
+  hyscan_db_close (priv->db, project_id);
+
+  return location->time >= 0;
+}
+
+inline static HyScanNavData *
+hyscan_mark_loc_model_rmc_data_new (HyScanMarkLocModel *ml_model,
+                                    const gchar        *track_name,
+                                    HyScanNMEAField     field)
+{
+  HyScanMarkLocModelPrivate *priv = ml_model->priv;
+
+  return HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache,
+                                                  priv->project, track_name, NMEA_RMC_CHANNEL,
+                                                  HYSCAN_NMEA_DATA_RMC, field));
+}
+
+/* Находит средневзвешенное значение между lval и rval. */
+static inline gdouble 
+hyscan_mark_loc_model_weight (gint64  mtime,
+                              gint64  ltime,
+                              gint64  rtime,
+                              gdouble lval,
+                              gdouble rval)
+{
+  gint64 dtime;
+  gdouble rweight, lweight;
+
+  dtime = rtime - ltime;
+
+  if (dtime == 0)
+    return lval;
+
+  rweight = (gdouble) (rtime - mtime) / dtime;
+  lweight = (gdouble) (mtime - ltime) / dtime;
+
+  return lweight * lval + rweight * rval;
+}
+
+/* Определяет положение и курс судна в момент фиксации метки.
+ * Функция должна вызываться за g_rw_lock_reader_lock (&priv->mark_lock). */
+static gboolean
+hyscan_mark_loc_model_load_nav (HyScanMarkLocModel *ml_model,
+                                HyScanMarkLocation *location,
+                                const gchar        *track_name)
+{
+  HyScanNavData *lat_data, *lon_data, *angle_data;
+
+  HyScanGeoGeodetic lgeo, rgeo;
+  guint32 lindex, rindex;
+  gint64 ltime, rtime;
+
+  gboolean found = FALSE;
+
+  lat_data   = hyscan_mark_loc_model_rmc_data_new (ml_model, track_name, HYSCAN_NMEA_FIELD_LAT);
+  lon_data   = hyscan_mark_loc_model_rmc_data_new (ml_model, track_name, HYSCAN_NMEA_FIELD_LON);
+  angle_data = hyscan_mark_loc_model_rmc_data_new (ml_model, track_name, HYSCAN_NMEA_FIELD_TRACK);
+
+  if (hyscan_nav_data_find_data (lat_data, location->time, &lindex, &rindex, &ltime, &rtime) != HYSCAN_DB_FIND_OK)
+    goto exit;
+
+  /* Пробуем распарсить навигационные данные по найденным индексам. */
+  found =  hyscan_nav_data_get (lat_data, lindex, NULL, &lgeo.lat) &&
+           hyscan_nav_data_get (lon_data, lindex, NULL, &lgeo.lon) &&
+           hyscan_nav_data_get (angle_data, lindex, NULL, &lgeo.h);
+  found &=  hyscan_nav_data_get (lat_data, rindex, NULL, &rgeo.lat) &&
+            hyscan_nav_data_get (lon_data, rindex, NULL, &rgeo.lon) &&
+            hyscan_nav_data_get (angle_data, rindex, NULL, &rgeo.h);
+
+  if (!found) // todo: если в текущем индексе нет данных, то пробовать брать соседние
+    goto exit;
+
+  /* Ищем средневзвешенное значение. */
+  location->center_geo.lat = hyscan_mark_loc_model_weight (location->time, ltime, rtime, lgeo.lat, rgeo.lat);
+  location->center_geo.lon = hyscan_mark_loc_model_weight (location->time, ltime, rtime, lgeo.lon, rgeo.lon);
+  location->center_geo.h   = hyscan_mark_loc_model_weight (location->time, ltime, rtime, lgeo.h, rgeo.h);
+
+exit:
+  g_object_unref (angle_data);
+  g_object_unref (lat_data);
+  g_object_unref (lon_data);
+
+  return found;
+}
+
+/* Определяет расстояние от метки до борта судна.
+ * Функция должна вызываться за g_rw_lock_reader_lock (&priv->mark_lock). */
+static gboolean 
+hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
+                                   HyScanMarkLocation *location,
+                                   const gchar        *track_name,
+                                   HyScanSourceType    source)
+{
+  HyScanProjector *projector;
+  HyScanAcousticData *acoustic_data;
+  gdouble depth;
+  
+  HyScanMarkLocModelPrivate *priv = ml_model->priv;
+  const HyScanMarkWaterfall *mark = location->mark;
+  
+  HyScanNavData *dpt_data;
+  gdouble ldepth, rdepth;
+
+  guint32 lindex, rindex;
+  gint64 ltime, rtime;
+
+  acoustic_data = hyscan_acoustic_data_new (priv->db, priv->cache,
+                                            priv->project, track_name,
+                                            source, ACOUSTIC_CHANNEL, FALSE);
+
+  if (acoustic_data == NULL)
+    {
+      g_warning ("HyScanMarkLocModel: failed to open acoustic data");
+      return FALSE;
+    }
+
+  /* Находим глубину при возможности. */
+  depth = 0.0;
+  dpt_data =  HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache,
+                                                       priv->project, track_name, NMEA_DPT_CHANNEL,
+                                                       HYSCAN_NMEA_DATA_DPT, HYSCAN_NMEA_FIELD_DEPTH));
+
+  if (hyscan_nav_data_find_data (dpt_data, location->time, &lindex, &rindex, &ltime, &rtime) == HYSCAN_DB_FIND_OK)
+    {
+      if (hyscan_nav_data_get (dpt_data, lindex, NULL, &ldepth) &&
+          hyscan_nav_data_get (dpt_data, rindex, NULL, &rdepth))
+        {
+          depth = hyscan_mark_loc_model_weight (location->time, ltime, rtime, ldepth, rdepth);
+        }
+    }
+
+  /* Определяем дистанцию до точки. */
+  projector = hyscan_projector_new (HYSCAN_AMPLITUDE (acoustic_data));
+  hyscan_projector_count_to_coord (projector, mark->count, &location->offset, depth);
+  if (hyscan_mark_loc_model_is_starboard (source))
+    location->offset *= -1.0;
+
+  g_clear_object (&dpt_data);
+  g_clear_object (&projector);
+  g_clear_object (&acoustic_data);
+
+  return TRUE;
+}
+
 /* Загружает геолокационные данные по метке.
  * Функция должна вызываться за g_rw_lock_reader_lock (&priv->mark_lock). */
 static gboolean
 hyscan_mark_loc_model_load_location (HyScanMarkLocModel *ml_model,
                                      HyScanMarkLocation *location)
 {
-  HyScanSourceType source;
+
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
 
   const HyScanMarkWaterfall *mark = location->mark;
+
+  HyScanSourceType source;
   const gchar *track_name;
 
   location->loaded = FALSE;
@@ -268,120 +439,29 @@ hyscan_mark_loc_model_load_location (HyScanMarkLocModel *ml_model,
   /* Получаем название галса. */
   track_name = g_hash_table_lookup (priv->track_names, mark->track);
   if (track_name == NULL)
-    return location->loaded;
+    return FALSE;
+
+  source = hyscan_source_get_type_by_id (mark->source);
+  if (source == HYSCAN_SOURCE_INVALID)
+    return FALSE;
 
   /* Получаем временную метку из канала акустических данных. */
-  {
-    gint32 project_id, track_id, channel_id;
-    const gchar *acoustic_channel_name;
-
-    source = hyscan_source_get_type_by_id (mark->source);
-    acoustic_channel_name = hyscan_channel_get_id_by_types (source, HYSCAN_CHANNEL_DATA, ACOUSTIC_CHANNEL);
-    project_id = hyscan_db_project_open (priv->db, priv->project);
-    track_id = hyscan_db_track_open (priv->db, project_id, track_name);
-    channel_id = hyscan_db_channel_open (priv->db, track_id, acoustic_channel_name);
-
-    location->time = hyscan_db_channel_get_data_time (priv->db, channel_id, mark->index);
-
-    hyscan_db_close (priv->db, channel_id);
-    hyscan_db_close (priv->db, track_id);
-    hyscan_db_close (priv->db, project_id);
-  }
+  if (!hyscan_mark_loc_model_load_time (ml_model, location, track_name, source))
+    return FALSE;
 
   /* Находим географические координаты метки и курс. */
-  {
-    HyScanNavData *lat_data, *lon_data, *angle_data;
-    guint32 lindex, rindex;
-    HyScanGeoGeodetic lgeo, rgeo;
-    gint64 ltime, rtime;
+  if (!hyscan_mark_loc_model_load_nav (ml_model, location, track_name))
+    return FALSE;
 
-    // todo: определять, какой номер канала с навигационными данными. Сейчас захардкожен "NMEA_RMC_CHANNEL"
-    lat_data = HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache,
-                                                        priv->project, track_name, NMEA_RMC_CHANNEL,
-                                                        HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_LAT));
-    lon_data = HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache,
-                                                        priv->project, track_name, NMEA_RMC_CHANNEL,
-                                                        HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_LON));
-    angle_data = HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache,
-                                                          priv->project, track_name, NMEA_RMC_CHANNEL,
-                                                          HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_TRACK));
-
-    if (hyscan_nav_data_find_data (lat_data, location->time, &lindex, &rindex, &ltime, &rtime) == HYSCAN_DB_FIND_OK)
-      {
-        gboolean found;
-
-        /* Пробуем распарсить навигационные данные по найденным индексам. */
-        found =  hyscan_nav_data_get (lat_data, lindex, NULL, &lgeo.lat) &&
-                 hyscan_nav_data_get (lon_data, lindex, NULL, &lgeo.lon) &&
-                 hyscan_nav_data_get (angle_data, lindex, NULL, &lgeo.h);
-        found &=  hyscan_nav_data_get (lat_data, rindex, NULL, &rgeo.lat) &&
-                  hyscan_nav_data_get (lon_data, rindex, NULL, &rgeo.lon) &&
-                  hyscan_nav_data_get (angle_data, rindex, NULL, &rgeo.h);
-
-        if (found)
-          {
-            gint64 dtime = rtime - ltime;
-
-            /* Ищем средневзвешанное значение. */
-            if (dtime > 0)
-              {
-                gdouble rweight, lweight;
-
-                rweight = (gdouble) (rtime - location->time) / dtime;
-                lweight = (gdouble) (location->time - ltime) / dtime;
-
-                location->center_geo.lat = lweight * lgeo.lat + rweight * rgeo.lat;
-                location->center_geo.lon = lweight * lgeo.lon + rweight * rgeo.lon;
-                location->center_geo.h = lweight * lgeo.h + rweight * rgeo.h;
-              }
-            else
-              {
-                location->center_geo = lgeo;
-              }
-
-            location->loaded = TRUE;
-          }
-        else
-          {
-            // todo: если в текущем индексе нет данных, то пробовать брать соседние
-            g_warning ("HyScanMarkLocModel: mark location was not found");
-          }
-      }
-
-    g_object_unref (angle_data);
-    g_object_unref (lat_data);
-    g_object_unref (lon_data);
-  }
-
-  /* Определяем дальность расположения метки от тракетории. */
-  {
-    HyScanProjector *projector;
-    HyScanAcousticData *acoustic_data;
-
-    source = hyscan_source_get_type_by_id (mark->source);
-    acoustic_data = hyscan_acoustic_data_new (priv->db, priv->cache,
-                                              priv->project, track_name,
-                                              source, ACOUSTIC_CHANNEL, FALSE);
-    if (acoustic_data == NULL)
-      {
-        g_warning ("HyScanMarkLocModel: failed to open acousitc data");
-        return FALSE;
-      }
-
-    projector = hyscan_projector_new (HYSCAN_AMPLITUDE (acoustic_data));
-    // todo: определять глубину и передавать её в hyscan_projector_count_to_coord()
-    hyscan_projector_count_to_coord (projector, mark->count, &location->offset, 0);
-    if (hyscan_mark_loc_model_is_starboard (source))
-      location->offset *= -1.0;
-
-    g_object_unref (acoustic_data);
-    g_object_unref (projector);
-  }
+  /* Определяем дальность расположения метки от борта судна. */
+  if (!hyscan_mark_loc_model_load_offset (ml_model, location, track_name, source))
+    return FALSE;
 
   /* Определяем координаты центра метки. */
   hyscan_mark_loc_model_load_coord (location);
+  location->loaded = TRUE;
 
-  return location->loaded;
+  return TRUE;
 }
 
 /* Перезагружает данные priv->marks.
