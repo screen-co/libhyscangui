@@ -303,7 +303,7 @@ hyscan_gtk_waterfall_control_keyboard (GtkWidget   *widget,
   if (IS_TO_START_KEY (key, priv->display_type))
     hyscan_gtk_waterfall_automove (priv->wfall, FALSE);
 
-  return GDK_EVENT_PROPAGATE;
+  return GDK_EVENT_STOP;
 }
 
 /* Обработчик нажатия кнопок мышки. */
