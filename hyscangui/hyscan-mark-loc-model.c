@@ -309,8 +309,8 @@ hyscan_mark_loc_model_weight (gint64  mtime,
   if (dtime == 0)
     return lval;
 
-  rweight = (gdouble) (rtime - mtime) / dtime;
-  lweight = (gdouble) (mtime - ltime) / dtime;
+  rweight = 1.0 - (gdouble) (rtime - mtime) / dtime;
+  lweight = 1.0 - (gdouble) (mtime - ltime) / dtime;
 
   return lweight * lval + rweight * rval;
 }
