@@ -53,7 +53,8 @@
 #include <math.h>
 #include <glib/gi18n-lib.h>
 
-#define MOVE_THRESHOLD 5 /* Сдвиг мыши, при котором активируется режим перемещения карты. */
+#define MOVE_THRESHOLD        5   /* Сдвиг мыши, при котором активируется режим перемещения карты. */
+#define KEYBOARD_MOVE_STEP    10  /* Число пикселей, на которое сдвигается карта при однократном нажатии стрелки. */
 
 enum
 {
@@ -151,11 +152,10 @@ hyscan_gtk_map_control_interface_init (HyScanGtkLayerInterface *iface)
   iface->removed = hyscan_gtk_map_control_removed;
 }
 
-/* Обработчик сигнала "key-press-event".
- * Копирует координаты в буфер обмена. */
-static gboolean
-hyscan_gtk_map_control_key_press (HyScanGtkMapControl *control,
-                                  GdkEventKey         *event)
+/* Копирует координаты курсора в буфер обмена. */
+static gboolean 
+hyscan_gtk_map_control_press_copy (HyScanGtkMapControl *control,
+                                   GdkEventKey         *event)
 {
   HyScanGtkMapControlPrivate *priv = control->priv;
   HyScanGeoCartesian2D val;
@@ -196,32 +196,94 @@ hyscan_gtk_map_control_key_press (HyScanGtkMapControl *control,
   return GDK_EVENT_STOP;
 }
 
+/* Меняет масштаб при нажатии клавиш плюс и минус. */
+static gboolean
+hyscan_gtk_map_control_press_zoom (HyScanGtkMapControl *control,
+                                   GdkEventKey         *event)
+{
+  HyScanGtkMapControlPrivate *priv = control->priv;
+  gdouble from_x, to_x, from_y, to_y;
+  GtkCifroAreaZoomType direction;
+  
+  switch (event->keyval)
+  {
+    case GDK_KEY_minus:
+    case GDK_KEY_underscore:
+    case GDK_KEY_KP_Subtract:
+      direction = GTK_CIFRO_AREA_ZOOM_OUT;
+      break;
+
+    case GDK_KEY_plus:  
+    case GDK_KEY_equal:  
+    case GDK_KEY_KP_Add:
+      direction = GTK_CIFRO_AREA_ZOOM_IN;
+      break;
+
+    default:
+      return GDK_EVENT_PROPAGATE;
+  }
+
+  gtk_cifro_area_get_view (GTK_CIFRO_AREA (priv->map), &from_x, &to_x, &from_y, &to_y);
+  gtk_cifro_area_zoom (GTK_CIFRO_AREA (priv->map), direction, direction, (from_x + to_x) / 2.0, (from_y + to_y) / 2.0);
+
+  return GDK_EVENT_STOP;
+}
+
+/* Смещает видимую областб стрелками. */
+static gboolean
+hyscan_gtk_map_control_press_move (HyScanGtkMapControl *control,
+                                   GdkEventKey         *event)
+{
+  HyScanGtkMapControlPrivate *priv = control->priv;
+  gint dx = 0, dy = 0;
+
+  if (event->keyval == GDK_KEY_Up)
+    dy = 1;
+  else if (event->keyval == GDK_KEY_Down)
+    dy = -1;
+  else if (event->keyval == GDK_KEY_Right)
+    dx = 1;
+  else if (event->keyval == GDK_KEY_Left)
+    dx = -1;
+  else
+    return GDK_EVENT_PROPAGATE;
+
+  gtk_cifro_area_move (GTK_CIFRO_AREA (priv->map), KEYBOARD_MOVE_STEP * dx, KEYBOARD_MOVE_STEP * dy);
+
+  return GDK_EVENT_STOP;
+}
+
+/* Обработчик сигнала "key-press-event". */
+static gboolean
+hyscan_gtk_map_control_key_press (HyScanGtkMapControl *control,
+                                  GdkEventKey         *event)
+{
+  return hyscan_gtk_map_control_press_copy (control, event) ||
+         hyscan_gtk_map_control_press_zoom (control, event) ||
+         hyscan_gtk_map_control_press_move (control, event);
+}
+
 /* Обработчик событий прокрутки колёсика мышки "scroll-event". */
 static gboolean
 hyscan_gtk_map_control_scroll (HyScanGtkMapControl *control,
                                GdkEventScroll      *event)
 {
-  HyScanGtkMap *map = control->priv->map;
+  HyScanGtkMapControlPrivate *priv = control->priv;
+  GtkCifroAreaZoomType direction;
+  gdouble x, y;
 
-  gint dscale;
-  gint scale_idx;
-
-  gdouble center_x, center_y;
 
   if (event->direction == GDK_SCROLL_UP)
-    dscale = -1;
+    direction = GTK_CIFRO_AREA_ZOOM_IN;
   else if (event->direction == GDK_SCROLL_DOWN)
-    dscale = 1;
+    direction = GTK_CIFRO_AREA_ZOOM_OUT;
   else
-    return FALSE;
+    return GDK_EVENT_PROPAGATE;
 
-  scale_idx = hyscan_gtk_map_get_scale_idx (map, NULL);
-  scale_idx += dscale;
+  gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &x, &y);
+  gtk_cifro_area_zoom (GTK_CIFRO_AREA (priv->map), direction, direction, x, y);
 
-  gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (map), event->x, event->y, &center_x, &center_y);
-  hyscan_gtk_map_set_scale_idx (map, scale_idx < 0 ? 0 : scale_idx, center_x, center_y);
-
-  return FALSE;
+  return GDK_EVENT_STOP;
 }
 
 /* Установка нового режима работы слоя управления. */

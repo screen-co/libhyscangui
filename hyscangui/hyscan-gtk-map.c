@@ -134,6 +134,11 @@ static void     hyscan_gtk_map_get_limits               (GtkCifroArea          *
 static void     hyscan_gtk_map_check_scale              (GtkCifroArea          *carea,
                                                          gdouble               *scale_x,
                                                          gdouble               *scale_y);
+static void     hyscan_gtk_map_zoom                     (GtkCifroArea          *carea,
+                                                         GtkCifroAreaZoomType   direction_x,
+                                                         GtkCifroAreaZoomType   direction_y,
+                                                         gdouble                center_x,
+                                                         gdouble                center_y);
 
 static GParamSpec* hyscan_gtk_map_properties[PROP_LAST];
 
@@ -170,6 +175,7 @@ hyscan_gtk_map_class_init (HyScanGtkMapClass *klass)
   /* Реализация виртуальных функций GtkCifroArea. */
   carea_class->get_limits = hyscan_gtk_map_get_limits;
   carea_class->check_scale = hyscan_gtk_map_check_scale;
+  carea_class->zoom = hyscan_gtk_map_zoom;
 
   /* Реализация виртуальных функций GTKWidget. */
   widget_class->configure_event = hyscan_gtk_map_configure;
@@ -383,6 +389,29 @@ hyscan_gtk_map_find_closest_scale (HyScanGtkMap *map,
   (found_idx != NULL) ? *found_idx = found_idx_ret : 0;
 
   return priv->scales[found_idx_ret];
+}
+
+/* Реализация функции GtkCifroAreaClass.zoom.
+ * Изменяет масштаб в указнном направлении. */
+static void
+hyscan_gtk_map_zoom (GtkCifroArea          *carea,
+                     GtkCifroAreaZoomType   direction_x,
+                     GtkCifroAreaZoomType   direction_y,
+                     gdouble                center_x,
+                     gdouble                center_y)
+{
+  HyScanGtkMap *map = HYSCAN_GTK_MAP (carea);
+  gint scale_idx;
+
+  scale_idx = hyscan_gtk_map_get_scale_idx (map, NULL);
+  if (direction_x == GTK_CIFRO_AREA_ZOOM_IN || direction_y == GTK_CIFRO_AREA_ZOOM_IN)
+    --scale_idx;
+  else if (direction_x == GTK_CIFRO_AREA_ZOOM_OUT || direction_y == GTK_CIFRO_AREA_ZOOM_OUT)
+    ++scale_idx;
+  else
+    return;
+
+  hyscan_gtk_map_set_scale_idx (map, scale_idx < 0 ? 0 : scale_idx, center_x, center_y);
 }
 
 /* Реализация функции GtkCifroAreaClass.check_scale.
