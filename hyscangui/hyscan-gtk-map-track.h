@@ -38,7 +38,6 @@
 #include <hyscan-gtk-map-tiled.h>
 #include <hyscan-gtk-map-track-item.h>
 #include <hyscan-db.h>
-#include <hyscan-list-model.h>
 
 G_BEGIN_DECLS
 
@@ -71,12 +70,18 @@ GType                     hyscan_gtk_map_track_get_type            (void);
 
 HYSCAN_API
 HyScanGtkLayer *          hyscan_gtk_map_track_new                 (HyScanDB           *db,
-                                                                    HyScanListModel    *model,
                                                                     HyScanCache        *cache);
 
 HYSCAN_API
 void                      hyscan_gtk_map_track_set_project         (HyScanGtkMapTrack  *track_layer,
                                                                     const gchar        *project);
+
+HYSCAN_API
+void                      hyscan_gtk_map_track_set_tracks          (HyScanGtkMapTrack  *track_layer,
+                                                                    gchar             **tracks);
+
+HYSCAN_API
+gchar **                  hyscan_gtk_map_track_get_tracks          (HyScanGtkMapTrack  *track_layer);
 
 HYSCAN_API
 HyScanGtkMapTrackItem *   hyscan_gtk_map_track_lookup              (HyScanGtkMapTrack  *track_layer,

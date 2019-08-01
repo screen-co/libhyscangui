@@ -91,8 +91,7 @@ enum
   PROP_O,
   PROP_DB,
   PROP_PROJECT,
-  PROP_CACHE,
-  PROP_LIST_MODEL
+  PROP_CACHE
 };
 
 struct _HyScanGtkMapTrackPrivate
@@ -103,7 +102,6 @@ struct _HyScanGtkMapTrackPrivate
 
   HyScanDB                  *db;               /* База данных. */
   gchar                     *project;          /* Название проекта. */
-  HyScanListModel           *list_model;       /* Модель списка активных галсов. */
   HyScanCache               *cache;            /* Кэш для навигационных данных. */
 
   GMutex                     t_lock;           /* Доступ к модификации таблицы tracks. */
@@ -124,7 +122,6 @@ static void     hyscan_gtk_map_track_object_constructed           (GObject      
 static void     hyscan_gtk_map_track_object_finalize              (GObject                     *object);
 static void     hyscan_gtk_map_track_fill_tile                    (HyScanGtkMapTiled           *tiled_layer,
                                                                    HyScanMapTile               *tile);
-static void     hyscan_gtk_map_track_list_changed                 (HyScanGtkMapTrack           *track_layer);
 static HyScanGtkMapTrackItem * hyscan_gtk_map_track_get_track     (HyScanGtkMapTrack           *track_layer,
                                                                    const gchar                 *track_name,
                                                                    gboolean                     create_if_not_exists);
@@ -156,11 +153,6 @@ hyscan_gtk_map_track_class_init (HyScanGtkMapTrackClass *klass)
   g_object_class_install_property (object_class, PROP_CACHE,
     g_param_spec_object ("data-cache", "Data Cache", "HyScanCache", HYSCAN_TYPE_CACHE,
                           G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-  g_object_class_install_property (object_class, PROP_LIST_MODEL,
-    g_param_spec_object ("track-list-model", "Track List Model",
-                         "The HyScanListModel with a list of active (visible) tracks",
-                         HYSCAN_TYPE_LIST_MODEL,
-                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
@@ -200,10 +192,6 @@ hyscan_gtk_map_track_set_property (GObject      *object,
       priv->cache = g_value_dup_object (value);
       break;
 
-    case PROP_LIST_MODEL:
-      priv->list_model = g_value_dup_object (value);
-      break;
-
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -218,8 +206,6 @@ hyscan_gtk_map_track_object_constructed (GObject *object)
   HyScanGtkMapTrackItemStyle *style = &priv->style;
 
   G_OBJECT_CLASS (hyscan_gtk_map_track_parent_class)->constructed (object);
-
-  g_signal_connect_swapped (priv->list_model, "changed", G_CALLBACK (hyscan_gtk_map_track_list_changed), track_layer);
 
   /* Оформление трека. */
   style->bar_width = DEFAULT_BAR_WIDTH;
@@ -248,21 +234,6 @@ hyscan_gtk_map_track_object_finalize (GObject *object)
   g_clear_pointer (&priv->active_tracks, g_strfreev);
 
   G_OBJECT_CLASS (hyscan_gtk_map_track_parent_class)->finalize (object);
-}
-
-/* Обработчик сигнала HyScanListModel::changed. */
-static void
-hyscan_gtk_map_track_list_changed (HyScanGtkMapTrack *track_layer)
-{
-  HyScanGtkMapTrackPrivate *priv = track_layer->priv;
-
-  g_rw_lock_writer_lock (&priv->a_lock);
-  g_clear_pointer (&priv->active_tracks, g_strfreev);
-  priv->active_tracks = hyscan_list_model_get (priv->list_model);
-  g_rw_lock_writer_unlock (&priv->a_lock);
-
-  hyscan_gtk_map_tiled_set_param_mod (HYSCAN_GTK_MAP_TILED (track_layer));
-  hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (track_layer));
 }
 
 static void
@@ -543,19 +514,16 @@ hyscan_gtk_map_track_get_track (HyScanGtkMapTrack *track_layer,
  * hyscan_gtk_map_track_new:
  * @db: база данных #HyScanDB
  * @project: название проекта
- * @list_model: модель данных активных галсов
  * @cache: кэш данных
  *
  * Returns: указатель на новый слой #HyScanGtkMapTrack
  */
 HyScanGtkLayer *
 hyscan_gtk_map_track_new (HyScanDB        *db,
-                          HyScanListModel *list_model,
                           HyScanCache     *cache)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_TRACK,
                        "db", db,
-                       "track-list-model", list_model,
                        "data-cache", cache, NULL);
 }
 
@@ -588,6 +556,56 @@ hyscan_gtk_map_track_set_project (HyScanGtkMapTrack *track_layer,
 
   hyscan_gtk_map_tiled_set_param_mod (HYSCAN_GTK_MAP_TILED (track_layer));
   hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (track_layer));
+}
+
+/**
+ * hyscan_gtk_map_track_set_tracks:
+ * @track_layer: указатель на #HyScanGtkMapTrack
+ * @tracks: (nullable): (array zero-terminated=1): нуль-терминированный массив с названиями галсов
+ *
+ * Устанавливает видимые на слое галсы.
+ */
+void
+hyscan_gtk_map_track_set_tracks (HyScanGtkMapTrack  *track_layer,
+                                 gchar             **tracks)
+{
+  HyScanGtkMapTrackPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track_layer));
+  priv = track_layer->priv;
+
+  g_rw_lock_writer_lock (&priv->a_lock);
+  g_clear_pointer (&priv->active_tracks, g_strfreev);
+  priv->active_tracks = (tracks == NULL) ? g_new0 (gchar *, 1) : g_strdupv (tracks);
+  g_rw_lock_writer_unlock (&priv->a_lock);
+
+  hyscan_gtk_map_tiled_set_param_mod (HYSCAN_GTK_MAP_TILED (track_layer));
+  hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (track_layer));
+}
+
+/**
+ * hyscan_gtk_map_track_get_tracks:
+ * @track_layer: указатель на #HyScanGtkMapTrack
+ *
+ * Возвращает список названий галсов, которые отображаются на слое.
+ *
+ * Returns: (array zero-terminated=1): нуль-терминированный массив названий видимых галсов,
+ *   для удаления g_strfreev()
+ */
+gchar **
+hyscan_gtk_map_track_get_tracks (HyScanGtkMapTrack  *track_layer)
+{
+  HyScanGtkMapTrackPrivate *priv;
+  gchar **tracks;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track_layer), NULL);
+  priv = track_layer->priv;
+
+  g_rw_lock_reader_lock (&priv->a_lock);
+  tracks = g_strdupv (priv->active_tracks);
+  g_rw_lock_reader_unlock (&priv->a_lock);
+
+  return tracks;
 }
 
 /**
