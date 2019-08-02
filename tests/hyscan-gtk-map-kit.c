@@ -499,6 +499,7 @@ on_configure_track_clicked (GtkButton *button,
           window = create_param_settings_window (kit, _("Track settings"), HYSCAN_PARAM (track));
           gtk_widget_show_all (window);
 
+          g_object_unref (track);
           g_free (track_name);
         }
     }
@@ -559,7 +560,7 @@ tracks_changed (HyScanDBInfo    *db_info,
       g_date_time_unref (local);
     }
 
-  g_free (selected_tracks);
+  g_strfreev (selected_tracks);
   g_hash_table_unref (tracks);
 }
 
@@ -717,6 +718,7 @@ on_track_change (HyScanGtkMapKit *kit)
   has_nmea = (track_item != NULL) && hyscan_gtk_map_track_item_has_nmea (track_item);
   gtk_widget_set_sensitive (priv->track_menu_find, has_nmea);
 
+  g_clear_object (&track_item);
   g_free (track_name);
 }
 
@@ -1248,21 +1250,33 @@ layer_changed (GtkTreeSelection *selection,
 
   GtkTreeModel *model;
   GtkTreeIter iter;
-  HyScanGtkLayer *layer;
-  gchar *layer_key;
   GtkWidget *layer_tools;
 
   /* Получаем данные выбранного слоя. */
-  gtk_tree_selection_get_selected (selection, &model, &iter);
-  gtk_tree_model_get (model, &iter,
-                      LAYER_COLUMN, &layer,
-                      LAYER_KEY_COLUMN, &layer_key,
-                      -1);
+  if (gtk_tree_selection_get_selected (selection, &model, &iter))
+    {
+      HyScanGtkLayer *layer;
+      gchar *layer_key;
 
-  if (!hyscan_gtk_layer_grab_input (layer))
-    hyscan_gtk_layer_container_set_input_owner (HYSCAN_GTK_LAYER_CONTAINER (kit->map), NULL);
+      gtk_tree_model_get (model, &iter,
+                          LAYER_COLUMN, &layer,
+                          LAYER_KEY_COLUMN, &layer_key,
+                          -1);
+      if (!hyscan_gtk_layer_grab_input (layer))
+        hyscan_gtk_layer_container_set_input_owner (HYSCAN_GTK_LAYER_CONTAINER (kit->map), NULL);
 
-  layer_tools = gtk_stack_get_child_by_name (GTK_STACK (priv->layer_tool_stack), layer_key);
+      layer_tools = gtk_stack_get_child_by_name (GTK_STACK (priv->layer_tool_stack), layer_key);
+
+      g_free (layer_key);
+      g_object_unref (layer);
+    }
+  else
+    {
+      hyscan_gtk_layer_container_set_input_owner (HYSCAN_GTK_LAYER_CONTAINER (kit->map), NULL);
+      layer_tools = NULL;
+    }
+
+
 
   if (layer_tools != NULL)
     {
@@ -1273,9 +1287,6 @@ layer_changed (GtkTreeSelection *selection,
     {
       gtk_widget_hide (GTK_WIDGET (priv->layer_tool_stack));
     }
-
-  g_free (layer_key);
-  g_object_unref (layer);
 }
 
 static GtkWidget *
@@ -1596,7 +1607,7 @@ hyscan_gtk_map_kit_track_enable (HyScanGtkMapKit *kit,
 
   hyscan_gtk_map_kit_set_tracks (kit, (gchar **) tracks_new);
 
-  g_free (tracks);
+  g_strfreev (tracks);
   g_free (tracks_new);
 }
 
