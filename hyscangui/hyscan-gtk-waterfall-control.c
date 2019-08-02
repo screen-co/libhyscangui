@@ -224,6 +224,7 @@ hyscan_gtk_waterfall_control_keyboard (GtkWidget   *widget,
                                        GdkEventKey *event,
                                        HyScanGtkWaterfallControl *self)
 {
+  gboolean result = GDK_EVENT_PROPAGATE;
   GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
   HyScanGtkWaterfallControlPrivate *priv = self->priv;
   guint key = event->keyval;
@@ -253,6 +254,8 @@ hyscan_gtk_waterfall_control_keyboard (GtkWidget   *widget,
         }
 
       gtk_cifro_area_move (carea, step_x, step_y);
+
+      result = GDK_EVENT_STOP;
     }
   else if (pg_home_end_keys)
     {
@@ -285,6 +288,8 @@ hyscan_gtk_waterfall_control_keyboard (GtkWidget   *widget,
         gtk_cifro_area_move (carea, step_echo, 0);
       else /* if (priv->display_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN) */
         gtk_cifro_area_move (carea, 0, step_ss);
+
+      result = GDK_EVENT_STOP;
     }
   else if (plus_minus_keys)
     {
@@ -298,12 +303,14 @@ hyscan_gtk_waterfall_control_keyboard (GtkWidget   *widget,
 
       gtk_cifro_area_get_view (carea, &from_x, &to_x, &from_y, &to_y);
       gtk_cifro_area_zoom (carea, direction, direction, (to_x + from_x) / 2.0, (to_y + from_y) / 2.0);
+
+      result = GDK_EVENT_STOP;
     }
 
   if (IS_TO_START_KEY (key, priv->display_type))
     hyscan_gtk_waterfall_automove (priv->wfall, FALSE);
 
-  return GDK_EVENT_STOP;
+  return result;
 }
 
 /* Обработчик нажатия кнопок мышки. */
