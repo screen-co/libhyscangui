@@ -215,6 +215,7 @@ hyscan_gtk_map_geomark_object_finalize (GObject *object)
   g_free (priv->hover_id);
   g_free (priv->active_mark_id);
   g_clear_pointer (&priv->marks, g_hash_table_destroy);
+  g_clear_object (&priv->pango_layout);
 
   G_OBJECT_CLASS (hyscan_gtk_map_geomark_parent_class)->finalize (object);
 }
@@ -449,15 +450,15 @@ hyscan_gtk_map_geomark_handle_at (HyScanGtkMapGeomark  *gm_layer,
   /* 1. какой-то хэндл захвачен, ... */
   howner = hyscan_gtk_layer_container_get_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map));
   if (howner != NULL)
-    return NULL;
+    goto exit;
 
   /* 2. редактирование запрещено, ... */
   if (!hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (priv->map)))
-    return NULL;
+    goto exit;
 
   /* 3. слой не отображается. */
   if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (gm_layer)))
-    return NULL;
+    goto exit;
 
   gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), x, y, &cursor.x, &cursor.y);
   gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &scale, NULL);
@@ -496,6 +497,7 @@ hyscan_gtk_map_geomark_handle_at (HyScanGtkMapGeomark  *gm_layer,
         }
     }
 
+exit:
   if (mode != NULL)
     *mode = handle_mode;
 
@@ -857,9 +859,11 @@ hyscan_gtk_map_geomark_handle_grab (HyScanGtkLayerContainer *container,
   mark_id = hyscan_gtk_map_geomark_handle_at (layer, event->x, event->y, &handle_mode, NULL);
   g_rw_lock_reader_unlock (&priv->mark_lock);
 
-  result = hyscan_gtk_map_geomark_start_mode (layer, mark_id, handle_mode);
-
-  g_free (mark_id);
+  if (mark_id != NULL)
+    {
+      result = hyscan_gtk_map_geomark_start_mode (layer, mark_id, handle_mode);
+      g_free (mark_id);
+    }
 
   return result;
 }
