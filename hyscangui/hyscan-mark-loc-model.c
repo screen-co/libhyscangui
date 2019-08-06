@@ -294,7 +294,7 @@ hyscan_mark_loc_model_rmc_data_new (HyScanMarkLocModel *ml_model,
 }
 
 /* Находит средневзвешенное значение между lval и rval. */
-static inline gdouble 
+static inline gdouble
 hyscan_mark_loc_model_weight (gint64  mtime,
                               gint64  ltime,
                               gint64  rtime,
@@ -363,7 +363,7 @@ exit:
 
 /* Определяет расстояние от метки до борта судна.
  * Функция должна вызываться за g_rw_lock_reader_lock (&priv->mark_lock). */
-static gboolean 
+static gboolean
 hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
                                    HyScanMarkLocation *location,
                                    const gchar        *track_name,
@@ -372,10 +372,10 @@ hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
   HyScanProjector *projector;
   HyScanAcousticData *acoustic_data;
   gdouble depth;
-  
+
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
   const HyScanMarkWaterfall *mark = location->mark;
-  
+
   HyScanNavData *dpt_data;
   gdouble ldepth, rdepth;
 
@@ -437,6 +437,9 @@ hyscan_mark_loc_model_load_location (HyScanMarkLocModel *ml_model,
   location->loaded = FALSE;
 
   /* Получаем название галса. */
+  if (mark->track == NULL)
+    return FALSE;
+
   track_name = g_hash_table_lookup (priv->track_names, mark->track);
   if (track_name == NULL)
     return FALSE;
