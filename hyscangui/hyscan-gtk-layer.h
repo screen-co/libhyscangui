@@ -39,6 +39,7 @@
 #include <hyscan-api.h>
 #include <gtk/gtk.h>
 #include <hyscan-gtk-layer-container.h>
+#include <hyscan-gtk-layer-common.h>
 
 G_BEGIN_DECLS
 
@@ -47,9 +48,7 @@ G_BEGIN_DECLS
 #define HYSCAN_IS_GTK_LAYER(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_LAYER))
 #define HYSCAN_GTK_LAYER_GET_IFACE(obj)  (G_TYPE_INSTANCE_GET_INTERFACE ((obj), HYSCAN_TYPE_GTK_LAYER, HyScanGtkLayerInterface))
 
-typedef struct _HyScanGtkLayer HyScanGtkLayer;
 typedef struct _HyScanGtkLayerInterface HyScanGtkLayerInterface;
-typedef struct _HyScanGtkLayerContainer HyScanGtkLayerContainer;
 
 /**
  * HyScanGtkLayerInterface:

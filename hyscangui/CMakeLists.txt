@@ -110,6 +110,7 @@ install (FILES hyscan-gtk-area.h
                hyscan-gtk-waterfall-meter.h
                hyscan-gtk-waterfall-player.h
                hyscan-gtk-waterfall-magnifier.h
+               hyscan-gtk-layer-common.h
                hyscan-gtk-layer-container.h
                hyscan-gtk-layer.h
                hyscan-gtk-map.h

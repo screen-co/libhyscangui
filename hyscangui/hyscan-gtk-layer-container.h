@@ -38,6 +38,7 @@
 
 #include <hyscan-api.h>
 #include <hyscan-gtk-layer.h>
+#include <hyscan-gtk-layer-common.h>
 #include <gtk-cifro-area.h>
 
 G_BEGIN_DECLS
@@ -49,10 +50,8 @@ G_BEGIN_DECLS
 #define HYSCAN_IS_GTK_LAYER_CONTAINER_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_LAYER_CONTAINER))
 #define HYSCAN_GTK_LAYER_CONTAINER_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_LAYER_CONTAINER, HyScanGtkLayerContainerClass))
 
-typedef struct _HyScanGtkLayerContainer HyScanGtkLayerContainer;
 typedef struct _HyScanGtkLayerContainerPrivate HyScanGtkLayerContainerPrivate;
 typedef struct _HyScanGtkLayerContainerClass HyScanGtkLayerContainerClass;
-typedef struct _HyScanGtkLayer HyScanGtkLayer;
 
 struct _HyScanGtkLayerContainer
 {
