@@ -124,7 +124,7 @@ main (int    argc,
   }
 
   open_db (&db, &db_uri, db_uri);
-  markmodel = hyscan_mark_model_new (HYSCAN_MARK_WATERFALL);
+  markmodel = hyscan_mark_model_new (HYSCAN_TYPE_MARK_DATA_WATERFALL);
 
   /* Основное окно программы. */
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);

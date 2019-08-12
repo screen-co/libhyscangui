@@ -58,6 +58,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-map-track.c
              hyscan-gtk-map-wfmark.c
              hyscan-gtk-map-geomark.c
+             hyscan-gtk-map-planner.c
 
              #[[ Загрузка тайлов ]]
              hyscan-map-tile.c
@@ -122,6 +123,7 @@ install (FILES hyscan-gtk-area.h
                hyscan-gtk-map-grid.h
                hyscan-gtk-map-scale.h
                hyscan-gtk-map-pin.h
+               hyscan-gtk-map-planner.h
                hyscan-gtk-map-nav.h
                hyscan-gtk-map-track-item.h
                hyscan-gtk-map-track.h

@@ -200,6 +200,7 @@ int main (int     argc,
     {
       hyscan_gtk_map_kit_add_marks_geo (kit);
       hyscan_gtk_map_kit_add_marks_wf (kit);
+      hyscan_gtk_map_kit_add_planner (kit);
     }
 
   /* Стоим интерфейс. */

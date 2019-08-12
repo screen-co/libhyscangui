@@ -842,7 +842,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
       priv->tasks = NULL;
       g_mutex_unlock (&priv->task_lock);
       g_mutex_lock (&priv->mmodel_lock);
-      marks = hyscan_mark_model_copy (priv->new_marks);
+      marks = hyscan_mark_model_copy (priv->markmodel, priv->new_marks);
       g_mutex_unlock (&priv->mmodel_lock);
 
       /* 1. Отправляем сделанные пользователем изменения. */
