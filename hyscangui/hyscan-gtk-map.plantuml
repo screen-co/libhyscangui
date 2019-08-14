@@ -1,0 +1,182 @@
+@startuml
+
+
+HyScanProfile<|--HyScanProfileMap
+
+GtkCifroArea <|--HyScanGtkLayerContainer
+HyScanGtkLayerContainer <|--HyScanGtkMap
+
+HyScanGtkLayer<|--HyScanGtkMapGeomark
+HyScanGtkLayer<|--HyScanGtkMapWfmark
+HyScanGtkLayer<|--HyScanGtkMapBase
+HyScanGtkLayer<|--HyScanGtkMapTiled
+HyScanGtkLayer<|--HyScanGtkMapGrid
+HyScanGtkLayer<|--HyScanGtkMapScale
+HyScanGtkLayer<|--HyScanGtkMapControl
+HyScanGtkLayer<|--HyScanGtkMapPin
+
+HyScanGtkMapTiled<|--HyScanGtkMapNav
+HyScanGtkMapTiled<|--HyScanGtkMapTrack
+
+HyScanGtkMapPin<|--HyScanGtkMapRuler
+
+HyScanMapTileSource<|--HyScanMapTileSourceFile
+HyScanMapTileSource<|--HyScanMapTileSourceWeb
+HyScanMapTileSource<|--HyScanMapTileSourceBlend
+
+HyScanGtkMapTrack::tracks "1" *-- "1..*" HyScanGtkMapTrackItem
+HyScanGtkMapBase::source "1" *-- "1" HyScanMapTileSource
+HyScanMapTileSourceFile::fallback *-- "1" HyScanMapTileSource
+HyScanMapTileSourceBlend::sources *-- "many" HyScanMapTileSource
+HyScanGtkLayerContainer::layers *-- "many" HyScanGtkLayer
+HyScanProfileMap::apply .. HyScanGtkMap
+
+class HyScanProfile
+{
+    {abstract} read()
+}
+
+class HyScanProfileMap
+{
+    apply(HyScanGtkMap *map)
+    read()
+}
+
+class GtkCifroArea
+{
+    -- Сигналы --
+    ::visible-draw
+}
+
+class HyScanGtkLayerContainer
+{
+    GHashTable *layers
+    -- Сигналы --
+    ::handle-create
+    ::handle-grab
+    ::handle-release
+}
+
+class HyScanGtkMapGrid
+{
+    {method} added()
+}
+
+class HyScanGtkMapScale
+{
+    {method} added()
+}
+
+class HyScanGtkMapPin
+{
+    GList *points
+    {method} added()
+}
+
+class HyScanGtkMapRuler
+{
+    {method} added()
+}
+
+class HyScanGtkMapControl
+{
+    {method} added()
+}
+
+class HyScanMapTileSourceFile
+{
+    {field} HyScanMapTileSource *fallback
+    {field} gchar *tile_dir
+    {method} fill_tile()
+}
+
+class HyScanMapTileSourceWeb
+{
+    {field} gchar *url_tpl
+    {method} fill_tile()
+}
+
+class HyScanMapTileSourceBlend
+{
+    {field} GList *sources
+    {method} fill_tile()
+}
+
+interface HyScanGtkLayer
+{
+    {abstract} added(HyScanGtkLayerContainer *container)
+}
+
+abstract HyScanGtkMapTiled
+{
+    {field} GQueue *cached_tiles
+    .. virtual ..
+    {abstract} fill_tile()
+    ..
+    set_param_mod()
+    set_area_mod()
+}
+
+class HyScanGtkMapNav
+{
+    HyScanSensor *sensor
+    added()
+}
+
+class HyScanGtkMapBase
+{
+    {field} HyScanMapTileSource *source
+    {field} HyScanCache *cache
+    {method} added()
+}
+
+interface HyScanMapTileSource
+{
+    {abstract} fill_tile()
+}
+
+class HyScanGtkMapGeomark
+{
+    {field} HyScanMarkModel *model
+    {method} added()
+}
+
+class HyScanGtkMapWfmark
+{
+    {field} HyScanMarkModel *model
+    {method} added()
+}
+
+class HyScanGtkMapTrack
+{
+    {field} GHashTable *tracks
+    {method} added()
+}
+
+class HyScanGtkMapTrackItem
+{
+    HyScanNavData *lat_data
+    HyScanNavData *lon_data
+    HyScanNavData *angle_data
+    HyScanDepthometer *depthometer
+    {method} draw()
+}
+
+note right of HyScanGtkLayer::added
+  g_signal_connect_after (container, "visible-draw", ...);
+  g_signal_connect (container, "handle-...", ...);
+end note
+
+note top of HyScanGtkMapControl
+  /* Ничего не рисует. */
+  /* Обработка мыши до сигналов "handle-..." */
+  g_signal_connect (container, "button-press-event", ...);
+  g_signal_connect (container, "button-release-event", ...);
+end note
+
+note top of HyScanGtkMapBase
+  /* Подложка - рисует раньше всех слоёв. */
+  g_signal_connect (container, "visible-draw", ...);
+end note
+
+@enduml
