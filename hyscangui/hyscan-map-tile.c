@@ -88,6 +88,11 @@
  * Для получения изображения используется функция:
  * - hyscan_map_tile_get_surface().
  *
+ * Чтобы обойти тайлы, покрывающие некотороую область, можно использовать
+ * итератор #HyScanMapTileIter. Для этого доступны функции:
+ * - hyscan_map_tile_iter_init(),
+ * - hyscan_map_tile_iter_next().
+ *
  * Класс #HyScanMapTileGrid позволяет переводить координаты из логической
  * системы координат в тайловую и обратно, а также определять покрываемую тайлами
  * область - hyscan_map_tile_get_bounds() - и, наоборот, какие тайлы
@@ -928,4 +933,83 @@ hyscan_map_tile_grid_value_to_tile (HyScanMapTileGrid *grid,
 
   (y_tile != NULL) ? *y_tile = (priv->invert_oy ? priv->max_y - y_val : y_val - priv->min_x) / tile_size_y : 0;
   (x_tile != NULL) ? *x_tile = (priv->invert_ox ? priv->max_x - x_val : x_val - priv->min_x) / tile_size_x : 0;
+}
+
+/**
+ * hyscan_map_tile_iter_init:
+ * @iter: указатель на #HyScanMapTileIter
+ * @from_x: минимальное значение координаты x
+ * @to_x: максимальное значение координаты x
+ * @from_y: минимальное значение координаты y
+ * @to_y: максимальное значение координаты y
+ * 
+ * Инициализирует итератор тайлов. Полученный итератор будет проходить все тайлы
+ * из указанной области начиная из её центра и двигаясь к краю.
+ * В таком случае самые центральные тайлы, которые представляют больший интерес,
+ * будут обработаны первыми.
+ */
+void
+hyscan_map_tile_iter_init (HyScanMapTileIter *iter,
+                           guint              from_x,
+                           guint              to_x,
+                           guint              from_y,
+                           guint              to_y)
+{
+  iter->from_x = from_x;
+  iter->to_x = to_x;
+  iter->from_y = from_y;
+  iter->to_y = to_y;
+  iter->xc = (iter->to_x + iter->from_x + 1) / 2;
+  iter->yc = (iter->to_y + iter->from_y + 1) / 2;
+  iter->max_r = MAX (MAX (iter->to_x - iter->xc, iter->xc - iter->from_x),
+                     MAX (iter->to_y - iter->yc, iter->yc - iter->from_y));
+
+  iter->r = 0;
+  iter->x = iter->from_x;
+  iter->y = iter->from_y;
+}
+
+/**
+ * hyscan_map_tile_iter_next:
+ * @iter: указатель на #HyScanMapTileIter
+ * @x: (out): координата тайла по оси x
+ * @y: (out): координата тайла по оси y
+ *
+ * Получает координаты следующего тайла из итератора @iter. Итератор должен быть
+ * предварительно инициализирован с помощью функции hyscan_map_tile_iter_init().
+ *
+ * Returns: %TRUE, если были возвращены координаты следующего тайла, или %FALSE,
+ *   если все тайлы были проитерированы
+ */
+gboolean
+hyscan_map_tile_iter_next (HyScanMapTileIter *iter, 
+                           guint             *x,
+                           guint             *y)
+{
+  for (; iter->r <= iter->max_r; ++iter->r)
+    {
+      for (; iter->x <= iter->to_x; ++iter->x)
+        {
+          for (; iter->y <= iter->to_y; ++iter->y)
+            {
+              /* Пока пропускаем тайлы снаружи радиуса. */
+              if (ABS (iter->y - iter->yc) > iter->r || ABS (iter->x - iter->xc) > iter->r)
+                continue;
+
+              /* И рисуем тайлы на расстоянии r от центра по одной из координат. */
+              if (ABS (iter->x - iter->xc) != iter->r && ABS (iter->y - iter->yc) != iter->r)
+                continue;
+
+              *x = iter->x;
+              *y = iter->y;
+              ++iter->y;
+
+              return TRUE;
+            }
+          iter->y = iter->from_y;
+        }
+        iter->x = iter->from_x;
+    }
+
+  return FALSE;
 }

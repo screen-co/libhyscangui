@@ -501,12 +501,13 @@ void
 hyscan_gtk_map_tiled_draw (HyScanGtkMapTiled *tiled_layer,
                            cairo_t           *cairo)
 {
+  HyScanMapTileIter iter;
   HyScanGtkMapTiledPrivate *priv = tiled_layer->priv;
 
   gint scale_idx;
   gdouble scale;
 
-  gint x, y;
+  guint x, y;
   gint from_tile_x, to_tile_x, from_tile_y, to_tile_y;
 
   /* Инициализируем тайловую сетку grid. */
@@ -516,47 +517,46 @@ hyscan_gtk_map_tiled_draw (HyScanGtkMapTiled *tiled_layer,
   hyscan_map_tile_grid_get_view_cifro (priv->tile_grid, GTK_CIFRO_AREA (priv->map), scale_idx,
                                        &from_tile_x, &to_tile_x, &from_tile_y, &to_tile_y);
 
-  /* Рисуем тайлы по очереди. */
-  for (x = from_tile_x; x <= to_tile_x; x++)
-    for (y = from_tile_y; y <= to_tile_y; y++)
-      {
-        HyScanGeoCartesian2D coord;
-        gdouble x_source, y_source;
-        HyScanMapTile *tile;
-        gboolean refill;
-        gboolean found;
+  hyscan_map_tile_iter_init (&iter, from_tile_x, to_tile_x, from_tile_y, to_tile_y);
+  while (hyscan_map_tile_iter_next (&iter, &x, &y))
+    {
+      HyScanGeoCartesian2D coord;
+      gdouble x_source, y_source;
+      HyScanMapTile *tile;
+      gboolean refill;
+      gboolean found;
 
-        /* Заполняем тайл. */
-        tile = hyscan_map_tile_new (priv->tile_grid, x, y, scale_idx);
-        found = hyscan_gtk_map_tiled_cache_get (tiled_layer, tile, &refill);
+      /* Заполняем тайл. */
+      tile = hyscan_map_tile_new (priv->tile_grid, x, y, scale_idx);
+      found = hyscan_gtk_map_tiled_cache_get (tiled_layer, tile, param_mod, &refill);
 
-        /* Если тайл наден, то рисуем его. */
-        if (found)
-          {
-            cairo_surface_t *surface;
+      /* Если тайл наден, то рисуем его. */
+      if (found)
+        {
+          cairo_surface_t *surface;
 
-            /* Загружаем поверхность тайла из буфера. */
-            surface = hyscan_map_tile_get_surface (tile);
+          /* Загружаем поверхность тайла из буфера. */
+          surface = hyscan_map_tile_get_surface (tile);
 
-            /* Переносим поверхность тайла на изображение слоя. */
-            hyscan_map_tile_get_bounds (tile, &coord, NULL);
-            gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x_source, &y_source, coord.x, coord.y);
-            cairo_set_source_surface (cairo, surface, x_source, y_source);
-            cairo_paint (cairo);
+          /* Переносим поверхность тайла на изображение слоя. */
+          hyscan_map_tile_get_bounds (tile, &coord, NULL);
+          gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x_source, &y_source, coord.x, coord.y);
+          cairo_set_source_surface (cairo, surface, x_source, y_source);
+          cairo_paint (cairo);
 
-            /* Освобождаем поверхность. */
-            cairo_surface_destroy (surface);
-          }
+          /* Освобождаем поверхность. */
+          cairo_surface_destroy (surface);
+        }
 
-        /* Если надо, отправляем тайл на перерисовку. */
-        if (refill)
-          {
-            hyscan_map_tile_set_surface (tile, NULL);
-            hyscan_task_queue_push (priv->task_queue, G_OBJECT (tile));
-          }
+      /* Если надо, отправляем тайл на перерисовку. */
+      if (refill)
+        {
+          hyscan_map_tile_set_surface (tile, NULL);
+          hyscan_task_queue_push (priv->task_queue, G_OBJECT (tile));
+        }
 
-        g_object_unref (tile);
-      }
+      g_object_unref (tile);
+    }
 
   /* Отправляем на заполнение все тайлы. */
   hyscan_task_queue_push_end (priv->task_queue);
