@@ -64,6 +64,31 @@ typedef struct _HyScanMapTileClass HyScanMapTileClass;
 typedef struct _HyScanMapTileGrid HyScanMapTileGrid;
 typedef struct _HyScanMapTileGridPrivate HyScanMapTileGridPrivate;
 typedef struct _HyScanMapTileGridClass HyScanMapTileGridClass;
+typedef struct _HyScanMapTileIter HyScanMapTileIter;
+
+/**
+ * HyScanMapTileIter:
+ *
+ * Итератор тайлов. Позволяет обходить тайлы указанной области в порядке от центра
+ * области к её краям.
+ *
+ * Структура обычно создаётся в стеке и инициализируется через hyscan_map_tile_iter_init().
+ *
+ */
+struct _HyScanMapTileIter
+{
+  /*< private > - поля структуры не предназначены для прямого доступа */
+  gint from_x;   /* Минимальная координата по оси x. */
+  gint to_x;     /* Максимальная координата по оси x. */
+  gint from_y;   /* Минимальная координата по оси x. */
+  gint to_y;     /* Максимальная координата по оси x. */
+  gint xc;       /* Координата x центра. */
+  gint yc;       /* Координата y центра. */
+  gint max_r;    /* Максимальное расстояние до центра по каждой из координат. */
+  gint x;        /* Текущая координата по оси x. */
+  gint y;        /* Текущая координата по оси x. */
+  gint r;        /* Текущее расстояние до центра по каждой из координат. */
+};
 
 struct _HyScanMapTile
 {
@@ -219,6 +244,18 @@ cairo_surface_t *      hyscan_map_tile_get_surface            (HyScanMapTile    
 HYSCAN_API
 gint                   hyscan_map_tile_compare                (HyScanMapTile        *a,
                                                                HyScanMapTile        *b);
+
+HYSCAN_API
+void                   hyscan_map_tile_iter_init              (HyScanMapTileIter    *iter,
+                                                               guint                 from_x,
+                                                               guint                 to_x,
+                                                               guint                 from_y,
+                                                               guint                 to_y);
+
+HYSCAN_API
+gboolean               hyscan_map_tile_iter_next              (HyScanMapTileIter    *iter,
+                                                               guint                 *x,
+                                                               guint                 *y);
 
 G_END_DECLS
 

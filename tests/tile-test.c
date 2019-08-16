@@ -58,6 +58,56 @@ TestPoint points[] = {
   { .zoom = 3, .x_tile = 3, .y_tile = 1, .x_val = -40.0,  .y_val = 80.0 },
 };
 
+void
+print_iter_order (gint *order,
+                  guint n_x,
+                  guint n_y)
+{
+  guint x, y;
+  g_print ("Iterate order:\n");
+
+  for (y = 0; y < n_y; y++)
+    {
+      for (x = 0; x < n_x; x++)
+        g_print ("%6d", order[x + y * n_x]);
+
+      g_print ("\n");
+    }
+
+  g_print ("\n\n");
+}
+
+void
+test_iter (guint from_x,
+           guint to_x,
+           guint from_y,
+           guint to_y)
+{
+  HyScanMapTileIter iter;
+  guint x, y;
+  gsize i = 0;
+  gsize n_elements;
+  gint *tiles;
+  guint n_x, n_y;
+
+  n_x = (to_x - from_x + 1);
+  n_y = (to_y - from_y + 1);
+  n_elements = n_x * n_y;
+  tiles = g_new0 (gint, n_elements);
+
+  hyscan_map_tile_iter_init (&iter, from_x, to_x, from_y, to_y);
+  while (hyscan_map_tile_iter_next (&iter, &x, &y))
+    tiles[(x - from_x) + (y - from_y) * n_x] = ++i;
+
+  print_iter_order (tiles, n_x, n_y);
+
+  g_assert (i == n_elements);
+  for (i = 0; i < n_elements; ++i)
+    g_assert (tiles[i] > 0);
+
+  g_free (tiles);
+}
+
 int
 main (int    argc,
       char **argv)
@@ -93,7 +143,10 @@ main (int    argc,
       g_assert_cmpfloat (to.y,   ==, point->y_val - scales[point->zoom]);
     }
 
-  g_message ("Test finished successfully");
+  test_iter (0, 5, 0, 5);
+  test_iter (102, 110, 99, 103);
+
+  g_print ("Test finished successfully");
 
   return 0;
 }

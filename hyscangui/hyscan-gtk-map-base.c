@@ -665,6 +665,8 @@ static cairo_surface_t *
 hyscan_gtk_map_base_surface_make (HyScanGtkMapBasePrivate *priv,
                                   gboolean                *filled)
 {
+  HyScanMapTileIter iter;
+  guint x, y;
   cairo_surface_t *surface;
   cairo_t *cairo;
 
@@ -676,51 +678,23 @@ hyscan_gtk_map_base_surface_make (HyScanGtkMapBasePrivate *priv,
   cairo = cairo_create (surface);
 
   /* Отрисовываем все тайлы, которые находятся в видимой области */
-  {
-    gint r;
-    gint max_r;
-    gint xc, yc;
-    gint x;
-    gint y;
+  hyscan_map_tile_iter_init (&iter, priv->from_x, priv->to_x, priv->from_y, priv->to_y);
+  while (hyscan_map_tile_iter_next (&iter, &x, &y))
+    {
+      HyScanMapTile *tile;
+      gboolean tile_filled;
+      
+      tile = hyscan_map_tile_new (priv->tile_grid, x, y, priv->zoom);
 
-    /* Определяем центр области и максимальное расстояние до ее границ. */
-    xc = (priv->to_x + priv->from_x + 1) / 2;
-    yc = (priv->to_y + priv->from_y + 1) / 2;
-    max_r = MAX (MAX (priv->to_x - xc, xc - priv->from_x),
-                 MAX (priv->to_y - yc, yc - priv->from_y));
+      /* Тайл не найден, добавляем его в очередь на загрузку. */
+      tile_filled = hyscan_gtk_map_base_draw_tile (priv, cairo, tile);
+      if (!tile_filled)
+        hyscan_task_queue_push (priv->task_queue, G_OBJECT (tile));
 
-    /* Рисуем тайлы двигаясь из центра (xc, yc) к краям. */
-    for (r = 0; r <= max_r; ++r)
-      {
-        for (x = priv->from_x; x <= (gint) priv->to_x; ++x)
-          {
-            for (y = priv->from_y; y <= (gint) priv->to_y; ++y)
-              {
-                HyScanMapTile *tile;
-                gboolean tile_filled;
+      filled_ret = filled_ret && tile_filled;
 
-                /* Пока пропускаем тайлы снаружи радиуса. */
-                if (abs (y - yc) > r || abs (x - xc) > r)
-                  continue;
-
-                /* И рисуем тайлы на расстоянии r от центра по одной из координат. */
-                if (abs (x - xc) != r && abs (y - yc) != r)
-                  continue;
-
-                tile = hyscan_map_tile_new (priv->tile_grid, x, y, priv->zoom);
-
-                /* Тайл не найден, добавляем его в очередь на загрузку. */
-                tile_filled = hyscan_gtk_map_base_draw_tile (priv, cairo, tile);
-                if (!tile_filled)
-                  hyscan_task_queue_push (priv->task_queue, G_OBJECT (tile));
-
-                filled_ret = filled_ret && tile_filled;
-
-                g_object_unref (tile);
-              }
-          }
-      }
-  }
+      g_object_unref (tile);
+    }
 
   /* Запускаем обработку сформированной очереди. */
   hyscan_task_queue_push_end (priv->task_queue);
