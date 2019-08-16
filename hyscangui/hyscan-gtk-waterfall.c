@@ -305,8 +305,8 @@ hyscan_gtk_waterfall_object_constructed (GObject *object)
   HyScanGtkWaterfall *self = HYSCAN_GTK_WATERFALL (object);
   HyScanGtkWaterfallPrivate *priv;
   HyScanCache *cache;
-  HyScanAmplitudeFactory *af;
-  HyScanDepthFactory *df;
+  HyScanFactoryAmplitude *af;
+  HyScanFactoryDepth *df;
   guint n_threads = g_get_num_processors ();
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_parent_class)->constructed (object);
@@ -515,6 +515,7 @@ hyscan_gtk_waterfall_get_tile (HyScanGtkWaterfall *self,
   gfloat    *buffer        = NULL;
   guint32    buffer_size   = 0;
   HyScanTileSurface tile_surface;
+  HyScanCancellable *cancellable = NULL;
 
   requested_tile = *tile;
   queue_found = color_found = regenerate = FALSE;
@@ -546,12 +547,16 @@ hyscan_gtk_waterfall_get_tile (HyScanGtkWaterfall *self,
   /* Ненайденные тайлы сразу же отправляем на генерацию. */
   if (!queue_found)
     {
-      hyscan_tile_queue_add (priv->queue, &requested_tile);
+      cancellable = hyscan_cancellable_new ();
+      hyscan_tile_queue_add (priv->queue, &requested_tile, cancellable);
+      g_object_unref (cancellable);
     }
   /* ПЕРЕгенерация разрешена не всегда. */
   else if (regenerate && priv->regen_allowed)
     {
-      hyscan_tile_queue_add (priv->queue, &requested_tile);
+      cancellable = hyscan_cancellable_new ();
+      hyscan_tile_queue_add (priv->queue, &requested_tile, cancellable);
+      g_object_unref (cancellable);
       priv->regen_sent = TRUE;
     }
 
@@ -1223,8 +1228,8 @@ static void
 hyscan_gtk_waterfall_track_changed (HyScanGtkWaterfallState *model,
                                     HyScanGtkWaterfall      *self)
 {
-  HyScanAmplitudeFactory *af;
-  HyScanDepthFactory *df;
+  HyScanFactoryAmplitude *af;
+  HyScanFactoryDepth *df;
   HyScanGtkWaterfallPrivate *priv = self->priv;
   HyScanDB *db;
   gchar *db_uri;
@@ -1249,8 +1254,8 @@ hyscan_gtk_waterfall_track_changed (HyScanGtkWaterfallState *model,
   af = hyscan_gtk_waterfall_state_get_amp_factory (model);
   df = hyscan_gtk_waterfall_state_get_dpt_factory (model);
 
-  hyscan_amplitude_factory_set_track (af, db, project, track);
-  hyscan_depth_factory_set_track (df, db, project, track);
+  hyscan_factory_amplitude_set_track (af, db, project, track);
+  hyscan_factory_depth_set_track (df, db, project, track);
 
   hyscan_tile_color_open (priv->color, db_uri, project, track);
 

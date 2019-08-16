@@ -37,8 +37,8 @@
 
 #include <hyscan-db.h>
 #include <hyscan-tile-common.h>
-#include <hyscan-amplitude-factory.h>
-#include <hyscan-depth-factory.h>
+#include <hyscan-factory-amplitude.h>
+#include <hyscan-factory-depth.h>
 #include "hyscan-gtk-layer-container.h"
 
 G_BEGIN_DECLS
@@ -118,10 +118,10 @@ HYSCAN_API
 HyScanTileFlags         hyscan_gtk_waterfall_state_get_tile_flags              (HyScanGtkWaterfallState *state);
 
 HYSCAN_API
-HyScanAmplitudeFactory * hyscan_gtk_waterfall_state_get_amp_factory            (HyScanGtkWaterfallState *state);
+HyScanFactoryAmplitude * hyscan_gtk_waterfall_state_get_amp_factory            (HyScanGtkWaterfallState *state);
 
 HYSCAN_API
-HyScanDepthFactory *    hyscan_gtk_waterfall_state_get_dpt_factory            (HyScanGtkWaterfallState *state);
+HyScanFactoryDepth *    hyscan_gtk_waterfall_state_get_dpt_factory            (HyScanGtkWaterfallState *state);
 
 HYSCAN_API
 HyScanCache *           hyscan_gtk_waterfall_state_get_cache                   (HyScanGtkWaterfallState *state);
