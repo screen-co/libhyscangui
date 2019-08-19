@@ -121,7 +121,7 @@ typedef struct
 struct _HyScanGtkWaterfallMarkPrivate
 {
   HyScanGtkWaterfall         *wfall;
-  HyScanMarkModel            *markmodel;
+  HyScanObjectModel          *markmodel;
 
   gboolean                    layer_visibility;
 
@@ -205,7 +205,7 @@ static void     hyscan_gtk_waterfall_mark_add_task                (HyScanGtkWate
                                                                    HyScanGtkWaterfallMarkTask *task);
 
 static void     hyscan_gtk_waterfall_mark_clear_state             (HyScanGtkWaterfallMarkState  *state);
-static void     hyscan_gtk_waterfall_mark_model_changed           (HyScanMarkModel         *model,
+static void     hyscan_gtk_waterfall_mark_model_changed           (HyScanObjectModel            *model,
                                                                    HyScanGtkWaterfallMark  *self);
 static gchar*   hyscan_gtk_waterfall_mark_get_track_id            (HyScanDB                *db,
                                                                    const gchar             *project,
@@ -277,8 +277,8 @@ hyscan_gtk_waterfall_mark_class_init (HyScanGtkWaterfallMarkClass *klass)
   object_class->finalize = hyscan_gtk_waterfall_mark_object_finalize;
 
   g_object_class_install_property (object_class, PROP_MARK_MODEL,
-    g_param_spec_object ("markmodel", "MarkModel", "HyScanMarkModel",
-                         HYSCAN_TYPE_MARK_MODEL,
+    g_param_spec_object ("markmodel", "ObjectModel", "HyScanObjectModel",
+                         HYSCAN_TYPE_OBJECT_MODEL,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 
   hyscan_gtk_waterfall_mark_signals[SIGNAL_SELECTED] =
@@ -555,13 +555,13 @@ hyscan_gtk_waterfall_mark_dup_task (HyScanGtkWaterfallMarkTask *src)
 
 /* Функция обработки сигнала changed от модели меток. */
 static void
-hyscan_gtk_waterfall_mark_model_changed (HyScanMarkModel        *model,
+hyscan_gtk_waterfall_mark_model_changed (HyScanObjectModel      *model,
                                          HyScanGtkWaterfallMark *self)
 {
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
   GHashTable *marks;
 
-  marks = hyscan_mark_model_get (model);
+  marks = hyscan_object_model_get (model);
   if (marks == NULL)
     return;
 
@@ -842,7 +842,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
       priv->tasks = NULL;
       g_mutex_unlock (&priv->task_lock);
       g_mutex_lock (&priv->mmodel_lock);
-      marks = hyscan_mark_model_copy (priv->markmodel, priv->new_marks);
+      marks = hyscan_object_model_copy (priv->markmodel, priv->new_marks);
       g_mutex_unlock (&priv->mmodel_lock);
 
       /* 1. Отправляем сделанные пользователем изменения. */
@@ -855,7 +855,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
 
           if (task->action == TASK_REMOVE)
             {
-              hyscan_mark_model_remove_mark (priv->markmodel, task->id);
+              hyscan_object_model_remove_object (priv->markmodel, task->id);
               continue;
             }
 
@@ -905,7 +905,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               hyscan_mark_waterfall_set_center_by_type (&mark->waterfall, source, index0, count0);
               hyscan_mark_waterfall_set_track  (&mark->waterfall, track_id);
 
-              hyscan_mark_model_add_mark (priv->markmodel, mark);
+              hyscan_object_model_add_object (priv->markmodel, mark);
               hyscan_mark_free (mark);
               g_free (label);
             }
@@ -917,7 +917,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               hyscan_mark_set_size (mark, mw, mh);
               hyscan_mark_waterfall_set_center_by_type (&mark->waterfall, source, index0, count0);
 
-              hyscan_mark_model_modify_mark (priv->markmodel, task->id, mark);
+              hyscan_object_model_modify_object (priv->markmodel, task->id, mark);
               hyscan_mark_free (mark);
             }
         }
@@ -1803,14 +1803,14 @@ hyscan_gtk_waterfall_mark_sound_velocity_changed (HyScanGtkWaterfallState *model
 
 /**
  * hyscan_gtk_waterfall_mark_new:
- * @markmodel: указатель на #HyScanMarkModel
+ * @markmodel: указатель на #HyScanObjectModel
  *
  * Функция создает новый объект #HyScanGtkWaterfallMark.
  *
  * Returns: (transfer full): новый объект HyScanGtkWaterfallMark.
  */
 HyScanGtkWaterfallMark*
-hyscan_gtk_waterfall_mark_new (HyScanMarkModel *markmodel)
+hyscan_gtk_waterfall_mark_new (HyScanObjectModel *markmodel)
 {
   return g_object_new (HYSCAN_TYPE_GTK_WATERFALL_MARK,
                        "markmodel", markmodel,

@@ -93,7 +93,7 @@ typedef struct
 struct _HyScanGtkMapGeomarkPrivate
 {
   HyScanGtkMap                            *map;                /* Карта. */
-  HyScanMarkModel                         *model;              /* Модель меток. */
+  HyScanObjectModel                       *model;              /* Модель меток. */
 
   gboolean                                 visible;            /* Признак видимости слоя. */
 
@@ -146,7 +146,7 @@ hyscan_gtk_map_geomark_class_init (HyScanGtkMapGeomarkClass *klass)
 
   g_object_class_install_property (object_class, PROP_MODEL,
     g_param_spec_object ("model", "Geo mark model",
-                         "The HyScanMarkModel with geo marks", HYSCAN_TYPE_MARK_MODEL,
+                         "The HyScanObjectModel with geo marks", HYSCAN_TYPE_OBJECT_MODEL,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -311,7 +311,7 @@ hyscan_gtk_map_geomark_model_changed (HyScanGtkMapGeomark *gm_layer)
   HyScanGtkMapGeomarkPrivate *priv = gm_layer->priv;
   GHashTable *marks;
 
-  marks = hyscan_mark_model_get (priv->model);
+  marks = hyscan_object_model_get (priv->model);
 
   g_rw_lock_writer_lock (&priv->mark_lock);
 
@@ -796,9 +796,9 @@ hyscan_gtk_map_geomark_handle_release (HyScanGtkLayerContainer *container,
 
   /* Обновляем модель меток. */
   if (mark_id == NULL)
-    hyscan_mark_model_add_mark (priv->model, mark);
+    hyscan_object_model_add_object (priv->model, mark);
   else
-    hyscan_mark_model_modify_mark (priv->model, mark_id, mark);
+    hyscan_object_model_modify_object (priv->model, mark_id, mark);
 
   hyscan_gtk_map_geomark_location_free (location);
   g_free (mark_id);
@@ -893,7 +893,7 @@ hyscan_gtk_map_geomark_key_press (HyScanGtkMapGeomark *gm_layer,
       g_rw_lock_writer_unlock (&priv->mark_lock);
 
       if (mark_id != NULL)
-        hyscan_mark_model_remove_mark (priv->model, mark_id);
+        hyscan_object_model_remove_object (priv->model, mark_id);
       g_free (mark_id);
 
       hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);
@@ -1122,12 +1122,12 @@ hyscan_gtk_map_geomark_interface_init (HyScanGtkLayerInterface *iface)
 
 /**
  * hyscan_gtk_map_geomark_new:
- * @model: указатель на #HyScanMarkModel
+ * @model: указатель на #HyScanObjectModel
  *
  * Returns: новый объект #HyScanGtkMapGeomark
  */
 HyScanGtkLayer *
-hyscan_gtk_map_geomark_new (HyScanMarkModel *model)
+hyscan_gtk_map_geomark_new (HyScanObjectModel *model)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_GEOMARK,
                        "model", model, NULL);

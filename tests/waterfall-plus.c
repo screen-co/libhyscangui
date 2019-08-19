@@ -1,7 +1,7 @@
 #include <hyscan-gtk-area.h>
 #include <hyscan-gtk-waterfall.h>
 #include <hyscan-gtk-waterfall-control.h>
-#include <hyscan-mark-model.h>
+#include <hyscan-object-model.h>
 #include <hyscan-gtk-waterfall-grid.h>
 #include <hyscan-gtk-waterfall-mark.h>
 #include <hyscan-gtk-waterfall-meter.h>
@@ -63,7 +63,7 @@ static void  *wf_play;
 static HyScanDB                  *db;
 static gchar                     *db_uri;
 static gchar                     *project_dir;
-static HyScanMarkModel           *markmodel;
+static HyScanObjectModel         *markmodel;
 static GtkWidget                 *window;
 
 int
@@ -124,7 +124,7 @@ main (int    argc,
   }
 
   open_db (&db, &db_uri, db_uri);
-  markmodel = hyscan_mark_model_new (HYSCAN_TYPE_MARK_DATA_WATERFALL);
+  markmodel = hyscan_object_model_new (HYSCAN_TYPE_MARK_DATA_WATERFALL);
 
   /* Основное окно программы. */
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
@@ -175,7 +175,7 @@ main (int    argc,
   if (db != NULL && project_name != NULL && track_name != NULL)
     {
       hyscan_gtk_waterfall_state_set_track (wf_state, db, project_name, track_name);
-      hyscan_mark_model_set_project (markmodel, db, project_name);
+      hyscan_object_model_set_project (markmodel, db, project_name);
     }
 
   /* Начинаем работу. */
@@ -345,7 +345,7 @@ reopen_clicked (GtkButton *button,
 
 
   hyscan_gtk_waterfall_state_set_track (wf_state, db, project, track);
-  hyscan_mark_model_set_project (markmodel, db, project);
+  hyscan_object_model_set_project (markmodel, db, project);
 
   {
     gchar * title = g_strdup_printf ("Waterfall+ %s, %s", project, track);

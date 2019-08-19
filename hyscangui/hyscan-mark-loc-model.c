@@ -36,7 +36,7 @@
  * SECTION: hyscan-mark-loc-model
  * @Short_description: Модель местоположения акустических меток
  * @Title: HyScanMarkLocModel
- * @See_also: #HyScanMarkLocation, #HyScanMarkModel
+ * @See_also: #HyScanMarkLocation, #HyScanObjectModel
  *
  * Модель #HyScanMarkLocModel отслеживает изменение меток в проекте и определяет их
  * географическое местоположение на основе NMEA-данных.
@@ -54,7 +54,7 @@
 
 #include "hyscan-mark-loc-model.h"
 #include <hyscan-db-info.h>
-#include <hyscan-mark-model.h>
+#include <hyscan-object-model.h>
 #include <hyscan-projector.h>
 #include <hyscan-acoustic-data.h>
 #include <hyscan-nmea-parser.h>
@@ -79,16 +79,16 @@ enum
 
 struct _HyScanMarkLocModelPrivate
 {
-  HyScanDB        *db;                          /* База данных. */
-  HyScanCache     *cache;                       /* Кэш. */
-  gchar           *project;                     /* Название проекта. */
+  HyScanDB          *db;                          /* База данных. */
+  HyScanCache       *cache;                       /* Кэш. */
+  gchar             *project;                     /* Название проекта. */
 
-  HyScanDBInfo    *db_info;                     /* Модель галсов в БД. */
-  HyScanMarkModel *mark_model;                  /* Модель меток. */
+  HyScanDBInfo      *db_info;                     /* Модель галсов в БД. */
+  HyScanObjectModel *mark_model;                  /* Модель меток. */
 
-  GRWLock          mark_lock;                   /* Блокировка данных по меткам. .*/
-  GHashTable      *track_names;                 /* Хэш-таблица соотвествтия id галса с его названием.*/
-  GHashTable      *locations;                   /* Хэш-таблица с метками HyScanMarkLocation.*/
+  GRWLock            mark_lock;                   /* Блокировка данных по меткам. .*/
+  GHashTable        *track_names;                 /* Хэш-таблица соотвествтия id галса с его названием.*/
+  GHashTable        *locations;                   /* Хэш-таблица с метками HyScanMarkLocation.*/
 };
 
 static void         hyscan_mark_loc_model_set_property             (GObject               *object,
@@ -183,7 +183,7 @@ hyscan_mark_loc_model_object_constructed (GObject *object)
   priv->locations = hyscan_mark_loc_model_create_table ();
 
   /* Модели данных. */
-  priv->mark_model = hyscan_mark_model_new (HYSCAN_TYPE_MARK_DATA_WATERFALL);
+  priv->mark_model = hyscan_object_model_new (HYSCAN_TYPE_MARK_DATA_WATERFALL);
   priv->db_info = hyscan_db_info_new (priv->db);
 
   g_signal_connect_swapped (priv->mark_model, "changed",
@@ -534,7 +534,7 @@ hyscan_mark_loc_model_model_append_mark (gpointer key,
   return TRUE;
 }
 
-/* Обработчик сигнала HyScanMarkModel::changed.
+/* Обработчик сигнала HyScanObjectModel::changed.
  * Обновляет список меток. */
 static void
 hyscan_mark_loc_model_model_changed (HyScanMarkLocModel *ml_model)
@@ -543,7 +543,7 @@ hyscan_mark_loc_model_model_changed (HyScanMarkLocModel *ml_model)
   GHashTable *wfmarks;
 
   /* Получаем список меток. */
-  wfmarks = hyscan_mark_model_get (priv->mark_model);
+  wfmarks = hyscan_object_model_get (priv->mark_model);
 
   g_rw_lock_writer_lock (&priv->mark_lock);
 
@@ -601,7 +601,7 @@ hyscan_mark_loc_model_set_project (HyScanMarkLocModel *ml_model,
   priv->project = g_strdup (project);
 
   hyscan_db_info_set_project (priv->db_info, priv->project);
-  hyscan_mark_model_set_project (priv->mark_model, priv->db, priv->project);
+  hyscan_object_model_set_project (priv->mark_model, priv->db, priv->project);
 }
 
 /**

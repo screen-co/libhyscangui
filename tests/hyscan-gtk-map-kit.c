@@ -13,7 +13,7 @@
 #include <hyscan-gtk-map-scale.h>
 #include <hyscan-gtk-param-list.h>
 #include <hyscan-gtk-map-wfmark.h>
-#include <hyscan-mark-model.h>
+#include <hyscan-object-model.h>
 #include <hyscan-gtk-map-geomark.h>
 
 #include <glib/gi18n-lib.h>
@@ -55,9 +55,9 @@ struct _HyScanGtkMapKitPrivate
 {
   /* Модели данных. */
   HyScanDBInfo          *db_info;          /* Доступ к данным БД. */
-  HyScanMarkModel       *mark_model;       /* Модель меток водопада. */
-  HyScanMarkModel       *planner_model;     /* Модель объектов планировщика. */
-  HyScanMarkModel       *mark_geo_model;   /* Модель геометок. */
+  HyScanObjectModel     *mark_model;       /* Модель меток водопада. */
+  HyScanObjectModel     *planner_model;     /* Модель объектов планировщика. */
+  HyScanObjectModel     *mark_geo_model;   /* Модель геометок. */
   HyScanMarkLocModel    *ml_model;         /* Модель местоположения меток водопада. */
   HyScanDB              *db;
   HyScanCache           *cache;
@@ -800,9 +800,9 @@ on_track_activated (GtkTreeView        *treeview,
 }
 
 static void
-list_store_insert (HyScanGtkMapKit *kit,
-                   HyScanMarkModel *model,
-                   gchar           *selected_id)
+list_store_insert (HyScanGtkMapKit   *kit,
+                   HyScanObjectModel *model,
+                   gchar             *selected_id)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
@@ -813,7 +813,7 @@ list_store_insert (HyScanGtkMapKit *kit,
   HyScanMarkAny *mark;
   gchar *mark_id;
 
-  marks = hyscan_mark_model_get (model);
+  marks = hyscan_object_model_get (model);
   if (marks == NULL)
     return;
 
@@ -1684,13 +1684,13 @@ hyscan_gtk_map_kit_set_project (HyScanGtkMapKit *kit,
 
   /* Устанавливаем проект во всех сущностях. */
   if (priv->mark_geo_model != NULL)
-    hyscan_mark_model_set_project (priv->mark_geo_model, priv->db, priv->project_name);
+    hyscan_object_model_set_project (priv->mark_geo_model, priv->db, priv->project_name);
 
   if (priv->mark_model != NULL)
-    hyscan_mark_model_set_project (priv->mark_model, priv->db, priv->project_name);
+    hyscan_object_model_set_project (priv->mark_model, priv->db, priv->project_name);
 
   if (priv->planner_model != NULL)
-    hyscan_mark_model_set_project (priv->planner_model, priv->db, priv->project_name);
+    hyscan_object_model_set_project (priv->planner_model, priv->db, priv->project_name);
 
   if (priv->ml_model != NULL)
     hyscan_mark_loc_model_set_project (priv->ml_model, priv->project_name);
@@ -1816,7 +1816,7 @@ hyscan_gtk_map_kit_add_marks_wf (HyScanGtkMapKit *kit)
   g_return_if_fail (priv->db != NULL);
 
   /* Модели меток водопада и их местоположения. */
-  priv->mark_model = hyscan_mark_model_new (HYSCAN_TYPE_MARK_DATA_WATERFALL);
+  priv->mark_model = hyscan_object_model_new (HYSCAN_TYPE_MARK_DATA_WATERFALL);
   priv->ml_model = hyscan_mark_loc_model_new (priv->db, priv->cache);
 
   g_signal_connect_swapped (priv->mark_model, "changed", G_CALLBACK (on_marks_changed), kit);
@@ -1831,7 +1831,7 @@ hyscan_gtk_map_kit_add_marks_wf (HyScanGtkMapKit *kit)
   /* Устанавливаем проект и БД. */
   if (priv->project_name != NULL)
     {
-      hyscan_mark_model_set_project (priv->mark_model, priv->db, priv->project_name);
+      hyscan_object_model_set_project (priv->mark_model, priv->db, priv->project_name);
       hyscan_mark_loc_model_set_project (priv->ml_model, priv->project_name);
     }
 }
@@ -1845,7 +1845,7 @@ hyscan_gtk_map_kit_add_planner (HyScanGtkMapKit *kit)
   g_return_if_fail (priv->db != NULL);
 
   /* Модель данных планировщика. */
-  priv->planner_model = hyscan_mark_model_new (HYSCAN_TYPE_PLANNER_DATA);
+  priv->planner_model = hyscan_object_model_new (HYSCAN_TYPE_PLANNER_DATA);
 
   /* Слой планировщика. */
   priv->planner_layer = hyscan_gtk_map_planner_new (priv->planner_model);
@@ -1856,7 +1856,7 @@ hyscan_gtk_map_kit_add_planner (HyScanGtkMapKit *kit)
 
   /* Устанавливаем проект и БД. */
   if (priv->project_name != NULL)
-    hyscan_mark_model_set_project (priv->planner_model, priv->db, priv->project_name);
+    hyscan_object_model_set_project (priv->planner_model, priv->db, priv->project_name);
 }
 
 void
@@ -1868,7 +1868,7 @@ hyscan_gtk_map_kit_add_marks_geo (HyScanGtkMapKit   *kit)
   g_return_if_fail (priv->db != NULL);
 
   /* Модель геометок. */
-  priv->mark_geo_model = hyscan_mark_model_new (HYSCAN_TYPE_MARK_DATA_GEO);
+  priv->mark_geo_model = hyscan_object_model_new (HYSCAN_TYPE_MARK_DATA_GEO);
   g_signal_connect_swapped (priv->mark_geo_model, "changed", G_CALLBACK (on_marks_changed), kit);
 
   /* Слой с геометками. */
@@ -1879,7 +1879,7 @@ hyscan_gtk_map_kit_add_marks_geo (HyScanGtkMapKit   *kit)
   create_wfmark_toolbox (kit);
 
   if (priv->project_name != NULL)
-    hyscan_mark_model_set_project (priv->mark_geo_model, priv->db, priv->project_name);
+    hyscan_object_model_set_project (priv->mark_geo_model, priv->db, priv->project_name);
 }
 
 /**

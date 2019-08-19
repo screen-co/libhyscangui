@@ -2,7 +2,7 @@
 #define __HYSCAN_GTK_MAP_PLANNER_H__
 
 #include <hyscan-gtk-layer.h>
-#include <hyscan-mark-model.h>
+#include <hyscan-object-model.h>
 
 G_BEGIN_DECLS
 
@@ -33,7 +33,7 @@ HYSCAN_API
 GType            hyscan_gtk_map_planner_get_type (void);
 
 HYSCAN_API
-HyScanGtkLayer * hyscan_gtk_map_planner_new      (HyScanMarkModel *model);
+HyScanGtkLayer * hyscan_gtk_map_planner_new      (HyScanObjectModel *model);
 
 G_END_DECLS
 

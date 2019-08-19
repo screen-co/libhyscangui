@@ -55,7 +55,7 @@ main (int    argc,
   HyScanGtkWaterfallMark *mark = NULL;
   HyScanGtkWaterfallMagnifier *loopa = NULL;
 
-  HyScanMarkModel *markmodel;
+  HyScanObjectModel *markmodel;
 
   gchar *project_name;
   gchar *track_name;
@@ -133,7 +133,7 @@ main (int    argc,
   if (db == NULL)
     g_error ("can't open db at: %s", db_uri);
 
-  markmodel = hyscan_mark_model_new (HYSCAN_MARK_WATERFALL);
+  markmodel = hyscan_object_model_new (HYSCAN_MARK_WATERFALL);
 
 
   /* Водопад. */
@@ -210,7 +210,7 @@ main (int    argc,
   //hyscan_gtk_waterfall_echosounder (wf, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD);
   /* !use_computed == use_raw. */
   hyscan_gtk_waterfall_state_set_track (wf_state, db, project_name, track_name);
-  hyscan_mark_model_set_project (markmodel, db, project_name);
+  hyscan_object_model_set_project (markmodel, db, project_name);
 
   /* Начинаем работу. */
   gtk_main ();

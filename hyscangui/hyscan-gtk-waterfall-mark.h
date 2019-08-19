@@ -36,7 +36,7 @@
 #define __HYSCAN_GTK_WATERFALL_MARK_H__
 
 #include "hyscan-gtk-layer.h"
-#include <hyscan-mark-model.h>
+#include <hyscan-object-model.h>
 
 G_BEGIN_DECLS
 
@@ -75,7 +75,7 @@ HYSCAN_API
 GType                    hyscan_gtk_waterfall_mark_get_type            (void);
 
 HYSCAN_API
-HyScanGtkWaterfallMark  *hyscan_gtk_waterfall_mark_new                 (HyScanMarkModel            *markmodel);
+HyScanGtkWaterfallMark  *hyscan_gtk_waterfall_mark_new                 (HyScanObjectModel          *markmodel);
 
 HYSCAN_API
 void                     hyscan_gtk_waterfall_mark_set_mark_filter     (HyScanGtkWaterfallMark     *mark,

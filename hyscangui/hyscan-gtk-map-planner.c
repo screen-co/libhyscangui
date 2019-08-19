@@ -26,7 +26,7 @@ typedef struct
 struct _HyScanGtkMapPlannerPrivate
 {
   HyScanGtkMap                *map;
-  HyScanMarkModel             *model;
+  HyScanObjectModel           *model;
   gboolean                     visible;
   GHashTable                  *zones;
   GList                       *tracks;
@@ -76,7 +76,7 @@ hyscan_gtk_map_planner_class_init (HyScanGtkMapPlannerClass *klass)
   object_class->finalize = hyscan_gtk_map_planner_object_finalize;
 
   g_object_class_install_property (object_class, PROP_MODEL,
-    g_param_spec_object ("model", "Model", "Planner model", HYSCAN_TYPE_MARK_MODEL,
+    g_param_spec_object ("model", "Model", "Planner model", HYSCAN_TYPE_OBJECT_MODEL,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -142,7 +142,7 @@ hyscan_gtk_map_planner_model_changed (HyScanGtkMapPlanner *planner)
   HyScanPlannerObject *object;
 
   /* Получаем список всех объектов планировщика. */
-  objects = hyscan_mark_model_get (priv->model);
+  objects = hyscan_object_model_get (priv->model);
 
   /* Загружаем зоны. */
   g_hash_table_remove_all (priv->zones);
@@ -357,7 +357,7 @@ hyscan_gtk_map_planner_handle_create (HyScanGtkMapPlanner *planner,
   gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x + 20, event->y + 20, &end.x, &end.y);
   hyscan_gtk_map_value_to_geo (priv->map, &track.end, end);
 
-  hyscan_mark_model_add_mark (priv->model, &track);
+  hyscan_object_model_add_object (priv->model, &track);
 
   return TRUE;
 }
@@ -406,7 +406,7 @@ hyscan_gtk_map_planner_interface_init (HyScanGtkLayerInterface *iface)
 }
 
 HyScanGtkLayer *
-hyscan_gtk_map_planner_new (HyScanMarkModel *model)
+hyscan_gtk_map_planner_new (HyScanObjectModel *model)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_PLANNER,
                        "model", model,
