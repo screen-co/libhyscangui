@@ -124,8 +124,6 @@ struct _HyScanGtkWaterfallPrivate
   gint                   zoom_index;
 
   gboolean               open;               /* Флаг "галс открыт". */
-  gboolean               request_redraw;     /* Флаг "требуется перерисовка". */
-  guint                  redraw_tag;
 
   gboolean               view_finalised;     /* "Все тайлы для этого вью найдены и показаны". */
 
@@ -170,8 +168,6 @@ struct _HyScanGtkWaterfallPrivate
 /* Внутренние методы класса. */
 static void     hyscan_gtk_waterfall_object_constructed      (GObject                       *object);
 static void     hyscan_gtk_waterfall_object_finalize         (GObject                       *object);
-
-static gboolean hyscan_gtk_waterfall_redrawer                (gpointer                       data);
 
 static gint32   hyscan_gtk_waterfall_aligner                 (gdouble                        in,
                                                               gint                           size);
@@ -346,8 +342,6 @@ hyscan_gtk_waterfall_object_constructed (GObject *object)
   g_signal_connect (self, "changed::track",        G_CALLBACK (hyscan_gtk_waterfall_track_changed), self);
   g_signal_connect (self, "changed::speed",        G_CALLBACK (hyscan_gtk_waterfall_speed_changed), self);
   g_signal_connect (self, "changed::velocity",     G_CALLBACK (hyscan_gtk_waterfall_velocity_changed), self);
-  // g_signal_connect (self, "changed::amp-factory",  G_CALLBACK (hyscan_gtk_waterfall_depth_amp_changed), self);
-  // g_signal_connect (self, "changed::dpt-factory",  G_CALLBACK (hyscan_gtk_waterfall_cache_dpt_changed), self);
 
   hyscan_gtk_waterfall_sources_changed (HYSCAN_GTK_WATERFALL_STATE (self), self);
   hyscan_gtk_waterfall_tile_flags_changed (HYSCAN_GTK_WATERFALL_STATE (self), self);
@@ -363,8 +357,6 @@ hyscan_gtk_waterfall_object_constructed (GObject *object)
   priv->regen_period = 1 * G_TIME_SPAN_SECOND;
 
   priv->tile_upsample = 2;
-
-  priv->redraw_tag = g_timeout_add (10, hyscan_gtk_waterfall_redrawer, self);
 
   g_object_unref (cache);
   g_object_unref (af);
@@ -393,25 +385,8 @@ hyscan_gtk_waterfall_object_finalize (GObject *object)
       g_source_remove (priv->auto_tag);
       priv->auto_tag = 0;
     }
-  if (priv->redraw_tag != 0)
-    {
-      g_source_remove (priv->redraw_tag);
-      priv->redraw_tag = 0;
-    }
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_parent_class)->finalize (object);
-}
-
-/* Функция запрашивает перерисовку виджета, если необходимо. */
-static gboolean
-hyscan_gtk_waterfall_redrawer (gpointer data)
-{
-  HyScanGtkWaterfall *self = data;
-
-  if (g_atomic_int_compare_and_exchange (&self->priv->request_redraw, TRUE, FALSE))
-    gtk_widget_queue_draw (GTK_WIDGET (self));
-
-  return G_SOURCE_CONTINUE;
 }
 
 /* Округление координат тайла. */
@@ -609,7 +584,6 @@ hyscan_gtk_waterfall_image_generated (HyScanGtkWaterfall *self,
   gpointer tq_hash;
 
   tq_hash = g_atomic_pointer_get (&priv->tq_hash);
-
   if (hash != GPOINTER_TO_SIZE (tq_hash))
     return;
 
@@ -1228,8 +1202,6 @@ static void
 hyscan_gtk_waterfall_track_changed (HyScanGtkWaterfallState *model,
                                     HyScanGtkWaterfall      *self)
 {
-  HyScanFactoryAmplitude *af;
-  HyScanFactoryDepth *df;
   HyScanGtkWaterfallPrivate *priv = self->priv;
   HyScanDB *db;
   gchar *db_uri;
@@ -1250,21 +1222,7 @@ hyscan_gtk_waterfall_track_changed (HyScanGtkWaterfallState *model,
     return;
 
   db_uri = hyscan_db_get_uri (db);
-
-  af = hyscan_gtk_waterfall_state_get_amp_factory (model);
-  df = hyscan_gtk_waterfall_state_get_dpt_factory (model);
-
-  hyscan_factory_amplitude_set_track (af, db, project, track);
-  hyscan_factory_depth_set_track (df, db, project, track);
-
   hyscan_tile_color_open (priv->color, db_uri, project, track);
-
-  hyscan_tile_queue_amp_changed (priv->queue);
-  hyscan_tile_queue_dpt_changed (priv->queue);
-  hyscan_track_rect_amp_changed (priv->lrect);
-  hyscan_track_rect_dpt_changed (priv->lrect);
-  hyscan_track_rect_amp_changed (priv->rrect);
-  hyscan_track_rect_dpt_changed (priv->rrect);
 
   priv->open = TRUE;
 
@@ -1281,8 +1239,6 @@ hyscan_gtk_waterfall_track_changed (HyScanGtkWaterfallState *model,
   g_free (project);
   g_free (track);
   g_object_unref (db);
-  g_object_unref (af);
-  g_object_unref (df);
 
   gtk_widget_queue_draw (GTK_WIDGET (self));
 
@@ -1376,8 +1332,7 @@ void
 hyscan_gtk_waterfall_queue_draw (HyScanGtkWaterfall *self)
 {
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (self));
-
-  g_atomic_int_set (&self->priv->request_redraw, TRUE);
+  g_idle_add ((GSourceFunc)gtk_widget_queue_draw, self);
 }
 
 /**
