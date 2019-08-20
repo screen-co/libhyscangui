@@ -68,6 +68,8 @@
 #define DEG2RAD(x) ((x) * G_PI / 180.0)
 #define RAD2DEG(x) ((x) * 180.0 / G_PI)
 
+#define HANDLE_TYPE_NAME   "map_ruler"                /* Название хэндла линейки. */
+
 struct _HyScanGtkMapRulerPrivate
 {
   HyScanGtkMap              *map;                      /* Виджет карты. */
@@ -75,7 +77,7 @@ struct _HyScanGtkMapRulerPrivate
   PangoLayout               *pango_layout;             /* Раскладка шрифта. */
 
   GList                     *hover_section;            /* Указатель на отрезок ломаной под курсором мыши. */
-  HyScanGtkMapPoint          section_point;            /* Точка под курсором мыши в середине отрезка. */
+  HyScanGeoCartesian2D       section_point;            /* Точка под курсором мыши в на отрезке hover_section. */
 
   /* Стиль оформления. */
   gdouble                    radius;                   /* Радиус точки - вершины ломаной. */
@@ -89,11 +91,10 @@ struct _HyScanGtkMapRulerPrivate
 static void                     hyscan_gtk_map_ruler_object_constructed       (GObject                  *object);
 static void                     hyscan_gtk_map_ruler_object_finalize          (GObject                  *object);
 static void                     hyscan_gtk_map_ruler_interface_init           (HyScanGtkLayerInterface  *iface);
-static GList *                  hyscan_gtk_map_ruler_get_segment_under_cursor (HyScanGtkMapRuler        *ruler,
-                                                                               GdkEventMotion           *event);
-static gboolean                 hyscan_gtk_map_ruler_motion_notify            (GtkWidget                *widget,
-                                                                               GdkEventMotion           *event,
-                                                                               HyScanGtkMapRuler        *ruler);
+static GList *                  hyscan_gtk_map_ruler_get_segment_at           (HyScanGtkMapRuler        *ruler,
+                                                                               gdouble                   x,
+                                                                               gdouble                   y,
+                                                                               HyScanGeoCartesian2D     *nearest_);
 static gdouble                  hyscan_gtk_map_ruler_measure                  (HyScanGeoGeodetic         coord1,
                                                                                HyScanGeoGeodetic         coord2);
 static gdouble                  hyscan_gtk_map_ruler_get_distance             (HyScanGtkMap             *map,
@@ -171,27 +172,68 @@ hyscan_gtk_map_ruler_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_ruler_parent_class)->finalize (object);
 }
 
-/* Захватывает хэндл (если такой есть) по сигналу #HyScanGtkLayerContainer::handle.
- *
+/* Захватывает хэндл.
  * Если указатель мыши над одним из отрезков, то помещает новую точку в это место и
  * начинает ее перетаскивать. */
 static gconstpointer
-hyscan_gtk_map_ruler_handle (HyScanGtkLayerContainer *container,
-                             GdkEventMotion          *event,
-                             HyScanGtkMapRuler       *ruler)
+hyscan_gtk_map_ruler_handle_grab (HyScanGtkLayer       *layer,
+                                  HyScanGtkLayerHandle *handle)
 {
-  GList *section;
-  HyScanGtkMapPinItem *new_item;
+  if (g_strcmp0 (handle->type_name, HANDLE_TYPE_NAME) == 0)
+    {
+      HyScanGtkMapPin *pin_layer = HYSCAN_GTK_MAP_PIN (layer);
+      GList *found_section = handle->user_data;
+      HyScanGtkMapPinItem *new_item;
+      HyScanGeoCartesian2D coordinate;
+
+      coordinate.x = handle->val_x;
+      coordinate.y = handle->val_y;
+      new_item = hyscan_gtk_map_pin_insert_before (pin_layer, &coordinate, found_section);
+
+      return hyscan_gtk_map_pin_start_drag (pin_layer, new_item);
+    }
+
+  return hyscan_gtk_layer_parent_interface->handle_grab (layer, handle);
+}
+
+/* Показывает/прячет хэндл.
+ * Хэндл может быть либо на каком-то отрезке ломаной (создает новую вершину),
+ * либо на вершине (перемещает эту вершину). */
+static void
+hyscan_gtk_map_ruler_handle_show (HyScanGtkLayer       *layer,
+                                  HyScanGtkLayerHandle *handle)
+{
+  HyScanGtkMapRuler *ruler = HYSCAN_GTK_MAP_RULER (layer);
   HyScanGtkMapRulerPrivate *priv = ruler->priv;
-  HyScanGtkMapPin *pin_layer = HYSCAN_GTK_MAP_PIN (ruler);
+  GList *hover_section;
 
-  section = hyscan_gtk_map_ruler_get_segment_under_cursor (ruler, event);
-  if (section == NULL)
-    return NULL;
+  /* Надо спрятать хэндл. */
+  if (handle == NULL)
+    {
+      hover_section = NULL;
+      hyscan_gtk_layer_parent_interface->handle_show (layer, NULL);
+    }
 
-  new_item = hyscan_gtk_map_pin_insert_before (pin_layer, &priv->section_point, section);
+  /* Надо показать хэндл из этого класса. */
+  else if (g_strcmp0 (handle->type_name, HANDLE_TYPE_NAME) == 0)
+    {
+      hover_section = handle->user_data;
+      priv->section_point.x = handle->val_x;
+      priv->section_point.y = handle->val_y;
+      hyscan_gtk_layer_parent_interface->handle_show (layer, NULL);
+    }
 
-  return hyscan_gtk_map_pin_start_drag (pin_layer, new_item);
+  /* Надо показать хэндл из родительского класса. */
+  else
+    {
+      hover_section = NULL;
+      hyscan_gtk_layer_parent_interface->handle_show (layer, handle);
+    }
+
+  if (hover_section != NULL || hover_section != priv->hover_section)
+    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+  priv->hover_section = hover_section;
 }
 
 static void
@@ -205,6 +247,34 @@ hyscan_gtk_map_ruler_removed (HyScanGtkLayer *gtk_layer)
   g_clear_object (&priv->map);
 
   hyscan_gtk_layer_parent_interface->removed (gtk_layer);
+}
+
+/* Находит хэндл в точке с логическими координатами (x, y). */
+static gboolean
+hyscan_gtk_map_ruler_handle_find (HyScanGtkLayer       *layer,
+                                  gdouble               x,
+                                  gdouble               y,
+                                  HyScanGtkLayerHandle *handle)
+{
+  HyScanGtkMapRuler *ruler = HYSCAN_GTK_MAP_RULER (layer);
+  GList *found_section;
+  HyScanGeoCartesian2D nearest;
+
+  if (hyscan_gtk_layer_parent_interface->handle_find (layer, x, y, handle))
+    return TRUE;
+
+  found_section = hyscan_gtk_map_ruler_get_segment_at (ruler, x, y, &nearest);
+  if (found_section != NULL)
+    {
+      handle->val_x = nearest.x;
+      handle->val_y = nearest.y;
+      handle->user_data = found_section;
+      handle->type_name = HANDLE_TYPE_NAME;
+
+      return TRUE;
+    }
+
+  return FALSE;
 }
 
 static void
@@ -223,10 +293,6 @@ hyscan_gtk_map_ruler_added (HyScanGtkLayer          *gtk_layer,
 
   g_signal_connect (priv->map, "configure-event",
                     G_CALLBACK (hyscan_gtk_map_ruler_configure), gtk_layer);
-  g_signal_connect (priv->map, "motion-notify-event",
-                    G_CALLBACK (hyscan_gtk_map_ruler_motion_notify), gtk_layer);
-  g_signal_connect (priv->map, "handle-grab",
-                    G_CALLBACK (hyscan_gtk_map_ruler_handle), gtk_layer);
 }
 
 static gboolean
@@ -263,6 +329,9 @@ hyscan_gtk_map_ruler_interface_init (HyScanGtkLayerInterface *iface)
   iface->added = hyscan_gtk_map_ruler_added;
   iface->removed = hyscan_gtk_map_ruler_removed;
   iface->load_key_file = hyscan_gtk_map_ruler_load_key_file;
+  iface->handle_find = hyscan_gtk_map_ruler_handle_find;
+  iface->handle_show = hyscan_gtk_map_ruler_handle_show;
+  iface->handle_grab = hyscan_gtk_map_ruler_handle_grab;
 }
 
 /* Обработка сигнала "configure-event" виджета карты. */
@@ -416,7 +485,7 @@ hyscan_gtk_map_ruler_draw_hover_section (HyScanGtkMapRuler *ruler,
 
   carea = GTK_CIFRO_AREA (priv->map);
 
-  gtk_cifro_area_visible_value_to_point (carea, &x, &y, priv->section_point.c2d.x, priv->section_point.c2d.y);
+  gtk_cifro_area_visible_value_to_point (carea, &x, &y, priv->section_point.x, priv->section_point.y);
 
   gdk_cairo_set_source_rgba (cairo, &priv->line_color);
   cairo_set_line_width (cairo, priv->line_width);
@@ -498,8 +567,10 @@ hyscan_gtk_map_ruler_draw_impl (HyScanGtkMapPin *layer,
 
 /* Находит звено ломаной в SNAP_DISTANCE-окрестности курсора мыши. */
 static GList *
-hyscan_gtk_map_ruler_get_segment_under_cursor (HyScanGtkMapRuler *ruler,
-                                               GdkEventMotion    *event)
+hyscan_gtk_map_ruler_get_segment_at (HyScanGtkMapRuler    *ruler,
+                                     gdouble               x,
+                                     gdouble               y,
+                                     HyScanGeoCartesian2D *nearest_)
 {
   HyScanGtkMapRulerPrivate *priv = ruler->priv;
   HyScanGtkMap *map = priv->map;
@@ -508,7 +579,8 @@ hyscan_gtk_map_ruler_get_segment_under_cursor (HyScanGtkMapRuler *ruler,
   GList *point_l;
 
   HyScanGeoCartesian2D cursor;
-  gdouble scale_x, scale_y;
+  gdouble scale_x;
+  gdouble snap_distance;
 
   gconstpointer howner;
 
@@ -528,8 +600,10 @@ hyscan_gtk_map_ruler_get_segment_under_cursor (HyScanGtkMapRuler *ruler,
     return NULL;
 
   carea = GTK_CIFRO_AREA (map);
-  gtk_cifro_area_get_scale (carea, &scale_x, &scale_y);
-  gtk_cifro_area_point_to_value (carea, event->x, event->y, &cursor.x, &cursor.y);
+  gtk_cifro_area_get_scale (carea, &scale_x, NULL);
+  snap_distance = SNAP_DISTANCE * scale_x;
+  cursor.x = x;
+  cursor.y = y;
   points = hyscan_gtk_map_pin_get_points (HYSCAN_GTK_MAP_PIN (ruler));
   for (point_l = points; point_l != NULL; point_l = point_l->next)
     {
@@ -553,8 +627,7 @@ hyscan_gtk_map_ruler_get_segment_under_cursor (HyScanGtkMapRuler *ruler,
 
       /* Определяем расстояние от курсоры мыши до прямой между точками. */
       distance = hyscan_cartesian_distance_to_line (prev_point, point, &cursor, &nearest);
-      distance /= scale_x;
-      if (distance > SNAP_DISTANCE)
+      if (distance > snap_distance)
         continue;
 
       /* Проверяем, что ближайшая точка на прямой попала внутрь отрезка между точками. */
@@ -564,32 +637,12 @@ hyscan_gtk_map_ruler_get_segment_under_cursor (HyScanGtkMapRuler *ruler,
           continue;
         }
 
-      priv->section_point.c2d = nearest;
+      *nearest_ = nearest;
 
       return point_l;
     }
 
   return NULL;
-}
-
-/* Выделяет точку под курсором мыши, если она находится на отрезке. */
-static gboolean
-hyscan_gtk_map_ruler_motion_notify (GtkWidget         *widget,
-                                    GdkEventMotion    *event,
-                                    HyScanGtkMapRuler *ruler)
-{
-  HyScanGtkMapRulerPrivate *priv = ruler->priv;
-  GList *hover_section;
-
-  /* Под курсором мыши находится точки внутри отрезка. */
-  hover_section = hyscan_gtk_map_ruler_get_segment_under_cursor (ruler, event);
-  if (hover_section != NULL || priv->hover_section != hover_section)
-    {
-      priv->hover_section = hover_section;
-      gtk_widget_queue_draw (GTK_WIDGET (priv->map));
-    }
-
-  return GDK_EVENT_PROPAGATE;
 }
 
 static void
