@@ -90,7 +90,7 @@ struct _HyScanGtkMapPlannerPrivate
   GHashTable                        *zones;          /* Таблица зон полигона. */
   GList                             *tracks;         /* Список галсов, которые не связаны ни с одной из зон. */
 
-  HyScanGtkMapPlannerMode            mode;           /* Режим редактирования галса. */
+  HyScanGtkMapPlannerMode            cur_mode;       /* Текущий режим редактирования галса. */
   HyScanGtkMapPlannerTrack          *cur_track;      /* Копия галса, который редактируется в данный момент. */
 
   gchar                             *hover_track_id; /* Указатель на подсвечиваемый галс. */
@@ -129,6 +129,8 @@ static void                       hyscan_gtk_map_planner_track_draw            (
                                                                                 cairo_t                  *cairo);
 static gboolean                   hyscan_gtk_map_planner_motion_notify         (HyScanGtkMapPlanner      *planner,
                                                                                 GdkEventMotion           *event);
+static gboolean                   hyscan_gtk_map_planner_key_press             (HyScanGtkMapPlanner      *planner,
+                                                                                GdkEventKey              *event);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapPlanner, hyscan_gtk_map_planner, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapPlanner)
@@ -406,12 +408,12 @@ hyscan_gtk_map_planner_motion_notify (HyScanGtkMapPlanner *planner,
   HyScanGeoCartesian2D *point_2d;
   HyScanGeoGeodetic *point_geo;
 
-  if (priv->mode == MODE_DRAG_END)
+  if (priv->cur_mode == MODE_DRAG_END)
     {
       point_2d = &track->end;
       point_geo = &track->origin->end;
     }
-  else if (priv->mode == MODE_DRAG_START)
+  else if (priv->cur_mode == MODE_DRAG_START)
     {
       point_2d = &track->start;
       point_geo = &track->origin->start;
@@ -426,6 +428,68 @@ hyscan_gtk_map_planner_motion_notify (HyScanGtkMapPlanner *planner,
   hyscan_gtk_map_value_to_geo (priv->map, point_geo, *point_2d);
 
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+  return GDK_EVENT_PROPAGATE;
+}
+
+static void
+hyscan_gtk_map_planner_track_remove (HyScanGtkMapPlanner *planner,
+                                     const gchar         *track_id)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  GList *link;
+
+  /* Удаляем из модели. */
+  hyscan_object_model_remove_object (priv->model, track_id);
+
+  /* Удаляем из внутреннего списка. */
+  for (link = priv->tracks; link != NULL; link = link->next)
+    {
+      HyScanGtkMapPlannerTrack *track = link->data;
+
+      if (g_strcmp0 (track->id, priv->cur_track->id) != 0)
+        continue;
+
+      priv->tracks = g_list_remove_link (priv->tracks, link);
+      return;
+    }
+}
+
+/* Обработка события "key-press-event". */
+static gboolean
+hyscan_gtk_map_planner_key_press (HyScanGtkMapPlanner *planner,
+                                  GdkEventKey         *event)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+
+  if (priv->cur_mode == MODE_NONE || priv->cur_track == NULL)
+    return GDK_EVENT_PROPAGATE;
+
+  /* Удаляем активный галс. */
+  if (event->keyval == GDK_KEY_Delete)
+    {
+      hyscan_gtk_map_planner_track_remove (planner, priv->cur_track->id);
+
+      g_clear_pointer (&priv->cur_track, hyscan_gtk_map_planner_track_free);
+      priv->cur_mode = MODE_NONE;
+      hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);
+
+      gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+      return GDK_EVENT_STOP;
+    }
+
+  /* Отменяем текущее изменение. */
+  else if (event->keyval == GDK_KEY_Escape)
+    {
+      g_clear_pointer (&priv->cur_track, hyscan_gtk_map_planner_track_free);
+      priv->cur_mode = MODE_NONE;
+      hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);
+
+      gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+      return GDK_EVENT_STOP;
+    }
 
   return GDK_EVENT_PROPAGATE;
 }
@@ -572,7 +636,7 @@ hyscan_gtk_map_planner_handle_create_add (HyScanGtkMapPlanner *planner,
   track_proj->origin->end = track_proj->origin->start;
 
   /* И начинаем перетаскивание конца галса. */
-  priv->mode = MODE_DRAG_END;
+  priv->cur_mode = MODE_DRAG_END;
   priv->cur_track = track_proj;
   hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), planner);
 
@@ -621,7 +685,7 @@ hyscan_gtk_map_planner_handle_grab (HyScanGtkLayer       *layer,
   /* В момент захвата хэндла мы предполагаем, что текущий хэндл не выбран. Иначе это ошибка в логике программы. */
   g_assert (priv->cur_track == NULL);
 
-  priv->mode = priv->found_mode;
+  priv->cur_mode = priv->found_mode;
   priv->cur_track = hyscan_gtk_map_planner_track_copy (priv->found_track);
 
   return planner;
@@ -696,7 +760,7 @@ hyscan_gtk_map_planner_handle_release (HyScanGtkLayer *layer,
   else
     hyscan_object_model_modify_object (priv->model, cur_track->id, cur_track->origin);
 
-  priv->mode = MODE_NONE;
+  priv->cur_mode = MODE_NONE;
   g_clear_pointer (&priv->cur_track, hyscan_gtk_map_planner_track_free);
 
   return TRUE;
@@ -737,6 +801,7 @@ hyscan_gtk_map_planner_added (HyScanGtkLayer          *layer,
 
   g_signal_connect_swapped (priv->map, "visible-draw", G_CALLBACK (hyscan_gtk_map_planner_draw), planner);
   g_signal_connect_swapped (priv->map, "motion-notify-event", G_CALLBACK (hyscan_gtk_map_planner_motion_notify), planner);
+  g_signal_connect_swapped (priv->map, "key-press-event", G_CALLBACK (hyscan_gtk_map_planner_key_press), planner);
 }
 
 static void
