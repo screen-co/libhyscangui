@@ -320,8 +320,8 @@ hyscan_gtk_waterfall_state_set_track (HyScanGtkWaterfallState *self,
   priv->project = g_strdup (project);
   priv->track = g_strdup (track);
 
-  hyscan_factory_amplitude_set_track (priv->af, db, project, track);
-  hyscan_factory_depth_set_track (priv->df, db, project, track);
+  hyscan_factory_amplitude_set_project (priv->af, db, project);
+  hyscan_factory_depth_set_project (priv->df, db, project);
 
   g_signal_emit (self, hyscan_gtk_waterfall_state_signals[SIGNAL_CHANGED],
                        hyscan_gtk_waterfall_state_details[DETAIL_TRACK], NULL);

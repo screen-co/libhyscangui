@@ -36,7 +36,7 @@
 #define __HYSCAN_GTK_WATERFALL_STATE_H__
 
 #include <hyscan-db.h>
-#include <hyscan-tile-common.h>
+#include <hyscan-tile.h>
 #include <hyscan-factory-amplitude.h>
 #include <hyscan-factory-depth.h>
 #include "hyscan-gtk-layer-container.h"

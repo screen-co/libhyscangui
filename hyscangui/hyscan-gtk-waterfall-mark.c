@@ -484,6 +484,7 @@ hyscan_gtk_waterfall_mark_get_icon_name (HyScanGtkLayer *iface)
 /* Функция создает новый HyScanProjector. */
 static HyScanProjector*
 hyscan_gtk_waterfall_mark_open_projector (HyScanGtkWaterfallMark *self,
+                                          const gchar            *track,
                                           HyScanSourceType        source)
 {
   HyScanProjector *projector;
@@ -491,7 +492,7 @@ hyscan_gtk_waterfall_mark_open_projector (HyScanGtkWaterfallMark *self,
   HyScanAmplitude *dc;
 
   af = hyscan_gtk_waterfall_state_get_amp_factory (HYSCAN_GTK_WATERFALL_STATE (self->priv->wfall));
-  dc = hyscan_factory_amplitude_produce (af, source);
+  dc = hyscan_factory_amplitude_produce (af, track, source);
   projector = hyscan_projector_new (dc);
 
   g_clear_object (&af);
@@ -798,7 +799,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
 
           if (lproj == NULL)
             {
-              lproj = hyscan_gtk_waterfall_mark_open_projector (self, state->lsource);
+              lproj = hyscan_gtk_waterfall_mark_open_projector (self, state->track, state->lsource);
               if (lproj != NULL)
                 {
                   hyscan_projector_set_ship_speed (lproj, state->ship_speed);
@@ -807,7 +808,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
             }
           if (rproj == NULL)
             {
-              rproj = hyscan_gtk_waterfall_mark_open_projector (self, state->rsource);
+              rproj = hyscan_gtk_waterfall_mark_open_projector (self, state->track, state->rsource);
               if (rproj != NULL)
                 {
                   hyscan_projector_set_ship_speed (rproj, state->ship_speed);
@@ -818,7 +819,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
             {
               HyScanFactoryDepth *df;
               df = hyscan_gtk_waterfall_state_get_dpt_factory (HYSCAN_GTK_WATERFALL_STATE (priv->wfall));
-              depth = hyscan_factory_depth_produce (df);
+              depth = hyscan_factory_depth_produce (df, state->track);
               g_object_unref (df);
             }
 
