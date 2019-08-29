@@ -63,6 +63,7 @@ typedef enum
 {
   MODE_NONE,              /* Режим просмотра. */
   MODE_DRAG_START,        /* Режим редактирования начала галса. */
+  MODE_DRAG_MIDDLE,       /* Режим редактирования за середину галса. */
   MODE_DRAG_END,          /* Режим редактирования конца галса. */
 } HyScanGtkMapPlannerMode;
 
@@ -127,6 +128,13 @@ static void                       hyscan_gtk_map_planner_track_draw            (
                                                                                 HyScanGtkMapPlannerTrack *track,
                                                                                 gboolean                  skip_current,
                                                                                 cairo_t                  *cairo);
+static gboolean                   hyscan_gtk_map_planner_middle_drag           (HyScanGtkMapPlanner      *planner,
+                                                                                GdkEventMotion           *event);
+static gboolean                   hyscan_gtk_map_planner_edge_drag             (HyScanGtkMapPlanner      *planner,
+                                                                                HyScanGeoCartesian2D     *end_2d,
+                                                                                HyScanGeoCartesian2D     *start_2d,
+                                                                                HyScanGeoGeodetic        *end_geo,
+                                                                                GdkEventMotion           *event);
 static gboolean                   hyscan_gtk_map_planner_motion_notify         (HyScanGtkMapPlanner      *planner,
                                                                                 GdkEventMotion           *event);
 static gboolean                   hyscan_gtk_map_planner_key_press             (HyScanGtkMapPlanner      *planner,
@@ -397,50 +405,82 @@ hyscan_gtk_map_planner_draw (HyScanGtkMapPlanner *planner,
     hyscan_gtk_map_planner_track_draw (planner, priv->cur_track, FALSE, cairo);
 }
 
-/* Обработка события "motion-notify".
- * Перемещает галс в новую точку. */
+/* Редактирование галса при захвате за центр. */
 static gboolean
-hyscan_gtk_map_planner_motion_notify (HyScanGtkMapPlanner *planner,
-                                      GdkEventMotion      *event)
+hyscan_gtk_map_planner_middle_drag (HyScanGtkMapPlanner *planner,
+                                    GdkEventMotion      *event)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
-  HyScanGtkMapPlannerTrack *track = priv->cur_track;
   HyScanGeoCartesian2D cursor;
-  HyScanGeoCartesian2D *point_2d, *start_2d;
-  HyScanGeoGeodetic *point_geo;
-
-  if (priv->cur_mode == MODE_DRAG_END)
-    {
-      start_2d = &track->start;
-      point_2d = &track->end;
-      point_geo = &track->origin->end;
-    }
-  else if (priv->cur_mode == MODE_DRAG_START)
-    {
-      start_2d = &track->end;
-      point_2d = &track->start;
-      point_geo = &track->origin->start;
-    }
-  else
-    {
-      return GDK_EVENT_PROPAGATE;
-    }
+  gdouble dx, dy;
+  HyScanGtkMapPlannerTrack *cur_track = priv->cur_track;
 
   gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &cursor.x, &cursor.y);
 
-  /* Сохраняем длину. */
+  /* Сохраняем длину, меняем толко направление. */
+  if (event->state & GDK_CONTROL_MASK)
+    {
+      gdouble angle;
+      gdouble length;
+      HyScanGeoCartesian2D middle;
+
+      angle = atan2 (cursor.y - cur_track->start.y, cursor.x - cur_track->start.x);
+      length = hypot (cur_track->end.y - cur_track->start.y, cur_track->end.x - cur_track->start.x) / 2.0;
+
+      middle.x = (cur_track->end.x + cur_track->start.x) / 2.0;
+      middle.y = (cur_track->end.y + cur_track->start.y) / 2.0;
+
+      cur_track->start.x = middle.x - length * cos (angle);
+      cur_track->start.y = middle.y - length * sin (angle);
+      cur_track->end.x = middle.x + length * cos (angle);
+      cur_track->end.y = middle.y + length * sin (angle);
+    }
+
+  /* Перемещаем центр галса в новую точку. */
+  else
+    {
+      dx = (priv->cur_track->end.x - priv->cur_track->start.x) / 2.0;
+      dy = (priv->cur_track->end.y - priv->cur_track->start.y) / 2.0;
+
+      priv->cur_track->start.x = cursor.x - dx;
+      priv->cur_track->start.y = cursor.y - dy;
+      priv->cur_track->end.x = cursor.x + dx;
+      priv->cur_track->end.y = cursor.y + dy;
+    }
+
+  hyscan_gtk_map_value_to_geo (priv->map, &priv->cur_track->origin->start, priv->cur_track->start);
+  hyscan_gtk_map_value_to_geo (priv->map, &priv->cur_track->origin->end, priv->cur_track->end);
+  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+  return GDK_EVENT_STOP;
+}
+
+/* Редактирование галса при захвате за край. */
+static gboolean
+hyscan_gtk_map_planner_edge_drag (HyScanGtkMapPlanner  *planner,
+                                  HyScanGeoCartesian2D *end_2d,
+                                  HyScanGeoCartesian2D *start_2d,
+                                  HyScanGeoGeodetic    *end_geo,
+                                  GdkEventMotion       *event)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  HyScanGeoCartesian2D cursor;
+
+  gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &cursor.x, &cursor.y);
+
+  /* Сохраняем длину, меняем толко направление. */
   if (event->state & GDK_CONTROL_MASK)
     {
       gdouble angle;
       gdouble length;
 
       angle = atan2 (cursor.y - start_2d->y, cursor.x - start_2d->x);
-      length = hypot (point_2d->y - start_2d->y, point_2d->x - start_2d->x);
-      point_2d->x = start_2d->x + length * cos (angle);
-      point_2d->y = start_2d->y + length * sin (angle);
+      length = hypot (end_2d->y - start_2d->y, end_2d->x - start_2d->x);
+      end_2d->x = start_2d->x + length * cos (angle);
+      end_2d->y = start_2d->y + length * sin (angle);
     }
 
-  /* Сохраняем направление. */
+  /* Сохраняем направление, меняем только длину. */
   else if (event->state & GDK_SHIFT_MASK)
     {
       gdouble angle;
@@ -449,8 +489,8 @@ hyscan_gtk_map_planner_motion_notify (HyScanGtkMapPlanner *planner,
       gdouble length;
       gdouble dx, dy, cursor_dx, cursor_dy;
 
-      dy = point_2d->y - start_2d->y;
-      dx = point_2d->x - start_2d->x;
+      dy = end_2d->y - start_2d->y;
+      dx = end_2d->x - start_2d->x;
       cursor_dy = cursor.y - start_2d->y;
       cursor_dx = cursor.x - start_2d->x;
       angle = atan2 (dy, dx);
@@ -462,22 +502,46 @@ hyscan_gtk_map_planner_motion_notify (HyScanGtkMapPlanner *planner,
       if (d_angle > G_PI_2 && d_angle < G_PI + G_PI_2)
         length = -length;
 
-      point_2d->x = start_2d->x + length * cos (angle);
-      point_2d->y = start_2d->y + length * sin (angle);
+      end_2d->x = start_2d->x + length * cos (angle);
+      end_2d->y = start_2d->y + length * sin (angle);
     }
 
   /* Свободно перемещаем. */
   else
     {
-      *point_2d = cursor;
+      *end_2d = cursor;
     }
 
   /* Переносим конец галса в новую точку. */
-  hyscan_gtk_map_value_to_geo (priv->map, point_geo, *point_2d);
-
+  hyscan_gtk_map_value_to_geo (priv->map, end_geo, *end_2d);
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 
-  return GDK_EVENT_PROPAGATE;
+  return GDK_EVENT_STOP;
+}
+
+/* Обработка события "motion-notify".
+ * Перемещает галс в новую точку. */
+static gboolean
+hyscan_gtk_map_planner_motion_notify (HyScanGtkMapPlanner *planner,
+                                      GdkEventMotion      *event)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  HyScanGtkMapPlannerTrack *track = priv->cur_track;
+
+  switch (priv->cur_mode)
+  {
+    case MODE_DRAG_START:
+      return hyscan_gtk_map_planner_edge_drag (planner, &track->start, &track->end, &track->origin->start, event);
+
+    case MODE_DRAG_END:
+      return hyscan_gtk_map_planner_edge_drag (planner, &track->end, &track->start, &track->origin->end, event);
+
+    case MODE_DRAG_MIDDLE:
+      return hyscan_gtk_map_planner_middle_drag (planner, event);
+
+    default:
+      return GDK_EVENT_PROPAGATE;
+  }
 }
 
 static void
@@ -580,19 +644,20 @@ hyscan_gtk_map_planner_track_draw (HyScanGtkMapPlanner      *planner,
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
   gdouble start_x, start_y, end_x, end_y;
-  gdouble start_size, end_size;
+  gdouble start_size, end_size, mid_size;
 
   /* Пропускаем активный галс. */
   if (skip_current && priv->cur_track != NULL && g_strcmp0 (priv->cur_track->id, track->id) == 0)
     return;
 
   /* Определяем размеры хэндлов. */
-  start_size = HANDLE_RADIUS;
-  end_size = HANDLE_RADIUS;
+  start_size = mid_size = end_size = HANDLE_RADIUS;
   if (priv->hover_track_id != NULL && g_strcmp0 (priv->hover_track_id, track->id) == 0)
     {
       if (priv->hover_mode == MODE_DRAG_START)
         start_size = HANDLE_HOVER_RADIUS;
+      else if (priv->hover_mode == MODE_DRAG_MIDDLE)
+        mid_size = HANDLE_HOVER_RADIUS;
       else if (priv->hover_mode == MODE_DRAG_END)
         end_size = HANDLE_HOVER_RADIUS;
     }
@@ -605,6 +670,10 @@ hyscan_gtk_map_planner_track_draw (HyScanGtkMapPlanner      *planner,
   /* Точка в начале галса. */
   cairo_arc (cairo, start_x, start_y, start_size, -G_PI, G_PI);
   cairo_fill (cairo);
+
+  /* Точка в середние галса. */
+  cairo_arc (cairo, (start_x + end_x) / 2.0, (start_y + end_y) / 2.0, mid_size, -G_PI, G_PI);
+  cairo_stroke (cairo);
 
   /* Стрелка в конце галса. */
   cairo_save (cairo);
@@ -649,6 +718,13 @@ hyscan_gtk_map_planner_handle_at (HyScanGtkMapPlanner     *planner,
       else if (ABS (track->end.x - x) < max_x && ABS (track->end.y - y) < max_y)
         {
           *mode = MODE_DRAG_END;
+          return track;
+        }
+
+      else if (ABS ((track->end.x + track->start.x) / 2.0 - x) < max_x &&
+               ABS ((track->end.y + track->start.y) / 2.0 - y) < max_y)
+        {
+          *mode = MODE_DRAG_MIDDLE;
           return track;
         }
     }
@@ -699,21 +775,32 @@ hyscan_gtk_map_planner_handle_find (HyScanGtkLayer       *layer,
 {
   HyScanGtkMapPlanner *planner = HYSCAN_GTK_MAP_PLANNER (layer);
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
-  const HyScanGeoCartesian2D *point;
 
   priv->found_track = hyscan_gtk_map_planner_handle_at (planner, x, y, &priv->found_mode);
   if (priv->found_track == NULL)
     return FALSE;
 
-  if (priv->found_mode == MODE_DRAG_START)
-    point = &priv->found_track->start;
-  else if (priv->found_mode == MODE_DRAG_END)
-    point = &priv->found_track->end;
-  else
-    return FALSE;
+  switch (priv->found_mode)
+  {
+    case MODE_DRAG_START:
+      handle->val_x = priv->found_track->start.x;
+      handle->val_y = priv->found_track->start.y;
+      break;
 
-  handle->val_x = point->x;
-  handle->val_y = point->y;
+    case MODE_DRAG_END:
+      handle->val_x = priv->found_track->end.x;
+      handle->val_y = priv->found_track->end.y;
+      break;
+
+    case MODE_DRAG_MIDDLE:
+      handle->val_x = (priv->found_track->start.x + priv->found_track->end.x) / 2.0;
+      handle->val_y = (priv->found_track->start.y + priv->found_track->end.y) / 2.0;
+      break;
+
+    default:
+      return FALSE;
+  }
+
   handle->type_name = HANDLE_TYPE_NAME;
 
   return TRUE;
