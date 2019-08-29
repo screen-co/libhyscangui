@@ -405,16 +405,19 @@ hyscan_gtk_map_planner_motion_notify (HyScanGtkMapPlanner *planner,
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
   HyScanGtkMapPlannerTrack *track = priv->cur_track;
-  HyScanGeoCartesian2D *point_2d;
+  HyScanGeoCartesian2D cursor;
+  HyScanGeoCartesian2D *point_2d, *start_2d;
   HyScanGeoGeodetic *point_geo;
 
   if (priv->cur_mode == MODE_DRAG_END)
     {
+      start_2d = &track->start;
       point_2d = &track->end;
       point_geo = &track->origin->end;
     }
   else if (priv->cur_mode == MODE_DRAG_START)
     {
+      start_2d = &track->end;
       point_2d = &track->start;
       point_geo = &track->origin->start;
     }
@@ -423,8 +426,53 @@ hyscan_gtk_map_planner_motion_notify (HyScanGtkMapPlanner *planner,
       return GDK_EVENT_PROPAGATE;
     }
 
+  gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &cursor.x, &cursor.y);
+
+  /* Сохраняем длину. */
+  if (event->state & GDK_CONTROL_MASK)
+    {
+      gdouble angle;
+      gdouble length;
+
+      angle = atan2 (cursor.y - start_2d->y, cursor.x - start_2d->x);
+      length = hypot (point_2d->y - start_2d->y, point_2d->x - start_2d->x);
+      point_2d->x = start_2d->x + length * cos (angle);
+      point_2d->y = start_2d->y + length * sin (angle);
+    }
+
+  /* Сохраняем направление. */
+  else if (event->state & GDK_SHIFT_MASK)
+    {
+      gdouble angle;
+      gdouble cursor_angle;
+      gdouble d_angle;
+      gdouble length;
+      gdouble dx, dy, cursor_dx, cursor_dy;
+
+      dy = point_2d->y - start_2d->y;
+      dx = point_2d->x - start_2d->x;
+      cursor_dy = cursor.y - start_2d->y;
+      cursor_dx = cursor.x - start_2d->x;
+      angle = atan2 (dy, dx);
+      cursor_angle = atan2 (cursor_dy, cursor_dx);
+      length = hypot (cursor_dx, cursor_dy);
+
+      /* Проверяем, не сменилось ли направление. */
+      d_angle = ABS (cursor_angle - angle);
+      if (d_angle > G_PI_2 && d_angle < G_PI + G_PI_2)
+        length = -length;
+
+      point_2d->x = start_2d->x + length * cos (angle);
+      point_2d->y = start_2d->y + length * sin (angle);
+    }
+
+  /* Свободно перемещаем. */
+  else
+    {
+      *point_2d = cursor;
+    }
+
   /* Переносим конец галса в новую точку. */
-  gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &point_2d->x, &point_2d->y);
   hyscan_gtk_map_value_to_geo (priv->map, point_geo, *point_2d);
 
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
