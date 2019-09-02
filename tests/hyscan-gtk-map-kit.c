@@ -22,6 +22,9 @@
 #define DEFAULT_PROFILE_NAME "default"    /* Имя профиля карты по умолчанию. */
 #define PRELOAD_STATE_DONE   1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
 
+#define PLANNER_TOOLS_COMBO_ZONE  "zone"
+#define PLANNER_TOOLS_COMBO_TRACK "track"
+
 /* Столбцы в GtkTreeView списка слоёв. */
 enum
 {
@@ -1155,6 +1158,43 @@ create_ruler_toolbox (HyScanGtkLayer *layer,
   return box;
 }
 
+static void
+hyscan_gtk_map_planner_mode_changed (GtkComboBox *widget,
+                                     gpointer     user_data)
+{
+  HyScanGtkMapPlanner *planner = HYSCAN_GTK_MAP_PLANNER (user_data);
+  const gchar *active_id;
+
+  active_id = gtk_combo_box_get_active_id (GTK_COMBO_BOX (widget));
+  if (g_strcmp0 (active_id, PLANNER_TOOLS_COMBO_ZONE) == 0)
+    hyscan_gtk_map_planner_set_mode (planner, HYSCAN_GTK_MAP_PLANNER_MODE_ZONE);
+  else if (g_strcmp0 (active_id, PLANNER_TOOLS_COMBO_TRACK) == 0)
+    hyscan_gtk_map_planner_set_mode (planner, HYSCAN_GTK_MAP_PLANNER_MODE_TRACK);
+  else
+    g_warning ("Unknown planner mode for id \"%s\"", active_id);
+}
+
+/* Создаёт панель инструментов для слоя планировщика. */
+static GtkWidget *
+create_planner_toolbox (HyScanGtkMapPlanner *layer)
+{
+  GtkWidget *box;
+  GtkWidget *combo;
+
+  box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
+
+  combo = gtk_combo_box_text_new ();
+  gtk_combo_box_text_append (GTK_COMBO_BOX_TEXT (combo), PLANNER_TOOLS_COMBO_TRACK, _("Add Track Mode"));
+  gtk_combo_box_text_append (GTK_COMBO_BOX_TEXT (combo), PLANNER_TOOLS_COMBO_ZONE, _("Add Zone Mode"));
+
+  g_signal_connect (combo, "changed", G_CALLBACK (hyscan_gtk_map_planner_mode_changed), layer);
+  gtk_combo_box_set_active_id (GTK_COMBO_BOX (combo), PLANNER_TOOLS_COMBO_TRACK);
+
+  gtk_box_pack_start (GTK_BOX (box), combo, TRUE, FALSE, 10);
+
+  return box;
+}
+
 /* Список галсов и меток. */
 static GtkWidget *
 create_navigation_box (HyScanGtkMapKit *kit)
@@ -1837,7 +1877,8 @@ hyscan_gtk_map_kit_add_marks_wf (HyScanGtkMapKit *kit)
 void
 hyscan_gtk_map_kit_add_planner (HyScanGtkMapKit *kit)
 {
-    HyScanGtkMapKitPrivate *priv = kit->priv;
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+  GtkWidget *layer_tools;
 
   g_return_if_fail (priv->planner_model == NULL);
   g_return_if_fail (priv->db != NULL);
@@ -1849,8 +1890,10 @@ hyscan_gtk_map_kit_add_planner (HyScanGtkMapKit *kit)
   priv->planner_layer = hyscan_gtk_map_planner_new (priv->planner_model);
   add_layer_row (kit, priv->planner_layer, "planner", _("Planner"));
 
-  /* Виджет навигации по меткам. */
-  create_wfmark_toolbox (kit);
+  /* Виджет настроек слоя. */
+  layer_tools = create_planner_toolbox (HYSCAN_GTK_MAP_PLANNER (priv->planner_layer));
+  g_object_set_data (G_OBJECT (priv->planner_layer), "toolbox-cb", "planner");
+  gtk_stack_add_titled (GTK_STACK (priv->layer_tool_stack), layer_tools, "planner", "Planner");
 
   /* Устанавливаем проект и БД. */
   if (priv->project_name != NULL)

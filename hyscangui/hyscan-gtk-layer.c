@@ -448,6 +448,7 @@ hyscan_gtk_layer_handle_grab (HyScanGtkLayer       *layer,
  */
 gboolean
 hyscan_gtk_layer_handle_release (HyScanGtkLayer *layer,
+                                 GdkEventButton *event,
                                  gconstpointer   howner)
 {
   HyScanGtkLayerInterface *iface;
@@ -456,7 +457,7 @@ hyscan_gtk_layer_handle_release (HyScanGtkLayer *layer,
 
   iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
   if (iface->handle_release != NULL)
-    return iface->handle_release (layer, howner);
+    return iface->handle_release (layer, event, howner);
 
   return FALSE;
 }

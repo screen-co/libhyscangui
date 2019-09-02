@@ -16,6 +16,13 @@ G_BEGIN_DECLS
 typedef struct _HyScanGtkMapPlanner HyScanGtkMapPlanner;
 typedef struct _HyScanGtkMapPlannerPrivate HyScanGtkMapPlannerPrivate;
 typedef struct _HyScanGtkMapPlannerClass HyScanGtkMapPlannerClass;
+typedef enum _HyScanGtkMapPlannerMode HyScanGtkMapPlannerMode;
+
+enum _HyScanGtkMapPlannerMode
+{
+  HYSCAN_GTK_MAP_PLANNER_MODE_ZONE,
+  HYSCAN_GTK_MAP_PLANNER_MODE_TRACK,
+};
 
 struct _HyScanGtkMapPlanner
 {
@@ -30,10 +37,14 @@ struct _HyScanGtkMapPlannerClass
 };
 
 HYSCAN_API
-GType            hyscan_gtk_map_planner_get_type (void);
+GType            hyscan_gtk_map_planner_get_type         (void);
 
 HYSCAN_API
-HyScanGtkLayer * hyscan_gtk_map_planner_new      (HyScanObjectModel *model);
+HyScanGtkLayer * hyscan_gtk_map_planner_new              (HyScanObjectModel       *model);
+
+HYSCAN_API
+void             hyscan_gtk_map_planner_set_mode    (HyScanGtkMapPlanner     *planner,
+                                                          HyScanGtkMapPlannerMode  mode);
 
 G_END_DECLS
 

@@ -763,6 +763,7 @@ hyscan_gtk_map_geomark_drag_clear (HyScanGtkMapGeomark *gm_layer,
 /* Возвращает %TRUE, если мы разрешаем отпустить хэндл. */
 static gboolean
 hyscan_gtk_map_geomark_handle_release (HyScanGtkLayer *layer,
+                                       GdkEventButton *event,
                                        gconstpointer   howner)
 {
   HyScanGtkMapGeomark *gm_layer = HYSCAN_GTK_MAP_GEOMARK (layer);

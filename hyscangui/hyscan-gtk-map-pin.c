@@ -458,6 +458,7 @@ hyscan_gtk_map_pin_handle_grab (HyScanGtkLayer       *layer,
 /* Возвращает %TRUE, если мы разрешаем отпустить хэндл. */
 static gboolean
 hyscan_gtk_map_pin_handle_release (HyScanGtkLayer *layer,
+                                   GdkEventButton *event,
                                    gconstpointer   howner)
 {
   HyScanGtkMapPin *pin = HYSCAN_GTK_MAP_PIN (layer);
