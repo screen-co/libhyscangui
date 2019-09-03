@@ -1,6 +1,7 @@
 #ifndef __HYSCAN_GTK_MAP_PLANNER_H__
 #define __HYSCAN_GTK_MAP_PLANNER_H__
 
+#include "hyscan-list-store.h"
 #include <hyscan-gtk-layer.h>
 #include <hyscan-object-model.h>
 
@@ -40,10 +41,11 @@ HYSCAN_API
 GType            hyscan_gtk_map_planner_get_type         (void);
 
 HYSCAN_API
-HyScanGtkLayer * hyscan_gtk_map_planner_new              (HyScanObjectModel       *model);
+HyScanGtkLayer * hyscan_gtk_map_planner_new              (HyScanObjectModel       *model,
+                                                          HyScanListStore         *selection);
 
 HYSCAN_API
-void             hyscan_gtk_map_planner_set_mode    (HyScanGtkMapPlanner     *planner,
+void             hyscan_gtk_map_planner_set_mode         (HyScanGtkMapPlanner     *planner,
                                                           HyScanGtkMapPlannerMode  mode);
 
 G_END_DECLS

@@ -447,7 +447,7 @@ hyscan_gtk_map_tiled_added (HyScanGtkLayer          *layer,
   g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
 
   /* Создаем очередь задач по заполнению тайлов. */
-  priv->task_queue = hyscan_task_queue_new (hyscan_gtk_map_tiled_process, tiled_layer,
+  priv->task_queue = hyscan_task_queue_new ((HyScanTaskQueueFunc) hyscan_gtk_map_tiled_process, tiled_layer,
                                             (GCompareFunc) hyscan_map_tile_compare);
 
   /* Подключаемся к карте. */

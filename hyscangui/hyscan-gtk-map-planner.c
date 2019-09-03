@@ -46,17 +46,19 @@
 
 #include "hyscan-gtk-map-planner.h"
 #include "hyscan-gtk-map.h"
+#include "hyscan-list-store.h"
 #include <hyscan-planner.h>
 #include <math.h>
 
 #define HANDLE_TYPE_NAME     "map_planner"
 #define HANDLE_RADIUS         3.0
-#define HANDLE_HOVER_RADIUS   5.0
+#define HANDLE_HOVER_RADIUS   8.0
 
 enum
 {
   PROP_O,
-  PROP_MODEL
+  PROP_MODEL,
+  PROP_SELECTION
 };
 
 typedef enum
@@ -89,6 +91,7 @@ struct _HyScanGtkMapPlannerPrivate
 {
   HyScanGtkMap                      *map;            /* Виджет карты. */
   HyScanObjectModel                 *model;          /* Модель объектов планировщика. */
+  HyScanListStore                   *selection;      /* Список ИД выбранных объектов. */
   gboolean                           visible;        /* Признак видимости слоя. */
   GHashTable                        *zones;          /* Таблица зон полигона. */
   GList                             *tracks;         /* Список галсов, которые не связаны ни с одной из зон. */
@@ -200,6 +203,9 @@ hyscan_gtk_map_planner_class_init (HyScanGtkMapPlannerClass *klass)
   g_object_class_install_property (object_class, PROP_MODEL,
     g_param_spec_object ("model", "Model", "Planner model", HYSCAN_TYPE_OBJECT_MODEL,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+  g_object_class_install_property (object_class, PROP_SELECTION,
+    g_param_spec_object ("selection", "HyScanListStore", "List of selected ids", HYSCAN_TYPE_LIST_STORE,
+                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
@@ -221,6 +227,10 @@ hyscan_gtk_map_planner_set_property (GObject      *object,
     {
     case PROP_MODEL:
       priv->model = g_value_dup_object (value);
+      break;
+
+    case PROP_SELECTION:
+      priv->selection = g_value_dup_object (value);
       break;
 
     default:
@@ -251,7 +261,10 @@ hyscan_gtk_map_planner_object_finalize (GObject *object)
   HyScanGtkMapPlanner *gtk_map_planner = HYSCAN_GTK_MAP_PLANNER (object);
   HyScanGtkMapPlannerPrivate *priv = gtk_map_planner->priv;
 
+  g_signal_handlers_disconnect_by_data (priv->model, gtk_map_planner);
+
   g_clear_object (&priv->model);
+  g_clear_object (&priv->selection);
   g_free (priv->hover_track_id);
   g_free (priv->hover_zone_id);
   g_list_free_full (priv->tracks, (GDestroyNotify) hyscan_gtk_map_planner_track_free);
@@ -834,6 +847,17 @@ hyscan_gtk_map_planner_track_draw (HyScanGtkMapPlanner      *planner,
   if (skip_current && priv->cur_track != NULL && g_strcmp0 (priv->cur_track->id, track->id) == 0)
     return;
 
+  if (hyscan_list_store_contains (priv->selection, track->id))
+    {
+      cairo_set_source_rgb (cairo, 0.5, 0.0, 0.5);
+      cairo_set_line_width (cairo, 2.0);
+    }
+  else
+    {
+      cairo_set_source_rgb (cairo, 0.5, 0.0, 0.0);
+      cairo_set_line_width (cairo, 1.0);
+    }
+
   /* Определяем размеры хэндлов. */
   start_size = mid_size = end_size = HANDLE_RADIUS;
   if (priv->hover_track_id != NULL && g_strcmp0 (priv->hover_track_id, track->id) == 0)
@@ -848,8 +872,6 @@ hyscan_gtk_map_planner_track_draw (HyScanGtkMapPlanner      *planner,
 
   gtk_cifro_area_value_to_point (GTK_CIFRO_AREA (priv->map), &start_x, &start_y, track->start.x, track->start.y);
   gtk_cifro_area_value_to_point (GTK_CIFRO_AREA (priv->map), &end_x, &end_y, track->end.x, track->end.y);
-
-  cairo_set_source_rgb (cairo, 0.5, 0.0, 0.0);
 
   /* Точка в начале галса. */
   cairo_arc (cairo, start_x, start_y, start_size, -G_PI, G_PI);
@@ -1095,6 +1117,9 @@ hyscan_gtk_map_planner_handle_grab (HyScanGtkLayer       *layer,
   priv->cur_zone = hyscan_gtk_map_planner_zone_copy (priv->found_zone);
   priv->cur_vertex = priv->found_vertex > 0 ? g_list_nth (priv->cur_zone->points, (guint) (priv->found_vertex - 1)) : NULL;
 
+  if (hyscan_gtk_map_planner_is_state_track (priv->cur_state) && priv->cur_track != NULL)
+    hyscan_list_store_append (priv->selection, priv->cur_track->id);
+
   return planner;
 }
 
@@ -1314,9 +1339,14 @@ hyscan_gtk_map_planner_release_track (HyScanGtkMapPlanner *planner)
   cur_track = priv->cur_track;
 
   if (priv->cur_track->id == NULL)
-    hyscan_object_model_add_object (priv->model, cur_track->origin);
+    {
+      hyscan_object_model_add_object (priv->model, cur_track->origin);
+    }
   else
-    hyscan_object_model_modify_object (priv->model, cur_track->id, cur_track->origin);
+    {
+      hyscan_object_model_modify_object (priv->model, cur_track->id, cur_track->origin);
+      hyscan_list_store_remove (priv->selection, cur_track->id);
+    }
 
   priv->cur_state = STATE_NONE;
   g_clear_pointer (&priv->cur_track, hyscan_gtk_map_planner_track_free);
@@ -1397,6 +1427,19 @@ hyscan_gtk_map_planner_added (HyScanGtkLayer          *layer,
 }
 
 static void
+hyscan_gtk_map_planner_removed (HyScanGtkLayer          *layer)
+{
+  HyScanGtkMapPlanner *planner = HYSCAN_GTK_MAP_PLANNER (layer);
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+
+  g_return_if_fail (priv->map != NULL);
+
+  g_object_unref (priv->map);
+
+  g_signal_handlers_disconnect_by_data (priv->map, planner);
+}
+
+static void
 hyscan_gtk_map_planner_interface_init (HyScanGtkLayerInterface *iface)
 {
   iface->handle_find = hyscan_gtk_map_planner_handle_find;
@@ -1408,6 +1451,7 @@ hyscan_gtk_map_planner_interface_init (HyScanGtkLayerInterface *iface)
   iface->get_visible = hyscan_gtk_map_planner_get_visible;
   iface->grab_input = hyscan_gtk_map_planner_grab_input;
   iface->added = hyscan_gtk_map_planner_added;
+  iface->removed = hyscan_gtk_map_planner_removed;
 }
 
 /**
@@ -1419,10 +1463,12 @@ hyscan_gtk_map_planner_interface_init (HyScanGtkLayerInterface *iface)
  * Returns: указатель на слой планировщика
  */
 HyScanGtkLayer *
-hyscan_gtk_map_planner_new (HyScanObjectModel *model)
+hyscan_gtk_map_planner_new (HyScanObjectModel *model,
+                            HyScanListStore   *selection)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_PLANNER,
                        "model", model,
+                       "selection", selection,
                        NULL);
 }
 

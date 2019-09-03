@@ -38,6 +38,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-param-list.c
              hyscan-gtk-param-cc.c
              hyscan-gtk-param-tree.c
+             hyscan-gtk-planner-editor.c
 
              #[[ Виджет карты ]]
              hyscan-gtk-map.c
@@ -71,6 +72,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              # [[ Модели ]]
              hyscan-mark-location.c
              hyscan-mark-loc-model.c
+             hyscan-list-store.c
              ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c)
 
 target_link_libraries (${HYSCAN_GUI_LIBRARY}
@@ -111,6 +113,7 @@ install (FILES hyscan-gtk-area.h
                hyscan-gtk-waterfall-meter.h
                hyscan-gtk-waterfall-player.h
                hyscan-gtk-waterfall-magnifier.h
+               hyscan-gtk-planner-editor.h
                hyscan-gtk-layer-common.h
                hyscan-gtk-layer-container.h
                hyscan-gtk-layer.h
@@ -135,6 +138,7 @@ install (FILES hyscan-gtk-area.h
                hyscan-map-tile-source-file.h
                hyscan-map-tile-source-blend.h
                hyscan-map-tile-loader.h
+               hyscan-list-store.h
          COMPONENT development
          DESTINATION "include/hyscan-${HYSCAN_MAJOR_VERSION}/hyscangui"
          PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)

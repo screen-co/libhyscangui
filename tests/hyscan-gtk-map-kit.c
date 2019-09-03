@@ -18,6 +18,7 @@
 
 #include <glib/gi18n-lib.h>
 #include <hyscan-gtk-map-planner.h>
+#include <hyscan-gtk-planner-editor.h>
 
 #define DEFAULT_PROFILE_NAME "default"    /* Имя профиля карты по умолчанию. */
 #define PRELOAD_STATE_DONE   1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
@@ -59,7 +60,8 @@ struct _HyScanGtkMapKitPrivate
   /* Модели данных. */
   HyScanDBInfo          *db_info;          /* Доступ к данным БД. */
   HyScanObjectModel     *mark_model;       /* Модель меток водопада. */
-  HyScanObjectModel     *planner_model;     /* Модель объектов планировщика. */
+  HyScanObjectModel     *planner_model;    /* Модель объектов планировщика. */
+  HyScanListStore       *planner_selection;/* Модель выбранных объектов планировщика. */
   HyScanObjectModel     *mark_geo_model;   /* Модель геометок. */
   HyScanMarkLocModel    *ml_model;         /* Модель местоположения меток водопада. */
   HyScanDB              *db;
@@ -1176,10 +1178,13 @@ hyscan_gtk_map_planner_mode_changed (GtkComboBox *widget,
 
 /* Создаёт панель инструментов для слоя планировщика. */
 static GtkWidget *
-create_planner_toolbox (HyScanGtkMapPlanner *layer)
+create_planner_toolbox (HyScanGtkMapKit *kit)
 {
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+  HyScanGtkMapPlanner *layer = HYSCAN_GTK_MAP_PLANNER (priv->planner_layer);
   GtkWidget *box;
   GtkWidget *combo;
+  GtkWidget *editor;
 
   box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
 
@@ -1190,7 +1195,10 @@ create_planner_toolbox (HyScanGtkMapPlanner *layer)
   g_signal_connect (combo, "changed", G_CALLBACK (hyscan_gtk_map_planner_mode_changed), layer);
   gtk_combo_box_set_active_id (GTK_COMBO_BOX (combo), PLANNER_TOOLS_COMBO_TRACK);
 
+  editor = hyscan_gtk_planner_editor_new (priv->planner_model, G_LIST_MODEL (priv->planner_selection));
+
   gtk_box_pack_start (GTK_BOX (box), combo, TRUE, FALSE, 10);
+  gtk_box_pack_start (GTK_BOX (box), editor, TRUE, FALSE, 10);
 
   return box;
 }
@@ -1885,13 +1893,14 @@ hyscan_gtk_map_kit_add_planner (HyScanGtkMapKit *kit)
 
   /* Модель данных планировщика. */
   priv->planner_model = hyscan_object_model_new (HYSCAN_TYPE_PLANNER_DATA);
+  priv->planner_selection = hyscan_list_store_new ();
 
   /* Слой планировщика. */
-  priv->planner_layer = hyscan_gtk_map_planner_new (priv->planner_model);
+  priv->planner_layer = hyscan_gtk_map_planner_new (priv->planner_model, priv->planner_selection);
   add_layer_row (kit, priv->planner_layer, "planner", _("Planner"));
 
   /* Виджет настроек слоя. */
-  layer_tools = create_planner_toolbox (HYSCAN_GTK_MAP_PLANNER (priv->planner_layer));
+  layer_tools = create_planner_toolbox (kit);
   g_object_set_data (G_OBJECT (priv->planner_layer), "toolbox-cb", "planner");
   gtk_stack_add_titled (GTK_STACK (priv->layer_tool_stack), layer_tools, "planner", "Planner");
 
@@ -1979,6 +1988,8 @@ hyscan_gtk_map_kit_free (HyScanGtkMapKit *kit)
   g_clear_object (&priv->layer_store);
   g_clear_object (&priv->track_store);
   g_clear_object (&priv->mark_store);
+  g_clear_object (&priv->planner_model);
+  g_clear_object (&priv->planner_selection);
   g_free (priv);
 
   g_free (kit);
