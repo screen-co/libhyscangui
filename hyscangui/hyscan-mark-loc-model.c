@@ -255,7 +255,6 @@ hyscan_mark_loc_model_load_coord (HyScanMarkLocation *location)
 static gboolean
 hyscan_mark_loc_model_load_time (HyScanMarkLocModel *ml_model,
                                  HyScanMarkLocation *location,
-                                 const gchar        *track_name,
                                  HyScanSourceType    source)
 {
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
@@ -266,7 +265,7 @@ hyscan_mark_loc_model_load_time (HyScanMarkLocModel *ml_model,
 
   acoustic_channel_name = hyscan_channel_get_id_by_types (source, HYSCAN_CHANNEL_DATA, ACOUSTIC_CHANNEL);
   project_id = hyscan_db_project_open (priv->db, priv->project);
-  track_id = hyscan_db_track_open (priv->db, project_id, track_name);
+  track_id = hyscan_db_track_open (priv->db, project_id, location->track_name);
   channel_id = hyscan_db_channel_open (priv->db, track_id, acoustic_channel_name);
 
   if (channel_id > 0)
@@ -319,8 +318,7 @@ hyscan_mark_loc_model_weight (gint64  mtime,
  * Функция должна вызываться за g_rw_lock_reader_lock (&priv->mark_lock). */
 static gboolean
 hyscan_mark_loc_model_load_nav (HyScanMarkLocModel *ml_model,
-                                HyScanMarkLocation *location,
-                                const gchar        *track_name)
+                                HyScanMarkLocation *location)
 {
   HyScanNavData *lat_data, *lon_data, *angle_data;
 
@@ -330,9 +328,9 @@ hyscan_mark_loc_model_load_nav (HyScanMarkLocModel *ml_model,
 
   gboolean found = FALSE;
 
-  lat_data   = hyscan_mark_loc_model_rmc_data_new (ml_model, track_name, HYSCAN_NMEA_FIELD_LAT);
-  lon_data   = hyscan_mark_loc_model_rmc_data_new (ml_model, track_name, HYSCAN_NMEA_FIELD_LON);
-  angle_data = hyscan_mark_loc_model_rmc_data_new (ml_model, track_name, HYSCAN_NMEA_FIELD_TRACK);
+  lat_data   = hyscan_mark_loc_model_rmc_data_new (ml_model, location->track_name, HYSCAN_NMEA_FIELD_LAT);
+  lon_data   = hyscan_mark_loc_model_rmc_data_new (ml_model, location->track_name, HYSCAN_NMEA_FIELD_LON);
+  angle_data = hyscan_mark_loc_model_rmc_data_new (ml_model, location->track_name, HYSCAN_NMEA_FIELD_TRACK);
 
   if (hyscan_nav_data_find_data (lat_data, location->time, &lindex, &rindex, &ltime, &rtime) != HYSCAN_DB_FIND_OK)
     goto exit;
@@ -366,7 +364,6 @@ exit:
 static gboolean
 hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
                                    HyScanMarkLocation *location,
-                                   const gchar        *track_name,
                                    HyScanSourceType    source)
 {
   HyScanProjector *projector;
@@ -383,7 +380,7 @@ hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
   gint64 ltime, rtime;
 
   acoustic_data = hyscan_acoustic_data_new (priv->db, priv->cache,
-                                            priv->project, track_name,
+                                            priv->project, location->track_name,
                                             source, ACOUSTIC_CHANNEL, FALSE);
 
   if (acoustic_data == NULL)
@@ -395,7 +392,7 @@ hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
   /* Находим глубину при возможности. */
   depth = 0.0;
   dpt_data =  HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache,
-                                                       priv->project, track_name, NMEA_DPT_CHANNEL,
+                                                       priv->project, location->track_name, NMEA_DPT_CHANNEL,
                                                        HYSCAN_NMEA_DATA_DPT, HYSCAN_NMEA_FIELD_DEPTH));
 
   if (hyscan_nav_data_find_data (dpt_data, location->time, &lindex, &rindex, &ltime, &rtime) == HYSCAN_DB_FIND_OK)
@@ -444,20 +441,23 @@ hyscan_mark_loc_model_load_location (HyScanMarkLocModel *ml_model,
   if (track_name == NULL)
     return FALSE;
 
+  g_free (location->track_name);
+  location->track_name = g_strdup (track_name);
+
   source = hyscan_source_get_type_by_id (mark->source);
   if (source == HYSCAN_SOURCE_INVALID)
     return FALSE;
 
   /* Получаем временную метку из канала акустических данных. */
-  if (!hyscan_mark_loc_model_load_time (ml_model, location, track_name, source))
+  if (!hyscan_mark_loc_model_load_time (ml_model, location, source))
     return FALSE;
 
   /* Находим географические координаты метки и курс. */
-  if (!hyscan_mark_loc_model_load_nav (ml_model, location, track_name))
+  if (!hyscan_mark_loc_model_load_nav (ml_model, location))
     return FALSE;
 
   /* Определяем дальность расположения метки от борта судна. */
-  if (!hyscan_mark_loc_model_load_offset (ml_model, location, track_name, source))
+  if (!hyscan_mark_loc_model_load_offset (ml_model, location, source))
     return FALSE;
 
   /* Определяем координаты центра метки. */

@@ -45,14 +45,17 @@
  *
  * @mark: указатель на метку водопада #HyScanMarkWaterfall
  * @loaded: признак того, что геолокационные данные по метке загружены
+ * @track_name: имя галса
  * @time: время фиксации строки с меткой
  * @center_geo: географические координаты и курс судна в момент фиксации метки
+ * @mark_geo: географические координаты центра метки
  * @offset: расстояние от местоположения судна до метки в метрах (положительные значения по левому борту)
  */
 typedef struct
 {
   HyScanMarkWaterfall  *mark;
   gboolean              loaded;
+  gchar                *track_name;
   gint64                time;
   HyScanGeoGeodetic     center_geo;
   HyScanGeoGeodetic     mark_geo;
