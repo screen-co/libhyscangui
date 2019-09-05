@@ -141,6 +141,20 @@ hyscan_list_store_remove (HyScanListStore *store,
     }
 }
 
+void
+hyscan_list_store_remove_all (HyScanListStore *store)
+{
+  HyScanListStorePrivate *priv;
+  guint n_items;
+
+  g_return_if_fail (HYSCAN_IS_LIST_STORE (store));
+  priv = store->priv;
+
+  n_items = priv->items->len;
+  g_ptr_array_remove_range (priv->items, 0, n_items);
+  g_list_model_items_changed (G_LIST_MODEL (store), 0, n_items, 0);
+}
+
 gboolean
 hyscan_list_store_contains (HyScanListStore *store,
                             const gchar     *id)

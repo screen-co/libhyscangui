@@ -44,6 +44,9 @@ void              hyscan_list_store_remove      (HyScanListStore *store,
                                                  const gchar     *id);
 
 HYSCAN_API
+void              hyscan_list_store_remove_all  (HyScanListStore *store);
+
+HYSCAN_API
 gboolean          hyscan_list_store_contains    (HyScanListStore *store,
                                                  const gchar     *id);
 

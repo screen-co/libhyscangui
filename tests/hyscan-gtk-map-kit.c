@@ -23,8 +23,7 @@
 #define DEFAULT_PROFILE_NAME "default"    /* Имя профиля карты по умолчанию. */
 #define PRELOAD_STATE_DONE   1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
 
-#define PLANNER_TOOLS_COMBO_ZONE  "zone"
-#define PLANNER_TOOLS_COMBO_TRACK "track"
+#define PLANNER_TOOLS_MODE  "planner-mode"
 
 /* Столбцы в GtkTreeView списка слоёв. */
 enum
@@ -1161,19 +1160,36 @@ create_ruler_toolbox (HyScanGtkLayer *layer,
 }
 
 static void
-hyscan_gtk_map_planner_mode_changed (GtkComboBox *widget,
-                                     gpointer     user_data)
+hyscan_gtk_map_planner_mode_changed (GtkToggleButton *togglebutton,
+                                     gpointer         user_data)
 {
-  HyScanGtkMapPlanner *planner = HYSCAN_GTK_MAP_PLANNER (user_data);
-  const gchar *active_id;
+  HyScanGtkMapKit *kit = user_data;
+  HyScanGtkMapPlanner *planner = HYSCAN_GTK_MAP_PLANNER (kit->priv->planner_layer);
+  HyScanGtkMapPlannerMode mode;
 
-  active_id = gtk_combo_box_get_active_id (GTK_COMBO_BOX (widget));
-  if (g_strcmp0 (active_id, PLANNER_TOOLS_COMBO_ZONE) == 0)
-    hyscan_gtk_map_planner_set_mode (planner, HYSCAN_GTK_MAP_PLANNER_MODE_ZONE);
-  else if (g_strcmp0 (active_id, PLANNER_TOOLS_COMBO_TRACK) == 0)
-    hyscan_gtk_map_planner_set_mode (planner, HYSCAN_GTK_MAP_PLANNER_MODE_TRACK);
-  else
-    g_warning ("Unknown planner mode for id \"%s\"", active_id);
+  if (!gtk_toggle_button_get_active (togglebutton))
+    return;
+
+  mode = GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (togglebutton), PLANNER_TOOLS_MODE));
+  hyscan_gtk_map_planner_set_mode (planner, mode);
+}
+
+static GtkWidget*
+create_planner_mode_btn (HyScanGtkMapKit         *kit,
+                         GtkWidget               *from,
+                         const gchar             *icon,
+                         HyScanGtkMapPlannerMode  mode)
+{
+  GtkWidget *button;
+
+  button = gtk_radio_button_new_from_widget (GTK_RADIO_BUTTON (from));
+  gtk_toggle_button_set_mode (GTK_TOGGLE_BUTTON (button), FALSE);
+  gtk_button_set_image (GTK_BUTTON (button), gtk_image_new_from_icon_name (icon, GTK_ICON_SIZE_BUTTON));
+
+  g_object_set_data (G_OBJECT (button), PLANNER_TOOLS_MODE, GUINT_TO_POINTER (mode));
+  g_signal_connect (button, "toggled", G_CALLBACK (hyscan_gtk_map_planner_mode_changed), kit);
+
+  return button;
 }
 
 /* Создаёт панель инструментов для слоя планировщика. */
@@ -1181,19 +1197,22 @@ static GtkWidget *
 create_planner_toolbox (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
-  HyScanGtkMapPlanner *layer = HYSCAN_GTK_MAP_PLANNER (priv->planner_layer);
   GtkWidget *box;
   GtkWidget *combo;
   GtkWidget *editor;
+  GtkWidget *zone_mode, *track_mode, *select_mode;
 
-  box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 5);
 
-  combo = gtk_combo_box_text_new ();
-  gtk_combo_box_text_append (GTK_COMBO_BOX_TEXT (combo), PLANNER_TOOLS_COMBO_TRACK, _("Add Track Mode"));
-  gtk_combo_box_text_append (GTK_COMBO_BOX_TEXT (combo), PLANNER_TOOLS_COMBO_ZONE, _("Add Zone Mode"));
+  box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
 
-  g_signal_connect (combo, "changed", G_CALLBACK (hyscan_gtk_map_planner_mode_changed), layer);
-  gtk_combo_box_set_active_id (GTK_COMBO_BOX (combo), PLANNER_TOOLS_COMBO_TRACK);
+  combo = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 3);
+  zone_mode = create_planner_mode_btn (kit, NULL, "folder-new-symbolic", HYSCAN_GTK_MAP_PLANNER_MODE_ZONE);
+  track_mode = create_planner_mode_btn (kit, zone_mode, "document-new-symbolic", HYSCAN_GTK_MAP_PLANNER_MODE_TRACK);
+  select_mode = create_planner_mode_btn (kit, zone_mode, "find-location-symbolic", HYSCAN_GTK_MAP_PLANNER_MODE_SELECT);
+
+  gtk_box_pack_start (GTK_BOX (combo), zone_mode, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (combo), track_mode, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (combo), select_mode, TRUE, TRUE, 0);
 
   editor = hyscan_gtk_planner_editor_new (priv->planner_model, G_LIST_MODEL (priv->planner_selection));
 

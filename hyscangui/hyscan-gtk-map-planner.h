@@ -19,10 +19,19 @@ typedef struct _HyScanGtkMapPlannerPrivate HyScanGtkMapPlannerPrivate;
 typedef struct _HyScanGtkMapPlannerClass HyScanGtkMapPlannerClass;
 typedef enum _HyScanGtkMapPlannerMode HyScanGtkMapPlannerMode;
 
+/**
+ * HyScanGtkMapPlannerMode:
+ * @HYSCAN_GTK_MAP_PLANNER_MODE_ZONE: режим создания границ полигона
+ * @HYSCAN_GTK_MAP_PLANNER_MODE_TRACK: режим создания плановых галсов
+ * @HYSCAN_GTK_MAP_PLANNER_MODE_SELECT: режим выделения объектов
+ *
+ * Режимы взаимодействия пользователя со слоем
+ */
 enum _HyScanGtkMapPlannerMode
 {
   HYSCAN_GTK_MAP_PLANNER_MODE_ZONE,
   HYSCAN_GTK_MAP_PLANNER_MODE_TRACK,
+  HYSCAN_GTK_MAP_PLANNER_MODE_SELECT,
 };
 
 struct _HyScanGtkMapPlanner

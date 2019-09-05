@@ -276,6 +276,7 @@ hyscan_gtk_planner_editor_object_finalize (GObject *object)
   g_clear_pointer (&priv->objects, g_hash_table_destroy);
   g_clear_object (&priv->model);
   g_clear_object (&priv->selection);
+  g_object_unref (priv->geo);
 
   G_OBJECT_CLASS (hyscan_gtk_planner_editor_parent_class)->finalize (object);
 }

@@ -163,6 +163,9 @@ static gboolean                   hyscan_gtk_map_planner_motion_notify         (
                                                                                 GdkEventMotion           *event);
 static gboolean                   hyscan_gtk_map_planner_key_press             (HyScanGtkMapPlanner      *planner,
                                                                                 GdkEventKey              *event);
+static gboolean                   hyscan_gtk_map_planner_btn_release           (GtkWidget                *widget,
+                                                                                GdkEventButton           *event,
+                                                                                HyScanGtkMapPlanner      *planner);
 static gboolean                   hyscan_gtk_map_planner_handle_show_track     (HyScanGtkLayer           *layer,
                                                                                 HyScanGtkLayerHandle     *handle);
 static gboolean                   hyscan_gtk_map_planner_handle_show_zone      (HyScanGtkLayer           *layer,
@@ -736,6 +739,68 @@ hyscan_gtk_map_planner_is_state_vertex (HyScanGtkMapPlannerState state)
   return state == STATE_ZONE_DRAG;
 }
 
+/* Проверяет, будет ли слой реагировать на нажатие кнопки мыши. */
+static gboolean
+hyscan_gtk_map_planner_accept_btn (HyScanGtkMapPlanner *planner,
+                                   GdkEventButton      *event)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  HyScanGtkLayerContainer *container;
+
+  /* Обрабатываем только нажатия левой кнопки. */
+  if (event->button != GDK_BUTTON_PRIMARY)
+    return FALSE;
+
+  container = HYSCAN_GTK_LAYER_CONTAINER (priv->map);
+
+  if (!hyscan_gtk_layer_container_get_changes_allowed (container))
+    return FALSE;
+
+  /* Проверяем, что у нас есть право ввода. */
+  if (hyscan_gtk_layer_container_get_input_owner (container) != planner)
+    return FALSE;
+
+  /* Если слой не видно, то никак не реагируем. */
+  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (planner)))
+    return FALSE;
+
+  return TRUE;
+}
+
+static gboolean
+hyscan_gtk_map_planner_btn_release (GtkWidget           *widget,
+                                    GdkEventButton      *event,
+                                    HyScanGtkMapPlanner *planner)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+
+  if (!hyscan_gtk_map_planner_accept_btn (planner, event))
+    return GDK_EVENT_PROPAGATE;
+
+  if (priv->mode != HYSCAN_GTK_MAP_PLANNER_MODE_SELECT)
+    return GDK_EVENT_PROPAGATE;
+
+  if (!(event->state & GDK_SHIFT_MASK))
+    hyscan_list_store_remove_all (priv->selection);
+
+  if (hyscan_gtk_map_planner_is_state_track (priv->found_state) && priv->found_track != NULL)
+    {
+      gchar *id;
+
+      id = priv->found_track->id;
+      if (hyscan_list_store_contains (priv->selection, id))
+        hyscan_list_store_remove (priv->selection, priv->found_track->id);
+      else
+        hyscan_list_store_append (priv->selection, priv->found_track->id);
+    }
+  else
+    hyscan_list_store_remove_all (priv->selection);
+
+  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+  return TRUE;
+}
+
 /* Обработка события "key-press-event". */
 static gboolean
 hyscan_gtk_map_planner_key_press (HyScanGtkMapPlanner *planner,
@@ -1112,13 +1177,13 @@ hyscan_gtk_map_planner_handle_grab (HyScanGtkLayer       *layer,
   /* В момент захвата хэндла мы предполагаем, что текущий хэндл не выбран. Иначе это ошибка в логике программы. */
   g_assert (priv->cur_track == NULL && priv->cur_zone == NULL);
 
+  if (priv->mode == HYSCAN_GTK_MAP_PLANNER_MODE_SELECT)
+    return NULL;
+
   priv->cur_state = priv->found_state;
   priv->cur_track = hyscan_gtk_map_planner_track_copy (priv->found_track);
   priv->cur_zone = hyscan_gtk_map_planner_zone_copy (priv->found_zone);
   priv->cur_vertex = priv->found_vertex > 0 ? g_list_nth (priv->cur_zone->points, (guint) (priv->found_vertex - 1)) : NULL;
-
-  if (hyscan_gtk_map_planner_is_state_track (priv->cur_state) && priv->cur_track != NULL)
-    hyscan_list_store_append (priv->selection, priv->cur_track->id);
 
   return planner;
 }
@@ -1230,24 +1295,9 @@ hyscan_gtk_map_planner_handle_create (HyScanGtkLayer *layer,
 {
   HyScanGtkMapPlanner *planner = HYSCAN_GTK_MAP_PLANNER (layer);
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
-  HyScanGtkLayerContainer *container;
   HyScanGeoCartesian2D point;
 
-  /* Обрабатываем только нажатия левой кнопки. */
-  if (event->button != GDK_BUTTON_PRIMARY)
-    return GDK_EVENT_PROPAGATE;
-
-  container = HYSCAN_GTK_LAYER_CONTAINER (priv->map);
-
-  if (!hyscan_gtk_layer_container_get_changes_allowed (container))
-    return GDK_EVENT_PROPAGATE;
-
-  /* Проверяем, что у нас есть право ввода. */
-  if (hyscan_gtk_layer_container_get_input_owner (container) != layer)
-    return GDK_EVENT_PROPAGATE;
-
-  /* Если слой не видно, то никак не реагируем. */
-  if (!hyscan_gtk_layer_get_visible (layer))
+  if (!hyscan_gtk_map_planner_accept_btn (planner, event))
     return GDK_EVENT_PROPAGATE;
 
   gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &point.x, &point.y);
@@ -1339,14 +1389,9 @@ hyscan_gtk_map_planner_release_track (HyScanGtkMapPlanner *planner)
   cur_track = priv->cur_track;
 
   if (priv->cur_track->id == NULL)
-    {
-      hyscan_object_model_add_object (priv->model, cur_track->origin);
-    }
+    hyscan_object_model_add_object (priv->model, cur_track->origin);
   else
-    {
-      hyscan_object_model_modify_object (priv->model, cur_track->id, cur_track->origin);
-      hyscan_list_store_remove (priv->selection, cur_track->id);
-    }
+    hyscan_object_model_modify_object (priv->model, cur_track->id, cur_track->origin);
 
   priv->cur_state = STATE_NONE;
   g_clear_pointer (&priv->cur_track, hyscan_gtk_map_planner_track_free);
@@ -1424,6 +1469,7 @@ hyscan_gtk_map_planner_added (HyScanGtkLayer          *layer,
   g_signal_connect_swapped (priv->map, "visible-draw", G_CALLBACK (hyscan_gtk_map_planner_draw), planner);
   g_signal_connect_swapped (priv->map, "motion-notify-event", G_CALLBACK (hyscan_gtk_map_planner_motion_notify), planner);
   g_signal_connect_swapped (priv->map, "key-press-event", G_CALLBACK (hyscan_gtk_map_planner_key_press), planner);
+  g_signal_connect_after (priv->map, "button-release-event", G_CALLBACK (hyscan_gtk_map_planner_btn_release), planner);
 }
 
 static void
