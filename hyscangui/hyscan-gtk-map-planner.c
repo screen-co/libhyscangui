@@ -42,6 +42,16 @@
  * плановых галсов передаётся при создании слоя функцией:
  * - hyscan_gtk_map_planner_new()
  *
+ * Слой имеет несколько режимов работы, которые определяют, как слой реагирует на
+ * нажатие кнопки мыши:
+ *
+ * - создание перимертра полигона,
+ * - создание плановых галсов,
+ * - выделение объектов,
+ * - создание параллельных галсов.
+ *
+ * Установить режим работы можно при помощи функции hyscan_gtk_map_planner_set_mode().
+ *
  */
 
 #include "hyscan-gtk-map-planner.h"
@@ -49,16 +59,20 @@
 #include "hyscan-list-store.h"
 #include <hyscan-planner.h>
 #include <math.h>
+#include <hyscan-cartesian.h>
 
 #define HANDLE_TYPE_NAME     "map_planner"
 #define HANDLE_RADIUS         3.0
 #define HANDLE_HOVER_RADIUS   8.0
+#define MAX_PARALLEL_TRACKS   100
 
 enum
 {
   PROP_O,
   PROP_MODEL,
-  PROP_SELECTION
+  PROP_SELECTION,
+  PROP_PARALLEL_DISTANCE,
+  PROP_PARALLEL_ALTER,
 };
 
 typedef enum
@@ -111,12 +125,20 @@ struct _HyScanGtkMapPlannerPrivate
   const HyScanGtkMapPlannerZone     *found_zone;     /* Указатель на зону, чья вершина под курсором мыши. */
   gint                               found_vertex;   /* Номер вершины под курсором мыши. */
   HyScanGtkMapPlannerState           found_state;    /* Состояние, в которое будет переведён слой при выборе хэндла. */
+
+  gdouble                            parallel_distance;   /* Расстояние между параллельными галсами. */
+  gboolean                           parallel_alternate;  /* Признак смены направления паралельных галсов. */
+  GList                             *parallel_tracks;     /* Список параллельных галсов для добавления. */
 };
 
 static void                       hyscan_gtk_map_planner_interface_init        (HyScanGtkLayerInterface  *iface);
 static void                       hyscan_gtk_map_planner_set_property          (GObject                  *object,
                                                                                 guint                     prop_id,
                                                                                 const GValue             *value,
+                                                                                GParamSpec               *pspec);
+static void                       hyscan_gtk_map_planner_get_property          (GObject                  *object,
+                                                                                guint                     prop_id,
+                                                                                GValue                   *value,
                                                                                 GParamSpec               *pspec);
 static void                       hyscan_gtk_map_planner_object_constructed    (GObject                  *object);
 static void                       hyscan_gtk_map_planner_object_finalize       (GObject                  *object);
@@ -188,6 +210,12 @@ static gboolean                   hyscan_gtk_map_planner_handle_create_track   (
                                                                                 HyScanGeoCartesian2D      point);
 static inline gboolean            hyscan_gtk_map_planner_is_state_track        (HyScanGtkMapPlannerState  state);
 static inline gboolean            hyscan_gtk_map_planner_is_state_vertex       (HyScanGtkMapPlannerState  state);
+static HyScanPlannerTrack *       hyscan_gtk_map_planner_track_origin_new      (void);
+static void                       hyscan_gtk_map_planner_save_parallel         (HyScanGtkMapPlanner      *planner);
+static void                       hyscan_gtk_map_planner_save_current          (HyScanGtkMapPlanner      *planner);
+static void                       hyscan_gtk_map_planner_cancel                (HyScanGtkMapPlanner      *planner);
+static gboolean                   hyscan_gtk_map_planner_accept_btn            (HyScanGtkMapPlanner      *planner,
+                                                                                GdkEventButton           *event);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapPlanner, hyscan_gtk_map_planner, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapPlanner)
@@ -199,7 +227,7 @@ hyscan_gtk_map_planner_class_init (HyScanGtkMapPlannerClass *klass)
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
   object_class->set_property = hyscan_gtk_map_planner_set_property;
-
+  object_class->get_property = hyscan_gtk_map_planner_get_property;
   object_class->constructed = hyscan_gtk_map_planner_object_constructed;
   object_class->finalize = hyscan_gtk_map_planner_object_finalize;
 
@@ -209,6 +237,13 @@ hyscan_gtk_map_planner_class_init (HyScanGtkMapPlannerClass *klass)
   g_object_class_install_property (object_class, PROP_SELECTION,
     g_param_spec_object ("selection", "HyScanListStore", "List of selected ids", HYSCAN_TYPE_LIST_STORE,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+  g_object_class_install_property (object_class, PROP_PARALLEL_DISTANCE,
+    g_param_spec_double ("parallel-distance", "Parallel distance", "Distance between two parallel tracks",
+                         0, G_MAXDOUBLE, 30.0,
+                         G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
+  g_object_class_install_property (object_class, PROP_PARALLEL_ALTER,
+    g_param_spec_boolean ("parallel-alternate", "Parallel alternate", "Alternate parallel tracks",
+                          TRUE, G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
 }
 
 static void
@@ -234,6 +269,39 @@ hyscan_gtk_map_planner_set_property (GObject      *object,
 
     case PROP_SELECTION:
       priv->selection = g_value_dup_object (value);
+      break;
+
+    case PROP_PARALLEL_DISTANCE:
+      priv->parallel_distance = g_value_get_double (value);
+      break;
+
+    case PROP_PARALLEL_ALTER:
+      priv->parallel_alternate = g_value_get_boolean (value);
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+    }
+}
+
+static void
+hyscan_gtk_map_planner_get_property (GObject    *object,
+                                     guint       prop_id,
+                                     GValue     *value,
+                                     GParamSpec *pspec)
+{
+  HyScanGtkMapPlanner *gtk_map_planner = HYSCAN_GTK_MAP_PLANNER (object);
+  HyScanGtkMapPlannerPrivate *priv = gtk_map_planner->priv;
+
+  switch (prop_id)
+    {
+    case PROP_PARALLEL_DISTANCE:
+      g_value_set_double (value, priv->parallel_distance);
+      break;
+
+    case PROP_PARALLEL_ALTER:
+      g_value_set_boolean (value, priv->parallel_alternate);
       break;
 
     default:
@@ -271,6 +339,7 @@ hyscan_gtk_map_planner_object_finalize (GObject *object)
   g_free (priv->hover_track_id);
   g_free (priv->hover_zone_id);
   g_list_free_full (priv->tracks, (GDestroyNotify) hyscan_gtk_map_planner_track_free);
+  g_list_free_full (priv->parallel_tracks, (GDestroyNotify) hyscan_gtk_map_planner_track_free);
   g_hash_table_destroy (priv->zones);
 
   G_OBJECT_CLASS (hyscan_gtk_map_planner_parent_class)->finalize (object);
@@ -521,6 +590,10 @@ hyscan_gtk_map_planner_draw (HyScanGtkMapPlanner *planner,
   for (list = priv->tracks; list != NULL; list = list->next)
     hyscan_gtk_map_planner_track_draw (planner, list->data, TRUE, cairo);
 
+  /* Параллельные галсы в режиме создания параллельных галсов. */
+  for (list = priv->parallel_tracks; list != NULL; list = list->next)
+    hyscan_gtk_map_planner_track_draw (planner, list->data, TRUE, cairo);
+
   /* Рисуем текущий редактируемый галс. */
   if (priv->cur_track != NULL)
     hyscan_gtk_map_planner_track_draw (planner, priv->cur_track, FALSE, cairo);
@@ -663,6 +736,81 @@ hyscan_gtk_map_planner_edge_drag (HyScanGtkMapPlanner  *planner,
   return GDK_EVENT_STOP;
 }
 
+static gboolean
+hyscan_gtk_map_planner_parallel_create (HyScanGtkMapPlanner *planner,
+                                        GdkEventMotion      *event)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  HyScanGtkMapPlannerTrack *cur_track = priv->cur_track;
+
+  HyScanGeoCartesian2D cursor;
+  HyScanGeoCartesian2D normal;
+
+  gdouble scale, distance;
+  gdouble step;
+  gint i, tracks_num;
+
+  g_list_free_full (priv->parallel_tracks, (GDestroyNotify) hyscan_gtk_map_planner_track_free);
+  priv->parallel_tracks = NULL;
+
+  scale = hyscan_gtk_map_get_scale_value (priv->map, cur_track->origin->start);
+  step = priv->parallel_distance / scale;
+
+  if (step == 0.0)
+    return GDK_EVENT_STOP;
+
+  gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &cursor.x, &cursor.y);
+
+
+  distance = hyscan_cartesian_distance_to_line (&cur_track->start,
+                                                &cur_track->end,
+                                                &cursor, NULL);
+
+  hyscan_cartesian_normal (&cur_track->start, &cur_track->end, &normal);
+  /* Меняем направление нормали так, чтобы она была по направлению к курсору. */
+  {
+    gdouble cursor_side, normal_side;
+
+    cursor_side = (cursor.x - cur_track->start.x) * (cur_track->end.y - cur_track->start.y) -
+                  (cursor.y - cur_track->start.y) * (cur_track->end.x - cur_track->start.x);
+    normal_side = normal.x * (cur_track->end.y - cur_track->start.y) -
+                  normal.y * (cur_track->end.x - cur_track->start.x);
+
+    if (normal_side * cursor_side < 0)
+      {
+        normal.x = - normal.x;
+        normal.y = - normal.y;
+      }
+  }
+
+  tracks_num = MIN (MAX_PARALLEL_TRACKS, distance / step);
+  for (i = 1; i <= tracks_num; ++i)
+    {
+      HyScanGtkMapPlannerTrack *track;
+      HyScanGeoCartesian2D *start, *end;
+      gdouble invert;
+
+      invert = priv->parallel_alternate && (i % 2 == 1);
+      start = invert ? &cur_track->end : &cur_track->start;
+      end = invert ? &cur_track->start : &cur_track->end;
+
+      track = hyscan_gtk_map_planner_track_create ();
+      track->start.x = start->x + normal.x * step * i;
+      track->start.y = start->y + normal.y * step * i;
+      track->end.x = end->x + normal.x * step * i;
+      track->end.y = end->y + normal.y * step * i;
+      track->origin = hyscan_gtk_map_planner_track_origin_new ();
+      hyscan_gtk_map_value_to_geo (priv->map, &track->origin->start, track->start);
+      hyscan_gtk_map_value_to_geo (priv->map, &track->origin->end, track->end);
+
+      priv->parallel_tracks = g_list_append (priv->parallel_tracks, track);
+    }
+
+  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+  return GDK_EVENT_STOP;
+}
+
 /* Обработка события "motion-notify".
  * Перемещает галс в новую точку. */
 static gboolean
@@ -671,6 +819,13 @@ hyscan_gtk_map_planner_motion_notify (HyScanGtkMapPlanner *planner,
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
   HyScanGtkMapPlannerTrack *track = priv->cur_track;
+
+  /* Режим создания параллельных галсов. */
+  if (priv->mode == HYSCAN_GTK_MAP_PLANNER_MODE_TRACK_PARALLEL &&
+      hyscan_gtk_map_planner_is_state_track (priv->cur_state))
+    {
+      return hyscan_gtk_map_planner_parallel_create (planner, event);
+    }
 
   switch (priv->cur_state)
   {
@@ -801,6 +956,22 @@ hyscan_gtk_map_planner_btn_release (GtkWidget           *widget,
   return TRUE;
 }
 
+static void
+hyscan_gtk_map_planner_cancel (HyScanGtkMapPlanner *planner)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+
+  g_clear_pointer (&priv->cur_track, hyscan_gtk_map_planner_track_free);
+  g_clear_pointer (&priv->cur_zone, hyscan_gtk_map_planner_zone_free);
+  g_list_free_full (priv->parallel_tracks, (GDestroyNotify) hyscan_gtk_map_planner_track_free);
+  priv->parallel_tracks = NULL;
+  priv->cur_vertex = NULL;
+  priv->cur_state = STATE_NONE;
+  hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);
+
+  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+}
+
 /* Обработка события "key-press-event". */
 static gboolean
 hyscan_gtk_map_planner_key_press (HyScanGtkMapPlanner *planner,
@@ -819,13 +990,7 @@ hyscan_gtk_map_planner_key_press (HyScanGtkMapPlanner *planner,
       else if (hyscan_gtk_map_planner_is_state_vertex (priv->cur_state))
         hyscan_gtk_map_planner_vertex_remove (planner);
 
-      g_clear_pointer (&priv->cur_track, hyscan_gtk_map_planner_track_free);
-      g_clear_pointer (&priv->cur_zone, hyscan_gtk_map_planner_zone_free);
-      priv->cur_vertex = NULL;
-      priv->cur_state = STATE_NONE;
-      hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);
-
-      gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+      hyscan_gtk_map_planner_cancel (planner);
 
       return GDK_EVENT_STOP;
     }
@@ -833,13 +998,7 @@ hyscan_gtk_map_planner_key_press (HyScanGtkMapPlanner *planner,
   /* Отменяем текущее изменение. */
   else if (event->keyval == GDK_KEY_Escape)
     {
-      g_clear_pointer (&priv->cur_track, hyscan_gtk_map_planner_track_free);
-      g_clear_pointer (&priv->cur_zone, hyscan_gtk_map_planner_zone_free);
-      priv->cur_vertex = NULL;
-      priv->cur_state = STATE_NONE;
-      hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);
-
-      gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+      hyscan_gtk_map_planner_cancel (planner);
 
       return GDK_EVENT_STOP;
     }
@@ -1069,24 +1228,32 @@ hyscan_gtk_map_planner_handle_find_zone (HyScanGtkMapPlanner  *planner,
   return FALSE;
 }
 
-/* Создаёт галс с началом в точке point и начинает перетаскиваение его конца. */
-static gboolean
-hyscan_gtk_map_planner_handle_create_track (HyScanGtkMapPlanner  *planner,
-                                            HyScanGeoCartesian2D  point)
+/* Создаёт галс с параметрами по умолчанию. */
+static HyScanPlannerTrack *
+hyscan_gtk_map_planner_track_origin_new (void)
 {
-  HyScanGtkMapPlannerPrivate *priv = planner->priv;
   HyScanPlannerTrack track;
-  HyScanGtkMapPlannerTrack *track_proj;
 
-  /* Создаём новый галс только в слое, в БД пока не добавляем. */
   track.type = HYSCAN_PLANNER_TRACK;
   track.number = 0;
   track.name = "Track";
   track.zone_id = NULL;
   track.speed = 1.0;
 
+  return hyscan_planner_track_copy (&track);
+}
+
+/* Создаёт галс с началом в точке point и начинает перетаскиваение его конца. */
+static gboolean
+hyscan_gtk_map_planner_handle_create_track (HyScanGtkMapPlanner  *planner,
+                                            HyScanGeoCartesian2D  point)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  HyScanGtkMapPlannerTrack *track_proj;
+
+  /* Создаём новый галс только в слое, в БД пока не добавляем. */
   track_proj = hyscan_gtk_map_planner_track_create ();
-  track_proj->origin = hyscan_planner_track_copy (&track);
+  track_proj->origin = hyscan_gtk_map_planner_track_origin_new ();
   track_proj->start = point;
   track_proj->end = point;
 
@@ -1310,6 +1477,7 @@ hyscan_gtk_map_planner_handle_create (HyScanGtkLayer *layer,
   return FALSE;
 }
 
+/* Сохраняет текущую зону в БД. */
 static void
 hyscan_gtk_map_planner_zone_save (HyScanGtkMapPlanner     *planner,
                                   HyScanGtkMapPlannerZone *zone)
@@ -1378,23 +1546,50 @@ hyscan_gtk_map_planner_release_zone (HyScanGtkMapPlanner *planner,
   return TRUE;
 }
 
-static gboolean
-hyscan_gtk_map_planner_release_track (HyScanGtkMapPlanner *planner)
+/* Сохраняет текущий галс в БД. */
+static void
+hyscan_gtk_map_planner_save_current (HyScanGtkMapPlanner *planner)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
-  HyScanGtkMapPlannerTrack *cur_track;
+  HyScanGtkMapPlannerTrack *cur_track = priv->cur_track;
 
-  /* По какой-то причине хэндл у нас, но нет активного галса. Вернём хэндл, но ругнёмся. */
-  g_return_val_if_fail (priv->cur_track != NULL, TRUE);
-  cur_track = priv->cur_track;
+  g_return_if_fail (cur_track != NULL);
 
   if (priv->cur_track->id == NULL)
     hyscan_object_model_add_object (priv->model, cur_track->origin);
   else
     hyscan_object_model_modify_object (priv->model, cur_track->id, cur_track->origin);
+}
+
+/* Сохраняет параллельные галсы в БД. */
+static void
+hyscan_gtk_map_planner_save_parallel (HyScanGtkMapPlanner *planner)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  HyScanGtkMapPlannerTrack *track;
+  GList *link;
+
+  for (link = priv->parallel_tracks; link != NULL; link = link->next)
+    {
+      track = link->data;
+      hyscan_object_model_add_object (priv->model, track->origin);
+    }
+}
+
+static gboolean
+hyscan_gtk_map_planner_release_track (HyScanGtkMapPlanner *planner)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+
+  if (priv->mode == HYSCAN_GTK_MAP_PLANNER_MODE_TRACK_PARALLEL)
+    hyscan_gtk_map_planner_save_parallel (planner);
+  else
+    hyscan_gtk_map_planner_save_current (planner);
 
   priv->cur_state = STATE_NONE;
   g_clear_pointer (&priv->cur_track, hyscan_gtk_map_planner_track_free);
+  g_list_free_full (priv->parallel_tracks, (GDestroyNotify) hyscan_gtk_map_planner_track_free);
+  priv->parallel_tracks = NULL;
 
   return TRUE;
 }
@@ -1473,7 +1668,7 @@ hyscan_gtk_map_planner_added (HyScanGtkLayer          *layer,
 }
 
 static void
-hyscan_gtk_map_planner_removed (HyScanGtkLayer          *layer)
+hyscan_gtk_map_planner_removed (HyScanGtkLayer *layer)
 {
   HyScanGtkMapPlanner *planner = HYSCAN_GTK_MAP_PLANNER (layer);
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
@@ -1522,7 +1717,14 @@ void
 hyscan_gtk_map_planner_set_mode (HyScanGtkMapPlanner     *planner,
                                  HyScanGtkMapPlannerMode  mode)
 {
+  HyScanGtkMapPlannerPrivate *priv;
+
   g_return_if_fail (HYSCAN_IS_GTK_MAP_PLANNER (planner));
+  priv = planner->priv;
+
+  /* Завершаем редактирование, если у нас был хэндл. */
+  if (priv->cur_state != STATE_NONE)
+    hyscan_gtk_map_planner_cancel (planner);
 
   planner->priv->mode = mode;
 }

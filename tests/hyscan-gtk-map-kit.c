@@ -23,7 +23,10 @@
 #define DEFAULT_PROFILE_NAME "default"    /* Имя профиля карты по умолчанию. */
 #define PRELOAD_STATE_DONE   1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
 
-#define PLANNER_TOOLS_MODE  "planner-mode"
+#define PLANNER_TOOLS_MODE    "planner-mode"
+#define PLANNER_TAB_EDITOR    "editor"
+#define PLANNER_TAB_PARALLEL  "parallel"
+#define PLANNER_TAB_DEFAULT   "default"
 
 /* Столбцы в GtkTreeView списка слоёв. */
 enum
@@ -89,6 +92,7 @@ struct _HyScanGtkMapKitPrivate
   /* Виджеты. */
   GtkWidget             *profiles_box;     /* Выпадающий список профилей карты. */
   GtkWidget             *layer_tool_stack; /* GtkStack с виджетами настроек каждого слоя. */
+  GtkWidget             *planner_stack;    /* GtkStack с виджетами настроек планировщика. */
   GtkButton             *preload_button;   /* Кнопка загрузки тайлов. */
   GtkProgressBar        *preload_progress; /* Индикатор загрузки тайлов. */
 
@@ -1164,14 +1168,25 @@ hyscan_gtk_map_planner_mode_changed (GtkToggleButton *togglebutton,
                                      gpointer         user_data)
 {
   HyScanGtkMapKit *kit = user_data;
+  HyScanGtkMapKitPrivate *priv = kit->priv;
   HyScanGtkMapPlanner *planner = HYSCAN_GTK_MAP_PLANNER (kit->priv->planner_layer);
   HyScanGtkMapPlannerMode mode;
+  const gchar *child_name;
 
   if (!gtk_toggle_button_get_active (togglebutton))
     return;
 
   mode = GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (togglebutton), PLANNER_TOOLS_MODE));
+
+  if (mode == HYSCAN_GTK_MAP_PLANNER_MODE_TRACK_PARALLEL)
+    child_name = PLANNER_TAB_PARALLEL;
+  else if (mode == HYSCAN_GTK_MAP_PLANNER_MODE_SELECT)
+    child_name = PLANNER_TAB_EDITOR;
+  else
+    child_name = PLANNER_TAB_DEFAULT;
+
   hyscan_gtk_map_planner_set_mode (planner, mode);
+  gtk_stack_set_visible_child_name (GTK_STACK (priv->planner_stack), child_name);
 }
 
 static GtkWidget*
@@ -1192,32 +1207,71 @@ create_planner_mode_btn (HyScanGtkMapKit         *kit,
   return button;
 }
 
+static GtkWidget *
+create_parallel_track_options (HyScanGtkMapPlanner *planner_layer)
+{
+  GtkWidget *grid;
+  GtkWidget *distance, *alternate;
+  GBindingFlags binding_flags;
+
+  grid = gtk_grid_new ();
+  gtk_grid_set_row_spacing (GTK_GRID (grid), 3);
+  gtk_grid_set_column_spacing (GTK_GRID (grid), 6);
+
+  distance = gtk_spin_button_new_with_range (0, 100, 0.1);
+  alternate = gtk_switch_new ();
+
+  gtk_grid_attach (GTK_GRID (grid), gtk_label_new (_("Distance")),  0, 0, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), distance,                       1, 0, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), gtk_label_new (_("Alternate")), 0, 1, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), alternate,                      1, 1, 1, 1);
+
+  binding_flags = G_BINDING_BIDIRECTIONAL | G_BINDING_SYNC_CREATE;
+  g_object_bind_property (G_OBJECT (planner_layer), "parallel-distance",
+                          G_OBJECT (distance), "value", binding_flags);
+  g_object_bind_property (G_OBJECT (planner_layer), "parallel-alternate",
+                          G_OBJECT (alternate), "active", binding_flags);
+
+  return grid;
+}
+
 /* Создаёт панель инструментов для слоя планировщика. */
 static GtkWidget *
 create_planner_toolbox (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
   GtkWidget *box;
-  GtkWidget *combo;
-  GtkWidget *editor;
-  GtkWidget *zone_mode, *track_mode, *select_mode;
-
+  GtkWidget *tab_switch;
+  GtkWidget *tab_editor, *tab_parallel, *tab_default;
+  GtkWidget *zone_mode, *track_mode, *select_mode, *parallel_mode;
 
   box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
 
-  combo = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 3);
+  priv->planner_stack = gtk_stack_new ();
+  gtk_stack_set_vhomogeneous (GTK_STACK (priv->planner_stack), FALSE);
+
+  tab_switch = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 3);
   zone_mode = create_planner_mode_btn (kit, NULL, "folder-new-symbolic", HYSCAN_GTK_MAP_PLANNER_MODE_ZONE);
   track_mode = create_planner_mode_btn (kit, zone_mode, "document-new-symbolic", HYSCAN_GTK_MAP_PLANNER_MODE_TRACK);
   select_mode = create_planner_mode_btn (kit, zone_mode, "find-location-symbolic", HYSCAN_GTK_MAP_PLANNER_MODE_SELECT);
+  parallel_mode = create_planner_mode_btn (kit, zone_mode, "open-menu-symbolic",
+                                           HYSCAN_GTK_MAP_PLANNER_MODE_TRACK_PARALLEL);
 
-  gtk_box_pack_start (GTK_BOX (combo), zone_mode, TRUE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (combo), track_mode, TRUE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (combo), select_mode, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (tab_switch), zone_mode, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (tab_switch), track_mode, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (tab_switch), select_mode, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (tab_switch), parallel_mode, TRUE, TRUE, 0);
 
-  editor = hyscan_gtk_planner_editor_new (priv->planner_model, G_LIST_MODEL (priv->planner_selection));
+  tab_default = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+  tab_editor = hyscan_gtk_planner_editor_new (priv->planner_model, G_LIST_MODEL (priv->planner_selection));
+  tab_parallel = create_parallel_track_options (HYSCAN_GTK_MAP_PLANNER (priv->planner_layer));
 
-  gtk_box_pack_start (GTK_BOX (box), combo, TRUE, FALSE, 10);
-  gtk_box_pack_start (GTK_BOX (box), editor, TRUE, FALSE, 10);
+  gtk_stack_add_named (GTK_STACK (priv->planner_stack), tab_default, PLANNER_TAB_DEFAULT);
+  gtk_stack_add_named (GTK_STACK (priv->planner_stack), tab_editor, PLANNER_TAB_EDITOR);
+  gtk_stack_add_named (GTK_STACK (priv->planner_stack), tab_parallel, PLANNER_TAB_PARALLEL);
+
+  gtk_box_pack_start (GTK_BOX (box), tab_switch, TRUE, FALSE, 6);
+  gtk_box_pack_start (GTK_BOX (box), priv->planner_stack, TRUE, FALSE, 6);
 
   return box;
 }
