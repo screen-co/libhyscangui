@@ -176,6 +176,7 @@ static void                       hyscan_gtk_map_planner_zone_project          (
                                                                                 HyScanGtkMapPlannerZone  *zone);
 static void                       hyscan_gtk_map_planner_track_remove          (HyScanGtkMapPlanner      *planner,
                                                                                 const gchar              *track_id);
+static void                       hyscan_gtk_map_planner_selection_remove      (HyScanGtkMapPlanner      *planner);
 static void                       hyscan_gtk_map_planner_vertex_remove         (HyScanGtkMapPlanner      *planner);
 static void                       hyscan_gtk_map_planner_zone_save             (HyScanGtkMapPlanner      *planner,
                                                                                 HyScanGtkMapPlannerZone  *zone);
@@ -915,7 +916,7 @@ hyscan_gtk_map_planner_track_remove (HyScanGtkMapPlanner *planner,
     {
       HyScanGtkMapPlannerTrack *track = link->data;
 
-      if (g_strcmp0 (track->id, priv->cur_track->id) != 0)
+      if (g_strcmp0 (track->id, track_id) != 0)
         continue;
 
       priv->tracks = g_list_remove_link (priv->tracks, link);
@@ -1027,6 +1028,24 @@ hyscan_gtk_map_planner_cancel (HyScanGtkMapPlanner *planner)
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }
 
+static void
+hyscan_gtk_map_planner_selection_remove (HyScanGtkMapPlanner *planner)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  gint n_items, i;
+
+  n_items = g_list_model_get_n_items (G_LIST_MODEL (priv->selection));
+  for (i = 0; i < n_items; ++i)
+    {
+      gchar *selected_id;
+
+      selected_id = g_list_model_get_item (G_LIST_MODEL (priv->selection), i);
+      hyscan_gtk_map_planner_track_remove (planner, selected_id);
+
+      g_free (selected_id);
+    }
+}
+
 /* Обработка события "key-press-event". */
 static gboolean
 hyscan_gtk_map_planner_key_press (HyScanGtkMapPlanner *planner,
@@ -1034,29 +1053,23 @@ hyscan_gtk_map_planner_key_press (HyScanGtkMapPlanner *planner,
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
 
-  if (priv->cur_state == STATE_NONE)
+  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (planner)))
     return GDK_EVENT_PROPAGATE;
 
-  /* Удаляем активный галс. */
+  /* Удаляем активные или выбранные объекты. */
   if (event->keyval == GDK_KEY_Delete)
     {
       if (hyscan_gtk_map_planner_is_state_track (priv->cur_state))
         hyscan_gtk_map_planner_track_remove (planner, priv->cur_track->id);
       else if (hyscan_gtk_map_planner_is_state_vertex (priv->cur_state))
         hyscan_gtk_map_planner_vertex_remove (planner);
-
-      hyscan_gtk_map_planner_cancel (planner);
-
-      return GDK_EVENT_STOP;
+      else
+        hyscan_gtk_map_planner_selection_remove (planner);
     }
 
   /* Отменяем текущее изменение. */
-  else if (event->keyval == GDK_KEY_Escape)
-    {
-      hyscan_gtk_map_planner_cancel (planner);
-
-      return GDK_EVENT_STOP;
-    }
+  if (priv->cur_state != STATE_NONE && (event->keyval == GDK_KEY_Escape || event->keyval == GDK_KEY_Delete))
+    hyscan_gtk_map_planner_cancel (planner);
 
   return GDK_EVENT_PROPAGATE;
 }
