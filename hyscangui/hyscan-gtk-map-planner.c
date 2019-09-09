@@ -57,6 +57,7 @@
 #include "hyscan-gtk-map-planner.h"
 #include "hyscan-gtk-map.h"
 #include "hyscan-list-store.h"
+#include "hyscan-cairo.h"
 #include <hyscan-planner.h>
 #include <math.h>
 #include <hyscan-cartesian.h>
@@ -1017,40 +1018,55 @@ hyscan_gtk_map_planner_zone_draw (HyScanGtkMapPlanner     *planner,
   GList *link;
   gint vertex_num = 0;
   gboolean hovered;
+  HyScanGtkMapPoint *point;
+
+  gint i = 0, j;
+  gdouble x[2], y[2], x0 = 0, y0 = 0;
 
   /* Пропускаем активную зону. */
   if (skip_current && priv->cur_zone != NULL && g_strcmp0 (priv->cur_zone->id, zone->id) == 0)
     return;
 
+  if (zone->points == NULL || zone->points->next == NULL)
+    return;
+
+  cairo_save (cairo);
+
   cairo_new_path (cairo);
-  for (link = zone->points; link != NULL; link = link->next)
-    {
-      HyScanGtkMapPoint *point = link->data;
-      gdouble x, y;
-
-      gtk_cifro_area_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y, point->c2d.x, point->c2d.y);
-      cairo_line_to (cairo, x, y);
-    }
-
-  cairo_close_path (cairo);
 
   hovered = (g_strcmp0 (priv->hover_zone_id, zone->id) == 0);
-  for (link = zone->points; link != NULL; link = link->next)
+  for (link = zone->points, j = 0; link != NULL; link = link->next, j++)
     {
-      HyScanGtkMapPoint *point = link->data;
-      gdouble x, y;
+      point = link->data;
       gdouble radius;
 
-      // todo: брать координаты, посчитанные в предыдущем цикле
-      radius = (hovered && ++vertex_num == priv->hover_vertex) ? HANDLE_HOVER_RADIUS : HANDLE_RADIUS;
+      i = j % 2;
+      gtk_cifro_area_value_to_point (GTK_CIFRO_AREA (priv->map), &x[i], &y[i], point->c2d.x, point->c2d.y);
+      if (j == 0)
+        /* Запоминаем координаты первой вершины. */
+        {
+          x0 = x[i];
+          y0 = y[i];
+        }
 
-      gtk_cifro_area_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y, point->c2d.x, point->c2d.y);
+      /* Рисуем вершину. */
+      radius = (hovered && ++vertex_num == priv->hover_vertex) ? HANDLE_HOVER_RADIUS : HANDLE_RADIUS;
       cairo_new_sub_path (cairo);
-      cairo_arc (cairo, x, y, radius, -G_PI, G_PI);
+      cairo_arc (cairo, x[i], y[i], radius, -G_PI, G_PI);
+
+      /* Рисуем ребро к предыдущей вершине. */
+      if (j != 0)
+        hyscan_cairo_line_to (cairo, x[0], y[0], x[1], y[1]);
     }
 
+  /* Замыкаем периметр - добавляем ребро от последней вершины к первой. */
+  hyscan_cairo_line_to (cairo, x[i], y[i], x0, y0);
+
+  cairo_set_line_width (cairo, 0.7);
   cairo_set_source_rgb (cairo, 0.0, 0.0, 0.0);
   cairo_stroke (cairo);
+
+  cairo_restore (cairo);
 
   for (link = zone->tracks; link != NULL; link = link->next)
     hyscan_gtk_map_planner_track_draw (planner, (HyScanGtkMapPlannerTrack *) link->data, TRUE, cairo);
@@ -1115,8 +1131,7 @@ hyscan_gtk_map_planner_track_draw (HyScanGtkMapPlanner      *planner,
   cairo_fill (cairo);
   cairo_restore (cairo);
 
-  cairo_move_to (cairo, start_x, start_y);
-  cairo_line_to (cairo, end_x, end_y);
+  hyscan_cairo_line_to (cairo, start_x, start_y, end_x, end_y);
   cairo_stroke (cairo);
 }
 
@@ -1314,6 +1329,9 @@ hyscan_gtk_map_planner_handle_find (HyScanGtkLayer       *layer,
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
   HyScanGeoCartesian2D handle_coord;
 
+  if (!hyscan_gtk_layer_get_visible (layer))
+    return FALSE;
+
   priv->found_state = STATE_NONE;
   priv->found_track = NULL;
   priv->found_zone = NULL;
@@ -1338,6 +1356,9 @@ hyscan_gtk_map_planner_handle_grab (HyScanGtkLayer       *layer,
 {
   HyScanGtkMapPlanner *planner = HYSCAN_GTK_MAP_PLANNER (layer);
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
+
+  if (!hyscan_gtk_layer_get_visible (layer))
+    return FALSE;
 
   g_return_val_if_fail (g_strcmp0 (handle->type_name, HANDLE_TYPE_NAME) == 0, NULL);
 
