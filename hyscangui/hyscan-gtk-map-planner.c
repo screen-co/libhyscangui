@@ -62,10 +62,16 @@
 #include <math.h>
 #include <hyscan-cartesian.h>
 
-#define HANDLE_TYPE_NAME     "map_planner"
-#define HANDLE_RADIUS         3.0
-#define HANDLE_HOVER_RADIUS   8.0
-#define MAX_PARALLEL_TRACKS   100
+#define HANDLE_TYPE_NAME             "map_planner"
+#define HANDLE_RADIUS                3.0
+#define HANDLE_HOVER_RADIUS          8.0
+#define MAX_PARALLEL_TRACKS          100
+
+#define DEFAULT_ZONE_WIDTH           0.5                    /* Толщина периметра полигона. */
+#define DEFAULT_ZONE_COLOR           "rgba(0,50,0,0.8)"     /* Цвет периметра полигона. */
+#define DEFAULT_TRACK_WIDTH          1.0                    /* Толщина галсов. */
+#define DEFAULT_TRACK_COLOR          "rgba(0,128,0,1.0)"    /* Цвет галсов. */
+#define DEFAULT_TRACK_SELECTED_COLOR "rgba(128,0,128,1.0)"  /* Цвет выделенных галсов. */
 
 enum
 {
@@ -102,34 +108,44 @@ typedef struct
   GList                *tracks;     /* Список галсов HyScanGtkMapPlannerTrack, лежащих внутри этой зоны. */
 } HyScanGtkMapPlannerZone;
 
+typedef struct
+{
+  gdouble  line_width;              /* Толщина линии. */
+  GdkRGBA  color;                   /* Цвет линии. */
+} HyScanGtkMapPlannerStyle;
+
 struct _HyScanGtkMapPlannerPrivate
 {
-  HyScanGtkMap                      *map;            /* Виджет карты. */
-  HyScanObjectModel                 *model;          /* Модель объектов планировщика. */
-  HyScanListStore                   *selection;      /* Список ИД выбранных объектов. */
-  gboolean                           visible;        /* Признак видимости слоя. */
-  GHashTable                        *zones;          /* Таблица зон полигона. */
-  GList                             *tracks;         /* Список галсов, которые не связаны ни с одной из зон. */
+  HyScanGtkMap                      *map;                  /* Виджет карты. */
+  HyScanObjectModel                 *model;                /* Модель объектов планировщика. */
+  HyScanListStore                   *selection;            /* Список ИД выбранных объектов. */
+  gboolean                           visible;              /* Признак видимости слоя. */
+  GHashTable                        *zones;                /* Таблица зон полигона. */
+  GList                             *tracks;               /* Список галсов, которые не связаны ни с одной из зон. */
 
-  HyScanGtkMapPlannerMode            mode;           /* Режим добавления новых элементов на слой. */
-  HyScanGtkMapPlannerState           cur_state;      /* Текущий состояние слоя, показывает что редактируется. */
-  HyScanGtkMapPlannerTrack          *cur_track;      /* Копия галса, который редактируется в данный момент. */
-  HyScanGtkMapPlannerZone           *cur_zone;       /* Копия зоны, которая редактируется в данный момент. */
-  GList                             *cur_vertex;     /* Указатель на редактируемую вершину. */
+  HyScanGtkMapPlannerMode            mode;                 /* Режим добавления новых элементов на слой. */
+  HyScanGtkMapPlannerState           cur_state;            /* Текущий состояние слоя, показывает что редактируется. */
+  HyScanGtkMapPlannerTrack          *cur_track;            /* Копия галса, который редактируется в данный момент. */
+  HyScanGtkMapPlannerZone           *cur_zone;             /* Копия зоны, которая редактируется в данный момент. */
+  GList                             *cur_vertex;           /* Указатель на редактируемую вершину. */
 
-  gchar                             *hover_track_id; /* Идентификатор подсвечиваемого галса. */
-  gchar                             *hover_zone_id;  /* Идентификатор подсвечиваемой зоны. */
-  gint                               hover_vertex;   /* Номер вершины под курсором. */
-  HyScanGtkMapPlannerState           hover_state;    /* Состояние, в которое будет переведён слой при выборе хэндла. */
+  gchar                             *hover_track_id;       /* Идентификатор подсвечиваемого галса. */
+  gchar                             *hover_zone_id;        /* Идентификатор подсвечиваемой зоны. */
+  gint                               hover_vertex;         /* Номер вершины под курсором. */
+  HyScanGtkMapPlannerState           hover_state;          /* Состояние, которое будет установлено при выборе хэндла. */
 
-  const HyScanGtkMapPlannerTrack    *found_track;    /* Указатель на галс под курсором мыши. */
-  const HyScanGtkMapPlannerZone     *found_zone;     /* Указатель на зону, чья вершина под курсором мыши. */
-  gint                               found_vertex;   /* Номер вершины под курсором мыши. */
-  HyScanGtkMapPlannerState           found_state;    /* Состояние, в которое будет переведён слой при выборе хэндла. */
+  const HyScanGtkMapPlannerTrack    *found_track;          /* Указатель на галс под курсором мыши. */
+  const HyScanGtkMapPlannerZone     *found_zone;           /* Указатель на зону, чья вершина под курсором мыши. */
+  gint                               found_vertex;         /* Номер вершины под курсором мыши. */
+  HyScanGtkMapPlannerState           found_state;          /* Состояние, которое будет установлено при выборе хэндла. */
 
-  gdouble                            parallel_distance;   /* Расстояние между параллельными галсами. */
-  gboolean                           parallel_alternate;  /* Признак смены направления паралельных галсов. */
-  GList                             *parallel_tracks;     /* Список параллельных галсов для добавления. */
+  gdouble                            parallel_distance;    /* Расстояние между параллельными галсами. */
+  gboolean                           parallel_alternate;   /* Признак смены направления паралельных галсов. */
+  GList                             *parallel_tracks;      /* Список параллельных галсов для добавления. */
+
+  HyScanGtkMapPlannerStyle           track_style;          /* Стиль оформления галса. */
+  HyScanGtkMapPlannerStyle           track_style_selected; /* Стиль оформления выбранного галса. */
+  HyScanGtkMapPlannerStyle           zone_style;           /* Стиль оформления периметра полигона. */
 };
 
 static void                       hyscan_gtk_map_planner_interface_init        (HyScanGtkLayerInterface  *iface);
@@ -326,6 +342,14 @@ hyscan_gtk_map_planner_object_constructed (GObject *object)
   /* Не задаём функцию удаления ключей, т.к. ими владеет сама структура зоны, поле id. */
   priv->zones = g_hash_table_new_full (g_str_hash, g_str_equal, NULL,
                                        (GDestroyNotify) hyscan_gtk_map_planner_zone_free);
+
+  /* Стиль оформления. */
+  priv->zone_style.line_width = DEFAULT_ZONE_WIDTH;
+  gdk_rgba_parse (&priv->zone_style.color, DEFAULT_ZONE_COLOR);
+  priv->track_style.line_width = DEFAULT_TRACK_WIDTH;
+  gdk_rgba_parse (&priv->track_style.color, DEFAULT_TRACK_COLOR);
+  priv->track_style_selected.line_width = DEFAULT_TRACK_WIDTH;
+  gdk_rgba_parse (&priv->track_style_selected.color, DEFAULT_TRACK_SELECTED_COLOR);
 
   g_signal_connect_swapped (priv->model, "changed", G_CALLBACK (hyscan_gtk_map_planner_model_changed), planner);
 }
@@ -977,8 +1001,10 @@ hyscan_gtk_map_planner_btn_release (GtkWidget           *widget,
       else
         hyscan_list_store_append (priv->selection, priv->found_track->id);
     }
-  else
-    hyscan_list_store_remove_all (priv->selection);
+  else if (!(event->state & GDK_SHIFT_MASK))
+    {
+      hyscan_list_store_remove_all (priv->selection);
+    }
 
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 
@@ -1035,6 +1061,14 @@ hyscan_gtk_map_planner_key_press (HyScanGtkMapPlanner *planner,
   return GDK_EVENT_PROPAGATE;
 }
 
+static inline void
+hyscan_gtk_map_planner_cairo_style (cairo_t                  *cairo,
+                                    HyScanGtkMapPlannerStyle *style)
+{
+  cairo_set_line_width (cairo, style->line_width);
+  gdk_cairo_set_source_rgba (cairo, &style->color);
+}
+
 /* Рисует зону полигона и галсы внутри неё. */
 static void
 hyscan_gtk_map_planner_zone_draw (HyScanGtkMapPlanner     *planner,
@@ -1089,9 +1123,7 @@ hyscan_gtk_map_planner_zone_draw (HyScanGtkMapPlanner     *planner,
 
   /* Замыкаем периметр - добавляем ребро от последней вершины к первой. */
   hyscan_cairo_line_to (cairo, x[i], y[i], x0, y0);
-
-  cairo_set_line_width (cairo, 0.7);
-  cairo_set_source_rgb (cairo, 0.0, 0.0, 0.0);
+  hyscan_gtk_map_planner_cairo_style (cairo, &priv->zone_style);
   cairo_stroke (cairo);
 
   cairo_restore (cairo);
@@ -1116,15 +1148,9 @@ hyscan_gtk_map_planner_track_draw (HyScanGtkMapPlanner      *planner,
     return;
 
   if (hyscan_list_store_contains (priv->selection, track->id))
-    {
-      cairo_set_source_rgb (cairo, 0.5, 0.0, 0.5);
-      cairo_set_line_width (cairo, 2.0);
-    }
+    hyscan_gtk_map_planner_cairo_style (cairo, &priv->track_style_selected);
   else
-    {
-      cairo_set_source_rgb (cairo, 0.5, 0.0, 0.0);
-      cairo_set_line_width (cairo, 1.0);
-    }
+    hyscan_gtk_map_planner_cairo_style (cairo, &priv->track_style);
 
   /* Определяем размеры хэндлов. */
   start_size = mid_size = end_size = HANDLE_RADIUS;
@@ -1730,6 +1756,36 @@ hyscan_gtk_map_planner_removed (HyScanGtkLayer *layer)
   g_signal_handlers_disconnect_by_data (priv->map, planner);
 }
 
+static gboolean
+hyscan_gtk_map_planner_load_key_file (HyScanGtkLayer *layer,
+                                      GKeyFile       *key_file,
+                                      const gchar    *group)
+{
+  HyScanGtkMapPlanner *planner = HYSCAN_GTK_MAP_PLANNER (layer);
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  gdouble line_width;
+
+  hyscan_gtk_layer_load_key_file_rgba (&priv->track_style.color, key_file, group,
+                                       "track-color", DEFAULT_TRACK_COLOR);
+  line_width = g_key_file_get_double (key_file, group, "track-width", NULL);
+  priv->track_style.line_width = line_width > 0 ? line_width : DEFAULT_TRACK_WIDTH;
+
+  hyscan_gtk_layer_load_key_file_rgba (&priv->track_style_selected.color, key_file, group,
+                                       "track-selected-color", DEFAULT_TRACK_SELECTED_COLOR);
+  line_width = g_key_file_get_double (key_file, group, "track-selected-width", NULL);
+  priv->track_style_selected.line_width = line_width > 0 ? line_width : DEFAULT_TRACK_WIDTH;
+
+  hyscan_gtk_layer_load_key_file_rgba (&priv->zone_style.color, key_file, group,
+                                       "zone-color", DEFAULT_ZONE_COLOR);
+  line_width = g_key_file_get_double (key_file, group, "zone-width", NULL);
+  priv->track_style_selected.line_width = line_width > 0 ? line_width : DEFAULT_ZONE_WIDTH;
+
+  if (priv->map != NULL)
+    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+  return TRUE;
+}
+
 static void
 hyscan_gtk_map_planner_interface_init (HyScanGtkLayerInterface *iface)
 {
@@ -1743,6 +1799,7 @@ hyscan_gtk_map_planner_interface_init (HyScanGtkLayerInterface *iface)
   iface->grab_input = hyscan_gtk_map_planner_grab_input;
   iface->added = hyscan_gtk_map_planner_added;
   iface->removed = hyscan_gtk_map_planner_removed;
+  iface->load_key_file = hyscan_gtk_map_planner_load_key_file;
 }
 
 /**
