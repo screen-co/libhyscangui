@@ -163,8 +163,9 @@ static void                       hyscan_gtk_map_planner_track_remove          (
 static void                       hyscan_gtk_map_planner_vertex_remove         (HyScanGtkMapPlanner      *planner);
 static void                       hyscan_gtk_map_planner_zone_save             (HyScanGtkMapPlanner      *planner,
                                                                                 HyScanGtkMapPlannerZone  *zone);
-static void                       hyscan_gtk_map_planner_draw                  (HyScanGtkMapPlanner      *planner,
-                                                                                cairo_t                  *cairo);
+static void                       hyscan_gtk_map_planner_draw                  (GtkCifroArea             *carea,
+                                                                                cairo_t                  *cairo,
+                                                                                HyScanGtkMapPlanner      *planner);
 static void                       hyscan_gtk_map_planner_zone_draw             (HyScanGtkMapPlanner      *planner,
                                                                                 HyScanGtkMapPlannerZone  *zone,
                                                                                 gboolean                  skip_current,
@@ -184,6 +185,8 @@ static gboolean                   hyscan_gtk_map_planner_vertex_drag           (
                                                                                 GdkEventMotion           *event);
 static gboolean                   hyscan_gtk_map_planner_motion_notify         (HyScanGtkMapPlanner      *planner,
                                                                                 GdkEventMotion           *event);
+static void                       hyscan_gtk_map_planner_projection            (HyScanGtkMapPlanner      *planner,
+                                                                                GParamSpec               *pspec);
 static gboolean                   hyscan_gtk_map_planner_key_press             (HyScanGtkMapPlanner      *planner,
                                                                                 GdkEventKey              *event);
 static gboolean                   hyscan_gtk_map_planner_btn_release           (GtkWidget                *widget,
@@ -434,6 +437,7 @@ hyscan_gtk_map_planner_model_changed (HyScanGtkMapPlanner *planner)
 
   g_hash_table_unref (objects);
   g_free (found_track_id);
+  g_free (found_zone_id);
 
   if (priv->map != NULL)
     gtk_widget_queue_draw (GTK_WIDGET (priv->map));
@@ -565,11 +569,35 @@ hyscan_gtk_map_planner_zone_set_origin (HyScanGtkMapPlannerZone *zone,
     }
 }
 
+/* Обработчик сигнала смены проекции. */
+static void
+hyscan_gtk_map_planner_projection (HyScanGtkMapPlanner *planner,
+                                   GParamSpec          *pspec)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  GHashTableIter iter;
+  GList *link;
+  HyScanGtkMapPlannerZone *zone;
+
+  g_hash_table_iter_init (&iter, priv->zones);
+  while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &zone))
+    {
+      hyscan_gtk_map_planner_zone_project (planner, zone);
+
+      for (link = zone->tracks; link != NULL; link = link->next)
+        hyscan_gtk_map_planner_track_project (planner, link->data);
+    }
+
+  for (link = priv->tracks; link != NULL; link = link->next)
+    hyscan_gtk_map_planner_track_project (planner, link->data);
+}
+
 /* Обработчик события "visible-draw".
  * Рисует слой планировщика. */
 static void
-hyscan_gtk_map_planner_draw (HyScanGtkMapPlanner *planner,
-                             cairo_t             *cairo)
+hyscan_gtk_map_planner_draw (GtkCifroArea        *carea,
+                             cairo_t             *cairo,
+                             HyScanGtkMapPlanner *planner)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
   GHashTableIter iter;
@@ -1682,7 +1710,8 @@ hyscan_gtk_map_planner_added (HyScanGtkLayer          *layer,
 
   priv->map = g_object_ref (container);
 
-  g_signal_connect_swapped (priv->map, "visible-draw", G_CALLBACK (hyscan_gtk_map_planner_draw), planner);
+  g_signal_connect_swapped (priv->map, "notify::projection", G_CALLBACK (hyscan_gtk_map_planner_projection), planner);
+  g_signal_connect_after (priv->map, "visible-draw", G_CALLBACK (hyscan_gtk_map_planner_draw), planner);
   g_signal_connect_swapped (priv->map, "motion-notify-event", G_CALLBACK (hyscan_gtk_map_planner_motion_notify), planner);
   g_signal_connect_swapped (priv->map, "key-press-event", G_CALLBACK (hyscan_gtk_map_planner_key_press), planner);
   g_signal_connect_after (priv->map, "button-release-event", G_CALLBACK (hyscan_gtk_map_planner_btn_release), planner);
