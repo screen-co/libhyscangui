@@ -49,6 +49,30 @@ G_BEGIN_DECLS
 #define HYSCAN_GTK_LAYER_GET_IFACE(obj)  (G_TYPE_INSTANCE_GET_INTERFACE ((obj), HYSCAN_TYPE_GTK_LAYER, HyScanGtkLayerInterface))
 
 typedef struct _HyScanGtkLayerInterface HyScanGtkLayerInterface;
+typedef struct _HyScanGtkLayerHandle HyScanGtkLayerHandle;
+
+/**
+ * HyScanGtkLayerHandle:
+ * @val_x: координата x хэндла в логической системе координат
+ * @val_y: координата y хэндла в логической системе координат
+ * @type_name: имя типа хэндла
+ * @user_data: пользовательские данные
+ *
+ * Стуктура с информацией о хэндле слоя. Содержит в себе координаты хэндла.
+ *
+ * Вспомогательные поля с названием типа хэндла @type_name и пользовательскими данными
+ * @user_data предзначены для внутренней обработки слоем.
+ * Имя типа позволяет слою идентифицировать, как был создан полученный хэндл,
+ * чтобы кооректного его обработать.
+ *
+ */
+struct _HyScanGtkLayerHandle
+{
+  gdouble        val_x;
+  gdouble        val_y;
+  const gchar   *type_name;
+  gpointer       user_data;
+};
 
 /**
  * HyScanGtkLayerInterface:
@@ -62,36 +86,58 @@ typedef struct _HyScanGtkLayerInterface HyScanGtkLayerInterface;
  * @get_icon_name: Возвращает имя иконки для слоя (см. #GtkIconTheme для подробностей).
  * @hint_find: Определяет, есть ли на слое всплывающая подсказка для указанной точки.
  * @hint_shown: Устанавливает, была ли показана всплывающаю подсказка, запрошенная последний раз.
+ * @handle_create: Создаёт хэндл в указанной точке.
+ * @handle_release: Отпускает хэндл, который был ранее завхвачен слоем.
+ * @handle_find: Находит, есть ли на слое хэндл в окрестностях указанной точки.
+ * @handle_show: Показывает хэндл, который был ранее найден слоем.
+ * @handle_grab: Захватывает хэндл, который был ранее найден слоем.
  */
 struct _HyScanGtkLayerInterface
 {
-  GTypeInterface       g_iface;
+  GTypeInterface         g_iface;
 
-  gboolean           (*load_key_file)    (HyScanGtkLayer          *gtk_layer,
-                                          GKeyFile                *key_file,
-                                          const gchar             *group);
+  gboolean             (*load_key_file)    (HyScanGtkLayer          *gtk_layer,
+                                            GKeyFile                *key_file,
+                                            const gchar             *group);
 
-  void               (*added)            (HyScanGtkLayer          *gtk_layer,
-                                          HyScanGtkLayerContainer *container);
+  void                 (*added)            (HyScanGtkLayer          *gtk_layer,
+                                            HyScanGtkLayerContainer *container);
 
-  void               (*removed)          (HyScanGtkLayer          *gtk_layer);
+  void                 (*removed)          (HyScanGtkLayer          *gtk_layer);
 
-  gboolean           (*grab_input)       (HyScanGtkLayer          *layer);
+  gboolean             (*grab_input)       (HyScanGtkLayer          *layer);
 
-  void               (*set_visible)      (HyScanGtkLayer          *layer,
-                                          gboolean                 visible);
+  void                 (*set_visible)      (HyScanGtkLayer          *layer,
+                                            gboolean                 visible);
 
-  gboolean           (*get_visible)      (HyScanGtkLayer          *layer);
+  gboolean             (*get_visible)      (HyScanGtkLayer          *layer);
 
-  const gchar *      (*get_icon_name)    (HyScanGtkLayer          *layer);
+  const gchar *        (*get_icon_name)    (HyScanGtkLayer          *layer);
 
-  gchar *            (*hint_find)        (HyScanGtkLayer          *layer,
-                                          gdouble                  x,
-                                          gdouble                  y,
-                                          gdouble                 *distance);
+  gchar *              (*hint_find)        (HyScanGtkLayer          *layer,
+                                            gdouble                  x,
+                                            gdouble                  y,
+                                            gdouble                 *distance);
 
-  void               (*hint_shown)       (HyScanGtkLayer          *layer,
-                                          gboolean                 shown);
+  void                 (*hint_shown)       (HyScanGtkLayer          *layer,
+                                            gboolean                 shown);
+
+  gboolean             (*handle_create)    (HyScanGtkLayer          *layer,
+                                            GdkEventButton          *event);
+
+  gboolean             (*handle_release)   (HyScanGtkLayer          *layer,
+                                            gconstpointer            howner);
+
+  gboolean             (*handle_find)      (HyScanGtkLayer          *layer,
+                                            gdouble                  x,
+                                            gdouble                  y,
+                                            HyScanGtkLayerHandle    *handle);
+
+  void                 (*handle_show)      (HyScanGtkLayer          *layer,
+                                            HyScanGtkLayerHandle    *handle);
+
+  gconstpointer        (*handle_grab)      (HyScanGtkLayer          *layer,
+                                            HyScanGtkLayerHandle    *handle);
 };
 
 HYSCAN_API
@@ -138,6 +184,27 @@ gchar *       hyscan_gtk_layer_hint_find              (HyScanGtkLayer          *
 HYSCAN_API
 void          hyscan_gtk_layer_hint_shown             (HyScanGtkLayer          *layer,
                                                        gboolean                 shown);
+
+HYSCAN_API
+gboolean      hyscan_gtk_layer_handle_create          (HyScanGtkLayer          *layer,
+                                                       GdkEventButton          *event);
+HYSCAN_API
+gboolean      hyscan_gtk_layer_handle_release         (HyScanGtkLayer          *layer,
+                                                       gconstpointer            howner);
+
+HYSCAN_API
+gboolean      hyscan_gtk_layer_handle_find            (HyScanGtkLayer          *layer,
+                                                       gdouble                  x,
+                                                       gdouble                  y,
+                                                       HyScanGtkLayerHandle    *handle);
+
+HYSCAN_API
+void          hyscan_gtk_layer_handle_show            (HyScanGtkLayer          *layer,
+                                                       HyScanGtkLayerHandle    *handle);
+
+HYSCAN_API
+gconstpointer hyscan_gtk_layer_handle_grab            (HyScanGtkLayer          *layer,
+                                                       HyScanGtkLayerHandle    *handle);
 
 G_END_DECLS
 

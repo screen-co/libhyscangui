@@ -327,3 +327,136 @@ hyscan_gtk_layer_hint_shown (HyScanGtkLayer *layer,
   if (iface->hint_shown != NULL)
     iface->hint_shown (layer, shown);
 }
+
+/**
+ * hyscan_gtk_layer_handle_create:
+ * @layer: указатель на слой #HyScanGtkLayer
+ * @event: событие #GdkEventButton, которое привело к созданию хэндла
+ *
+ * Создаёт хэндл на слое @layer по событию @event нажатия на кнопку мыши.
+ * Слой может как захватить созданный им хэндл, так и не захватывать.
+ *
+ * Returns: если хэндл был создан, возвращает %TRUE; иначе %FALSE
+ */
+gboolean
+hyscan_gtk_layer_handle_create (HyScanGtkLayer *layer,
+                                GdkEventButton *event)
+{
+  HyScanGtkLayerInterface *iface;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_LAYER (layer), FALSE);
+
+  iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
+  if (iface->handle_create != NULL)
+    return iface->handle_create (layer, event);
+
+  return FALSE;
+}
+
+/**
+ * hyscan_gtk_layer_handle_find:
+ * @layer: указатель на слой #HyScanGtkLayer
+ * @x: координата x точки в логической системе координат
+ * @y: координата y точки в логической системе координат
+ * @handle: (out): указатель на хэндл #HyScanGtkLayerHandle
+ *
+ * Находит, есть ли на слое @layer какой-либо хэндл в окрестности точки с
+ * координатами (@x, @y). Если хэндл найден, то информация о нём записывается
+ * в структуру @handle.
+ *
+ * Найденный хэндл затем может быть передан в функции
+ * hyscan_gtk_layer_handle_show() и hyscan_gtk_layer_handle_grab().
+ *
+ * Returns: %TRUE, если хэндл был найден; иначе %FALSE.
+ */
+gboolean
+hyscan_gtk_layer_handle_find (HyScanGtkLayer       *layer,
+                              gdouble               x,
+                              gdouble               y,
+                              HyScanGtkLayerHandle *handle)
+{
+  HyScanGtkLayerInterface *iface;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_LAYER (layer), FALSE);
+
+  iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
+  if (iface->handle_find != NULL)
+    return iface->handle_find (layer, x, y, handle);
+
+  return FALSE;
+}
+
+/**
+ * hyscan_gtk_layer_handle_show:
+ * @layer: указатель на слой #HyScanGtkLayer
+ * @handle: (nullable): указатель на хэндл #HyScanGtkLayerHandle
+ *
+ * Показывает хэндл @handle, который был найден слоем при последнем вызове функции
+ * hyscan_gtk_layer_find().
+ * Если в качестве хэндла был передан %NULL, то слой не показывает никакой хэндл.
+ */
+void
+hyscan_gtk_layer_handle_show (HyScanGtkLayer       *layer,
+                              HyScanGtkLayerHandle *handle)
+{
+  HyScanGtkLayerInterface *iface;
+
+  g_return_if_fail (HYSCAN_IS_GTK_LAYER (layer));
+
+  iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
+  if (iface->handle_show != NULL)
+    iface->handle_show (layer, handle);
+}
+
+/**
+ * hyscan_gtk_layer_handle_grab:
+ * @layer: указатель на слой #HyScanGtkLayer
+ * @handle: указатель на хэндл #HyScanGtkLayerHandle
+ *
+ * Захватывает хэндл @handle, который был найден слоем при последнем вызове функции
+ * hyscan_gtk_layer_handle_find().
+ *
+ * Для того, чтобы отпустить хэндл, необходимо вызывать функцию
+ * hyscan_gtk_layer_handle_release().
+ *
+ * Returns: (nullable): указатель на владельца хэндла, если хэндл был схвачен; иначе %NULL.
+ */
+gconstpointer
+hyscan_gtk_layer_handle_grab (HyScanGtkLayer       *layer,
+                              HyScanGtkLayerHandle *handle)
+{
+  HyScanGtkLayerInterface *iface;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_LAYER (layer), NULL);
+
+  iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
+  if (iface->handle_grab != NULL)
+    return iface->handle_grab (layer, handle);
+
+  return NULL;
+}
+
+
+/**
+ * hyscan_gtk_layer_handle_release:
+ * @layer: указатель на слой #HyScanGtkLayer
+ * @howner: признак того, что подсказка показана
+ *
+ * Отпускает хэндл, принадлежащий владельцу @howner.
+ *
+ * Returns: %TRUE, если хэндл был отпущен. Иначе %FALSE.
+ */
+gboolean
+hyscan_gtk_layer_handle_release (HyScanGtkLayer *layer,
+                                 gconstpointer   howner)
+{
+  HyScanGtkLayerInterface *iface;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_LAYER (layer), FALSE);
+
+  iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
+  if (iface->handle_release != NULL)
+    return iface->handle_release (layer, howner);
+
+  return FALSE;
+}
