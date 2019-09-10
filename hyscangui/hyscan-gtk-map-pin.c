@@ -120,7 +120,8 @@ struct _HyScanGtkMapPinPrivate
   GList                     *points;                   /* Список вершин ломаной, длину которой необходимо измерить. */
   HyScanGtkMapPinItem       *hover_point;              /* Вершина ломаной под курсором мыши. */
   HyScanGtkMapPinItem       *drag_item;                /* Вершина ломаной, которая перемещается в данный момент. */
-  HyScanGtkMapPoint          drag_origin;              /* Оригинальное положение точки, которая перемещается. */
+  HyScanGtkMapPoint          drag_origin;              /* Изначальное положение точки, которая перемещается. */
+  gboolean                   drag_temporary;           /* Перемещаемая точка в случае отмены должна быть удалена. */
   HyScanGtkMapPinItem       *found_handle;             /* Последний найденный хэндл. */
 
   /* Стиль оформления. */
@@ -452,7 +453,7 @@ hyscan_gtk_map_pin_handle_grab (HyScanGtkLayer       *layer,
   g_return_val_if_fail (priv->found_handle != NULL, NULL);
   g_return_val_if_fail (g_strcmp0 (handle->type_name, HANDLE_TYPE_NAME) == 0, NULL);
 
-  return hyscan_gtk_map_pin_start_drag (pin, priv->found_handle);
+  return hyscan_gtk_map_pin_start_drag (pin, priv->found_handle, FALSE);
 }
 
 /* Возвращает %TRUE, если мы разрешаем отпустить хэндл. */
@@ -736,7 +737,7 @@ hyscan_gtk_map_pin_key_press (HyScanGtkMapPin *pin_layer,
   if (priv->mode != MODE_DRAG)
     return GDK_EVENT_PROPAGATE;
 
-  if (event->keyval == GDK_KEY_Delete)
+  if (event->keyval == GDK_KEY_Delete || (event->keyval == GDK_KEY_Escape && priv->drag_temporary))
     {
       /* Удаляем перетаскиваемую точку. */
       priv->points = g_list_remove (priv->points, priv->drag_item);
@@ -997,6 +998,7 @@ hyscan_gtk_map_pin_insert_before  (HyScanGtkMapPin      *pin_layer,
  * hyscan_gtk_map_pin_start_drag:
  * @layer: указатель на #HyScanGtkMapPin
  * @handle_point: указатель на точку #HyScanGtkMapPoint на слое @layer
+ * @delete_on_cancel: удаляет точку при отмене перемещения
  *
  * Начинает перетаскивание точки @handle_point.
  *
@@ -1004,7 +1006,8 @@ hyscan_gtk_map_pin_insert_before  (HyScanGtkMapPin      *pin_layer,
  */
 gconstpointer
 hyscan_gtk_map_pin_start_drag (HyScanGtkMapPin     *layer,
-                               HyScanGtkMapPinItem *handle_point)
+                               HyScanGtkMapPinItem *handle_point,
+                               gboolean             delete_on_cancel)
 {
   HyScanGtkMapPinPrivate *priv = HYSCAN_GTK_MAP_PIN (layer)->priv;
   gconstpointer howner;
@@ -1028,6 +1031,7 @@ hyscan_gtk_map_pin_start_drag (HyScanGtkMapPin     *layer,
   priv->mode = MODE_DRAG;
   priv->drag_origin = handle_point->point;
   priv->drag_item = handle_point;
+  priv->drag_temporary = delete_on_cancel;
 
   gtk_widget_grab_focus (GTK_WIDGET (priv->map));
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
