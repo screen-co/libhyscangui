@@ -73,6 +73,8 @@
 #define DEFAULT_TRACK_COLOR          "rgba(0,128,0,1.0)"    /* Цвет галсов. */
 #define DEFAULT_TRACK_SELECTED_COLOR "rgba(128,0,128,1.0)"  /* Цвет выделенных галсов. */
 
+#define IS_INSIDE(x, a, b) ((a) < (b) ? (a) < (x) && (x) < (b) : (b) < (x) && (x) < (a))
+
 enum
 {
   PROP_O,
@@ -90,6 +92,7 @@ typedef enum
   STATE_DRAG_END,          /* Режим редактирования конца галса. */
   STATE_ZONE_CREATE,       /* Режим создания новой зоны. */
   STATE_ZONE_DRAG,         /* Режим перемещения вершины зоны. */
+  STATE_ZONE_INSERT,       /* Режим вставки вершины зоны. */
 } HyScanGtkMapPlannerState;
 
 typedef struct
@@ -132,6 +135,7 @@ struct _HyScanGtkMapPlannerPrivate
   gchar                             *hover_track_id;       /* Идентификатор подсвечиваемого галса. */
   gchar                             *hover_zone_id;        /* Идентификатор подсвечиваемой зоны. */
   gint                               hover_vertex;         /* Номер вершины под курсором. */
+  HyScanGeoCartesian2D               hover_edge_point;     /* Координаты точки на ребре под указателем мыши. */
   HyScanGtkMapPlannerState           hover_state;          /* Состояние, которое будет установлено при выборе хэндла. */
 
   const HyScanGtkMapPlannerTrack    *found_track;          /* Указатель на галс под курсором мыши. */
@@ -229,6 +233,8 @@ static gboolean                   hyscan_gtk_map_planner_handle_create_zone    (
                                                                                 HyScanGeoCartesian2D      point);
 static gboolean                   hyscan_gtk_map_planner_handle_create_track   (HyScanGtkMapPlanner      *planner,
                                                                                 HyScanGeoCartesian2D      point);
+static void                       hyscan_gtk_map_planner_cur_zone_insert_drag  (HyScanGtkMapPlanner      *planner,
+                                                                                HyScanGtkLayerHandle     *handle);
 static inline gboolean            hyscan_gtk_map_planner_is_state_track        (HyScanGtkMapPlannerState  state);
 static inline gboolean            hyscan_gtk_map_planner_is_state_vertex       (HyScanGtkMapPlannerState  state);
 static HyScanPlannerTrack *       hyscan_gtk_map_planner_track_origin_new      (void);
@@ -1092,7 +1098,7 @@ hyscan_gtk_map_planner_zone_draw (HyScanGtkMapPlanner     *planner,
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
   GList *link;
   gint vertex_num = 0;
-  gboolean hovered;
+  gboolean hovered, hovered_vertex;
   HyScanGtkMapPoint *point;
 
   gint i = 0, j;
@@ -1110,10 +1116,24 @@ hyscan_gtk_map_planner_zone_draw (HyScanGtkMapPlanner     *planner,
   cairo_new_path (cairo);
 
   hovered = (g_strcmp0 (priv->hover_zone_id, zone->id) == 0);
+  hovered_vertex = hovered && priv->hover_state == STATE_ZONE_DRAG;
+
+  /* Хэндл над ребром зоны для создания новой вершины. */
+  if (hovered && priv->hover_state == STATE_ZONE_INSERT)
+    {
+      gdouble edge_x, edge_y;
+
+      gtk_cifro_area_value_to_point (GTK_CIFRO_AREA (priv->map), &edge_x, &edge_y,
+                                     priv->hover_edge_point.x, priv->hover_edge_point.y);
+      cairo_new_sub_path (cairo);
+      cairo_arc (cairo, edge_x, edge_y, HANDLE_HOVER_RADIUS, -G_PI, G_PI);
+    }
+
   for (link = zone->points, j = 0; link != NULL; link = link->next, j++)
     {
-      point = link->data;
       gdouble radius;
+
+      point = link->data;
 
       i = j % 2;
       gtk_cifro_area_value_to_point (GTK_CIFRO_AREA (priv->map), &x[i], &y[i], point->c2d.x, point->c2d.y);
@@ -1125,7 +1145,7 @@ hyscan_gtk_map_planner_zone_draw (HyScanGtkMapPlanner     *planner,
         }
 
       /* Рисуем вершину. */
-      radius = (hovered && ++vertex_num == priv->hover_vertex) ? HANDLE_HOVER_RADIUS : HANDLE_RADIUS;
+      radius = (hovered_vertex && ++vertex_num == priv->hover_vertex) ? HANDLE_HOVER_RADIUS : HANDLE_RADIUS;
       cairo_new_sub_path (cairo);
       cairo_arc (cairo, x[i], y[i], radius, -G_PI, G_PI);
 
@@ -1274,6 +1294,9 @@ hyscan_gtk_map_planner_handle_find_zone (HyScanGtkMapPlanner  *planner,
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
   GHashTableIter iter;
   HyScanGtkMapPlannerZone *zone;
+  HyScanGtkMapPoint *point, *next_point;
+  HyScanGeoCartesian2D cursor = {.x = x, .y = y};
+  HyScanGeoCartesian2D edge_point;
 
   GList *list;
   gdouble scale_x, scale_y;
@@ -1290,20 +1313,34 @@ hyscan_gtk_map_planner_handle_find_zone (HyScanGtkMapPlanner  *planner,
 
       for (list = zone->points; list != NULL; list = list->next)
         {
-          HyScanGtkMapPoint *point = list->data;
+          point = list->data;
 
           vertex_num++;
 
-          if (ABS (point->c2d.x - x) > max_x || ABS (point->c2d.y - y) > max_y)
-            continue;
+          if (ABS (point->c2d.x - x) < max_x && ABS (point->c2d.y - y) < max_y)
+            {
+              handle_coord->x = point->c2d.x;
+              handle_coord->y = point->c2d.y;
+              priv->found_zone = zone;
+              priv->found_vertex = vertex_num;
+              priv->found_state = STATE_ZONE_DRAG;
 
-          handle_coord->x = point->c2d.x;
-          handle_coord->y = point->c2d.y;
-          priv->found_zone = zone;
-          priv->found_vertex = vertex_num;
-          priv->found_state = STATE_ZONE_DRAG;
+              return TRUE;
+            }
 
-          return TRUE;
+          next_point = list->next != NULL ? list->next->data : zone->points->data;
+          if (hyscan_cartesian_distance_to_line (&point->c2d, &next_point->c2d, &cursor, &edge_point) < max_x &&
+              IS_INSIDE (edge_point.x, point->c2d.x, next_point->c2d.x) &&
+              IS_INSIDE (edge_point.y, point->c2d.y, next_point->c2d.y))
+            {
+              handle_coord->x = edge_point.x;
+              handle_coord->y = edge_point.y;
+              priv->found_zone = zone;
+              priv->found_vertex = vertex_num;
+              priv->found_state = STATE_ZONE_INSERT;
+
+              return TRUE;
+            }
         }
     }
 
@@ -1385,6 +1422,27 @@ hyscan_gtk_map_planner_handle_create_zone (HyScanGtkMapPlanner  *planner,
   return TRUE;
 }
 
+/* Добавляет ещё одну вершину в периметр и начинает её перетаскивание. */
+static void
+hyscan_gtk_map_planner_cur_zone_insert_drag (HyScanGtkMapPlanner  *planner,
+                                             HyScanGtkLayerHandle *handle)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  HyScanGtkMapPoint vertex;
+
+  /* Координаты новой вершины берём из хэндла. */
+  vertex.c2d.x = handle->val_x;
+  vertex.c2d.y = handle->val_y;
+  hyscan_gtk_map_value_to_geo (priv->map, &vertex.geo, vertex.c2d);
+
+  /* Вставляем вершину в список вершин текущей зоны и перетаскиваем. */
+  priv->cur_zone->points = g_list_insert (priv->cur_zone->points,
+                                          hyscan_gtk_map_point_copy (&vertex),
+                                          priv->found_vertex);
+  priv->cur_vertex = g_list_nth (priv->cur_zone->points, (guint) (priv->found_vertex));
+  priv->cur_state = STATE_ZONE_DRAG;
+}
+
 /* Находит на слое хэндл в точке x, y. */
 static gboolean
 hyscan_gtk_map_planner_handle_find (HyScanGtkLayer       *layer,
@@ -1432,6 +1490,7 @@ hyscan_gtk_map_planner_handle_grab (HyScanGtkLayer       *layer,
   /* В момент захвата хэндла мы предполагаем, что текущий хэндл не выбран. Иначе это ошибка в логике программы. */
   g_assert (priv->cur_track == NULL && priv->cur_zone == NULL);
 
+  /* В режиме выбора ничего не захватываем - дальнейшая обработка в "button-release-event". */
   if (priv->mode == HYSCAN_GTK_MAP_PLANNER_MODE_SELECT)
     return NULL;
 
@@ -1439,6 +1498,10 @@ hyscan_gtk_map_planner_handle_grab (HyScanGtkLayer       *layer,
   priv->cur_track = hyscan_gtk_map_planner_track_copy (priv->found_track);
   priv->cur_zone = hyscan_gtk_map_planner_zone_copy (priv->found_zone);
   priv->cur_vertex = priv->found_vertex > 0 ? g_list_nth (priv->cur_zone->points, (guint) (priv->found_vertex - 1)) : NULL;
+
+  /* Перходим от состояния STATE_ZONE_INSERT к STATE_ZONE_DRAG. */
+  if (priv->cur_state == STATE_ZONE_INSERT)
+    hyscan_gtk_map_planner_cur_zone_insert_drag (planner, handle);
 
   return planner;
 }
@@ -1500,6 +1563,11 @@ hyscan_gtk_map_planner_handle_show_zone (HyScanGtkLayer       *layer,
       hover_id = priv->found_zone->id;
       hover_vertex = priv->found_vertex;
       priv->hover_state = priv->found_state;
+      if (priv->hover_state == STATE_ZONE_INSERT)
+        {
+          priv->hover_edge_point.x = handle->val_x;
+          priv->hover_edge_point.y = handle->val_y;
+        }
       state_set = TRUE;
     }
   else
@@ -1509,10 +1577,17 @@ hyscan_gtk_map_planner_handle_show_zone (HyScanGtkLayer       *layer,
       state_set = FALSE;
     }
 
-  zone_changed = (g_strcmp0 (priv->hover_zone_id, hover_id) != 0);
-  vertex_changed = (hover_vertex != priv->hover_vertex);
-  if (prev_state != priv->hover_state || zone_changed || vertex_changed)
-    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+  /* Перерисовка необходима в случаях:
+   * 1. смена состояния.
+   * 2. изменения выбранного объекта - (zone_changed || vertex_changed),
+   * 3. в состоянии вставки вершины STATE_ZONE_INSERT - постоянно, т.к. её координаты меняются каждый раз.
+   */
+  {
+    zone_changed = (g_strcmp0 (priv->hover_zone_id, hover_id) != 0);
+    vertex_changed = (hover_vertex != priv->hover_vertex);
+    if (prev_state != priv->hover_state || zone_changed || vertex_changed || priv->hover_state == STATE_ZONE_INSERT)
+      gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+  }
 
   priv->hover_vertex = hover_vertex;
   if (zone_changed)
