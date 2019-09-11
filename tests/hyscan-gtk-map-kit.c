@@ -14,6 +14,7 @@
 #include <hyscan-gtk-param-list.h>
 #include <hyscan-gtk-map-wfmark.h>
 #include <hyscan-object-model.h>
+#include <hyscan-planner-model.h>
 #include <hyscan-gtk-map-geomark.h>
 
 #include <glib/gi18n-lib.h>
@@ -62,7 +63,7 @@ struct _HyScanGtkMapKitPrivate
   /* Модели данных. */
   HyScanDBInfo          *db_info;          /* Доступ к данным БД. */
   HyScanObjectModel     *mark_model;       /* Модель меток водопада. */
-  HyScanObjectModel     *planner_model;    /* Модель объектов планировщика. */
+  HyScanPlannerModel    *planner_model;    /* Модель объектов планировщика. */
   HyScanListStore       *planner_selection;/* Модель выбранных объектов планировщика. */
   HyScanObjectModel     *mark_geo_model;   /* Модель геометок. */
   HyScanMarkLocModel    *ml_model;         /* Модель местоположения меток водопада. */
@@ -1243,7 +1244,7 @@ create_planner_toolbox (HyScanGtkMapKit *kit)
   GtkWidget *box;
   GtkWidget *tab_switch;
   GtkWidget *tab_editor, *tab_parallel, *tab_default;
-  GtkWidget *zone_mode, *track_mode, *select_mode, *parallel_mode;
+  GtkWidget *zone_mode, *track_mode, *origin_mode, *select_mode, *parallel_mode;
 
   box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
 
@@ -1254,11 +1255,13 @@ create_planner_toolbox (HyScanGtkMapKit *kit)
   zone_mode = create_planner_mode_btn (kit, NULL, "folder-new-symbolic", HYSCAN_GTK_MAP_PLANNER_MODE_ZONE);
   track_mode = create_planner_mode_btn (kit, zone_mode, "document-new-symbolic", HYSCAN_GTK_MAP_PLANNER_MODE_TRACK);
   select_mode = create_planner_mode_btn (kit, zone_mode, "find-location-symbolic", HYSCAN_GTK_MAP_PLANNER_MODE_SELECT);
+  origin_mode = create_planner_mode_btn (kit, zone_mode, "go-home-symbolic", HYSCAN_GTK_MAP_PLANNER_MODE_ORIGIN);
   parallel_mode = create_planner_mode_btn (kit, zone_mode, "open-menu-symbolic",
                                            HYSCAN_GTK_MAP_PLANNER_MODE_TRACK_PARALLEL);
 
   gtk_box_pack_start (GTK_BOX (tab_switch), zone_mode, TRUE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (tab_switch), track_mode, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (tab_switch), origin_mode, TRUE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (tab_switch), select_mode, TRUE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (tab_switch), parallel_mode, TRUE, TRUE, 0);
 
@@ -1809,7 +1812,7 @@ hyscan_gtk_map_kit_set_project (HyScanGtkMapKit *kit,
     hyscan_object_model_set_project (priv->mark_model, priv->db, priv->project_name);
 
   if (priv->planner_model != NULL)
-    hyscan_object_model_set_project (priv->planner_model, priv->db, priv->project_name);
+    hyscan_object_model_set_project (HYSCAN_OBJECT_MODEL (priv->planner_model), priv->db, priv->project_name);
 
   if (priv->ml_model != NULL)
     hyscan_mark_loc_model_set_project (priv->ml_model, priv->project_name);
@@ -1965,7 +1968,7 @@ hyscan_gtk_map_kit_add_planner (HyScanGtkMapKit *kit)
   g_return_if_fail (priv->db != NULL);
 
   /* Модель данных планировщика. */
-  priv->planner_model = hyscan_object_model_new (HYSCAN_TYPE_PLANNER_DATA);
+  priv->planner_model = hyscan_planner_model_new ();
   priv->planner_selection = hyscan_list_store_new ();
 
   /* Слой планировщика. */
@@ -1979,7 +1982,7 @@ hyscan_gtk_map_kit_add_planner (HyScanGtkMapKit *kit)
 
   /* Устанавливаем проект и БД. */
   if (priv->project_name != NULL)
-    hyscan_object_model_set_project (priv->planner_model, priv->db, priv->project_name);
+    hyscan_object_model_set_project (HYSCAN_OBJECT_MODEL (priv->planner_model), priv->db, priv->project_name);
 }
 
 void

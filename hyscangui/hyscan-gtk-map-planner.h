@@ -37,7 +37,7 @@
 
 #include "hyscan-list-store.h"
 #include <hyscan-gtk-layer.h>
-#include <hyscan-object-model.h>
+#include <hyscan-planner-model.h>
 
 G_BEGIN_DECLS
 
@@ -57,6 +57,7 @@ typedef enum _HyScanGtkMapPlannerMode HyScanGtkMapPlannerMode;
  * HyScanGtkMapPlannerMode:
  * @HYSCAN_GTK_MAP_PLANNER_MODE_ZONE: режим создания границ полигона
  * @HYSCAN_GTK_MAP_PLANNER_MODE_TRACK: режим создания плановых галсов
+ * @HYSCAN_GTK_MAP_PLANNER_MODE_ORIGIN: режим установки точки отсчёта
  * @HYSCAN_GTK_MAP_PLANNER_MODE_TRACK_PARALLEL: режим создания параллельных галсов
  * @HYSCAN_GTK_MAP_PLANNER_MODE_SELECT: режим выделения объектов
  *
@@ -66,6 +67,7 @@ enum _HyScanGtkMapPlannerMode
 {
   HYSCAN_GTK_MAP_PLANNER_MODE_ZONE,
   HYSCAN_GTK_MAP_PLANNER_MODE_TRACK,
+  HYSCAN_GTK_MAP_PLANNER_MODE_ORIGIN,
   HYSCAN_GTK_MAP_PLANNER_MODE_TRACK_PARALLEL,
   HYSCAN_GTK_MAP_PLANNER_MODE_SELECT,
 };
@@ -83,15 +85,18 @@ struct _HyScanGtkMapPlannerClass
 };
 
 HYSCAN_API
-GType            hyscan_gtk_map_planner_get_type         (void);
+GType                hyscan_gtk_map_planner_get_type         (void);
 
 HYSCAN_API
-HyScanGtkLayer * hyscan_gtk_map_planner_new              (HyScanObjectModel       *model,
-                                                          HyScanListStore         *selection);
+HyScanGtkLayer *     hyscan_gtk_map_planner_new              (HyScanPlannerModel      *model,
+                                                              HyScanListStore         *selection);
 
 HYSCAN_API
-void             hyscan_gtk_map_planner_set_mode         (HyScanGtkMapPlanner     *planner,
-                                                          HyScanGtkMapPlannerMode  mode);
+void                 hyscan_gtk_map_planner_set_mode         (HyScanGtkMapPlanner     *planner,
+                                                              HyScanGtkMapPlannerMode  mode);
+
+HYSCAN_API
+HyScanPlannerModel * hyscan_gtk_map_planner_get_model        (HyScanGtkMapPlanner     *planner);
 
 G_END_DECLS
 
