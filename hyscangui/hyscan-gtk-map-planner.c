@@ -73,6 +73,8 @@
 #define DEFAULT_ZONE_COLOR           "rgba(0,50,0,0.8)"     /* Цвет периметра полигона. */
 #define DEFAULT_TRACK_WIDTH          1.0                    /* Толщина галсов. */
 #define DEFAULT_TRACK_COLOR          "rgba(0,128,0,1.0)"    /* Цвет галсов. */
+#define DEFAULT_ORIGIN_WIDTH         1.0                    /* Толщина галсов. */
+#define DEFAULT_ORIGIN_COLOR         "rgba(80,120,180,0.5)" /* Цвет осей координат. */
 #define DEFAULT_TRACK_SELECTED_COLOR "rgba(128,0,128,1.0)"  /* Цвет выделенных галсов. */
 
 #define IS_INSIDE(x, a, b) ((a) < (b) ? (a) < (x) && (x) < (b) : (b) < (x) && (x) < (a))
@@ -163,6 +165,7 @@ struct _HyScanGtkMapPlannerPrivate
   HyScanGtkMapPlannerStyle           track_style;          /* Стиль оформления галса. */
   HyScanGtkMapPlannerStyle           track_style_selected; /* Стиль оформления выбранного галса. */
   HyScanGtkMapPlannerStyle           zone_style;           /* Стиль оформления периметра полигона. */
+  HyScanGtkMapPlannerStyle           origin_style;         /* Стиль оформления начала координат. */
 };
 
 static void                       hyscan_gtk_map_planner_interface_init        (HyScanGtkLayerInterface   *iface);
@@ -382,6 +385,8 @@ hyscan_gtk_map_planner_object_constructed (GObject *object)
   gdk_rgba_parse (&priv->track_style.color, DEFAULT_TRACK_COLOR);
   priv->track_style_selected.line_width = DEFAULT_TRACK_WIDTH;
   gdk_rgba_parse (&priv->track_style_selected.color, DEFAULT_TRACK_SELECTED_COLOR);
+  priv->origin_style.line_width = DEFAULT_ORIGIN_WIDTH;
+  gdk_rgba_parse (&priv->origin_style.color, DEFAULT_ORIGIN_COLOR);
 
   g_signal_connect_swapped (priv->model, "changed", G_CALLBACK (hyscan_gtk_map_planner_model_changed), planner);
 }
@@ -1218,6 +1223,9 @@ hyscan_gtk_map_planner_origin_draw (HyScanGtkMapPlanner     *planner,
   angle = origin->object->origin.h / 180.0 * G_PI;
 
   cairo_save (cairo);
+  gdk_cairo_set_source_rgba (cairo, &priv->origin_style.color);
+  cairo_set_line_width (cairo, priv->origin_style.line_width);
+
   cairo_translate (cairo, x, y);
   cairo_rotate (cairo, angle - G_PI_2);
 
@@ -1245,7 +1253,6 @@ hyscan_gtk_map_planner_origin_draw (HyScanGtkMapPlanner     *planner,
   pango_layout_set_text (priv->pango_layout, "x", 1);
   pango_cairo_show_layout (cairo, priv->pango_layout);
 
-  cairo_set_line_width (cairo, 1.0);
   cairo_stroke (cairo);
 
   cairo_restore (cairo);
@@ -2074,6 +2081,11 @@ hyscan_gtk_map_planner_load_key_file (HyScanGtkLayer *layer,
   line_width = g_key_file_get_double (key_file, group, "zone-width", NULL);
   priv->track_style_selected.line_width = line_width > 0 ? line_width : DEFAULT_ZONE_WIDTH;
 
+  hyscan_gtk_layer_load_key_file_rgba (&priv->origin_style.color, key_file, group,
+                                       "origin-color", DEFAULT_ORIGIN_COLOR);
+  line_width = g_key_file_get_double (key_file, group, "origin-width", NULL);
+  priv->origin_style.line_width = line_width > 0 ? line_width : DEFAULT_ORIGIN_WIDTH;
+
   if (priv->map != NULL)
     gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 
@@ -2128,6 +2140,9 @@ hyscan_gtk_map_planner_set_mode (HyScanGtkMapPlanner     *planner,
     hyscan_gtk_map_planner_cancel (planner);
 
   planner->priv->mode = mode;
+
+  if (priv->map != NULL)
+    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }
 
 /**
