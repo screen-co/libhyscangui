@@ -190,7 +190,7 @@ hyscan_gtk_map_ruler_handle_grab (HyScanGtkLayer       *layer,
       coordinate.y = handle->val_y;
       new_item = hyscan_gtk_map_pin_insert_before (pin_layer, &coordinate, found_section);
 
-      return hyscan_gtk_map_pin_start_drag (pin_layer, new_item);
+      return hyscan_gtk_map_pin_start_drag (pin_layer, new_item, TRUE);
     }
 
   return hyscan_gtk_layer_parent_interface->handle_grab (layer, handle);
