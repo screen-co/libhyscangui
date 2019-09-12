@@ -1159,12 +1159,8 @@ hyscan_gtk_waterfall_mark_handle_create (HyScanGtkLayer *layer,
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
 
   /* Обязательные проверки: слой не владеет вводом, редактирование запрещено, слой скрыт. */
-  if (self != hyscan_gtk_layer_container_get_input_owner (HYSCAN_GTK_LAYER_CONTAINER (priv->wfall)) ||
-      !hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (priv->wfall)) ||
-      !hyscan_gtk_layer_get_visible (layer))
-    {
-      return FALSE;
-    }
+  if (self != hyscan_gtk_layer_container_get_input_owner (HYSCAN_GTK_LAYER_CONTAINER (priv->wfall)))
+    return FALSE;
 
   if (priv->mode != LOCAL_EMPTY)
     {
@@ -1230,13 +1226,6 @@ hyscan_gtk_waterfall_mark_handle_find (HyScanGtkLayer       *layer,
   HyScanCoordinates point;
   GList *link;
 
-  /* Обязательные проверки: редактирование запрещено, слой скрыт. */
-  if (!hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (self->priv->wfall)) ||
-      !hyscan_gtk_layer_get_visible (layer))
-    {
-      return FALSE;
-    }
-
   link = hyscan_gtk_waterfall_mark_find_closest (self, &mouse, &point);
 
   if (link == NULL)
@@ -1275,13 +1264,6 @@ hyscan_gtk_waterfall_mark_handle_grab (HyScanGtkLayer       *layer,
   HyScanCoordinates mouse, corner;
   gint mode;
   GList *link;
-
-  /* Обязательные проверки: редактирование запрещено, слой скрыт. */
-  if (!hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (priv->wfall)) ||
-      !hyscan_gtk_layer_get_visible (layer))
-    {
-      return FALSE;
-    }
 
   link = handle->user_data;
 

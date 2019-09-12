@@ -453,23 +453,6 @@ hyscan_gtk_map_geomark_handle_at (HyScanGtkMapGeomark  *gm_layer,
   HyScanGeoCartesian2D handle_point = {0, 0};
   const gchar *handle_id = NULL;
 
-  gconstpointer howner;
-
-  /* Никак не реагируем на точки, если выполнено хотя бы одно из условий (1-3): */
-
-  /* 1. какой-то хэндл захвачен, ... */
-  howner = hyscan_gtk_layer_container_get_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map));
-  if (howner != NULL)
-    goto exit;
-
-  /* 2. редактирование запрещено, ... */
-  if (!hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (priv->map)))
-    goto exit;
-
-  /* 3. слой не отображается. */
-  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (gm_layer)))
-    goto exit;
-
   cursor.x = x;
   cursor.y = y;
   gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &scale, NULL);
@@ -508,7 +491,6 @@ hyscan_gtk_map_geomark_handle_at (HyScanGtkMapGeomark  *gm_layer,
         }
     }
 
-exit:
   if (mode != NULL)
     *mode = handle_mode;
 
@@ -696,19 +678,12 @@ hyscan_gtk_map_geomark_handle_create (HyScanGtkLayer *layer,
 
   container = HYSCAN_GTK_LAYER_CONTAINER (priv->map);
 
-  if (!hyscan_gtk_layer_container_get_changes_allowed (container))
-    return GDK_EVENT_PROPAGATE;
-
   /* Проверяем, что у нас есть право ввода. */
   if (hyscan_gtk_layer_container_get_input_owner (container) != layer)
     return GDK_EVENT_PROPAGATE;
 
-  /* Если слой не видно, то никак не реагируем. */
-  if (!hyscan_gtk_layer_get_visible (layer))
-    return GDK_EVENT_PROPAGATE;
-
-  if (priv->mode != MODE_NONE)
-    return GDK_EVENT_PROPAGATE;
+  /* Если это условие не выполняется, то какая-то ошибка в логике программы. */
+  g_return_val_if_fail (priv->mode == MODE_NONE, GDK_EVENT_PROPAGATE);
 
   /* Создаём новую метку. */
   {
@@ -874,10 +849,10 @@ hyscan_gtk_map_geomark_handle_grab (HyScanGtkLayer       *layer,
 }
 
 static gboolean
-hyscan_gtk_map_geomark_handle_find (HyScanGtkLayer          *layer,
-                                    gdouble                  x,
-                                    gdouble                  y,
-                                    HyScanGtkLayerHandle    *handle)
+hyscan_gtk_map_geomark_handle_find (HyScanGtkLayer       *layer,
+                                    gdouble               x,
+                                    gdouble               y,
+                                    HyScanGtkLayerHandle *handle)
 {
   HyScanGtkMapGeomark *gm_layer = HYSCAN_GTK_MAP_GEOMARK (layer);
   HyScanGtkMapGeomarkPrivate *priv = gm_layer->priv;

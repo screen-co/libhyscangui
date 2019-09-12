@@ -105,7 +105,6 @@ struct _HyScanGtkMapKitPrivate
   GtkWidget             *lat_spin;        /* Поля для ввода широты. */
   GtkWidget             *lon_spin;        /* Поля для ввода долготы. */
 
-  GtkWidget             *mark_editor;     /* Редактор названия меток. */
   GtkWidget             *stbar_offline;   /* Статусбар оффлайн. */
   GtkWidget             *stbar_coord;     /* Статусбар координат. */
 };
@@ -932,7 +931,6 @@ create_wfmark_toolbox (HyScanGtkMapKit *kit)
   /* Помещаем в панель навигации. */
   gtk_box_pack_start (GTK_BOX (kit->navigation), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL), FALSE, FALSE, 0);
   gtk_box_pack_start (GTK_BOX (kit->navigation), scrolled_window, TRUE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (kit->navigation), priv->mark_editor, FALSE, FALSE, 0);
   gtk_box_pack_start (GTK_BOX (kit->navigation), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL), FALSE, FALSE, 0);
 }
 

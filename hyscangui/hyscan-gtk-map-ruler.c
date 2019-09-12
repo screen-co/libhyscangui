@@ -582,23 +582,6 @@ hyscan_gtk_map_ruler_get_segment_at (HyScanGtkMapRuler    *ruler,
   gdouble scale_x;
   gdouble snap_distance;
 
-  gconstpointer howner;
-
-  /* Никак не реагируем на точки, если выполнено хотя бы одно из условий (1-3): */
-
-  /* 1. какой-то хэндл захвачен, ... */
-  howner = hyscan_gtk_layer_container_get_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (map));
-  if (howner != NULL)
-    return NULL;
-
-  /* 2. редактирование запрещено, ... */
-  if (!hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (map)))
-    return NULL;
-
-  /* 3. слой не отображается. */
-  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (ruler)))
-    return NULL;
-
   carea = GTK_CIFRO_AREA (map);
   gtk_cifro_area_get_scale (carea, &scale_x, NULL);
   snap_distance = SNAP_DISTANCE * scale_x;
