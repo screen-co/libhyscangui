@@ -230,9 +230,6 @@ hyscan_gtk_planner_editor_object_constructed (GObject *object)
 
   priv->geo = hyscan_planner_model_get_geo (priv->model);
 
-  gtk_grid_set_row_spacing (grid, 3);
-  gtk_grid_set_column_spacing (grid, 6);
-
   priv->label = gtk_label_new (NULL);
   priv->start_x = gtk_spin_button_new_with_range (-MAX_DISTANCE, MAX_DISTANCE, DIST_STEP);
   priv->start_y = gtk_spin_button_new_with_range (-MAX_DISTANCE, MAX_DISTANCE, DIST_STEP);
@@ -249,6 +246,8 @@ hyscan_gtk_planner_editor_object_constructed (GObject *object)
   priv->angle_btn = gtk_check_button_new ();
   priv->speed_btn = gtk_check_button_new ();
 
+  gtk_grid_set_row_spacing (grid, 3);
+  gtk_grid_set_column_spacing (grid, 6);
   gtk_grid_attach (grid, priv->label, 0, ++i, 2, 1);
 
   hyscan_gtk_planner_editor_attach (grid, _("Start X"), priv->start_x, priv->start_x_btn, ++i,

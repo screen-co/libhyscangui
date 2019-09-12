@@ -1,9 +1,7 @@
 #ifndef __HYSCAN_GTK_PLANNER_EDITOR_H__
 #define __HYSCAN_GTK_PLANNER_EDITOR_H__
 
-#include <glib-object.h>
 #include <gtk/gtk.h>
-#include <hyscan-api.h>
 #include <hyscan-planner-model.h>
 
 G_BEGIN_DECLS
