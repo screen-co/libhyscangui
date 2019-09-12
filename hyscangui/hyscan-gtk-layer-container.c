@@ -287,7 +287,7 @@ hyscan_gtk_layer_container_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_layer_container_parent_class)->finalize (object);
 }
 
-/* Пытается создать хэндл, опрашивая все слои. */
+/* Пытается создать хэндл, опрашивая все видимые слои. */
 static gboolean
 hyscan_gtk_layer_container_handle_create (HyScanGtkLayerContainer *container,
                                           GdkEventButton          *event)
@@ -299,6 +299,9 @@ hyscan_gtk_layer_container_handle_create (HyScanGtkLayerContainer *container,
     {
       HyScanGtkLayerContainerInfo *info = link->data;
 
+      if (!hyscan_gtk_layer_get_visible (info->layer))
+        continue;
+
       if (hyscan_gtk_layer_handle_create (info->layer, event))
         return TRUE;
     }
@@ -306,7 +309,7 @@ hyscan_gtk_layer_container_handle_create (HyScanGtkLayerContainer *container,
   return FALSE;
 }
 
-/* Пытается захватить хэндл, опрашивая все слои. */
+/* Пытается захватить хэндл, опрашивая все видимые слои. */
 static HyScanGtkLayer *
 hyscan_gtk_layer_container_handle_closest (HyScanGtkLayerContainer *container,
                                            gdouble                  point_x,
@@ -321,13 +324,16 @@ hyscan_gtk_layer_container_handle_closest (HyScanGtkLayerContainer *container,
 
   gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (container), point_x, point_y, &val_x, &val_y);
 
-  /* Опрашиваем каждый слой - есть ли в нём хэндл. */
+  /* Опрашиваем каждый видимый слой - есть ли в нём хэндл. */
   closest_distance = G_MAXDOUBLE;
   for (link = priv->layers; link != NULL; link = link->next)
     {
       HyScanGtkLayerContainerInfo *info = link->data;
       HyScanGtkLayerHandle handle;
       gdouble distance;
+
+      if (!hyscan_gtk_layer_get_visible (info->layer))
+        continue;
 
       if (!hyscan_gtk_layer_handle_find (info->layer, val_x, val_y, &handle))
         continue;
@@ -352,13 +358,13 @@ hyscan_gtk_layer_container_handle_grab (HyScanGtkLayerContainer *container,
   HyScanGtkLayerContainerPrivate *priv = container->priv;
   gconstpointer handle_owner = NULL;
   HyScanGtkLayerHandle closest_handle;
-  HyScanGtkLayer *closest_layer = NULL;
+  HyScanGtkLayer *layer = NULL;
 
-  closest_layer = hyscan_gtk_layer_container_handle_closest (container, event->x, event->y, &closest_handle);
-  if (closest_layer == NULL)
+  layer = hyscan_gtk_layer_container_handle_closest (container, event->x, event->y, &closest_handle);
+  if (layer == NULL)
     return FALSE;
 
-  handle_owner = hyscan_gtk_layer_handle_grab (closest_layer, &closest_handle);
+  handle_owner = hyscan_gtk_layer_handle_grab (layer, &closest_handle);
   hyscan_gtk_layer_container_set_handle_grabbed (container, handle_owner);
 
   /* Прячем хэндл, если такой есть. */
@@ -479,15 +485,17 @@ hyscan_gtk_layer_container_handle_show (HyScanGtkLayerContainer *container,
   priv->hshow_layer = layer;
 }
 
-/* Обработчик "button-release-event". */
+/* Обработчик "motion-notify-event". */
 static gboolean
 hyscan_gtk_layer_container_motion_notify (GtkWidget      *widget,
                                           GdkEventMotion *event)
 {
   HyScanGtkLayerContainer *container = HYSCAN_GTK_LAYER_CONTAINER (widget);
+  gconstpointer handle_owner;
 
   /* Если пользователь схватил хэндл, то не выводим подсказки. */
-  if (hyscan_gtk_layer_container_get_handle_grabbed (container) != NULL)
+  handle_owner = hyscan_gtk_layer_container_get_handle_grabbed (container);
+  if (handle_owner != NULL)
     return GDK_EVENT_PROPAGATE;
 
   hyscan_gtk_layer_container_handle_show (container, event->x, event->y);
@@ -502,7 +510,7 @@ hyscan_gtk_layer_container_button_release (GtkWidget       *widget,
                                            GdkEventButton  *event)
 {
   HyScanGtkLayerContainer *container = HYSCAN_GTK_LAYER_CONTAINER (widget);
-  gconstpointer handle_owner = NULL;
+  gconstpointer handle_owner;
 
   /* Обрабатываем только нажатия левой и правой клавишами мыши. */
   if (event->button != GDK_BUTTON_PRIMARY && event->button != GDK_BUTTON_SECONDARY)

@@ -784,19 +784,12 @@ hyscan_gtk_map_pin_handle_create (HyScanGtkLayer *layer,
 
   container = HYSCAN_GTK_LAYER_CONTAINER (priv->map);
 
-  if (!hyscan_gtk_layer_container_get_changes_allowed (container))
-    return GDK_EVENT_PROPAGATE;
-
   /* Проверяем, что у нас есть право ввода. */
   if (hyscan_gtk_layer_container_get_input_owner (container) != layer)
     return GDK_EVENT_PROPAGATE;
 
-  /* Если слой не видно, то никак не реагируем. */
-  if (!hyscan_gtk_layer_get_visible (layer))
-    return GDK_EVENT_PROPAGATE;
-
-  if (priv->mode != MODE_NONE)
-    return GDK_EVENT_PROPAGATE;
+  /* Если это условие не выполняется, то какая-то ошибка в логике программы. */
+  g_return_val_if_fail (priv->mode == MODE_NONE, GDK_EVENT_PROPAGATE);
 
   gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &point.x, &point.y);
   hyscan_gtk_map_pin_insert_before (pin_layer, &point, NULL);
@@ -825,23 +818,6 @@ hyscan_gtk_map_pin_get_item_at (HyScanGtkMapPin *pin_layer,
   GList *point_l;
   HyScanGtkMapPinMarker *marker;
   gdouble scale_x, scale_y;
-
-  gconstpointer howner;
-
-  /* Никак не реагируем на точки, если выполнено хотя бы одно из условий (1-3): */
-
-  /* 1. какой-то хэндл захвачен, ... */
-  howner = hyscan_gtk_layer_container_get_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map));
-  if (howner != NULL)
-    return NULL;
-
-  /* 2. редактирование запрещено, ... */
-  if (!hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (priv->map)))
-    return NULL;
-
-  /* 3. слой не отображается. */
-  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (pin_layer)))
-    return NULL;
 
   /* Проверяем каждую точку, лежит ли она в поле действия маркера. */
   gtk_cifro_area_get_scale (carea, &scale_x, &scale_y);
