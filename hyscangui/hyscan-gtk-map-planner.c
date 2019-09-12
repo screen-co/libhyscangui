@@ -88,6 +88,12 @@ enum
   PROP_PARALLEL_ALTER,
 };
 
+enum
+{
+  SIGNAL_TRACK_CHANGED,
+  SIGNAL_LAST
+};
+
 typedef enum
 {
   STATE_NONE,              /* Режим просмотра. */
@@ -200,6 +206,8 @@ static void                       hyscan_gtk_map_planner_origin_project        (
                                                                                 HyScanGtkMapPlannerOrigin *origin);
 static void                       hyscan_gtk_map_planner_track_remove          (HyScanGtkMapPlanner       *planner,
                                                                                 const gchar               *track_id);
+static void                       hyscan_gtk_map_planner_set_cur_track         (HyScanGtkMapPlanner       *planner,
+                                                                                HyScanGtkMapPlannerTrack  *track);
 static void                       hyscan_gtk_map_planner_selection_remove      (HyScanGtkMapPlanner       *planner);
 static void                       hyscan_gtk_map_planner_vertex_remove         (HyScanGtkMapPlanner       *planner);
 static void                       hyscan_gtk_map_planner_zone_save             (HyScanGtkMapPlanner       *planner,
@@ -299,6 +307,18 @@ hyscan_gtk_map_planner_class_init (HyScanGtkMapPlannerClass *klass)
   g_object_class_install_property (object_class, PROP_PARALLEL_ALTER,
     g_param_spec_boolean ("parallel-alternate", "Parallel alternate", "Alternate parallel tracks",
                           TRUE, G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
+
+  /**
+   * HyScanGtkMapPlanner::track-changed:
+   * @planner: указатель на #HyScanGtkMapPlanner
+   * @track: (nullable): указатель на галс #HyScanPlannerTrack, который в данный момент редактируется
+   *
+   * Сигнал посылается при изменении редактируемого галса.
+   */
+  hyscan_gtk_map_planner_signals[SIGNAL_TRACK_CHANGED] =
+    g_signal_new ("track-changed", HYSCAN_TYPE_GTK_MAP_PLANNER, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+                  g_cclosure_marshal_VOID__POINTER,
+                  G_TYPE_NONE, 1, G_TYPE_POINTER);
 }
 
 static void
@@ -829,6 +849,8 @@ hyscan_gtk_map_planner_middle_drag (HyScanGtkMapPlanner *planner,
   hyscan_gtk_map_value_to_geo (priv->map, &priv->cur_track->object->end, priv->cur_track->end);
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 
+  g_signal_emit (planner, hyscan_gtk_map_planner_signals[SIGNAL_TRACK_CHANGED], 0, priv->cur_track->object);
+
   return GDK_EVENT_STOP;
 }
 
@@ -892,6 +914,8 @@ hyscan_gtk_map_planner_edge_drag (HyScanGtkMapPlanner  *planner,
   /* Переносим конец галса в новую точку. */
   hyscan_gtk_map_value_to_geo (priv->map, end_geo, *end_2d);
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+  g_signal_emit (planner, hyscan_gtk_map_planner_signals[SIGNAL_TRACK_CHANGED], 0, priv->cur_track->object);
 
   return GDK_EVENT_STOP;
 }
@@ -1138,7 +1162,7 @@ hyscan_gtk_map_planner_cancel (HyScanGtkMapPlanner *planner)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
 
-  g_clear_pointer (&priv->cur_track, hyscan_gtk_map_planner_track_free);
+  hyscan_gtk_map_planner_set_cur_track (planner, NULL);
   g_clear_pointer (&priv->cur_zone, hyscan_gtk_map_planner_zone_free);
   g_clear_pointer (&priv->cur_origin, hyscan_gtk_map_planner_origin_free);
   g_list_free_full (priv->parallel_tracks, (GDestroyNotify) hyscan_gtk_map_planner_track_free);
@@ -1532,6 +1556,25 @@ hyscan_gtk_map_planner_track_object_new (void)
   return hyscan_planner_track_copy (&track);
 }
 
+static void
+hyscan_gtk_map_planner_set_cur_track (HyScanGtkMapPlanner      *planner,
+                                      HyScanGtkMapPlannerTrack *track)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  gboolean emit_signal;
+
+  emit_signal = (track != priv->cur_track);
+
+  g_clear_pointer (&priv->cur_track, hyscan_gtk_map_planner_track_free);
+  priv->cur_track = track;
+
+  if (emit_signal)
+    {
+      g_signal_emit (planner, hyscan_gtk_map_planner_signals[SIGNAL_TRACK_CHANGED], 0,
+                     track != NULL ? track->object : NULL);
+    }
+}
+
 /* Создаёт галс с началом в точке point и начинает перетаскиваение его конца. */
 static gboolean
 hyscan_gtk_map_planner_handle_create_track (HyScanGtkMapPlanner  *planner,
@@ -1551,7 +1594,7 @@ hyscan_gtk_map_planner_handle_create_track (HyScanGtkMapPlanner  *planner,
 
   /* И начинаем перетаскивание конца галса. */
   priv->cur_state = STATE_DRAG_END;
-  priv->cur_track = track_proj;
+  hyscan_gtk_map_planner_set_cur_track (planner, track_proj);
   hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), planner);
 
   return TRUE;
@@ -1690,7 +1733,7 @@ hyscan_gtk_map_planner_handle_grab (HyScanGtkLayer       *layer,
     return NULL;
 
   priv->cur_state = priv->found_state;
-  priv->cur_track = hyscan_gtk_map_planner_track_copy (priv->found_track);
+  hyscan_gtk_map_planner_set_cur_track (planner, hyscan_gtk_map_planner_track_copy (priv->found_track));
   priv->cur_zone = hyscan_gtk_map_planner_zone_copy (priv->found_zone);
   priv->cur_vertex = priv->found_vertex > 0 ? g_list_nth (priv->cur_zone->points, (guint) (priv->found_vertex - 1)) : NULL;
 
@@ -1947,7 +1990,7 @@ hyscan_gtk_map_planner_release_track (HyScanGtkMapPlanner *planner)
     hyscan_gtk_map_planner_save_current (planner);
 
   priv->cur_state = STATE_NONE;
-  g_clear_pointer (&priv->cur_track, hyscan_gtk_map_planner_track_free);
+  hyscan_gtk_map_planner_set_cur_track (planner, NULL);
   g_list_free_full (priv->parallel_tracks, (GDestroyNotify) hyscan_gtk_map_planner_track_free);
   priv->parallel_tracks = NULL;
 

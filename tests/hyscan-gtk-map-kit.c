@@ -20,6 +20,7 @@
 #include <glib/gi18n-lib.h>
 #include <hyscan-gtk-map-planner.h>
 #include <hyscan-gtk-planner-editor.h>
+#include <hyscan-gtk-planner-status.h>
 
 #define DEFAULT_PROFILE_NAME "default"    /* Имя профиля карты по умолчанию. */
 #define PRELOAD_STATE_DONE   1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
@@ -1265,7 +1266,7 @@ create_planner_toolbox (HyScanGtkMapKit *kit)
   gtk_box_pack_start (GTK_BOX (tab_switch), select_mode, TRUE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (tab_switch), parallel_mode, TRUE, TRUE, 0);
 
-  tab_default = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+  tab_default = hyscan_gtk_planner_status_new (HYSCAN_GTK_MAP_PLANNER (priv->planner_layer));
   tab_editor = hyscan_gtk_planner_editor_new (priv->planner_model, G_LIST_MODEL (priv->planner_selection));
   tab_parallel = create_parallel_track_options (HYSCAN_GTK_MAP_PLANNER (priv->planner_layer));
 

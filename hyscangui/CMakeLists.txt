@@ -39,6 +39,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-param-cc.c
              hyscan-gtk-param-tree.c
              hyscan-gtk-planner-editor.c
+             hyscan-gtk-planner-status.c
              hyscan-cairo.c
 
              #[[ Виджет карты ]]
@@ -115,6 +116,7 @@ install (FILES hyscan-gtk-area.h
                hyscan-gtk-waterfall-player.h
                hyscan-gtk-waterfall-magnifier.h
                hyscan-gtk-planner-editor.h
+               hyscan-gtk-planner-status.h
                hyscan-gtk-layer-common.h
                hyscan-gtk-layer-container.h
                hyscan-gtk-layer.h
