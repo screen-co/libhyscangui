@@ -336,12 +336,12 @@ hyscan_mark_loc_model_load_nav (HyScanMarkLocModel *ml_model,
     goto exit;
 
   /* Пробуем распарсить навигационные данные по найденным индексам. */
-  found =  hyscan_nav_data_get (lat_data, lindex, NULL, &lgeo.lat) &&
-           hyscan_nav_data_get (lon_data, lindex, NULL, &lgeo.lon) &&
-           hyscan_nav_data_get (angle_data, lindex, NULL, &lgeo.h);
-  found &=  hyscan_nav_data_get (lat_data, rindex, NULL, &rgeo.lat) &&
-            hyscan_nav_data_get (lon_data, rindex, NULL, &rgeo.lon) &&
-            hyscan_nav_data_get (angle_data, rindex, NULL, &rgeo.h);
+  found =  hyscan_nav_data_get (lat_data, NULL, lindex, NULL, &lgeo.lat) &&
+           hyscan_nav_data_get (lon_data, NULL, lindex, NULL, &lgeo.lon) &&
+           hyscan_nav_data_get (angle_data, NULL, lindex, NULL, &lgeo.h);
+  found &=  hyscan_nav_data_get (lat_data, NULL, rindex, NULL, &rgeo.lat) &&
+            hyscan_nav_data_get (lon_data, NULL, rindex, NULL, &rgeo.lon) &&
+            hyscan_nav_data_get (angle_data, NULL, rindex, NULL, &rgeo.h);
 
   if (!found) // todo: если в текущем индексе нет данных, то пробовать брать соседние
     goto exit;
@@ -397,8 +397,8 @@ hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
 
   if (hyscan_nav_data_find_data (dpt_data, location->time, &lindex, &rindex, &ltime, &rtime) == HYSCAN_DB_FIND_OK)
     {
-      if (hyscan_nav_data_get (dpt_data, lindex, NULL, &ldepth) &&
-          hyscan_nav_data_get (dpt_data, rindex, NULL, &rdepth))
+      if (hyscan_nav_data_get (dpt_data, NULL, lindex, NULL, &ldepth) &&
+          hyscan_nav_data_get (dpt_data, NULL, rindex, NULL, &rdepth))
         {
           depth = hyscan_mark_loc_model_weight (location->time, ltime, rtime, ldepth, rdepth);
         }

@@ -45,22 +45,11 @@
 #include "hyscan-gtk-waterfall-tools.h"
 #include <math.h>
 
-enum
-{
-  LOCAL_EMPTY,
-  LOCAL_CREATE,
-  LOCAL_EDIT,
-  LOCAL_REMOVE,
-  LOCAL_CANCEL,
-};
-
 typedef struct
 {
   guint64            id;
   HyScanCoordinates  start;
   HyScanCoordinates  end;
-  HyScanCoordinates  px_start; /* Вспомогательное поле для определения хэндлов. */
-  HyScanCoordinates  px_end;   /* Вспомогательное поле для определения хэндлов. */
 } HyScanGtkWaterfallMeterItem;
 
 struct _HyScanGtkWaterfallMeterPrivate
@@ -73,13 +62,15 @@ struct _HyScanGtkWaterfallMeterPrivate
   HyScanCoordinates             press;
   HyScanCoordinates             pointer;
 
-  guint64                       last_id;
-  GList                        *cancellable;
-  GList                        *drawable;
-  GList                        *visible;
+  guint64                       last_id;           /* Идентификатор л*/
+  GList                        *cancellable;       /* Для отмены. */
+  GList                        *all;               /* Все линейки вообще. */
+  GList                        *visible;           /* Видимые прямо сейчас. */
 
-  gboolean                      editing;
-  HyScanGtkWaterfallMeterItem   current;
+  HyScanCoordinates             handle_to_highlight; /* Хендл для подсвечивания. */
+  gboolean                      highlight;           /* Флаг подсвечивания. */
+  HyScanGtkWaterfallMeterItem   current;             /* Редактируемая прямо сейчас линейка. */
+  gboolean                      editing;             /* Режим ред-я включен. */
 
   struct
   {
@@ -105,21 +96,27 @@ static void     hyscan_gtk_waterfall_meter_object_finalize         (GObject     
 
 static gint     hyscan_gtk_waterfall_meter_find_by_id              (gconstpointer            a,
                                                                     gconstpointer            b);
-static gboolean hyscan_gtk_waterfall_meter_handle_create           (HyScanGtkLayerContainer *container,
-                                                                    GdkEventButton          *event,
-                                                                    HyScanGtkWaterfallMeter *self);
-static gpointer hyscan_gtk_waterfall_meter_handle_grab             (HyScanGtkLayerContainer *container,
-                                                                    GdkEventButton          *event,
-                                                                    HyScanGtkWaterfallMeter *self);
-static gboolean hyscan_gtk_waterfall_meter_handle_release          (HyScanGtkLayerContainer *container,
-                                                                    GdkEventButton          *event,
-                                                                    HyScanGtkWaterfallMeter *self);
 
-static gboolean hyscan_gtk_waterfall_meter_button                  (GtkWidget               *widget,
-                                                                    GdkEventButton          *event,
-                                                                    HyScanGtkWaterfallMeter *self);
+static GList*   hyscan_gtk_waterfall_meter_find_closest            (HyScanGtkWaterfallMeter *self,
+                                                                    HyScanCoordinates       *pointer);
+static gboolean hyscan_gtk_waterfall_meter_handle_create           (HyScanGtkLayer          *layer,
+                                                                    GdkEventButton          *event);
+static gboolean hyscan_gtk_waterfall_meter_handle_release          (HyScanGtkLayer          *layer,
+                                                                    gconstpointer            howner);
+static gboolean hyscan_gtk_waterfall_meter_handle_find             (HyScanGtkLayer          *layer,
+                                                                    gdouble                  x,
+                                                                    gdouble                  y,
+                                                                    HyScanGtkLayerHandle    *handle);
+static void     hyscan_gtk_waterfall_meter_handle_show             (HyScanGtkLayer          *layer,
+                                                                    HyScanGtkLayerHandle    *handle);
+static gconstpointer hyscan_gtk_waterfall_meter_handle_grab        (HyScanGtkLayer          *layer,
+                                                                    HyScanGtkLayerHandle    *handle);
+
 static gboolean hyscan_gtk_waterfall_meter_key                     (GtkWidget               *widget,
                                                                     GdkEventKey             *event,
+                                                                    HyScanGtkWaterfallMeter *self);
+static gboolean hyscan_gtk_waterfall_meter_button                  (GtkWidget               *widget,
+                                                                    GdkEventButton          *event,
                                                                     HyScanGtkWaterfallMeter *self);
 
 static gboolean hyscan_gtk_waterfall_meter_motion                  (GtkWidget               *widget,
@@ -196,7 +193,7 @@ hyscan_gtk_waterfall_meter_object_finalize (GObject *object)
 
   g_clear_pointer (&priv->font, g_object_unref);
 
-  g_list_free_full (priv->drawable, g_free);
+  g_list_free_full (priv->all, g_free);
   g_list_free_full (priv->cancellable, g_free);
   g_list_free_full (priv->visible, g_free);
 
@@ -222,9 +219,6 @@ hyscan_gtk_waterfall_meter_added (HyScanGtkLayer          *layer,
   g_signal_connect_after (wfall, "button-press-event",   G_CALLBACK (hyscan_gtk_waterfall_meter_button), self);
   g_signal_connect_after (wfall, "motion-notify-event",  G_CALLBACK (hyscan_gtk_waterfall_meter_motion), self);
 
-  g_signal_connect (wfall, "handle-create",   G_CALLBACK (hyscan_gtk_waterfall_meter_handle_create), self);
-  g_signal_connect (wfall, "handle-grab",     G_CALLBACK (hyscan_gtk_waterfall_meter_handle_grab), self);
-  g_signal_connect (wfall, "handle-release",  G_CALLBACK (hyscan_gtk_waterfall_meter_handle_release), self);
   g_signal_connect (wfall, "changed::track",  G_CALLBACK (hyscan_gtk_waterfall_meter_track_changed), self);
 }
 
@@ -303,7 +297,6 @@ hyscan_gtk_waterfall_meter_find_closest (HyScanGtkWaterfallMeter *self,
                                          HyScanCoordinates       *pointer)
 {
   HyScanGtkWaterfallMeterPrivate *priv = self->priv;
-  gdouble thres = HANDLE_RADIUS;
   GList *link, *mlink = NULL;
   gdouble rs, re, r;
   gdouble rmin = G_MAXDOUBLE;
@@ -312,51 +305,59 @@ hyscan_gtk_waterfall_meter_find_closest (HyScanGtkWaterfallMeter *self,
     {
       HyScanGtkWaterfallMeterItem *drawn = link->data;
 
-      rs = hyscan_gtk_waterfall_tools_distance (pointer, &drawn->px_start);
-      re = hyscan_gtk_waterfall_tools_distance (pointer, &drawn->px_end);
+      rs = hyscan_gtk_waterfall_tools_distance (pointer, &drawn->start);
+      re = hyscan_gtk_waterfall_tools_distance (pointer, &drawn->end);
 
       r = MIN (rs, re);
-      if (r > rmin || r > thres)
+      if (r > rmin)
         continue;
 
       rmin = r;
       mlink = link;
     }
 
+  /* Проверяем, что хендл в радиусе действия. */
+  {
+    HyScanCoordinates px_pointer, px_handle;
+    gdouble thres = HANDLE_RADIUS;
+
+    gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->wfall),
+                                           &px_pointer.x, &px_pointer.y,
+                                           pointer->x, pointer->y);
+    gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->wfall),
+                                           &px_handle.x, &px_handle.y,
+                                           pointer->x + rmin, pointer->y);
+    if (hyscan_gtk_waterfall_tools_distance (&px_handle, &px_pointer) > thres)
+      return NULL;
+  }
+
   return mlink;
 }
 
-/* Функция хватает или создает хэндл. */
+/* Создание хэндла. */
 static gboolean
-hyscan_gtk_waterfall_meter_handle_create (HyScanGtkLayerContainer *container,
-                                          GdkEventButton          *event,
-                                          HyScanGtkWaterfallMeter *self)
+hyscan_gtk_waterfall_meter_handle_create (HyScanGtkLayer *layer,
+                                          GdkEventButton *event)
 {
+  HyScanGtkWaterfallMeter *self = HYSCAN_GTK_WATERFALL_METER (layer);
   HyScanGtkWaterfallMeterPrivate *priv = self->priv;
-  HyScanCoordinates mouse;
-  mouse.x = event->x;
-  mouse.y = event->y;
 
-  if (self != hyscan_gtk_layer_container_get_input_owner (container))
-    return FALSE;
-
-  /* Мы не можем обрабатывать действия, если слой отключен. */
-  if (!self->priv->layer_visibility)
-    return FALSE;
-
-  if (hyscan_gtk_waterfall_tools_distance (&priv->press, &mouse) > 2)
-    return FALSE;
-
-  if (priv->editing)
+  /* Обязательные проверки: слой не владеет вводом, редактирование запрещено, слой скрыт. */
+  if (self != hyscan_gtk_layer_container_get_input_owner (HYSCAN_GTK_LAYER_CONTAINER (priv->wfall)) ||
+      !hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (priv->wfall)) ||
+      !hyscan_gtk_layer_get_visible (layer))
     {
-      g_warning ("HyScanGtkWaterfallMeter: wrong flow");
       return FALSE;
     }
 
-  /* Создание хэндла. */
+
   /* Запоминаем координаты начала. */
-  gtk_cifro_area_visible_point_to_value (GTK_CIFRO_AREA (container), event->x, event->y,
-                                         &priv->current.start.x, &priv->current.start.y);
+  gtk_cifro_area_visible_point_to_value (GTK_CIFRO_AREA (priv->wfall),
+                                         event->x,
+                                         event->y,
+                                         &priv->current.start.x,
+                                         &priv->current.start.y);
+
   priv->current.end = priv->current.start;
   priv->current.id = ++priv->last_id;
 
@@ -370,78 +371,27 @@ hyscan_gtk_waterfall_meter_handle_create (HyScanGtkLayerContainer *container,
   return TRUE;
 }
 
-/* Функция хватает или создает хэндл. */
-static gpointer
-hyscan_gtk_waterfall_meter_handle_grab (HyScanGtkLayerContainer *container,
-                                        GdkEventButton          *event,
-                                        HyScanGtkWaterfallMeter *self)
-{
-  HyScanGtkWaterfallMeterPrivate *priv = self->priv;
-  HyScanGtkWaterfallMeterItem *drawn;
-  HyScanCoordinates mouse;
-  gdouble re, rs;
-  GList *link;
-  mouse.x = event->x;
-  mouse.y = event->y;
-
-  /* Мы не можем обрабатывать действия, если слой отключен. */
-  if (!self->priv->layer_visibility)
-    return NULL;
-
-  if (hyscan_gtk_waterfall_tools_distance (&priv->press, &mouse) > 2)
-    return NULL;
-
-  /* Поиск хэндла в списке видимых линеек. */
-  link = hyscan_gtk_waterfall_meter_find_closest (self, &mouse);
-
-  /* Хватание хэндла. */
-  if (link == NULL)
-    return NULL;
-
-  if (priv->editing)
-    {
-      g_warning ("HyScanGtkWaterfallMeter: wrong flow");
-      return NULL;
-    }
-
-  /* Определяем, конец или начало найдено. */
-  drawn = link->data;
-
-  rs = hyscan_gtk_waterfall_tools_distance (&mouse, &drawn->px_start);
-  re = hyscan_gtk_waterfall_tools_distance (&mouse, &drawn->px_end);
-
-  priv->current = *drawn;
-  priv->current.start = (rs > re) ? drawn->start : drawn->end;
-  priv->current.end   = (rs > re) ? drawn->end : drawn->start;
-
-  /* Теперь нужно найти линейку в списке отрисовываемых и перетащить её
-   * в cancellable, на случай если пользователю захочется отменить редактирование. */
-  link = g_list_find_custom (priv->drawable, &priv->current, hyscan_gtk_waterfall_meter_find_by_id);
-  priv->drawable = g_list_remove_link (priv->drawable, link);
-  priv->cancellable = link;
-
-  /* Устанавливаем режим. */
-  priv->editing = TRUE;
-
-  hyscan_gtk_waterfall_queue_draw (priv->wfall);
-  return self;
-}
-
-/* Функция определяет, есть ли под указателем хэндл. */
+/* Функция отпускает хэндл. */
 static gboolean
-hyscan_gtk_waterfall_meter_handle_release (HyScanGtkLayerContainer *container,
-                                           GdkEventButton          *event,
-                                           HyScanGtkWaterfallMeter *self)
+hyscan_gtk_waterfall_meter_handle_release (HyScanGtkLayer *layer,
+                                           gconstpointer   howner)
 {
+  HyScanGtkWaterfallMeter *self = HYSCAN_GTK_WATERFALL_METER (layer);
   HyScanGtkWaterfallMeterPrivate *priv = self->priv;
-  HyScanGtkWaterfallMeterItem *new_item;
+  HyScanGtkWaterfallMeterItem *item;
 
-  if (!priv->editing)
+  if (self != howner)
     return FALSE;
 
-  new_item = g_new (HyScanGtkWaterfallMeterItem, 1);
-  *new_item = priv->current;
-  priv->drawable = g_list_append (priv->drawable, new_item);
+  if (!priv->editing)
+    {
+      g_warning ("release but no edit");
+      return FALSE;
+    }
+
+  item = g_new (HyScanGtkWaterfallMeterItem, 1);
+  *item = priv->current;
+  priv->all = g_list_append (priv->all, item);
 
   g_list_free_full (priv->cancellable, g_free);
   priv->cancellable = NULL;
@@ -450,6 +400,92 @@ hyscan_gtk_waterfall_meter_handle_release (HyScanGtkLayerContainer *container,
   priv->editing = FALSE;
   hyscan_gtk_waterfall_queue_draw (priv->wfall);
   return TRUE;
+}
+
+/* Функция поиска хендла. */
+static gboolean
+hyscan_gtk_waterfall_meter_handle_find (HyScanGtkLayer       *layer,
+                                        gdouble               x,
+                                        gdouble               y,
+                                        HyScanGtkLayerHandle *handle)
+{
+  HyScanGtkWaterfallMeter *self = HYSCAN_GTK_WATERFALL_METER (layer);
+  HyScanGtkWaterfallMeterItem *item;
+  HyScanCoordinates mouse = {.x = x, .y = y};
+  gdouble re, rs;
+  GList *link;
+
+  /* Обязательные проверки: редактирование запрещено, слой скрыт. */
+  if (!hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (self->priv->wfall)) ||
+      !hyscan_gtk_layer_get_visible (layer))
+    {
+      return FALSE;
+    }
+
+  /* Поиск хэндла в списке видимых линеек. */
+  link = hyscan_gtk_waterfall_meter_find_closest (self, &mouse);
+
+  if (link == NULL)
+    return FALSE;
+
+  item = link->data;
+  rs = hyscan_gtk_waterfall_tools_distance (&mouse, &item->start);
+  re = hyscan_gtk_waterfall_tools_distance (&mouse, &item->end);
+
+  handle->val_x = (rs < re) ? item->start.x : item->end.x;
+  handle->val_y = (rs < re) ? item->start.y : item->end.y;
+  handle->user_data = link;
+
+  return TRUE;
+}
+
+/* Функция передачи хендла, который следует показать (или спрятать). */
+static void
+hyscan_gtk_waterfall_meter_handle_show (HyScanGtkLayer       *layer,
+                                        HyScanGtkLayerHandle *handle)
+{
+  HyScanGtkWaterfallMeter *self = HYSCAN_GTK_WATERFALL_METER (layer);
+  HyScanGtkWaterfallMeterPrivate *priv = self->priv;
+
+  priv->highlight = handle != NULL;
+  if (handle != NULL)
+    {
+      priv->handle_to_highlight.x = handle->val_x;
+      priv->handle_to_highlight.y = handle->val_y;
+    }
+}
+
+/* Функция хватает хэндл. */
+static gconstpointer
+hyscan_gtk_waterfall_meter_handle_grab (HyScanGtkLayer       *layer,
+                                        HyScanGtkLayerHandle *handle)
+{
+  HyScanGtkWaterfallMeter *self = HYSCAN_GTK_WATERFALL_METER (layer);
+  HyScanGtkWaterfallMeterPrivate *priv = self->priv;
+  HyScanCoordinates mouse = {.x = handle->val_x, .y = handle->val_y};
+  GList *link;
+  HyScanGtkWaterfallMeterItem *item;
+  gdouble re, rs;
+
+  item = ((GList*)handle->user_data)->data;
+  rs = hyscan_gtk_waterfall_tools_distance (&mouse, &item->start);
+  re = hyscan_gtk_waterfall_tools_distance (&mouse, &item->end);
+
+  priv->current = *item;
+  priv->current.start = (rs > re) ? item->start : item->end;
+  priv->current.end   = (rs > re) ? item->end : item->start;
+
+  /* Теперь нужно найти линейку в списке отрисовываемых и перетащить её
+  * в cancellable, на случай если пользователю захочется отменить редактирование. */
+  link = g_list_find_custom (priv->all, &priv->current, hyscan_gtk_waterfall_meter_find_by_id);
+  priv->all = g_list_remove_link (priv->all, link);
+  priv->cancellable = link;
+
+  /* Устанавливаем режим. */
+  priv->editing = TRUE;
+  hyscan_gtk_waterfall_queue_draw (priv->wfall);
+
+  return self;
 }
 
 /* Функция обрабатывает нажатия клавиш клавиатуры. */
@@ -469,7 +505,7 @@ hyscan_gtk_waterfall_meter_key (GtkWidget               *widget,
     case GDK_KEY_Escape:
       if (priv->cancellable != NULL)
         {
-          priv->drawable = g_list_concat (priv->drawable, priv->cancellable);
+          priv->all = g_list_concat (priv->all, priv->cancellable);
           priv->cancellable = NULL;
         }
 
@@ -583,18 +619,15 @@ hyscan_gtk_waterfall_meter_draw_task (HyScanGtkWaterfallMeter     *self,
   gtk_cifro_area_visible_value_to_point (carea, &start.x, &start.y, task->start.x, task->start.y);
   gtk_cifro_area_visible_value_to_point (carea, &end.x, &end.y, task->end.x, task->end.y);
 
-  task->px_start = start;
-  task->px_end = end;
-
   cairo_save (cairo);
 
   hyscan_gtk_waterfall_meter_draw_helper (cairo, &start, &end, &priv->color.shadow, priv->color.shadow_width);
   hyscan_gtk_waterfall_meter_draw_helper (cairo, &start, &end, &priv->color.meter, priv->color.meter_width);
 
   angle = hyscan_gtk_waterfall_tools_angle (&task->start, &task->end);
-  dist = hyscan_gtk_waterfall_tools_distance(&task->start, &task->end);
+  dist = hyscan_gtk_waterfall_tools_distance (&task->start, &task->end);
   mid = hyscan_gtk_waterfall_tools_middle (&start, &end);
-  dist_px = hyscan_gtk_waterfall_tools_distance(&start, &end);
+  dist_px = hyscan_gtk_waterfall_tools_distance (&start, &end);
 
   text = g_strdup_printf ("%3.2f", dist);
   pango_layout_set_text (priv->font, text, -1);
@@ -631,11 +664,11 @@ hyscan_gtk_waterfall_meter_draw_task (HyScanGtkWaterfallMeter     *self,
 
 /* Функция отрисовки хэндла. */
 static void
-hyscan_gtk_waterfall_meter_draw_handle  (cairo_t          *cairo,
-                                         GdkRGBA           inner,
-                                         GdkRGBA           outer,
-                                         HyScanCoordinates center,
-                                         gdouble           radius)
+hyscan_gtk_waterfall_meter_draw_handle (cairo_t          *cairo,
+                                        GdkRGBA           inner,
+                                        GdkRGBA           outer,
+                                        HyScanCoordinates center,
+                                        gdouble           radius)
 {
   cairo_pattern_t *pttrn;
   cairo_matrix_t matrix;
@@ -679,7 +712,7 @@ hyscan_gtk_waterfall_meter_draw (GtkWidget               *widget,
   g_list_free_full (priv->visible, g_free);
   priv->visible = NULL;
 
-  for (link = priv->drawable; link != NULL; link = link->next)
+  for (link = priv->all; link != NULL; link = link->next)
     {
       HyScanGtkWaterfallMeterItem *new_item;
       HyScanGtkWaterfallMeterItem *task = link->data;
@@ -694,30 +727,16 @@ hyscan_gtk_waterfall_meter_draw (GtkWidget               *widget,
       priv->visible = g_list_prepend (priv->visible, new_item);
     }
 
-    priv->visible = g_list_reverse (priv->visible);
-
-    if (!priv->editing)
-      {
-        link = hyscan_gtk_waterfall_meter_find_closest (self, &priv->pointer);
-
-        if (link != NULL)
-          {
-            gdouble rs, re;
-            HyScanGtkWaterfallMeterItem *drawn = link->data;
-            HyScanCoordinates *co;
-
-            rs = hyscan_gtk_waterfall_tools_distance (&priv->pointer, &drawn->px_start);
-            re = hyscan_gtk_waterfall_tools_distance (&priv->pointer, &drawn->px_end);
-
-            if (rs < re)
-              co = &drawn->px_start;
-            else /*(re < thres)*/
-              co = &drawn->px_end;
-
-            hyscan_gtk_waterfall_meter_draw_handle (cairo, priv->color.meter, priv->color.shadow, *co, HANDLE_RADIUS);
-          }
-      }
-  else if (priv->editing)
+  if (priv->highlight)
+    {
+      HyScanCoordinates center;
+      gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->wfall),
+                                             &center.x, &center.y,
+                                             priv->handle_to_highlight.x,
+                                             priv->handle_to_highlight.y);
+      hyscan_gtk_waterfall_meter_draw_handle (cairo, priv->color.meter, priv->color.shadow, center, HANDLE_RADIUS);
+    }
+  if (priv->editing)
     {
       hyscan_gtk_waterfall_meter_draw_task (self, cairo, &priv->current);
     }
@@ -744,8 +763,8 @@ hyscan_gtk_waterfall_meter_track_changed (HyScanGtkWaterfallState *state,
 {
   HyScanGtkWaterfallMeterPrivate *priv = self->priv;
 
-  g_list_free_full (priv->drawable, g_free);
-  priv->drawable = NULL;
+  g_list_free_full (priv->all, g_free);
+  priv->all = NULL;
   g_list_free_full (priv->cancellable, g_free);
   priv->cancellable = NULL;
   g_list_free_full (priv->visible, g_free);
@@ -869,4 +888,10 @@ hyscan_gtk_waterfall_meter_interface_init (HyScanGtkLayerInterface *iface)
   iface->set_visible = hyscan_gtk_waterfall_meter_set_visible;
   iface->get_visible = hyscan_gtk_waterfall_meter_get_visible;
   iface->get_icon_name = hyscan_gtk_waterfall_meter_get_icon_name;
+
+  iface->handle_create = hyscan_gtk_waterfall_meter_handle_create;
+  iface->handle_release = hyscan_gtk_waterfall_meter_handle_release;
+  iface->handle_find = hyscan_gtk_waterfall_meter_handle_find;
+  iface->handle_show = hyscan_gtk_waterfall_meter_handle_show;
+  iface->handle_grab = hyscan_gtk_waterfall_meter_handle_grab;
 }

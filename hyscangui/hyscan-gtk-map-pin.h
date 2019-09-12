@@ -101,7 +101,7 @@ GList*                 hyscan_gtk_map_pin_get_points       (HyScanGtkMapPin     
 
 HYSCAN_API
 HyScanGtkMapPinItem *  hyscan_gtk_map_pin_insert_before    (HyScanGtkMapPin            *layer,
-                                                            HyScanGtkMapPoint          *point,
+                                                            HyScanGeoCartesian2D       *point,
                                                             GList                      *sibling);
 
 HYSCAN_API
@@ -114,7 +114,8 @@ void                   hyscan_gtk_map_pin_set_marker_shape (HyScanGtkMapPin     
 
 HYSCAN_API
 gconstpointer          hyscan_gtk_map_pin_start_drag       (HyScanGtkMapPin            *layer,
-                                                            HyScanGtkMapPinItem        *handle_point);
+                                                            HyScanGtkMapPinItem        *handle_point,
+                                                            gboolean                    delete_on_cancel);
 
 HYSCAN_API
 void                   hyscan_gtk_map_pin_set_color_prime  (HyScanGtkMapPin            *layer,

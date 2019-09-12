@@ -38,8 +38,8 @@
  * @Title: HyScanGtkMapTrackItem
  *
  * HyScanGtkMapTrackItem позволяет изображать галс на карте в виде линии движения
- * судна и дальности обнаружения по каждому борту. 
- * 
+ * судна и дальности обнаружения по каждому борту.
+ *
  * Класс выступает как вспомагательный для слоя галсов #HyScanGtkMapTrack.
  *
  * Функции:
@@ -377,7 +377,7 @@ hyscan_gtk_map_track_item_param_set (HyScanParam     *param,
     {
       guint channel;
       gint channel_num;
-      
+
       if (g_str_equal (names[i], KEY_CHANNEL_RMC))
         {
           channel = CHANNEL_NMEA_RMC;
@@ -402,7 +402,7 @@ hyscan_gtk_map_track_item_param_set (HyScanParam     *param,
         {
           continue;
         }
-      
+
       hyscan_gtk_map_track_item_set_channel (track, channel, channel_num);
     }
 
@@ -676,7 +676,7 @@ hyscan_gtk_map_track_item_width (HyScanGtkMapTrackBoard *board,
   if (find_status_ret != HYSCAN_DB_FIND_OK)
     goto exit;
 
-  depth = (depthometer != NULL) ? hyscan_depthometer_get (depthometer, time) : 0.0;
+  depth = (depthometer != NULL) ? hyscan_depthometer_get (depthometer, NULL, time) : 0.0;
   if (depth < 0.0)
     depth = 0.0;
 
@@ -868,13 +868,13 @@ hyscan_gtk_map_track_item_load_range (HyScanGtkMapTrackItem *track,
       HyScanGeoGeodetic coords;
       HyScanGtkMapTrackPoint *point;
 
-      if (!hyscan_nav_data_get (priv->lat_data, index, &time, &coords.lat))
+      if (!hyscan_nav_data_get (priv->lat_data, NULL, index, &time, &coords.lat))
         continue;
 
-      if (!hyscan_nav_data_get (priv->lon_data, index, &time, &coords.lon))
+      if (!hyscan_nav_data_get (priv->lon_data, NULL, index, &time, &coords.lon))
         continue;
 
-      if (!hyscan_nav_data_get (priv->angle_data, index, &time, &coords.h))
+      if (!hyscan_nav_data_get (priv->angle_data, NULL, index, &time, &coords.h))
         continue;
 
       point = g_new (HyScanGtkMapTrackPoint, 1);
@@ -991,7 +991,7 @@ hyscan_gtk_map_track_item_load_edges (HyScanGtkMapTrackItem *track,
                                       guint32                last_index)
 {
   HyScanGtkMapTrackItemPrivate *priv = track->priv;
-  
+
   /* Если в галсе нет точек, загружаем весь диапазон. */
   if (priv->points == NULL)
     {
@@ -1087,7 +1087,7 @@ static gboolean
 hyscan_gtk_map_track_item_has_changed (HyScanGtkMapTrackItem *track)
 {
   HyScanGtkMapTrackItemPrivate *priv = track->priv;
-  
+
   if (priv->lat_data == NULL)
     return FALSE;
 

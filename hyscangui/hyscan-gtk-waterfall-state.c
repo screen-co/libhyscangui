@@ -85,8 +85,8 @@ struct _HyScanGtkWaterfallStatePrivate
   HyScanSourceType            rsource;
   HyScanTileFlags             tile_flags;
 
-  HyScanAmplitudeFactory     *af;
-  HyScanDepthFactory         *df;
+  HyScanFactoryAmplitude     *af;
+  HyScanFactoryDepth         *df;
 
   HyScanDB                   *db;
   gchar                      *project;
@@ -193,8 +193,8 @@ hyscan_gtk_waterfall_state_object_constructed (GObject *object)
   priv->tile_flags    = 0;
   priv->speed         = 1.0;
 
-  priv->af = hyscan_amplitude_factory_new (priv->cache);
-  priv->df = hyscan_depth_factory_new (priv->cache);
+  priv->af = hyscan_factory_amplitude_new (priv->cache);
+  priv->df = hyscan_factory_depth_new (priv->cache);
 }
 
 static void
@@ -320,8 +320,8 @@ hyscan_gtk_waterfall_state_set_track (HyScanGtkWaterfallState *self,
   priv->project = g_strdup (project);
   priv->track = g_strdup (track);
 
-  hyscan_amplitude_factory_set_track (priv->af, db, project, track);
-  hyscan_depth_factory_set_track (priv->df, db, project, track);
+  hyscan_factory_amplitude_set_project (priv->af, db, project);
+  hyscan_factory_depth_set_project (priv->df, db, project);
 
   g_signal_emit (self, hyscan_gtk_waterfall_state_signals[SIGNAL_CHANGED],
                        hyscan_gtk_waterfall_state_details[DETAIL_TRACK], NULL);
@@ -437,9 +437,9 @@ hyscan_gtk_waterfall_state_get_tile_flags (HyScanGtkWaterfallState *self)
  *
  * Функция возвращает фабрику акустических данных.
  *
- * Returns: (transfer full): #HyScanAmplitudeFactory.
+ * Returns: (transfer full): #HyScanFactoryAmplitude.
  */
-HyScanAmplitudeFactory *
+HyScanFactoryAmplitude *
 hyscan_gtk_waterfall_state_get_amp_factory (HyScanGtkWaterfallState *self)
 {
   g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL_STATE (self), NULL);
@@ -452,9 +452,9 @@ hyscan_gtk_waterfall_state_get_amp_factory (HyScanGtkWaterfallState *self)
  *
  * Функция возвращает фабрику данных глубины.
  *
- * Returns: (transfer full): #HyScanDepthFactory.
+ * Returns: (transfer full): #HyScanFactoryDepth.
  */
-HyScanDepthFactory *
+HyScanFactoryDepth *
 hyscan_gtk_waterfall_state_get_dpt_factory (HyScanGtkWaterfallState *self)
 {
   g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL_STATE (self), NULL);

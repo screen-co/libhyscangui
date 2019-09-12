@@ -86,9 +86,6 @@ typedef struct
   HyScanCoordinates    center;    /*< Координата центра. */
   gdouble              dx;        /*< Ширина. */
   gdouble              dy;        /*< Высота. */
-  HyScanCoordinates    px_center; /*< Координата центра. */
-  gdouble              px_dx;     /*< Ширина. */
-  gdouble              px_dy;     /*< Высота. */
   HyScanGtkWaterfallMarkTaskActions action;    /*< Что требуется сделать. */
 } HyScanGtkWaterfallMarkTask;
 
@@ -149,12 +146,12 @@ struct _HyScanGtkWaterfallMarkPrivate
 
   gint                        mode;           /* Режим слоя */
 
-  HyScanCoordinates           press;
-  HyScanCoordinates           pointer;
-
   HyScanGtkWaterfallMarkTask  current;
 
   guint64                     mark_filter;
+
+  HyScanCoordinates           handle_to_highlight;
+  gboolean                    highlight;
 
   struct
   {
@@ -207,7 +204,7 @@ static void     hyscan_gtk_waterfall_mark_add_task                (HyScanGtkWate
 static void     hyscan_gtk_waterfall_mark_clear_state             (HyScanGtkWaterfallMarkState  *state);
 static void     hyscan_gtk_waterfall_mark_model_changed           (HyScanMarkModel         *model,
                                                                    HyScanGtkWaterfallMark  *self);
-static gchar*   hyscan_gtk_waterfall_mark_get_track_id            (HyScanDB                *db,
+static gchar *  hyscan_gtk_waterfall_mark_get_track_id            (HyScanDB                *db,
                                                                    const gchar             *project,
                                                                    const gchar             *track);
 static void     hyscan_gtk_waterfall_mark_sync_states             (HyScanGtkWaterfallMark  *self);
@@ -216,20 +213,24 @@ static gpointer hyscan_gtk_waterfall_mark_processing              (gpointer     
 static gint     hyscan_gtk_waterfall_mark_find_by_id              (gconstpointer            a,
                                                                    gconstpointer            b);
 
-static gboolean hyscan_gtk_waterfall_mark_handle_create           (HyScanGtkLayerContainer *container,
-                                                                   GdkEventButton          *event,
-                                                                   HyScanGtkWaterfallMark  *self);
-static gboolean hyscan_gtk_waterfall_mark_handle_release          (HyScanGtkLayerContainer *container,
-                                                                   GdkEventButton          *event,
-                                                                   HyScanGtkWaterfallMark  *self);
-static gpointer hyscan_gtk_waterfall_mark_handle_grab             (HyScanGtkWaterfallState *state,
-                                                                   GdkEventButton          *event,
-                                                                   HyScanGtkWaterfallMark  *self);
+static GList *  hyscan_gtk_waterfall_mark_find_closest            (HyScanGtkWaterfallMark  *self,
+                                                                   HyScanCoordinates       *pointer,
+                                                                   HyScanCoordinates       *point);
+static gboolean hyscan_gtk_waterfall_mark_handle_create           (HyScanGtkLayer          *layer,
+                                                                   GdkEventButton          *event);
+static gboolean hyscan_gtk_waterfall_mark_handle_release          (HyScanGtkLayer          *layer,
+                                                                   gconstpointer            howner);
+static gboolean hyscan_gtk_waterfall_mark_handle_find             (HyScanGtkLayer          *layer,
+                                                                   gdouble                  x,
+                                                                   gdouble                  y,
+                                                                   HyScanGtkLayerHandle    *handle);
+static void     hyscan_gtk_waterfall_mark_handle_show             (HyScanGtkLayer          *layer,
+                                                                   HyScanGtkLayerHandle    *handle);
+static gconstpointer hyscan_gtk_waterfall_mark_handle_grab        (HyScanGtkLayer          *layer,
+                                                                   HyScanGtkLayerHandle    *handle);
+
 static gboolean hyscan_gtk_waterfall_mark_key                     (GtkWidget               *widget,
                                                                    GdkEventKey             *event,
-                                                                   HyScanGtkWaterfallMark  *self);
-static gboolean hyscan_gtk_waterfall_mark_button                  (GtkWidget               *widget,
-                                                                   GdkEventButton          *event,
                                                                    HyScanGtkWaterfallMark  *self);
 static gboolean hyscan_gtk_waterfall_mark_motion                  (GtkWidget               *widget,
                                                                    GdkEventMotion          *event,
@@ -415,12 +416,6 @@ hyscan_gtk_waterfall_mark_added (HyScanGtkLayer          *layer,
   g_signal_connect (wfall, "configure-event",            G_CALLBACK (hyscan_gtk_waterfall_mark_configure), self);
   g_signal_connect_after (wfall, "motion-notify-event",  G_CALLBACK (hyscan_gtk_waterfall_mark_motion), self);
   g_signal_connect_after (wfall, "key-press-event",      G_CALLBACK (hyscan_gtk_waterfall_mark_key), self);
-  g_signal_connect_after (wfall, "button-press-event",   G_CALLBACK (hyscan_gtk_waterfall_mark_button), self);
-
-  /* Сигналы LayerContainer. */
-  g_signal_connect (wfall, "handle-create",         G_CALLBACK (hyscan_gtk_waterfall_mark_handle_create), self);
-  g_signal_connect (wfall, "handle-grab",           G_CALLBACK (hyscan_gtk_waterfall_mark_handle_grab), self);
-  g_signal_connect (wfall, "handle-release",        G_CALLBACK (hyscan_gtk_waterfall_mark_handle_release), self);
 
   /* Сигналы водопада. */
   g_signal_connect (wfall, "changed::sources",      G_CALLBACK (hyscan_gtk_waterfall_mark_sources_changed), self);
@@ -484,14 +479,15 @@ hyscan_gtk_waterfall_mark_get_icon_name (HyScanGtkLayer *iface)
 /* Функция создает новый HyScanProjector. */
 static HyScanProjector*
 hyscan_gtk_waterfall_mark_open_projector (HyScanGtkWaterfallMark *self,
+                                          const gchar            *track,
                                           HyScanSourceType        source)
 {
   HyScanProjector *projector;
-  HyScanAmplitudeFactory *af;
+  HyScanFactoryAmplitude *af;
   HyScanAmplitude *dc;
 
   af = hyscan_gtk_waterfall_state_get_amp_factory (HYSCAN_GTK_WATERFALL_STATE (self->priv->wfall));
-  dc = hyscan_amplitude_factory_produce (af, source);
+  dc = hyscan_factory_amplitude_produce (af, track, source);
   projector = hyscan_projector_new (dc);
 
   g_clear_object (&af);
@@ -798,7 +794,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
 
           if (lproj == NULL)
             {
-              lproj = hyscan_gtk_waterfall_mark_open_projector (self, state->lsource);
+              lproj = hyscan_gtk_waterfall_mark_open_projector (self, state->track, state->lsource);
               if (lproj != NULL)
                 {
                   hyscan_projector_set_ship_speed (lproj, state->ship_speed);
@@ -807,7 +803,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
             }
           if (rproj == NULL)
             {
-              rproj = hyscan_gtk_waterfall_mark_open_projector (self, state->rsource);
+              rproj = hyscan_gtk_waterfall_mark_open_projector (self, state->track, state->rsource);
               if (rproj != NULL)
                 {
                   hyscan_projector_set_ship_speed (rproj, state->ship_speed);
@@ -816,9 +812,9 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
             }
           if (depth == NULL)
             {
-              HyScanDepthFactory *df;
+              HyScanFactoryDepth *df;
               df = hyscan_gtk_waterfall_state_get_dpt_factory (HYSCAN_GTK_WATERFALL_STATE (priv->wfall));
-              depth = hyscan_depth_factory_produce (df);
+              depth = hyscan_factory_depth_produce (df, state->track);
               g_object_unref (df);
             }
 
@@ -1074,7 +1070,6 @@ hyscan_gtk_waterfall_mark_find_closest (HyScanGtkWaterfallMark *self,
 {
   HyScanCoordinates returnable = {0, 0};
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
-  gdouble thres = HANDLE_RADIUS;
   GList *link, *mlink = NULL;
   gdouble rmin = G_MAXDOUBLE;
 
@@ -1084,16 +1079,16 @@ hyscan_gtk_waterfall_mark_find_closest (HyScanGtkWaterfallMark *self,
       HyScanGtkWaterfallMarkTask *task = link->data;
       HyScanCoordinates corner;
 
-      r = hyscan_gtk_waterfall_tools_distance (&task->px_center, pointer);
+      r = hyscan_gtk_waterfall_tools_distance (&task->center, pointer);
       if (r < rmin)
         {
           rmin = r;
-          returnable = task->px_center;
+          returnable = task->center;
           mlink = link;
         }
 
-      corner.x = task->px_center.x - task->px_dx;
-      corner.y = task->px_center.y - task->px_dy;
+      corner.x = task->center.x - task->dx;
+      corner.y = task->center.y - task->dy;
       r = hyscan_gtk_waterfall_tools_distance (&corner, pointer);
       if (r < rmin)
         {
@@ -1102,8 +1097,8 @@ hyscan_gtk_waterfall_mark_find_closest (HyScanGtkWaterfallMark *self,
           mlink = link;
         }
 
-      corner.x = task->px_center.x + task->px_dx;
-      corner.y = task->px_center.y - task->px_dy;
+      corner.x = task->center.x + task->dx;
+      corner.y = task->center.y - task->dy;
       r = hyscan_gtk_waterfall_tools_distance (&corner, pointer);
       if (r < rmin)
         {
@@ -1112,8 +1107,8 @@ hyscan_gtk_waterfall_mark_find_closest (HyScanGtkWaterfallMark *self,
           mlink = link;
         }
 
-      corner.x = task->px_center.x - task->px_dx;
-      corner.y = task->px_center.y + task->px_dy;
+      corner.x = task->center.x - task->dx;
+      corner.y = task->center.y + task->dy;
       r = hyscan_gtk_waterfall_tools_distance (&corner, pointer);
       if (r < rmin)
         {
@@ -1122,8 +1117,8 @@ hyscan_gtk_waterfall_mark_find_closest (HyScanGtkWaterfallMark *self,
           mlink = link;
         }
 
-      corner.x = task->px_center.x + task->px_dx;
-      corner.y = task->px_center.y + task->px_dy;
+      corner.x = task->center.x + task->dx;
+      corner.y = task->center.y + task->dy;
       r = hyscan_gtk_waterfall_tools_distance (&corner, pointer);
       if (r < rmin)
         {
@@ -1133,32 +1128,43 @@ hyscan_gtk_waterfall_mark_find_closest (HyScanGtkWaterfallMark *self,
         }
     }
 
-  if (point != NULL)
-    *point = returnable;
-
-  if (rmin > thres)
+  if (mlink == NULL)
     return NULL;
 
+  /* Проверяем, что хендл в радиусе действия. */
+  {
+    HyScanCoordinates px_pointer, px_handle;
+    gdouble thres = HANDLE_RADIUS;
+
+    gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->wfall),
+                                           &px_handle.x, &px_handle.y,
+                                           returnable.x, returnable.y);
+    gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->wfall),
+                                           &px_pointer.x, &px_pointer.y,
+                                           pointer->x, pointer->y);
+    if (hyscan_gtk_waterfall_tools_distance (&px_handle, &px_pointer) > thres)
+      return NULL;
+  }
+
+  *point = returnable;
   return mlink;
 }
 
-static gboolean
-hyscan_gtk_waterfall_mark_handle_create (HyScanGtkLayerContainer *container,
-                                         GdkEventButton          *event,
-                                         HyScanGtkWaterfallMark  *self)
+
+gboolean
+hyscan_gtk_waterfall_mark_handle_create (HyScanGtkLayer *layer,
+                                         GdkEventButton *event)
 {
+  HyScanGtkWaterfallMark *self = HYSCAN_GTK_WATERFALL_MARK (layer);
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
-  HyScanCoordinates mouse = {.x = event->x, .y = event->y};
 
-  if (self != hyscan_gtk_layer_container_get_input_owner (container))
-    return FALSE;
-
-  /* Мы не можем обрабатывать действия, если слой отключен. */
-  if (!priv->layer_visibility)
-    return FALSE;
-
-  if (hyscan_gtk_waterfall_tools_distance (&priv->press, &mouse) > 2)
-    return FALSE;
+  /* Обязательные проверки: слой не владеет вводом, редактирование запрещено, слой скрыт. */
+  if (self != hyscan_gtk_layer_container_get_input_owner (HYSCAN_GTK_LAYER_CONTAINER (priv->wfall)) ||
+      !hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (priv->wfall)) ||
+      !hyscan_gtk_layer_get_visible (layer))
+    {
+      return FALSE;
+    }
 
   if (priv->mode != LOCAL_EMPTY)
     {
@@ -1172,7 +1178,7 @@ hyscan_gtk_waterfall_mark_handle_create (HyScanGtkLayerContainer *container,
   hyscan_gtk_waterfall_mark_clear_task (&priv->current);
 
   /* Координаты центра. */
-  gtk_cifro_area_visible_point_to_value (GTK_CIFRO_AREA (container), event->x, event->y,
+  gtk_cifro_area_visible_point_to_value (GTK_CIFRO_AREA (priv->wfall), event->x, event->y,
                                          &priv->current.center.x, &priv->current.center.y);
   priv->current.dx = priv->current.dy = 0;
   priv->current.action = TASK_CREATE;
@@ -1181,58 +1187,120 @@ hyscan_gtk_waterfall_mark_handle_create (HyScanGtkLayerContainer *container,
   return TRUE;
 }
 
-/* Функция определяет, есть ли хэндл под указателем. */
-static gpointer
-hyscan_gtk_waterfall_mark_handle_grab (HyScanGtkWaterfallState *state,
-                                       GdkEventButton          *event,
-                                       HyScanGtkWaterfallMark  *self)
+gboolean
+hyscan_gtk_waterfall_mark_handle_release (HyScanGtkLayer *layer,
+                                          gconstpointer   howner)
 {
+  HyScanGtkWaterfallMark *self = HYSCAN_GTK_WATERFALL_MARK (layer);
+  HyScanGtkWaterfallMarkPrivate *priv = self->priv;
+  HyScanGtkWaterfallMarkTask *task = NULL;
+
+  if (self != howner)
+    return FALSE;
+
+  /* Отпускание хэндла -- это либо создание новой метки (LOCAL_CREATE),
+   * либо завершение редактирования (LOCAL_EDIT_CENTER, LOCAL_EDIT_BORDER) */
+  if (priv->mode != LOCAL_CREATE &&
+      priv->mode != LOCAL_EDIT_CENTER &&
+      priv->mode != LOCAL_EDIT_BORDER)
+    {
+      return FALSE;
+    }
+
+  g_list_free_full (priv->cancellable, hyscan_gtk_waterfall_mark_free_task);
+  priv->cancellable = NULL;
+
+  task = hyscan_gtk_waterfall_mark_dup_task (&priv->current);
+  task->action = priv->mode == LOCAL_CREATE ? TASK_CREATE : TASK_MODIFY;
+  hyscan_gtk_waterfall_mark_add_task (self, task);
+
+  priv->mode = LOCAL_EMPTY;
+
+  return TRUE;
+}
+
+gboolean
+hyscan_gtk_waterfall_mark_handle_find (HyScanGtkLayer       *layer,
+                                       gdouble               x,
+                                       gdouble               y,
+                                       HyScanGtkLayerHandle *handle)
+{
+  HyScanGtkWaterfallMark *self = HYSCAN_GTK_WATERFALL_MARK (layer);
+  HyScanCoordinates mouse = {.x = x, .y = y};
+  HyScanCoordinates point;
+  GList *link;
+
+  /* Обязательные проверки: редактирование запрещено, слой скрыт. */
+  if (!hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (self->priv->wfall)) ||
+      !hyscan_gtk_layer_get_visible (layer))
+    {
+      return FALSE;
+    }
+
+  link = hyscan_gtk_waterfall_mark_find_closest (self, &mouse, &point);
+
+  if (link == NULL)
+    return FALSE;
+
+  handle->user_data = link;
+  handle->val_x = point.x;
+  handle->val_y = point.y;
+
+  return TRUE;
+}
+
+void
+hyscan_gtk_waterfall_mark_handle_show (HyScanGtkLayer       *layer,
+                                       HyScanGtkLayerHandle *handle)
+{
+  HyScanGtkWaterfallMark *self = HYSCAN_GTK_WATERFALL_MARK (layer);
+  HyScanGtkWaterfallMarkPrivate *priv = self->priv;
+
+  priv->highlight = handle != NULL;
+  if (handle != NULL)
+    {
+      priv->handle_to_highlight.x = handle->val_x;
+      priv->handle_to_highlight.y = handle->val_y;
+    }
+}
+
+gconstpointer
+hyscan_gtk_waterfall_mark_handle_grab (HyScanGtkLayer       *layer,
+                                       HyScanGtkLayerHandle *handle)
+{
+  HyScanGtkWaterfallMark *self = HYSCAN_GTK_WATERFALL_MARK (layer);
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
   HyScanGtkWaterfallMarkTask *task;
-  gdouble rc, rtl, rtr, rbl, rbr;
+  gdouble rc, rb;
   HyScanCoordinates mouse, corner;
   gint mode;
   GList *link;
 
-  mouse.x = event->x;
-  mouse.y = event->y;
+  /* Обязательные проверки: редактирование запрещено, слой скрыт. */
+  if (!hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (priv->wfall)) ||
+      !hyscan_gtk_layer_get_visible (layer))
+    {
+      return FALSE;
+    }
 
-  /* Мы не можем обрабатывать действия, если слой отключен. */
-  if (!priv->layer_visibility)
-    return NULL;
-
-  if (hyscan_gtk_waterfall_tools_distance (&priv->press, &mouse) > 2)
-    return NULL;
-
-  /* Предполагается, что редактировать можно только метки в БД.
-   * Ещё не отправленные редактировать нельзя. */
-  link = hyscan_gtk_waterfall_mark_find_closest (self, &mouse, NULL);
+  link = handle->user_data;
 
   if (link == NULL)
     return NULL;
 
   task = link->data;
 
-  rc = hyscan_gtk_waterfall_tools_distance (&task->px_center, &mouse);
+  mouse.x = handle->val_x;
+  mouse.y = handle->val_y;
+  rc = hyscan_gtk_waterfall_tools_distance (&task->center, &mouse);
 
-  corner.x = task->px_center.x - task->px_dx;
-  corner.y = task->px_center.y - task->px_dy;
-  rtl = hyscan_gtk_waterfall_tools_distance (&corner, &mouse);
+  mouse.x = task->center.x + ABS (task->center.x - mouse.x);
+  mouse.y = task->center.y + ABS (task->center.y - mouse.y);
+  corner.x = ABS (task->center.x + task->dx);
+  corner.y = ABS (task->center.y + task->dy);
+  rb = hyscan_gtk_waterfall_tools_distance (&corner, &mouse);
 
-  corner.x = task->px_center.x + task->px_dx;
-  corner.y = task->px_center.y - task->px_dy;
-  rtr = hyscan_gtk_waterfall_tools_distance (&corner, &mouse);
-
-  corner.x = task->px_center.x - task->px_dx;
-  corner.y = task->px_center.y + task->px_dy;
-  rbl = hyscan_gtk_waterfall_tools_distance (&corner, &mouse);
-
-  corner.x = task->px_center.x + task->px_dx;
-  corner.y = task->px_center.y + task->px_dy;
-  rbr = hyscan_gtk_waterfall_tools_distance (&corner, &mouse);
-
-
-  if (rc < MIN (MIN(rtl, rtr), MIN(rbl, rbr)))
+  if (rc < rb)
     mode = LOCAL_EDIT_CENTER;
   else
     mode = LOCAL_EDIT_BORDER;
@@ -1256,42 +1324,6 @@ hyscan_gtk_waterfall_mark_handle_grab (HyScanGtkWaterfallState *state,
 
   return self;
 }
-
-/* Функция отпускает хэндл. */
-static gboolean
-hyscan_gtk_waterfall_mark_handle_release (HyScanGtkLayerContainer *container,
-                                          GdkEventButton          *event,
-                                          HyScanGtkWaterfallMark  *self)
-{
-  HyScanGtkWaterfallMarkPrivate *priv = self->priv;
-  HyScanGtkWaterfallMarkTask *task = NULL;
-  HyScanCoordinates mouse = {.x = event->x, .y = event->y};
-
-  /* Отпускание хэндла -- это либо создание новой метки (LOCAL_CREATE),
-   * либо завершение редактирования (LOCAL_EDIT_CENTER, LOCAL_EDIT_BORDER) */
-
-  if (priv->mode != LOCAL_CREATE &&
-      priv->mode != LOCAL_EDIT_CENTER &&
-      priv->mode != LOCAL_EDIT_BORDER)
-    {
-      return FALSE;
-    }
-
-  if (hyscan_gtk_waterfall_tools_distance (&priv->press, &mouse) > 2)
-    return FALSE;
-
-  g_list_free_full (priv->cancellable, hyscan_gtk_waterfall_mark_free_task);
-  priv->cancellable = NULL;
-
-  task = hyscan_gtk_waterfall_mark_dup_task (&priv->current);
-  task->action = priv->mode == LOCAL_CREATE ? TASK_CREATE : TASK_MODIFY;
-  hyscan_gtk_waterfall_mark_add_task (self, task);
-
-  priv->mode = LOCAL_EMPTY;
-
-  return TRUE;
-}
-
 
 /* Функция обрабатывает нажатия клавиш. */
 static gboolean
@@ -1319,10 +1351,13 @@ hyscan_gtk_waterfall_mark_key (GtkWidget              *widget,
   /* Удаление. */
   else if (event->keyval == GDK_KEY_Delete)
     {
-      task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
-      task->id = g_strdup (priv->current.id);
-      task->action = TASK_REMOVE;
-      hyscan_gtk_waterfall_mark_add_task (self, task);
+      if (priv->current.id != NULL)
+        {
+          task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
+          task->id = g_strdup (priv->current.id);
+          task->action = TASK_REMOVE;
+          hyscan_gtk_waterfall_mark_add_task (self, task);
+        }
     }
   else
     {
@@ -1338,28 +1373,6 @@ hyscan_gtk_waterfall_mark_key (GtkWidget              *widget,
 
   hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (widget), NULL);
   return GDK_EVENT_STOP;
-}
-
-/* Функция обрабатывает нажатия кнопок мыши. */
-static gboolean
-hyscan_gtk_waterfall_mark_button (GtkWidget              *widget,
-                                  GdkEventButton         *event,
-                                  HyScanGtkWaterfallMark *self)
-{
-  HyScanGtkWaterfallMarkPrivate *priv = self->priv;
-
-  /* Игнорируем нажатия всех кнопок, кроме левой. */
-  if (event->button != GDK_BUTTON_PRIMARY)
-    return GDK_EVENT_PROPAGATE;
-
-  /* Если это НАЖАТИЕ, то просто запомним координату. */
-  if (event->type == GDK_BUTTON_PRESS)
-    {
-      priv->press.x = event->x;
-      priv->press.y = event->y;
-    }
-
-  return GDK_EVENT_PROPAGATE;
 }
 
 /* Обработчик движения мыши. */
@@ -1389,8 +1402,6 @@ hyscan_gtk_waterfall_mark_motion (GtkWidget              *widget,
       break;
     }
 
-  priv->pointer.x = event->x;
-  priv->pointer.y = event->y;
   return FALSE;
 }
 
@@ -1536,10 +1547,6 @@ hyscan_gtk_waterfall_mark_draw_task (HyScanGtkWaterfallMark     *self,
   dx = ABS (center.x - corner.x);
   dy = ABS (center.y - corner.y);
 
-  task->px_center = center;
-  task->px_dx = dx;
-  task->px_dy = dy;
-
   /* Рисуем тень под элементами. */
   hyscan_gtk_waterfall_mark_draw_helper (cairo, &center, dx, dy, &priv->color.shadow, priv->color.shadow_width);
 
@@ -1614,23 +1621,19 @@ hyscan_gtk_waterfall_mark_draw (GtkWidget              *widget,
   g_mutex_lock (&priv->drawable_lock);
   for (link = priv->drawable; link != NULL; link = link->next)
     {
-      gboolean visible, pending;
+      gboolean pending;
       HyScanGtkWaterfallMarkTask *task;
       HyScanGtkWaterfallMarkTask *new_task;
 
       task = link->data;
 
       /* Фильтруем по лейблу. */
-
       if (task->mark != NULL && task->mark->waterfall.labels != 0 && !(task->mark->waterfall.labels & priv->mark_filter))
         continue;
 
       /* Отрисовываем метку. */
       pending = task->action != TASK_NONE;
-      visible = hyscan_gtk_waterfall_mark_draw_task (self, cairo, task, FALSE, pending);
-
-      /* Если она не видима, движемся дальше.*/
-      if (!visible)
+      if (!hyscan_gtk_waterfall_mark_draw_task (self, cairo, task, FALSE, pending))
         continue;
 
       /* Иначе добавляем в список видимых.*/
@@ -1643,17 +1646,20 @@ hyscan_gtk_waterfall_mark_draw (GtkWidget              *widget,
   g_mutex_unlock (&priv->drawable_lock);
 
   /* Отрисовываем current метку. */
-  if (priv->mode == LOCAL_EMPTY)
+  if (priv->highlight)
     {
-      HyScanCoordinates handle;
-      link = hyscan_gtk_waterfall_mark_find_closest (self, &priv->pointer, &handle);
-      if (link != NULL)
-        {
-          hyscan_gtk_waterfall_mark_draw_handle (cairo, priv->color.mark, priv->color.shadow,
-                                                 handle, HANDLE_RADIUS);
-        }
+      HyScanCoordinates coords;
+      gtk_cifro_area_visible_value_to_point (carea,
+                                             &coords.x, &coords.y,
+                                             priv->handle_to_highlight.x,
+                                             priv->handle_to_highlight.y);
+      hyscan_gtk_waterfall_mark_draw_handle (cairo,
+                                             priv->color.mark,
+                                             priv->color.shadow,
+                                             coords,
+                                             HANDLE_RADIUS);
     }
-  else /*if (priv->mode == LOCAL_EMPTY)*/
+  if (priv->mode != LOCAL_EMPTY)
     {
       HyScanGtkWaterfallMarkTask new_task = {.mark = NULL};
 
@@ -1972,4 +1978,9 @@ hyscan_gtk_waterfall_mark_interface_init (HyScanGtkLayerInterface *iface)
   iface->grab_input = hyscan_gtk_waterfall_mark_grab_input;
   iface->set_visible = hyscan_gtk_waterfall_mark_set_visible;
   iface->get_icon_name = hyscan_gtk_waterfall_mark_get_icon_name;
+  iface->handle_create = hyscan_gtk_waterfall_mark_handle_create;
+  iface->handle_release = hyscan_gtk_waterfall_mark_handle_release;
+  iface->handle_find = hyscan_gtk_waterfall_mark_handle_find;
+  iface->handle_show = hyscan_gtk_waterfall_mark_handle_show;
+  iface->handle_grab = hyscan_gtk_waterfall_mark_handle_grab;
 }

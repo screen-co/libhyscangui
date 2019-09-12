@@ -106,7 +106,7 @@ enum
   SHOW_DUMMY  = 500
 };
 
-static const gint    tile_sizes[ZOOM_LEVELS] = {500e3,  200e3,  100e3,  80e3,  50e3,  40e3,  20e3,  10e3,  5e3,  2e3,  1e3,  500, 400, 200, 100}; /* В миллиметрах. */
+#define TILE_SIZE_PX (256)
 static const gdouble zooms_gost[ZOOM_LEVELS] = {5000.0, 2000.0, 1000.0, 800.0, 500.0, 400.0, 200.0, 100.0, 50.0, 20.0, 10.0, 5.0, 4.0, 2.0, 1.0};
 
 struct _HyScanGtkWaterfallPrivate
@@ -117,6 +117,8 @@ struct _HyScanGtkWaterfallPrivate
   HyScanTileQueue       *queue;
   HyScanTileColor       *color;
 
+  gchar                 *track;
+
   guint64                view_id;
   gpointer               tq_hash;
 
@@ -124,8 +126,6 @@ struct _HyScanGtkWaterfallPrivate
   gint                   zoom_index;
 
   gboolean               open;               /* Флаг "галс открыт". */
-  gboolean               request_redraw;     /* Флаг "требуется перерисовка". */
-  guint                  redraw_tag;
 
   gboolean               view_finalised;     /* "Все тайлы для этого вью найдены и показаны". */
 
@@ -171,16 +171,18 @@ struct _HyScanGtkWaterfallPrivate
 static void     hyscan_gtk_waterfall_object_constructed      (GObject                       *object);
 static void     hyscan_gtk_waterfall_object_finalize         (GObject                       *object);
 
-static gboolean hyscan_gtk_waterfall_redrawer                (gpointer                       data);
-
 static gint32   hyscan_gtk_waterfall_aligner                 (gdouble                        in,
                                                               gint                           size);
 static void     hyscan_gtk_waterfall_prepare_csurface        (cairo_surface_t              **surface,
                                                               gint                           required_width,
                                                               gint                           required_height,
                                                               HyScanTileSurface             *tile_surface);
-static void     hyscan_gtk_waterfall_prepare_tile            (HyScanGtkWaterfallPrivate     *priv,
-                                                              HyScanTile                     *tile);
+static HyScanTile * hyscan_gtk_waterfall_prepare_tile        (HyScanGtkWaterfallPrivate     *priv,
+                                                              gint32                         x0,
+                                                              gint32                         y0,
+                                                              gint32                         x1,
+                                                              gint32                         y1,
+                                                              gfloat                         scale);
 static gboolean hyscan_gtk_waterfall_get_tile                (HyScanGtkWaterfall            *self,
                                                               HyScanTile                    *tile,
                                                               cairo_surface_t              **tile_surface);
@@ -305,8 +307,8 @@ hyscan_gtk_waterfall_object_constructed (GObject *object)
   HyScanGtkWaterfall *self = HYSCAN_GTK_WATERFALL (object);
   HyScanGtkWaterfallPrivate *priv;
   HyScanCache *cache;
-  HyScanAmplitudeFactory *af;
-  HyScanDepthFactory *df;
+  HyScanFactoryAmplitude *af;
+  HyScanFactoryDepth *df;
   guint n_threads = g_get_num_processors ();
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_parent_class)->constructed (object);
@@ -346,8 +348,6 @@ hyscan_gtk_waterfall_object_constructed (GObject *object)
   g_signal_connect (self, "changed::track",        G_CALLBACK (hyscan_gtk_waterfall_track_changed), self);
   g_signal_connect (self, "changed::speed",        G_CALLBACK (hyscan_gtk_waterfall_speed_changed), self);
   g_signal_connect (self, "changed::velocity",     G_CALLBACK (hyscan_gtk_waterfall_velocity_changed), self);
-  // g_signal_connect (self, "changed::amp-factory",  G_CALLBACK (hyscan_gtk_waterfall_depth_amp_changed), self);
-  // g_signal_connect (self, "changed::dpt-factory",  G_CALLBACK (hyscan_gtk_waterfall_cache_dpt_changed), self);
 
   hyscan_gtk_waterfall_sources_changed (HYSCAN_GTK_WATERFALL_STATE (self), self);
   hyscan_gtk_waterfall_tile_flags_changed (HYSCAN_GTK_WATERFALL_STATE (self), self);
@@ -363,8 +363,6 @@ hyscan_gtk_waterfall_object_constructed (GObject *object)
   priv->regen_period = 1 * G_TIME_SPAN_SECOND;
 
   priv->tile_upsample = 2;
-
-  priv->redraw_tag = g_timeout_add (10, hyscan_gtk_waterfall_redrawer, self);
 
   g_object_unref (cache);
   g_object_unref (af);
@@ -382,6 +380,7 @@ hyscan_gtk_waterfall_object_finalize (GObject *object)
   cairo_surface_destroy (priv->dummy);
 
   g_free (priv->zooms);
+  g_free (priv->track);
 
   g_clear_object (&priv->queue);
   g_clear_object (&priv->color);
@@ -393,25 +392,8 @@ hyscan_gtk_waterfall_object_finalize (GObject *object)
       g_source_remove (priv->auto_tag);
       priv->auto_tag = 0;
     }
-  if (priv->redraw_tag != 0)
-    {
-      g_source_remove (priv->redraw_tag);
-      priv->redraw_tag = 0;
-    }
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_parent_class)->finalize (object);
-}
-
-/* Функция запрашивает перерисовку виджета, если необходимо. */
-static gboolean
-hyscan_gtk_waterfall_redrawer (gpointer data)
-{
-  HyScanGtkWaterfall *self = data;
-
-  if (g_atomic_int_compare_and_exchange (&self->priv->request_redraw, TRUE, FALSE))
-    gtk_widget_queue_draw (GTK_WIDGET (self));
-
-  return G_SOURCE_CONTINUE;
 }
 
 /* Округление координат тайла. */
@@ -475,29 +457,49 @@ hyscan_gtk_waterfall_prepare_csurface (cairo_surface_t  **surface,
 }
 
 /* Функция подготавливает структуру HyScanTile. */
-static void
+static HyScanTile *
 hyscan_gtk_waterfall_prepare_tile (HyScanGtkWaterfallPrivate *priv,
-                                   HyScanTile                *tile)
+                                   gint32                     x0,
+                                   gint32                     y0,
+                                   gint32                     x1,
+                                   gint32                     y1,
+                                   gfloat                     scale)
 {
+  HyScanTile *tile = hyscan_tile_new (priv->track);
+
   /* Тип КД и поворот для этого тайла. */
   if (priv->widget_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN)
     {
-      if (tile->across_start <= 0 && tile->across_end <= 0)
-        tile->source = priv->left_source;
-      else
-        tile->source = priv->right_source;
+      tile->info.across_start = x0;
+      tile->info.along_start  = y0;
+      tile->info.across_end   = x1;
+      tile->info.along_end    = y1;
 
-      tile->rotate = FALSE;
+      if (x0 <= 0 && x1 <= 0)
+        tile->info.source = priv->left_source;
+      else
+        tile->info.source = priv->right_source;
+
+      tile->info.rotate = FALSE;
     }
   else /* HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER */
     {
-      tile->source = priv->right_source;
+      tile->info.along_start  = x0;
+      tile->info.across_start = y0;
+      tile->info.along_end    = x1;
+      tile->info.across_end   = y1;
 
-      tile->rotate = TRUE;
+      tile->info.source = priv->right_source;
+
+      tile->info.rotate = TRUE;
     }
 
-  tile->flags = priv->tile_flags;
-  tile->upsample = priv->tile_upsample;
+  tile->info.flags = priv->tile_flags;
+  tile->info.upsample = priv->tile_upsample;
+  tile->info.scale = scale;
+  tile->info.ppi = priv->ppi;
+
+  return tile;
 }
 
 /* Функция получения тайла. */
@@ -508,34 +510,31 @@ hyscan_gtk_waterfall_get_tile (HyScanGtkWaterfall *self,
 {
   HyScanGtkWaterfallPrivate *priv = self->priv;;
 
-  HyScanTile requested_tile, queue_tile, color_tile;
+  HyScanTileCacheable queue_cache, color_cache;
   gboolean   queue_found, color_found;
   gboolean   regenerate;
   gint       show_strategy = SHOW_DUMMY;
   gfloat    *buffer        = NULL;
   guint32    buffer_size   = 0;
   HyScanTileSurface tile_surface;
+  HyScanCancellable *cancellable = NULL;
 
-  requested_tile = *tile;
   queue_found = color_found = regenerate = FALSE;
 
-  /* Дописываем в структуру с тайлом всю необходимую информацию (из очереди). */
-  hyscan_gtk_waterfall_prepare_tile (priv, &requested_tile);
-
   /* Собираем информацию об имеющихся тайлах и их тождественности. */
-  queue_found = hyscan_tile_queue_check (priv->queue, &requested_tile, &queue_tile, &regenerate);
-  color_found = hyscan_tile_color_check (priv->color, &requested_tile, &color_tile);
+  queue_found = hyscan_tile_queue_check (priv->queue, tile, &queue_cache, &regenerate);
+  color_found = hyscan_tile_color_check (priv->color, tile, &color_cache);
 
   /* На основании этого определяем, как поступить. */
-  if (color_found && (color_tile.finalized || !queue_found))
+  if (color_found && (color_cache.finalized || !queue_found))
     {
       show_strategy = SHOW;
-      hyscan_gtk_waterfall_prepare_csurface (surface, color_tile.w, color_tile.h, &tile_surface);
+      hyscan_gtk_waterfall_prepare_csurface (surface, color_cache.w, color_cache.h, &tile_surface);
     }
   else if (queue_found)
     {
       show_strategy = RECOLOR;
-      hyscan_gtk_waterfall_prepare_csurface (surface, queue_tile.w, queue_tile.h, &tile_surface);
+      hyscan_gtk_waterfall_prepare_csurface (surface, queue_cache.w, queue_cache.h, &tile_surface);
     }
   else
     {
@@ -546,12 +545,16 @@ hyscan_gtk_waterfall_get_tile (HyScanGtkWaterfall *self,
   /* Ненайденные тайлы сразу же отправляем на генерацию. */
   if (!queue_found)
     {
-      hyscan_tile_queue_add (priv->queue, &requested_tile);
+      cancellable = hyscan_cancellable_new ();
+      hyscan_tile_queue_add (priv->queue, tile, cancellable);
+      g_object_unref (cancellable);
     }
   /* ПЕРЕгенерация разрешена не всегда. */
   else if (regenerate && priv->regen_allowed)
     {
-      hyscan_tile_queue_add (priv->queue, &requested_tile);
+      cancellable = hyscan_cancellable_new ();
+      hyscan_tile_queue_add (priv->queue, tile, cancellable);
+      g_object_unref (cancellable);
       priv->regen_sent = TRUE;
     }
 
@@ -562,14 +565,14 @@ hyscan_gtk_waterfall_get_tile (HyScanGtkWaterfall *self,
     {
     case SHOW:
       /* Просто отображаем тайл. */
-      *tile = color_tile;
-      return hyscan_tile_color_get (priv->color, &requested_tile, &color_tile, &tile_surface);
+      tile->cacheable = color_cache;
+      return hyscan_tile_color_get (priv->color, tile, &color_cache, &tile_surface);
 
     case RECOLOR:
       /* Перекрашиваем и отображаем. */
-      queue_found = hyscan_tile_queue_get (priv->queue, &requested_tile, &queue_tile, &buffer, &buffer_size);
-      *tile = queue_tile;
-      hyscan_tile_color_add (priv->color, &queue_tile, buffer, buffer_size, &tile_surface);
+      queue_found = hyscan_tile_queue_get (priv->queue, tile, &queue_cache, &buffer, &buffer_size);
+      tile->cacheable = queue_cache;
+      hyscan_tile_color_add (priv->color, tile, buffer, buffer_size, &tile_surface);
       return TRUE;
 
     case SHOW_DUMMY:
@@ -604,12 +607,11 @@ hyscan_gtk_waterfall_image_generated (HyScanGtkWaterfall *self,
   gpointer tq_hash;
 
   tq_hash = g_atomic_pointer_get (&priv->tq_hash);
-
   if (hash != GPOINTER_TO_SIZE (tq_hash))
     return;
 
-  surface.width = tile->w;
-  surface.height = tile->h;
+  surface.width = tile->cacheable.w;
+  surface.height = tile->cacheable.h;
   surface.stride = cairo_format_stride_for_width (CAIRO_FORMAT_ARGB32, surface.width);
   surface.data = g_malloc0 (surface.height * surface.stride);
 
@@ -640,7 +642,6 @@ hyscan_gtk_waterfall_visible_draw (GtkWidget *widget,
   HyScanGtkWaterfallPrivate *priv = self->priv;
 
   cairo_surface_t *source_surface;
-  HyScanTile tile;
   gint32 tile_size      = 0;
   gint32 start_tile_x0  = 0;
   gint32 start_tile_y0  = 0;
@@ -678,7 +679,8 @@ hyscan_gtk_waterfall_visible_draw (GtkWidget *widget,
 
   /* Определяем размер тайла. */
   scale = zooms_gost[priv->zoom_index];
-  tile_size = tile_sizes[priv->zoom_index];
+  // tile_size = tile_sizes[priv->zoom_index];
+  tile_size = TILE_SIZE_PX * 25.4 * scale / priv->ppi;
 
   /* Определяем параметры искомых тайлов. */
   start_tile_x0 = hyscan_gtk_waterfall_aligner (from_x, tile_size);
@@ -703,49 +705,32 @@ hyscan_gtk_waterfall_visible_draw (GtkWidget *widget,
   y_coord0 = round(y_coord0);
 
   /* Ищем тайлы .*/
-  tile.scale = scale;
-  tile.ppi = priv->ppi;
-
   for (j = 0; j < num_of_tiles_x; j++)
     {
       for (i = num_of_tiles_y - 1; i >= 0; i--)
         {
-          /* Виджет знает только о том, какие размеры тайла, масштаб и ppi.
-           * У него нет информации ни о цветовой схеме, ни о фильтре. */
-          switch (priv->widget_type)
-            {
-            case HYSCAN_WATERFALL_DISPLAY_SIDESCAN:
-              tile.across_start = start_tile_x0 + j * tile_size;
-              tile.along_start  = start_tile_y0 + i * tile_size;
-              tile.across_end   = start_tile_x0 + (j + 1) * tile_size;
-              tile.along_end    = start_tile_y0 + (i + 1) * tile_size;
-              break;
+          HyScanTile * tile;
 
-            case HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER:
-            default:
-              tile.along_start  = start_tile_x0 + j * tile_size;
-              tile.across_start = start_tile_y0 + i * tile_size;
-              tile.along_end    = start_tile_x0 + (j + 1) * tile_size;
-              tile.across_end   = start_tile_y0 + (i + 1) * tile_size;
-            }
+          tile = hyscan_gtk_waterfall_prepare_tile (priv,
+                                                    start_tile_x0 + j * tile_size,
+                                                    start_tile_y0 + i * tile_size,
+                                                    start_tile_x0 + (j + 1) * tile_size,
+                                                    start_tile_y0 + (i + 1) * tile_size,
+                                                    scale);
 
           /* Ищем тайл. */
-          if (priv->open && hyscan_gtk_waterfall_get_tile (self, &tile, &(priv->surface)))
+          if (priv->open && hyscan_gtk_waterfall_get_tile (self, tile, &(priv->surface)))
             {
-              x_coord = x_coord0 + j * tile.w;
-              y_coord = y_coord0 - i * tile.h;
+              x_coord = x_coord0 + j * tile->cacheable.w;
+              y_coord = y_coord0 - i * tile->cacheable.h;
 
               source_surface = priv->surface;
             }
           /* Если не нашли, отрисовываем заглушку. */
           else
             {
-
-              gfloat step = hyscan_tile_common_mm_per_pixel (zooms_gost[0], priv->ppi);
-              gint tile_pixels = hyscan_tile_common_tile_size (0, tile_sizes[0], step);
-
-              x_coord = x_coord0 + j * tile_pixels;
-              y_coord = y_coord0 - i * tile_pixels;
+              x_coord = x_coord0 + j * TILE_SIZE_PX;
+              y_coord = y_coord0 - i * TILE_SIZE_PX;
 
               view_finalised = FALSE;
 
@@ -755,6 +740,8 @@ hyscan_gtk_waterfall_visible_draw (GtkWidget *widget,
           /* Отрисовка. */
           if (source_surface != NULL)
             hyscan_gtk_waterfall_draw_surface (source_surface, cairo, x_coord, y_coord);
+
+          g_object_unref (tile);
         }
     }
 
@@ -802,8 +789,7 @@ hyscan_gtk_waterfall_dummy_draw (GtkWidget *widget,
   gdouble from_x, from_y, to_x, to_y,
           x_coord, y_coord, x_coord0,
           y_coord0;
-  gfloat step;
-  gint tile_pixels;
+  gfloat scale;
 
   HyScanGtkWaterfall *self = HYSCAN_GTK_WATERFALL (widget);
   HyScanGtkWaterfallPrivate *priv = self->priv;
@@ -815,9 +801,8 @@ hyscan_gtk_waterfall_dummy_draw (GtkWidget *widget,
   to_y   *= 1000.0;
 
   /* Определяем размер тайла. */
-  tile_size = tile_sizes[priv->zoom_index];
-  step = hyscan_tile_common_mm_per_pixel (zooms_gost[0], priv->ppi);
-  tile_pixels = hyscan_tile_common_tile_size (0, tile_sizes[0], step);
+  scale = zooms_gost[priv->zoom_index];
+  tile_size = TILE_SIZE_PX * 25.4 * scale / priv->ppi;
 
   /* Определяем параметры искомых тайлов. */
   start_x = hyscan_gtk_waterfall_aligner (from_x, tile_size);
@@ -836,8 +821,8 @@ hyscan_gtk_waterfall_dummy_draw (GtkWidget *widget,
   for (j = 0; j < num_of_tiles_x; j++)
     for (i = 0; i < num_of_tiles_y; i++)
       {
-        x_coord = x_coord0 + j * tile_pixels;
-        y_coord = y_coord0 - i * tile_pixels;
+        x_coord = x_coord0 + j * TILE_SIZE_PX;
+        y_coord = y_coord0 - i * TILE_SIZE_PX;
 
         hyscan_gtk_waterfall_draw_surface (priv->dummy, cairo, x_coord, y_coord);
       }
@@ -862,28 +847,21 @@ hyscan_gtk_waterfall_draw_surface (cairo_surface_t *src,
 static void
 hyscan_gtk_waterfall_create_dummy (HyScanGtkWaterfall *self)
 {
-  gfloat step;
-  gint size, stride, i, j;
+  gint stride, i, j;
   guchar *data;
 
   HyScanGtkWaterfallPrivate *priv = self->priv;
 
-  /* Уничтожаем старую заглушку. */
-  cairo_surface_destroy (priv->dummy);
-
-  /* Определяем размеры новой. */
-  step = hyscan_tile_common_mm_per_pixel (zooms_gost[0], priv->ppi);
-  size = hyscan_tile_common_tile_size (0, tile_sizes[0], step);
-
   /* Пересоздаем заглушку. */
-  priv->dummy = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, size, size);
+  cairo_surface_destroy (priv->dummy);
+  priv->dummy = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, TILE_SIZE_PX, TILE_SIZE_PX);
 
   /* Заполняем её цветом. */
   data = cairo_image_surface_get_data (priv->dummy);
   stride = cairo_image_surface_get_stride (priv->dummy);
 
-  for (i = 0; i < size; i++)
-    for (j = 0; j < size; j++)
+  for (i = 0; i < TILE_SIZE_PX; i++)
+    for (j = 0; j < TILE_SIZE_PX; j++)
       *((guint32*)(data + i * stride + j * sizeof (guint32))) = priv->dummy_color;
 }
 
@@ -1193,14 +1171,18 @@ static void
 hyscan_gtk_waterfall_sources_changed (HyScanGtkWaterfallState *model,
                                       HyScanGtkWaterfall   *self)
 {
+  gchar *track;
   HyScanGtkWaterfallPrivate *priv = self->priv;
 
+  hyscan_gtk_waterfall_state_get_track (model, NULL, NULL, &track);
   priv->widget_type = hyscan_gtk_waterfall_state_get_sources (model,
                                                               &priv->left_source,
                                                               &priv->right_source);
 
-  hyscan_track_rect_set_source (priv->lrect, priv->left_source);
-  hyscan_track_rect_set_source (priv->rrect, priv->right_source);
+  hyscan_track_rect_set_source (priv->lrect, track, priv->left_source);
+  hyscan_track_rect_set_source (priv->rrect, track, priv->right_source);
+
+  g_free (track);
 }
 
 /* Функция обрабатывает смену типа тайлов. */
@@ -1223,13 +1205,10 @@ static void
 hyscan_gtk_waterfall_track_changed (HyScanGtkWaterfallState *model,
                                     HyScanGtkWaterfall      *self)
 {
-  HyScanAmplitudeFactory *af;
-  HyScanDepthFactory *df;
   HyScanGtkWaterfallPrivate *priv = self->priv;
   HyScanDB *db;
   gchar *db_uri;
   gchar *project;
-  gchar *track;
 
   if (priv->auto_tag != 0)
     {
@@ -1239,27 +1218,17 @@ hyscan_gtk_waterfall_track_changed (HyScanGtkWaterfallState *model,
 
   priv->open = FALSE;
 
-  hyscan_gtk_waterfall_state_get_track (model, &db, &project, &track);
+  g_clear_pointer (&priv->track, g_free);
+  hyscan_gtk_waterfall_state_get_track (model, &db, &project, &priv->track);
 
-  if (project == NULL || track == NULL)
+  if (project == NULL || priv->track == NULL)
     return;
 
   db_uri = hyscan_db_get_uri (db);
+  hyscan_tile_color_open (priv->color, db_uri, project, priv->track);
 
-  af = hyscan_gtk_waterfall_state_get_amp_factory (model);
-  df = hyscan_gtk_waterfall_state_get_dpt_factory (model);
-
-  hyscan_amplitude_factory_set_track (af, db, project, track);
-  hyscan_depth_factory_set_track (df, db, project, track);
-
-  hyscan_tile_color_open (priv->color, db_uri, project, track);
-
-  hyscan_tile_queue_amp_changed (priv->queue);
-  hyscan_tile_queue_dpt_changed (priv->queue);
-  hyscan_track_rect_amp_changed (priv->lrect);
-  hyscan_track_rect_dpt_changed (priv->lrect);
-  hyscan_track_rect_amp_changed (priv->rrect);
-  hyscan_track_rect_dpt_changed (priv->rrect);
+  hyscan_track_rect_set_source (priv->lrect, priv->track, priv->left_source);
+  hyscan_track_rect_set_source (priv->rrect, priv->track, priv->right_source);
 
   priv->open = TRUE;
 
@@ -1274,10 +1243,7 @@ hyscan_gtk_waterfall_track_changed (HyScanGtkWaterfallState *model,
                                   self);
   g_free (db_uri);
   g_free (project);
-  g_free (track);
   g_object_unref (db);
-  g_object_unref (af);
-  g_object_unref (df);
 
   gtk_widget_queue_draw (GTK_WIDGET (self));
 
@@ -1371,8 +1337,7 @@ void
 hyscan_gtk_waterfall_queue_draw (HyScanGtkWaterfall *self)
 {
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (self));
-
-  g_atomic_int_set (&self->priv->request_redraw, TRUE);
+  g_idle_add ((GSourceFunc)gtk_widget_queue_draw, self);
 }
 
 /**
