@@ -103,7 +103,8 @@ typedef enum
   STATE_ZONE_CREATE,       /* Режим создания новой зоны. */
   STATE_ZONE_DRAG,         /* Режим перемещения вершины зоны. */
   STATE_ZONE_INSERT,       /* Режим вставки вершины зоны. */
-  STATE_ORIGIN_CREATE      /* Режим редактирования точки отсчёта. */
+  STATE_ORIGIN_CREATE,     /* Режим редактирования точки отсчёта. */
+  STATE_SELECTION,         /* Режим выбора объектов. */
 } HyScanGtkMapPlannerState;
 
 typedef struct
@@ -167,6 +168,9 @@ struct _HyScanGtkMapPlannerPrivate
   gboolean                           parallel_alternate;   /* Признак смены направления паралельных галсов. */
   GList                             *parallel_tracks;      /* Список параллельных галсов для добавления. */
 
+  HyScanGeoCartesian2D               selection_start;      /* Координаты одного угла выбранной области. */
+  HyScanGeoCartesian2D               selection_end;        /* Координаты второго угла выбранной области. */
+
   PangoLayout                       *pango_layout;         /* Шрифт. */
   HyScanGtkMapPlannerStyle           track_style;          /* Стиль оформления галса. */
   HyScanGtkMapPlannerStyle           track_style_selected; /* Стиль оформления выбранного галса. */
@@ -222,6 +226,8 @@ static void                       hyscan_gtk_map_planner_zone_draw             (
 static void                       hyscan_gtk_map_planner_track_draw            (HyScanGtkMapPlanner       *planner,
                                                                                 HyScanGtkMapPlannerTrack  *track,
                                                                                 gboolean                   skip_current,
+                                                                                cairo_t                   *cairo);
+static void                       hyscan_gtk_map_planner_selection_draw        (HyScanGtkMapPlanner       *planner,
                                                                                 cairo_t                   *cairo);
 static void                       hyscan_gtk_map_planner_origin_draw           (HyScanGtkMapPlanner       *planner,
                                                                                 cairo_t                   *cairo);
@@ -758,6 +764,10 @@ hyscan_gtk_map_planner_draw (GtkCifroArea        *carea,
   /* Рисуем текущий редактируемый галс. */
   if (priv->cur_track != NULL)
     hyscan_gtk_map_planner_track_draw (planner, priv->cur_track, FALSE, cairo);
+
+  /* Выделение. */
+  if (priv->cur_state == STATE_SELECTION)
+    hyscan_gtk_map_planner_selection_draw (planner, cairo);
 }
 
 /* Редактирование зоны при захвате за вершину. */
@@ -797,6 +807,42 @@ hyscan_gtk_map_planner_origin_drag (HyScanGtkMapPlanner *planner,
 
   angle = G_PI_2 - atan2 (cursor.y - cur_origin->origin.y, cursor.x - cur_origin->origin.x);
   cur_origin->object->origin.h = angle / G_PI * 180.0;
+  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+  return GDK_EVENT_STOP;
+}
+
+/* Изменение списка выбранных галсов при изменении области выделения. */
+static gboolean
+hyscan_gtk_map_planner_selection_drag (HyScanGtkMapPlanner *planner,
+                                       GdkEventMotion      *event)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  HyScanGeoCartesian2D *end = &priv->selection_end;
+  HyScanGtkMapPlannerTrack *track;
+  GList *link;
+
+  gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &end->x, &end->y);
+
+  hyscan_list_store_remove_all (priv->selection);
+  for (link = priv->tracks; link != NULL; link = link->next)
+    {
+      gboolean selected_before, selected;
+      track = link->data;
+
+      // selected_before = hyscan_list_store_contains (priv->selection, track->id);
+      selected = hyscan_cartesian_is_inside (&track->start, &track->end, &priv->selection_start, &priv->selection_end);
+
+      if (selected)
+        hyscan_list_store_append (priv->selection, track->id);
+      // else if (!selected && selected_before)
+      //   hyscan_list_store_remove (priv->selection, track->id);
+      // if (selected && !selected_before)
+      //   hyscan_list_store_append (priv->selection, track->id);
+      // else if (!selected && selected_before)
+      //   hyscan_list_store_remove (priv->selection, track->id);
+    }
+
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 
   return GDK_EVENT_STOP;
@@ -1029,6 +1075,9 @@ hyscan_gtk_map_planner_motion_notify (HyScanGtkMapPlanner *planner,
     case STATE_ORIGIN_CREATE:
       return hyscan_gtk_map_planner_origin_drag (planner, event);
 
+    case STATE_SELECTION:
+      return hyscan_gtk_map_planner_selection_drag (planner, event);
+
     default:
       return GDK_EVENT_PROPAGATE;
   }
@@ -1190,6 +1239,8 @@ hyscan_gtk_map_planner_selection_remove (HyScanGtkMapPlanner *planner)
 
       g_free (selected_id);
     }
+
+  hyscan_list_store_remove_all (priv->selection);
 }
 
 /* Обработка события "key-press-event". */
@@ -1280,6 +1331,25 @@ hyscan_gtk_map_planner_origin_draw (HyScanGtkMapPlanner     *planner,
   cairo_stroke (cairo);
 
   cairo_restore (cairo);
+}
+
+static void
+hyscan_gtk_map_planner_selection_draw (HyScanGtkMapPlanner *planner,
+                                       cairo_t             *cairo)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  gdouble sx, sy, ex, ey;
+
+  gtk_cifro_area_value_to_point (GTK_CIFRO_AREA (priv->map), &sx, &sy, priv->selection_start.x, priv->selection_start.y);
+  gtk_cifro_area_value_to_point (GTK_CIFRO_AREA (priv->map), &ex, &ey, priv->selection_end.x, priv->selection_end.y);
+
+  cairo_rectangle (cairo, sx, sy, ex - sx, ey - sy);
+  cairo_set_source_rgba (cairo, 0.0, 0.0, 0.8, 0.1);
+  cairo_fill_preserve (cairo);
+
+  cairo_set_line_width (cairo, 0.5);
+  cairo_set_source_rgba (cairo, 0.0, 0.0, 0.8, 0.8);
+  cairo_stroke (cairo);
 }
 
 /* Рисует зону полигона и галсы внутри неё. */
@@ -1659,6 +1729,20 @@ hyscan_gtk_map_planner_handle_create_origin (HyScanGtkMapPlanner  *planner,
 
   return TRUE;
 }
+/* Переводит слой в режим создания точки отсчёта. */
+static gboolean
+hyscan_gtk_map_planner_handle_create_select (HyScanGtkMapPlanner  *planner,
+                                             HyScanGeoCartesian2D  point)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+
+  priv->selection_start = point;
+  priv->selection_end = point;
+  priv->cur_state = STATE_SELECTION;
+  hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), planner);
+
+  return TRUE;
+}
 
 /* Добавляет ещё одну вершину в периметр и начинает её перетаскивание. */
 static void
@@ -1691,9 +1775,6 @@ hyscan_gtk_map_planner_handle_find (HyScanGtkLayer       *layer,
   HyScanGtkMapPlanner *planner = HYSCAN_GTK_MAP_PLANNER (layer);
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
   HyScanGeoCartesian2D handle_coord;
-
-  if (!hyscan_gtk_layer_get_visible (layer))
-    return FALSE;
 
   priv->found_state = STATE_NONE;
   priv->found_track = NULL;
@@ -1876,6 +1957,8 @@ hyscan_gtk_map_planner_handle_create (HyScanGtkLayer *layer,
     return hyscan_gtk_map_planner_handle_create_zone (planner, point);
   else if (priv->mode == HYSCAN_GTK_MAP_PLANNER_MODE_ORIGIN)
     return hyscan_gtk_map_planner_handle_create_origin (planner, point);
+  else if (priv->mode == HYSCAN_GTK_MAP_PLANNER_MODE_SELECT)
+    return hyscan_gtk_map_planner_handle_create_select (planner, point);
 
   return FALSE;
 }
@@ -2011,6 +2094,17 @@ hyscan_gtk_map_planner_release_origin (HyScanGtkMapPlanner *planner)
 }
 
 static gboolean
+hyscan_gtk_map_planner_release_select (HyScanGtkMapPlanner *planner)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+
+  priv->cur_state = STATE_NONE;
+  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
+  return TRUE;
+}
+
+static gboolean
 hyscan_gtk_map_planner_handle_release (HyScanGtkLayer *layer,
                                        GdkEventButton *event,
                                        gconstpointer   howner)
@@ -2028,6 +2122,8 @@ hyscan_gtk_map_planner_handle_release (HyScanGtkLayer *layer,
     return hyscan_gtk_map_planner_release_zone (planner, FALSE, event);
   else if (priv->cur_state == STATE_ORIGIN_CREATE)
     return hyscan_gtk_map_planner_release_origin (planner);
+  else if (priv->cur_state == STATE_SELECTION)
+    return hyscan_gtk_map_planner_release_select (planner);
   else
     return hyscan_gtk_map_planner_release_track (planner);
 }
