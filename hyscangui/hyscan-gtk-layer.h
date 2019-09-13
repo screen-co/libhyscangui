@@ -136,7 +136,8 @@ struct _HyScanGtkLayerInterface
   void                 (*handle_show)      (HyScanGtkLayer          *layer,
                                             HyScanGtkLayerHandle    *handle);
 
-  gconstpointer        (*handle_grab)      (HyScanGtkLayer          *layer,
+  void                 (*handle_click)     (HyScanGtkLayer          *layer,
+                                            GdkEventButton          *event,
                                             HyScanGtkLayerHandle    *handle);
 };
 
@@ -203,8 +204,9 @@ void          hyscan_gtk_layer_handle_show            (HyScanGtkLayer          *
                                                        HyScanGtkLayerHandle    *handle);
 
 HYSCAN_API
-gconstpointer hyscan_gtk_layer_handle_grab            (HyScanGtkLayer          *layer,
-                                                       HyScanGtkLayerHandle    *handle);
+void          hyscan_gtk_layer_handle_click            (HyScanGtkLayer          *layer,
+                                                        GdkEventButton          *event,
+                                                        HyScanGtkLayerHandle    *handle);
 
 G_END_DECLS
 

@@ -113,7 +113,7 @@ void                   hyscan_gtk_map_pin_set_marker_shape (HyScanGtkMapPin     
                                                             HyScanGtkMapPinMarkerShape  shape);
 
 HYSCAN_API
-gconstpointer          hyscan_gtk_map_pin_start_drag       (HyScanGtkMapPin            *layer,
+gboolean               hyscan_gtk_map_pin_start_drag       (HyScanGtkMapPin            *layer,
                                                             HyScanGtkMapPinItem        *handle_point,
                                                             gboolean                    delete_on_cancel);
 

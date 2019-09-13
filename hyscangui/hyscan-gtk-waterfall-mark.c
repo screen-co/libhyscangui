@@ -226,7 +226,8 @@ static gboolean hyscan_gtk_waterfall_mark_handle_find             (HyScanGtkLaye
                                                                    HyScanGtkLayerHandle    *handle);
 static void     hyscan_gtk_waterfall_mark_handle_show             (HyScanGtkLayer          *layer,
                                                                    HyScanGtkLayerHandle    *handle);
-static gconstpointer hyscan_gtk_waterfall_mark_handle_grab        (HyScanGtkLayer          *layer,
+static void     hyscan_gtk_waterfall_mark_handle_click            (HyScanGtkLayer          *layer,
+                                                                   GdkEventButton          *event,
                                                                    HyScanGtkLayerHandle    *handle);
 
 static gboolean hyscan_gtk_waterfall_mark_key                     (GtkWidget               *widget,
@@ -1253,9 +1254,10 @@ hyscan_gtk_waterfall_mark_handle_show (HyScanGtkLayer       *layer,
     }
 }
 
-gconstpointer
-hyscan_gtk_waterfall_mark_handle_grab (HyScanGtkLayer       *layer,
-                                       HyScanGtkLayerHandle *handle)
+static void
+hyscan_gtk_waterfall_mark_handle_click (HyScanGtkLayer       *layer,
+                                        GdkEventButton       *event,
+                                        HyScanGtkLayerHandle *handle)
 {
   HyScanGtkWaterfallMark *self = HYSCAN_GTK_WATERFALL_MARK (layer);
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
@@ -1268,7 +1270,7 @@ hyscan_gtk_waterfall_mark_handle_grab (HyScanGtkLayer       *layer,
   link = handle->user_data;
 
   if (link == NULL)
-    return NULL;
+    return;
 
   task = link->data;
 
@@ -1304,7 +1306,7 @@ hyscan_gtk_waterfall_mark_handle_grab (HyScanGtkLayer       *layer,
 
   priv->cancellable = link;
 
-  return self;
+  hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->wfall), self);
 }
 
 /* Функция обрабатывает нажатия клавиш. */
@@ -1964,5 +1966,5 @@ hyscan_gtk_waterfall_mark_interface_init (HyScanGtkLayerInterface *iface)
   iface->handle_release = hyscan_gtk_waterfall_mark_handle_release;
   iface->handle_find = hyscan_gtk_waterfall_mark_handle_find;
   iface->handle_show = hyscan_gtk_waterfall_mark_handle_show;
-  iface->handle_grab = hyscan_gtk_waterfall_mark_handle_grab;
+  iface->handle_click = hyscan_gtk_waterfall_mark_handle_click;
 }

@@ -61,7 +61,7 @@
  * - HyScanGtkLayerInterface.handle_release()
  * - HyScanGtkLayerInterface.handle_find()
  * - HyScanGtkLayerInterface.handle_show()
- * - HyScanGtkLayerInterface.handle_grab()
+ * - HyScanGtkLayerInterface.handle_click()
  *
  * Функция HyScanGtkLayerInterface.handle_find() жизненно необходима всем желающим
  * реагировать на действия пользователя. Контейнер вызывает эту функцию, когда
@@ -103,15 +103,15 @@
  *                handle_find()                              handle_release()
  *                    + +                                          + +
  *              found | |  not found                      released | | not released
- *              +-----+ +---------------+               v----------+ +----------v
- *              |                       |            handle = NULL;       STOP EMISSION
- *              v                       |            STOP EMISSION
- *         handle_grab()                |
- *             + +                      |
- *     grabbed | | not grabbed          |
- *        v----+ +------------+         |
- *  handle = h_found;         |         |
- *  STOP EMISSION             v         v
+ *              +-----+ +----------+                    v----------+ +----------v
+ *              |                  |                 handle = NULL;       STOP EMISSION
+ *              v                  |                 STOP EMISSION
+ *         handle_click()          |
+ *             + +                 |
+ *     clicked | |                 |
+ *        v----+ +                 |
+ *  handle = h_found;              |
+ *  STOP EMISSION                  v
  *                          handle_create()
  *                                + +
  *                        created | | not created
@@ -208,7 +208,7 @@ static void         hyscan_gtk_layer_container_object_constructed      (GObject 
 static void         hyscan_gtk_layer_container_object_finalize         (GObject                 *object);
 static gboolean     hyscan_gtk_layer_container_handle_create           (HyScanGtkLayerContainer *container,
                                                                         GdkEventButton          *event);
-static gboolean     hyscan_gtk_layer_container_handle_grab             (HyScanGtkLayerContainer *container,
+static gboolean     hyscan_gtk_layer_container_handle_click            (HyScanGtkLayerContainer *container,
                                                                         GdkEventButton          *event);
 static gboolean     hyscan_gtk_layer_container_handle_release          (HyScanGtkLayerContainer *container,
                                                                         gconstpointer            handle_owner,
@@ -350,10 +350,10 @@ hyscan_gtk_layer_container_handle_closest (HyScanGtkLayerContainer *container,
   return closest_layer;
 }
 
-/* Пытается захватить хэндл, опрашивая все слои. */
+/* Обрабатывает клик по хэндлу под указателем мыши. */
 static gboolean
-hyscan_gtk_layer_container_handle_grab (HyScanGtkLayerContainer *container,
-                                        GdkEventButton          *event)
+hyscan_gtk_layer_container_handle_click (HyScanGtkLayerContainer *container,
+                                         GdkEventButton          *event)
 {
   HyScanGtkLayerContainerPrivate *priv = container->priv;
   gconstpointer handle_owner = NULL;
@@ -364,14 +364,14 @@ hyscan_gtk_layer_container_handle_grab (HyScanGtkLayerContainer *container,
   if (layer == NULL)
     return FALSE;
 
-  handle_owner = hyscan_gtk_layer_handle_grab (layer, &closest_handle);
-  hyscan_gtk_layer_container_set_handle_grabbed (container, handle_owner);
+  hyscan_gtk_layer_handle_click (layer, event, &closest_handle);
+  handle_owner = hyscan_gtk_layer_container_get_handle_grabbed (container);
 
   /* Прячем хэндл, если такой есть. */
   if (handle_owner != NULL && priv->hshow_layer != NULL)
     hyscan_gtk_layer_handle_show (priv->hshow_layer, NULL);
 
-  return handle_owner != NULL;
+  return TRUE;
 }
 
 /* Пытается отпустить хэндл, опрашивая все слои. */
@@ -532,7 +532,7 @@ hyscan_gtk_layer_container_button_release (GtkWidget       *widget,
   if (handle_owner != NULL)
     return hyscan_gtk_layer_container_handle_release (container, handle_owner, event);
 
-  if (hyscan_gtk_layer_container_handle_grab (container, event))
+  if (hyscan_gtk_layer_container_handle_click (container, event))
     return GDK_EVENT_STOP;
 
   if (hyscan_gtk_layer_container_handle_create (container, event))

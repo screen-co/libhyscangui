@@ -365,7 +365,7 @@ hyscan_gtk_layer_handle_create (HyScanGtkLayer *layer,
  * в структуру @handle.
  *
  * Найденный хэндл затем может быть передан в функции
- * hyscan_gtk_layer_handle_show() и hyscan_gtk_layer_handle_grab().
+ * hyscan_gtk_layer_handle_show() и hyscan_gtk_layer_handle_click().
  *
  * Returns: %TRUE, если хэндл был найден; иначе %FALSE.
  */
@@ -409,37 +409,38 @@ hyscan_gtk_layer_handle_show (HyScanGtkLayer       *layer,
 }
 
 /**
- * hyscan_gtk_layer_handle_grab:
+ * hyscan_gtk_layer_handle_click:
  * @layer: указатель на слой #HyScanGtkLayer
+ * @event: событие #GdkEventButton, которое привело к захвату хэндла
  * @handle: указатель на хэндл #HyScanGtkLayerHandle
  *
- * Захватывает хэндл @handle, который был найден слоем при последнем вызове функции
+ * Обрабатывает клик по хэндлу @handle, который был найден слоем при последнем вызове функции
  * hyscan_gtk_layer_handle_find().
+ *
+ * В результате клика слой может захватить хэндл или не захватывать его.
  *
  * Для того, чтобы отпустить хэндл, необходимо вызывать функцию
  * hyscan_gtk_layer_handle_release().
- *
- * Returns: (nullable): указатель на владельца хэндла, если хэндл был схвачен; иначе %NULL.
  */
-gconstpointer
-hyscan_gtk_layer_handle_grab (HyScanGtkLayer       *layer,
-                              HyScanGtkLayerHandle *handle)
+void
+hyscan_gtk_layer_handle_click (HyScanGtkLayer       *layer,
+                               GdkEventButton       *event,
+                               HyScanGtkLayerHandle *handle)
 {
   HyScanGtkLayerInterface *iface;
 
-  g_return_val_if_fail (HYSCAN_IS_GTK_LAYER (layer), NULL);
+  g_return_if_fail (HYSCAN_IS_GTK_LAYER (layer));
 
   iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
-  if (iface->handle_grab != NULL)
-    return iface->handle_grab (layer, handle);
-
-  return NULL;
+  if (iface->handle_click != NULL)
+    iface->handle_click (layer, event, handle);
 }
 
 
 /**
  * hyscan_gtk_layer_handle_release:
  * @layer: указатель на слой #HyScanGtkLayer
+ * @event: событие #GdkEventButton, которое привело к отпусканию хэндла
  * @howner: признак того, что подсказка показана
  *
  * Отпускает хэндл, принадлежащий владельцу @howner.

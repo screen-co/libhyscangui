@@ -175,9 +175,10 @@ hyscan_gtk_map_ruler_object_finalize (GObject *object)
 /* Захватывает хэндл.
  * Если указатель мыши над одним из отрезков, то помещает новую точку в это место и
  * начинает ее перетаскивать. */
-static gconstpointer
-hyscan_gtk_map_ruler_handle_grab (HyScanGtkLayer       *layer,
-                                  HyScanGtkLayerHandle *handle)
+static void
+hyscan_gtk_map_ruler_handle_click (HyScanGtkLayer       *layer,
+                                   GdkEventButton       *event,
+                                   HyScanGtkLayerHandle *handle)
 {
   if (g_strcmp0 (handle->type_name, HANDLE_TYPE_NAME) == 0)
     {
@@ -190,10 +191,10 @@ hyscan_gtk_map_ruler_handle_grab (HyScanGtkLayer       *layer,
       coordinate.y = handle->val_y;
       new_item = hyscan_gtk_map_pin_insert_before (pin_layer, &coordinate, found_section);
 
-      return hyscan_gtk_map_pin_start_drag (pin_layer, new_item, TRUE);
+      hyscan_gtk_map_pin_start_drag (pin_layer, new_item, TRUE);
     }
 
-  return hyscan_gtk_layer_parent_interface->handle_grab (layer, handle);
+  hyscan_gtk_layer_parent_interface->handle_click (layer, event, handle);
 }
 
 /* Показывает/прячет хэндл.
@@ -331,7 +332,7 @@ hyscan_gtk_map_ruler_interface_init (HyScanGtkLayerInterface *iface)
   iface->load_key_file = hyscan_gtk_map_ruler_load_key_file;
   iface->handle_find = hyscan_gtk_map_ruler_handle_find;
   iface->handle_show = hyscan_gtk_map_ruler_handle_show;
-  iface->handle_grab = hyscan_gtk_map_ruler_handle_grab;
+  iface->handle_click = hyscan_gtk_map_ruler_handle_click;
 }
 
 /* Обработка сигнала "configure-event" виджета карты. */

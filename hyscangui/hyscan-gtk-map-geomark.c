@@ -833,19 +833,23 @@ hyscan_gtk_map_geomark_start_mode (HyScanGtkMapGeomark *gm_layer,
 }
 
 /* Захватывает хэндл под указателем мыши. */
-static gconstpointer
-hyscan_gtk_map_geomark_handle_grab (HyScanGtkLayer       *layer,
-                                    HyScanGtkLayerHandle *handle)
+static void
+hyscan_gtk_map_geomark_handle_click (HyScanGtkLayer       *layer,
+                                     GdkEventButton       *event,
+                                     HyScanGtkLayerHandle *handle)
 {
   HyScanGtkMapGeomark *gm_layer = HYSCAN_GTK_MAP_GEOMARK (layer);
   HyScanGtkMapGeomarkPrivate *priv = gm_layer->priv;
+  gconstpointer howner;
 
-  g_return_val_if_fail (g_strcmp0 (handle->type_name, HANDLE_TYPE_NAME) == 0, NULL);
+  g_return_if_fail (g_strcmp0 (handle->type_name, HANDLE_TYPE_NAME) == 0);
 
   if (priv->found_handle_id == NULL)
-    return NULL;
+    return;
 
-  return hyscan_gtk_map_geomark_start_mode (gm_layer, priv->found_handle_id, priv->found_mode);
+  howner = hyscan_gtk_map_geomark_start_mode (gm_layer, priv->found_handle_id, priv->found_mode);
+  if (howner != NULL)
+    hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), howner);
 }
 
 static gboolean
@@ -1123,7 +1127,7 @@ hyscan_gtk_map_geomark_interface_init (HyScanGtkLayerInterface *iface)
   iface->hint_find = hyscan_gtk_map_geomark_hint_find;
   iface->hint_shown = hyscan_gtk_map_geomark_hint_shown;
   iface->load_key_file = hyscan_gtk_map_geomark_load_key_file;
-  iface->handle_grab = hyscan_gtk_map_geomark_handle_grab;
+  iface->handle_click = hyscan_gtk_map_geomark_handle_click;
   iface->handle_find = hyscan_gtk_map_geomark_handle_find;
   iface->handle_release = hyscan_gtk_map_geomark_handle_release;
   iface->handle_create = hyscan_gtk_map_geomark_handle_create;
