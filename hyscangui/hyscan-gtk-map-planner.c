@@ -170,6 +170,7 @@ struct _HyScanGtkMapPlannerPrivate
 
   HyScanGeoCartesian2D               selection_start;      /* Координаты одного угла выбранной области. */
   HyScanGeoCartesian2D               selection_end;        /* Координаты второго угла выбранной области. */
+  GHashTable                        *selection_keep;       /* Таблица с галсами, которые надо оставить выбранными. */
 
   PangoLayout                       *pango_layout;         /* Шрифт. */
   HyScanGtkMapPlannerStyle           track_style;          /* Стиль оформления галса. */
@@ -250,9 +251,8 @@ static gboolean                   hyscan_gtk_map_planner_configure             (
                                                                                 GdkEvent                  *screen);
 static gboolean                   hyscan_gtk_map_planner_key_press             (HyScanGtkMapPlanner       *planner,
                                                                                 GdkEventKey               *event);
-static gboolean                   hyscan_gtk_map_planner_btn_release           (GtkWidget                 *widget,
-                                                                                GdkEventButton            *event,
-                                                                                HyScanGtkMapPlanner       *planner);
+static void                       hyscan_gtk_map_planner_handle_click_select   (HyScanGtkMapPlanner       *planner,
+                                                                                GdkEventButton            *event);
 static gboolean                   hyscan_gtk_map_planner_handle_show_track     (HyScanGtkLayer            *layer,
                                                                                 HyScanGtkLayerHandle      *handle);
 static gboolean                   hyscan_gtk_map_planner_handle_show_zone      (HyScanGtkLayer            *layer,
@@ -404,6 +404,8 @@ hyscan_gtk_map_planner_object_constructed (GObject *object)
   priv->zones = g_hash_table_new_full (g_str_hash, g_str_equal, NULL,
                                        (GDestroyNotify) hyscan_gtk_map_planner_zone_free);
 
+  priv->selection_keep = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+
   /* Стиль оформления. */
   priv->zone_style.line_width = DEFAULT_ZONE_WIDTH;
   gdk_rgba_parse (&priv->zone_style.color, DEFAULT_ZONE_COLOR);
@@ -434,6 +436,7 @@ hyscan_gtk_map_planner_object_finalize (GObject *object)
   g_list_free_full (priv->tracks, (GDestroyNotify) hyscan_gtk_map_planner_track_free);
   g_list_free_full (priv->parallel_tracks, (GDestroyNotify) hyscan_gtk_map_planner_track_free);
   g_hash_table_destroy (priv->zones);
+  g_hash_table_destroy (priv->selection_keep);
 
   G_OBJECT_CLASS (hyscan_gtk_map_planner_parent_class)->finalize (object);
 }
@@ -824,23 +827,21 @@ hyscan_gtk_map_planner_selection_drag (HyScanGtkMapPlanner *planner,
 
   gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &end->x, &end->y);
 
-  hyscan_list_store_remove_all (priv->selection);
   for (link = priv->tracks; link != NULL; link = link->next)
     {
       gboolean selected_before, selected;
       track = link->data;
 
-      // selected_before = hyscan_list_store_contains (priv->selection, track->id);
+      if (g_hash_table_contains (priv->selection_keep, track->id))
+        continue;
+
+      selected_before = hyscan_list_store_contains (priv->selection, track->id);
       selected = hyscan_cartesian_is_inside (&track->start, &track->end, &priv->selection_start, &priv->selection_end);
 
-      if (selected)
+      if (selected && !selected_before)
         hyscan_list_store_append (priv->selection, track->id);
-      // else if (!selected && selected_before)
-      //   hyscan_list_store_remove (priv->selection, track->id);
-      // if (selected && !selected_before)
-      //   hyscan_list_store_append (priv->selection, track->id);
-      // else if (!selected && selected_before)
-      //   hyscan_list_store_remove (priv->selection, track->id);
+      else if (!selected && selected_before)
+        hyscan_list_store_remove (priv->selection, track->id);
     }
 
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
@@ -1170,18 +1171,11 @@ hyscan_gtk_map_planner_configure (HyScanGtkMapPlanner *planner,
   return GDK_EVENT_PROPAGATE;
 }
 
-static gboolean
-hyscan_gtk_map_planner_btn_release (GtkWidget           *widget,
-                                    GdkEventButton      *event,
-                                    HyScanGtkMapPlanner *planner)
+static void
+hyscan_gtk_map_planner_handle_click_select (HyScanGtkMapPlanner *planner,
+                                            GdkEventButton      *event)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
-
-  if (!hyscan_gtk_map_planner_accept_btn (planner, event))
-    return GDK_EVENT_PROPAGATE;
-
-  if (priv->mode != HYSCAN_GTK_MAP_PLANNER_MODE_SELECT)
-    return GDK_EVENT_PROPAGATE;
 
   if (!(event->state & GDK_SHIFT_MASK))
     hyscan_list_store_remove_all (priv->selection);
@@ -1196,14 +1190,8 @@ hyscan_gtk_map_planner_btn_release (GtkWidget           *widget,
       else
         hyscan_list_store_append (priv->selection, priv->found_track->id);
     }
-  else if (!(event->state & GDK_SHIFT_MASK))
-    {
-      hyscan_list_store_remove_all (priv->selection);
-    }
 
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
-
-  return TRUE;
 }
 
 static void
@@ -1732,9 +1720,26 @@ hyscan_gtk_map_planner_handle_create_origin (HyScanGtkMapPlanner  *planner,
 /* Переводит слой в режим создания точки отсчёта. */
 static gboolean
 hyscan_gtk_map_planner_handle_create_select (HyScanGtkMapPlanner  *planner,
-                                             HyScanGeoCartesian2D  point)
+                                             HyScanGeoCartesian2D  point,
+                                             GdkEventButton       *event)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
+
+  /* Формируем таблицу из ИД объектов, к которым добавляется выбор. */
+  g_hash_table_remove_all (priv->selection_keep);
+  if (event->state & GDK_SHIFT_MASK)
+    {
+      gint i, n;
+
+      n = g_list_model_get_n_items (G_LIST_MODEL (priv->selection));
+      for (i = 0; i < n; i++)
+        {
+          gchar *id;
+
+          id = g_list_model_get_item (G_LIST_MODEL (priv->selection), i);
+          g_hash_table_add (priv->selection_keep, id);
+        }
+    }
 
   priv->selection_start = point;
   priv->selection_end = point;
@@ -1794,24 +1799,25 @@ hyscan_gtk_map_planner_handle_find (HyScanGtkLayer       *layer,
   return FALSE;
 }
 
-static gconstpointer
-hyscan_gtk_map_planner_handle_grab (HyScanGtkLayer       *layer,
-                                    HyScanGtkLayerHandle *handle)
+static void
+hyscan_gtk_map_planner_handle_click (HyScanGtkLayer       *layer,
+                                     GdkEventButton       *event,
+                                     HyScanGtkLayerHandle *handle)
 {
   HyScanGtkMapPlanner *planner = HYSCAN_GTK_MAP_PLANNER (layer);
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
 
-  if (!hyscan_gtk_layer_get_visible (layer))
-    return FALSE;
-
-  g_return_val_if_fail (g_strcmp0 (handle->type_name, HANDLE_TYPE_NAME) == 0, NULL);
+  g_return_if_fail (g_strcmp0 (handle->type_name, HANDLE_TYPE_NAME) == 0);
 
   /* В момент захвата хэндла мы предполагаем, что текущий хэндл не выбран. Иначе это ошибка в логике программы. */
   g_assert (priv->cur_track == NULL && priv->cur_zone == NULL);
 
-  /* В режиме выбора ничего не захватываем - дальнейшая обработка в "button-release-event". */
+  /* В режиме выбора ничего не захватываем. */
   if (priv->mode == HYSCAN_GTK_MAP_PLANNER_MODE_SELECT)
-    return NULL;
+    {
+      hyscan_gtk_map_planner_handle_click_select (planner, event);
+      return;
+    }
 
   priv->cur_state = priv->found_state;
   hyscan_gtk_map_planner_set_cur_track (planner, hyscan_gtk_map_planner_track_copy (priv->found_track));
@@ -1822,7 +1828,7 @@ hyscan_gtk_map_planner_handle_grab (HyScanGtkLayer       *layer,
   if (priv->cur_state == STATE_ZONE_INSERT)
     hyscan_gtk_map_planner_cur_zone_insert_drag (planner, handle);
 
-  return planner;
+  hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), layer);
 }
 
 static gboolean
@@ -1958,7 +1964,7 @@ hyscan_gtk_map_planner_handle_create (HyScanGtkLayer *layer,
   else if (priv->mode == HYSCAN_GTK_MAP_PLANNER_MODE_ORIGIN)
     return hyscan_gtk_map_planner_handle_create_origin (planner, point);
   else if (priv->mode == HYSCAN_GTK_MAP_PLANNER_MODE_SELECT)
-    return hyscan_gtk_map_planner_handle_create_select (planner, point);
+    return hyscan_gtk_map_planner_handle_create_select (planner, point, event);
 
   return FALSE;
 }
@@ -2180,7 +2186,6 @@ hyscan_gtk_map_planner_added (HyScanGtkLayer          *layer,
   g_signal_connect_swapped (priv->map, "motion-notify-event", G_CALLBACK (hyscan_gtk_map_planner_motion_notify), planner);
   g_signal_connect_swapped (priv->map, "key-press-event", G_CALLBACK (hyscan_gtk_map_planner_key_press), planner);
   g_signal_connect_swapped (priv->map, "configure-event", G_CALLBACK (hyscan_gtk_map_planner_configure), planner);
-  g_signal_connect_after (priv->map, "button-release-event", G_CALLBACK (hyscan_gtk_map_planner_btn_release), planner);
 }
 
 static void
@@ -2235,7 +2240,7 @@ static void
 hyscan_gtk_map_planner_interface_init (HyScanGtkLayerInterface *iface)
 {
   iface->handle_find = hyscan_gtk_map_planner_handle_find;
-  iface->handle_grab = hyscan_gtk_map_planner_handle_grab;
+  iface->handle_click = hyscan_gtk_map_planner_handle_click;
   iface->handle_release = hyscan_gtk_map_planner_handle_release;
   iface->handle_create = hyscan_gtk_map_planner_handle_create;
   iface->handle_show = hyscan_gtk_map_planner_handle_show;
