@@ -443,17 +443,18 @@ hyscan_gtk_map_pin_handle_find (HyScanGtkLayer       *layer,
 }
 
 /* Захватывает ранее найденный хэндл handle. */
-static gconstpointer
-hyscan_gtk_map_pin_handle_grab (HyScanGtkLayer       *layer,
-                                HyScanGtkLayerHandle *handle)
+static void
+hyscan_gtk_map_pin_handle_click (HyScanGtkLayer       *layer,
+                                 GdkEventButton       *event,
+                                 HyScanGtkLayerHandle *handle)
 {
   HyScanGtkMapPin *pin = HYSCAN_GTK_MAP_PIN (layer);
   HyScanGtkMapPinPrivate *priv = pin->priv;
 
-  g_return_val_if_fail (priv->found_handle != NULL, NULL);
-  g_return_val_if_fail (g_strcmp0 (handle->type_name, HANDLE_TYPE_NAME) == 0, NULL);
+  g_return_if_fail (priv->found_handle != NULL);
+  g_return_if_fail (g_strcmp0 (handle->type_name, HANDLE_TYPE_NAME) == 0);
 
-  return hyscan_gtk_map_pin_start_drag (pin, priv->found_handle, FALSE);
+  hyscan_gtk_map_pin_start_drag (pin, priv->found_handle, FALSE);
 }
 
 /* Возвращает %TRUE, если мы разрешаем отпустить хэндл. */
@@ -877,7 +878,7 @@ hyscan_gtk_map_pin_interface_init (HyScanGtkLayerInterface *iface)
   iface->get_visible = hyscan_gtk_map_pin_get_visible;
   iface->load_key_file = hyscan_gtk_map_pin_load_key_file;
   iface->handle_find = hyscan_gtk_map_pin_handle_find;
-  iface->handle_grab = hyscan_gtk_map_pin_handle_grab;
+  iface->handle_click = hyscan_gtk_map_pin_handle_click;
   iface->handle_release = hyscan_gtk_map_pin_handle_release;
   iface->handle_create = hyscan_gtk_map_pin_handle_create;
   iface->handle_show = hyscan_gtk_map_pin_handle_show;
@@ -979,9 +980,9 @@ hyscan_gtk_map_pin_insert_before  (HyScanGtkMapPin      *pin_layer,
  *
  * Начинает перетаскивание точки @handle_point.
  *
- * Returns: указатель на хэндл, если началось перетаскивание; иначе %NULL
+ * Returns: %TRUE, если началось перетаскивание; иначе %FALSE
  */
-gconstpointer
+gboolean
 hyscan_gtk_map_pin_start_drag (HyScanGtkMapPin     *layer,
                                HyScanGtkMapPinItem *handle_point,
                                gboolean             delete_on_cancel)
@@ -997,12 +998,12 @@ hyscan_gtk_map_pin_start_drag (HyScanGtkMapPin     *layer,
   if (howner != NULL)
     {
       g_warning ("HyScanGtkMapPin: failed to start drag - handle is grabbed");
-      return NULL;
+      return FALSE;
     }
   if (priv->mode == MODE_DRAG)
     {
       g_warning ("HyScanGtkMapPin: failed to start drag - already in drag mode");
-      return NULL;
+      return FALSE;
     }
 
   priv->mode = MODE_DRAG;
@@ -1013,7 +1014,9 @@ hyscan_gtk_map_pin_start_drag (HyScanGtkMapPin     *layer,
   gtk_widget_grab_focus (GTK_WIDGET (priv->map));
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 
-  return layer;
+  hyscan_gtk_layer_container_set_handle_grabbed (container, layer);
+
+  return TRUE;
 }
 
 /**
