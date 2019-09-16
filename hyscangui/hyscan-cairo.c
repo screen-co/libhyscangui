@@ -71,12 +71,12 @@
  *
  */
 static gint
-_clipEncode (gint64 x,
-             gint64 y,
-             gint32 left,
-             gint32 top,
-             gint32 right,
-             gint32 bottom)
+_clipEncode (gdouble x,
+             gdouble y,
+             gdouble left,
+             gdouble top,
+             gdouble right,
+             gdouble bottom)
 {
   gint code = 0;
 
@@ -113,17 +113,17 @@ _clipEncode (gint64 x,
  *
  */
 static gboolean
-_clipLine (gint32   width,
-           gint32   height,
-           gint32  *x1,
-           gint32  *y1,
-           gint32  *x2,
-           gint32  *y2)
+_clipLine (gdouble  width,
+           gdouble  height,
+           gdouble *x1,
+           gdouble *y1,
+           gdouble *x2,
+           gdouble *y2)
 {
   gint code1, code2;
-  gint32 left, right, top, bottom;
-  gint64 x1_64, x2_64, y1_64, y2_64;
-  gint64 swaptmp;
+  gdouble left, right, top, bottom;
+  gdouble _x1, _x2, _y1, _y2;
+  gdouble swaptmp;
   gdouble m;
   gdouble v;
 
@@ -137,15 +137,15 @@ _clipLine (gint32   width,
   top = -CLIP_PADDING;
   bottom = height + CLIP_PADDING;
 
-  x1_64 = *x1;
-  x2_64 = *x2;
-  y1_64 = *y1;
-  y2_64 = *y2;
+  _x1 = *x1;
+  _x2 = *x2;
+  _y1 = *y1;
+  _y2 = *y2;
 
   while (1)
     {
-      code1 = _clipEncode (x1_64, y1_64, left, top, right, bottom);
-      code2 = _clipEncode (x2_64, y2_64, left, top, right, bottom);
+      code1 = _clipEncode (_x1, _y1, left, top, right, bottom);
+      code2 = _clipEncode (_x2, _y2, left, top, right, bottom);
       if (CLIP_ACCEPT(code1, code2))
         {
           draw = TRUE;
@@ -159,22 +159,22 @@ _clipLine (gint32   width,
         {
           if (CLIP_INSIDE(code1))
             {
-              swaptmp = x2_64;
-              x2_64 = x1_64;
-              x1_64 = swaptmp;
+              swaptmp = _x2;
+              _x2 = _x1;
+              _x1 = swaptmp;
 
-              swaptmp = y2_64;
-              y2_64 = y1_64;
-              y1_64 = swaptmp;
+              swaptmp = _y2;
+              _y2 = _y1;
+              _y1 = swaptmp;
 
               swaptmp = code2;
               code2 = code1;
               code1 = swaptmp;
             }
 
-          if (x2_64 != x1_64)
+          if (_x2 != _x1)
             {
-              m = (gdouble) (y2_64 - y1_64) / (gdouble) (x2_64 - x1_64);
+              m = (gdouble) (_y2 - _y1) / (gdouble) (_x2 - _x1);
             }
           else
             {
@@ -183,41 +183,41 @@ _clipLine (gint32   width,
 
           if (code1 & CLIP_LEFT_EDGE)
             {
-              v = ((left - x1_64) * m);
-              y1_64 += (gint32) CLAMP (v, G_MININT32, G_MAXINT32);
-              x1_64 = left;
+              v = ((left - _x1) * m);
+              _y1 += (gint32) CLAMP (v, G_MININT32, G_MAXINT32);
+              _x1 = left;
             }
           else if (code1 & CLIP_RIGHT_EDGE)
             {
-              v = ((right - x1_64) * m);
-              y1_64 += (gint32) CLAMP (v, G_MININT32, G_MAXINT32);
-              x1_64 = right;
+              v = ((right - _x1) * m);
+              _y1 += (gint32) CLAMP (v, G_MININT32, G_MAXINT32);
+              _x1 = right;
             }
           else if (code1 & CLIP_BOTTOM_EDGE)
             {
-              if (x2_64 != x1_64)
+              if (_x2 != _x1)
                 {
-                  v = ((bottom - y1_64) / m);
-                  x1_64 += (gint32) CLAMP (v, G_MININT32, G_MAXINT32);
+                  v = ((bottom - _y1) / m);
+                  _x1 += (gint32) CLAMP (v, G_MININT32, G_MAXINT32);
                 }
-              y1_64 = bottom;
+              _y1 = bottom;
             }
           else if (code1 & CLIP_TOP_EDGE)
             {
-              if (x2_64 != x1_64)
+              if (_x2 != _x1)
                 {
-                  v = ((top - y1_64) / m);
-                  x1_64 += (gint32) CLAMP (v, G_MININT32, G_MAXINT32);
+                  v = ((top - _y1) / m);
+                  _x1 += (gint32) CLAMP (v, G_MININT32, G_MAXINT32);
                 }
-              y1_64 = top;
+              _y1 = top;
             }
         }
     }
 
-  *x1 = CLAMP (x1_64, G_MININT32, G_MAXINT32);
-  *x2 = CLAMP (x2_64, G_MININT32, G_MAXINT32);
-  *y1 = CLAMP (y1_64, G_MININT32, G_MAXINT32);
-  *y2 = CLAMP (y2_64, G_MININT32, G_MAXINT32);
+  *x1 = _x1;
+  *x2 = _x2;
+  *y1 = _y1;
+  *y2 = _y2;
 
   return draw;
 }
@@ -244,7 +244,6 @@ hyscan_cairo_line_to (cairo_t *cairo,
                       gdouble  y2)
 {
   cairo_surface_t *surface;
-  gint32 x1_int, y1_int, x2_int, y2_int;
 
   gint width, height;
 
@@ -253,14 +252,9 @@ hyscan_cairo_line_to (cairo_t *cairo,
   width = cairo_image_surface_get_width (surface);
   height = cairo_image_surface_get_height (surface);
 
-  x1_int = x1;
-  y1_int = y1;
-  x2_int = x2;
-  y2_int = y2;
-
-  if (!_clipLine (width, height, &x1_int, &y1_int, &x2_int, &y2_int))
+  if (!_clipLine (width, height, &x1, &y1, &x2, &y2))
     return;
 
-  cairo_move_to (cairo, x1_int, y1_int);
-  cairo_line_to (cairo, x2_int, y2_int);
+  cairo_move_to (cairo, x1, y1);
+  cairo_line_to (cairo, x2, y2);
 }
