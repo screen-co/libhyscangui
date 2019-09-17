@@ -119,6 +119,8 @@ static void                 hyscan_gtk_planner_zeditor_items_changed       (HySc
                                                                             guint                    added);
 static void                 hyscan_gtk_planner_zeditor_model_changed       (HyScanGtkPlannerZeditor *zeditor);
 static void                 hyscan_gtk_planner_zeditor_set_zone            (HyScanGtkPlannerZeditor *zeditor);
+static gboolean             hyscan_gtk_planner_zeditor_key_press           (GtkWidget               *widget,
+                                                                            GdkEventKey             *event);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkPlannerZeditor, hyscan_gtk_planner_zeditor, GTK_TYPE_TREE_VIEW);
 
@@ -126,12 +128,14 @@ static void
 hyscan_gtk_planner_zeditor_class_init (HyScanGtkPlannerZeditorClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
+  GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
   object_class->set_property = hyscan_gtk_planner_zeditor_set_property;
   object_class->get_property = hyscan_gtk_planner_zeditor_get_property;
-
   object_class->constructed = hyscan_gtk_planner_zeditor_object_constructed;
   object_class->finalize = hyscan_gtk_planner_zeditor_object_finalize;
+
+  widget_class->key_press_event = hyscan_gtk_planner_zeditor_key_press;
 
   g_object_class_install_property (object_class, PROP_MODEL,
     g_param_spec_object ("planner-model", "Planner Model", "Planner model with zones information",
@@ -269,6 +273,53 @@ hyscan_gtk_planner_zeditor_object_finalize (GObject *object)
   g_free (priv->zone_id);
 
   G_OBJECT_CLASS (hyscan_gtk_planner_zeditor_parent_class)->finalize (object);
+}
+
+static gboolean
+hyscan_gtk_planner_zeditor_key_press (GtkWidget   *widget,
+                                      GdkEventKey *event)
+{
+  HyScanGtkPlannerZeditor *zeditor = HYSCAN_GTK_PLANNER_ZEDITOR (widget);
+  HyScanGtkPlannerZeditorPrivate *priv = zeditor->priv;
+
+  GtkTreeSelection *selection;
+  GtkTreeIter iter;
+  guint number;
+
+  /* Обрабатываем только нажатие Delete. */
+  if (event->keyval != GDK_KEY_Delete)
+    return GTK_WIDGET_CLASS (hyscan_gtk_planner_zeditor_parent_class)->key_press_event (widget, event);
+
+  /* Проверяем, выбрано ли что-то. */
+  if (priv->zone_id == NULL)
+    return GDK_EVENT_STOP;
+
+  selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (widget));
+  if (!gtk_tree_selection_get_selected (selection, NULL, &iter))
+    return GDK_EVENT_STOP;
+
+  gtk_tree_model_get (GTK_TREE_MODEL (priv->store), &iter, NUMBER_COLUMN, &number, -1);
+
+  /* Удаляем выбранную вершину. */
+  {
+    HyScanPlannerZone *zone;
+
+    zone = g_hash_table_lookup (priv->objects, priv->zone_id);
+    g_return_val_if_fail (zone != NULL && zone->type == HYSCAN_PLANNER_ZONE, GDK_EVENT_STOP);
+
+    if (zone->points_len > 3)
+      {
+        hyscan_planner_zone_remove_vertex (zone, number - 1);
+        hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, zone);
+      }
+    else
+      {
+        hyscan_object_model_remove_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id);
+        g_clear_pointer (&priv->zone_id, g_free);
+      }
+  }
+
+  return GDK_EVENT_STOP;
 }
 
 /* Обработчик сигнала "items-changed". Устанавливает выбранную зону в виджет. */
