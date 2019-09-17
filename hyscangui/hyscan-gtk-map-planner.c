@@ -1176,20 +1176,23 @@ hyscan_gtk_map_planner_handle_click_select (HyScanGtkMapPlanner *planner,
                                             GdkEventButton      *event)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  const gchar *id = NULL;
 
   if (!(event->state & GDK_SHIFT_MASK))
     hyscan_list_store_remove_all (priv->selection);
 
   if (hyscan_gtk_map_planner_is_state_track (priv->found_state) && priv->found_track != NULL)
-    {
-      gchar *id;
+    id = priv->found_track->id;
+  else if (hyscan_gtk_map_planner_is_state_vertex (priv->found_state) && priv->found_zone != NULL)
+    id = priv->found_zone->id;
 
-      id = priv->found_track->id;
-      if (hyscan_list_store_contains (priv->selection, id))
-        hyscan_list_store_remove (priv->selection, priv->found_track->id);
-      else
-        hyscan_list_store_append (priv->selection, priv->found_track->id);
-    }
+  if (id == NULL)
+    return;
+
+  if (hyscan_list_store_contains (priv->selection, id))
+    hyscan_list_store_remove (priv->selection, id);
+  else
+    hyscan_list_store_append (priv->selection, id);
 
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }

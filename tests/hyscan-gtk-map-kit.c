@@ -23,12 +23,14 @@
 #include <hyscan-gtk-planner-status.h>
 #include <hyscan-gtk-planner-origin.h>
 #include <hyscan-gtk-layer-list.h>
+#include <hyscan-gtk-planner-zeditor.h>
 
 #define DEFAULT_PROFILE_NAME "default"    /* Имя профиля карты по умолчанию. */
 #define PRELOAD_STATE_DONE   1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
 
 #define PLANNER_TOOLS_MODE    "planner-mode"
 #define PLANNER_TAB_EDITOR    "editor"
+#define PLANNER_TAB_ZEDITOR   "zeditor"
 #define PLANNER_TAB_ORIGIN    "origin"
 #define PLANNER_TAB_PARALLEL  "parallel"
 #define PLANNER_TAB_STATUS    "status"
@@ -1145,6 +1147,8 @@ hyscan_gtk_map_planner_mode_changed (GtkToggleButton *togglebutton,
     child_name = PLANNER_TAB_EDITOR;
   else if (mode == HYSCAN_GTK_MAP_PLANNER_MODE_ORIGIN)
     child_name = PLANNER_TAB_ORIGIN;
+  else if (mode == HYSCAN_GTK_MAP_PLANNER_MODE_ZONE)
+    child_name = PLANNER_TAB_ZEDITOR;
   else
     child_name = PLANNER_TAB_STATUS;
 
@@ -1200,6 +1204,27 @@ create_parallel_track_options (HyScanGtkMapPlanner *planner_layer)
   return grid;
 }
 
+static GtkWidget *
+create_planner_zeditor (HyScanGtkMapKit *kit)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+  GtkWidget *grid, *zeditor, *label, *mode_switch;
+
+  zeditor = hyscan_gtk_planner_zeditor_new (priv->planner_model, priv->planner_selection);
+  mode_switch = gtk_switch_new ();
+  g_object_bind_property (mode_switch, "active", zeditor, "geodetic", G_BINDING_SYNC_CREATE);
+  label = gtk_label_new (_("Geodetic coordinates"));
+
+  grid = gtk_grid_new ();
+  gtk_grid_set_column_spacing (GTK_GRID (grid), 6);
+  gtk_grid_set_row_spacing (GTK_GRID (grid), 6);
+  gtk_grid_attach (GTK_GRID (grid), label,       0, 0, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), mode_switch, 1, 0, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), zeditor,     0, 1, 2, 1);
+
+  return grid;
+}
+
 /* Создаёт панель инструментов для слоя планировщика. */
 static GtkWidget *
 create_planner_toolbox (HyScanGtkMapKit *kit)
@@ -1207,7 +1232,7 @@ create_planner_toolbox (HyScanGtkMapKit *kit)
   HyScanGtkMapKitPrivate *priv = kit->priv;
   GtkWidget *box;
   GtkWidget *tab_switch;
-  GtkWidget *tab_editor, *tab_parallel, *tab_status, *tab_origin;
+  GtkWidget *tab_editor, *tab_parallel, *tab_status, *tab_origin, *tab_zeditor;
   GtkWidget *zone_mode, *track_mode, *origin_mode, *select_mode, *parallel_mode;
 
   box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
@@ -1234,11 +1259,13 @@ create_planner_toolbox (HyScanGtkMapKit *kit)
   gtk_box_pack_start (GTK_BOX (tab_switch), select_mode, TRUE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (tab_switch), parallel_mode, TRUE, TRUE, 0);
 
+  tab_zeditor = create_planner_zeditor (kit);
   tab_status = hyscan_gtk_planner_status_new (HYSCAN_GTK_MAP_PLANNER (priv->planner_layer));
   tab_editor = hyscan_gtk_planner_editor_new (priv->planner_model, G_LIST_MODEL (priv->planner_selection));
   tab_parallel = create_parallel_track_options (HYSCAN_GTK_MAP_PLANNER (priv->planner_layer));
   tab_origin = hyscan_gtk_planner_origin_new (priv->planner_model);
 
+  gtk_stack_add_named (GTK_STACK (priv->planner_stack), tab_zeditor, PLANNER_TAB_ZEDITOR);
   gtk_stack_add_named (GTK_STACK (priv->planner_stack), tab_status, PLANNER_TAB_STATUS);
   gtk_stack_add_named (GTK_STACK (priv->planner_stack), tab_editor, PLANNER_TAB_EDITOR);
   gtk_stack_add_named (GTK_STACK (priv->planner_stack), tab_origin, PLANNER_TAB_ORIGIN);
