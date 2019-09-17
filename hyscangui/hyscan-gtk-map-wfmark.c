@@ -54,6 +54,12 @@
 #include "hyscan-gtk-map.h"
 #include <hyscan-cartesian.h>
 #include <math.h>
+#include <hyscan-projector.h>
+#include <hyscan-factory-amplitude.h>
+#include <hyscan-factory-depth.h>
+#include <hyscan-tile-queue.h>
+#include <hyscan-tile-color.h>
+#include <hyscan-types.h>
 
 /* Оформление по умолчанию. */
 #define MARK_COLOR              "#61B243"                     /* Цвет обводки меток. */
@@ -67,7 +73,9 @@
 enum
 {
   PROP_O,
-  PROP_MODEL
+  PROP_MODEL,
+  PROP_CACHE,
+  PROP_DB,
 };
 
 typedef struct
@@ -97,6 +105,13 @@ struct _HyScanGtkMapWfmarkPrivate
   gboolean                               visible;         /* Признак видимости слоя. */
 
   HyScanMarkLocModel                    *model;           /* Модель данных. */
+  HyScanDB                              *db;              /* Модель данных. */
+  HyScanCache                           *cache;           /* Модель данных. */
+  gchar                                 *project;         /* Название проекта. */
+
+  HyScanFactoryAmplitude                *factory_amp;     /* Фабрика объектов акустических данных. */
+  HyScanFactoryDepth                    *factory_dpt;     /* Фабрика объектов глубины. */
+  HyScanTileQueue                       *tile_queue;      /* Очередь для работы с аккустическими изображениями. */
 
   GRWLock                                mark_lock;       /* Блокировка данных по меткам. .*/
   GHashTable                            *marks;           /* Хэш-таблица меток #HyScanGtkMapWfmarkLocation. */
@@ -122,6 +137,12 @@ static void    hyscan_gtk_map_wfmark_object_finalize          (GObject          
 static void    hyscan_gtk_map_wfmark_model_changed            (HyScanGtkMapWfmark         *wfm_layer);
 static void    hyscan_gtk_map_wfmark_location_free            (HyScanGtkMapWfmarkLocation *location);
 
+static void    hyscan_gtk_map_wfmark_tile_loaded              (HyScanGtkMapWfmark         *wfm_layer,
+                                                               HyScanTile                 *tile,
+                                                               gfloat                     *img,
+                                                               gint                        size,
+                                                               gulong                      hash);
+
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapWfmark, hyscan_gtk_map_wfmark, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapWfmark)
                          G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_LAYER, hyscan_gtk_map_wfmark_interface_init))
@@ -140,7 +161,16 @@ hyscan_gtk_map_wfmark_class_init (HyScanGtkMapWfmarkClass *klass)
                          "The HyScanMarkLocModel containing information about marks and its locations",
                          HYSCAN_TYPE_MARK_LOC_MODEL,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-
+  g_object_class_install_property (object_class, PROP_CACHE,
+    g_param_spec_object ("cache", "Cache",
+                         "The link to main cache with frequency used stafs",
+                         HYSCAN_TYPE_CACHE,
+                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+  g_object_class_install_property (object_class, PROP_DB,
+    g_param_spec_object ("db", "Data base",
+                         "The link to data base",
+                         HYSCAN_TYPE_DB,
+                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
@@ -162,6 +192,14 @@ hyscan_gtk_map_wfmark_set_property (GObject      *object,
     {
     case PROP_MODEL:
       priv->model = g_value_dup_object (value);
+      break;
+
+    case PROP_DB:
+      priv->db  = g_value_dup_object (value);
+      break;
+
+    case PROP_CACHE:
+      priv->cache  = g_value_dup_object (value);
       break;
 
     default:
@@ -190,6 +228,22 @@ hyscan_gtk_map_wfmark_object_constructed (GObject *object)
   gdk_rgba_parse (&priv->color_hover, MARK_COLOR_HOVER);
   gdk_rgba_parse (&priv->color_bg, MARK_COLOR_BG);
   priv->line_width = LINE_WIDTH;
+
+  /* Создаём фабрику объектов доступа к данным амплитуд. */
+  priv->factory_amp = hyscan_factory_amplitude_new (priv->cache);
+
+  /* Создаём фабрику объектов доступа к данным глубины. */
+  priv->factory_dpt = hyscan_factory_depth_new (priv->cache);
+
+  /* Создаём очередь для генерации тайлов. */
+  priv->tile_queue = hyscan_tile_queue_new (g_get_num_processors (),
+                                            priv->cache,
+                                            priv->factory_amp,
+                                            priv->factory_dpt);
+
+  /* Соединяем сигнал готовности тайла с функцией-обработчиком. */
+  g_signal_connect_swapped (priv->tile_queue, "tile-queue-image",
+                            G_CALLBACK (hyscan_gtk_map_wfmark_tile_loaded), wfm_layer);
 }
 
 static void
@@ -198,11 +252,22 @@ hyscan_gtk_map_wfmark_object_finalize (GObject *object)
   HyScanGtkMapWfmark *gtk_map_wfmark = HYSCAN_GTK_MAP_WFMARK (object);
   HyScanGtkMapWfmarkPrivate *priv = gtk_map_wfmark->priv;
 
+  /*  Отключаемся от сигнала готовности тайла. */
+  g_signal_handlers_disconnect_by_data (priv->tile_queue, gtk_map_wfmark);
+
   g_rw_lock_clear (&priv->mark_lock);
 
   g_hash_table_unref (priv->marks);
   g_object_unref (priv->pango_layout);
   g_object_unref (priv->model);
+  g_object_unref (priv->db);
+  g_object_unref (priv->cache);
+
+  g_object_unref (priv->tile_queue);
+  g_object_unref (priv->factory_dpt);
+  g_object_unref (priv->factory_amp);
+
+  g_free (priv->project);
   g_free (priv->active_mark_id);
 
   G_OBJECT_CLASS (hyscan_gtk_map_wfmark_parent_class)->finalize (object);
@@ -329,31 +394,135 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
   GHashTableIter iter;
   HyScanGtkMapWfmarkLocation *location;
   gchar *mark_id;
+  gdouble scale;
+  guint counter = 0;
 
   if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (wfm_layer)))
     return;
+
+  /* Переводим размеры метки из логической СК в пиксельные. */
+  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &scale, NULL);
 
   g_rw_lock_reader_lock (&priv->mark_lock);
 
   g_hash_table_iter_init (&iter, priv->marks);
   while (g_hash_table_iter_next (&iter, (gpointer *) &mark_id, (gpointer *) &location))
     {
-      gdouble x, y;
-      gdouble width, height;
-      gdouble scale;
+      HyScanTile *tile = NULL;
+      HyScanTileCacheable tile_cacheable;
+      cairo_surface_t *surface = NULL;
+      gdouble x = 0.0, y = 0.0;
+      gdouble width = 0.0, height = 0.0;
       gboolean selected;
-      GdkRGBA *color;
+      GdkRGBA *color = NULL;
+      gfloat *image = NULL;
+      guint32 size = 0;
 
       if (!location->mloc->loaded)
         continue;
 
-      /* Переводим размеры метки из логической СК в пиксельные. */
-      gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &scale, NULL);
       width = location->width / scale;
       height = location->height / scale;
 
       gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y,
                                              location->center_c2d.x, location->center_c2d.y);
+
+      tile = hyscan_tile_new (location->mloc->track_name);
+
+      tile->info.source = hyscan_source_get_type_by_id (location->mloc->mark->source);
+
+      if (tile->info.source != HYSCAN_SOURCE_INVALID)
+        {
+          HyScanAmplitude *dc;
+          HyScanProjector *projector;
+          HyScanDepthometer *dm = NULL;
+          gdouble along, across, depth;
+
+          dm = hyscan_factory_depth_produce (priv->factory_dpt, location->mloc->track_name);
+          if (dm != NULL)
+            {
+              HyScanCancellable *cancellable;
+              cancellable = hyscan_cancellable_new ();
+              depth = hyscan_depthometer_get (dm, cancellable, location->mloc->time);
+              g_object_unref (cancellable);
+            }
+
+          if (depth < 0.0)
+            depth = 0.0;
+
+          dc = hyscan_factory_amplitude_produce (priv->factory_amp,
+                                                 location->mloc->track_name,
+                                                 tile->info.source);
+          projector = hyscan_projector_new (dc);
+          hyscan_projector_index_to_coord (projector,
+                                           location->mloc->mark->index,
+                                           &along);
+          hyscan_projector_count_to_coord (projector,
+                                          location->mloc->mark->count,
+                                          &across,
+                                          depth);
+          g_clear_object (&dc);
+          g_clear_object (&projector);
+
+          tile->info.across_start = round ( (across - location->mloc->mark->width) * 1000.0);
+          tile->info.along_start = round ( (along - location->mloc->mark->height) * 1000.0);
+          tile->info.across_end = round ( (across + location->mloc->mark->width) * 1000.0);
+          tile->info.along_end = round ( (along + location->mloc->mark->height) * 1000.0);
+          tile->info.scale = 1.0f;
+          tile->info.ppi = 1e-3 * HYSCAN_GTK_MAP_MM_PER_INCH * hyscan_gtk_map_get_scale_px (priv->map);
+          tile->info.upsample = 2;
+          tile->info.rotate = FALSE;
+          tile->info.flags = HYSCAN_TILE_GROUND;
+
+          tile_cacheable.w =      /* Будет заполнено генератором. */
+          tile_cacheable.h = 0;   /* Будет заполнено генератором. */
+          tile_cacheable.finalized = FALSE;   /* Будет заполнено генератором. */
+
+          gboolean bRegenerate = FALSE;
+
+          if (hyscan_tile_queue_check (priv->tile_queue, tile, &tile_cacheable, &bRegenerate))
+            {
+              if (hyscan_tile_queue_get (priv->tile_queue, tile, &tile_cacheable, &image, &size))
+                {
+                  /* Тайл найден в кэше. */
+                  HyScanTileColor *tile_color;
+                  HyScanTileSurface tile_surface;
+
+                  tile_color = hyscan_tile_color_new (priv->cache);
+                  /* 1.0 / 2.2 = 0.454545... */
+                  hyscan_tile_color_set_levels (tile_color, tile->info.source, 0.0, 0.454545, 1.0);
+
+                  tile_surface.width = tile_cacheable.w;
+                  tile_surface.height = tile_cacheable.h;
+                  tile_surface.stride = cairo_format_stride_for_width (CAIRO_FORMAT_ARGB32, tile_surface.width);
+                  tile_surface.data = g_malloc0 (tile_surface.height * tile_surface.stride);
+
+                  hyscan_tile_color_add (tile_color, tile, image, size, &tile_surface);
+
+                  if (hyscan_tile_color_check (tile_color, tile, &tile_cacheable))
+                    {
+                      hyscan_tile_color_get (tile_color, tile, &tile_cacheable, &tile_surface);
+                      surface = cairo_image_surface_create_for_data ( (guchar*)tile_surface.data,
+                                            CAIRO_FORMAT_ARGB32, tile_surface.width,
+                                            tile_surface.height, tile_surface.stride);
+                    }
+
+                  g_free (tile_surface.data);
+                  hyscan_tile_color_close (tile_color);
+                  g_object_unref (tile_color);
+               }
+            }
+          else
+            {
+              HyScanCancellable *cancellable;
+              cancellable = hyscan_cancellable_new ();
+              /* Добавляем тайл в очередь на генерацию. */
+              hyscan_tile_queue_add (priv->tile_queue, tile, cancellable);
+              g_object_unref (cancellable);
+              counter++;
+            }
+        }
+      g_object_unref(tile);
 
 #ifdef DEBUG_TRACK_POINTS
       {
@@ -402,16 +571,32 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       cairo_save (cairo);
       cairo_translate (cairo, x, y);
 
-      /* Контур метки. */
-      {
-        cairo_save (cairo);
-        cairo_rotate (cairo, location->angle);
-        cairo_rectangle (cairo, -width, -height, 2.0 * width, 2.0 * height);
-        cairo_set_line_width (cairo, selected ? 2.0 * priv->line_width : priv->line_width);
-        gdk_cairo_set_source_rgba (cairo, color);
-        cairo_stroke (cairo);
-        cairo_restore (cairo);
-      }
+      if (surface)
+        {
+          /* Аккустическое изображение метки. */
+          cairo_save (cairo);
+          cairo_rotate (cairo, location->angle);
+          /* Для левого борта тайл надо отразить по оси X. */
+          if (location->mloc->offset > 0)
+            cairo_scale (cairo, -1.0, 1.0);
+          /* Координаты для отображения (в левый верхний угол). */
+          cairo_set_source_surface (cairo, surface, -width, -height);
+          /* Отображаем аккустическое изображение. */
+          cairo_paint (cairo);
+          cairo_surface_destroy (surface);
+          cairo_restore (cairo);
+        }
+      else
+        {
+    	  /* Контур метки. */
+          cairo_save (cairo);
+          cairo_rotate (cairo, location->angle);
+          cairo_rectangle (cairo, -width, -height, 2.0 * width, 2.0 * height);
+          cairo_set_line_width (cairo, selected ? 2.0 * priv->line_width : priv->line_width);
+          gdk_cairo_set_source_rgba (cairo, color);
+          cairo_stroke (cairo);
+          cairo_restore (cairo);
+        }
 
       /* Название метки. */
       {
@@ -432,6 +617,12 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       }
 
       cairo_restore (cairo);
+    }
+
+  if (counter)
+    {
+      static guint id = 0;
+      hyscan_tile_queue_add_finished (priv->tile_queue, id++);
     }
 
   g_rw_lock_reader_unlock (&priv->mark_lock);
@@ -466,10 +657,11 @@ hyscan_gtk_map_wfmark_find_hover (HyScanGtkMapWfmark   *wfm_layer,
 
           /* Среди всех меток под курсором выбираем ту, чей центр ближе к курсору. */
           mark_distance = hyscan_cartesian_distance (&location->center_c2d, cursor);
-          if (mark_distance < min_distance) {
-            min_distance = mark_distance;
-            hover = location;
-          }
+          if (mark_distance < min_distance)
+            {
+              min_distance = mark_distance;
+              hover = location;
+            }
         }
     }
 
@@ -640,6 +832,25 @@ hyscan_gtk_map_wfmark_interface_init (HyScanGtkLayerInterface *iface)
   iface->hint_shown = hyscan_gtk_map_wfmark_hint_shown;
 }
 
+/* @brief Функция-обработчик завершения гененрации тайла. По завершении генерации обновляет виджет.
+ * @param wfm_layer - указатель на объект;
+ * @param tile - указатель на структуру содержащую информацию о сгененрированном тайле. Не связана с тайлом, передаваемым в HyScanTileQueue для генерации;
+ * @param img - указатель на данные аккустического изображения;
+ * @param size - размер данных аккустического изображения;
+ * @param hash - хэш состояния.
+ * */
+static void
+hyscan_gtk_map_wfmark_tile_loaded(HyScanGtkMapWfmark *wfm_layer,
+                                  HyScanTile         *tile,
+                                  gfloat             *img,
+                                  gint                size,
+                                  gulong              hash)
+{
+  HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
+  /* Обновляем изображение. */
+  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+}
+
 /**
  * hyscan_gtk_map_wfmark_new:
  * @model: указатель на модель данных положения меток
@@ -647,10 +858,14 @@ hyscan_gtk_map_wfmark_interface_init (HyScanGtkLayerInterface *iface)
  * Returns: создает новый объект #HyScanGtkMapWfmark. Для удаления g_object_unref().
  */
 HyScanGtkLayer *
-hyscan_gtk_map_wfmark_new (HyScanMarkLocModel *model)
+hyscan_gtk_map_wfmark_new (HyScanMarkLocModel *model,
+                           HyScanDB           *db,
+                           HyScanCache        *cache)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_WFMARK,
                        "mark-loc-model", model,
+                       "db", db,
+                       "cache", cache,
                        NULL);
 }
 
@@ -719,4 +934,23 @@ hyscan_gtk_map_wfmark_mark_view (HyScanGtkMapWfmark *wfm_layer,
     }
 
   g_rw_lock_reader_unlock (&priv->mark_lock);
+}
+
+/* @brief Функция hyscan_gtk_map_wfmark_mark_set_project устанавливает проект для слоя.
+ * @param wfm_layer - указатель на объект;
+ * @param project_name - указатель на название проекта.
+ * */
+void
+hyscan_gtk_map_wfmark_set_project (HyScanGtkMapWfmark    *wfm_layer,
+                                   const gchar           *project_name)
+{
+  HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
+  g_free (priv->project);
+  priv->project = g_strdup (project_name);
+  hyscan_factory_amplitude_set_project (priv->factory_amp,
+                                        priv->db,
+                                        priv->project);
+  hyscan_factory_depth_set_project (priv->factory_dpt,
+                                    priv->db,
+                                    priv->project);
 }
