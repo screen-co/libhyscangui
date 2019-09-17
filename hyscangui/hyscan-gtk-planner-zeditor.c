@@ -56,6 +56,7 @@
 #include "hyscan-gtk-planner-zeditor.h"
 
 #define DATA_KEY_COLUMN "column"
+#define KEY_DUPLICATE GDK_KEY_d    /* Клавиша для дублирования вершины. */
 
 enum
 {
@@ -67,28 +68,34 @@ enum
 
 enum
 {
-   NUMBER_COLUMN,
-   LATITUDE_COLUMN,
-   LONGITUDE_COLUMN,
-   X_COLUMN,
-   Y_COLUMN,
-   N_COLUMNS
+  NUMBER_COLUMN,
+  LATITUDE_COLUMN,
+  LONGITUDE_COLUMN,
+  X_COLUMN,
+  Y_COLUMN,
+  N_COLUMNS
 };
 
 struct _HyScanGtkPlannerZeditorPrivate
 {
-  HyScanPlannerModel *model;         /* Модель данных планировщика. */
-  HyScanListStore    *selection;     /* Модель выбранных объектов. */
-  HyScanGeo          *geo;           /* Объект для перевода географических координат. */
-  gboolean            geodetic;      /* Отображать географические координаты. */
-  GtkTreeStore       *store;         /* Хранилище строк GtkTreeView. */
-  GHashTable         *objects;       /* Объекты планировщика. */
-  gchar              *zone_id;       /* Идентификатор редактируемой зоны. */
+  HyScanPlannerModel *model;            /* Модель данных планировщика. */
+  HyScanListStore    *selection;        /* Модель выбранных объектов. */
+  HyScanGeo          *geo;              /* Объект для перевода географических координат. */
+  gboolean            geodetic;         /* Отображать географические координаты. */
+  GtkTreeStore       *store;            /* Хранилище строк GtkTreeView. */
+  GHashTable         *objects;          /* Объекты планировщика. */
+  gchar              *zone_id;          /* Идентификатор редактируемой зоны. */
 
-  GtkTreeViewColumn  *column_x;      /* Столбец координаты X. */
-  GtkTreeViewColumn  *column_y;      /* Столбец координаты Y. */
-  GtkTreeViewColumn  *column_lat;    /* Столбец координаты широты. */
-  GtkTreeViewColumn  *column_lon;    /* Столбец координаты долготы. */
+  GtkTreeViewColumn  *column_x;         /* Столбец координаты X. */
+  GtkTreeViewColumn  *column_y;         /* Столбец координаты Y. */
+  GtkTreeViewColumn  *column_lat;       /* Столбец координаты широты. */
+  GtkTreeViewColumn  *column_lon;       /* Столбец координаты долготы. */
+
+  GtkWidget          *context_menu;     /* Контекстное меню строки. */
+  GtkWidget          *menu_duplicate;   /* Пункт меню "Вставить до". */
+  GtkWidget          *menu_delete;      /* Пункт меню "Вставить после". */
+
+  guint               keycode_dup;      /* Код клавиши KEY_DUPLICATE. */
 };
 
 static void                 hyscan_gtk_planner_zeditor_set_property        (GObject                 *object,
@@ -121,6 +128,18 @@ static void                 hyscan_gtk_planner_zeditor_model_changed       (HySc
 static void                 hyscan_gtk_planner_zeditor_set_zone            (HyScanGtkPlannerZeditor *zeditor);
 static gboolean             hyscan_gtk_planner_zeditor_key_press           (GtkWidget               *widget,
                                                                             GdkEventKey             *event);
+static gboolean             hyscan_gtk_planner_zeditor_button_press        (GtkWidget               *widget,
+                                                                            GdkEventButton          *event);
+static void                 hyscan_gtk_planner_zeditor_realize             (GtkWidget               *widget);
+static void                 hyscan_gtk_planner_zeditor_menu_activate       (GtkButton               *button,
+                                                                            gpointer                 user_data);
+static GtkWidget *          hyscan_gtk_planner_zeditor_menu_add            (HyScanGtkPlannerZeditor *zeditor,
+                                                                            const gchar             *title);
+static gint                 hyscan_gtk_planner_zeditor_get_index           (HyScanGtkPlannerZeditor *zeditor);
+static void                 hyscan_gtk_planner_zeditor_vertex_duplicate    (HyScanGtkPlannerZeditor *zeditor,
+                                                                            guint                    index);
+static void                 hyscan_gtk_planner_zeditor_vertex_delete       (HyScanGtkPlannerZeditor *zeditor,
+                                                                            guint                    index);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkPlannerZeditor, hyscan_gtk_planner_zeditor, GTK_TYPE_TREE_VIEW);
 
@@ -136,6 +155,8 @@ hyscan_gtk_planner_zeditor_class_init (HyScanGtkPlannerZeditorClass *klass)
   object_class->finalize = hyscan_gtk_planner_zeditor_object_finalize;
 
   widget_class->key_press_event = hyscan_gtk_planner_zeditor_key_press;
+  widget_class->button_press_event = hyscan_gtk_planner_zeditor_button_press;
+  widget_class->realize = hyscan_gtk_planner_zeditor_realize;
 
   g_object_class_install_property (object_class, PROP_MODEL,
     g_param_spec_object ("planner-model", "Planner Model", "Planner model with zones information",
@@ -246,6 +267,10 @@ hyscan_gtk_planner_zeditor_object_constructed (GObject *object)
   gtk_tree_view_append_column (tree_view, priv->column_x);
   gtk_tree_view_append_column (tree_view, priv->column_y);
 
+  priv->context_menu = gtk_menu_new ();
+  priv->menu_duplicate = hyscan_gtk_planner_zeditor_menu_add (zeditor, _("Duplicate"));
+  priv->menu_delete = hyscan_gtk_planner_zeditor_menu_add (zeditor, _("Delete"));
+
   g_signal_connect_swapped (priv->selection, "items-changed",
                             G_CALLBACK (hyscan_gtk_planner_zeditor_items_changed), zeditor);
   g_signal_connect_swapped (priv->model, "changed",
@@ -281,45 +306,159 @@ hyscan_gtk_planner_zeditor_key_press (GtkWidget   *widget,
 {
   HyScanGtkPlannerZeditor *zeditor = HYSCAN_GTK_PLANNER_ZEDITOR (widget);
   HyScanGtkPlannerZeditorPrivate *priv = zeditor->priv;
+  gint index;
 
+  /* Обрабатываем только нажатие Delete. */
+  if (event->keyval == GDK_KEY_Delete)
+    {
+      index = hyscan_gtk_planner_zeditor_get_index (zeditor);
+      if (index >= 0)
+        hyscan_gtk_planner_zeditor_vertex_delete (zeditor, index);
+
+      return GDK_EVENT_STOP;
+    }
+
+  else if (event->hardware_keycode == priv->keycode_dup && event->state & GDK_CONTROL_MASK)
+    {
+      index = hyscan_gtk_planner_zeditor_get_index (zeditor);
+      if (index >= 0)
+        hyscan_gtk_planner_zeditor_vertex_duplicate (zeditor, index);
+
+      return GDK_EVENT_STOP;
+    }
+
+  return GTK_WIDGET_CLASS (hyscan_gtk_planner_zeditor_parent_class)->key_press_event (widget, event);
+}
+
+/* Возвращает индекс выбранной вершины или -1. */
+static gint
+hyscan_gtk_planner_zeditor_get_index (HyScanGtkPlannerZeditor *zeditor)
+{
+  HyScanGtkPlannerZeditorPrivate *priv = zeditor->priv;
   GtkTreeSelection *selection;
   GtkTreeIter iter;
   guint number;
 
-  /* Обрабатываем только нажатие Delete. */
-  if (event->keyval != GDK_KEY_Delete)
-    return GTK_WIDGET_CLASS (hyscan_gtk_planner_zeditor_parent_class)->key_press_event (widget, event);
-
   /* Проверяем, выбрано ли что-то. */
-  if (priv->zone_id == NULL)
-    return GDK_EVENT_STOP;
-
-  selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (widget));
+  selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (zeditor));
   if (!gtk_tree_selection_get_selected (selection, NULL, &iter))
-    return GDK_EVENT_STOP;
+    return -1;
 
   gtk_tree_model_get (GTK_TREE_MODEL (priv->store), &iter, NUMBER_COLUMN, &number, -1);
 
-  /* Удаляем выбранную вершину. */
-  {
-    HyScanPlannerZone *zone;
+  return number - 1;
+}
 
-    zone = g_hash_table_lookup (priv->objects, priv->zone_id);
-    g_return_val_if_fail (zone != NULL && zone->type == HYSCAN_PLANNER_ZONE, GDK_EVENT_STOP);
+static void
+hyscan_gtk_planner_zeditor_realize (GtkWidget *widget)
+{
+  HyScanGtkPlannerZeditor *zeditor = HYSCAN_GTK_PLANNER_ZEDITOR (widget);
+  HyScanGtkPlannerZeditorPrivate *priv = zeditor->priv;
 
-    if (zone->points_len > 3)
-      {
-        hyscan_planner_zone_remove_vertex (zone, number - 1);
-        hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, zone);
-      }
-    else
-      {
-        hyscan_object_model_remove_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id);
-        g_clear_pointer (&priv->zone_id, g_free);
-      }
-  }
+  GdkDisplay *display;
+  GdkKeymap *keymap;
 
-  return GDK_EVENT_STOP;
+  GdkKeymapKey *keys;
+  gint n_keys;
+
+  GTK_WIDGET_CLASS (hyscan_gtk_planner_zeditor_parent_class)->realize (widget);
+
+  display = gtk_widget_get_display (widget);
+  keymap = gdk_keymap_get_for_display (display);
+
+  gdk_keymap_get_entries_for_keyval (keymap, KEY_DUPLICATE, &keys, &n_keys);
+  if (n_keys > 0)
+    priv->keycode_dup = keys[0].keycode;
+
+  g_free (keys);
+}
+
+/* Обработчи события "button-press-event". */
+static gboolean
+hyscan_gtk_planner_zeditor_button_press (GtkWidget      *widget,
+                                         GdkEventButton *event)
+{
+  HyScanGtkPlannerZeditor *zeditor = HYSCAN_GTK_PLANNER_ZEDITOR (widget);
+  HyScanGtkPlannerZeditorPrivate *priv = zeditor->priv;
+
+  if (event->button == GDK_BUTTON_SECONDARY)
+    gtk_menu_popup_at_pointer (GTK_MENU (priv->context_menu), (const GdkEvent *) event);
+
+  return GTK_WIDGET_CLASS (hyscan_gtk_planner_zeditor_parent_class)->button_press_event (widget, event);
+}
+
+/* Добавляет пункт в контекстное меню. */
+static GtkWidget *
+hyscan_gtk_planner_zeditor_menu_add (HyScanGtkPlannerZeditor *zeditor,
+                                     const gchar             *title)
+{
+  HyScanGtkPlannerZeditorPrivate *priv = zeditor->priv;
+  GtkWidget *menu_item;
+
+  menu_item = gtk_menu_item_new_with_label (title);
+  g_signal_connect (menu_item, "activate", G_CALLBACK (hyscan_gtk_planner_zeditor_menu_activate), zeditor);
+  gtk_widget_show (menu_item);
+  gtk_menu_shell_append (GTK_MENU_SHELL (priv->context_menu), menu_item);
+
+  return menu_item;
+}
+
+/* Дублирует вершину с индексом index. */
+static void
+hyscan_gtk_planner_zeditor_vertex_duplicate (HyScanGtkPlannerZeditor *zeditor,
+                                             guint                    index)
+{
+  HyScanGtkPlannerZeditorPrivate *priv = zeditor->priv;
+  HyScanPlannerZone *zone;
+
+  zone = g_hash_table_lookup (priv->objects, priv->zone_id);
+  g_return_if_fail (zone != NULL && zone->type == HYSCAN_PLANNER_ZONE);
+
+  hyscan_planner_zone_vertex_dup (zone, index);
+  hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, zone);
+}
+
+/* Удаляет вершину с индексом index. */
+static void
+hyscan_gtk_planner_zeditor_vertex_delete (HyScanGtkPlannerZeditor *zeditor,
+                                          guint                    index)
+{
+  HyScanGtkPlannerZeditorPrivate *priv = zeditor->priv;
+  HyScanPlannerZone *zone;
+
+  zone = g_hash_table_lookup (priv->objects, priv->zone_id);
+  g_return_if_fail (zone != NULL && zone->type == HYSCAN_PLANNER_ZONE);
+
+  if (zone->points_len > 3)
+    {
+      hyscan_planner_zone_vertex_remove (zone, index);
+      hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, zone);
+    }
+  else
+    {
+      hyscan_object_model_remove_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id);
+      g_clear_pointer (&priv->zone_id, g_free);
+    }
+}
+
+/* Обработчик выбора пункта контекстного меню. */
+static void
+hyscan_gtk_planner_zeditor_menu_activate (GtkButton *button,
+                                          gpointer   user_data)
+{
+  HyScanGtkPlannerZeditor *zeditor = HYSCAN_GTK_PLANNER_ZEDITOR (user_data);
+  HyScanGtkPlannerZeditorPrivate *priv = zeditor->priv;
+  gint index;
+
+  index = hyscan_gtk_planner_zeditor_get_index (zeditor);
+  if (index == -1)
+    return;
+
+  if (GTK_WIDGET (button) == priv->menu_duplicate)
+    hyscan_gtk_planner_zeditor_vertex_duplicate (zeditor, index);
+
+  else if (GTK_WIDGET (button) == priv->menu_delete)
+    hyscan_gtk_planner_zeditor_vertex_delete (zeditor, index);
 }
 
 /* Обработчик сигнала "items-changed". Устанавливает выбранную зону в виджет. */

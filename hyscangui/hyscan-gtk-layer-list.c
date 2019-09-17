@@ -63,6 +63,7 @@ enum
   LAYER_KEY_COLUMN,     /* Уникальное слоя. */
   LAYER_TITLE_COLUMN,   /* Название слоя. */
   LAYER_COLUMN,         /* Указатель на объект слоя #HyScanGtkLayer. */
+  N_COLUMNS
 };
 
 struct _HyScanGtkLayerListPrivate
@@ -119,7 +120,7 @@ hyscan_gtk_layer_list_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_gtk_layer_list_parent_class)->constructed (object);
 
-  priv->layer_store = gtk_list_store_new (4,
+  priv->layer_store = gtk_list_store_new (N_COLUMNS,
                                           G_TYPE_BOOLEAN,        /* LAYER_VISIBLE_COLUMN */
                                           G_TYPE_STRING,         /* LAYER_KEY_COLUMN     */
                                           G_TYPE_STRING,         /* LAYER_TITLE_COLUMN   */
