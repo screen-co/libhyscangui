@@ -1598,13 +1598,13 @@ hyscan_gtk_map_planner_handle_find_zone (HyScanGtkMapPlanner  *planner,
   HyScanGeoCartesian2D edge_point;
 
   GList *list;
-  gdouble scale_x, scale_y;
-  gdouble max_x, max_y;
+  gdouble scale_x;
+  gdouble max_x;
 
-  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &scale_x, &scale_y);
+  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &scale_x, NULL);
   max_x = HANDLE_HOVER_RADIUS * scale_x;
-  max_y = HANDLE_HOVER_RADIUS * scale_y;
 
+  /* Проверяем расстояния до вершин. */
   g_hash_table_iter_init (&iter, priv->zones);
   while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &zone))
     {
@@ -1612,11 +1612,13 @@ hyscan_gtk_map_planner_handle_find_zone (HyScanGtkMapPlanner  *planner,
 
       for (list = zone->points; list != NULL; list = list->next)
         {
+          gdouble distance;
           point = list->data;
 
           vertex_num++;
 
-          if (ABS (point->c2d.x - x) < max_x && ABS (point->c2d.y - y) < max_y)
+          distance = hyscan_cartesian_distance (&point->c2d, &cursor);
+          if (distance < max_x)
             {
               handle_coord->x = point->c2d.x;
               handle_coord->y = point->c2d.y;
@@ -1626,9 +1628,25 @@ hyscan_gtk_map_planner_handle_find_zone (HyScanGtkMapPlanner  *planner,
 
               return TRUE;
             }
+        }
+    }
+
+  /* Проверяем расстояния до отрезков. */
+  g_hash_table_iter_init (&iter, priv->zones);
+  while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &zone))
+    {
+      gint vertex_num = 0;
+
+      for (list = zone->points; list != NULL; list = list->next)
+        {
+          gdouble distance;
+          point = list->data;
+
+          vertex_num++;
 
           next_point = list->next != NULL ? list->next->data : zone->points->data;
-          if (hyscan_cartesian_distance_to_line (&point->c2d, &next_point->c2d, &cursor, &edge_point) < max_x &&
+          distance = hyscan_cartesian_distance_to_line (&point->c2d, &next_point->c2d, &cursor, &edge_point);
+          if (distance < max_x &&
               IS_INSIDE (edge_point.x, point->c2d.x, next_point->c2d.x) &&
               IS_INSIDE (edge_point.y, point->c2d.y, next_point->c2d.y))
             {
