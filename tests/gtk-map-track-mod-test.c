@@ -209,7 +209,7 @@ translator_new (HyScanDB    *db,
     open_channel (translator, &translator->channels[i], channel_names[i]);
 
   /* Запускаем копирование данных в новый галс по таймеру. */
-  translator->tag = g_timeout_add (500, write_db, translator);
+  translator->tag = g_timeout_add (100, write_db, translator);
 
   return translator;
 }

@@ -81,7 +81,7 @@
 #define DEFAULT_LINE_WIDTH            1                             /* Толщина линии движения. */
 #define DEFAULT_STROKE_WIDTH          1.0                           /* Толщина обводки. */
 
-#define REFRESH_INTERVAL              500                           /* Период проверки каналов данных на новые данные, мс. */
+#define REFRESH_INTERVAL              300000                        /* Период проверки каналов данных на новые данные, мкс. */
 
 /* Раскомментируйте строку ниже для вывода отладочной информации о скорости отрисовки слоя. */
 // #define HYSCAN_GTK_MAP_DEBUG_FPS
@@ -98,7 +98,8 @@ struct _HyScanGtkMapTrackPrivate
 {
   HyScanGtkMap              *map;              /* Карта. */
   gboolean                   visible;          /* Признак видимости слоя. */
-  guint                      draw_tag;         /* Тег функции перерисовки слоя. */
+  GThread                   *watcher;          /* Тег функции перерисовки слоя. */
+  gboolean                   shutdown;         /* Признак удаления слоя. */
 
   HyScanDB                  *db;               /* База данных. */
   gchar                     *project;          /* Название проекта. */
@@ -343,8 +344,8 @@ hyscan_gtk_map_track_projection_notify (HyScanGtkMap      *map,
 }
 
 /* Запрашивает перерисовку слоя, если есть изменения в каналах данных. */
-static gboolean
-hyscan_gtk_map_track_redraw (gpointer data)
+static gpointer
+hyscan_gtk_map_track_watcher (gpointer data)
 {
   HyScanGtkMapTrack *track_layer = HYSCAN_GTK_MAP_TRACK (data);
   HyScanGtkMapTrackPrivate *priv = track_layer->priv;
@@ -355,19 +356,27 @@ hyscan_gtk_map_track_redraw (gpointer data)
   HyScanGtkMapTrackItem *track;
   gchar *key;
 
-  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (track_layer)))
-    return G_SOURCE_CONTINUE;
+  while (TRUE)
+    {
+      g_usleep (REFRESH_INTERVAL);
 
-  /* Загружаем новые данные из каждого галса и запоминаем, есть ли изменения.. */
-  any_changes = FALSE;
-  g_hash_table_iter_init (&iter, priv->tracks);
-  while (g_hash_table_iter_next (&iter, (gpointer *) &key, (gpointer *) &track))
-    any_changes = hyscan_gtk_map_track_item_update (track) || any_changes;
+      if (g_atomic_int_get (&priv->shutdown))
+        break;
 
-  if (any_changes)
-    hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (track_layer));
+      if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (track_layer)))
+        continue;
 
-  return G_SOURCE_CONTINUE;
+      /* Загружаем новые данные из каждого галса и запоминаем, есть ли изменения.. */
+      any_changes = FALSE;
+      g_hash_table_iter_init (&iter, priv->tracks);
+      while (!any_changes && g_hash_table_iter_next (&iter, (gpointer *) &key, (gpointer *) &track))
+        any_changes = hyscan_gtk_map_track_item_update (track);
+
+      if (any_changes)
+        hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (track_layer));
+    }
+
+  return NULL;
 }
 
 /* Реализация HyScanGtkLayerInterface.added.
@@ -389,7 +398,7 @@ hyscan_gtk_map_track_added (HyScanGtkLayer          *gtk_layer,
                     G_CALLBACK (hyscan_gtk_map_track_projection_notify), track_layer);
 
   hyscan_gtk_layer_parent_interface->added (gtk_layer, container);
-  priv->draw_tag = g_timeout_add (REFRESH_INTERVAL, hyscan_gtk_map_track_redraw, track_layer);
+  priv->watcher = g_thread_new ("map-track", hyscan_gtk_map_track_watcher, track_layer);
 }
 
 /* Реализация HyScanGtkLayerInterface.removed.
@@ -402,8 +411,8 @@ hyscan_gtk_map_track_removed (HyScanGtkLayer *gtk_layer)
 
   g_return_if_fail (priv->map != NULL);
 
-  g_source_remove (priv->draw_tag);
-  priv->draw_tag = 0;
+  g_atomic_int_set (&priv->shutdown, TRUE);
+  g_clear_pointer (&priv->watcher, g_thread_join);
   hyscan_gtk_layer_parent_interface->removed (gtk_layer);
 
   g_signal_handlers_disconnect_by_data (priv->map, track_layer);

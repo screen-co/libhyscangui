@@ -572,26 +572,26 @@ hyscan_map_tile_inv_y (HyScanMapTile *tile)
 /**
  * hyscan_map_tile_get_bounds:
  * @tile: указатель на #HyScanMapTile
- * @from: координаты верхнего правого угла
- * @to: координаты нижнего правого угла
+ * @ur: координаты верхнего правого угла
+ * @bl: координаты нижнего правого угла
  *
  * Определяет область в логических координатах, которую покрывает тайл @tile.
  */
 void
 hyscan_map_tile_get_bounds (HyScanMapTile        *tile,
-                            HyScanGeoCartesian2D *from,
-                            HyScanGeoCartesian2D *to)
+                            HyScanGeoCartesian2D *ur,
+                            HyScanGeoCartesian2D *bl)
 {
   HyScanMapTilePrivate *priv;
   g_return_if_fail (HYSCAN_IS_MAP_TILE (tile));
 
   priv = tile->priv;
 
-  if (from != NULL)
-    hyscan_map_tile_grid_tile_to_value (priv->grid, priv->zoom, priv->x, priv->y, &from->x, &from->y);
+  if (ur != NULL)
+    hyscan_map_tile_grid_tile_to_value (priv->grid, priv->zoom, priv->x, priv->y, &ur->x, &ur->y);
 
-  if (to != NULL)
-    hyscan_map_tile_grid_tile_to_value (priv->grid, priv->zoom, priv->x + 1, priv->y + 1, &to->x, &to->y);
+  if (bl != NULL)
+    hyscan_map_tile_grid_tile_to_value (priv->grid, priv->zoom, priv->x + 1, priv->y + 1, &bl->x, &bl->y);
 }
 
 /**
