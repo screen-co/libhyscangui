@@ -395,13 +395,15 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
   HyScanGtkMapWfmarkLocation *location;
   gchar *mark_id;
   gdouble scale;
-  guint counter = 0;
+  guint counter = 0, area_width, area_height;
 
   if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (wfm_layer)))
     return;
 
   /* Переводим размеры метки из логической СК в пиксельные. */
   gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &scale, NULL);
+
+  gtk_cifro_area_get_visible_size (GTK_CIFRO_AREA (priv->map), &area_width, &area_height);
 
   g_rw_lock_reader_lock (&priv->mark_lock);
 
@@ -411,8 +413,8 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       HyScanTile *tile = NULL;
       HyScanTileCacheable tile_cacheable;
       cairo_surface_t *surface = NULL;
-      gdouble x = 0.0, y = 0.0;
-      gdouble width = 0.0, height = 0.0;
+      gdouble x = 0.0, y = 0.0, radius = 0.0,
+      width = 0.0, height = 0.0;
       gboolean selected;
       GdkRGBA *color = NULL;
       gfloat *image = NULL;
@@ -426,6 +428,10 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
       gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y,
                                              location->center_c2d.x, location->center_c2d.y);
+      radius = sqrt(x * x + y * y);
+
+      if (x < -radius || y < -radius || x > area_width + radius || y > area_height + radius)
+        continue;
 
       tile = hyscan_tile_new (location->mloc->track_name);
 
@@ -437,6 +443,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
           HyScanProjector *projector;
           HyScanDepthometer *dm = NULL;
           gdouble along, across, depth;
+          gboolean bRegenerate = FALSE;
 
           dm = hyscan_factory_depth_produce (priv->factory_dpt, location->mloc->track_name);
           if (dm != NULL)
@@ -464,9 +471,20 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
           g_clear_object (&dc);
           g_clear_object (&projector);
 
-          tile->info.across_start = round ( (across - location->mloc->mark->width) * 1000.0);
+          /* Для левого борта тайл надо отразить по оси X. */
+          if (location->mloc->offset > 0)
+            {
+               /* Поэтому значения отрицательные, и start и end меняются местами. */
+              tile->info.across_start = -round ( (across + location->mloc->mark->width) * 1000.0);
+              tile->info.across_end = -round ( (across - location->mloc->mark->width) * 1000.0);
+            }
+          else
+            {
+              tile->info.across_start = round ( (across - location->mloc->mark->width) * 1000.0);
+              tile->info.across_end = round ( (across + location->mloc->mark->width) * 1000.0);
+            }
+
           tile->info.along_start = round ( (along - location->mloc->mark->height) * 1000.0);
-          tile->info.across_end = round ( (across + location->mloc->mark->width) * 1000.0);
           tile->info.along_end = round ( (along + location->mloc->mark->height) * 1000.0);
           tile->info.scale = 1.0f;
           tile->info.ppi = 1e-3 * HYSCAN_GTK_MAP_MM_PER_INCH * hyscan_gtk_map_get_scale_px (priv->map);
@@ -477,8 +495,6 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
           tile_cacheable.w =      /* Будет заполнено генератором. */
           tile_cacheable.h = 0;   /* Будет заполнено генератором. */
           tile_cacheable.finalized = FALSE;   /* Будет заполнено генератором. */
-
-          gboolean bRegenerate = FALSE;
 
           if (hyscan_tile_queue_check (priv->tile_queue, tile, &tile_cacheable, &bRegenerate))
             {
@@ -571,14 +587,11 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       cairo_save (cairo);
       cairo_translate (cairo, x, y);
 
-      if (surface)
+      if (surface != NULL)
         {
           /* Аккустическое изображение метки. */
           cairo_save (cairo);
           cairo_rotate (cairo, location->angle);
-          /* Для левого борта тайл надо отразить по оси X. */
-          if (location->mloc->offset > 0)
-            cairo_scale (cairo, -1.0, 1.0);
           /* Координаты для отображения (в левый верхний угол). */
           cairo_set_source_surface (cairo, surface, -width, -height);
           /* Отображаем аккустическое изображение. */
@@ -588,7 +601,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
         }
       else
         {
-    	  /* Контур метки. */
+          /* Контур метки. */
           cairo_save (cairo);
           cairo_rotate (cairo, location->angle);
           cairo_rectangle (cairo, -width, -height, 2.0 * width, 2.0 * height);
