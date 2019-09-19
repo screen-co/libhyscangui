@@ -103,28 +103,29 @@ typedef struct {
 
 struct _HyScanGtkPlannerEditorPrivate
 {
-  HyScanPlannerModel *model;                 /* Модель объектов планировщика. */
-  GListModel         *selection;             /* Модель списка идентификаторов выбранных объектов. */
-  HyScanGeo          *geo;                   /* Объект перевода координат из географических в декртовы. */
-  gboolean            block_value_change;    /* Признак блокировки сигналов "value-changed" в полях ввода. */
+  HyScanPlannerModel     *model;                 /* Модель объектов планировщика. */
+  HyScanPlannerSelection *selection;             /* Модель списка идентификаторов выбранных объектов. */
+  HyScanGeo              *geo;                   /* Объект перевода координат из географических в декртовы. */
+  gboolean                block_value_change;    /* Признак блокировки сигналов "value-changed" в полях ввода. */
 
-  GHashTable         *objects;               /* Хэш таблица с объектами планировщика. */
+  gchar                 **selected_tracks;       /* Список выбранных галсов. */
+  GHashTable             *objects;               /* Хэш таблица с объектами планировщика. */
 
-  GtkWidget          *label;                 /* Виджет счётчика выбранных объектов. */
-  GtkWidget          *start_x;               /* Поле ввода координаты X начала. */
-  GtkWidget          *start_x_btn;           /* Галочка редактирования поля start_x. */
-  GtkWidget          *start_y;               /* Поле ввода координаты Y начала. */
-  GtkWidget          *start_y_btn;           /* Галочка редактирования поля start_y. */
-  GtkWidget          *end_x;                 /* Поле ввода координаты X конца. */
-  GtkWidget          *end_x_btn;             /* Галочка редактирования поля end_x. */
-  GtkWidget          *end_y;                 /* Поле ввода координаты Y конца. */
-  GtkWidget          *end_y_btn;             /* Галочка редактирования поля end_y. */
-  GtkWidget          *length;                /* Поле ввода длины галса. */
-  GtkWidget          *length_btn;            /* Галочка редактирования поля end_y. */
-  GtkWidget          *angle;                 /* Поле ввода угла поворота галса. */
-  GtkWidget          *angle_btn;             /* Галочка редактирования поля angle. */
-  GtkWidget          *speed;                 /* Поле ввода скорости движения по галсу. */
-  GtkWidget          *speed_btn;             /* Галочка редактирования поля speed. */
+  GtkWidget              *label;                 /* Виджет счётчика выбранных объектов. */
+  GtkWidget              *start_x;               /* Поле ввода координаты X начала. */
+  GtkWidget              *start_x_btn;           /* Галочка редактирования поля start_x. */
+  GtkWidget              *start_y;               /* Поле ввода координаты Y начала. */
+  GtkWidget              *start_y_btn;           /* Галочка редактирования поля start_y. */
+  GtkWidget              *end_x;                 /* Поле ввода координаты X конца. */
+  GtkWidget              *end_x_btn;             /* Галочка редактирования поля end_x. */
+  GtkWidget              *end_y;                 /* Поле ввода координаты Y конца. */
+  GtkWidget              *end_y_btn;             /* Галочка редактирования поля end_y. */
+  GtkWidget              *length;                /* Поле ввода длины галса. */
+  GtkWidget              *length_btn;            /* Галочка редактирования поля end_y. */
+  GtkWidget              *angle;                 /* Поле ввода угла поворота галса. */
+  GtkWidget              *angle_btn;             /* Галочка редактирования поля angle. */
+  GtkWidget              *speed;                 /* Поле ввода скорости движения по галсу. */
+  GtkWidget              *speed_btn;             /* Галочка редактирования поля speed. */
 };
 
 static void        hyscan_gtk_planner_editor_set_property            (GObject                     *object,
@@ -136,10 +137,8 @@ static void        hyscan_gtk_planner_editor_object_finalize         (GObject   
 static void        hyscan_gtk_planner_editor_iter_init               (HyScanGtkPlannerEditor      *editor,
                                                                       HyScanGtkPlannerEditorIter  *iter);
 static gboolean    hyscan_gtk_planner_editor_iter_next               (HyScanGtkPlannerEditorIter  *iter);
-static void        hyscan_gtk_planner_editor_selection_changed       (HyScanGtkPlannerEditor      *editor,
-                                                                      guint                        position,
-                                                                      guint                        removed,
-                                                                      guint                        added);
+static void        hyscan_gtk_planner_editor_tracks_changed          (HyScanGtkPlannerEditor      *editor,
+                                                                      gchar                      **tracks);
 static void        hyscan_gtk_planner_editor_get_value               (HyScanGtkPlannerEditor      *editor,
                                                                       HyScanGtkPlannerEditorValue *value);
 static void        hyscan_gtk_planner_editor_convert_point           (HyScanGtkPlannerEditor      *editor,
@@ -176,8 +175,8 @@ hyscan_gtk_planner_editor_class_init (HyScanGtkPlannerEditorClass *klass)
                          HYSCAN_TYPE_PLANNER_MODEL,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_SELECTION,
-    g_param_spec_object ("selection", "GListModel", "GListModel with C-string ID of objects",
-                         G_TYPE_LIST_MODEL,
+    g_param_spec_object ("selection", "HyScanPlannerSelection", "HyScanPlannerSelection with selected objects",
+                         HYSCAN_TYPE_PLANNER_SELECTION,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -204,11 +203,6 @@ hyscan_gtk_planner_editor_set_property (GObject      *object,
 
     case PROP_SELECTION:
       priv->selection = g_value_dup_object (value);
-      if (g_list_model_get_item_type (priv->selection) != G_TYPE_STRING)
-        {
-          g_warning ("HyScanGtkPlannerEditor: GListModel must contain items of type G_TYPE_STRING");
-          g_clear_object (&priv->selection);
-        }
       break;
 
     default:
@@ -265,8 +259,8 @@ hyscan_gtk_planner_editor_object_constructed (GObject *object)
   hyscan_gtk_planner_editor_attach (grid, _("Speed"), priv->speed, priv->speed_btn, ++i,
                                     G_CALLBACK (hyscan_gtk_planner_editor_speed_changed));
 
-  g_signal_connect_swapped (priv->selection, "items-changed", G_CALLBACK (hyscan_gtk_planner_editor_selection_changed),
-                            editor);
+  g_signal_connect_swapped (priv->selection, "tracks-changed",
+                            G_CALLBACK (hyscan_gtk_planner_editor_tracks_changed), editor);
   g_signal_connect_swapped (priv->model, "changed", G_CALLBACK (hyscan_gtk_planner_editor_model_changed), editor);
 
   hyscan_gtk_planner_editor_update_view (editor);
@@ -312,7 +306,7 @@ hyscan_gtk_planner_editor_get_value (HyScanGtkPlannerEditor      *editor,
 {
   HyScanGtkPlannerEditorPrivate *priv = editor->priv;
 
-  guint i, n_items;
+  HyScanGtkPlannerEditorIter iter;
 
   memset (value, 0, sizeof (*value));
   value->origin_set = (priv->geo != NULL);
@@ -320,28 +314,19 @@ hyscan_gtk_planner_editor_get_value (HyScanGtkPlannerEditor      *editor,
   if (priv->objects == NULL || priv->geo == NULL)
     return;
 
-  n_items = g_list_model_get_n_items (priv->selection);
-  for (i = 0; i < n_items; ++i)
+  hyscan_gtk_planner_editor_iter_init (editor, &iter);
+  while (hyscan_gtk_planner_editor_iter_next (&iter))
     {
-      HyScanPlannerObject *object;
-      HyScanPlannerTrack *track;
+      HyScanPlannerTrack *track = iter.track;
       HyScanGeoCartesian2D start;
       HyScanGeoCartesian2D end;
       gdouble length, angle, speed;
-      gchar *id;
-
-      id = g_list_model_get_item (priv->selection, i);
-      object = g_hash_table_lookup (priv->objects, id);
-      if (object == NULL || object->type != HYSCAN_PLANNER_TRACK)
-        goto next;
-
-      track = &object->track;
 
       if (!hyscan_geo_geo2topoXY (priv->geo, &start, track->start) ||
           !hyscan_geo_geo2topoXY (priv->geo, &end, track->end))
         {
           g_warning ("HyScanGtkPlannerEditor: failed to convert geo coordinates to (x, y)");
-          goto next;
+          continue;
         }
 
       speed = track->speed;
@@ -385,9 +370,6 @@ hyscan_gtk_planner_editor_get_value (HyScanGtkPlannerEditor      *editor,
         }
 
       value->n_items++;
-
-    next:
-      g_free (id);
     }
 }
 
@@ -452,11 +434,14 @@ hyscan_gtk_planner_editor_update_view (HyScanGtkPlannerEditor *editor)
 }
 
 static void
-hyscan_gtk_planner_editor_selection_changed (HyScanGtkPlannerEditor *editor,
-                                             guint                   position,
-                                             guint                   removed,
-                                             guint                   added)
+hyscan_gtk_planner_editor_tracks_changed (HyScanGtkPlannerEditor  *editor,
+                                          gchar                  **tracks)
 {
+  HyScanGtkPlannerEditorPrivate *priv = editor->priv;
+
+  g_clear_pointer (&priv->selected_tracks, g_strfreev);
+  priv->selected_tracks = g_strdupv (tracks);
+
   hyscan_gtk_planner_editor_update_view (editor);
 }
 
@@ -488,9 +473,11 @@ static void
 hyscan_gtk_planner_editor_iter_init (HyScanGtkPlannerEditor     *editor,
                                      HyScanGtkPlannerEditorIter *iter)
 {
-  iter->priv = editor->priv;
+  HyScanGtkPlannerEditorPrivate *priv = editor->priv;
+
+  iter->priv = priv;
   iter->i = 0;
-  iter->n_items = g_list_model_get_n_items (editor->priv->selection);
+  iter->n_items = priv->selected_tracks == NULL ? 0 : g_strv_length (priv->selected_tracks);
   iter->id = NULL;
   iter->track = NULL;
 }
@@ -506,10 +493,9 @@ hyscan_gtk_planner_editor_iter_next (HyScanGtkPlannerEditorIter *iter)
       gchar *selected_id;
       gboolean found;
 
-      selected_id = g_list_model_get_item (priv->selection, iter->i);
+      selected_id = priv->selected_tracks[iter->i];
       found = g_hash_table_lookup_extended (priv->objects, selected_id,
                                             (gpointer *) &iter->id, (gpointer *) &iter->track);
-      g_free (selected_id);
 
       if (!found || iter->track->type != HYSCAN_PLANNER_TRACK)
         continue;
@@ -675,8 +661,8 @@ hyscan_gtk_planner_editor_model_changed (HyScanGtkPlannerEditor *editor)
  * Returns: указатель на виджет
  */
 GtkWidget *
-hyscan_gtk_planner_editor_new (HyScanPlannerModel *model,
-                               GListModel         *selection)
+hyscan_gtk_planner_editor_new (HyScanPlannerModel     *model,
+                               HyScanPlannerSelection *selection)
 {
   return g_object_new (HYSCAN_TYPE_GTK_PLANNER_EDITOR,
                        "model", model,

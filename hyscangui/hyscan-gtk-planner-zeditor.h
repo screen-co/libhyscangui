@@ -37,7 +37,7 @@
 
 #include <hyscan-planner-model.h>
 #include <gtk/gtk.h>
-#include "hyscan-list-store.h"
+#include "hyscan-planner-selection.h"
 
 G_BEGIN_DECLS
 
@@ -68,8 +68,8 @@ HYSCAN_API
 GType                     hyscan_gtk_planner_zeditor_get_type         (void);
 
 HYSCAN_API
-GtkWidget *               hyscan_gtk_planner_zeditor_new              (HyScanPlannerModel *model,
-                                                                       HyScanListStore    *selection);
+GtkWidget *               hyscan_gtk_planner_zeditor_new              (HyScanPlannerModel      *model,
+                                                                       HyScanPlannerSelection  *selection);
 
 HYSCAN_API
 void                      hyscan_gtk_planner_zeditor_set_geodetic     (HyScanGtkPlannerZeditor *zeditor,

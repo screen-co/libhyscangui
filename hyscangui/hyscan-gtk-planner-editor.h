@@ -3,6 +3,7 @@
 
 #include <gtk/gtk.h>
 #include <hyscan-planner-model.h>
+#include <hyscan-planner-selection.h>
 
 G_BEGIN_DECLS
 
@@ -33,8 +34,8 @@ HYSCAN_API
 GType                  hyscan_gtk_planner_editor_get_type         (void);
 
 HYSCAN_API
-GtkWidget *            hyscan_gtk_planner_editor_new              (HyScanPlannerModel *model,
-                                                                   GListModel         *selection);
+GtkWidget *            hyscan_gtk_planner_editor_new              (HyScanPlannerModel      *model,
+                                                                   HyScanPlannerSelection  *selection);
 
 G_END_DECLS
 

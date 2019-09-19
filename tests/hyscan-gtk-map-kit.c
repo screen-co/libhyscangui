@@ -24,6 +24,7 @@
 #include <hyscan-gtk-planner-origin.h>
 #include <hyscan-gtk-layer-list.h>
 #include <hyscan-gtk-planner-zeditor.h>
+#include <hyscan-planner-selection.h>
 
 #define DEFAULT_PROFILE_NAME "default"    /* Имя профиля карты по умолчанию. */
 #define PRELOAD_STATE_DONE   1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
@@ -67,63 +68,63 @@ enum
 struct _HyScanGtkMapKitPrivate
 {
   /* Модели данных. */
-  HyScanDBInfo          *db_info;          /* Доступ к данным БД. */
-  HyScanObjectModel     *mark_model;       /* Модель меток водопада. */
-  HyScanPlannerModel    *planner_model;    /* Модель объектов планировщика. */
-  HyScanListStore       *planner_selection;/* Модель выбранных объектов планировщика. */
-  HyScanObjectModel     *mark_geo_model;   /* Модель геометок. */
-  HyScanMarkLocModel    *ml_model;         /* Модель местоположения меток водопада. */
-  HyScanDB              *db;
-  HyScanCache           *cache;
-  HyScanNavModel        *nav_model;
-  gchar                 *project_name;
+  HyScanDBInfo            *db_info;          /* Доступ к данным БД. */
+  HyScanObjectModel       *mark_model;       /* Модель меток водопада. */
+  HyScanPlannerModel      *planner_model;    /* Модель объектов планировщика. */
+  HyScanPlannerSelection  *planner_selection;/* Модель выбранных объектов планировщика. */
+  HyScanObjectModel       *mark_geo_model;   /* Модель геометок. */
+  HyScanMarkLocModel      *ml_model;         /* Модель местоположения меток водопада. */
+  HyScanDB                *db;
+  HyScanCache             *cache;
+  HyScanNavModel          *nav_model;
+  gchar                   *project_name;
 
-  GHashTable            *profiles;         /* Хэш-таблица профилей карты. */
-  gchar                 *profile_active;   /* Ключ активного профиля. */
-  gboolean               profile_offline;  /* Признак оффлайн-профиля карты. */
-  gchar                 *tile_cache_dir;   /* Путь к директории, в которой хранятся тайлы. */
+  GHashTable              *profiles;         /* Хэш-таблица профилей карты. */
+  gchar                   *profile_active;   /* Ключ активного профиля. */
+  gboolean                 profile_offline;  /* Признак оффлайн-профиля карты. */
+  gchar                   *tile_cache_dir;   /* Путь к директории, в которой хранятся тайлы. */
 
-  HyScanGeoGeodetic      center;           /* Географические координаты для виджета навигации. */
+  HyScanGeoGeodetic        center;           /* Географические координаты для виджета навигации. */
 
   /* Слои. */
-  HyScanGtkLayer        *track_layer;      /* Слой просмотра галсов. */
-  HyScanGtkLayer        *wfmark_layer;     /* Слой с метками водопада. */
-  HyScanGtkLayer        *geomark_layer;    /* Слой с метками водопада. */
-  HyScanGtkLayer        *map_grid;         /* Слой координатной сетки. */
-  HyScanGtkLayer        *ruler;            /* Слой линейки. */
-  HyScanGtkLayer        *pin_layer;        /* Слой географических отметок. */
-  HyScanGtkLayer        *way_layer;        /* Слой текущего положения по GPS-датчику. */
-  HyScanGtkLayer        *planner_layer;    /* Слой планировщика. */
+  HyScanGtkLayer          *track_layer;      /* Слой просмотра галсов. */
+  HyScanGtkLayer          *wfmark_layer;     /* Слой с метками водопада. */
+  HyScanGtkLayer          *geomark_layer;    /* Слой с метками водопада. */
+  HyScanGtkLayer          *map_grid;         /* Слой координатной сетки. */
+  HyScanGtkLayer          *ruler;            /* Слой линейки. */
+  HyScanGtkLayer          *pin_layer;        /* Слой географических отметок. */
+  HyScanGtkLayer          *way_layer;        /* Слой текущего положения по GPS-датчику. */
+  HyScanGtkLayer          *planner_layer;    /* Слой планировщика. */
 
   /* Виджеты. */
-  GtkWidget             *profiles_box;     /* Выпадающий список профилей карты. */
-  GtkWidget             *planner_stack;    /* GtkStack с виджетами настроек планировщика. */
-  GtkButton             *preload_button;   /* Кнопка загрузки тайлов. */
-  GtkProgressBar        *preload_progress; /* Индикатор загрузки тайлов. */
+  GtkWidget               *profiles_box;     /* Выпадающий список профилей карты. */
+  GtkWidget               *planner_stack;    /* GtkStack с виджетами настроек планировщика. */
+  GtkButton               *preload_button;   /* Кнопка загрузки тайлов. */
+  GtkProgressBar          *preload_progress; /* Индикатор загрузки тайлов. */
 
-  HyScanMapTileLoader   *loader;
-  guint                  preload_tag;      /* Timeout-функция обновления виджета preload_progress. */
-  gint                   preload_state;    /* Статус загрузки тайлов.
-                                            * < 0                      - загрузка не началась,
-                                            * 0 - PRELOAD_STATE_DONE-1 - прогресс загрузки,
-                                            * >= PRELOAD_STATE_DONE    - загрузка завершена, не удалось загрузить
-                                            *                            PRELOAD_STATE_DONE - preload_state тайлов */
+  HyScanMapTileLoader     *loader;
+  guint                    preload_tag;      /* Timeout-функция обновления виджета preload_progress. */
+  gint                     preload_state;    /* Статус загрузки тайлов.
+                                              * < 0                      - загрузка не началась,
+                                              * 0 - PRELOAD_STATE_DONE-1 - прогресс загрузки,
+                                              * >= PRELOAD_STATE_DONE    - загрузка завершена, не удалось загрузить
+                                              *                            PRELOAD_STATE_DONE - preload_state тайлов */
 
-  GtkTreeView           *track_tree;       /* GtkTreeView со списком галсов. */
-  GtkListStore          *track_store;      /* Модель данных для track_tree. */
-  GtkMenu               *track_menu;       /* Контекстное меню галса (по правой кнопке). */
-  GtkWidget             *track_menu_find;  /* Пункт меню поиска галса на карте. */
+  GtkTreeView             *track_tree;       /* GtkTreeView со списком галсов. */
+  GtkListStore            *track_store;      /* Модель данных для track_tree. */
+  GtkMenu                 *track_menu;       /* Контекстное меню галса (по правой кнопке). */
+  GtkWidget               *track_menu_find;  /* Пункт меню поиска галса на карте. */
 
-  GtkTreeView           *mark_tree;       /* GtkTreeView со списком галсов. */
-  GtkListStore          *mark_store;      /* Модель данных для track_tree. */
+  GtkTreeView             *mark_tree;       /* GtkTreeView со списком галсов. */
+  GtkListStore            *mark_store;      /* Модель данных для track_tree. */
 
-  GtkWidget             *locate_button;   /* Кнопка для определения текущего местоположения. */
-  GtkWidget             *lat_spin;        /* Поля для ввода широты. */
-  GtkWidget             *lon_spin;        /* Поля для ввода долготы. */
+  GtkWidget               *locate_button;   /* Кнопка для определения текущего местоположения. */
+  GtkWidget               *lat_spin;        /* Поля для ввода широты. */
+  GtkWidget               *lon_spin;        /* Поля для ввода долготы. */
 
-  GtkWidget             *stbar_offline;   /* Статусбар оффлайн. */
-  GtkWidget             *stbar_coord;     /* Статусбар координат. */
-  GtkWidget             *layer_list;
+  GtkWidget               *stbar_offline;   /* Статусбар оффлайн. */
+  GtkWidget               *stbar_coord;     /* Статусбар координат. */
+  GtkWidget               *layer_list;
 };
 
 static void     hyscan_gtk_map_kit_set_tracks   (HyScanGtkMapKit      *kit,
@@ -1261,7 +1262,7 @@ create_planner_toolbox (HyScanGtkMapKit *kit)
 
   tab_zeditor = create_planner_zeditor (kit);
   tab_status = hyscan_gtk_planner_status_new (HYSCAN_GTK_MAP_PLANNER (priv->planner_layer));
-  tab_editor = hyscan_gtk_planner_editor_new (priv->planner_model, G_LIST_MODEL (priv->planner_selection));
+  tab_editor = hyscan_gtk_planner_editor_new (priv->planner_model, priv->planner_selection);
   tab_parallel = create_parallel_track_options (HYSCAN_GTK_MAP_PLANNER (priv->planner_layer));
   tab_origin = hyscan_gtk_planner_origin_new (priv->planner_model);
 
@@ -1869,7 +1870,7 @@ hyscan_gtk_map_kit_add_planner (HyScanGtkMapKit *kit)
 
   /* Модель данных планировщика. */
   priv->planner_model = hyscan_planner_model_new ();
-  priv->planner_selection = hyscan_list_store_new ();
+  priv->planner_selection = hyscan_planner_selection_new (priv->planner_model);
 
   /* Слой планировщика. */
   priv->planner_layer = hyscan_gtk_map_planner_new (priv->planner_model, priv->planner_selection);

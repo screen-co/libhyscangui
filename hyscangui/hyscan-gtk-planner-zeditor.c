@@ -78,24 +78,27 @@ enum
 
 struct _HyScanGtkPlannerZeditorPrivate
 {
-  HyScanPlannerModel *model;            /* Модель данных планировщика. */
-  HyScanListStore    *selection;        /* Модель выбранных объектов. */
-  HyScanGeo          *geo;              /* Объект для перевода географических координат. */
-  gboolean            geodetic;         /* Отображать географические координаты. */
-  GtkTreeStore       *store;            /* Хранилище строк GtkTreeView. */
-  GHashTable         *objects;          /* Объекты планировщика. */
-  gchar              *zone_id;          /* Идентификатор редактируемой зоны. */
+  HyScanPlannerModel        *model;            /* Модель данных планировщика. */
+  HyScanPlannerSelection    *selection;        /* Модель выбранных объектов. */
+  HyScanGeo                 *geo;              /* Объект для перевода географических координат. */
+  gboolean                   geodetic;         /* Отображать географические координаты. */
+  GtkTreeStore              *store;            /* Хранилище строк GtkTreeView. */
+  GHashTable                *objects;          /* Объекты планировщика. */
+  gchar                     *zone_id;          /* Идентификатор редактируемой зоны. */
+  gint                       vertex;           /* Номер редактируемой вершины или -1. */
 
-  GtkTreeViewColumn  *column_x;         /* Столбец координаты X. */
-  GtkTreeViewColumn  *column_y;         /* Столбец координаты Y. */
-  GtkTreeViewColumn  *column_lat;       /* Столбец координаты широты. */
-  GtkTreeViewColumn  *column_lon;       /* Столбец координаты долготы. */
+  GtkTreeViewColumn         *column_x;         /* Столбец координаты X. */
+  GtkTreeViewColumn         *column_y;         /* Столбец координаты Y. */
+  GtkTreeViewColumn         *column_lat;       /* Столбец координаты широты. */
+  GtkTreeViewColumn         *column_lon;       /* Столбец координаты долготы. */
 
-  GtkWidget          *context_menu;     /* Контекстное меню строки. */
-  GtkWidget          *menu_duplicate;   /* Пункт меню "Вставить до". */
-  GtkWidget          *menu_delete;      /* Пункт меню "Вставить после". */
+  GtkWidget                 *context_menu;     /* Контекстное меню строки. */
+  GtkWidget                 *menu_duplicate;   /* Пункт меню "Вставить до". */
+  GtkWidget                 *menu_delete;      /* Пункт меню "Вставить после". */
 
-  guint               keycode_dup;      /* Код клавиши KEY_DUPLICATE. */
+  guint                      keycode_dup;      /* Код клавиши KEY_DUPLICATE. */
+  gulong                     shandler_zone;    /* Обработчик сигнала "zone-changed". */
+  gulong                     shandler_row;     /* Обработчик сигнала "changed" GtkTreeSelection. */
 };
 
 static void                 hyscan_gtk_planner_zeditor_set_property        (GObject                 *object,
@@ -120,11 +123,9 @@ static void                 hyscan_gtk_planner_zeditor_edited              (GtkC
                                                                             gchar                   *path_string,
                                                                             gchar                   *new_text,
                                                                             gpointer                 user_data);
-static void                 hyscan_gtk_planner_zeditor_items_changed       (HyScanGtkPlannerZeditor *zeditor,
-                                                                            guint                    position,
-                                                                            guint                    removed,
-                                                                            guint                    added);
+static void                 hyscan_gtk_planner_zeditor_zone_changed        (HyScanGtkPlannerZeditor *zeditor);
 static void                 hyscan_gtk_planner_zeditor_model_changed       (HyScanGtkPlannerZeditor *zeditor);
+static void                 hyscan_gtk_planner_zeditor_row_changed         (HyScanGtkPlannerZeditor *zeditor);
 static void                 hyscan_gtk_planner_zeditor_set_zone            (HyScanGtkPlannerZeditor *zeditor);
 static gboolean             hyscan_gtk_planner_zeditor_key_press           (GtkWidget               *widget,
                                                                             GdkEventKey             *event);
@@ -165,7 +166,7 @@ hyscan_gtk_planner_zeditor_class_init (HyScanGtkPlannerZeditorClass *klass)
 
   g_object_class_install_property (object_class, PROP_SELECTION,
     g_param_spec_object ("selection", "HyScanListStore", "Selection containing selected zones",
-                         HYSCAN_TYPE_LIST_STORE,
+                         HYSCAN_TYPE_PLANNER_SELECTION,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 
   g_object_class_install_property (object_class, PROP_GEODETIC,
@@ -236,6 +237,8 @@ hyscan_gtk_planner_zeditor_object_constructed (GObject *object)
   HyScanGtkPlannerZeditor *zeditor = HYSCAN_GTK_PLANNER_ZEDITOR (object);
   GtkTreeView *tree_view = GTK_TREE_VIEW (zeditor);
   HyScanGtkPlannerZeditorPrivate *priv = zeditor->priv;
+  GtkCellRenderer *renderer;
+  GtkTreeViewColumn *num_col;
 
   G_OBJECT_CLASS (hyscan_gtk_planner_zeditor_parent_class)->constructed (object);
 
@@ -247,9 +250,6 @@ hyscan_gtk_planner_zeditor_object_constructed (GObject *object)
                                     G_TYPE_DOUBLE);     /* Y_COLUMN.         Координата по оси Y. */
 
   gtk_tree_view_set_model (tree_view, GTK_TREE_MODEL (priv->store));
-
-  GtkCellRenderer *renderer;
-  GtkTreeViewColumn *num_col;
 
   renderer = gtk_cell_renderer_text_new ();
   num_col = gtk_tree_view_column_new_with_attributes (_("N"), renderer,
@@ -271,10 +271,12 @@ hyscan_gtk_planner_zeditor_object_constructed (GObject *object)
   priv->menu_duplicate = hyscan_gtk_planner_zeditor_menu_add (zeditor, _("Duplicate"));
   priv->menu_delete = hyscan_gtk_planner_zeditor_menu_add (zeditor, _("Delete"));
 
-  g_signal_connect_swapped (priv->selection, "items-changed",
-                            G_CALLBACK (hyscan_gtk_planner_zeditor_items_changed), zeditor);
+  priv->shandler_zone = g_signal_connect_swapped (priv->selection, "zone-changed",
+                                                  G_CALLBACK (hyscan_gtk_planner_zeditor_zone_changed), zeditor);
   g_signal_connect_swapped (priv->model, "changed",
                             G_CALLBACK (hyscan_gtk_planner_zeditor_model_changed), zeditor);
+  priv->shandler_row = g_signal_connect_swapped (gtk_tree_view_get_selection (tree_view), "changed",
+                                                 G_CALLBACK (hyscan_gtk_planner_zeditor_row_changed), zeditor);
 
   /* Загружаем актуальный список объектов. */
   hyscan_gtk_planner_zeditor_model_changed (zeditor);
@@ -461,48 +463,18 @@ hyscan_gtk_planner_zeditor_menu_activate (GtkButton *button,
     hyscan_gtk_planner_zeditor_vertex_delete (zeditor, index);
 }
 
-/* Обработчик сигнала "items-changed". Устанавливает выбранную зону в виджет. */
+/* Обработчик сигнала "zone-changed". Устанавливает выбранную зону в виджет. */
 static void
-hyscan_gtk_planner_zeditor_items_changed (HyScanGtkPlannerZeditor *zeditor,
-                                          guint                    position,
-                                          guint                    removed,
-                                          guint                    added)
+hyscan_gtk_planner_zeditor_zone_changed (HyScanGtkPlannerZeditor *zeditor)
 {
   HyScanGtkPlannerZeditorPrivate *priv = zeditor->priv;
-  gint n_items, i;
-  HyScanPlannerObject *object;
 
   g_clear_pointer (&priv->zone_id, g_free);
-
-  if (priv->objects == NULL)
-    goto exit;
-
-  n_items = g_list_model_get_n_items (G_LIST_MODEL (priv->selection));
-  if (n_items == 0)
-    goto exit;
-
-  /* Перебираем в обратном порядке, чтобы получить самую последнюю выбранную зону. */
-  for (i = n_items - 1; i >= 0; --i)
-    {
-      gchar *id;
-
-      id = g_list_model_get_item (G_LIST_MODEL (priv->selection), i);
-      object = g_hash_table_lookup (priv->objects, id);
-
-      if (object->type == HYSCAN_PLANNER_ZONE)
-        {
-          priv->zone_id = id;
-          break;
-        }
-
-      g_free (id);
-    }
-
-exit:
+  priv->zone_id = hyscan_planner_selection_get_zone (priv->selection, &priv->vertex);
   hyscan_gtk_planner_zeditor_set_zone (zeditor);
 }
 
-/* Обработчик сигнала "changed". Обновляет данные объектов планировщика. */
+/* Обработчик сигнала HyScanObjectModel "changed". Обновляет данные объектов планировщика. */
 static void
 hyscan_gtk_planner_zeditor_model_changed (HyScanGtkPlannerZeditor *zeditor)
 {
@@ -516,6 +488,33 @@ hyscan_gtk_planner_zeditor_model_changed (HyScanGtkPlannerZeditor *zeditor)
   hyscan_gtk_planner_zeditor_set_zone (zeditor);
 }
 
+/* Обработчик сигнала GtkTreeSelection "changed". Обновляет номер выбранной вершины. */
+static void
+hyscan_gtk_planner_zeditor_row_changed (HyScanGtkPlannerZeditor *zeditor)
+{
+  HyScanGtkPlannerZeditorPrivate *priv = zeditor->priv;
+  GtkTreeSelection *tree_selection;
+  GtkTreeIter iter;
+
+  tree_selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (zeditor));
+
+  if (gtk_tree_selection_get_selected (tree_selection, NULL, &iter))
+    {
+      guint number;
+
+      gtk_tree_model_get (GTK_TREE_MODEL (priv->store), &iter, NUMBER_COLUMN, &number, -1);
+      priv->vertex = number - 1;
+    }
+  else
+    {
+      priv->vertex = -1;
+    }
+
+  g_signal_handler_block (priv->selection, priv->shandler_zone);
+  hyscan_planner_selection_set_zone (priv->selection, priv->zone_id, priv->vertex);
+  g_signal_handler_unblock (priv->selection, priv->shandler_zone);
+}
+
 /* Загружает информацию из текущей зоны. */
 static void
 hyscan_gtk_planner_zeditor_set_zone (HyScanGtkPlannerZeditor *zeditor)
@@ -526,14 +525,18 @@ hyscan_gtk_planner_zeditor_set_zone (HyScanGtkPlannerZeditor *zeditor)
   HyScanPlannerZone *zone;
   GtkTreeViewColumn *focus_column = NULL;
   GtkTreePath *path = NULL;
+  GtkTreeSelection *selection;
 
-  gtk_tree_view_get_cursor (GTK_TREE_VIEW (zeditor), &path, &focus_column);
+  selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (zeditor));
+
+  g_signal_handler_block (selection, priv->shandler_row);
+  gtk_tree_view_get_cursor (GTK_TREE_VIEW (zeditor), NULL, &focus_column);
 
   /* Убираем предыдущие значения. */
   gtk_tree_store_clear (priv->store);
 
   if (priv->zone_id == NULL)
-    return;
+    goto exit;
 
   zone = g_hash_table_lookup (priv->objects, priv->zone_id);
   g_return_if_fail (zone != NULL && zone->type == HYSCAN_PLANNER_ZONE);
@@ -549,7 +552,7 @@ hyscan_gtk_planner_zeditor_set_zone (HyScanGtkPlannerZeditor *zeditor)
       else
         cartesian.x = cartesian.y = 0.0;
 
-      number = i+1;
+      number = i + 1;
 
       gtk_tree_store_append (priv->store, &iter, NULL);
       gtk_tree_store_set (priv->store, &iter,
@@ -559,6 +562,9 @@ hyscan_gtk_planner_zeditor_set_zone (HyScanGtkPlannerZeditor *zeditor)
                           LONGITUDE_COLUMN, vertex->lon,
                           NUMBER_COLUMN, number,
                           -1);
+
+      if (priv->vertex == (gint) i)
+        path = gtk_tree_model_get_path (GTK_TREE_MODEL (priv->store), &iter);
     }
 
   if (path != NULL)
@@ -566,6 +572,9 @@ hyscan_gtk_planner_zeditor_set_zone (HyScanGtkPlannerZeditor *zeditor)
       gtk_tree_view_set_cursor (GTK_TREE_VIEW (zeditor), path, focus_column, FALSE);
       gtk_tree_path_free (path);
     }
+
+exit:
+  g_signal_handler_unblock (selection, priv->shandler_row);
 }
 
 /* Устанавливает свойства рендерера в зависимости от текущих данных. */
@@ -680,8 +689,8 @@ hyscan_gtk_planner_zeditor_edited (GtkCellRendererText *cell,
  * Returns: новый виджет #HyScanGtkPlannerZeditor
  */
 GtkWidget *
-hyscan_gtk_planner_zeditor_new (HyScanPlannerModel *model,
-                                HyScanListStore    *selection)
+hyscan_gtk_planner_zeditor_new (HyScanPlannerModel     *model,
+                                HyScanPlannerSelection *selection)
 {
   return g_object_new (HYSCAN_TYPE_GTK_PLANNER_ZEDITOR,
                        "planner-model", model,
