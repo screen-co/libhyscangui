@@ -930,7 +930,7 @@ hyscan_gtk_map_pin_clear (HyScanGtkMapPin *layer)
  *
  * Возвращает список точек #HyScanGtkMapPoint в слое.
  *
- * Returns: (transfer none): (element-type HyScanGtkMapPinItem): список точек
+ * Returns: (transfer none) (element-type HyScanGtkMapPinItem): список точек
  */
 GList *
 hyscan_gtk_map_pin_get_points (HyScanGtkMapPin *layer)
