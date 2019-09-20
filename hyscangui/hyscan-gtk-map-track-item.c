@@ -804,31 +804,25 @@ hyscan_gtk_map_track_points_view (GList                *points,
   HyScanGtkMapTrackPoint *point;
   GList *point_l;
 
-  gdouble max_margin = 0;
   gdouble from_x = G_MAXDOUBLE;
   gdouble to_x = G_MINDOUBLE;
   gdouble from_y = G_MAXDOUBLE;
   gdouble to_y = G_MINDOUBLE;
 
-  /* Определеяем границы координат путевых точек галса. */
+  /* Смотрим область, внутри которой размещены концы дальности. */
   for (point_l = points; point_l != end; point_l = point_l->next)
     {
       point = point_l->data;
 
-      from_x = MIN (from_x, point->c2d.x);
-      to_x = MAX (to_x, point->c2d.x);
-      from_y = MIN (from_y, point->c2d.y);
-      to_y = MAX (to_y, point->c2d.y);
-
-      max_margin = MAX (max_margin, point->r_dist);
-      max_margin = MAX (max_margin, point->l_dist);
+      from_x = MIN (from_x, point->l_c2d.x);
+      from_x = MIN (from_x, point->r_c2d.x);
+      to_x = MAX (to_x, point->l_c2d.x);
+      to_x = MAX (to_x, point->r_c2d.x);
+      from_y = MIN (from_y, point->l_c2d.y);
+      from_y = MIN (from_y, point->r_c2d.y);
+      to_y = MAX (to_y, point->l_c2d.y);
+      to_y = MAX (to_y, point->r_c2d.y);
     }
-
-  /* Добавим к границам отступы в размере длины максимальной дальности. */
-  from_x -= max_margin;
-  to_x += max_margin;
-  from_y -= max_margin;
-  to_y += max_margin;
 
   from->x = from_x;
   from->y = from_y;
@@ -854,7 +848,6 @@ hyscan_gtk_map_track_item_load_range (HyScanGtkMapTrackItem *track,
                                       guint32                last)
 {
   HyScanGtkMapTrackItemPrivate *priv = track->priv;
-  HyScanGeoCartesian2D from, to;
   GList *result;
   GList *points = NULL;
   guint32 index;
@@ -905,8 +898,14 @@ hyscan_gtk_map_track_item_load_range (HyScanGtkMapTrackItem *track,
   /* Отмечаем на тайловом слое устаревшую область. */
   if (points != NULL)
     {
-      hyscan_gtk_map_track_points_view (points->prev != NULL ? points->prev : points, tail, &from, &to);
-      hyscan_gtk_map_tiled_set_area_mod (HYSCAN_GTK_MAP_TILED (priv->tiled_layer), &from, &to);
+      GList *link;
+      HyScanGtkMapTrackPoint *point;
+
+      for (link = points->prev != NULL ? points->prev : points; link != tail; link = link->next)
+        {
+          point = link->data;
+          hyscan_gtk_map_tiled_set_area_mod (HYSCAN_GTK_MAP_TILED (priv->tiled_layer), &point->l_c2d, &point->r_c2d);
+        }
     }
 
 

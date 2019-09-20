@@ -213,8 +213,8 @@ guint                  hyscan_map_tile_inv_y                  (HyScanMapTile    
 
 HYSCAN_API
 void                   hyscan_map_tile_get_bounds             (HyScanMapTile        *tile,
-                                                               HyScanGeoCartesian2D *from,
-                                                               HyScanGeoCartesian2D *to);
+                                                               HyScanGeoCartesian2D *ur,
+                                                               HyScanGeoCartesian2D *bl);
 
 HYSCAN_API
 guint                  hyscan_map_tile_get_zoom               (HyScanMapTile        *tile);

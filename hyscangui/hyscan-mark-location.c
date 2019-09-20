@@ -44,7 +44,7 @@
 HyScanMarkLocation *
 hyscan_mark_location_new (void)
 {
-  return g_slice_new (HyScanMarkLocation);
+  return g_slice_new0 (HyScanMarkLocation);
 }
 
 /**
@@ -64,6 +64,7 @@ hyscan_mark_location_copy (const HyScanMarkLocation *mark_location)
 
   copy->mark = (HyScanMarkWaterfall *) hyscan_mark_copy ((HyScanMark *) mark_location->mark);
   copy->loaded = mark_location->loaded;
+  copy->track_name = g_strdup (mark_location->track_name);
   copy->time = mark_location->time;
   copy->center_geo = mark_location->center_geo;
   copy->mark_geo = mark_location->mark_geo;
@@ -81,6 +82,7 @@ hyscan_mark_location_copy (const HyScanMarkLocation *mark_location)
 void
 hyscan_mark_location_free (HyScanMarkLocation *mark_location)
 {
+  g_free (mark_location->track_name);
   hyscan_mark_free ((HyScanMark *) mark_location->mark);
   g_slice_free (HyScanMarkLocation, mark_location);
 }
