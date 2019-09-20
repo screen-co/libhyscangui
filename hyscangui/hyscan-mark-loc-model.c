@@ -612,6 +612,8 @@ hyscan_mark_loc_model_process (gpointer data)
                   location = hyscan_mark_loc_model_load (ml_model, mark);
                   g_hash_table_insert (new_locations, key, location);
                 }
+
+              g_hash_table_unref (wfmarks);
             }
 
           g_rw_lock_writer_lock (&priv->mark_lock);
@@ -620,7 +622,6 @@ hyscan_mark_loc_model_process (gpointer data)
           g_rw_lock_writer_unlock (&priv->mark_lock);
 
           g_hash_table_unref (prev_locations);
-          g_hash_table_unref (wfmarks);
 
           g_idle_add_full (G_PRIORITY_DEFAULT_IDLE, hyscan_mark_loc_model_emit_changed,
                            g_object_ref (ml_model), g_object_unref);
