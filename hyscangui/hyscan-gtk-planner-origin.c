@@ -185,9 +185,9 @@ hyscan_gtk_planner_origin_model_changed (HyScanGtkPlannerOrigin *gtk_origin)
 
   if (origin == NULL)
     {
-      gtk_entry_set_text (GTK_ENTRY (priv->lat), NULL);
-      gtk_entry_set_text (GTK_ENTRY (priv->lon), NULL);
-      gtk_entry_set_text (GTK_ENTRY (priv->azimuth), NULL);
+      gtk_entry_set_text (GTK_ENTRY (priv->lat), "");
+      gtk_entry_set_text (GTK_ENTRY (priv->lon), "");
+      gtk_entry_set_text (GTK_ENTRY (priv->azimuth), "");
 
       return;
     }

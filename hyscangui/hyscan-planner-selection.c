@@ -10,16 +10,18 @@ enum
 {
   SIGNAL_TRACKS_CHANGED,
   SIGNAL_ZONE_CHANGED,
+  SIGNAL_ACTIVATED,
   SIGNAL_LAST,
 };
 
 struct _HyScanPlannerSelectionPrivate
 {
-  HyScanPlannerModel          *model;
-  GArray                      *tracks;
-  GHashTable                  *objects;
-  gint                         vertex_index;
-  gchar                       *zone_id;
+  HyScanPlannerModel          *model;           /* Модель объектов планировщика. */
+  GHashTable                  *objects;         /* Объекты планировщика. */
+  GArray                      *tracks;          /* Массив выбранных галсов. */
+  gint                         vertex_index;    /* Вершина в выбранной зоне. */
+  gchar                       *zone_id;         /* Выбранная зона. */
+  gchar                       *active_track;    /* Активный галс, по которому идёт навигация. */
 };
 
 static void    hyscan_planner_selection_set_property             (GObject                *object,
@@ -71,6 +73,17 @@ hyscan_planner_selection_class_init (HyScanPlannerSelectionClass *klass)
    */
   hyscan_planner_selection_signals[SIGNAL_ZONE_CHANGED] =
     g_signal_new ("zone-changed", HYSCAN_TYPE_PLANNER_SELECTION, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+                  g_cclosure_marshal_VOID__VOID,
+                  G_TYPE_NONE, 0);
+
+  /**
+   * HyScanPlannerSelection::activated:
+   * @planner: указатель на #HyScanGtkMapPlanner
+   *
+   * Сигнал посылается при изменении активного галса.
+   */
+  hyscan_planner_selection_signals[SIGNAL_ACTIVATED] =
+    g_signal_new ("activated", HYSCAN_TYPE_PLANNER_SELECTION, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
                   g_cclosure_marshal_VOID__VOID,
                   G_TYPE_NONE, 0);
 }
@@ -212,6 +225,22 @@ hyscan_planner_selection_get_tracks (HyScanPlannerSelection *selection)
 }
 
 gchar *
+hyscan_planner_selection_get_active_track (HyScanPlannerSelection  *selection)
+{
+  g_return_val_if_fail (HYSCAN_IS_PLANNER_SELECTION (selection), NULL);
+
+  return g_strdup (selection->priv->active_track);
+}
+
+HyScanPlannerModel *
+hyscan_planner_selection_get_model (HyScanPlannerSelection  *selection)
+{
+  g_return_val_if_fail (HYSCAN_IS_PLANNER_SELECTION (selection), NULL);
+
+  return g_object_ref (selection->priv->model);
+}
+
+gchar *
 hyscan_planner_selection_get_zone (HyScanPlannerSelection *selection,
                                    gint                   *vertex_index)
 {
@@ -262,6 +291,21 @@ hyscan_planner_selection_set_zone (HyScanPlannerSelection *selection,
 }
 
 void
+hyscan_planner_selection_activate (HyScanPlannerSelection *selection,
+                                   const gchar            *track_id)
+{
+  HyScanPlannerSelectionPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_PLANNER_SELECTION (selection));
+  priv = selection->priv;
+
+  g_free (priv->active_track);
+  priv->active_track = g_strdup (track_id);
+
+  g_signal_emit (selection, hyscan_planner_selection_signals[SIGNAL_ACTIVATED], 0);
+}
+
+void
 hyscan_planner_selection_append (HyScanPlannerSelection  *selection,
                                  const gchar             *track_id)
 {
@@ -281,6 +325,8 @@ hyscan_planner_selection_append (HyScanPlannerSelection  *selection,
   new_track_id = g_strdup (track_id);
   g_array_append_val (priv->tracks, new_track_id);
   g_signal_emit (selection, hyscan_planner_selection_signals[SIGNAL_TRACKS_CHANGED], 0, priv->tracks->data);
+
+  hyscan_planner_selection_activate (selection, track_id);
 }
 
 void
@@ -311,6 +357,8 @@ hyscan_planner_selection_remove_all (HyScanPlannerSelection  *selection)
 
   g_return_if_fail (HYSCAN_IS_PLANNER_SELECTION (selection));
   priv = selection->priv;
+
+  hyscan_planner_selection_activate (selection, NULL);
 
   if (priv->tracks->len == 0)
     return;

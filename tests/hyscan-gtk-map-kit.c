@@ -25,6 +25,7 @@
 #include <hyscan-gtk-layer-list.h>
 #include <hyscan-gtk-planner-zeditor.h>
 #include <hyscan-planner-selection.h>
+#include <hyscan-gtk-map-steer.h>
 
 #define DEFAULT_PROFILE_NAME "default"    /* Имя профиля карты по умолчанию. */
 #define PRELOAD_STATE_DONE   1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
@@ -101,6 +102,7 @@ struct _HyScanGtkMapKitPrivate
   GtkWidget               *planner_stack;    /* GtkStack с виджетами настроек планировщика. */
   GtkButton               *preload_button;   /* Кнопка загрузки тайлов. */
   GtkProgressBar          *preload_progress; /* Индикатор загрузки тайлов. */
+  GtkWidget               *steer_bin;        /* Контейнер для виджета навигации по отклонениям от плана. */
 
   HyScanMapTileLoader     *loader;
   guint                    preload_tag;      /* Timeout-функция обновления виджета preload_progress. */
@@ -1796,6 +1798,20 @@ hyscan_gtk_map_kit_load_profiles (HyScanGtkMapKit *kit,
   g_strfreev (config_files);
 }
 
+void
+add_steer (HyScanGtkMapKit *kit)
+{
+  HyScanGtkMapKitPrivate *priv = kit->priv;
+  GtkWidget *steer;
+
+  /* Отклонение от курса. */
+  if (priv->nav_model == NULL || priv->planner_selection == NULL)
+    return;
+
+  steer = hyscan_gtk_map_steer_new (priv->nav_model, priv->planner_selection);
+  gtk_box_pack_start (GTK_BOX (priv->steer_bin), steer, TRUE, TRUE, 0);
+}
+
 /**
  * hyscan_gtk_map_kit_add_nav:
  * @kit:
@@ -1810,6 +1826,7 @@ hyscan_gtk_map_kit_add_nav (HyScanGtkMapKit *kit,
                             gdouble          delay_time)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
+  GtkWidget *box;
 
   g_return_if_fail (priv->nav_model == NULL);
 
@@ -1828,7 +1845,16 @@ hyscan_gtk_map_kit_add_nav (HyScanGtkMapKit *kit,
   priv->way_layer = hyscan_gtk_map_nav_new (priv->nav_model);
   add_layer_row (kit, priv->way_layer, FALSE, "nav", _("Navigation"));
 
-  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), "nav", priv->locate_button);
+  /* Контейнер для виджета навигации по галсу (сам виджет может быть, а может не быть). */
+  priv->steer_bin = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+
+  box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+  gtk_box_pack_start (GTK_BOX (box), priv->steer_bin,     FALSE, TRUE, 6);
+  gtk_box_pack_start (GTK_BOX (box), priv->locate_button, FALSE, TRUE, 6);
+
+  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), "nav", box);
+
+  add_steer (kit);
 }
 
 void
@@ -1882,6 +1908,8 @@ hyscan_gtk_map_kit_add_planner (HyScanGtkMapKit *kit)
   /* Устанавливаем проект и БД. */
   if (priv->project_name != NULL)
     hyscan_object_model_set_project (HYSCAN_OBJECT_MODEL (priv->planner_model), priv->db, priv->project_name);
+
+  add_steer (kit);
 }
 
 void
