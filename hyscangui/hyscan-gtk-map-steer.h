@@ -21,14 +21,14 @@ typedef struct _HyScanGtkMapSteerClass HyScanGtkMapSteerClass;
 
 struct _HyScanGtkMapSteer
 {
-  GtkCifroArea parent_instance;
+  GtkGrid parent_instance;
 
   HyScanGtkMapSteerPrivate *priv;
 };
 
 struct _HyScanGtkMapSteerClass
 {
-  GtkCifroAreaClass parent_class;
+  GtkGridClass parent_class;
 };
 
 HYSCAN_API
