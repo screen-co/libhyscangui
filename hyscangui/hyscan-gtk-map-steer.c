@@ -103,6 +103,7 @@ struct _HyScanGtkMapSteerPrivate
   HyScanGeoCartesian2D        end;               /* Точка окончания. */
   gdouble                     angle;             /* Целевой азимут. */
 
+  GtkWidget                  *track_info;        /* Виджет с информацией о текущем галсе. */
   GtkWidget                  *display_eta;       /* Виджет оставшегося времени. */
   GtkWidget                  *display_speed;     /* Виджет текущей скорости. */
   GtkWidget                  *display_dist;      /* Виджет отклонения по расстоянию. */
@@ -281,11 +282,8 @@ hyscan_gtk_map_steer_carea_check_scale (GtkCifroArea *carea,
                                         gdouble      *scale_x,
                                         gdouble      *scale_y)
 {
-  if (scale_x != NULL)
-    *scale_x = CLAMP (*scale_x, 0.001, 1.0);
-
-  if (scale_y != NULL)
-    *scale_y = CLAMP (*scale_y, 0.1, 1.0);
+  *scale_x = CLAMP (*scale_x, 0.02, 1.0);
+  *scale_y = *scale_x;
 }
 
 static void
@@ -346,6 +344,7 @@ hyscan_gtk_map_steer_object_constructed (GObject *object)
   HyScanGtkMapSteer *steer = HYSCAN_GTK_MAP_STEER (object);
   HyScanGtkMapSteerPrivate *priv = steer->priv;
   GtkGrid *grid = GTK_GRID (object);
+  gint i = 0;
 
   G_OBJECT_CLASS (hyscan_gtk_map_steer_parent_class)->constructed (object);
 
@@ -364,19 +363,24 @@ hyscan_gtk_map_steer_object_constructed (GObject *object)
 
   priv->carea = hyscan_gtk_map_steer_create_carea (steer);
 
+  priv->track_info = gtk_label_new (NULL);
+  gtk_widget_set_margin_bottom (priv->track_info, 6);
   priv->display_dist = hyscan_gtk_map_steer_create_num (steer);
   priv->display_eta = hyscan_gtk_map_steer_create_num (steer);
   priv->display_rot = hyscan_gtk_map_steer_create_num (steer);
   priv->display_speed = hyscan_gtk_map_steer_create_num (steer);
 
-  gtk_grid_attach (grid, priv->display_speed, 0, 0, 1, 1);
-  gtk_grid_attach (grid, priv->display_eta,   1, 0, 1, 1);
-  gtk_grid_attach (grid, priv->display_dist,  0, 1, 1, 1);
-  gtk_grid_attach (grid, priv->display_rot,   1, 1, 1, 1);
-  gtk_grid_attach (grid, priv->carea,         0, 2, 2, 1);
+  gtk_grid_attach (grid, priv->track_info,    0,   i, 2, 1);
+  gtk_grid_attach (grid, priv->display_speed, 0, ++i, 1, 1);
+  gtk_grid_attach (grid, priv->display_eta,   1,   i, 1, 1);
+  gtk_grid_attach (grid, priv->display_dist,  0, ++i, 1, 1);
+  gtk_grid_attach (grid, priv->display_rot,   1,   i, 1, 1);
+  gtk_grid_attach (grid, priv->carea,         0, ++i, 2, 1);
 
   g_signal_connect_swapped (priv->nav_model, "changed", G_CALLBACK (hyscan_gtk_map_steer_nav_changed), steer);
   g_signal_connect_swapped (priv->selection, "activated", G_CALLBACK (hyscan_gtk_map_steer_activated), steer);
+
+  hyscan_gtk_map_steer_set_track (steer, NULL);
 }
 
 static void
@@ -1100,28 +1104,18 @@ hyscan_gtk_map_steer_carea_scroll (GtkWidget      *widget,
   HyScanGtkMapSteer *steer = steer_carea->steer;
   HyScanGtkMapSteerPrivate *priv = steer->priv;
   GtkCifroArea *carea = GTK_CIFRO_AREA (priv->carea);
-  GtkCifroAreaZoomType zoom_x = GTK_CIFRO_AREA_ZOOM_NONE;
-  GtkCifroAreaZoomType zoom_y = GTK_CIFRO_AREA_ZOOM_NONE;
-  HyScanGtkMapSteerPoint *point;
+  GtkCifroAreaZoomType zoom;
   gdouble from_x, to_x, from_y, to_y;
 
-  if (event->state & GDK_SHIFT_MASK)
-    {
-      if (event->direction == GDK_SCROLL_UP)
-        zoom_x = GTK_CIFRO_AREA_ZOOM_IN;
-      else if (event->direction == GDK_SCROLL_DOWN)
-        zoom_x = GTK_CIFRO_AREA_ZOOM_OUT;
-    }
+  if (event->direction == GDK_SCROLL_UP)
+    zoom = GTK_CIFRO_AREA_ZOOM_IN;
+  else if (event->direction == GDK_SCROLL_DOWN)
+    zoom = GTK_CIFRO_AREA_ZOOM_OUT;
   else
-    {
-      if (event->direction == GDK_SCROLL_UP)
-        zoom_y = GTK_CIFRO_AREA_ZOOM_IN;
-      else if (event->direction == GDK_SCROLL_DOWN)
-        zoom_y = GTK_CIFRO_AREA_ZOOM_OUT;
-    }
+    zoom = GTK_CIFRO_AREA_ZOOM_NONE;
 
   gtk_cifro_area_get_view (carea, &from_x, &to_x, &from_y, &to_y);
-  gtk_cifro_area_zoom (carea, zoom_x, zoom_y, (from_x + to_x) / 2.0, (from_y + to_y) / 2.0);
+  gtk_cifro_area_zoom (carea, zoom, zoom, (from_x + to_x) / 2.0, (from_y + to_y) / 2.0);
 
   return FALSE;
 }
@@ -1238,7 +1232,10 @@ hyscan_gtk_map_steer_set_track (HyScanGtkMapSteer        *steer,
   gtk_cifro_area_set_view_center (carea, 0, 0);
 
   if (track == NULL)
-    return;
+    {
+      gtk_label_set_text (GTK_LABEL (priv->track_info), _("No active track"));
+      return;
+    }
 
   {
     gdouble lat1, lat2, lon1, lon2, dlon;
@@ -1271,6 +1268,20 @@ hyscan_gtk_map_steer_set_track (HyScanGtkMapSteer        *steer,
 
   hyscan_geo_geo2topoXY (priv->geo, &priv->start, priv->track->start);
   hyscan_geo_geo2topoXY (priv->geo, &priv->end, priv->track->end);
+
+  /* Выводим информацию о галсе. */
+  {
+    gchar *text;
+    gdouble length;
+    gdouble azimuth;
+
+    azimuth = priv->angle / G_PI * 180.0 + (priv->angle < 0 ? 360.0 : 0);
+    length = hyscan_cartesian_distance (&priv->start, &priv->end);
+    text = g_strdup_printf (_("SPD %.1f m/s,  AZM %.0f°,  L %.0f m"),
+                            priv->track->speed, azimuth, length);
+    gtk_label_set_text (GTK_LABEL (priv->track_info), text);
+    g_free (text);
+  }
 }
 
 GtkWidget *
