@@ -114,7 +114,6 @@ struct _HyScanGtkMapSteerPrivate
   GdkRGBA                     color_good;        /* Цвет "отклонение в норме". */
   GdkRGBA                     color_bad;         /* Цвет "отклонение превышено". */
   GdkRGBA                     color_bg_good;     /* Цвет фона "в пределах нормы". */
-  GdkRGBA                     color_bg_bad;      /* Цвет фона "за пределами нормы". */
   gdouble                     arrow_size;        /* Размер стрелки судна. */
 };
 
@@ -176,7 +175,8 @@ static gboolean       hyscan_gtk_map_steer_is_err_line                    (HySca
                                                                            gdouble                   x,
                                                                            gdouble                   y);
 
-static GtkWidget *    hyscan_gtk_map_steer_create_num                     (HyScanGtkMapSteer        *steer);
+static GtkWidget *    hyscan_gtk_map_steer_create_num                     (HyScanGtkMapSteer        *steer,
+                                                                           const gchar              *tooltip_text);
 static GtkWidget *    hyscan_gtk_map_steer_create_carea                   (HyScanGtkMapSteer        *steer);
 
 static void           hyscan_gtk_map_steer_nav_changed                    (HyScanGtkMapSteer        *steer);
@@ -357,18 +357,17 @@ hyscan_gtk_map_steer_object_constructed (GObject *object)
 
   gdk_rgba_parse (&priv->color_neutral, "#888888");
   gdk_rgba_parse (&priv->color_good,    "#008800");
-  gdk_rgba_parse (&priv->color_bg_good, "#8FCC8F");
+  gdk_rgba_parse (&priv->color_bg_good, "#FFFFFF");
   gdk_rgba_parse (&priv->color_bad,     "#880000");
-  gdk_rgba_parse (&priv->color_bg_bad,  "#CC8F8F");
 
   priv->carea = hyscan_gtk_map_steer_create_carea (steer);
 
   priv->track_info = gtk_label_new (NULL);
   gtk_widget_set_margin_bottom (priv->track_info, 6);
-  priv->display_dist = hyscan_gtk_map_steer_create_num (steer);
-  priv->display_eta = hyscan_gtk_map_steer_create_num (steer);
-  priv->display_rot = hyscan_gtk_map_steer_create_num (steer);
-  priv->display_speed = hyscan_gtk_map_steer_create_num (steer);
+  priv->display_dist = hyscan_gtk_map_steer_create_num (steer, _("Distance to track center"));
+  priv->display_eta = hyscan_gtk_map_steer_create_num (steer, _("Estimated time of arrival"));
+  priv->display_rot = hyscan_gtk_map_steer_create_num (steer, _("Heading correction"));
+  priv->display_speed = hyscan_gtk_map_steer_create_num (steer, _("Current speed"));
 
   gtk_grid_attach (grid, priv->track_info,    0,   i, 2, 1);
   gtk_grid_attach (grid, priv->display_speed, 0, ++i, 1, 1);
@@ -408,14 +407,16 @@ hyscan_gtk_map_steer_create_carea (HyScanGtkMapSteer *steer)
 }
 
 static GtkWidget *
-hyscan_gtk_map_steer_create_num (HyScanGtkMapSteer *steer)
+hyscan_gtk_map_steer_create_num (HyScanGtkMapSteer *steer,
+                                 const gchar       *tooltip_text)
 {
-  HyScanGtkMapSteerNum *display;
+  GtkWidget *steer_num;
 
-  display = g_object_new (HYSCAN_TYPE_GTK_MAP_STEER_NUM, NULL);
-  display->steer = steer;
+  steer_num = g_object_new (HYSCAN_TYPE_GTK_MAP_STEER_NUM, NULL);
+  HYSCAN_GTK_MAP_STEER_NUM (steer_num)->steer = steer;
+  gtk_widget_set_tooltip_text (steer_num, tooltip_text);
 
-  return GTK_WIDGET (display);
+  return steer_num;
 }
 
 static void
@@ -752,22 +753,12 @@ hyscan_gtk_map_steer_carea_draw_err_line (HyScanGtkMapSteer *steer,
   gtk_cifro_area_visible_value_to_point (carea, &x2, &y2, priv->threshold_x, from_y);
   gtk_cifro_area_visible_value_to_point (carea, &x3, &y3, priv->threshold_x, to_y);
 
-  gdk_cairo_set_source_rgba (cairo, &priv->color_bg_bad);
+  gdk_cairo_set_source_rgba (cairo, &priv->color_neutral);
   cairo_paint (cairo);
 
   gdk_cairo_set_source_rgba (cairo, &priv->color_bg_good);
   cairo_rectangle (cairo, x0, y0, priv->threshold_x / scale_x * 2.0, - (to_y - from_y) / scale_y);
   cairo_fill (cairo);
-
-  cairo_move_to (cairo, x0, y0);
-  cairo_line_to (cairo, x1, y1);
-
-  cairo_move_to (cairo, x2, y2);
-  cairo_line_to (cairo, x3, y3);
-
-  cairo_set_dash (cairo, (gdouble[]) { 5.0 }, 1, 0.0);
-  cairo_set_line_width (cairo, 1.0);
-  cairo_stroke (cairo);
 
   cairo_restore (cairo);
 }
@@ -813,6 +804,8 @@ hyscan_gtk_map_steer_carea_draw_axis (GtkCifroArea *carea,
   gdouble x, y;
   gdouble from_x, to_x, from_y, to_y;
   gdouble scale_x, scale_y;
+  GdkRGBA color;
+  GtkStyleContext *context;
 
   gtk_cifro_area_get_scale (carea, &scale_x, &scale_y);
 
@@ -828,7 +821,12 @@ hyscan_gtk_map_steer_carea_draw_axis (GtkCifroArea *carea,
   cairo_set_line_width (cairo, 0.5);
   cairo_stroke (cairo);
 
-  cairo_set_source_rgba (cairo, 0.0, 0.0, 0.0, 1.0);
+  context = gtk_widget_get_style_context (GTK_WIDGET (carea));
+  gtk_style_context_get_color (context,
+                               gtk_style_context_get_state (context),
+                               &color);
+
+  gdk_cairo_set_source_rgba (cairo, &color);
   /* Координата X. */
   {
     gdouble step, axis_val, mini_step, start_val;
@@ -1030,7 +1028,6 @@ hyscan_gtk_map_steer_carea_draw (GtkCifroArea *carea,
   HyScanGtkMapSteer *steer = steer_carea->steer;
   HyScanGtkMapSteerPrivate *priv = steer->priv;
   guint width, height;
-  GdkRGBA color;
   GtkStyleContext *context;
 
   context = gtk_widget_get_style_context (GTK_WIDGET (carea));
@@ -1038,12 +1035,6 @@ hyscan_gtk_map_steer_carea_draw (GtkCifroArea *carea,
   gtk_cifro_area_get_visible_size (carea, &width, &height);
 
   gtk_render_background (context, cairo, 0, 0, width, height);
-
-  gtk_style_context_get_color (context,
-                               gtk_style_context_get_state (context),
-                               &color);
-
-  gdk_cairo_set_source_rgba (cairo, &color);
 
   cairo_save (cairo);
 
@@ -1277,7 +1268,7 @@ hyscan_gtk_map_steer_set_track (HyScanGtkMapSteer        *steer,
 
     azimuth = priv->angle / G_PI * 180.0 + (priv->angle < 0 ? 360.0 : 0);
     length = hyscan_cartesian_distance (&priv->start, &priv->end);
-    text = g_strdup_printf (_("SPD %.1f m/s,  AZM %.0f°,  L %.0f m"),
+    text = g_strdup_printf (_("Plan: SPD %.1f m/s,  AZM %.0f°,  L %.0f m"),
                             priv->track->speed, azimuth, length);
     gtk_label_set_text (GTK_LABEL (priv->track_info), text);
     g_free (text);
