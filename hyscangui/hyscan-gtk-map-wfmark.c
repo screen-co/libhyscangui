@@ -1,6 +1,7 @@
 /* hyscan-gtk-map-wfmark.c
  *
  * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
+ * Copyright 2019 Screen LLC, Andrey Zakharov <zaharov@screen-co.ru>
  *
  * This file is part of HyScanGui library.
  *
@@ -38,7 +39,7 @@
  * @Title: HyScanGtkMapWfmark
  * @See_also: #HyScanGtkLayer, #HyScanGtkMapTiled, #HyScanGtkMap, #GtkCifroArea
  *
- * Слой #HyScanGtkMapWfmark изображает на карте контуры меток водопада
+ * Слой #HyScanGtkMapWfmark изображает на карте метки "водопада" с аккустическими изображениями
  * указанного проекта.
  *
  * - hyscan_gtk_map_wfmark_new() - создание нового слоя;
@@ -68,7 +69,14 @@
 #define LINE_WIDTH              1.0                           /* Толщина линии обводки. */
 
 /* Раскомментируйте строку ниже для отладки положения меток относительно галса. */
-// #define DEBUG_TRACK_POINTS
+/* #define DEBUG_TRACK_POINTS */
+/* Раскомментируйте строку ниже для отладки отображения аккустических изображений меток. */
+/* #define DEBUG_GRAPHIC_MARK */
+#ifdef DEBUG_GRAPHIC_MARK
+  #define VISIBLE_AREA_PADDING 100
+#else
+  #define VISIBLE_AREA_PADDING 0
+#endif
 
 enum
 {
@@ -394,8 +402,16 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
   GHashTableIter iter;
   HyScanGtkMapWfmarkLocation *location;
   gchar *mark_id;
-  gdouble scale;
+  gfloat ppi;
+  gdouble scale, scale_px;
   guint counter = 0, area_width, area_height;
+  /*
+   * Границы области отображения (в пикселях).
+   * area_rect_from - ближняя к началу координат точка;
+   * area_rect_to - дальняя от начала координат точка.
+   * */
+  HyScanGeoCartesian2D area_rect_from = {VISIBLE_AREA_PADDING, VISIBLE_AREA_PADDING},
+      area_rect_to;
 
   if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (wfm_layer)))
     return;
@@ -405,33 +421,291 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
   gtk_cifro_area_get_visible_size (GTK_CIFRO_AREA (priv->map), &area_width, &area_height);
 
+  area_rect_to.x = area_width - VISIBLE_AREA_PADDING;
+  area_rect_to.y = area_height - VISIBLE_AREA_PADDING;
+
+  scale_px = hyscan_gtk_map_get_scale_px (priv->map);
+
+  ppi = 1e-3 * HYSCAN_GTK_MAP_MM_PER_INCH * scale_px;
+
   g_rw_lock_reader_lock (&priv->mark_lock);
 
   g_hash_table_iter_init (&iter, priv->marks);
   while (g_hash_table_iter_next (&iter, (gpointer *) &mark_id, (gpointer *) &location))
     {
+      if (!location->mloc->loaded)
+              continue;
+
       HyScanTile *tile = NULL;
       HyScanTileCacheable tile_cacheable;
       cairo_surface_t *surface = NULL;
-      gdouble x = 0.0, y = 0.0, radius = 0.0,
-      width = 0.0, height = 0.0;
+      gdouble current_sin, current_cos,
+              x, y,
+              width, height,
+              new_width, new_height,
+              tmp;
       gboolean selected;
       GdkRGBA *color = NULL;
       gfloat *image = NULL;
       guint32 size = 0;
 
-      if (!location->mloc->loaded)
-        continue;
+      HyScanGeoCartesian2D position,               /* Положение метки (координаты в пикселях). */
+                           m0, m1, m2, m3,         /* Вершины метки (координаты в пикселях). */
+                           new0, new1, new2, new3; /* Ограничивающий прямоугольник (координаты в пикселях). */
+
+      current_sin = sin (location->angle);
+      current_cos = cos (location->angle);
 
       width = location->width / scale;
       height = location->height / scale;
 
       gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y,
                                              location->center_c2d.x, location->center_c2d.y);
-      radius = sqrt(x * x + y * y);
+      position.x = x;
+      position.y = y;
 
-      if (x < -radius || y < -radius || x > area_width + radius || y > area_height + radius)
+      /* Левая нижняя вершина метки (координаты в пикселях). */
+      m0.x = -width;
+      m0.y = -height;
+      /* Левая верхняя вершина метки (координаты в пикселях). */
+      m1.x = -width;
+      m1.y = height;
+      /* Правая верхняя вершина метки (координаты в пикселях). */
+      m2.x = width;
+      m2.y = height;
+      /* Правая нижняя вершина метки (координаты в пикселях). */
+      m3.x = width;
+      m3.y = -height;
+
+      /* Поворот. */
+      tmp = m0.x;
+      m0.x = current_cos * tmp - current_sin * m0.y;
+      m0.y = current_sin * tmp + current_cos * m0.y;
+
+      tmp = m1.x;
+      m1.x = current_cos * tmp - current_sin * m1.y;
+      m1.y = current_sin * tmp + current_cos * m1.y;
+
+      tmp = m2.x;
+      m2.x = current_cos * tmp - current_sin * m2.y;
+      m2.y = current_sin * tmp + current_cos * m2.y;
+
+      tmp = m3.x;
+      m3.x = current_cos * tmp - current_sin * m3.y;
+      m3.y = current_sin * tmp + current_cos * m3.y;
+
+      /* Перенос. */
+      m0.x += position.x;
+      m0.y += position.y;
+
+      m1.x += position.x;
+      m1.y += position.y;
+
+      m2.x += position.x;
+      m2.y += position.y;
+
+      m3.x += position.x;
+      m3.y += position.y;
+
+      /* Ограничивающий прямоугольник. */
+      new_width  = width * fabs (current_cos) + height * fabs (current_sin);
+      new_height = width * fabs (current_sin) + height * fabs (current_cos);
+
+      new0.x = -new_width;
+      new0.y = -new_height;
+
+      new1.x = -new_width;
+      new1.y = new_height;
+
+      new2.x = new_width;
+      new2.y = new_height;
+
+      new3.x = new_width;
+      new3.y = -new_height;
+
+      /* Перенос. */
+      new0.x += position.x;
+      new0.y += position.y;
+
+      new1.x += position.x;
+      new1.y += position.y;
+
+      new2.x += position.x;
+      new2.y += position.y;
+
+      new3.x += position.x;
+      new3.y += position.y;
+
+      /* Попадает ли метка в область отображения. */
+      if (new0.x > area_rect_to.x ||
+          new0.y > area_rect_to.y ||
+          new1.x > area_rect_to.x ||
+          new1.y < area_rect_from.y ||
+          new2.x < area_rect_from.x ||
+          new2.y < area_rect_from.y ||
+          new3.x < area_rect_from.x ||
+          new3.y > area_rect_to.y)
         continue;
+
+      gdouble new_width_b, new_height_b,
+              /* Смещения вдоль осей. */
+              left_offset = 0.0,
+              right_offset = 0.0,
+              top_offset = 0.0,
+              bottom_offset = 0.0,
+              current_tile_width, current_tile_height;
+
+      HyScanGeoCartesian2D p0, p1, p2, p3,               /* Область тайла попадающая в область отображения. */
+                           focus, offset,
+                           tile_rect_from, tile_rect_to, /* Тайл. */
+                           res_rect_from, res_rect_to;   /* Минимальная область отсечения для тайла. */
+
+      /* Расчитываем минимальную область отсечения для тайла. */
+      new_width_b = fabs (2.0 * height * current_sin);
+      new_height_b = fabs (2.0 * width * current_sin);
+
+      tile_rect_from.x = new_width_b - new_width;
+      tile_rect_from.y = new_height_b - new_height;
+
+      tile_rect_to.x = new_width - new_width_b;
+      tile_rect_to.y = new_height - new_height_b;
+
+      /* Перенос. */
+      tile_rect_from.x += position.x;
+      tile_rect_from.y += position.y;
+
+      tile_rect_to.x += position.x;
+      tile_rect_to.y += position.y;
+
+      if (tile_rect_to.x < area_rect_from.x)
+        {
+          /* Смещение левой стороны. */
+          left_offset = area_rect_from.x - tile_rect_to.x;
+          tile_rect_to.x = area_rect_from.x;
+        }
+      if (tile_rect_from.x > area_rect_to.x)
+        {
+          /* Смещение правой стороны. */
+          right_offset = tile_rect_from.x - area_rect_to.x;
+          tile_rect_from.x = area_rect_to.x;
+        }
+      if (tile_rect_to.y < area_rect_from.y)
+        {
+          /* Смещение верхней стороны. */
+          top_offset = area_rect_from.y - tile_rect_to.y;
+          tile_rect_to.y = area_rect_from.y;
+        }
+      if (tile_rect_from.y > area_rect_to.y)
+        {
+          /* Cмещение нижней стороны. */
+          bottom_offset = tile_rect_from.y - area_rect_to.y;
+          tile_rect_from.y = area_rect_to.y;
+        }
+
+      /* Минимальная область отсечения для тайла. */
+      res_rect_from.x = fmax (area_rect_from.x, tile_rect_from.x);
+      res_rect_from.y = fmax (area_rect_from.y, tile_rect_from.y);
+      res_rect_to.x = fmin (area_rect_to.x, tile_rect_to.x);
+      res_rect_to.y = fmin (area_rect_to.y, tile_rect_to.y);
+
+      /* Корректируем размер с учётом угла поворома метки и смещений. */
+      if (location->angle > M_PI)
+        {
+          p0.x = bottom_offset - width;
+          p0.y = left_offset - height;
+
+          p1.x = bottom_offset - width;
+          p1.y = height - right_offset;
+
+          p2.x = width - top_offset;
+          p2.y = height - right_offset;
+
+          p3.x = width - top_offset;
+          p3.y = left_offset - height;
+        }
+      else
+        {
+          p0.x = top_offset - width;
+          p0.y = right_offset - height;
+
+          p1.x = top_offset - width;
+          p1.y = height - left_offset;
+
+          p2.x = width - bottom_offset;
+          p2.y = height - left_offset;
+
+          p3.x = width - bottom_offset;
+          p3.y = right_offset - height;
+	}
+
+      /* Новые размеры метки (в пикселях). */
+      width = (p3.x - p0.x) / 2.0;
+      height = (p1.y - p0.y) / 2.0;
+
+      /* Ограничивающий прямоугольник. */
+      new_width = ( (area_rect_to.x - area_rect_from.x) / 2.0) * fabs (current_cos) +
+                  ( (area_rect_to.y - area_rect_from.y) / 2.0) * fabs (current_sin);
+      new_height = ( (area_rect_to.x - area_rect_from.x) / 2.0) * fabs (current_sin) +
+                   ( (area_rect_to.y - area_rect_from.y) / 2.0) * fabs (current_cos);
+
+      if (width > new_width)
+        width = new_width;
+
+      if (height > new_height)
+        height = new_height;
+
+      /* Размеры метки в метрах. */
+      current_tile_width = width / scale_px;
+      current_tile_height = height / scale_px;
+
+      /* Поворот. */
+      tmp = p0.x;
+      p0.x = current_cos * tmp - current_sin * p0.y;
+      p0.y = current_sin * tmp + current_cos * p0.y;
+
+      tmp = p1.x;
+      p1.x = current_cos * tmp - current_sin * p1.y;
+      p1.y = current_sin * tmp + current_cos * p1.y;
+
+      tmp = p2.x;
+      p2.x = current_cos * tmp - current_sin * p2.y;
+      p2.y = current_sin * tmp + current_cos * p2.y;
+
+      tmp = p3.x;
+      p3.x = current_cos * tmp - current_sin * p3.y;
+      p3.y = current_sin * tmp + current_cos * p3.y;
+
+      /* Перенос. */
+      p0.x += position.x;
+      p0.y += position.y;
+
+      p1.x += position.x;
+      p1.y += position.y;
+
+      p2.x += position.x;
+      p2.y += position.y;
+
+      p3.x += position.x;
+      p3.y += position.y;
+
+      /* Выбираем фокусную точку. */
+      if (2.0 * width > res_rect_to.x - res_rect_from.x)
+        focus.x = (res_rect_from.x + res_rect_to.x) / 2.0;
+      else if (2.0 * width > area_rect_to.x - area_rect_from.x)
+        focus.x = (area_rect_from.x + area_rect_to.x) / 2.0;
+      else
+        focus.x = (p0.x + p2.x) / 2.0;
+
+      if (2.0 * height > res_rect_to.y - res_rect_from.y)
+        focus.y = (res_rect_from.y + res_rect_to.y) / 2.0;
+      else if (2.0 * height > area_rect_to.y - area_rect_from.y)
+        focus.y = (area_rect_from.y + area_rect_to.y) / 2.0;
+      else
+        focus.y = (p0.y + p2.y) / 2.0;
+
+      /* Смещение фокуса относительно центра тайла. */
+      offset.x = (position.x - focus.x) / scale_px;
+      offset.y = (position.y - focus.y) / scale_px;
 
       tile = hyscan_tile_new (location->mloc->track_name);
 
@@ -443,7 +717,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
           HyScanProjector *projector;
           HyScanDepthometer *dm = NULL;
           gdouble along, across, depth;
-          gboolean bRegenerate = FALSE;
+          gboolean regenerate = FALSE;
 
           dm = hyscan_factory_depth_produce (priv->factory_dpt, location->mloc->track_name);
           if (dm != NULL)
@@ -465,29 +739,34 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
                                            location->mloc->mark->index,
                                            &along);
           hyscan_projector_count_to_coord (projector,
-                                          location->mloc->mark->count,
-                                          &across,
-                                          depth);
+                                           location->mloc->mark->count,
+                                           &across,
+                                           depth);
           g_clear_object (&dc);
           g_clear_object (&projector);
+
+          /* Координаты метки переносим в фокус. */
+          across += offset.y;
+          along += offset.x;
 
           /* Для левого борта тайл надо отразить по оси X. */
           if (location->mloc->offset > 0)
             {
                /* Поэтому значения отрицательные, и start и end меняются местами. */
-              tile->info.across_start = -round ( (across + location->mloc->mark->width) * 1000.0);
-              tile->info.across_end = -round ( (across - location->mloc->mark->width) * 1000.0);
+               tile->info.across_start = -round ( (across + current_tile_width) * 1000.0);
+               tile->info.across_end = -round ( (across - current_tile_width) * 1000.0);
             }
           else
             {
-              tile->info.across_start = round ( (across - location->mloc->mark->width) * 1000.0);
-              tile->info.across_end = round ( (across + location->mloc->mark->width) * 1000.0);
+               tile->info.across_start = round ( (across - current_tile_width) * 1000.0);
+               tile->info.across_end = round ( (across + current_tile_width) * 1000.0);
             }
 
-          tile->info.along_start = round ( (along - location->mloc->mark->height) * 1000.0);
-          tile->info.along_end = round ( (along + location->mloc->mark->height) * 1000.0);
+          tile->info.along_start = round ( (along - current_tile_height) * 1000.0);
+          tile->info.along_end = round ( (along + current_tile_height) * 1000.0);
+
           tile->info.scale = 1.0f;
-          tile->info.ppi = 1e-3 * HYSCAN_GTK_MAP_MM_PER_INCH * hyscan_gtk_map_get_scale_px (priv->map);
+          tile->info.ppi = ppi;
           tile->info.upsample = 2;
           tile->info.rotate = FALSE;
           tile->info.flags = HYSCAN_TILE_GROUND;
@@ -496,11 +775,12 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
           tile_cacheable.h = 0;   /* Будет заполнено генератором. */
           tile_cacheable.finalized = FALSE;   /* Будет заполнено генератором. */
 
-          if (hyscan_tile_queue_check (priv->tile_queue, tile, &tile_cacheable, &bRegenerate))
+          if (hyscan_tile_queue_check (priv->tile_queue, tile, &tile_cacheable, &regenerate))
             {
               if (hyscan_tile_queue_get (priv->tile_queue, tile, &tile_cacheable, &image, &size))
                 {
                   /* Тайл найден в кэше. */
+
                   HyScanTileColor *tile_color;
                   HyScanTileSurface tile_surface;
 
@@ -538,7 +818,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
               counter++;
             }
         }
-      g_object_unref(tile);
+      g_object_unref (tile);
 
 #ifdef DEBUG_TRACK_POINTS
       {
@@ -585,7 +865,8 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
         color = &priv->color_default;
 
       cairo_save (cairo);
-      cairo_translate (cairo, x, y);
+      /* Перенос в фокус. */
+      cairo_translate (cairo, focus.x, focus.y);
 
       if (surface != NULL)
         {
@@ -598,6 +879,103 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
           cairo_paint (cairo);
           cairo_surface_destroy (surface);
           cairo_restore (cairo);
+
+#ifdef DEBUG_GRAPHIC_MARK
+          {
+            cairo_save (cairo);
+
+            cairo_translate (cairo, -focus.x, -focus.y);
+
+            cairo_set_line_width (cairo, 3);
+            /* Граница метки (зелёная). */
+            cairo_set_source_rgb (cairo, 0.0, 1.0, 0.0);
+
+            cairo_move_to (cairo, m0.x, m0.y);
+            cairo_line_to (cairo, m1.x, m1.y);
+            cairo_line_to (cairo, m2.x, m2.y);
+            cairo_line_to (cairo, m3.x, m3.y);
+            cairo_close_path (cairo);
+
+            cairo_stroke (cairo);
+            /* Ограничивающий прямоугольник (синий). */
+            cairo_set_source_rgb (cairo, 0.0, 0.0, 1.0);
+
+            cairo_move_to (cairo, new0.x, new0.y);
+            cairo_line_to (cairo, new1.x, new1.y);
+            cairo_line_to (cairo, new2.x, new2.y);
+            cairo_line_to (cairo, new3.x, new3.y);
+            cairo_close_path (cairo);
+
+            cairo_stroke (cairo);
+            /* Область отсечения внутри тайла (жёлтая). */
+            cairo_set_source_rgb (cairo, 1.0, 1.0, 0.0);
+
+            cairo_move_to (cairo, p0.x, p0.y);
+            cairo_line_to (cairo, p1.x, p1.y);
+            cairo_line_to (cairo, p2.x, p2.y);
+            cairo_line_to (cairo, p3.x, p3.y);
+            cairo_close_path (cairo);
+
+            cairo_stroke (cairo);
+
+            cairo_set_line_width (cairo, 1);
+
+            /* Выводим прямоугольник минимальной области отсечения для тайла. */
+            cairo_set_source_rgba (cairo, 0.0, 1.0, 0.0, 0.38);
+
+            cairo_rectangle (cairo,
+                             res_rect_from.x,
+                             res_rect_from.y,
+                             res_rect_to.x - res_rect_from.x,
+                             res_rect_to.y - res_rect_from.y);
+            cairo_fill (cairo);
+
+            /* Положение метки (синяя точка). */
+            cairo_set_source_rgb (cairo, 0.0, 0.0, 1.0);
+            cairo_arc (cairo, x, y, 5.0, 0.0, 2.0 * M_PI);
+            cairo_fill (cairo);
+
+            /* Фокус (жёлтая точка). */
+            cairo_set_source_rgb (cairo, 1.0, 1.0, 0.0);
+            cairo_arc (cairo, focus.x, focus.y, 5.0, 0.0, 2.0 * M_PI);
+            cairo_fill (cairo);
+
+            /* Центр минимальной области отображения. */
+            cairo_set_source_rgb (cairo, 0.0, 1.0, 0.0);
+            cairo_arc (cairo,
+                      (tile_rect_to.x + tile_rect_from.x) / 2.0,
+                      (tile_rect_to.y + tile_rect_from.y) / 2.0,
+                       5.0, 0.0, 2.0 * M_PI);
+            cairo_fill (cairo);
+
+            /* Обозначаем вершины метки. */
+            pango_layout_set_text (priv->pango_layout, "M0", -1);
+
+            cairo_set_source_rgb (cairo, 1.0, 0.38, 1.0);
+
+            cairo_move_to (cairo, m0.x, m0.y);
+            pango_cairo_show_layout (cairo, priv->pango_layout);
+
+            pango_layout_set_text (priv->pango_layout, "M1", -1);
+
+            cairo_move_to (cairo, m1.x, m1.y);
+            pango_cairo_show_layout (cairo, priv->pango_layout);
+
+            pango_layout_set_text (priv->pango_layout, "M2", -1);
+
+            cairo_move_to (cairo, m2.x, m2.y);
+            pango_cairo_show_layout (cairo, priv->pango_layout);
+            pango_layout_set_text (priv->pango_layout, "M3", -1);
+
+            cairo_move_to (cairo, m3.x, m3.y);
+
+            pango_cairo_show_layout (cairo, priv->pango_layout);
+
+            cairo_translate (cairo, focus.x, focus.y);
+            cairo_restore (cairo);
+          }
+#endif
+
         }
       else
         {
@@ -631,6 +1009,28 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
       cairo_restore (cairo);
     }
+
+#ifdef DEBUG_GRAPHIC_MARK
+    {
+      /* Границы области отображения. */
+      cairo_set_line_width (cairo, 2);
+      cairo_set_source_rgb (cairo, 1.0, 0.0, 0.0);
+      cairo_rectangle (cairo,
+                       area_rect_from.x,
+                       area_rect_from.y,
+                       area_rect_to.x - area_rect_from.x,
+                       area_rect_to.y - area_rect_from.y);
+      cairo_stroke (cairo);
+
+      /* Центр метки. */
+      cairo_set_source_rgb (cairo, 1.0, 0.0, 0.0);
+      cairo_arc (cairo,
+                (area_rect_to.x + area_rect_from.x) / 2.0,
+                (area_rect_to.y + area_rect_from.y) / 2.0,
+                 5.0, 0.0, 2.0 * M_PI);
+      cairo_fill (cairo);
+    }
+#endif
 
   if (counter)
     {
@@ -853,15 +1253,15 @@ hyscan_gtk_map_wfmark_interface_init (HyScanGtkLayerInterface *iface)
  * @param hash - хэш состояния.
  * */
 static void
-hyscan_gtk_map_wfmark_tile_loaded(HyScanGtkMapWfmark *wfm_layer,
-                                  HyScanTile         *tile,
-                                  gfloat             *img,
-                                  gint                size,
-                                  gulong              hash)
+hyscan_gtk_map_wfmark_tile_loaded (HyScanGtkMapWfmark *wfm_layer,
+                                   HyScanTile         *tile,
+                                   gfloat             *img,
+                                   gint                size,
+                                   gulong              hash)
 {
   HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
-  /* Обновляем изображение. */
-  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+  /* Обновляем изображение из главного цикла. */
+  g_idle_add ((GSourceFunc)gtk_widget_queue_draw, GTK_WIDGET (priv->map));
 }
 
 /**
