@@ -325,8 +325,6 @@ hyscan_planner_selection_append (HyScanPlannerSelection  *selection,
   new_track_id = g_strdup (track_id);
   g_array_append_val (priv->tracks, new_track_id);
   g_signal_emit (selection, hyscan_planner_selection_signals[SIGNAL_TRACKS_CHANGED], 0, priv->tracks->data);
-
-  hyscan_planner_selection_activate (selection, track_id);
 }
 
 void
@@ -357,8 +355,6 @@ hyscan_planner_selection_remove_all (HyScanPlannerSelection  *selection)
 
   g_return_if_fail (HYSCAN_IS_PLANNER_SELECTION (selection));
   priv = selection->priv;
-
-  hyscan_planner_selection_activate (selection, NULL);
 
   if (priv->tracks->len == 0)
     return;

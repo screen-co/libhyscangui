@@ -80,6 +80,13 @@ void                   hyscan_gtk_layer_list_set_tools        (HyScanGtkLayerLis
                                                                const gchar             *name,
                                                                GtkWidget               *tools);
 
+HYSCAN_API
+gchar **               hyscan_gtk_layer_list_get_visible_ids  (HyScanGtkLayerList      *list);
+
+HYSCAN_API
+void                   hyscan_gtk_layer_list_set_visible_ids  (HyScanGtkLayerList      *list,
+                                                               gchar                  **ids);
+
 G_END_DECLS
 
 #endif /* __HYSCAN_GTK_LAYER_LIST_H__ */

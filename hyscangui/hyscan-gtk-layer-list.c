@@ -278,6 +278,24 @@ hyscan_gtk_layer_list_changed (GtkTreeSelection   *selection,
   g_clear_object (&layer);
 }
 
+#if !GLIB_CHECK_VERSION (2, 44, 0)
+static gboolean
+g_strv_contains (const gchar * const *strv,
+                 const gchar         *str)
+{
+  g_return_val_if_fail (strv != NULL, FALSE);
+  g_return_val_if_fail (str != NULL, FALSE);
+
+  for (; *strv != NULL; strv++)
+    {
+      if (g_str_equal (str, *strv))
+        return TRUE;
+    }
+
+  return FALSE;
+}
+#endif
+
 /**
  * hyscan_gtk_layer_list_new:
  * @container: указатель на контейнер слоёв #HyScanGtkLayerContainer
@@ -341,4 +359,89 @@ hyscan_gtk_layer_list_set_tools (HyScanGtkLayerList *layer_list,
   HyScanGtkLayerListPrivate *priv = layer_list->priv;
 
   gtk_stack_add_named (GTK_STACK (priv->tools_stack), tools, name);
+}
+
+/**
+ * hyscan_gtk_layer_list_get_visible_ids:
+ * @list:
+ *
+ * Returns: (transfer full): нуль-терминированный массив идентификаторов видимых слоёв.
+ */
+gchar **
+hyscan_gtk_layer_list_get_visible_ids (HyScanGtkLayerList *list)
+{
+  HyScanGtkLayerListPrivate *priv;
+  GtkTreeIter iter;
+  gboolean valid;
+  GArray *array;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_LAYER_LIST (list), NULL);
+  priv = list->priv;
+
+  array = g_array_new (TRUE, FALSE, sizeof (gchar *));
+
+  valid = gtk_tree_model_get_iter_first (GTK_TREE_MODEL (priv->layer_store), &iter);
+  while (valid)
+   {
+     HyScanGtkLayer *layer;
+     gchar *layer_key;
+
+     gtk_tree_model_get (GTK_TREE_MODEL (priv->layer_store), &iter,
+                         LAYER_KEY_COLUMN, &layer_key,
+                         LAYER_COLUMN, &layer,
+                         -1);
+
+     if (hyscan_gtk_layer_get_visible (layer))
+       g_array_append_val (array, layer_key);
+     else
+       g_free (layer_key);
+
+     g_object_unref (layer);
+
+     valid = gtk_tree_model_iter_next (GTK_TREE_MODEL (priv->layer_store), &iter);
+   }
+
+  return (gchar **) g_array_free (array, FALSE);
+}
+
+/**
+ * hyscan_gtk_layer_list_set_visible_ids:
+ * @list
+ * @ids
+ *
+ * Делает слои с ключами @ids видимыми, а остальные - невидимыми.
+ *
+ */
+void
+hyscan_gtk_layer_list_set_visible_ids (HyScanGtkLayerList  *list,
+                                       gchar              **ids)
+{
+  HyScanGtkLayerListPrivate *priv;
+  GtkTreeIter iter;
+  gboolean valid;
+
+  g_return_if_fail (HYSCAN_IS_GTK_LAYER_LIST (list));
+  priv = list->priv;
+
+  valid = gtk_tree_model_get_iter_first (GTK_TREE_MODEL (priv->layer_store), &iter);
+  while (valid)
+   {
+     gchar *layer_key;
+     HyScanGtkLayer *layer;
+     gboolean visible;
+
+     gtk_tree_model_get (GTK_TREE_MODEL (priv->layer_store), &iter,
+                         LAYER_KEY_COLUMN, &layer_key,
+                         LAYER_COLUMN, &layer,
+                         -1);
+
+     visible = g_strv_contains ((const gchar *const *) ids, layer_key);
+     gtk_list_store_set (priv->layer_store, &iter, LAYER_VISIBLE_COLUMN, visible, -1);
+     hyscan_gtk_layer_set_visible (layer, visible);
+
+     g_free (layer_key);
+     g_object_unref (layer);
+
+     valid = gtk_tree_model_iter_next (GTK_TREE_MODEL (priv->layer_store), &iter);
+   }
 }

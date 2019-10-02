@@ -61,6 +61,7 @@
 #include <hyscan-planner.h>
 #include <math.h>
 #include <hyscan-cartesian.h>
+#include <glib/gi18n-lib.h>
 
 #define HANDLE_TYPE_NAME             "map_planner"
 #define HANDLE_RADIUS                3.0
@@ -76,6 +77,7 @@
 #define DEFAULT_ORIGIN_WIDTH         1.0                    /* Толщина галсов. */
 #define DEFAULT_ORIGIN_COLOR         "rgba(80,120,180,0.5)" /* Цвет осей координат. */
 #define DEFAULT_TRACK_SELECTED_COLOR "rgba(128,0,128,1.0)"  /* Цвет выделенных галсов. */
+#define DEFAULT_TRACK_ACTIVE_COLOR   "rgba(128,0,0,1.0)"    /* Цвет активных галсов. */
 
 #define IS_INSIDE(x, a, b) ((a) < (b) ? (a) < (x) && (x) < (b) : (b) < (x) && (x) < (a))
 
@@ -161,6 +163,7 @@ struct _HyScanGtkMapPlannerPrivate
 
   gchar                             *highlight_zone;       /* Подсвечиваемая зона. */
   gint                               highlight_vertex;     /* Подсвечиваемая вершина. */
+  gchar                             *active_track_id;      /* Активный галс. */
 
   const HyScanGtkMapPlannerTrack    *found_track;          /* Указатель на галс под курсором мыши. */
   const HyScanGtkMapPlannerZone     *found_zone;           /* Указатель на зону, чья вершина под курсором мыши. */
@@ -178,8 +181,18 @@ struct _HyScanGtkMapPlannerPrivate
   PangoLayout                       *pango_layout;         /* Шрифт. */
   HyScanGtkMapPlannerStyle           track_style;          /* Стиль оформления галса. */
   HyScanGtkMapPlannerStyle           track_style_selected; /* Стиль оформления выбранного галса. */
+  HyScanGtkMapPlannerStyle           track_style_active;   /* Стиль оформления активного галса. */
   HyScanGtkMapPlannerStyle           zone_style;           /* Стиль оформления периметра полигона. */
   HyScanGtkMapPlannerStyle           origin_style;         /* Стиль оформления начала координат. */
+
+  struct
+  {
+    HyScanGtkMapPlannerTrack        *track;
+    GtkWidget                       *menu;
+    GtkWidget                       *nav;
+    GtkWidget                       *inv;
+    GtkWidget                       *del;
+  } track_menu;
 };
 
 static void                       hyscan_gtk_map_planner_interface_init        (HyScanGtkLayerInterface   *iface);
@@ -194,6 +207,7 @@ static void                       hyscan_gtk_map_planner_get_property          (
 static void                       hyscan_gtk_map_planner_object_constructed    (GObject                   *object);
 static void                       hyscan_gtk_map_planner_object_finalize       (GObject                   *object);
 static void                       hyscan_gtk_map_planner_model_changed         (HyScanGtkMapPlanner       *planner);
+static void                       hyscan_gtk_map_planner_activated             (HyScanGtkMapPlanner       *planner);
 static void                       hyscan_gtk_map_planner_zone_changed          (HyScanGtkMapPlanner       *planner);
 static HyScanGtkMapPlannerZone *  hyscan_gtk_map_planner_zone_create           (void);
 static HyScanGtkMapPlannerZone *  hyscan_gtk_map_planner_zone_copy             (const HyScanGtkMapPlannerZone
@@ -292,6 +306,13 @@ static void                       hyscan_gtk_map_planner_save_current          (
 static void                       hyscan_gtk_map_planner_cancel                (HyScanGtkMapPlanner       *planner);
 static gboolean                   hyscan_gtk_map_planner_accept_btn            (HyScanGtkMapPlanner       *planner,
                                                                                 GdkEventButton            *event);
+
+static void                       hyscan_gtk_map_planner_handle_click_menu     (HyScanGtkMapPlanner       *planner,
+                                                                                GdkEventButton            *event);
+static void                       hyscan_gtk_map_planner_menu_activate         (GtkButton                 *button,
+                                                                                gpointer                   user_data);
+static GtkWidget *                hyscan_gtk_map_planner_menu_add              (HyScanGtkMapPlanner       *planner,
+                                                                                const gchar               *title);
 
 static guint hyscan_gtk_map_planner_signals[SIGNAL_LAST] = { 0 };
 
@@ -422,11 +443,19 @@ hyscan_gtk_map_planner_object_constructed (GObject *object)
   gdk_rgba_parse (&priv->track_style.color, DEFAULT_TRACK_COLOR);
   priv->track_style_selected.line_width = DEFAULT_TRACK_WIDTH;
   gdk_rgba_parse (&priv->track_style_selected.color, DEFAULT_TRACK_SELECTED_COLOR);
+  priv->track_style_active.line_width = DEFAULT_TRACK_WIDTH;
+  gdk_rgba_parse (&priv->track_style_active.color, DEFAULT_TRACK_ACTIVE_COLOR);
   priv->origin_style.line_width = DEFAULT_ORIGIN_WIDTH;
   gdk_rgba_parse (&priv->origin_style.color, DEFAULT_ORIGIN_COLOR);
 
+  priv->track_menu.menu = gtk_menu_new ();
+  priv->track_menu.nav = hyscan_gtk_map_planner_menu_add (planner, _("Navigate"));
+  priv->track_menu.inv = hyscan_gtk_map_planner_menu_add (planner, _("Invert"));
+  priv->track_menu.del = hyscan_gtk_map_planner_menu_add (planner, _("Delete"));
+
   g_signal_connect_swapped (priv->model, "changed", G_CALLBACK (hyscan_gtk_map_planner_model_changed), planner);
   g_signal_connect_swapped (priv->selection, "zone-changed", G_CALLBACK (hyscan_gtk_map_planner_zone_changed), planner);
+  g_signal_connect_swapped (priv->selection, "activated", G_CALLBACK (hyscan_gtk_map_planner_activated), planner);
 }
 
 static void
@@ -437,6 +466,7 @@ hyscan_gtk_map_planner_object_finalize (GObject *object)
 
   g_signal_handlers_disconnect_by_data (priv->model, gtk_map_planner);
 
+  g_clear_pointer (&priv->track_menu.track, hyscan_gtk_map_planner_track_free);
   g_clear_object (&priv->pango_layout);
   g_clear_object (&priv->model);
   g_clear_object (&priv->selection);
@@ -467,6 +497,23 @@ hyscan_gtk_map_planner_zone_changed (HyScanGtkMapPlanner *planner)
     gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 
   g_free (prev_zone);
+}
+
+static void
+hyscan_gtk_map_planner_activated (HyScanGtkMapPlanner *planner)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  gchar *active_id;
+  gboolean redraw;
+
+  active_id = hyscan_planner_selection_get_active_track (priv->selection);
+
+  redraw = (g_strcmp0 (active_id, priv->active_track_id) != 0);
+  g_free (priv->active_track_id);
+  priv->active_track_id = active_id;
+
+  if (redraw)
+    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }
 
 /* Обработчик сигнала "changed" модели.
@@ -1142,6 +1189,23 @@ hyscan_gtk_map_planner_track_remove (HyScanGtkMapPlanner *planner,
 }
 
 static void
+hyscan_gtk_map_planner_track_invert (HyScanGtkMapPlanner           *planner,
+                                     const HyScanGtkMapPlannerTrack *track)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  HyScanPlannerTrack *modified_track;
+  HyScanGeoGeodetic tmp;
+
+  modified_track = hyscan_planner_track_copy (track->object);
+  tmp = modified_track->start;
+  modified_track->start = modified_track->end;
+  modified_track->end = tmp;
+
+  hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), track->id,
+                                     (const HyScanObject *) modified_track);
+}
+
+static void
 hyscan_gtk_map_planner_vertex_remove (HyScanGtkMapPlanner *planner)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
@@ -1203,6 +1267,56 @@ hyscan_gtk_map_planner_configure (HyScanGtkMapPlanner *planner,
   priv->pango_layout = gtk_widget_create_pango_layout (GTK_WIDGET (priv->map), NULL);
 
   return GDK_EVENT_PROPAGATE;
+}
+
+/* Обработчик выбора пункта контекстного меню. */
+static void
+hyscan_gtk_map_planner_menu_activate (GtkButton *button,
+                                      gpointer   user_data)
+{
+  HyScanGtkMapPlanner *planner = HYSCAN_GTK_MAP_PLANNER (user_data);
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+
+  if (priv->track_menu.track == NULL)
+    return;
+
+  if (GTK_WIDGET (button) == priv->track_menu.inv)
+    hyscan_gtk_map_planner_track_invert (planner, priv->track_menu.track);
+
+  else if (GTK_WIDGET (button) == priv->track_menu.del)
+    hyscan_gtk_map_planner_track_remove (planner, priv->track_menu.track->id);
+
+  else if (GTK_WIDGET (button) == priv->track_menu.nav)
+    hyscan_planner_selection_activate (priv->selection, priv->track_menu.track->id);
+}
+
+/* Добавляет пункт в контекстное меню. */
+static GtkWidget *
+hyscan_gtk_map_planner_menu_add (HyScanGtkMapPlanner *planner,
+                                 const gchar         *title)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  GtkWidget *menu_item;
+
+  menu_item = gtk_menu_item_new_with_label (title);
+  g_signal_connect (menu_item, "activate", G_CALLBACK (hyscan_gtk_map_planner_menu_activate), planner);
+  gtk_widget_show (menu_item);
+  gtk_menu_shell_append (GTK_MENU_SHELL (priv->track_menu.menu), menu_item);
+
+  return menu_item;
+}
+
+static void
+hyscan_gtk_map_planner_handle_click_menu (HyScanGtkMapPlanner *planner,
+                                          GdkEventButton      *event)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+
+  g_clear_pointer (&priv->track_menu.track, hyscan_gtk_map_planner_track_free);
+  priv->track_menu.track = hyscan_gtk_map_planner_track_copy (priv->found_track);
+
+  if (priv->track_menu.track != NULL)
+    gtk_menu_popup_at_pointer (GTK_MENU (priv->track_menu.menu), (const GdkEvent *) event);
 }
 
 static void
@@ -1487,6 +1601,8 @@ hyscan_gtk_map_planner_track_draw (HyScanGtkMapPlanner      *planner,
 
   if (hyscan_planner_selection_contains (priv->selection, track->id))
     hyscan_gtk_map_planner_cairo_style (cairo, &priv->track_style_selected);
+  else if (priv->active_track_id != NULL && g_strcmp0 (priv->active_track_id, track->id) == 0)
+    hyscan_gtk_map_planner_cairo_style (cairo, &priv->track_style_active);
   else
     hyscan_gtk_map_planner_cairo_style (cairo, &priv->track_style);
 
@@ -1893,6 +2009,12 @@ hyscan_gtk_map_planner_handle_click (HyScanGtkLayer       *layer,
 
   /* В момент захвата хэндла мы предполагаем, что текущий хэндл не выбран. Иначе это ошибка в логике программы. */
   g_assert (priv->cur_track == NULL && priv->cur_zone == NULL);
+
+  if (event->button == GDK_BUTTON_SECONDARY)
+    {
+      hyscan_gtk_map_planner_handle_click_menu (planner, event);
+      return;
+    }
 
   /* В режиме выбора ничего не захватываем. */
   if (priv->mode == HYSCAN_GTK_MAP_PLANNER_MODE_SELECT)

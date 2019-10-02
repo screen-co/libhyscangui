@@ -539,7 +539,11 @@ hyscan_gtk_planner_zeditor_set_zone (HyScanGtkPlannerZeditor *zeditor)
     goto exit;
 
   zone = g_hash_table_lookup (priv->objects, priv->zone_id);
-  g_return_if_fail (zone != NULL && zone->type == HYSCAN_PLANNER_ZONE);
+  if (zone == NULL || zone->type != HYSCAN_PLANNER_ZONE)
+    {
+      g_clear_pointer (&priv->zone_id, g_free);
+      goto exit;
+    }
 
   for (i = 0; i < zone->points_len; i++)
     {
