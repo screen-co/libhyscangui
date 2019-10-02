@@ -521,7 +521,7 @@ hyscan_gtk_planner_editor_start_changed (HyScanGtkPlannerEditor *editor)
   while (hyscan_gtk_planner_editor_iter_next (&iter))
     {
       hyscan_gtk_planner_editor_convert_point (editor, priv->start_x, priv->start_y, &iter.track->start);
-      hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), iter.id, iter.track);
+      hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), iter.id, (HyScanObject *) iter.track);
     }
 }
 
@@ -538,7 +538,7 @@ hyscan_gtk_planner_editor_end_changed (HyScanGtkPlannerEditor *editor)
   while (hyscan_gtk_planner_editor_iter_next (&iter))
     {
       hyscan_gtk_planner_editor_convert_point (editor, priv->end_x, priv->end_y, &iter.track->end);
-      hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), iter.id, iter.track);
+      hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), iter.id, (HyScanObject *) iter.track);
     }
 }
 
@@ -573,7 +573,7 @@ hyscan_gtk_planner_editor_length_changed (HyScanGtkPlannerEditor *editor)
       end_2d.y = start_2d.y + scale * dy;
 
       hyscan_geo_topoXY2geo (priv->geo, &track->end, end_2d, 0);
-      hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), id, track);
+      hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), id, (HyScanObject *) track);
     }
 }
 
@@ -610,7 +610,7 @@ hyscan_gtk_planner_editor_angle_changed (HyScanGtkPlannerEditor *editor)
       end_2d.y = start_2d.y + length * sin (angle);
 
       hyscan_geo_topoXY2geo (priv->geo, &track->end, end_2d, 0);
-      hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), id, track);
+      hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), id, (HyScanObject *) track);
     }
 }
 
@@ -634,7 +634,7 @@ hyscan_gtk_planner_editor_speed_changed (HyScanGtkPlannerEditor *editor)
       const gchar *id = iter.id;
 
       track->speed = speed;
-      hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), id, track);
+      hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), id, (const HyScanObject *) track);
     }
 }
 

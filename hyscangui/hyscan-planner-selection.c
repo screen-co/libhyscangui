@@ -177,7 +177,7 @@ hyscan_planner_selection_changed (HyScanPlannerSelection *selection)
 
   for (i = 0; i < priv->tracks->len;)
     {
-      HyScanPlannerObject *object;
+      HyScanObject *object;
       gchar *id;
 
       id = g_array_index (priv->tracks, gchar *, i);
@@ -262,7 +262,7 @@ hyscan_planner_selection_set_zone (HyScanPlannerSelection *selection,
                                    gint                    vertex_index)
 {
   HyScanPlannerSelectionPrivate *priv = selection->priv;
-  HyScanPlannerObject *object;
+  HyScanPlannerZone *object;
   gint last_vertex_index;
 
   g_return_if_fail (HYSCAN_IS_PLANNER_SELECTION (selection));
@@ -272,7 +272,7 @@ hyscan_planner_selection_set_zone (HyScanPlannerSelection *selection,
       object = g_hash_table_lookup (priv->objects, zone_id);
       g_return_if_fail (object != NULL && object->type == HYSCAN_PLANNER_ZONE);
 
-      last_vertex_index = (gint) object->zone.points_len - 1;
+      last_vertex_index = (gint) object->points_len - 1;
     }
   else
     {
@@ -310,7 +310,7 @@ hyscan_planner_selection_append (HyScanPlannerSelection  *selection,
                                  const gchar             *track_id)
 {
   HyScanPlannerSelectionPrivate *priv;
-  HyScanPlannerObject *object;
+  HyScanObject *object;
   gchar *new_track_id;
 
   g_return_if_fail (HYSCAN_IS_PLANNER_SELECTION (selection));

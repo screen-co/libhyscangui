@@ -223,7 +223,7 @@ static void                       hyscan_gtk_map_planner_set_cur_zone          (
 static void                       hyscan_gtk_map_planner_selection_remove      (HyScanGtkMapPlanner       *planner);
 static void                       hyscan_gtk_map_planner_vertex_remove         (HyScanGtkMapPlanner       *planner);
 static void                       hyscan_gtk_map_planner_zone_save             (HyScanGtkMapPlanner       *planner,
-                                                                                HyScanGtkMapPlannerZone   *zone);
+                                                                                HyScanGtkMapPlannerZone   *pzone);
 static void                       hyscan_gtk_map_planner_draw                  (GtkCifroArea              *carea,
                                                                                 cairo_t                   *cairo,
                                                                                 HyScanGtkMapPlanner       *planner);
@@ -478,7 +478,7 @@ hyscan_gtk_map_planner_model_changed (HyScanGtkMapPlanner *planner)
   GHashTableIter iter;
   GHashTable *objects;
   gchar *key;
-  HyScanPlannerObject *object;
+  HyScanObject *object;
   gchar *found_track_id, *found_zone_id;   /* Идентификаторы найденных галса и зоны. */
   gint found_vertex;
 
@@ -510,16 +510,19 @@ hyscan_gtk_map_planner_model_changed (HyScanGtkMapPlanner *planner)
   g_hash_table_iter_init (&iter, objects);
   while (g_hash_table_iter_next (&iter, (gpointer *) &key, (gpointer *) &object))
     {
+      HyScanPlannerZone *orig_zone;
       HyScanGtkMapPlannerZone *zone;
 
       if (object->type != HYSCAN_PLANNER_ZONE)
         continue;
 
+      orig_zone = (HyScanPlannerZone *) object;
+
       /* Воруем ключ и объект из одной хэш-таблицы и добавляем их в другую. */
       g_hash_table_iter_steal (&iter);
       zone = hyscan_gtk_map_planner_zone_create ();
       zone->id = key;
-      hyscan_gtk_map_planner_zone_set_object (zone, &object->zone);
+      hyscan_gtk_map_planner_zone_set_object (zone, orig_zone);
       hyscan_gtk_map_planner_zone_project (planner, zone);
       g_hash_table_insert (priv->zones, key, zone);
 
@@ -540,6 +543,7 @@ hyscan_gtk_map_planner_model_changed (HyScanGtkMapPlanner *planner)
   g_hash_table_iter_init (&iter, objects);
   while (g_hash_table_iter_next (&iter, (gpointer *) &key, (gpointer *) &object))
     {
+      HyScanPlannerTrack *orig_track;
       HyScanGtkMapPlannerTrack *track;
       HyScanGtkMapPlannerZone *zone = NULL;
       GList **tracks;
@@ -547,9 +551,11 @@ hyscan_gtk_map_planner_model_changed (HyScanGtkMapPlanner *planner)
       if (object->type != HYSCAN_PLANNER_TRACK)
         continue;
 
+      orig_track = (HyScanPlannerTrack *) object;
+
       /* Находим зону, из которой этот галс. */
-      if (object->track.zone_id != NULL)
-        zone = g_hash_table_lookup (priv->zones, object->track.zone_id);
+      if (orig_track->zone_id != NULL)
+        zone = g_hash_table_lookup (priv->zones, orig_track->zone_id);
 
       /* Если зона не найдена, то добавляем галс в общий список. */
       if (zone == NULL)
@@ -561,7 +567,7 @@ hyscan_gtk_map_planner_model_changed (HyScanGtkMapPlanner *planner)
       g_hash_table_iter_steal (&iter);
       track = hyscan_gtk_map_planner_track_create ();
       track->id = key;
-      track->object = &object->track;
+      track->object = orig_track;
       hyscan_gtk_map_planner_track_project (planner, track);
       *tracks = g_list_append (*tracks, track);
 
@@ -2047,36 +2053,36 @@ hyscan_gtk_map_planner_handle_create (HyScanGtkLayer *layer,
 /* Сохраняет текущую зону в БД. */
 static void
 hyscan_gtk_map_planner_zone_save (HyScanGtkMapPlanner     *planner,
-                                  HyScanGtkMapPlannerZone *zone)
+                                  HyScanGtkMapPlannerZone *pzone)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
-  HyScanPlannerZone *object;
+  HyScanPlannerZone *zone;
 
   /* Завершаем редактирование зоны. */
-  object = zone->object;
-  object->points_len = g_list_length (zone->points);
-  if (object->points_len > 2)
+  zone = pzone->object;
+  zone->points_len = g_list_length (pzone->points);
+  if (zone->points_len > 2)
     {
       GList *link;
       gint i = 0;
 
-      g_free (object->points);
-      object->points = g_new (HyScanGeoGeodetic, object->points_len);
-      for (link = zone->points; link != NULL; link = link->next)
+      g_free (zone->points);
+      zone->points = g_new (HyScanGeoGeodetic, zone->points_len);
+      for (link = pzone->points; link != NULL; link = link->next)
         {
           HyScanGtkMapPoint *point = link->data;
 
-          object->points[i++] = point->geo;
+          zone->points[i++] = point->geo;
         }
 
-      if (zone->id != NULL)
-        hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), zone->id, object);
+      if (pzone->id != NULL)
+        hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), pzone->id, (HyScanObject *) zone);
       else
-        hyscan_object_model_add_object (HYSCAN_OBJECT_MODEL (priv->model), object);
+        hyscan_object_model_add_object (HYSCAN_OBJECT_MODEL (priv->model), (HyScanObject *) zone);
     }
-  else if (zone->id != NULL)
+  else if (pzone->id != NULL)
     {
-      hyscan_object_model_remove_object (HYSCAN_OBJECT_MODEL (priv->model), zone->id);
+      hyscan_object_model_remove_object (HYSCAN_OBJECT_MODEL (priv->model), pzone->id);
     }
 }
 
@@ -2119,13 +2125,15 @@ hyscan_gtk_map_planner_save_current (HyScanGtkMapPlanner *planner)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
   HyScanGtkMapPlannerTrack *cur_track = priv->cur_track;
+  HyScanObject *object;
 
   g_return_if_fail (cur_track != NULL);
+  object = (HyScanObject *) cur_track->object;
 
   if (priv->cur_track->id == NULL)
-    hyscan_object_model_add_object (HYSCAN_OBJECT_MODEL (priv->model), cur_track->object);
+    hyscan_object_model_add_object (HYSCAN_OBJECT_MODEL (priv->model), object);
   else
-    hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), cur_track->id, cur_track->object);
+    hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), cur_track->id, object);
 }
 
 /* Сохраняет параллельные галсы в БД. */
@@ -2139,7 +2147,7 @@ hyscan_gtk_map_planner_save_parallel (HyScanGtkMapPlanner *planner)
   for (link = priv->parallel_tracks; link != NULL; link = link->next)
     {
       track = link->data;
-      hyscan_object_model_add_object (HYSCAN_OBJECT_MODEL (priv->model), track->object);
+      hyscan_object_model_add_object (HYSCAN_OBJECT_MODEL (priv->model), (HyScanObject *) track->object);
     }
 }
 

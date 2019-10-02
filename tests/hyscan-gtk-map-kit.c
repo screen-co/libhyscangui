@@ -741,7 +741,7 @@ on_marks_activated (GtkTreeView        *treeview,
   if (gtk_tree_model_get_iter (model, &iter, path))
   {
     gchar *mark_id;
-    HyScanMarkType mark_type;
+    HyScanObjectType mark_type;
 
     gtk_tree_model_get (model, &iter, MARK_ID_COLUMN, &mark_id, MARK_TYPE_COLUMN, &mark_type, -1);
     if (mark_type == HYSCAN_MARK_WATERFALL && priv->wfmark_layer != NULL)
@@ -788,7 +788,7 @@ list_store_insert (HyScanGtkMapKit   *kit,
   GHashTable *marks;
   GHashTableIter hash_iter;
 
-  HyScanMarkAny *mark;
+  HyScanMark *mark;
   gchar *mark_id;
 
   marks = hyscan_object_model_get (model);
@@ -802,6 +802,9 @@ list_store_insert (HyScanGtkMapKit   *kit,
       GDateTime *local;
       gchar *time_str;
       gchar *type_name;
+
+      if (mark->type == HYSCAN_MARK_WATERFALL && ((HyScanMarkWaterfall *) mark)->track == NULL)
+        continue;
 
       /* Добавляем в список меток. */
       local = g_date_time_new_from_unix_local (mark->mtime / 1000000);
@@ -1866,7 +1869,7 @@ hyscan_gtk_map_kit_add_marks_wf (HyScanGtkMapKit *kit)
   g_return_if_fail (priv->db != NULL);
 
   /* Модели меток водопада и их местоположения. */
-  priv->mark_model = hyscan_object_model_new (HYSCAN_TYPE_MARK_DATA_WATERFALL);
+  priv->mark_model = hyscan_object_model_new (HYSCAN_TYPE_OBJECT_DATA_WFMARK);
   priv->ml_model = hyscan_mark_loc_model_new (priv->db, priv->cache);
 
   g_signal_connect_swapped (priv->mark_model, "changed", G_CALLBACK (on_marks_changed), kit);
@@ -1921,7 +1924,7 @@ hyscan_gtk_map_kit_add_marks_geo (HyScanGtkMapKit   *kit)
   g_return_if_fail (priv->db != NULL);
 
   /* Модель геометок. */
-  priv->mark_geo_model = hyscan_object_model_new (HYSCAN_TYPE_MARK_DATA_GEO);
+  priv->mark_geo_model = hyscan_object_model_new (HYSCAN_TYPE_OBJECT_DATA_GEOMARK);
   g_signal_connect_swapped (priv->mark_geo_model, "changed", G_CALLBACK (on_marks_changed), kit);
 
   /* Слой с геометками. */

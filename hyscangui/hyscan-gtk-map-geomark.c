@@ -234,7 +234,7 @@ hyscan_gtk_map_geomark_object_finalize (GObject *object)
 static void
 hyscan_gtk_map_geomark_location_free (HyScanGtkMapGeomarkLocation *location)
 {
-  hyscan_mark_free ((HyScanMark *) location->mark);
+  hyscan_mark_geo_free (location->mark);
   g_free (location->mark_id);
   g_slice_free (HyScanGtkMapGeomarkLocation, location);
 }
@@ -251,7 +251,7 @@ hyscan_gtk_map_geomark_location_copy (HyScanGtkMapGeomarkLocation *location)
   copy->height = location->height;
   copy->width = location->width;
   copy->c2d = location->c2d;
-  copy->mark = (HyScanMarkGeo *) hyscan_mark_copy ((HyScanMark *) location->mark);
+  copy->mark = hyscan_mark_geo_copy (location->mark);
 
   return copy;
 }
@@ -694,7 +694,7 @@ hyscan_gtk_map_geomark_handle_create (HyScanGtkLayer *layer,
     g_rw_lock_writer_lock (&priv->mark_lock);
 
     location = g_slice_new0 (HyScanGtkMapGeomarkLocation);
-    location->mark = (HyScanMarkGeo *) hyscan_mark_new (HYSCAN_MARK_GEO);
+    location->mark = hyscan_mark_geo_new ();
     gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &location->c2d.x, &location->c2d.y);
 
     mark_name = g_strdup_printf ("Geo Mark #%d", ++priv->count);
@@ -785,9 +785,9 @@ hyscan_gtk_map_geomark_handle_release (HyScanGtkLayer *layer,
 
   /* Обновляем модель меток. */
   if (mark_id == NULL)
-    hyscan_object_model_add_object (priv->model, mark);
+    hyscan_object_model_add_object (priv->model, (const HyScanObject *) mark);
   else
-    hyscan_object_model_modify_object (priv->model, mark_id, mark);
+    hyscan_object_model_modify_object (priv->model, mark_id, (const HyScanObject *) mark);
 
   hyscan_gtk_map_geomark_location_free (location);
   g_free (mark_id);

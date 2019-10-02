@@ -417,7 +417,7 @@ hyscan_gtk_planner_zeditor_vertex_duplicate (HyScanGtkPlannerZeditor *zeditor,
   g_return_if_fail (zone != NULL && zone->type == HYSCAN_PLANNER_ZONE);
 
   hyscan_planner_zone_vertex_dup (zone, index);
-  hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, zone);
+  hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, (const HyScanObject *) zone);
 }
 
 /* Удаляет вершину с индексом index. */
@@ -434,7 +434,7 @@ hyscan_gtk_planner_zeditor_vertex_delete (HyScanGtkPlannerZeditor *zeditor,
   if (zone->points_len > 3)
     {
       hyscan_planner_zone_vertex_remove (zone, index);
-      hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, zone);
+      hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, (const HyScanObject *) zone);
     }
   else
     {
@@ -678,7 +678,7 @@ hyscan_gtk_planner_zeditor_edited (GtkCellRendererText *cell,
       hyscan_geo_topoXY2geo (priv->geo, vertex, cartesian, 0);
     }
 
-  hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, zone);
+  hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, (HyScanObject *) zone);
 }
 
 /**

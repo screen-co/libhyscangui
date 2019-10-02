@@ -489,14 +489,14 @@ hyscan_gtk_map_steer_activated (HyScanGtkMapSteer *steer)
 {
   HyScanGtkMapSteerPrivate *priv = steer->priv;
   gchar *active_id;
-  HyScanPlannerObject *object;
+  HyScanPlannerTrack *object;
   HyScanPlannerModel *model;
 
   active_id = hyscan_planner_selection_get_active_track (priv->selection);
   if (active_id != NULL)
     {
       model = hyscan_planner_selection_get_model (priv->selection);
-      object = hyscan_object_model_get_id (HYSCAN_OBJECT_MODEL (model), active_id);
+      object = (HyScanPlannerTrack *) hyscan_object_model_get_id (HYSCAN_OBJECT_MODEL (model), active_id);
       g_free (active_id);
       g_object_unref (model);
     }
@@ -505,13 +505,12 @@ hyscan_gtk_map_steer_activated (HyScanGtkMapSteer *steer)
       object = NULL;
     }
 
-  if (object != NULL && object->type == HYSCAN_PLANNER_TRACK)
-    hyscan_gtk_map_steer_set_track (steer, &object->track);
+  if (object != NULL)
+    hyscan_gtk_map_steer_set_track (steer, object);
   else
     hyscan_gtk_map_steer_set_track (steer, NULL);
 
-  hyscan_planner_object_free (object);
-
+  hyscan_planner_track_free (object);
 
   gtk_widget_queue_draw (GTK_WIDGET (steer));
 }
@@ -769,7 +768,6 @@ hyscan_gtk_map_steer_carea_draw_track (HyScanGtkMapSteer *steer,
 {
   HyScanGtkMapSteerPrivate *priv = steer->priv;
   GtkCifroArea *carea = GTK_CIFRO_AREA (priv->carea);
-  gdouble x, y;
   gdouble start_x, start_y, end_x, end_y;
 
   if (priv->track == NULL)
@@ -1215,8 +1213,8 @@ hyscan_gtk_map_steer_set_track (HyScanGtkMapSteer        *steer,
   HyScanGtkMapSteerPrivate *priv = steer->priv;
   GtkCifroArea *carea = GTK_CIFRO_AREA (priv->carea);
 
-  hyscan_planner_object_free ((HyScanPlannerObject *) priv->track);
-  priv->track = track != NULL ? hyscan_planner_track_copy (track) : NULL;
+  hyscan_planner_track_free (priv->track);
+  priv->track = hyscan_planner_track_copy (track);
   g_clear_object (&priv->geo);
 
   g_queue_clear (priv->points);

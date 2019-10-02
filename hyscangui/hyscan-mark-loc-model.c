@@ -228,7 +228,7 @@ hyscan_mark_loc_model_object_constructed (GObject *object)
   priv->locations = hyscan_mark_loc_model_create_table ();
 
   /* Модели данных. */
-  priv->mark_model = hyscan_object_model_new (HYSCAN_TYPE_MARK_DATA_WATERFALL);
+  priv->mark_model = hyscan_object_model_new (HYSCAN_TYPE_OBJECT_DATA_WFMARK);
   priv->db_info = hyscan_db_info_new (priv->db);
   priv->geo = hyscan_geo_new (origin, HYSCAN_GEO_ELLIPSOID_WGS84);
   priv->processor = g_thread_new ("mark-loc", hyscan_mark_loc_model_process, ml_model);
