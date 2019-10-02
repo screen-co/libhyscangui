@@ -38,19 +38,18 @@ enum
 
 typedef struct
 {
-  gdouble              time;       /* Время фиксации, с. */
-  gdouble              speed;      /* Скорость движения, м/с. */
-  HyScanGeoCartesian2D position;   /* Положение судна. */
-  HyScanGeoCartesian2D track;      /* Проекция положения судна на галс. */
-  gdouble              d_x;        /* Отклонение по расстоянию, м. */
-  gdouble              d_angle;    /* Отклонение по углу, рад. */
-  gdouble              d_speed;    /* Отклонение по скорости, м/с. */
-  gdouble              time_left;  /* Отклонение по скорости, м/с. */
+  HyScanNavModelData   nav_data;     /* Исходные навигационные данные о положении и скорости судна. */
+  HyScanGeoCartesian2D position;     /* Положение судна. */
+  HyScanGeoCartesian2D track;        /* Проекция положения судна на галс. */
+  gdouble              d_x;          /* Отклонение по расстоянию, м. */
+  gdouble              d_angle;      /* Отклонение по углу, рад. */
+  gdouble              d_speed;      /* Отклонение по скорости, м/с. */
+  gdouble              time_left;    /* Отклонение по скорости, м/с. */
 } HyScanGtkMapSteerPoint;
 
 typedef struct
 {
-  GtkDrawingArea parent_instance;
+  GtkDrawingArea     parent_instance;
 
   HyScanGtkMapSteer *steer;          /* Указатель на основной виджет. */
   PangoLayout       *pango_label;    /* Шрифт текста. */
@@ -69,7 +68,7 @@ typedef struct
 
 typedef struct
 {
-  GtkCifroArea parent_instance;
+  GtkCifroArea       parent_instance;
 
   HyScanGtkMapSteer *steer;          /* Указатель на основной виджет. */
   PangoLayout       *pango_layout;   /* Шрифт. */
@@ -85,6 +84,7 @@ struct _HyScanGtkMapSteerPrivate
 {
   HyScanNavModel             *nav_model;         /* Модель навигационных данных. */
   HyScanPlannerSelection     *selection;         /* Модель выбранных объектов планировщика. */
+  HyScanObjectModel          *planner_model;     /* Модель объектов планировщика. */
   HyScanGeo                  *geo;               /* Объект перевода географических координат. */
 
   guint                       state;
@@ -99,6 +99,7 @@ struct _HyScanGtkMapSteerPrivate
   gdouble                     end_time;          /* Время последней точки. */
 
   HyScanPlannerTrack         *track;             /* Активный галс. */
+  gchar                      *track_id;          /* Ид активного галса. */
   HyScanGeoCartesian2D        start;             /* Точка начала. */
   HyScanGeoCartesian2D        end;               /* Точка окончания. */
   gdouble                     angle;             /* Целевой азимут. */
@@ -180,9 +181,7 @@ static GtkWidget *    hyscan_gtk_map_steer_create_num                     (HySca
 static GtkWidget *    hyscan_gtk_map_steer_create_carea                   (HyScanGtkMapSteer        *steer);
 
 static void           hyscan_gtk_map_steer_nav_changed                    (HyScanGtkMapSteer        *steer);
-static void           hyscan_gtk_map_steer_activated                      (HyScanGtkMapSteer        *steer);
-static void           hyscan_gtk_map_steer_set_track                      (HyScanGtkMapSteer        *steer,
-                                                                           const HyScanPlannerTrack *track);
+static void           hyscan_gtk_map_steer_set_track                      (HyScanGtkMapSteer        *steer);
 static HyScanGtkMapSteerPoint *  hyscan_gtk_map_steer_point_new           (void);
 static void           hyscan_gtk_map_steer_point_free                     (gpointer                  point);
 
@@ -348,6 +347,8 @@ hyscan_gtk_map_steer_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_gtk_map_steer_parent_class)->constructed (object);
 
+  priv->planner_model = HYSCAN_OBJECT_MODEL (hyscan_planner_selection_get_model (priv->selection));
+
   priv->points = g_queue_new ();
   priv->time_span = 100.0;
   priv->threshold_x = 6.0;
@@ -377,9 +378,10 @@ hyscan_gtk_map_steer_object_constructed (GObject *object)
   gtk_grid_attach (grid, priv->carea,         0, ++i, 2, 1);
 
   g_signal_connect_swapped (priv->nav_model, "changed", G_CALLBACK (hyscan_gtk_map_steer_nav_changed), steer);
-  g_signal_connect_swapped (priv->selection, "activated", G_CALLBACK (hyscan_gtk_map_steer_activated), steer);
+  g_signal_connect_swapped (priv->planner_model, "changed", G_CALLBACK (hyscan_gtk_map_steer_set_track), steer);
+  g_signal_connect_swapped (priv->selection, "activated", G_CALLBACK (hyscan_gtk_map_steer_set_track), steer);
 
-  hyscan_gtk_map_steer_set_track (steer, NULL);
+  hyscan_gtk_map_steer_set_track (steer);
 }
 
 static void
@@ -388,6 +390,8 @@ hyscan_gtk_map_steer_object_finalize (GObject *object)
   HyScanGtkMapSteer *gtk_map_steer = HYSCAN_GTK_MAP_STEER (object);
   HyScanGtkMapSteerPrivate *priv = gtk_map_steer->priv;
 
+  g_free (priv->track_id);
+  hyscan_planner_track_free (priv->track);
   g_clear_object (&priv->nav_model);
   g_clear_object (&priv->selection);
   g_queue_free_full (priv->points, hyscan_gtk_map_steer_point_free);
@@ -420,15 +424,41 @@ hyscan_gtk_map_steer_create_num (HyScanGtkMapSteer *steer,
 }
 
 static void
+hyscan_gtk_map_steer_calc_point (HyScanGtkMapSteerPoint *point,
+                                 HyScanGtkMapSteer      *steer)
+{
+  HyScanGtkMapSteerPrivate *priv = steer->priv;
+  gdouble distance;
+  gint side;
+  gdouble distance_to_end;
+  HyScanGeoCartesian2D track_end;
+
+  if (!hyscan_geo_geo2topoXY (priv->geo, &point->position, point->nav_data.coord))
+    return;
+
+  distance = hyscan_cartesian_distance_to_line (&priv->start, &priv->end, &point->position, &point->track);
+  side = hyscan_cartesian_side (&priv->start, &priv->end, &point->position);
+  point->d_x = side * distance;
+
+  point->d_angle = point->nav_data.heading - priv->angle;
+  if (point->d_angle > G_PI)
+    point->d_angle -= 2.0 * G_PI;
+  else if (point->d_angle < -G_PI)
+    point->d_angle += 2.0 * G_PI;
+
+  point->d_speed = point->nav_data.speed - priv->track->speed;
+
+  hyscan_geo_geo2topoXY (priv->geo, &track_end, priv->track->end);
+  distance_to_end = hyscan_cartesian_distance (&track_end, &point->track);
+  point->time_left = distance_to_end / priv->track->speed;
+}
+
+static void
 hyscan_gtk_map_steer_nav_changed (HyScanGtkMapSteer *steer)
 {
   HyScanGtkMapSteerPrivate *priv = steer->priv;
   HyScanNavModelData data;
-  HyScanGeoCartesian2D position;
-  gdouble distance;
   HyScanGtkMapSteerPoint *point;
-  gdouble heading;
-  gint side;
 
   if (!hyscan_nav_model_get (priv->nav_model, &data, NULL))
     return;
@@ -436,33 +466,12 @@ hyscan_gtk_map_steer_nav_changed (HyScanGtkMapSteer *steer)
   if (priv->geo == NULL)
     return;
 
-  if (!hyscan_geo_geo2topoXY (priv->geo, &position, data.coord))
-    return;
-
   point = hyscan_gtk_map_steer_point_new ();
-  point->position = position;
-
-  distance = hyscan_cartesian_distance_to_line (&priv->start, &priv->end, &point->position, &point->track);
-  side = hyscan_cartesian_side (&priv->start, &priv->end, &position);
-  point->d_x = side * distance;
-  point->time = data.time;
-  heading = data.heading;
-  point->d_angle = heading - priv->angle;
-  if (point->d_angle > G_PI)
-    point->d_angle -= 2.0 * G_PI;
-  else if (point->d_angle < -G_PI)
-    point->d_angle += 2.0 * G_PI;
-  point->speed = data.speed;
-  point->d_speed = data.speed - priv->track->speed;
-
-  gdouble distance_to_end;
-  HyScanGeoCartesian2D track_end;
-  hyscan_geo_geo2topoXY (priv->geo, &track_end, priv->track->end);
-  distance_to_end = hyscan_cartesian_distance (&track_end, &point->track);
-  point->time_left = distance_to_end / priv->track->speed;
+  point->nav_data = data;
+  hyscan_gtk_map_steer_calc_point (point, steer);
 
   g_queue_push_head (priv->points, point);
-  priv->end_time = point->time;
+  priv->end_time = data.time;
 
   if (priv->mode == MODE_VESSEL)
     {
@@ -473,7 +482,7 @@ hyscan_gtk_map_steer_nav_changed (HyScanGtkMapSteer *steer)
   HyScanGtkMapSteerPoint *last_point;
   while ((last_point = g_queue_peek_tail (priv->points)) != NULL)
     {
-      if (priv->end_time - last_point->time < priv->time_span)
+      if (priv->end_time - last_point->nav_data.time < priv->time_span)
         break;
 
       last_point = g_queue_pop_tail (priv->points);
@@ -481,37 +490,6 @@ hyscan_gtk_map_steer_nav_changed (HyScanGtkMapSteer *steer)
     }
 
   gtk_cifro_area_set_view_center (GTK_CIFRO_AREA (priv->carea), point->track.x, point->track.y);
-  gtk_widget_queue_draw (GTK_WIDGET (steer));
-}
-
-static void
-hyscan_gtk_map_steer_activated (HyScanGtkMapSteer *steer)
-{
-  HyScanGtkMapSteerPrivate *priv = steer->priv;
-  gchar *active_id;
-  HyScanPlannerTrack *object;
-  HyScanPlannerModel *model;
-
-  active_id = hyscan_planner_selection_get_active_track (priv->selection);
-  if (active_id != NULL)
-    {
-      model = hyscan_planner_selection_get_model (priv->selection);
-      object = (HyScanPlannerTrack *) hyscan_object_model_get_id (HYSCAN_OBJECT_MODEL (model), active_id);
-      g_free (active_id);
-      g_object_unref (model);
-    }
-  else
-    {
-      object = NULL;
-    }
-
-  if (object != NULL)
-    hyscan_gtk_map_steer_set_track (steer, object);
-  else
-    hyscan_gtk_map_steer_set_track (steer, NULL);
-
-  hyscan_planner_track_free (object);
-
   gtk_widget_queue_draw (GTK_WIDGET (steer));
 }
 
@@ -604,7 +582,7 @@ hyscan_gtk_map_steer_num_draw (GtkWidget *display,
       label = _("DIST m");
       if (point != NULL)
         {
-          value = ABS (point->d_x) < 0.1 ? 0.0 : point->d_x;
+          value = ABS (point->d_x) < 0.1 ? 0.0 : (ABS (point->d_angle) > G_PI_2 ? -1 : 1) * point->d_x;
           g_snprintf (text, sizeof (text), value > 1000 ? "%.0f" : "%.1f", ABS (value));
           color = ABS (value) < priv->threshold_x ? &priv->color_good : &priv->color_bad;
           correction = hyscan_gtk_map_steer_num_draw_corr2;
@@ -618,7 +596,7 @@ hyscan_gtk_map_steer_num_draw (GtkWidget *display,
         {
           gdouble max_error;
 
-          g_snprintf (text, sizeof (text), "%.2f", point->speed);
+          g_snprintf (text, sizeof (text), "%.2f", point->nav_data.speed);
 
           max_error = priv->track->speed * priv->threshold_speed;
           color = ABS (point->d_speed) < max_error ? &priv->color_good : &priv->color_bad;
@@ -1207,23 +1185,33 @@ hyscan_gtk_map_steer_carea_motion_notify (GtkWidget      *widget,
 }
 
 static void
-hyscan_gtk_map_steer_set_track (HyScanGtkMapSteer        *steer,
-                                const HyScanPlannerTrack *track)
+hyscan_gtk_map_steer_set_track (HyScanGtkMapSteer *steer)
 {
   HyScanGtkMapSteerPrivate *priv = steer->priv;
   GtkCifroArea *carea = GTK_CIFRO_AREA (priv->carea);
+  HyScanPlannerTrack *track = NULL;
+  gchar *active_id;
 
+  active_id = hyscan_planner_selection_get_active_track (priv->selection);
+  if (active_id != NULL)
+    track = (HyScanPlannerTrack *) hyscan_object_model_get_id (priv->planner_model, active_id);
+
+  if (g_strcmp0 (active_id, priv->track_id) != 0)
+    {
+      g_queue_clear (priv->points);
+      gtk_cifro_area_set_view_center (carea, 0, 0);
+    }
+
+  g_free (priv->track_id);
+  priv->track_id = active_id;
   hyscan_planner_track_free (priv->track);
-  priv->track = hyscan_planner_track_copy (track);
+  priv->track = track;
   g_clear_object (&priv->geo);
 
-  g_queue_clear (priv->points);
-  gtk_cifro_area_set_view_center (carea, 0, 0);
-
-  if (track == NULL)
+  if (priv->track == NULL)
     {
       gtk_label_set_text (GTK_LABEL (priv->track_info), _("No active track"));
-      return;
+      goto exit;
     }
 
   {
@@ -1257,6 +1245,7 @@ hyscan_gtk_map_steer_set_track (HyScanGtkMapSteer        *steer,
 
   hyscan_geo_geo2topoXY (priv->geo, &priv->start, priv->track->start);
   hyscan_geo_geo2topoXY (priv->geo, &priv->end, priv->track->end);
+  g_queue_foreach (priv->points, (GFunc) hyscan_gtk_map_steer_calc_point, steer);
 
   /* Выводим информацию о галсе. */
   {
@@ -1271,6 +1260,9 @@ hyscan_gtk_map_steer_set_track (HyScanGtkMapSteer        *steer,
     gtk_label_set_text (GTK_LABEL (priv->track_info), text);
     g_free (text);
   }
+
+exit:
+  gtk_widget_queue_draw (GTK_WIDGET (priv->carea));
 }
 
 GtkWidget *
