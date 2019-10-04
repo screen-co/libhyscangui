@@ -391,12 +391,12 @@ hyscan_gtk_layer_list_get_visible_ids (HyScanGtkLayerList *list)
                          LAYER_COLUMN, &layer,
                          -1);
 
-     if (hyscan_gtk_layer_get_visible (layer))
+     if (layer != NULL && hyscan_gtk_layer_get_visible (layer))
        g_array_append_val (array, layer_key);
      else
        g_free (layer_key);
 
-     g_object_unref (layer);
+     g_clear_object (&layer);
 
      valid = gtk_tree_model_iter_next (GTK_TREE_MODEL (priv->layer_store), &iter);
    }
@@ -437,10 +437,11 @@ hyscan_gtk_layer_list_set_visible_ids (HyScanGtkLayerList  *list,
 
      visible = g_strv_contains ((const gchar *const *) ids, layer_key);
      gtk_list_store_set (priv->layer_store, &iter, LAYER_VISIBLE_COLUMN, visible, -1);
-     hyscan_gtk_layer_set_visible (layer, visible);
+     if (layer != NULL)
+       hyscan_gtk_layer_set_visible (layer, visible);
 
      g_free (layer_key);
-     g_object_unref (layer);
+     g_clear_object (&layer);
 
      valid = gtk_tree_model_iter_next (GTK_TREE_MODEL (priv->layer_store), &iter);
    }
