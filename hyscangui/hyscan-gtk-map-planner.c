@@ -1444,6 +1444,7 @@ hyscan_gtk_map_planner_origin_draw (HyScanGtkMapPlanner     *planner,
   cairo_translate (cairo, x, y);
   cairo_rotate (cairo, angle - G_PI_2);
 
+  cairo_new_path (cairo);
   cairo_arc (cairo, 0.0, 0.0, HANDLE_RADIUS, -G_PI, G_PI);
 
   /* Ось Y. */
