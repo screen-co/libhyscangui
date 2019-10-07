@@ -34,8 +34,8 @@
 
 /**
  * SECTION: hyscan-gtk-datetime
- * @Short_description: виджет даты и времени
  * @Title: HyScanGtkDatetime
+ * @Short_description: виджет даты и времени
  *
  * Виджет отображает заданное время и дату или что-то одно.
  * Временная зона всегда UTC.
@@ -113,16 +113,16 @@ hyscan_gtk_datetime_class_init (HyScanGtkDateTimeClass *klass)
                       HYSCAN_GTK_DATETIME_BOTH,
                       G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 
-  g_object_class_install_property (oclass, PROP_TIME,
-    g_param_spec_int64 ("time", "Time",
-                        "Current time",
-                        G_MININT64, G_MAXINT64, 0,
-                        G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
-
   /* Это специально вынесено в отдельную переменную,
    * чтобы рассылать уведомления об изменении. */
-  hyscan_gtk_datetime_prop_time = g_object_class_find_property (oclass, "time");
+  hyscan_gtk_datetime_prop_time =
+    g_param_spec_int64 ("time", "Time", "Current time",
+                        G_MININT64, G_MAXINT64, 0,
+                        G_PARAM_READWRITE | G_PARAM_CONSTRUCT);
+  g_object_class_install_property (oclass, PROP_TIME,
+                                   hyscan_gtk_datetime_prop_time);
 
+  // hyscan_gtk_datetime_prop_time = g_object_class_find_property (oclass, "time");
 }
 
 static void

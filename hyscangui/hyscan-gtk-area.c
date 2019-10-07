@@ -1,13 +1,57 @@
-/*
- * \file hyscan-gtk-area.c
+/* hyscan-gtk-area.с
  *
- * \brief Исходный файл виджета рабочей области
- * \author Andrei Fadeev (andrei@webcontrol.ru)
- * \date 2015
- * \license Проприетарная лицензия ООО "Экран"
+ * Copyright 2015 Screen LLC, Andrei Fadeev <andrei@webcontrol.ru>
  *
-*/
+ * This file is part of HyScanGui.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
 
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-area
+ * @Title HyScanGtkArea
+ * @Short_description: виджет рабочей области
+ *
+ * Виджет представляет собой контейнер с пятью рабочими областями: центральной, левой,
+ * правой, верхней и нижней. В каждую рабочую область можно разместить один дочерний виджет.
+ * Для размещения нескольких виджетов необходимо использовать #GtkContainer, например #GtkBox или #GtkGrid.
+ * Размещение дочерних виджетов осуществляется с помощью функций: hyscan_gtk_area_set_central(),
+ * hyscan_gtk_area_set_left(), hyscan_gtk_area_set_right(), hyscan_gtk_area_set_top() и hyscan_gtk_area_set_bottom().
+ *
+ * Рабочие области вокруг центральной могут быть скрыты пользователем через графический интерфейс,
+ * нажатием на соответствующие элементы управления (стрелки) или программно, с помощью функций:
+ * hyscan_gtk_area_set_left_visible(), hyscan_gtk_area_set_right_visible(), hyscan_gtk_area_set_top_visible(),
+ * hyscan_gtk_area_set_bottom_visible() и hyscan_gtk_area_set_all_visible().
+ *
+ * Определить отображаются рабочие области или нет можно с помощью функций: hyscan_gtk_area_is_left_visible(),
+ * hyscan_gtk_area_is_right_visible(), hyscan_gtk_area_is_top_visible() и hyscan_gtk_area_is_bottom_visible().
+ *
+ */
 #include "hyscan-gtk-area.h"
 
 /* Внутренние данные объекта. */
@@ -223,14 +267,25 @@ hyscan_gtk_area_switch_bottom (GtkWidget     *widget,
   return TRUE;
 }
 
-/* Функция создаёт новый виджет HyScanGtkArea. */
+/**
+ * hyscan_gtk_area_new:
+ * Функция создаёт новый виджет #HyScanGtkArea
+ *
+ * Returns: Указатель на новый виджет #HyScanGtkArea
+ */
 GtkWidget *
 hyscan_gtk_area_new (void)
 {
   return g_object_new (HYSCAN_TYPE_GTK_AREA, NULL);
 }
 
-/* Функция устанавливает виджет рабочей области по центру. */
+/**
+ * hyscan_gtk_area_set_central:
+ * @area: #HyScanGtkArea
+ * @child: дочерний виджет.
+ *
+ * Функция задаёт дочерний виджет центральной рабочей области.
+ */
 void
 hyscan_gtk_area_set_central (HyScanGtkArea *area,
                              GtkWidget     *child)
@@ -252,7 +307,13 @@ hyscan_gtk_area_set_central (HyScanGtkArea *area,
   area->central_area = child;
 }
 
-/* Функция устанавливает виджет рабочей области слева. */
+/**
+ * hyscan_gtk_area_set_left:
+ * @area: #HyScanGtkArea
+ * @child: дочерний виджет.
+ *
+ * Функция задаёт дочерний виджет рабочей области слева.
+ */
 void
 hyscan_gtk_area_set_left (HyScanGtkArea *area,
                           GtkWidget     *child)
@@ -288,7 +349,13 @@ hyscan_gtk_area_set_left (HyScanGtkArea *area,
                     G_CALLBACK( hyscan_gtk_area_switch_left ), area);
 }
 
-/* Функция устанавливает виджет рабочей области справа. */
+/**
+ * hyscan_gtk_area_set_right:
+ * @area: #HyScanGtkArea
+ * @child: дочерний виджет.
+ *
+ * Функция задаёт дочерний виджет рабочей области справа.
+ */
 void
 hyscan_gtk_area_set_right (HyScanGtkArea *area,
                            GtkWidget     *child)
@@ -325,7 +392,13 @@ hyscan_gtk_area_set_right (HyScanGtkArea *area,
 
 }
 
-/* Функция устанавливает виджет рабочей области сверху. */
+/**
+ * hyscan_gtk_area_set_top:
+ * @area: #HyScanGtkArea
+ * @child: дочерний виджет.
+ *
+ * Функция задаёт дочерний виджет рабочей области сверху.
+ */
 void
 hyscan_gtk_area_set_top (HyScanGtkArea *area,
                          GtkWidget     *child)
@@ -361,7 +434,13 @@ hyscan_gtk_area_set_top (HyScanGtkArea *area,
                     G_CALLBACK( hyscan_gtk_area_switch_top ), area);
 }
 
-/* Функция устанавливает виджет рабочей области снизу. */
+/**
+ * hyscan_gtk_area_set_bottom:
+ * @area: #HyScanGtkArea
+ * @child: дочерний виджет.
+ *
+ * Функция задаёт дочерний виджет рабочей области снизу.
+ */
 void
 hyscan_gtk_area_set_bottom (HyScanGtkArea *area,
                             GtkWidget     *child)
@@ -397,7 +476,13 @@ hyscan_gtk_area_set_bottom (HyScanGtkArea *area,
                     G_CALLBACK( hyscan_gtk_area_switch_bottom ), area);
 }
 
-/* Функция изменяет видимость рабочей области слева. */
+/**
+ * hyscan_gtk_area_set_left_visible:
+ * @area: #HyScanGtkArea
+ * @visible: показывать или нет рабочую область слева.
+ *
+ * Функция устанавливает видимость рабочей области слева.
+ */
 void
 hyscan_gtk_area_set_left_visible (HyScanGtkArea *area,
                                   gboolean       visible)
@@ -413,7 +498,14 @@ hyscan_gtk_area_set_left_visible (HyScanGtkArea *area,
   hyscan_gtk_area_switch_left (NULL, NULL, area);
 }
 
-/* Функция возвращает состояние видимости рабочей области слева. */
+/**
+ * hyscan_gtk_area_is_left_visible:
+ * @area: #HyScanGtkArea
+ *
+ * Функция возвращает состояние видимости рабочей области слева.
+ *
+ * Returns: Состояние видимости рабочей области слева.
+ */
 gboolean
 hyscan_gtk_area_is_left_visible (HyScanGtkArea *area)
 {
@@ -423,7 +515,13 @@ hyscan_gtk_area_is_left_visible (HyScanGtkArea *area)
   return gtk_revealer_get_reveal_child (GTK_REVEALER (area->left_area));
 }
 
-/* Функция изменяет видимость рабочей области справа. */
+/**
+ * hyscan_gtk_area_set_right_visible:
+ * @area: #HyScanGtkArea
+ * @visible: показывать или нет рабочую область справа.
+ *
+ * Функция устанавливает видимость рабочей области справа.
+ */
 void
 hyscan_gtk_area_set_right_visible (HyScanGtkArea *area, gboolean visible)
 {
@@ -438,7 +536,14 @@ hyscan_gtk_area_set_right_visible (HyScanGtkArea *area, gboolean visible)
   hyscan_gtk_area_switch_right (NULL, NULL, area);
 }
 
-/* Функция возвращает состояние видимости рабочей области справа. */
+/**
+ * hyscan_gtk_area_is_right_visible:
+ * @area: #HyScanGtkArea
+ *
+ * Функция возвращает состояние видимости рабочей области справа.
+ *
+ * Returns: Состояние видимости рабочей области справа.
+ */
 gboolean
 hyscan_gtk_area_is_right_visible (HyScanGtkArea *area)
 {
@@ -448,7 +553,13 @@ hyscan_gtk_area_is_right_visible (HyScanGtkArea *area)
   return gtk_revealer_get_reveal_child (GTK_REVEALER (area->right_area));
 }
 
-/* Функция изменяет видимость рабочей области сверху. */
+/**
+ * hyscan_gtk_area_set_top_visible:
+ * @area: #HyScanGtkArea
+ * @visible: показывать или нет рабочую область сверху.
+ *
+ * Функция устанавливает видимость рабочей области сверху.
+ */
 void
 hyscan_gtk_area_set_top_visible (HyScanGtkArea *area,
                                  gboolean       visible)
@@ -464,7 +575,14 @@ hyscan_gtk_area_set_top_visible (HyScanGtkArea *area,
   hyscan_gtk_area_switch_top (NULL, NULL, area);
 }
 
-/* Функция возвращает состояние видимости рабочей области сверху. */
+/**
+ * hyscan_gtk_area_is_top_visible:
+ * @area: #HyScanGtkArea
+ *
+ * Функция возвращает состояние видимости рабочей области сверху.
+ *
+ * Returns: Состояние видимости рабочей области сверху.
+ */
 gboolean
 hyscan_gtk_area_is_top_visible (HyScanGtkArea *area)
 {
@@ -474,7 +592,13 @@ hyscan_gtk_area_is_top_visible (HyScanGtkArea *area)
   return gtk_revealer_get_reveal_child (GTK_REVEALER (area->top_area));
 }
 
-/* Функция изменяет видимость рабочей области снизу. */
+/**
+ * hyscan_gtk_area_set_bottom_visible:
+ * @area: #HyScanGtkArea
+ * @visible: показывать или нет рабочую область снизу.
+ *
+ * Функция устанавливает видимость рабочей области снизу.
+ */
 void
 hyscan_gtk_area_set_bottom_visible (HyScanGtkArea *area,
                                     gboolean       visible)
@@ -490,7 +614,14 @@ hyscan_gtk_area_set_bottom_visible (HyScanGtkArea *area,
   hyscan_gtk_area_switch_bottom (NULL, NULL, area);
 }
 
-/* Функция возвращает состояние видимости рабочей области снизу. */
+/**
+ * hyscan_gtk_area_is_bottom_visible:
+ * @area: #HyScanGtkArea
+ *
+ * Функция возвращает состояние видимости рабочей области снизу.
+ *
+ * Returns: Состояние видимости рабочей области снизу.
+ */
 gboolean
 hyscan_gtk_area_is_bottom_visible (HyScanGtkArea *area)
 {
@@ -500,7 +631,13 @@ hyscan_gtk_area_is_bottom_visible (HyScanGtkArea *area)
   return gtk_revealer_get_reveal_child (GTK_REVEALER (area->bottom_area));
 }
 
-/* Функция изменяет видимость всех рабочих областей, кроме центральной. */
+/**
+ * hyscan_gtk_area_set_all_visible:
+ * @area: #HyScanGtkArea
+ * @visible: показывать или нет рабочие области.
+ *
+ * Функция устанавливает видимость всех рабочих областей, кроме центральной.
+ */
 void
 hyscan_gtk_area_set_all_visible (HyScanGtkArea *area,
                                  gboolean       visible)
