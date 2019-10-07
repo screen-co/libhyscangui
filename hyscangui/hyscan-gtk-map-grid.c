@@ -183,7 +183,7 @@ hyscan_gtk_map_grid_added (HyScanGtkLayer          *gtk_layer,
 
   priv->map = g_object_ref (HYSCAN_GTK_MAP (container));
 
-  g_signal_connect_after (priv->map, "visible-draw",
+  g_signal_connect_after (priv->map, "area-draw",
                           G_CALLBACK (hyscan_gtk_map_grid_draw), gtk_layer);
   g_signal_connect_swapped (priv->map, "configure-event",
                             G_CALLBACK (hyscan_gtk_map_grid_configure), gtk_layer);
@@ -295,7 +295,7 @@ hyscan_gtk_map_grid_draw_lat (HyScanGtkMapGrid *grid,
   /* Рисуем подпись. */
   hyscan_gtk_map_grid_format_label (geo.lat, value_power, label, sizeof (label));
   hyscan_gtk_map_geo_to_value (priv->map, geo, &point);
-  gtk_cifro_area_visible_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
+  gtk_cifro_area_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
   pango_layout_set_text (priv->pango_layout, label, -1);
   pango_layout_get_size (priv->pango_layout, &text_width, &text_height);
   text_height /= PANGO_SCALE;
@@ -324,7 +324,7 @@ hyscan_gtk_map_grid_draw_lat (HyScanGtkMapGrid *grid,
     {
       geo.lon = from_lon + step * i;
       hyscan_gtk_map_geo_to_value (priv->map, geo, &point);
-      gtk_cifro_area_visible_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
+      gtk_cifro_area_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
       cairo_line_to (cairo, grid_x, grid_y);
     }
   cairo_set_line_width (cairo, priv->line_width);
@@ -361,7 +361,7 @@ hyscan_gtk_map_grid_draw_lon (HyScanGtkMapGrid *grid,
   /* Рисуем подпись. */
   cairo_save (cairo);
   hyscan_gtk_map_geo_to_value (priv->map, geo, &point);
-  gtk_cifro_area_visible_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
+  gtk_cifro_area_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
   hyscan_gtk_map_grid_format_label (longitude, value_power, label, sizeof (label));
   pango_layout_set_text (priv->pango_layout, label, -1);
   pango_layout_get_size (priv->pango_layout, &text_width, &text_height);
@@ -389,7 +389,7 @@ hyscan_gtk_map_grid_draw_lon (HyScanGtkMapGrid *grid,
     {
       geo.lat = from_lat + step * i;
       hyscan_gtk_map_geo_to_value (priv->map, geo, &point);
-      gtk_cifro_area_visible_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
+      gtk_cifro_area_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
       cairo_line_to (cairo, grid_x, grid_y);
     }
   cairo_set_line_width (cairo, priv->line_width);
