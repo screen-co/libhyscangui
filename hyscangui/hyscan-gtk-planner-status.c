@@ -135,7 +135,7 @@ hyscan_gtk_planner_status_track_changed (HyScanGtkPlannerStatus   *p_status,
       if (angle < 0)
         angle += 360.0;
 
-      text = g_strdup_printf ("Angle %.2f°, Length %.2f %s", angle, length, _("m"));
+      text = g_strdup_printf (_("Angle %.2f°, Length %.2f %s"), angle, length, _("m"));
       gtk_label_set_text (label, text);
 
       g_free (text);

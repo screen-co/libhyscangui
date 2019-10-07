@@ -8,14 +8,31 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-07-18 16:01+0300\n"
+"POT-Creation-Date: 2019-10-07 10:58+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: hyscangui/hyscan-gtk-planner-editor.c:432
+#, c-format
+msgid "%d track selected"
+msgid_plural "%d tracks selected"
+msgstr[0] ""
+msgstr[1] ""
+
+#: hyscangui/hyscan-gtk-planner-editor.c:258
+msgid "Angle"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-planner-status.c:138
+#, c-format
+msgid "Angle %.2f°, Length %.2f %s"
+msgstr ""
 
 #: hyscangui/hyscan-gtk-map-nav.c:875
 msgctxt "Heading"
@@ -26,8 +43,17 @@ msgstr ""
 msgid "Configure track channel data"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-planner-status.c:118
+msgid "Coordinate system is not available"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-map-track-item.c:596
 msgid "DPT Channel"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-map-planner.c:454
+#: hyscangui/hyscan-gtk-planner-zeditor.c:272
+msgid "Delete"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-param-tree.c:245
@@ -38,12 +64,46 @@ msgstr ""
 msgid "Disabled"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-planner-zeditor.c:271
+msgid "Duplicate"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-planner-editor.c:252
+msgid "End X"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-planner-editor.c:254
+msgid "End Y"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-map-nav.c:875
 msgctxt "Heading"
 msgid "HDG"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-control.c:188
+#: hyscangui/hyscan-gtk-map-planner.c:453
+msgid "Invert"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-planner-zeditor.c:259
+#: hyscangui/hyscan-gtk-planner-origin.c:140
+msgid "Latitude"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-layer-list.c:226
+msgid "Layer"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-planner-editor.c:256
+msgid "Length"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-planner-zeditor.c:260
+#: hyscangui/hyscan-gtk-planner-origin.c:142
+msgid "Longitude"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-map-control.c:191
 #, c-format
 msgid ""
 "Mouse coordinates copied to clipboard:\n"
@@ -51,8 +111,30 @@ msgid ""
 "%s"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-planner-zeditor.c:255
+msgid "N"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-param-tree.c:239
 msgid "Name"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-map-planner.c:452
+msgid "Navigate"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-map-steer.c:1149
+#: hyscangui/hyscan-gtk-planner-status.c:110
+msgid "No active track"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-planner-origin.c:144
+msgid "OX Direction"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-map-steer.c:1198
+#, c-format
+msgid "Plan: %.1f m/s %.0f° L%.0fm ~%02d:%02d"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-map-track-item.c:602
@@ -61,6 +143,10 @@ msgstr ""
 
 #: hyscangui/hyscan-gtk-map-track-item.c:591
 msgid "RMC Channel"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-layer-list.c:221
+msgid "Show"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-map-track-item.c:603
@@ -75,8 +161,20 @@ msgstr ""
 msgid "Signal lost"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-planner-editor.c:260
+msgid "Speed"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-map-track-item.c:609
 msgid "Starboard Channel"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-planner-editor.c:248
+msgid "Start X"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-planner-editor.c:250
+msgid "Start Y"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-map-track-item.c:597
@@ -87,20 +185,37 @@ msgstr ""
 msgid "The NMEA-channel with RMC sentences"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-planner-editor.c:439
+msgid "The origin of coordinate system is not set."
+msgstr ""
+
 #: hyscangui/hyscan-gtk-map-track-item.c:585
 msgid "Track settings"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-scale.c:301 hyscangui/hyscan-gtk-map-ruler.c:369
+#: hyscangui/hyscan-gtk-planner-status.c:125
+msgid "Wrong value"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-planner-zeditor.c:261
+msgid "X"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-planner-zeditor.c:262
+msgid "Y"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-map-scale.c:300 hyscangui/hyscan-gtk-map-ruler.c:441
 msgid "cm"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-scale.c:297 hyscangui/hyscan-gtk-map-ruler.c:375
+#: hyscangui/hyscan-gtk-map-scale.c:296 hyscangui/hyscan-gtk-map-ruler.c:447
 msgid "km"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-scale.c:299 hyscangui/hyscan-gtk-map-ruler.c:371
-#: hyscangui/hyscan-gtk-map-ruler.c:373
+#: hyscangui/hyscan-gtk-map-scale.c:298
+#: hyscangui/hyscan-gtk-planner-status.c:138
+#: hyscangui/hyscan-gtk-map-ruler.c:443 hyscangui/hyscan-gtk-map-ruler.c:445
 #: hyscangui/hyscan-gtk-waterfall-grid.c:596
 msgid "m"
 msgstr ""
@@ -109,6 +224,6 @@ msgstr ""
 msgid "m/s"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-scale.c:303
+#: hyscangui/hyscan-gtk-map-scale.c:302
 msgid "mm"
 msgstr ""

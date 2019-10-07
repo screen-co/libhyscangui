@@ -125,6 +125,7 @@ hyscan_gtk_planner_origin_object_constructed (GObject *object)
 {
   HyScanGtkPlannerOrigin *gtk_origin = HYSCAN_GTK_PLANNER_ORIGIN (object);
   GtkGrid *grid = GTK_GRID (object);
+  GtkWidget *label_lat, *label_lon, *label_azimuth;
   HyScanGtkPlannerOriginPrivate *priv = gtk_origin->priv;
 
   G_OBJECT_CLASS (hyscan_gtk_planner_origin_parent_class)->constructed (object);
@@ -136,12 +137,19 @@ hyscan_gtk_planner_origin_object_constructed (GObject *object)
   gtk_grid_set_row_spacing (grid, 3);
   gtk_grid_set_column_spacing (grid, 6);
 
-  gtk_grid_attach (grid, gtk_label_new (_("Latitude")),     0, 0, 1, 1);
-  gtk_grid_attach (grid, priv->lat,                         1, 0, 1, 1);
-  gtk_grid_attach (grid, gtk_label_new (_("Longitude")),    0, 1, 1, 1);
-  gtk_grid_attach (grid, priv->lon,                         1, 1, 1, 1);
-  gtk_grid_attach (grid, gtk_label_new (_("OX Direction")), 0, 2, 1, 1);
-  gtk_grid_attach (grid, priv->azimuth,                     1, 2, 1, 1);
+  label_lat = gtk_label_new (_("Latitude"));
+  gtk_widget_set_halign (label_lat, GTK_ALIGN_END);
+  label_lon = gtk_label_new (_("Longitude"));
+  gtk_widget_set_halign (label_lon, GTK_ALIGN_END);
+  label_azimuth = gtk_label_new (_("OX Direction"));
+  gtk_widget_set_halign (label_azimuth, GTK_ALIGN_END);
+
+  gtk_grid_attach (grid, label_lat,     0, 0, 1, 1);
+  gtk_grid_attach (grid, priv->lat,     1, 0, 1, 1);
+  gtk_grid_attach (grid, label_lon,     0, 1, 1, 1);
+  gtk_grid_attach (grid, priv->lon,     1, 1, 1, 1);
+  gtk_grid_attach (grid, label_azimuth, 0, 2, 1, 1);
+  gtk_grid_attach (grid, priv->azimuth, 1, 2, 1, 1);
 
   g_signal_connect (priv->lat, "value-changed", G_CALLBACK (hyscan_gtk_planner_origin_val_changed), gtk_origin);
   g_signal_connect (priv->lon, "value-changed", G_CALLBACK (hyscan_gtk_planner_origin_val_changed), gtk_origin);
