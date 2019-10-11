@@ -108,6 +108,7 @@ struct _HyScanGtkMapGeomarkPrivate
   gchar                                   *drag_mark_id;       /* Идентификатор активной метки drag_mark. */
 
   gchar                                   *hover_id;           /* Идентификатор метки под курсором мыши */
+  gchar                                   *hover_candidate_id; /* Идентификатор метки под курсором мыши */
   gchar                                   *active_mark_id;     /* Идентификатор активной метки */
 
   gchar                                   *hover_handle_id;    /* Идентификатор метки, чей хэндл сейчас отображается. */
@@ -223,6 +224,7 @@ hyscan_gtk_map_geomark_object_finalize (GObject *object)
   g_rw_lock_clear (&priv->mark_lock);
   g_free (priv->hover_handle_id);
   g_free (priv->hover_id);
+  g_free (priv->hover_candidate_id);
   g_free (priv->active_mark_id);
   g_clear_pointer (&priv->marks, g_hash_table_destroy);
   g_clear_object (&priv->pango_layout);
@@ -1027,7 +1029,15 @@ hyscan_gtk_map_geomark_hint_shown (HyScanGtkLayer *layer,
   HyScanGtkMapGeomarkPrivate *priv = gm_layer->priv;
 
   if (!shown)
-    g_clear_pointer (&priv->hover_id, g_free);
+    g_clear_pointer (&priv->hover_candidate_id, g_free);
+
+  if (g_strcmp0 (priv->hover_candidate_id, priv->hover_id) != 0)
+    {
+      g_free (priv->hover_id);
+      priv->hover_id = priv->hover_candidate_id;
+      priv->hover_candidate_id = NULL;
+      gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+    }
 }
 
 /* Находит метку, которая находится в точке (x, y)
@@ -1081,10 +1091,10 @@ hyscan_gtk_map_geomark_hint_find (HyScanGtkLayer *layer,
   g_rw_lock_reader_lock (&priv->mark_lock);
 
   location = hyscan_gtk_map_geomark_find_hover (gm_layer, x, y, distance);
-  g_clear_pointer (&priv->hover_id, g_free);
+  g_clear_pointer (&priv->hover_candidate_id, g_free);
   if (location != NULL)
     {
-      priv->hover_id = g_strdup (location->mark_id);
+      priv->hover_candidate_id = g_strdup (location->mark_id);
       hint = g_strdup (location->mark->name);
     }
 

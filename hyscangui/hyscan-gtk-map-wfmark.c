@@ -101,7 +101,8 @@ struct _HyScanGtkMapWfmarkPrivate
   GRWLock                                mark_lock;       /* Блокировка данных по меткам. .*/
   GHashTable                            *marks;           /* Хэш-таблица меток #HyScanGtkMapWfmarkLocation. */
 
-  const HyScanGtkMapWfmarkLocation      *location_hover;  /* Метка, над которой находится курсор мыши. */
+  const HyScanGtkMapWfmarkLocation      *hover_location;  /* Метка, над которой находится курсор мыши. */
+  const HyScanGtkMapWfmarkLocation      *hover_candidate; /* Метка, над которой находится курсор мыши. */
   gchar                                 *active_mark_id;  /* Выбранная метка. */
 
   /* Стиль отображения. */
@@ -307,7 +308,7 @@ hyscan_gtk_map_wfmark_model_changed (HyScanGtkMapWfmark *wfm_layer)
 
   g_rw_lock_writer_lock (&priv->mark_lock);
 
-  priv->location_hover = NULL;
+  priv->hover_location = NULL;
   g_hash_table_remove_all (priv->marks);
   g_hash_table_foreach_steal (marks, hyscan_gtk_map_wfmark_insert_mark, wfm_layer);
 
@@ -394,7 +395,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
       selected = (mark_id != NULL && g_strcmp0 (mark_id, priv->active_mark_id) == 0);
 
-      if (priv->location_hover == location)
+      if (priv->hover_location == location)
         color = &priv->color_hover;
       else
         color = &priv->color_default;
@@ -601,7 +602,13 @@ hyscan_gtk_map_wfmark_hint_shown (HyScanGtkLayer *layer,
   HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
 
   if (!shown)
-    priv->location_hover = NULL;
+    priv->hover_candidate = NULL;
+
+  if (priv->hover_location == priv->hover_candidate)
+    return;
+
+  priv->hover_location = priv->hover_candidate;
+  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }
 
 /* Ищет, есть ли на слое метка в точке (x, y) */
@@ -619,9 +626,9 @@ hyscan_gtk_map_wfmark_hint_find (HyScanGtkLayer *layer,
   g_rw_lock_reader_lock (&priv->mark_lock);
 
   gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), x, y, &cursor.x, &cursor.y);
-  priv->location_hover = hyscan_gtk_map_wfmark_find_hover (wfm_layer, &cursor, distance);
-  if (priv->location_hover != NULL)
-    hint = g_strdup (priv->location_hover->mloc->mark->name);
+  priv->hover_candidate = hyscan_gtk_map_wfmark_find_hover (wfm_layer, &cursor, distance);
+  if (priv->hover_candidate != NULL)
+    hint = g_strdup (priv->hover_candidate->mloc->mark->name);
 
   g_rw_lock_reader_unlock (&priv->mark_lock);
 
