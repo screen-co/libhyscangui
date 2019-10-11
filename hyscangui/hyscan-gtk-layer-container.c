@@ -176,8 +176,6 @@
 #include <math.h>
 
 #define INI_GROUP_NAME     "container"
-#define COLOR_TEXT_DEFAULT "rgb(0,0,0)"
-#define COLOR_BG_DEFAULT   "rgba(255, 255, 255, 0.9)"
 
 typedef struct
 {
@@ -197,11 +195,12 @@ struct _HyScanGtkLayerContainerPrivate
   gboolean         changes_allowed;  /* Признак, что ввод в принципе разрешён пользователем. */
 
   gchar           *hint;             /* Текст всплывающей подсказки. */
-  gdouble          hint_x;           /* Координата x положения всплывающей подсказки. */
-  gdouble          hint_y;           /* Координата y положения всплывающей подсказки. */
-  PangoLayout     *pango_layout;     /* Раскладка шрифта. */
-  GdkRGBA          color_text;       /* Цвет текста всплывающей подсказки. */
-  GdkRGBA          color_bg;         /* Фоновый цвет всплывающей подсказки. */
+
+  struct
+  {
+    GtkWidget     *window;           /* Окно всплывающей подсказки. */
+    GtkWidget     *label;            /* Текст всплывающей подсказки. */
+  } tooltip;                         /* Всплывающая подсказка. */
 };
 
 static void         hyscan_gtk_layer_container_object_constructed      (GObject                 *object);
@@ -214,8 +213,6 @@ static gboolean     hyscan_gtk_layer_container_handle_release          (HyScanGt
                                                                         gconstpointer            handle_owner,
                                                                         GdkEventButton          *event);
 static void         hyscan_gtk_layer_container_unrealize               (GtkWidget               *widget);
-static gboolean     hyscan_gtk_layer_container_configure               (GtkWidget               *widget,
-                                                                        GdkEventConfigure       *event);
 static gboolean     hyscan_gtk_layer_container_motion_notify           (GtkWidget               *widget,
                                                                         GdkEventMotion          *event);
 static gboolean     hyscan_gtk_layer_container_button_release          (GtkWidget               *widget,
@@ -233,6 +230,11 @@ static HyScanGtkLayerContainerInfo *
 static void         hyscan_gtk_layer_container_info_free               (gpointer                 data);
 static gint         hyscan_gtk_layer_container_info_find               (gconstpointer            _a,
                                                                         gconstpointer            _b);
+static gboolean     hyscan_gtk_layer_container_leave_notify_event      (GtkWidget               *widget,
+                                                                        GdkEventCrossing        *event);
+static void         hyscan_gtk_layer_container_tooltip_move            (HyScanGtkLayerContainer *container,
+                                                                        gdouble                  x,
+                                                                        gdouble                  y);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkLayerContainer, hyscan_gtk_layer_container, GTK_TYPE_CIFRO_AREA)
 
@@ -245,10 +247,11 @@ hyscan_gtk_layer_container_class_init (HyScanGtkLayerContainerClass *klass)
   object_class->constructed = hyscan_gtk_layer_container_object_constructed;
   object_class->finalize = hyscan_gtk_layer_container_object_finalize;
 
-  widget_class->configure_event = hyscan_gtk_layer_container_configure;
   widget_class->motion_notify_event = hyscan_gtk_layer_container_motion_notify;
   widget_class->button_release_event = hyscan_gtk_layer_container_button_release;
   widget_class->unrealize = hyscan_gtk_layer_container_unrealize;
+  widget_class->leave_notify_event = hyscan_gtk_layer_container_leave_notify_event;
+  widget_class->enter_notify_event = hyscan_gtk_layer_container_leave_notify_event;
 }
 
 static void
@@ -265,10 +268,13 @@ hyscan_gtk_layer_container_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_gtk_layer_container_parent_class)->constructed (object);
 
-  hyscan_gtk_layer_container_set_changes_allowed (container, TRUE);
+  /* Всплывающая подсказка. */
+  priv->tooltip.window = gtk_window_new (GTK_WINDOW_POPUP);
+  priv->tooltip.label = gtk_label_new (NULL);
+  g_object_set (G_OBJECT (priv->tooltip.label), "margin", 6, NULL);
+  gtk_container_add (GTK_CONTAINER (priv->tooltip.window), priv->tooltip.label);
 
-  gdk_rgba_parse (&priv->color_bg, COLOR_BG_DEFAULT);
-  gdk_rgba_parse (&priv->color_text, COLOR_TEXT_DEFAULT);
+  hyscan_gtk_layer_container_set_changes_allowed (container, TRUE);
 
   g_signal_connect_swapped (container, "area-draw", G_CALLBACK (hyscan_gtk_layer_container_draw), container);
 }
@@ -279,7 +285,6 @@ hyscan_gtk_layer_container_object_finalize (GObject *object)
   HyScanGtkLayerContainer *gtk_layer_container = HYSCAN_GTK_LAYER_CONTAINER (object);
   HyScanGtkLayerContainerPrivate *priv = gtk_layer_container->priv;
 
-  g_clear_object (&priv->pango_layout);
   g_free (priv->hint);
   g_list_free_full (priv->layers, g_object_unref);
   g_signal_handlers_disconnect_by_data (object, object);
@@ -407,18 +412,20 @@ hyscan_gtk_layer_container_unrealize (GtkWidget *widget)
   hyscan_gtk_layer_container_remove_all (container);
 }
 
-/* Обработчик "configure-event". */
+/* Обработчик "leave-notify-event" и "enter-notify-event". */
 static gboolean
-hyscan_gtk_layer_container_configure (GtkWidget         *widget,
-                                      GdkEventConfigure *event)
+hyscan_gtk_layer_container_leave_notify_event (GtkWidget        *widget,
+                                               GdkEventCrossing *event)
 {
   HyScanGtkLayerContainer *container = HYSCAN_GTK_LAYER_CONTAINER (widget);
   HyScanGtkLayerContainerPrivate *priv = container->priv;
 
-  g_clear_object (&priv->pango_layout);
-  priv->pango_layout = gtk_widget_create_pango_layout (widget, NULL);
+  if (event->type == GDK_LEAVE_NOTIFY)
+    gtk_widget_hide (priv->tooltip.window);
+  else if (priv->hint != NULL)
+    gtk_widget_show_all (priv->tooltip.window);
 
-  return GTK_WIDGET_CLASS (hyscan_gtk_layer_container_parent_class)->configure_event (widget, event);
+  return GDK_EVENT_PROPAGATE;
 }
 
 static void
@@ -485,6 +492,19 @@ hyscan_gtk_layer_container_handle_show (HyScanGtkLayerContainer *container,
   priv->hshow_layer = layer;
 }
 
+/* Перемещает всплывающую подсказку в нужную точку на виджете. */
+static void
+hyscan_gtk_layer_container_tooltip_move (HyScanGtkLayerContainer *container,
+                                         gdouble                  x,
+                                         gdouble                  y)
+{
+  HyScanGtkLayerContainerPrivate *priv = container->priv;
+  gint origin_x, origin_y;
+
+  gdk_window_get_origin (gtk_widget_get_window (GTK_WIDGET (container)), &origin_x, &origin_y);
+  gtk_window_move (GTK_WINDOW (priv->tooltip.window), x + origin_x, y + origin_y + 20);
+}
+
 /* Обработчик "motion-notify-event". */
 static gboolean
 hyscan_gtk_layer_container_motion_notify (GtkWidget      *widget,
@@ -511,6 +531,8 @@ hyscan_gtk_layer_container_button_release (GtkWidget       *widget,
 {
   HyScanGtkLayerContainer *container = HYSCAN_GTK_LAYER_CONTAINER (widget);
   gconstpointer handle_owner;
+
+  hyscan_gtk_layer_container_tooltip_move (container, event->x, event->y);
 
   /* Обрабатываем только нажатия левой клавишей мыши. */
   if (event->button != GDK_BUTTON_PRIMARY)
@@ -546,33 +568,7 @@ static void
 hyscan_gtk_layer_container_draw (HyScanGtkLayerContainer *container,
                                  cairo_t                 *cairo)
 {
-  HyScanGtkLayerContainerPrivate *priv = container->priv;
-  gint text_width, text_height;
-  gdouble x, y;
-  gdouble text_margin;
-  gdouble box_margin;
 
-  if (priv->hint == NULL)
-    return;
-
-  pango_layout_set_text (priv->pango_layout, priv->hint, -1);
-  pango_layout_get_size (priv->pango_layout, &text_width, &text_height);
-  text_height /= PANGO_SCALE;
-  text_width /= PANGO_SCALE;
-
-  text_margin = 0.1 * text_height;
-  box_margin = 0.3 * text_height;
-
-  x = priv->hint_x;
-  y = priv->hint_y + (text_height + text_margin + box_margin);
-  gdk_cairo_set_source_rgba (cairo, &priv->color_bg);
-  cairo_rectangle (cairo, x - text_margin, y - text_margin,
-                   text_width + 2.0 * text_margin, text_height + 2.0 * text_margin);
-  cairo_fill (cairo);
-
-  cairo_move_to (cairo, x, y);
-  gdk_cairo_set_source_rgba (cairo, &priv->color_text);
-  pango_cairo_show_layout (cairo, priv->pango_layout);
 }
 
 /* Устанавливает всплывающую подсказку. */
@@ -586,13 +582,21 @@ hyscan_gtk_layer_container_set_hint (HyScanGtkLayerContainer *container,
   HyScanGtkLayerContainerPrivate *priv = container->priv;
   GList *link;
 
-  if (hint != NULL || priv->hint != NULL)
-    gtk_widget_queue_draw (GTK_WIDGET (container));
+  if (hint == NULL && priv->hint != NULL)
+    gtk_widget_hide (priv->tooltip.window);
+  else if (hint != NULL && priv->hint == NULL)
+    gtk_widget_show_all (priv->tooltip.window);
+
+  if (hint != NULL)
+    {
+      hyscan_gtk_layer_container_tooltip_move (container, x, y);
+      gtk_label_set_text (GTK_LABEL (priv->tooltip.label), hint);
+      /* Уменьшаем окно до размеров текста. */
+      gtk_window_resize (GTK_WINDOW (priv->tooltip.window), 1, 1);
+    }
 
   g_free (priv->hint);
   priv->hint = g_strdup (hint);
-  priv->hint_x = x;
-  priv->hint_y = y;
 
   for (link = priv->layers; link != NULL; link = link->next)
     {
@@ -768,10 +772,6 @@ hyscan_gtk_layer_container_load_key_file (HyScanGtkLayerContainer *container,
 
   g_return_if_fail (HYSCAN_IS_GTK_LAYER_CONTAINER (container));
   priv = container->priv;
-
-  /* Загружаем конфигурацию контейнера. */
-  hyscan_gtk_layer_load_key_file_rgba (&priv->color_text, key_file, INI_GROUP_NAME, "text-color", COLOR_TEXT_DEFAULT);
-  hyscan_gtk_layer_load_key_file_rgba (&priv->color_bg,   key_file, INI_GROUP_NAME, "bg-color",   COLOR_BG_DEFAULT);
 
   /* Загружаем конфигурацию каждого слоя. */
   for (link = priv->layers; link != NULL; link = link->next)
