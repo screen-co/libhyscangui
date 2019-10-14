@@ -404,9 +404,10 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
   GHashTableIter iter;
   HyScanGtkMapWfmarkLocation *location;
   gchar *mark_id;
+  static guint id = 0;
+  guint counter = 0, area_width, area_height;
   gfloat ppi;
   gdouble scale, scale_px;
-  guint counter = 0, area_width, area_height;
   HyScanGeoCartesian2D area_rect_from = {VISIBLE_AREA_PADDING, VISIBLE_AREA_PADDING},
                        area_rect_to;
 
@@ -447,8 +448,10 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       guint32 size = 0;
 
       HyScanGeoCartesian2D position, new_position, offset,
-                           m0, m1, m2, m3,
-                           b0, b1, b2, b3,
+                           m0, m2, b0, b2,
+#ifdef DEBUG_GRAPHIC_MARK
+                           m1, m3, b1, b3,
+#endif
                            border_from, border_to;
 
       current_sin = sin (location->angle);
@@ -468,80 +471,97 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
       b0.x = -new_width;
       b0.y = -new_height;
-      b1.x = -new_width;
-      b1.y =  new_height;
       b2.x =  new_width;
       b2.y =  new_height;
-      b3.x =  new_width;
-      b3.y = -new_height;
 
       tmp = b0.x;
       b0.x = current_cos * tmp - current_sin * b0.y;
       b0.y = current_sin * tmp + current_cos * b0.y;
 
-      tmp = b1.x;
-      b1.x = current_cos * tmp - current_sin * b1.y;
-      b1.y = current_sin * tmp + current_cos * b1.y;
-
       tmp = b2.x;
       b2.x = current_cos * tmp - current_sin * b2.y;
       b2.y = current_sin * tmp + current_cos * b2.y;
 
-      tmp = b3.x;
-      b3.x = current_cos * tmp - current_sin * b3.y;
-      b3.y = current_sin * tmp + current_cos * b3.y;
+      tmp = (area_rect_to.x + area_rect_from.x) / 2.0;
+      b0.x += tmp;
+      b2.x += tmp;
 
-      tmp = area_rect_to.x + area_rect_from.x;
-      b0.x += tmp / 2.0;
-      b0.y += (area_rect_to.y + area_rect_from.y) / 2.0;
-      b1.x += tmp / 2.0;
-      b1.y += (area_rect_to.y + area_rect_from.y) / 2.0;
-      b2.x += tmp / 2.0;
-      b2.y += (area_rect_to.y + area_rect_from.y) / 2.0;
-      b3.x += tmp / 2.0;
-      b3.y += (area_rect_to.y + area_rect_from.y) / 2.0;
+      tmp = (area_rect_to.y + area_rect_from.y) / 2.0;
+      b0.y += tmp;
+      b2.y += tmp;
 
       m0.x = -width;
       m0.y = -height;
-      m1.x = -width;
-      m1.y =  height;
       m2.x =  width;
       m2.y =  height;
-      m3.x =  width;
-      m3.y = -height;
 
       b0.x -= position.x;
       b0.y -= position.y;
-      b1.x -= position.x;
-      b1.y -= position.y;
       b2.x -= position.x;
       b2.y -= position.y;
-      b3.x -= position.x;
-      b3.y -= position.y;
 
       tmp = b0.x;
       b0.x = current_cos * tmp + current_sin * b0.y;
       b0.y = current_cos * b0.y - current_sin * tmp;
 
-      tmp = b1.x;
-      b1.x = current_cos * tmp + current_sin * b1.y;
-      b1.y = current_cos * b1.y - current_sin * tmp;
-
       tmp = b2.x;
       b2.x = current_cos * tmp + current_sin * b2.y;
       b2.y = current_cos * b2.y - current_sin * tmp;
 
-      tmp = b3.x;
-      b3.x = current_cos * tmp + current_sin * b3.y;
-      b3.y = current_cos * b3.y - current_sin * tmp;
+#ifdef DEBUG_GRAPHIC_MARK
+      {
+        b1.x = -new_width;
+        b1.y =  new_height;
+        b3.x =  new_width;
+        b3.y = -new_height;
 
-      border_from.x = fmax(b0.x, m0.x);
-      border_from.y = fmax(b0.y, m0.y);
-      border_to.x   = fmin(b2.x, m2.x);
-      border_to.y   = fmin(b2.y, m2.y);
+        tmp = b1.x;
+        b1.x = current_cos * tmp - current_sin * b1.y;
+        b1.y = current_sin * tmp + current_cos * b1.y;
 
-      width  = fabs (border_to.x - border_from.x) / 2.0;
-      height = fabs (border_to.y - border_from.y) / 2.0;
+        tmp = b3.x;
+        b3.x = current_cos * tmp - current_sin * b3.y;
+        b3.y = current_sin * tmp + current_cos * b3.y;
+
+        tmp = (area_rect_to.x + area_rect_from.x) / 2.0;
+        b1.x += tmp;
+        b3.x += tmp;
+
+        tmp = (area_rect_to.y + area_rect_from.y) / 2.0;
+        b1.y += tmp
+        b3.y += tmp;
+
+        m1.x = -width;
+        m1.y =  height;
+        m3.x =  width;
+        m3.y = -height;
+
+        b1.x -= position.x;
+        b1.y -= position.y;
+        b3.x -= position.x;
+        b3.y -= position.y;
+
+        tmp = b1.x;
+        b1.x = current_cos * tmp + current_sin * b1.y;
+        b1.y = current_cos * b1.y - current_sin * tmp;
+
+        tmp = b3.x;
+        b3.x = current_cos * tmp + current_sin * b3.y;
+        b3.y = current_cos * b3.y - current_sin * tmp;
+      }
+#endif
+
+      border_from.x = fmax (b0.x, m0.x);
+      border_from.y = fmax (b0.y, m0.y);
+      border_to.x   = fmin (b2.x, m2.x);
+      border_to.y   = fmin (b2.y, m2.y);
+
+      width  = (border_to.x - border_from.x) / 2.0;
+      if (width <= 0.0)
+	continue;
+      height = (border_to.y - border_from.y) / 2.0;
+      if (height <= 0.0)
+	continue;
 
       offset.x = (border_to.x + border_from.x) / 2.0;
       offset.y = (border_to.y + border_from.y) / 2.0;
@@ -552,23 +572,27 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       offset.x /=  scale_px;
       offset.y /=  scale_px;
 
-      m0.x += new_position.x;
-      m0.y += new_position.y;
-      m1.x += new_position.x;
-      m1.y += new_position.y;
-      m2.x += new_position.x;
-      m2.y += new_position.y;
-      m3.x += new_position.x;
-      m3.y += new_position.y;
+#ifdef DEBUG_GRAPHIC_MARK
+      {
+        m0.x += new_position.x;
+        m0.y += new_position.y;
+        m1.x += new_position.x;
+        m1.y += new_position.y;
+        m2.x += new_position.x;
+        m2.y += new_position.y;
+        m3.x += new_position.x;
+        m3.y += new_position.y;
 
-      b0.x += new_position.x;
-      b0.y += new_position.y;
-      b1.x += new_position.x;
-      b1.y += new_position.y;
-      b2.x += new_position.x;
-      b2.y += new_position.y;
-      b3.x += new_position.x;
-      b3.y += new_position.y;
+        b0.x += new_position.x;
+        b0.y += new_position.y;
+        b1.x += new_position.x;
+        b1.y += new_position.y;
+        b2.x += new_position.x;
+        b2.y += new_position.y;
+        b3.x += new_position.x;
+        b3.y += new_position.y;
+      }
+#endif
 
       new_width  = width * fabs (current_cos) + height * fabs (current_sin);
       new_height = width * fabs (current_sin) + height * fabs (current_cos);
@@ -587,6 +611,8 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
       gdouble current_tile_width  = width  / scale_px,
               current_tile_height = height / scale_px;
+
+#ifdef DEBUG_GRAPHIC_MARK
 
       HyScanGeoCartesian2D p0 = {-width, -height},
                            p1 = {-width,  height},
@@ -617,6 +643,8 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       p2.y += new_position.y;
       p3.x += new_position.x;
       p3.y += new_position.y;
+
+#endif
 
       tile = hyscan_tile_new (location->mloc->track_name);
 
@@ -877,7 +905,6 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
   if (counter)
     {
-      static guint id = 0;
       hyscan_tile_queue_add_finished (priv->tile_queue, id++);
     }
 
@@ -897,8 +924,10 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       guint32 size = 0;
 
       HyScanGeoCartesian2D position, new_position, offset,
-                           m0, m1, m2, m3,
-                           b0, b1, b2, b3,
+                           m0, m2, b0, b2,
+#ifdef DEBUG_GRAPHIC_MARK
+                           m1, m3, b1, b3,
+#endif
                            border_from, border_to;
 
       current_sin = sin (priv->hover_location->angle);
@@ -918,80 +947,100 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
       b0.x = -new_width;
       b0.y = -new_height;
-      b1.x = -new_width;
-      b1.y =  new_height;
       b2.x =  new_width;
       b2.y =  new_height;
-      b3.x =  new_width;
-      b3.y = -new_height;
 
       tmp = b0.x;
       b0.x = current_cos * tmp - current_sin * b0.y;
       b0.y = current_sin * tmp + current_cos * b0.y;
 
-      tmp = b1.x;
-      b1.x = current_cos * tmp - current_sin * b1.y;
-      b1.y = current_sin * tmp + current_cos * b1.y;
-
       tmp = b2.x;
       b2.x = current_cos * tmp - current_sin * b2.y;
       b2.y = current_sin * tmp + current_cos * b2.y;
 
-      tmp = b3.x;
-      b3.x = current_cos * tmp - current_sin * b3.y;
-      b3.y = current_sin * tmp + current_cos * b3.y;
+      tmp = (area_rect_to.x + area_rect_from.x) / 2.0;
+      b0.x += tmp;
+      b2.x += tmp;
 
-      tmp = area_rect_to.x + area_rect_from.x;
-      b0.x += tmp / 2.0;
-      b0.y += (area_rect_to.y + area_rect_from.y) / 2.0;
-      b1.x += tmp / 2.0;
-      b1.y += (area_rect_to.y + area_rect_from.y) / 2.0;
-      b2.x += tmp / 2.0;
-      b2.y += (area_rect_to.y + area_rect_from.y) / 2.0;
-      b3.x += tmp / 2.0;
-      b3.y += (area_rect_to.y + area_rect_from.y) / 2.0;
+      tmp = (area_rect_to.y + area_rect_from.y) / 2.0;
+      b0.y += tmp;
+      b2.y += tmp;
 
       m0.x = -width;
       m0.y = -height;
-      m1.x = -width;
-      m1.y =  height;
       m2.x =  width;
       m2.y =  height;
-      m3.x =  width;
-      m3.y = -height;
 
       b0.x -= position.x;
       b0.y -= position.y;
-      b1.x -= position.x;
-      b1.y -= position.y;
       b2.x -= position.x;
       b2.y -= position.y;
-      b3.x -= position.x;
-      b3.y -= position.y;
 
       tmp = b0.x;
       b0.x = current_cos * tmp + current_sin * b0.y;
       b0.y = current_cos * b0.y - current_sin * tmp;
 
-      tmp = b1.x;
-      b1.x = current_cos * tmp + current_sin * b1.y;
-      b1.y = current_cos * b1.y - current_sin * tmp;
-
       tmp = b2.x;
       b2.x = current_cos * tmp + current_sin * b2.y;
       b2.y = current_cos * b2.y - current_sin * tmp;
 
-      tmp = b3.x;
-      b3.x = current_cos * tmp + current_sin * b3.y;
-      b3.y = current_cos * b3.y - current_sin * tmp;
+#ifdef DEBUG_GRAPHIC_MARK
+      {
+        b1.x = -new_width;
+        b1.y =  new_height;
+        b3.x =  new_width;
+        b3.y = -new_height;
 
-      border_from.x = fmax(b0.x, m0.x);
-      border_from.y = fmax(b0.y, m0.y);
-      border_to.x   = fmin(b2.x, m2.x);
-      border_to.y   = fmin(b2.y, m2.y);
+        tmp = b1.x;
+        b1.x = current_cos * tmp - current_sin * b1.y;
+        b1.y = current_sin * tmp + current_cos * b1.y;
 
-      width  = fabs (border_to.x - border_from.x) / 2.0;
-      height = fabs (border_to.y - border_from.y) / 2.0;
+        tmp = b3.x;
+        b3.x = current_cos * tmp - current_sin * b3.y;
+        b3.y = current_sin * tmp + current_cos * b3.y;
+
+        tmp = (area_rect_to.x + area_rect_from.x) / 2.0;
+        b1.x += tmp;
+        b3.x += tmp;
+
+        tmp = (area_rect_to.y + area_rect_from.y) / 2.0;
+        b1.y += tmp;
+        b3.y += tmp;
+
+        m1.x = -width;
+        m1.y =  height;
+        m3.x =  width;
+        m3.y = -height;
+
+        b1.x -= position.x;
+        b1.y -= position.y;
+        b3.x -= position.x;
+        b3.y -= position.y;
+
+        tmp = b1.x;
+        b1.x = current_cos * tmp + current_sin * b1.y;
+        b1.y = current_cos * b1.y - current_sin * tmp;
+
+        tmp = b3.x;
+        b3.x = current_cos * tmp + current_sin * b3.y;
+        b3.y = current_cos * b3.y - current_sin * tmp;
+      }
+#endif
+
+      border_from.x = fmax (b0.x, m0.x);
+      border_from.y = fmax (b0.y, m0.y);
+      border_to.x   = fmin (b2.x, m2.x);
+      border_to.y   = fmin (b2.y, m2.y);
+
+      width  = (border_to.x - border_from.x) / 2.0;
+      if (width <= 0.0)
+	return;
+      height = (border_to.y - border_from.y) / 2.0;
+      if (height <= 0.0)
+	return;
+
+      gdouble current_tile_width  = width  / scale_px,
+      current_tile_height = height / scale_px;
 
       offset.x = (border_to.x + border_from.x) / 2.0;
       offset.y = (border_to.y + border_from.y) / 2.0;
@@ -1002,23 +1051,27 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       offset.x /=  scale_px;
       offset.y /=  scale_px;
 
-      m0.x += new_position.x;
-      m0.y += new_position.y;
-      m1.x += new_position.x;
-      m1.y += new_position.y;
-      m2.x += new_position.x;
-      m2.y += new_position.y;
-      m3.x += new_position.x;
-      m3.y += new_position.y;
+#ifdef DEBUG_GRAPHIC_MARK
+      {
+        m0.x += new_position.x;
+        m0.y += new_position.y;
+        m1.x += new_position.x;
+        m1.y += new_position.y;
+        m2.x += new_position.x;
+        m2.y += new_position.y;
+        m3.x += new_position.x;
+        m3.y += new_position.y;
 
-      b0.x += new_position.x;
-      b0.y += new_position.y;
-      b1.x += new_position.x;
-      b1.y += new_position.y;
-      b2.x += new_position.x;
-      b2.y += new_position.y;
-      b3.x += new_position.x;
-      b3.y += new_position.y;
+        b0.x += new_position.x;
+        b0.y += new_position.y;
+        b1.x += new_position.x;
+        b1.y += new_position.y;
+        b2.x += new_position.x;
+        b2.y += new_position.y;
+        b3.x += new_position.x;
+        b3.y += new_position.y;
+      }
+#endif
 
       new_width  = width * fabs (current_cos) + height * fabs (current_sin);
       new_height = width * fabs (current_sin) + height * fabs (current_cos);
@@ -1029,8 +1082,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       border_to.x = new_position.x + new_width;
       border_to.y = new_position.y + new_height;
 
-      gdouble current_tile_width  = width  / scale_px,
-      current_tile_height = height / scale_px;
+#ifdef DEBUG_GRAPHIC_MARK
 
       HyScanGeoCartesian2D p0 = {-width, -height},
                            p1 = {-width,  height},
@@ -1061,6 +1113,8 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       p2.y += new_position.y;
       p3.x += new_position.x;
       p3.y += new_position.y;
+
+#endif
 
       tile = hyscan_tile_new (priv->hover_location->mloc->track_name);
 
@@ -1171,7 +1225,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
               /* Добавляем тайл в очередь на генерацию. */
               hyscan_tile_queue_add (priv->tile_queue, tile, cancellable);
               g_object_unref (cancellable);
-              counter++;
+              hyscan_tile_queue_add_finished (priv->tile_queue, id++);
             }
         }
       g_object_unref (tile);
@@ -1582,7 +1636,7 @@ hyscan_gtk_map_wfmark_hint_find (HyScanGtkLayer *layer,
       hint = g_strconcat (hint,"\nDepth: ", str, (gchar*)NULL);
       hint = g_strconcat (hint,"\nTrack: ", priv->hover_candidate->mloc->track_name, ".",(gchar*)NULL);
 
-      priv->hover_candidate->mloc->mark->description = g_strdup ("Строка с информацией о метке. Здесь должно быть всё самое интересное, нужное, важное из базы данных.");
+      priv->hover_candidate->mloc->mark->description = g_strdup ("Строка с описанием метки и всё-такое прочее. Много-много полезной, нужной, важной информации о метке можно прочитать здесь.");
 
       empty_string = (0 == g_strcmp0 (priv->hover_candidate->mloc->mark->description, ""))? TRUE : FALSE;
 
