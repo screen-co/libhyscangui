@@ -21,6 +21,7 @@ case "$1" in
     --keyword=N_ \
     --keyword=C_:1c,2 \
     --keyword=Q_:1g \
+    --keyword=g_dngettext:2,3 \
     --from-code=UTF-8 \
     -o ${POT_FILE}
     ;;

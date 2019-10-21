@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-07-18 16:01+0300\n"
+"POT-Creation-Date: 2019-10-07 10:58+0300\n"
 "PO-Revision-Date: 2019-05-31 17:01+0300\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -19,6 +19,23 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
 "%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
+#: hyscangui/hyscan-gtk-planner-editor.c:432
+#, c-format
+msgid "%d track selected"
+msgid_plural "%d tracks selected"
+msgstr[0] "Выбран %d галс"
+msgstr[1] "Выбрано %d галса"
+msgstr[2] "Выбрано %d галсов"
+
+#: hyscangui/hyscan-gtk-planner-editor.c:258
+msgid "Angle"
+msgstr "Угол"
+
+#: hyscangui/hyscan-gtk-planner-status.c:138
+#, c-format
+msgid "Angle %.2f°, Length %.2f %s"
+msgstr "Угол %.2f°, Длина %.2f %s"
+
 #: hyscangui/hyscan-gtk-map-nav.c:875
 msgctxt "Heading"
 msgid "COG"
@@ -28,9 +45,18 @@ msgstr "ПУ"
 msgid "Configure track channel data"
 msgstr "Настройка каналов данных галса"
 
+#: hyscangui/hyscan-gtk-planner-status.c:118
+msgid "Coordinate system is not available"
+msgstr "Точка отсчёта не установлена"
+
 #: hyscangui/hyscan-gtk-map-track-item.c:596
 msgid "DPT Channel"
 msgstr "Канал DPT"
+
+#: hyscangui/hyscan-gtk-map-planner.c:454
+#: hyscangui/hyscan-gtk-planner-zeditor.c:272
+msgid "Delete"
+msgstr "Удалить"
 
 #: hyscangui/hyscan-gtk-param-tree.c:245
 msgid "Description"
@@ -40,12 +66,46 @@ msgstr "Описание"
 msgid "Disabled"
 msgstr "Отключен"
 
+#: hyscangui/hyscan-gtk-planner-zeditor.c:271
+msgid "Duplicate"
+msgstr "Дублировать"
+
+#: hyscangui/hyscan-gtk-planner-editor.c:252
+msgid "End X"
+msgstr "Конец, X"
+
+#: hyscangui/hyscan-gtk-planner-editor.c:254
+msgid "End Y"
+msgstr "Конец, Y"
+
 #: hyscangui/hyscan-gtk-map-nav.c:875
 msgctxt "Heading"
 msgid "HDG"
 msgstr "ИК"
 
-#: hyscangui/hyscan-gtk-map-control.c:188
+#: hyscangui/hyscan-gtk-map-planner.c:453
+msgid "Invert"
+msgstr "Сменить направление"
+
+#: hyscangui/hyscan-gtk-planner-zeditor.c:259
+#: hyscangui/hyscan-gtk-planner-origin.c:140
+msgid "Latitude"
+msgstr "Широта"
+
+#: hyscangui/hyscan-gtk-layer-list.c:226
+msgid "Layer"
+msgstr "Слой"
+
+#: hyscangui/hyscan-gtk-planner-editor.c:256
+msgid "Length"
+msgstr "Длина"
+
+#: hyscangui/hyscan-gtk-planner-zeditor.c:260
+#: hyscangui/hyscan-gtk-planner-origin.c:142
+msgid "Longitude"
+msgstr "Долгота"
+
+#: hyscangui/hyscan-gtk-map-control.c:191
 #, c-format
 msgid ""
 "Mouse coordinates copied to clipboard:\n"
@@ -56,9 +116,31 @@ msgstr ""
 "\n"
 "%s"
 
+#: hyscangui/hyscan-gtk-planner-zeditor.c:255
+msgid "N"
+msgstr "№"
+
 #: hyscangui/hyscan-gtk-param-tree.c:239
 msgid "Name"
 msgstr "Название"
+
+#: hyscangui/hyscan-gtk-map-planner.c:452
+msgid "Navigate"
+msgstr "Начать навигацию"
+
+#: hyscangui/hyscan-gtk-map-steer.c:1149
+#: hyscangui/hyscan-gtk-planner-status.c:110
+msgid "No active track"
+msgstr "Галс не выбран"
+
+#: hyscangui/hyscan-gtk-planner-origin.c:144
+msgid "OX Direction"
+msgstr "Направление OX"
+
+#: hyscangui/hyscan-gtk-map-steer.c:1198
+#, c-format
+msgid "Plan: %.1f m/s %.0f° L%.0fm ~%02d:%02d"
+msgstr "План: %1.f м/с %.0f° L%.0fм ~%02d:%02d"
 
 #: hyscangui/hyscan-gtk-map-track-item.c:602
 msgid "Port Channel"
@@ -67,6 +149,10 @@ msgstr "Левый борт"
 #: hyscangui/hyscan-gtk-map-track-item.c:591
 msgid "RMC Channel"
 msgstr "Канал RMC"
+
+#: hyscangui/hyscan-gtk-layer-list.c:221
+msgid "Show"
+msgstr "Вид"
 
 #: hyscangui/hyscan-gtk-map-track-item.c:603
 msgid "Show side-scan port channel data"
@@ -80,9 +166,21 @@ msgstr "Показывать правый борт"
 msgid "Signal lost"
 msgstr "Нет сигнала"
 
+#: hyscangui/hyscan-gtk-planner-editor.c:260
+msgid "Speed"
+msgstr "Скорость"
+
 #: hyscangui/hyscan-gtk-map-track-item.c:609
 msgid "Starboard Channel"
 msgstr "Правый борт"
+
+#: hyscangui/hyscan-gtk-planner-editor.c:248
+msgid "Start X"
+msgstr "Начало, X"
+
+#: hyscangui/hyscan-gtk-planner-editor.c:250
+msgid "Start Y"
+msgstr "Начало, Y"
 
 #: hyscangui/hyscan-gtk-map-track-item.c:597
 msgid "The NMEA-channel with DPT sentences"
@@ -92,20 +190,37 @@ msgstr "Канал NMEA с сообщениями DPT"
 msgid "The NMEA-channel with RMC sentences"
 msgstr "Канал NMEA с сообщениями RMC"
 
+#: hyscangui/hyscan-gtk-planner-editor.c:439
+msgid "The origin of coordinate system is not set."
+msgstr "Точка отсчёта не установлена"
+
 #: hyscangui/hyscan-gtk-map-track-item.c:585
 msgid "Track settings"
 msgstr "Настройки галса"
 
-#: hyscangui/hyscan-gtk-map-scale.c:301 hyscangui/hyscan-gtk-map-ruler.c:369
+#: hyscangui/hyscan-gtk-planner-status.c:125
+msgid "Wrong value"
+msgstr "Неправильное значение"
+
+#: hyscangui/hyscan-gtk-planner-zeditor.c:261
+msgid "X"
+msgstr "X"
+
+#: hyscangui/hyscan-gtk-planner-zeditor.c:262
+msgid "Y"
+msgstr "Y"
+
+#: hyscangui/hyscan-gtk-map-scale.c:300 hyscangui/hyscan-gtk-map-ruler.c:441
 msgid "cm"
 msgstr "см"
 
-#: hyscangui/hyscan-gtk-map-scale.c:297 hyscangui/hyscan-gtk-map-ruler.c:375
+#: hyscangui/hyscan-gtk-map-scale.c:296 hyscangui/hyscan-gtk-map-ruler.c:447
 msgid "km"
 msgstr "км"
 
-#: hyscangui/hyscan-gtk-map-scale.c:299 hyscangui/hyscan-gtk-map-ruler.c:371
-#: hyscangui/hyscan-gtk-map-ruler.c:373
+#: hyscangui/hyscan-gtk-map-scale.c:298
+#: hyscangui/hyscan-gtk-planner-status.c:138
+#: hyscangui/hyscan-gtk-map-ruler.c:443 hyscangui/hyscan-gtk-map-ruler.c:445
 #: hyscangui/hyscan-gtk-waterfall-grid.c:596
 msgid "m"
 msgstr "м"
@@ -114,6 +229,12 @@ msgstr "м"
 msgid "m/s"
 msgstr "м/с"
 
-#: hyscangui/hyscan-gtk-map-scale.c:303
+#: hyscangui/hyscan-gtk-map-scale.c:302
 msgid "mm"
 msgstr "мм"
+
+#~ msgid "Lat"
+#~ msgstr "Шир"
+
+#~ msgid "Lon"
+#~ msgstr "Дол"

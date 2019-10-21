@@ -447,6 +447,7 @@ hyscan_profile_map_apply (HyScanProfileMap *profile,
   HyScanProfileMapPrivate *priv;
   HyScanGtkLayerContainer *container;
   HyScanGeoProjection *projection;
+  GKeyFile *key_file;
   const gchar *file_name;
 
   g_return_val_if_fail (HYSCAN_IS_MAP_PROFILE (profile), FALSE);
@@ -467,16 +468,13 @@ hyscan_profile_map_apply (HyScanProfileMap *profile,
                                   HYSCAN_PROFILE_MAP_BASE_ID);
 
   /* Конфигурируем остальные слои. */
+  key_file = g_key_file_new ();
   file_name = hyscan_profile_get_file (HYSCAN_PROFILE (profile));
   if (file_name != NULL)
-    {
-      GKeyFile *key_file;
+    g_key_file_load_from_file (key_file, file_name, G_KEY_FILE_NONE, NULL);
 
-      key_file = g_key_file_new ();
-      g_key_file_load_from_file (key_file, file_name, G_KEY_FILE_NONE, NULL);
-      hyscan_gtk_layer_container_load_key_file (container, key_file);
-      g_key_file_unref (key_file);
-    }
+  hyscan_gtk_layer_container_load_key_file (container, key_file);
+  g_key_file_unref (key_file);
 
   gtk_widget_queue_draw (GTK_WIDGET (map));
 

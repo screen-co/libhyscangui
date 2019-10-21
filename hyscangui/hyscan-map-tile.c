@@ -453,8 +453,8 @@ hyscan_map_tile_grid_get_scale (HyScanMapTileGrid *grid,
 /**
  * hyscan_map_tile_grid_get_zoom_range:
  * @grid: указатель на тайловую сетку #HyScanMapTileGrid
- * @min_zoom: (out): (nullable): минимальный номер масштаба
- * @max_zoom: (out): (nullable): максимальный номер масштаба
+ * @min_zoom: (out) (nullable): минимальный номер масштаба
+ * @max_zoom: (out) (nullable): максимальный номер масштаба
  *
  * Возвращает диапазон степеней детализаци тайловой сетки: номер минимального
  * и номер максимального масштабов.

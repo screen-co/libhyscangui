@@ -102,6 +102,7 @@ static GList*   hyscan_gtk_waterfall_meter_find_closest            (HyScanGtkWat
 static gboolean hyscan_gtk_waterfall_meter_handle_create           (HyScanGtkLayer          *layer,
                                                                     GdkEventButton          *event);
 static gboolean hyscan_gtk_waterfall_meter_handle_release          (HyScanGtkLayer          *layer,
+                                                                    GdkEventButton          *event,
                                                                     gconstpointer            howner);
 static gboolean hyscan_gtk_waterfall_meter_handle_find             (HyScanGtkLayer          *layer,
                                                                     gdouble                  x,
@@ -370,6 +371,7 @@ hyscan_gtk_waterfall_meter_handle_create (HyScanGtkLayer *layer,
 /* Функция отпускает хэндл. */
 static gboolean
 hyscan_gtk_waterfall_meter_handle_release (HyScanGtkLayer *layer,
+                                           GdkEventButton *event,
                                            gconstpointer   howner)
 {
   HyScanGtkWaterfallMeter *self = HYSCAN_GTK_WATERFALL_METER (layer);

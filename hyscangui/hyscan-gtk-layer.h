@@ -126,6 +126,7 @@ struct _HyScanGtkLayerInterface
                                             GdkEventButton          *event);
 
   gboolean             (*handle_release)   (HyScanGtkLayer          *layer,
+                                            GdkEventButton          *event,
                                             gconstpointer            howner);
 
   gboolean             (*handle_find)      (HyScanGtkLayer          *layer,
@@ -191,6 +192,7 @@ gboolean      hyscan_gtk_layer_handle_create          (HyScanGtkLayer          *
                                                        GdkEventButton          *event);
 HYSCAN_API
 gboolean      hyscan_gtk_layer_handle_release         (HyScanGtkLayer          *layer,
+                                                       GdkEventButton          *event,
                                                        gconstpointer            howner);
 
 HYSCAN_API

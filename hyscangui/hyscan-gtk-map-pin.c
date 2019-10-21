@@ -460,6 +460,7 @@ hyscan_gtk_map_pin_handle_click (HyScanGtkLayer       *layer,
 /* Возвращает %TRUE, если мы разрешаем отпустить хэндл. */
 static gboolean
 hyscan_gtk_map_pin_handle_release (HyScanGtkLayer *layer,
+                                   GdkEventButton *event,
                                    gconstpointer   howner)
 {
   HyScanGtkMapPin *pin = HYSCAN_GTK_MAP_PIN (layer);
@@ -929,7 +930,7 @@ hyscan_gtk_map_pin_clear (HyScanGtkMapPin *layer)
  *
  * Возвращает список точек #HyScanGtkMapPoint в слое.
  *
- * Returns: (transfer none): (element-type HyScanGtkMapPinItem): список точек
+ * Returns: (transfer none) (element-type HyScanGtkMapPinItem): список точек
  */
 GList *
 hyscan_gtk_map_pin_get_points (HyScanGtkMapPin *layer)

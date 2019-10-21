@@ -392,7 +392,7 @@ hyscan_gtk_layer_container_handle_release (HyScanGtkLayerContainer *container,
     {
       HyScanGtkLayerContainerInfo *info = link->data;
 
-      if (hyscan_gtk_layer_handle_release (info->layer, handle_owner))
+      if (hyscan_gtk_layer_handle_release (info->layer, event, handle_owner))
         {
           hyscan_gtk_layer_container_set_handle_grabbed (container, NULL);
           break;
@@ -534,8 +534,8 @@ hyscan_gtk_layer_container_button_release (GtkWidget       *widget,
 
   hyscan_gtk_layer_container_tooltip_move (container, event->x, event->y);
 
-  /* Обрабатываем только нажатия левой клавишей мыши. */
-  if (event->button != GDK_BUTTON_PRIMARY)
+  /* Обрабатываем только нажатия левой и правой клавишами мыши. */
+  if (event->button != GDK_BUTTON_PRIMARY && event->button != GDK_BUTTON_SECONDARY)
     return GDK_EVENT_PROPAGATE;
 
   if (!hyscan_gtk_layer_container_get_changes_allowed (container))

@@ -52,9 +52,11 @@
 
 #include "hyscan-gtk-map-ruler.h"
 #include "hyscan-gtk-map.h"
+#include "hyscan-cairo.h"
 #include <hyscan-cartesian.h>
 #include <glib/gi18n-lib.h>
 #include <math.h>
+#include <cairo-sdline.h>
 
 #define SNAP_DISTANCE       10.0          /* Максимальное расстояние прилипания курсора мыши к звену ломаной. */
 #define EARTH_RADIUS        6378137.0     /* Радиус Земли. */
@@ -507,10 +509,11 @@ hyscan_gtk_map_ruler_draw_line (HyScanGtkMapRuler *ruler,
 
   GList *points;
   GList *point_l;
+  gint i;
   HyScanGtkMapPoint *point = NULL;
 
-  gdouble x;
-  gdouble y;
+  gdouble x[2];
+  gdouble y[2];
 
   carea = GTK_CIFRO_AREA (map);
 
@@ -519,12 +522,18 @@ hyscan_gtk_map_ruler_draw_line (HyScanGtkMapRuler *ruler,
 
   cairo_new_path (cairo);
   points = hyscan_gtk_map_pin_get_points (HYSCAN_GTK_MAP_PIN (ruler));
-  for (point_l = points; point_l != NULL; point_l = point_l->next)
+  for (point_l = points, i = 0; point_l != NULL; point_l = point_l->next, ++i)
     {
+      gint cur_idx;
       point = point_l->data;
 
-      gtk_cifro_area_visible_value_to_point (carea, &x, &y, point->c2d.x, point->c2d.y);
-      cairo_line_to (cairo, x, y);
+      cur_idx = i % 2;
+      gtk_cifro_area_visible_value_to_point (carea, &x[cur_idx], &y[cur_idx], point->c2d.x, point->c2d.y);
+
+      if (i == 0)
+        continue;
+
+      hyscan_cairo_line_to (cairo, x[0], y[0], x[1], y[1]);
     }
   cairo_stroke (cairo);
 }

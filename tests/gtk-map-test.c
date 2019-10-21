@@ -181,6 +181,7 @@ int main (int     argc,
 
   /* Добавляем виджет карты в окно. */
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+  gtk_window_set_title (GTK_WINDOW (window), project_name);
   gtk_window_set_default_size (GTK_WINDOW (window), 1024, 600);
 
   if (db_uri != NULL)
@@ -200,6 +201,7 @@ int main (int     argc,
     {
       hyscan_gtk_map_kit_add_marks_geo (kit);
       hyscan_gtk_map_kit_add_marks_wf (kit);
+      hyscan_gtk_map_kit_add_planner (kit);
     }
 
   /* Стоим интерфейс. */

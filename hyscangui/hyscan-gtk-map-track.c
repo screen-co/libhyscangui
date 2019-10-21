@@ -570,7 +570,7 @@ hyscan_gtk_map_track_set_project (HyScanGtkMapTrack *track_layer,
 /**
  * hyscan_gtk_map_track_set_tracks:
  * @track_layer: указатель на #HyScanGtkMapTrack
- * @tracks: (nullable): (array zero-terminated=1): нуль-терминированный массив с названиями галсов
+ * @tracks: (nullable) (array zero-terminated=1): нуль-терминированный массив с названиями галсов
  *
  * Устанавливает видимые на слое галсы.
  */

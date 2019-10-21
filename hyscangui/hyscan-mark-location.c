@@ -32,6 +32,7 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
+#include <hyscan-object-data.h>
 #include "hyscan-mark-location.h"
 
 /**
@@ -62,7 +63,7 @@ hyscan_mark_location_copy (const HyScanMarkLocation *mark_location)
 
   copy = hyscan_mark_location_new ();
 
-  copy->mark = (HyScanMarkWaterfall *) hyscan_mark_copy ((HyScanMark *) mark_location->mark);
+  copy->mark = hyscan_mark_waterfall_copy (mark_location->mark);
   copy->loaded = mark_location->loaded;
   copy->track_name = g_strdup (mark_location->track_name);
   copy->time = mark_location->time;
@@ -83,6 +84,6 @@ void
 hyscan_mark_location_free (HyScanMarkLocation *mark_location)
 {
   g_free (mark_location->track_name);
-  hyscan_mark_free ((HyScanMark *) mark_location->mark);
+  hyscan_mark_waterfall_free (mark_location->mark);
   g_slice_free (HyScanMarkLocation, mark_location);
 }

@@ -95,7 +95,7 @@ typedef struct
 struct _HyScanGtkMapGeomarkPrivate
 {
   HyScanGtkMap                            *map;                /* Карта. */
-  HyScanMarkModel                         *model;              /* Модель меток. */
+  HyScanObjectModel                       *model;              /* Модель меток. */
 
   gboolean                                 visible;            /* Признак видимости слоя. */
 
@@ -157,7 +157,7 @@ hyscan_gtk_map_geomark_class_init (HyScanGtkMapGeomarkClass *klass)
 
   g_object_class_install_property (object_class, PROP_MODEL,
     g_param_spec_object ("model", "Geo mark model",
-                         "The HyScanMarkModel with geo marks", HYSCAN_TYPE_MARK_MODEL,
+                         "The HyScanObjectModel with geo marks", HYSCAN_TYPE_OBJECT_MODEL,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -236,7 +236,7 @@ hyscan_gtk_map_geomark_object_finalize (GObject *object)
 static void
 hyscan_gtk_map_geomark_location_free (HyScanGtkMapGeomarkLocation *location)
 {
-  hyscan_mark_free ((HyScanMark *) location->mark);
+  hyscan_mark_geo_free (location->mark);
   g_free (location->mark_id);
   g_slice_free (HyScanGtkMapGeomarkLocation, location);
 }
@@ -253,7 +253,7 @@ hyscan_gtk_map_geomark_location_copy (HyScanGtkMapGeomarkLocation *location)
   copy->height = location->height;
   copy->width = location->width;
   copy->c2d = location->c2d;
-  copy->mark = (HyScanMarkGeo *) hyscan_mark_copy ((HyScanMark *) location->mark);
+  copy->mark = hyscan_mark_geo_copy (location->mark);
 
   return copy;
 }
@@ -323,7 +323,7 @@ hyscan_gtk_map_geomark_model_changed (HyScanGtkMapGeomark *gm_layer)
   HyScanGtkMapGeomarkPrivate *priv = gm_layer->priv;
   GHashTable *marks;
 
-  marks = hyscan_mark_model_get (priv->model);
+  marks = hyscan_object_model_get (priv->model);
 
   g_rw_lock_writer_lock (&priv->mark_lock);
 
@@ -696,7 +696,7 @@ hyscan_gtk_map_geomark_handle_create (HyScanGtkLayer *layer,
     g_rw_lock_writer_lock (&priv->mark_lock);
 
     location = g_slice_new0 (HyScanGtkMapGeomarkLocation);
-    location->mark = (HyScanMarkGeo *) hyscan_mark_new (HYSCAN_MARK_GEO);
+    location->mark = hyscan_mark_geo_new ();
     gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &location->c2d.x, &location->c2d.y);
 
     mark_name = g_strdup_printf ("Geo Mark #%d", ++priv->count);
@@ -740,6 +740,7 @@ hyscan_gtk_map_geomark_drag_clear (HyScanGtkMapGeomark *gm_layer,
 /* Возвращает %TRUE, если мы разрешаем отпустить хэндл. */
 static gboolean
 hyscan_gtk_map_geomark_handle_release (HyScanGtkLayer *layer,
+                                       GdkEventButton *event,
                                        gconstpointer   howner)
 {
   HyScanGtkMapGeomark *gm_layer = HYSCAN_GTK_MAP_GEOMARK (layer);
@@ -786,9 +787,9 @@ hyscan_gtk_map_geomark_handle_release (HyScanGtkLayer *layer,
 
   /* Обновляем модель меток. */
   if (mark_id == NULL)
-    hyscan_mark_model_add_mark (priv->model, mark);
+    hyscan_object_model_add_object (priv->model, (const HyScanObject *) mark);
   else
-    hyscan_mark_model_modify_mark (priv->model, mark_id, mark);
+    hyscan_object_model_modify_object (priv->model, mark_id, (const HyScanObject *) mark);
 
   hyscan_gtk_map_geomark_location_free (location);
   g_free (mark_id);
@@ -907,7 +908,7 @@ hyscan_gtk_map_geomark_key_press (HyScanGtkMapGeomark *gm_layer,
       g_rw_lock_writer_unlock (&priv->mark_lock);
 
       if (mark_id != NULL)
-        hyscan_mark_model_remove_mark (priv->model, mark_id);
+        hyscan_object_model_remove_object (priv->model, mark_id);
       g_free (mark_id);
 
       hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);
@@ -1146,12 +1147,12 @@ hyscan_gtk_map_geomark_interface_init (HyScanGtkLayerInterface *iface)
 
 /**
  * hyscan_gtk_map_geomark_new:
- * @model: указатель на #HyScanMarkModel
+ * @model: указатель на #HyScanObjectModel
  *
  * Returns: новый объект #HyScanGtkMapGeomark
  */
 HyScanGtkLayer *
-hyscan_gtk_map_geomark_new (HyScanMarkModel *model)
+hyscan_gtk_map_geomark_new (HyScanObjectModel *model)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_GEOMARK,
                        "model", model, NULL);

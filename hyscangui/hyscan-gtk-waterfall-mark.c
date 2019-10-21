@@ -82,7 +82,7 @@ typedef enum
 typedef struct
 {
   gchar               *id;        /*< Идентификатор. */
-  HyScanMark          *mark;      /*< Метка. */
+  HyScanMarkWaterfall *mark;      /*< Метка. */
   HyScanCoordinates    center;    /*< Координата центра. */
   gdouble              dx;        /*< Ширина. */
   gdouble              dy;        /*< Высота. */
@@ -118,7 +118,7 @@ typedef struct
 struct _HyScanGtkWaterfallMarkPrivate
 {
   HyScanGtkWaterfall         *wfall;
-  HyScanMarkModel            *markmodel;
+  HyScanObjectModel          *markmodel;
 
   gboolean                    layer_visibility;
 
@@ -202,7 +202,7 @@ static void     hyscan_gtk_waterfall_mark_add_task                (HyScanGtkWate
                                                                    HyScanGtkWaterfallMarkTask *task);
 
 static void     hyscan_gtk_waterfall_mark_clear_state             (HyScanGtkWaterfallMarkState  *state);
-static void     hyscan_gtk_waterfall_mark_model_changed           (HyScanMarkModel         *model,
+static void     hyscan_gtk_waterfall_mark_model_changed           (HyScanObjectModel            *model,
                                                                    HyScanGtkWaterfallMark  *self);
 static gchar *  hyscan_gtk_waterfall_mark_get_track_id            (HyScanDB                *db,
                                                                    const gchar             *project,
@@ -219,6 +219,7 @@ static GList *  hyscan_gtk_waterfall_mark_find_closest            (HyScanGtkWate
 static gboolean hyscan_gtk_waterfall_mark_handle_create           (HyScanGtkLayer          *layer,
                                                                    GdkEventButton          *event);
 static gboolean hyscan_gtk_waterfall_mark_handle_release          (HyScanGtkLayer          *layer,
+                                                                   GdkEventButton          *event,
                                                                    gconstpointer            howner);
 static gboolean hyscan_gtk_waterfall_mark_handle_find             (HyScanGtkLayer          *layer,
                                                                    gdouble                  x,
@@ -279,8 +280,8 @@ hyscan_gtk_waterfall_mark_class_init (HyScanGtkWaterfallMarkClass *klass)
   object_class->finalize = hyscan_gtk_waterfall_mark_object_finalize;
 
   g_object_class_install_property (object_class, PROP_MARK_MODEL,
-    g_param_spec_object ("markmodel", "MarkModel", "HyScanMarkModel",
-                         HYSCAN_TYPE_MARK_MODEL,
+    g_param_spec_object ("markmodel", "ObjectModel", "HyScanObjectModel",
+                         HYSCAN_TYPE_OBJECT_MODEL,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 
   hyscan_gtk_waterfall_mark_signals[SIGNAL_SELECTED] =
@@ -502,7 +503,7 @@ hyscan_gtk_waterfall_mark_free_task (gpointer data)
 {
   HyScanGtkWaterfallMarkTask *task = data;
 
-  hyscan_mark_free (task->mark);
+  hyscan_mark_waterfall_free (task->mark);
   g_free (task->id);
   g_free (task);
 }
@@ -523,7 +524,7 @@ hyscan_gtk_waterfall_mark_clear_task (gpointer data)
 {
   HyScanGtkWaterfallMarkTask *task = data;
 
-  g_clear_pointer (&task->mark, hyscan_mark_free);
+  g_clear_pointer (&task->mark, hyscan_mark_waterfall_free);
   g_clear_pointer (&task->id, g_free);
 }
 
@@ -535,7 +536,7 @@ hyscan_gtk_waterfall_mark_copy_task (HyScanGtkWaterfallMarkTask *src,
   *dst = *src;
 
   if (dst->mark != NULL)
-    dst->mark = hyscan_mark_copy (src->mark);
+    dst->mark = hyscan_mark_waterfall_copy (src->mark);
   if (dst->id != NULL)
     dst->id = g_strdup (src->id);
 }
@@ -552,13 +553,13 @@ hyscan_gtk_waterfall_mark_dup_task (HyScanGtkWaterfallMarkTask *src)
 
 /* Функция обработки сигнала changed от модели меток. */
 static void
-hyscan_gtk_waterfall_mark_model_changed (HyScanMarkModel        *model,
+hyscan_gtk_waterfall_mark_model_changed (HyScanObjectModel      *model,
                                          HyScanGtkWaterfallMark *self)
 {
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
   GHashTable *marks;
 
-  marks = hyscan_mark_model_get (model);
+  marks = hyscan_object_model_get (model);
   if (marks == NULL)
     return;
 
@@ -719,7 +720,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
   HyScanSourceType source;
   guint32 index0, count0;
   gboolean status;
-  HyScanMark *mark;
+  HyScanMarkWaterfall *mark;
   HyScanGtkWaterfallMarkState *state = &priv->state;
 
   g_mutex_init (&cond_mutex);
@@ -839,7 +840,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
       priv->tasks = NULL;
       g_mutex_unlock (&priv->task_lock);
       g_mutex_lock (&priv->mmodel_lock);
-      marks = hyscan_mark_model_copy (priv->new_marks);
+      marks = hyscan_object_model_copy (priv->markmodel, priv->new_marks);
       g_mutex_unlock (&priv->mmodel_lock);
 
       /* 1. Отправляем сделанные пользователем изменения. */
@@ -852,7 +853,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
 
           if (task->action == TASK_REMOVE)
             {
-              hyscan_mark_model_remove_mark (priv->markmodel, task->id);
+              hyscan_object_model_remove_object (priv->markmodel, task->id);
               continue;
             }
 
@@ -892,30 +893,30 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               gint64 mtime = g_get_real_time ();
 
               gchar *label = g_strdup_printf ("Mark #%u", ++priv->count);
-              mark = hyscan_mark_new (HYSCAN_MARK_WATERFALL);
+              mark =  hyscan_mark_waterfall_new ();
 
-              hyscan_mark_set_text   (mark, label, "", "");
-              hyscan_mark_set_labels (mark, HYSCAN_GTK_WATERFALL_MARKS_ALL);
-              hyscan_mark_set_ctime  (mark, mtime);
-              hyscan_mark_set_mtime  (mark, mtime);
-              hyscan_mark_set_size   (mark, mw, mh);
-              hyscan_mark_waterfall_set_center_by_type (&mark->waterfall, source, index0, count0);
-              hyscan_mark_waterfall_set_track  (&mark->waterfall, track_id);
+              hyscan_mark_set_text   ((HyScanMark*)mark, label, "", "");
+              hyscan_mark_set_labels ((HyScanMark*)mark, HYSCAN_GTK_WATERFALL_MARKS_ALL);
+              hyscan_mark_set_ctime  ((HyScanMark*)mark, mtime);
+              hyscan_mark_set_mtime  ((HyScanMark*)mark, mtime);
+              hyscan_mark_set_size   ((HyScanMark*)mark, mw, mh);
+              hyscan_mark_waterfall_set_center_by_type (mark, source, index0, count0);
+              hyscan_mark_waterfall_set_track  (mark, track_id);
 
-              hyscan_mark_model_add_mark (priv->markmodel, mark);
-              hyscan_mark_free (mark);
+              hyscan_object_model_add_object (priv->markmodel, (const HyScanObject *) mark);
+              hyscan_mark_waterfall_free (mark);
               g_free (label);
             }
           else if (task->action == TASK_MODIFY)
             {
-              mark = hyscan_mark_copy (task->mark);
+              mark = hyscan_mark_waterfall_copy (task->mark);
 
-              hyscan_mark_set_mtime (mark, g_get_real_time ());
-              hyscan_mark_set_size (mark, mw, mh);
-              hyscan_mark_waterfall_set_center_by_type (&mark->waterfall, source, index0, count0);
+              hyscan_mark_set_mtime ((HyScanMark*)mark, g_get_real_time ());
+              hyscan_mark_set_size ((HyScanMark*)mark, mw, mh);
+              hyscan_mark_waterfall_set_center_by_type (mark, source, index0, count0);
 
-              hyscan_mark_model_modify_mark (priv->markmodel, task->id, mark);
-              hyscan_mark_free (mark);
+              hyscan_object_model_modify_object (priv->markmodel, task->id, (const HyScanObject *) mark);
+              hyscan_mark_waterfall_free (mark);
             }
         }
 
@@ -935,11 +936,11 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
 
               priv->count++;
               /* Фильтруем по галсу. */
-              if (g_strcmp0 (mark->waterfall.track, track_id) != 0)
+              if (g_strcmp0 (mark->track, track_id) != 0)
                 continue;
 
               /* Фильтруем по источнику. */
-              source = hyscan_source_get_type_by_id (mark->waterfall.source);
+              source = hyscan_source_get_type_by_id (mark->source);
               if (source == state->lsource)
                 _proj = lproj;
               else if (source == state->rsource)
@@ -950,10 +951,10 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               task = g_new0 (HyScanGtkWaterfallMarkTask, 1);
               task->mark = mark;
               task->id = id;
-              hyscan_projector_index_to_coord (_proj, mark->waterfall.index, &mc.y);
-              hyscan_projector_count_to_coord (_proj, mark->waterfall.count, &mc.x, 0.0);
-              mw = mark->waterfall.width;
-              mh = mark->waterfall.height;
+              hyscan_projector_index_to_coord (_proj, mark->index, &mc.y);
+              hyscan_projector_count_to_coord (_proj, mark->count, &mc.x, 0.0);
+              mw = mark->width;
+              mh = mark->height;
 
               if (state->display_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN)
                 {
@@ -1186,6 +1187,7 @@ hyscan_gtk_waterfall_mark_handle_create (HyScanGtkLayer *layer,
 
 gboolean
 hyscan_gtk_waterfall_mark_handle_release (HyScanGtkLayer *layer,
+                                          GdkEventButton *event,
                                           gconstpointer   howner)
 {
   HyScanGtkWaterfallMark *self = HYSCAN_GTK_WATERFALL_MARK (layer);
@@ -1540,11 +1542,11 @@ hyscan_gtk_waterfall_mark_draw_task (HyScanGtkWaterfallMark     *self,
                                          priv->color.mark_width);
 
   /* Подпись. */
-  if (task->mark != NULL && task->mark->waterfall.name != NULL)
+  if (task->mark != NULL && task->mark->name != NULL)
     {
       gint w, h;
 
-      pango_layout_set_text (font, task->mark->waterfall.name, -1);
+      pango_layout_set_text (font, task->mark->name, -1);
       pango_layout_get_size (font, &w, &h);
 
       w /= PANGO_SCALE;
@@ -1612,7 +1614,7 @@ hyscan_gtk_waterfall_mark_draw (GtkWidget              *widget,
       task = link->data;
 
       /* Фильтруем по лейблу. */
-      if (task->mark != NULL && task->mark->waterfall.labels != 0 && !(task->mark->waterfall.labels & priv->mark_filter))
+      if (task->mark != NULL && task->mark->labels != 0 && !(task->mark->labels & priv->mark_filter))
         continue;
 
       /* Отрисовываем метку. */
@@ -1793,14 +1795,14 @@ hyscan_gtk_waterfall_mark_sound_velocity_changed (HyScanGtkWaterfallState *model
 
 /**
  * hyscan_gtk_waterfall_mark_new:
- * @markmodel: указатель на #HyScanMarkModel
+ * @markmodel: указатель на #HyScanObjectModel
  *
  * Функция создает новый объект #HyScanGtkWaterfallMark.
  *
  * Returns: (transfer full): новый объект HyScanGtkWaterfallMark.
  */
 HyScanGtkWaterfallMark*
-hyscan_gtk_waterfall_mark_new (HyScanMarkModel *markmodel)
+hyscan_gtk_waterfall_mark_new (HyScanObjectModel *markmodel)
 {
   return g_object_new (HYSCAN_TYPE_GTK_WATERFALL_MARK,
                        "markmodel", markmodel,
