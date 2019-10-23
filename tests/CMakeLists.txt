@@ -17,6 +17,7 @@ add_executable (gtk-map-track-mod-test gtk-map-track-mod-test.c hyscan-gtk-map-k
 add_executable (tile-source-test tile-source-test.c)
 add_executable (tile-test tile-test.c)
 add_executable (tile-loader-test tile-loader-test.c)
+add_executable (tile-loader tile-loader.c)
 
 target_link_libraries (gtk-area-test ${TEST_LIBRARIES})
 target_link_libraries (gtk-param-test ${TEST_LIBRARIES})
@@ -27,6 +28,7 @@ target_link_libraries (gtk-map-track-mod-test ${TEST_LIBRARIES})
 target_link_libraries (tile-source-test ${TEST_LIBRARIES})
 target_link_libraries (tile-test ${TEST_LIBRARIES})
 target_link_libraries (tile-loader-test ${TEST_LIBRARIES})
+target_link_libraries (tile-loader ${TEST_LIBRARIES})
 
 add_test (NAME TileTest COMMAND tile-test
           WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
