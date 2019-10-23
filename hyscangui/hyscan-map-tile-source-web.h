@@ -66,10 +66,15 @@ HYSCAN_API
 GType                      hyscan_map_tile_source_web_get_type         (void);
 
 HYSCAN_API
-HyScanMapTileSourceWeb *   hyscan_map_tile_source_web_new              (const gchar         *url_format,
-                                                                        HyScanGeoProjection *projection,
-                                                                        guint                min_zoom,
-                                                                        guint                max_zoom);
+HyScanMapTileSourceWeb *   hyscan_map_tile_source_web_new              (const gchar            *url_format,
+                                                                        HyScanGeoProjection    *projection,
+                                                                        guint                   min_zoom,
+                                                                        guint                   max_zoom);
+
+HYSCAN_API
+void                       hyscan_map_tile_source_add_header           (HyScanMapTileSourceWeb *source,
+                                                                        const gchar            *name,
+                                                                        const gchar            *value);
 
 G_END_DECLS
 

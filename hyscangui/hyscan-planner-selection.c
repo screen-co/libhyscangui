@@ -140,6 +140,7 @@ hyscan_planner_selection_object_finalize (GObject *object)
 
   g_clear_pointer (&priv->objects, g_hash_table_destroy);
   g_clear_object (&priv->model);
+  g_array_free (priv->tracks, TRUE);
 
   G_OBJECT_CLASS (hyscan_planner_selection_parent_class)->finalize (object);
 }

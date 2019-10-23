@@ -37,6 +37,7 @@
 
 #include <hyscan-gtk-map.h>
 #include <hyscan-profile.h>
+#include "hyscan-map-tile-source.h"
 
 G_BEGIN_DECLS
 
@@ -49,12 +50,12 @@ G_BEGIN_DECLS
  */
 #define HYSCAN_PROFILE_MAP_BASE_ID          "base-layer"
 
-#define HYSCAN_TYPE_MAP_PROFILE             (hyscan_profile_map_get_type ())
-#define HYSCAN_PROFILE_MAP(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_MAP_PROFILE, HyScanProfileMap))
-#define HYSCAN_IS_MAP_PROFILE(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_MAP_PROFILE))
-#define HYSCAN_PROFILE_MAP_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_MAP_PROFILE, HyScanProfileMapClass))
-#define HYSCAN_IS_MAP_PROFILE_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_MAP_PROFILE))
-#define HYSCAN_PROFILE_MAP_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_MAP_PROFILE, HyScanProfileMapClass))
+#define HYSCAN_TYPE_PROFILE_MAP             (hyscan_profile_map_get_type ())
+#define HYSCAN_PROFILE_MAP(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_PROFILE_MAP, HyScanProfileMap))
+#define HYSCAN_IS_PROFILE_MAP(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_PROFILE_MAP))
+#define HYSCAN_PROFILE_MAP_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_PROFILE_MAP, HyScanProfileMapClass))
+#define HYSCAN_IS_PROFILE_MAP_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_PROFILE_MAP))
+#define HYSCAN_PROFILE_MAP_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_PROFILE_MAP, HyScanProfileMapClass))
 
 typedef struct _HyScanProfileMap HyScanProfileMap;
 typedef struct _HyScanProfileMapPrivate HyScanProfileMapPrivate;
@@ -87,9 +88,13 @@ HyScanProfileMap *     hyscan_profile_map_new_full         (const gchar        *
                                                             const gchar        *url_format,
                                                             const gchar        *cache_dir,
                                                             const gchar        *cache_subdir,
+                                                            gchar             **headers,
                                                             const gchar        *projection,
                                                             guint               min_zoom,
                                                             guint               max_zoom);
+
+HYSCAN_API
+HyScanMapTileSource *  hyscan_profile_map_get_source       (HyScanProfileMap   *profile);
 
 HYSCAN_API
 void                   hyscan_profile_map_set_offline      (HyScanProfileMap   *profile,
