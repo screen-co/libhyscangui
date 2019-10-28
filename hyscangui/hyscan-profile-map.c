@@ -217,6 +217,8 @@ hyscan_profile_map_configure (HyScanProfileMap *profile)
 {
   HyScanProfileMapPrivate *priv = profile->priv;
 
+  g_clear_object (&priv->geo_projection);
+  g_clear_object (&priv->tile_source);
   priv->geo_projection = hyscan_profile_map_projection_create (profile);
   priv->tile_source = hyscan_profile_map_source_create (profile);
 }
@@ -606,6 +608,7 @@ hyscan_profile_map_set_offline (HyScanProfileMap *profile,
   g_return_if_fail (HYSCAN_IS_PROFILE_MAP (profile));
 
   profile->priv->offline = offline;
+  hyscan_profile_map_configure (profile);
 }
 
 /**

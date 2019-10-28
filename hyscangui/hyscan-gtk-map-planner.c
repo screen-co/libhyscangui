@@ -619,7 +619,7 @@ hyscan_gtk_map_planner_model_changed (HyScanGtkMapPlanner *planner)
       *tracks = g_list_append (*tracks, track);
 
       /* Восстанавливаем указатель на интересный галс. */
-      if (g_strcmp0 (found_track_id, track->id))
+      if (g_strcmp0 (found_track_id, track->id) == 0)
         priv->found_track = track;
     }
 
