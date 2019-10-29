@@ -161,6 +161,7 @@ struct _HyScanGtkMapTrackItemPrivate
   HyScanGtkMapTrackBoard          port;              /* Данные левого борта. */
   HyScanGtkMapTrackBoard          starboard;         /* Данные правого борта. */
   HyScanDepthometer              *depthometer;       /* Определение глубины. */
+  HyScanAntennaOffset             depth_offset;      /* Смещение эхолота. */
   HyScanNavData                  *lat_data;          /* Навигационные данные - широта. */
   HyScanNavData                  *lon_data;          /* Навигационные данные - долгота. */
   HyScanNavData                  *angle_data;        /* Навигационные данные - курс в градусах. */
@@ -663,11 +664,12 @@ hyscan_gtk_map_track_item_set_channel_real (HyScanGtkMapTrackItem *track,
 
 /* Определяет ширину трека в момент времени time по борту board. */
 static gdouble
-hyscan_gtk_map_track_item_width (HyScanGtkMapTrackBoard *board,
-                                 HyScanDepthometer      *depthometer,
+hyscan_gtk_map_track_item_width (HyScanGtkMapTrackItem  *track,
+                                 HyScanGtkMapTrackBoard *board,
                                  gint64                  time,
                                  HyScanDBFindStatus     *find_status)
 {
+  HyScanGtkMapTrackItemPrivate *priv = track->priv;
   guint32 amp_rindex, amp_lindex;
   guint32 nvals;
   gdouble depth;
@@ -683,9 +685,20 @@ hyscan_gtk_map_track_item_width (HyScanGtkMapTrackBoard *board,
   if (find_status_ret != HYSCAN_DB_FIND_OK)
     goto exit;
 
-  depth = (depthometer != NULL) ? hyscan_depthometer_get (depthometer, NULL, time) : 0.0;
-  if (depth < 0.0)
-    depth = 0.0;
+  /* Определяем глубину с поправкой на заглубление эхолота и ГБО. */
+  if (priv->depthometer != NULL)
+    {
+      depth = hyscan_depthometer_get (priv->depthometer, NULL, time);
+      if (depth < 0)
+        depth = 0;
+
+      depth += priv->depth_offset.z;
+    }
+  else
+    {
+      depth = 0;
+    }
+  depth -= board->offset.z;
 
   hyscan_amplitude_get_size_time (board->amplitude, amp_lindex, &nvals, NULL);
   hyscan_projector_count_to_coord (board->projector, nvals, &distance, depth);
@@ -904,9 +917,9 @@ hyscan_gtk_map_track_item_load_range (HyScanGtkMapTrackItem *track,
       point->geo = coords;
 
       /* Определяем ширину отснятых данных в этот момент. */
-      point->r_width = hyscan_gtk_map_track_item_width (&priv->starboard, priv->depthometer, time,
+      point->r_width = hyscan_gtk_map_track_item_width (track, &priv->starboard, time,
                                                         &point->r_find_status);
-      point->l_width = hyscan_gtk_map_track_item_width (&priv->port, priv->depthometer, time,
+      point->l_width = hyscan_gtk_map_track_item_width (track, &priv->port, time,
                                                         &point->l_find_status);
 
       points = g_list_append (points, point);
@@ -1104,7 +1117,10 @@ hyscan_gtk_map_track_item_open (HyScanGtkMapTrackItem *track)
                                            priv->project, priv->name, priv->channel_dpt,
                                            HYSCAN_NMEA_DATA_DPT, HYSCAN_NMEA_FIELD_DEPTH);
       if (dpt_parser != NULL)
-        priv->depthometer = hyscan_depthometer_new (HYSCAN_NAV_DATA (dpt_parser), priv->cache);
+        {
+          priv->depthometer = hyscan_depthometer_new (HYSCAN_NAV_DATA (dpt_parser), priv->cache);
+          priv->depth_offset = hyscan_nav_data_get_offset (HYSCAN_NAV_DATA (dpt_parser));
+        }
 
       g_clear_object (&dpt_parser);
     }

@@ -59,6 +59,7 @@
 #include <hyscan-acoustic-data.h>
 #include <hyscan-nmea-parser.h>
 #include <string.h>
+#include <hyscan-depthometer.h>
 
 // todo: вместо этих макросов брать номера каналов из каких-то пользовательских настроек
 #define ACOUSTIC_CHANNEL 1   /* Канал ГБО с акустическими данными. */
@@ -141,7 +142,7 @@ static inline gdouble         hyscan_mark_loc_model_weight                   (gi
                                                                               gint64                 rtime,
                                                                               gdouble                lval,
                                                                               gdouble                rval);
-static inline gboolean      hyscan_mark_loc_model_is_starboard               (HyScanSourceType       source_type);
+static inline gdouble         hyscan_mark_loc_model_direction                (HyScanSourceType       source_type);
 
 static guint       hyscan_mark_loc_model_signals[SIGNAL_LAST] = { 0 };
 
@@ -274,19 +275,27 @@ hyscan_mark_loc_model_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_mark_loc_model_parent_class)->finalize (object);
 }
 
-/* Возвращает %TRUE, если источник данных соответствует правому борту. */
-static inline gboolean
-hyscan_mark_loc_model_is_starboard (HyScanSourceType source_type)
+/* Возвращает коэффициент поправки на направление источника.
+ * "1" - левый борт, "-1" - правый борт. */
+static inline gdouble
+hyscan_mark_loc_model_direction (HyScanSourceType source_type)
 {
   switch (source_type)
     {
     case HYSCAN_SOURCE_SIDE_SCAN_STARBOARD:
     case HYSCAN_SOURCE_SIDE_SCAN_STARBOARD_HI:
     case HYSCAN_SOURCE_SIDE_SCAN_STARBOARD_LOW:
-      return TRUE;
+    case HYSCAN_SOURCE_BATHYMETRY_STARBOARD:
+      return -1;
+
+    case HYSCAN_SOURCE_SIDE_SCAN_PORT:
+    case HYSCAN_SOURCE_SIDE_SCAN_PORT_HI:
+    case HYSCAN_SOURCE_SIDE_SCAN_PORT_LOW:
+    case HYSCAN_SOURCE_BATHYMETRY_PORT:
+      return 1;
 
     default:
-      return FALSE;
+      return 0;
     }
 }
 
@@ -374,12 +383,14 @@ static gboolean
 hyscan_mark_loc_model_load_nav (HyScanMarkLocModel *ml_model,
                                 HyScanMarkLocation *location)
 {
+  HyScanMarkLocModelPrivate *priv = ml_model->priv;
   HyScanNavData *lat_data, *lon_data, *angle_data;
 
   HyScanGeoGeodetic lgeo, rgeo;
   guint32 lindex, rindex;
   gint64 ltime, rtime;
 
+  HyScanAntennaOffset offset;
   gboolean found = FALSE;
 
   lat_data   = hyscan_mark_loc_model_rmc_data_new (ml_model, location->track_name, HYSCAN_NMEA_FIELD_LAT);
@@ -405,6 +416,26 @@ hyscan_mark_loc_model_load_nav (HyScanMarkLocModel *ml_model,
   location->center_geo.lon = hyscan_mark_loc_model_weight (location->time, ltime, rtime, lgeo.lon, rgeo.lon);
   location->center_geo.h   = hyscan_mark_loc_model_weight (location->time, ltime, rtime, lgeo.h, rgeo.h);
 
+  /* Поправка на поворот датчика GPS. */
+  offset = hyscan_nav_data_get_offset (lat_data);
+  if (offset.psi != 0)
+    location->center_geo.h += offset.psi / G_PI * 180.0;
+
+  /* Поправка на смещение датчика GPS. */
+  if (offset.x != 0 || offset.y != 0)
+    {
+      HyScanGeoCartesian2D shift;
+      HyScanGeoGeodetic center;
+
+      shift.x = -offset.x;
+      shift.y = offset.y;
+
+      hyscan_geo_set_origin (priv->geo, location->center_geo, HYSCAN_GEO_ELLIPSOID_WGS84);
+      hyscan_geo_topoXY2geo (priv->geo, &center, shift, 0);
+      location->center_geo.lat = center.lat;
+      location->center_geo.lon = center.lon;
+    }
+
 exit:
   g_object_unref (angle_data);
   g_object_unref (lat_data);
@@ -422,15 +453,13 @@ hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
   HyScanProjector *projector;
   HyScanAcousticData *acoustic_data;
   gdouble depth;
+  gdouble direction;
+  HyScanAntennaOffset amp_offset;
 
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
   const HyScanMarkWaterfall *mark = location->mark;
 
   HyScanNavData *dpt_data;
-  gdouble ldepth, rdepth;
-
-  guint32 lindex, rindex;
-  gint64 ltime, rtime;
 
   acoustic_data = hyscan_acoustic_data_new (priv->db, priv->cache,
                                             priv->project, location->track_name,
@@ -442,29 +471,64 @@ hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
       return FALSE;
     }
 
-  /* Находим глубину при возможности. */
-  depth = 0.0;
+  /* Добавляем поворот антенны. */
+  amp_offset = hyscan_amplitude_get_offset (HYSCAN_AMPLITUDE (acoustic_data));
+  if (amp_offset.psi != 0)
+    location->center_geo.h -= amp_offset.psi / G_PI * 180.0;
+
+  /* Добавляем смещение x, y. */
+  if (amp_offset.x != 0 || amp_offset.y != 0)
+    {
+      HyScanGeoCartesian2D shift;
+      HyScanGeoGeodetic center;
+
+      shift.x = amp_offset.x;
+      shift.y = -amp_offset.y;
+
+      hyscan_geo_set_origin (priv->geo, location->center_geo, HYSCAN_GEO_ELLIPSOID_WGS84);
+      hyscan_geo_topoXY2geo (priv->geo, &center, shift, 0);
+      location->center_geo.lat = center.lat;
+      location->center_geo.lon = center.lon;
+    }
+
+  /* Находим глубину при возможности. Делаем поправки на заглубление эхолота и ГБО. */
   dpt_data =  HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache,
                                                        priv->project, location->track_name, NMEA_DPT_CHANNEL,
                                                        HYSCAN_NMEA_DATA_DPT, HYSCAN_NMEA_FIELD_DEPTH));
-
-  if (hyscan_nav_data_find_data (dpt_data, location->time, &lindex, &rindex, &ltime, &rtime) == HYSCAN_DB_FIND_OK)
+  if (dpt_data != NULL)
     {
-      if (hyscan_nav_data_get (dpt_data, NULL, lindex, NULL, &ldepth) &&
-          hyscan_nav_data_get (dpt_data, NULL, rindex, NULL, &rdepth))
-        {
-          depth = hyscan_mark_loc_model_weight (location->time, ltime, rtime, ldepth, rdepth);
-        }
+      HyScanDepthometer *depthometer;
+      HyScanAntennaOffset  dpt_offset;
+
+      dpt_offset = hyscan_nav_data_get_offset (dpt_data);
+      depthometer = hyscan_depthometer_new (dpt_data, priv->cache);
+      depth = hyscan_depthometer_get (depthometer, NULL, location->time);
+      if (depth < 0)
+        depth = 0;
+
+      depth += dpt_offset.z;
     }
+  else
+    {
+      depth = 0;
+    }
+  depth -= amp_offset.z;
 
   /* Определяем дистанцию до точки. */
-  projector = hyscan_projector_new (HYSCAN_AMPLITUDE (acoustic_data));
-  hyscan_projector_count_to_coord (projector, mark->count, &location->offset, depth);
-  if (hyscan_mark_loc_model_is_starboard (source))
-    location->offset *= -1.0;
+  direction = hyscan_mark_loc_model_direction (source);
+  if (direction == 0)
+    {
+      location->offset = 0.0;
+    }
+  else
+    {
+      projector = hyscan_projector_new (HYSCAN_AMPLITUDE (acoustic_data));
+      hyscan_projector_count_to_coord (projector, mark->count, &location->offset, depth);
+      location->offset *= direction;
+      g_clear_object (&projector);
+    }
 
   g_clear_object (&dpt_data);
-  g_clear_object (&projector);
   g_clear_object (&acoustic_data);
 
   return TRUE;
