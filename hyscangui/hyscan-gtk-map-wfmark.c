@@ -1634,8 +1634,6 @@ hyscan_gtk_map_wfmark_hint_find (HyScanGtkLayer *layer,
       hint = g_strconcat (hint,"\nDepth: ", str, (gchar*) NULL);
       hint = g_strconcat (hint,"\nTrack: ", priv->hover_candidate->mloc->track_name, ".", (gchar*) NULL);
 
-      priv->hover_candidate->mloc->mark->description = g_strdup ("Строка с описанием метки и всё-такое прочее. Много-много полезной, нужной, важной информации о метке можно прочитать здесь.");
-
       empty_string = (0 == g_strcmp0 (priv->hover_candidate->mloc->mark->description, ""))? TRUE : FALSE;
 
       if (!empty_string)
