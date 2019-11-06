@@ -1,7 +1,63 @@
+/* hyscan-gtk-map-steer.c
+ *
+ * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
+ *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-map-steer
+ * @Short_description: виджет навигации по плановому галсу
+ * @Title: HyScanGtkMapSteer
+ *
+ * Виджет #HyScanGtkMapSteer служит для помощи судоводителю при навигации по плановому
+ * галсу. В виджете отображаются:
+ * - плановые курс и скорсть для текущего галса,
+ * - отклонения по положению и скорости,
+ * - миникарта с положением антенны гидролокатора относительно планового галса.
+ *
+ * При записи галса важно именно положение гидролокатора, а не судна как такового,
+ * поэтому в виджете есть возможность вносить поправку на смещение антенны с
+ * помощью функции hyscan_gtk_map_steer_sensor_set_offset().
+ *
+ * На миникарте отображается стрелка, соответствующая положению антенны и курсу судна.
+ *
+ */
+
 #include "hyscan-gtk-map-steer.h"
 #include <math.h>
 #include <hyscan-cartesian.h>
 #include <glib/gi18n-lib.h>
+
+#define DEG2RAD(deg) (deg / 180. * G_PI)
+#define RAD2DEG(rad) (rad / G_PI * 180.)
 
 #define HYSCAN_TYPE_GTK_MAP_STEER_CAREA             (hyscan_gtk_map_steer_carea_get_type ())
 #define HYSCAN_GTK_MAP_STEER_CAREA(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_MAP_STEER_CAREA, HyScanGtkMapSteerCarea))
@@ -34,10 +90,9 @@ typedef struct
   HyScanNavModelData   nav_data;     /* Исходные навигационные данные о положении и скорости судна. */
   HyScanGeoCartesian2D position;     /* Положение судна. */
   HyScanGeoCartesian2D track;        /* Проекция положения судна на галс. */
-  gdouble              d_x;          /* Отклонение по расстоянию, м. */
-  gdouble              d_angle;      /* Отклонение по углу, рад. */
-  gdouble              d_speed;      /* Отклонение по скорости, м/с. */
-  gdouble              time_left;    /* Отклонение по скорости, м/с. */
+  gdouble              d_x;          /* Отклонение положения антенны по расстоянию, м. */
+  gdouble              d_angle;      /* Отклонение курса судна по углу, рад. */
+  gdouble              time_left;    /* Отклонение судна по скорости, м/с. */
 } HyScanGtkMapSteerPoint;
 
 typedef struct
@@ -60,13 +115,12 @@ struct _HyScanGtkMapSteerPrivate
   HyScanPlannerSelection     *selection;         /* Модель выбранных объектов планировщика. */
   HyScanObjectModel          *planner_model;     /* Модель объектов планировщика. */
   HyScanGeo                  *geo;               /* Объект перевода географических координат. */
+  HyScanAntennaOffset        *offset;            /* Смещение антенны гидролокатора. */
 
-  guint                       state;
-  guint                       mode;
+  guint                       state;             /* Статус перетаскивания границы допустимого отклонения. */
+  guint                       mode;              /* Режим отображения: судно в центре или галс в центре. */
 
   gdouble                     threshold_x;       /* Допустимое отклонение. */
-  gdouble                     threshold_angle;   /* Допустимое отклонение. */
-  gdouble                     threshold_speed;   /* Допустимое отклонение. */
 
   GQueue                     *points;            /* Список точек HyScanGtkMapSteerPoint. */
   gdouble                     time_span;         /* Промежуток времени, в течение которого показываются точки, секунды. */
@@ -81,9 +135,7 @@ struct _HyScanGtkMapSteerPrivate
   GtkWidget                  *track_info;        /* Виджет с информацией о текущем галсе. */
   GtkWidget                  *carea;             /* Виджет миникарты с траекторией. */
 
-  GdkRGBA                     color_neutral;     /* Цвет "нет данных". */
-  GdkRGBA                     color_good;        /* Цвет "отклонение в норме". */
-  GdkRGBA                     color_bad;         /* Цвет "отклонение превышено". */
+  GdkRGBA                     color_bg;          /* Цвет фона области рисования. */
   GdkRGBA                     color_bg_good;     /* Цвет фона "в пределах нормы". */
   gdouble                     arrow_size;        /* Размер стрелки судна. */
 };
@@ -273,14 +325,10 @@ hyscan_gtk_map_steer_object_constructed (GObject *object)
   priv->points = g_queue_new ();
   priv->time_span = 100.0;
   priv->threshold_x = 2.0;
-  priv->threshold_angle = 4.0;
-  priv->threshold_speed = 0.1;
   priv->arrow_size = 30.0;
 
-  gdk_rgba_parse (&priv->color_neutral, "#888888");
-  gdk_rgba_parse (&priv->color_good,    "#008800");
+  gdk_rgba_parse (&priv->color_bg, "#888888");
   gdk_rgba_parse (&priv->color_bg_good, "#FFFFFF");
-  gdk_rgba_parse (&priv->color_bad,     "#880000");
 
   priv->carea = hyscan_gtk_map_steer_create_carea (steer);
 
@@ -326,6 +374,7 @@ hyscan_gtk_map_steer_create_carea (HyScanGtkMapSteer *steer)
   return GTK_WIDGET (steer_carea);
 }
 
+/* Определяет координаты судна в системе координат планового галса. */
 static void
 hyscan_gtk_map_steer_calc_point (HyScanGtkMapSteerPoint *point,
                                  HyScanGtkMapSteer      *steer)
@@ -335,21 +384,32 @@ hyscan_gtk_map_steer_calc_point (HyScanGtkMapSteerPoint *point,
   gint side;
   gdouble distance_to_end;
   HyScanGeoCartesian2D track_end;
+  HyScanGeoCartesian2D ship_pos;
 
-  if (!hyscan_geo_geo2topoXY (priv->geo, &point->position, point->nav_data.coord))
+  point->d_angle = point->nav_data.heading - priv->angle / 180 * G_PI;
+
+  if (!hyscan_geo_geo2topoXY (priv->geo, &ship_pos, point->nav_data.coord))
     return;
+
+  /* Смещение антенны учитваем только для рассчёта её местоположения.
+   * В качестве курса оставляем курс судна, т.к. иначе показания виджета становятся неочевидными. */
+  if (priv->offset != NULL)
+    {
+      gdouble cosa, sina;
+
+      cosa = cos (DEG2RAD (point->d_angle));
+      sina = sin (DEG2RAD (point->d_angle));
+      point->position.x = ship_pos.x + priv->offset->y * cosa + priv->offset->x * sina;
+      point->position.y = ship_pos.y - priv->offset->y * sina + priv->offset->x * cosa;
+    }
+  else
+    {
+      point->position = ship_pos;
+    }
 
   distance = hyscan_cartesian_distance_to_line (&priv->start, &priv->end, &point->position, &point->track);
   side = hyscan_cartesian_side (&priv->start, &priv->end, &point->position);
   point->d_x = side * distance;
-
-  point->d_angle = point->nav_data.heading - priv->angle;
-  if (point->d_angle > G_PI)
-    point->d_angle -= 2.0 * G_PI;
-  else if (point->d_angle < -G_PI)
-    point->d_angle += 2.0 * G_PI;
-
-  point->d_speed = point->nav_data.speed - priv->track->speed;
 
   hyscan_geo_geo2topoXY (priv->geo, &track_end, priv->track->end);
   distance_to_end = hyscan_cartesian_distance (&track_end, &point->track);
@@ -438,7 +498,7 @@ hyscan_gtk_map_steer_carea_draw_err_line (HyScanGtkMapSteer *steer,
   gtk_cifro_area_visible_value_to_point (carea, &x2, &y2, priv->threshold_x, from_y);
   gtk_cifro_area_visible_value_to_point (carea, &x3, &y3, priv->threshold_x, to_y);
 
-  gdk_cairo_set_source_rgba (cairo, &priv->color_neutral);
+  gdk_cairo_set_source_rgba (cairo, &priv->color_bg);
   cairo_paint (cairo);
 
   gdk_cairo_set_source_rgba (cairo, &priv->color_bg_good);
@@ -1150,35 +1210,7 @@ hyscan_gtk_map_steer_set_track (HyScanGtkMapSteer *steer)
       goto exit;
     }
 
-  {
-    gdouble lat1, lat2, lon1, lon2, dlon;
-
-    lat1 = priv->track->start.lat / 180.0 * G_PI;
-    lon1 = priv->track->start.lon / 180.0 * G_PI;
-    lat2 = priv->track->end.lat / 180.0 * G_PI;
-    lon2 = priv->track->end.lon / 180.0 * G_PI;
-    dlon = lon2 - lon1;
-
-    priv->angle = atan2 (sin(dlon) * cos (lat2), cos (lat1) * sin (lat2) - sin (lat1) * cos (lat2) * cos (dlon));
-  }
-
-  /* Создаём HyScanGeo с осью OY точно по линии галса. */
-  {
-    HyScanGeo *tmp_geo;
-    HyScanGeoGeodetic origin;
-
-    origin = priv->track->start;
-    origin.h = 0;
-
-    tmp_geo = hyscan_geo_new (origin, HYSCAN_GEO_ELLIPSOID_WGS84);
-    hyscan_geo_geo2topoXY (tmp_geo, &priv->start, priv->track->start);
-    hyscan_geo_geo2topoXY (tmp_geo, &priv->end, priv->track->end);
-    origin.h = atan2 (priv->end.x - priv->start.x, priv->end.y - priv->start.y) / G_PI * 180.0;
-
-    g_object_unref (tmp_geo);
-    priv->geo = hyscan_geo_new (origin, HYSCAN_GEO_ELLIPSOID_WGS84);
-  }
-
+  priv->geo = hyscan_planner_track_geo (priv->track, &priv->angle);
   hyscan_geo_geo2topoXY (priv->geo, &priv->start, priv->track->start);
   hyscan_geo_geo2topoXY (priv->geo, &priv->end, priv->track->end);
   g_queue_foreach (priv->points, (GFunc) hyscan_gtk_map_steer_calc_point, steer);
@@ -1205,6 +1237,15 @@ exit:
   gtk_widget_queue_draw (GTK_WIDGET (priv->carea));
 }
 
+/**
+ * hyscan_gtk_map_steer_new:
+ * @model: модель навигационных данных
+ * @selection: выбор пользователя в планировщике
+ *
+ * Создаёт виджет навигации по запланированному галсу
+ *
+ * Returns: новый виджет #HyScanGtkMapSteer
+ */
 GtkWidget *
 hyscan_gtk_map_steer_new (HyScanNavModel         *model,
                           HyScanPlannerSelection *selection)
@@ -1213,4 +1254,25 @@ hyscan_gtk_map_steer_new (HyScanNavModel         *model,
                        "model", model,
                        "selection", selection,
                        NULL);
+}
+
+/**
+ * hyscan_gtk_map_steer_sensor_set_offset:
+ * @steer: указатель на #HyScanGtkMapSteer
+ * @offset: смещение антенны гидролокатора
+ *
+ * Устанавливает смещение антенны гидролокотора. Смещение используется для
+ * внесения поправки в местоположение антенны.
+ */
+void
+hyscan_gtk_map_steer_sensor_set_offset (HyScanGtkMapSteer         *steer,
+                                        const HyScanAntennaOffset *offset)
+{
+  HyScanGtkMapSteerPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_STEER (steer));
+  priv = steer->priv;
+
+  g_clear_pointer (&priv->offset, hyscan_antenna_offset_free);
+  priv->offset = hyscan_antenna_offset_copy (offset);
 }
