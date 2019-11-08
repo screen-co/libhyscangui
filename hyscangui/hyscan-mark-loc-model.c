@@ -232,6 +232,10 @@ hyscan_mark_loc_model_object_constructed (GObject *object)
   priv->mark_model = hyscan_object_model_new (HYSCAN_TYPE_OBJECT_DATA_WFMARK);
   priv->db_info = hyscan_db_info_new (priv->db);
   priv->geo = hyscan_geo_new (origin, HYSCAN_GEO_ELLIPSOID_WGS84);
+
+  /* Устанавливаем, что изменился список меток, чтобы подгрузить его в первой итерации. */
+  priv->state.changed = CHANGED_MARKS;
+
   priv->processor = g_thread_new ("mark-loc", hyscan_mark_loc_model_process, ml_model);
 
   g_signal_connect_swapped (priv->mark_model, "changed",
