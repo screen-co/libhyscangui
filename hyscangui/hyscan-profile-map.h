@@ -101,6 +101,10 @@ void                   hyscan_profile_map_set_offline      (HyScanProfileMap   *
                                                             gboolean            offline);
 
 HYSCAN_API
+void                   hyscan_profile_map_set_cache_dir    (HyScanProfileMap   *profile,
+                                                            const gchar        *cache_dir);
+
+HYSCAN_API
 gboolean               hyscan_profile_map_apply            (HyScanProfileMap   *profile,
                                                             HyScanGtkMap       *map);
 
