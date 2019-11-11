@@ -299,7 +299,17 @@ hyscan_gtk_map_wfmark_project_location (HyScanGtkMapWfmark         *wfm_layer,
 
   /* Переводим из метров в единицы картографической проекции. */
   scale = hyscan_gtk_map_get_scale_value (priv->map, location->mloc->center_geo);
-  location->width = location->mloc->mark->width / scale;
+  if (location->mloc->direction == HYSCAN_MARK_LOCATION_BOTTOM)
+    {
+      double tmp = location->mloc->mark->width * hyscan_gtk_map_get_scale_px (priv->map);
+      /* Ширина эхолотной метки для отслеживания наведения курсра мыши.
+       * 2.5 * 2 = 5 пикселей - толщина линии стрелки у метки.*/
+      location->width = ( (location->mloc->mark->width * 2.5) / tmp) / scale;
+    }
+  else
+    {
+      location->width = location->mloc->mark->width / scale;
+    }
   location->height = location->mloc->mark->height / scale;
   offset = location->mloc->offset / scale;
 
@@ -457,7 +467,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       current_sin = sin (location->angle);
       current_cos = cos (location->angle);
 
-      width = location->width / scale;
+      width = (location->mloc->direction == HYSCAN_MARK_LOCATION_BOTTOM)? 5.0 : location->width / scale;
       height = location->height / scale;
 
       gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map),
@@ -557,10 +567,10 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       border_to.y   = fmin (b2.y, m2.y);
 
       width  = (border_to.x - border_from.x) / 2.0;
-      if (width <= 0.0)
+      if (width < 0.0)
   continue;
       height = (border_to.y - border_from.y) / 2.0;
-      if (height <= 0.0)
+      if (height < 0.0)
   continue;
 
       offset.x = (border_to.x + border_from.x) / 2.0;
@@ -609,155 +619,157 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
           border_to.y < area_rect_from.y)
         continue;
 
-      gdouble current_tile_width  = width  / scale_px,
-              current_tile_height = height / scale_px;
+      if (location->mloc->direction != HYSCAN_MARK_LOCATION_BOTTOM)
+       {
+          gdouble current_tile_width  = width  / scale_px,
+                  current_tile_height = height / scale_px;
 
 #ifdef DEBUG_GRAPHIC_MARK
 
-      HyScanGeoCartesian2D p0 = {-width, -height},
-                           p1 = {-width,  height},
-                           p2 = { width,  height},
-                           p3 = { width, -height};
+          HyScanGeoCartesian2D p0 = {-width, -height},
+                               p1 = {-width,  height},
+                               p2 = { width,  height},
+                               p3 = { width, -height};
 
-      tmp = p0.x;
-      p0.x = current_cos * tmp - current_sin * p0.y;
-      p0.y = current_sin * tmp + current_cos * p0.y;
+          tmp = p0.x;
+          p0.x = current_cos * tmp - current_sin * p0.y;
+          p0.y = current_sin * tmp + current_cos * p0.y;
 
-      tmp = p1.x;
-      p1.x = current_cos * tmp - current_sin * p1.y;
-      p1.y = current_sin * tmp + current_cos * p1.y;
+          tmp = p1.x;
+          p1.x = current_cos * tmp - current_sin * p1.y;
+          p1.y = current_sin * tmp + current_cos * p1.y;
 
-      tmp = p2.x;
-      p2.x = current_cos * tmp - current_sin * p2.y;
-      p2.y = current_sin * tmp + current_cos * p2.y;
+          tmp = p2.x;
+          p2.x = current_cos * tmp - current_sin * p2.y;
+          p2.y = current_sin * tmp + current_cos * p2.y;
 
-      tmp = p3.x;
-      p3.x = current_cos * tmp - current_sin * p3.y;
-      p3.y = current_sin * tmp + current_cos * p3.y;
+          tmp = p3.x;
+          p3.x = current_cos * tmp - current_sin * p3.y;
+          p3.y = current_sin * tmp + current_cos * p3.y;
 
-      p0.x += new_position.x;
-      p0.y += new_position.y;
-      p1.x += new_position.x;
-      p1.y += new_position.y;
-      p2.x += new_position.x;
-      p2.y += new_position.y;
-      p3.x += new_position.x;
-      p3.y += new_position.y;
+          p0.x += new_position.x;
+          p0.y += new_position.y;
+          p1.x += new_position.x;
+          p1.y += new_position.y;
+          p2.x += new_position.x;
+          p2.y += new_position.y;
+          p3.x += new_position.x;
+          p3.y += new_position.y;
 
 #endif
 
-      tile = hyscan_tile_new (location->mloc->track_name);
+          tile = hyscan_tile_new (location->mloc->track_name);
 
-      tile->info.source = hyscan_source_get_type_by_id (location->mloc->mark->source);
+          tile->info.source = hyscan_source_get_type_by_id (location->mloc->mark->source);
 
-      if (tile->info.source != HYSCAN_SOURCE_INVALID)
-        {
-          HyScanAmplitude *dc;
-          HyScanProjector *projector;
-          HyScanDepthometer *dm = NULL;
-          gdouble along, across, depth = 0.0;
-
-          dm = hyscan_factory_depth_produce (priv->factory_dpt, location->mloc->track_name);
-          if (dm != NULL)
+          if (tile->info.source != HYSCAN_SOURCE_INVALID)
             {
-              HyScanCancellable *cancellable;
-              cancellable = hyscan_cancellable_new ();
-              depth = hyscan_depthometer_get (dm, cancellable, location->mloc->time);
-              g_object_unref (cancellable);
-            }
+              HyScanAmplitude *dc;
+              HyScanProjector *projector;
+              HyScanDepthometer *dm = NULL;
+              gdouble along, across, depth = 0.0;
 
-          if (depth < 0.0)
-            depth = 0.0;
-
-          dc = hyscan_factory_amplitude_produce (priv->factory_amp,
-                                                 location->mloc->track_name,
-                                                 tile->info.source);
-          projector = hyscan_projector_new (dc);
-
-          hyscan_projector_index_to_coord (projector,
-                                           location->mloc->mark->index,
-                                           &along);
-          hyscan_projector_count_to_coord (projector,
-                                           location->mloc->mark->count,
-                                           &across,
-                                           depth);
-          g_clear_object (&dc);
-          g_clear_object (&projector);
-
-          along -= offset.y;
-          /* Для левого борта тайл надо отразить по оси X. */
-          if (location->mloc->offset > 0)
-            {
-              across -= offset.x;
-              /* Поэтому значения отрицательные, и start и end меняются местами. */
-              tile->info.across_start = -round ( (across + current_tile_width) * 1000.0);
-              tile->info.across_end   = -round ( (across - current_tile_width) * 1000.0);
-            }
-          else
-            {
-              across += offset.x;
-              tile->info.across_start = round ( (across - current_tile_width) * 1000.0);
-              tile->info.across_end   = round ( (across + current_tile_width) * 1000.0);
-            }
-
-          tile->info.along_start = round ( (along - current_tile_height) * 1000.0);
-          tile->info.along_end   = round ( (along + current_tile_height) * 1000.0);
-
-          tile->info.scale    = 1.0f;
-          tile->info.ppi      = ppi;
-          tile->info.upsample = 2;
-          tile->info.rotate   = FALSE;
-          tile->info.flags    = HYSCAN_TILE_GROUND;
-
-          tile_cacheable.w =      /* Будет заполнено генератором. */
-          tile_cacheable.h = 0;   /* Будет заполнено генератором. */
-          tile_cacheable.finalized = FALSE;   /* Будет заполнено генератором. */
-
-          if (hyscan_tile_queue_check (priv->tile_queue, tile, &tile_cacheable, NULL))
-            {
-              if (hyscan_tile_queue_get (priv->tile_queue, tile, &tile_cacheable, &image, &size))
+              dm = hyscan_factory_depth_produce (priv->factory_dpt, location->mloc->track_name);
+              if (dm != NULL)
                 {
-                  /* Тайл найден в кэше. */
+                  HyScanCancellable *cancellable;
+                  cancellable = hyscan_cancellable_new ();
+                  depth = hyscan_depthometer_get (dm, cancellable, location->mloc->time);
+                  g_object_unref (cancellable);
+                }
 
-                  HyScanTileColor *tile_color;
-                  HyScanTileSurface tile_surface;
+              if (depth < 0.0)
+                depth = 0.0;
 
-                  tile_color = hyscan_tile_color_new (priv->cache);
-                  /* 1.0 / 2.2 = 0.454545... */
-                  hyscan_tile_color_set_levels (tile_color, tile->info.source, 0.0, 0.454545, 1.0);
+              dc = hyscan_factory_amplitude_produce (priv->factory_amp,
+                                                     location->mloc->track_name,
+                                                     tile->info.source);
+              projector = hyscan_projector_new (dc);
 
-                  tile_surface.width = tile_cacheable.w;
-                  tile_surface.height = tile_cacheable.h;
-                  tile_surface.stride = cairo_format_stride_for_width (CAIRO_FORMAT_ARGB32, tile_surface.width);
-                  tile_surface.data = g_malloc0 (tile_surface.height * tile_surface.stride);
+              hyscan_projector_index_to_coord (projector,
+                                               location->mloc->mark->index,
+                                               &along);
+              hyscan_projector_count_to_coord (projector,
+                                               location->mloc->mark->count,
+                                               &across,
+                                               depth);
+              g_clear_object (&dc);
+              g_clear_object (&projector);
 
-                  hyscan_tile_color_add (tile_color, tile, image, size, &tile_surface);
+              along -= offset.y;
+              /* Для левого борта тайл надо отразить по оси X. */
+              if (location->mloc->direction == HYSCAN_MARK_LOCATION_PORT)
+                {
+                  across -= offset.x;
+                  /* Поэтому значения отрицательные, и start и end меняются местами. */
+                  tile->info.across_start = -round ( (across + current_tile_width) * 1000.0);
+                  tile->info.across_end   = -round ( (across - current_tile_width) * 1000.0);
+                }
+              else
+                {
+                  across += offset.x;
+                  tile->info.across_start = round ( (across - current_tile_width) * 1000.0);
+                  tile->info.across_end   = round ( (across + current_tile_width) * 1000.0);
+                }
 
-                  if (hyscan_tile_color_check (tile_color, tile, &tile_cacheable))
+              tile->info.along_start = round ( (along - current_tile_height) * 1000.0);
+              tile->info.along_end   = round ( (along + current_tile_height) * 1000.0);
+
+              tile->info.scale    = 1.0f;
+              tile->info.ppi      = ppi;
+              tile->info.upsample = 2;
+              tile->info.rotate   = FALSE;
+              tile->info.flags    = HYSCAN_TILE_GROUND;
+
+              tile_cacheable.w =      /* Будет заполнено генератором. */
+              tile_cacheable.h = 0;   /* Будет заполнено генератором. */
+              tile_cacheable.finalized = FALSE;   /* Будет заполнено генератором. */
+
+              if (hyscan_tile_queue_check (priv->tile_queue, tile, &tile_cacheable, NULL))
+                {
+                  if (hyscan_tile_queue_get (priv->tile_queue, tile, &tile_cacheable, &image, &size))
                     {
-                      hyscan_tile_color_get (tile_color, tile, &tile_cacheable, &tile_surface);
-                      surface = cairo_image_surface_create_for_data ( (guchar*)tile_surface.data,
-                                            CAIRO_FORMAT_ARGB32, tile_surface.width,
-                                            tile_surface.height, tile_surface.stride);
-                    }
+                      /* Тайл найден в кэше. */
 
-                  g_free (tile_surface.data);
-                  hyscan_tile_color_close (tile_color);
-                  g_object_unref (tile_color);
-               }
+                      HyScanTileColor *tile_color;
+                      HyScanTileSurface tile_surface;
+
+                      tile_color = hyscan_tile_color_new (priv->cache);
+                      /* 1.0 / 2.2 = 0.454545... */
+                      hyscan_tile_color_set_levels (tile_color, tile->info.source, 0.0, 0.454545, 1.0);
+
+                      tile_surface.width = tile_cacheable.w;
+                      tile_surface.height = tile_cacheable.h;
+                      tile_surface.stride = cairo_format_stride_for_width (CAIRO_FORMAT_ARGB32, tile_surface.width);
+                      tile_surface.data = g_malloc0 (tile_surface.height * tile_surface.stride);
+
+                      hyscan_tile_color_add (tile_color, tile, image, size, &tile_surface);
+
+                      if (hyscan_tile_color_check (tile_color, tile, &tile_cacheable))
+                        {
+                          hyscan_tile_color_get (tile_color, tile, &tile_cacheable, &tile_surface);
+                          surface = cairo_image_surface_create_for_data ( (guchar*)tile_surface.data,
+                                                CAIRO_FORMAT_ARGB32, tile_surface.width,
+                                                tile_surface.height, tile_surface.stride);
+                        }
+
+                      g_free (tile_surface.data);
+                      hyscan_tile_color_close (tile_color);
+                      g_object_unref (tile_color);
+                   }
+                }
+              else
+                {
+                  HyScanCancellable *cancellable;
+                  cancellable = hyscan_cancellable_new ();
+                  /* Добавляем тайл в очередь на генерацию. */
+                  hyscan_tile_queue_add (priv->tile_queue, tile, cancellable);
+                  g_object_unref (cancellable);
+                  counter++;
+                }
             }
-          else
-            {
-              HyScanCancellable *cancellable;
-              cancellable = hyscan_cancellable_new ();
-              /* Добавляем тайл в очередь на генерацию. */
-              hyscan_tile_queue_add (priv->tile_queue, tile, cancellable);
-              g_object_unref (cancellable);
-              counter++;
-            }
+          g_object_unref (tile);
         }
-      g_object_unref (tile);
-
 #ifdef DEBUG_TRACK_POINTS
       {
         gdouble track_x, track_y;
@@ -808,9 +820,6 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
           cairo_set_source_surface (cairo, surface, -width, -height);
           cairo_paint (cairo);
           cairo_surface_destroy (surface);
-
-          cairo_close_path (cairo);
-          cairo_fill (cairo);
 
           cairo_set_line_width (cairo, 1);
 
@@ -867,7 +876,22 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 #endif
 
         }
+      else if (location->mloc->direction == HYSCAN_MARK_LOCATION_BOTTOM)
+        {
+          cairo_save (cairo);
+          cairo_rotate (cairo, location->angle);
 
+          cairo_set_line_width (cairo, 5);
+
+          cairo_set_source_rgb (cairo, 0.0, 0.0, 1.0);
+
+          cairo_move_to (cairo, 0.0, -height);
+          cairo_line_to (cairo, 0.0,  height);
+
+          cairo_stroke (cairo);
+
+          cairo_restore(cairo);
+        }
       {
         /* Название метки. */
         gint text_width, text_height;
@@ -1032,202 +1056,203 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       border_to.y   = fmin (b2.y, m2.y);
 
       width  = (border_to.x - border_from.x) / 2.0;
-      if (width <= 0.0)
+      if (width < 0.0)
   return;
       height = (border_to.y - border_from.y) / 2.0;
-      if (height <= 0.0)
+      if (height < 0.0)
   return;
 
       gdouble current_tile_width  = width  / scale_px,
-      current_tile_height = height / scale_px;
+              current_tile_height = height / scale_px;
 
       offset.x = (border_to.x + border_from.x) / 2.0;
       offset.y = (border_to.y + border_from.y) / 2.0;
 
       new_position.x = position.x + current_cos * offset.x - current_sin * offset.y;
       new_position.y = position.y + current_sin * offset.x + current_cos * offset.y;
-
-      offset.x /=  scale_px;
-      offset.y /=  scale_px;
-
-#ifdef DEBUG_GRAPHIC_MARK
-      {
-        m0.x += new_position.x;
-        m0.y += new_position.y;
-        m1.x += new_position.x;
-        m1.y += new_position.y;
-        m2.x += new_position.x;
-        m2.y += new_position.y;
-        m3.x += new_position.x;
-        m3.y += new_position.y;
-
-        b0.x += new_position.x;
-        b0.y += new_position.y;
-        b1.x += new_position.x;
-        b1.y += new_position.y;
-        b2.x += new_position.x;
-        b2.y += new_position.y;
-        b3.x += new_position.x;
-        b3.y += new_position.y;
-      }
-#endif
-
-      new_width  = width * fabs (current_cos) + height * fabs (current_sin);
-      new_height = width * fabs (current_sin) + height * fabs (current_cos);
-
-      border_from.x = new_position.x - new_width;
-      border_from.y = new_position.y - new_height;
-
-      border_to.x = new_position.x + new_width;
-      border_to.y = new_position.y + new_height;
-
-#ifdef DEBUG_GRAPHIC_MARK
-
-      HyScanGeoCartesian2D p0 = {-width, -height},
-                           p1 = {-width,  height},
-                           p2 = { width,  height},
-                           p3 = { width, -height};
-
-      tmp = p0.x;
-      p0.x = current_cos * tmp - current_sin * p0.y;
-      p0.y = current_sin * tmp + current_cos * p0.y;
-
-      tmp = p1.x;
-      p1.x = current_cos * tmp - current_sin * p1.y;
-      p1.y = current_sin * tmp + current_cos * p1.y;
-
-      tmp = p2.x;
-      p2.x = current_cos * tmp - current_sin * p2.y;
-      p2.y = current_sin * tmp + current_cos * p2.y;
-
-      tmp = p3.x;
-      p3.x = current_cos * tmp - current_sin * p3.y;
-      p3.y = current_sin * tmp + current_cos * p3.y;
-
-      p0.x += new_position.x;
-      p0.y += new_position.y;
-      p1.x += new_position.x;
-      p1.y += new_position.y;
-      p2.x += new_position.x;
-      p2.y += new_position.y;
-      p3.x += new_position.x;
-      p3.y += new_position.y;
-
-#endif
-
-      tile = hyscan_tile_new (priv->hover_location->mloc->track_name);
-
-      tile->info.source = hyscan_source_get_type_by_id (priv->hover_location->mloc->mark->source);
-
-      if (tile->info.source != HYSCAN_SOURCE_INVALID)
+      if (priv->hover_location->mloc->direction != HYSCAN_MARK_LOCATION_BOTTOM)
         {
-          HyScanAmplitude *dc;
-          HyScanProjector *projector;
-          HyScanDepthometer *dm = NULL;
-          gdouble along, across, depth = 0.0;
+          offset.x /=  scale_px;
+          offset.y /=  scale_px;
 
-          dm = hyscan_factory_depth_produce (priv->factory_dpt, priv->hover_location->mloc->track_name);
+#ifdef DEBUG_GRAPHIC_MARK
+          {
+            m0.x += new_position.x;
+            m0.y += new_position.y;
+            m1.x += new_position.x;
+            m1.y += new_position.y;
+            m2.x += new_position.x;
+            m2.y += new_position.y;
+            m3.x += new_position.x;
+            m3.y += new_position.y;
 
-          if (dm != NULL)
+            b0.x += new_position.x;
+            b0.y += new_position.y;
+            b1.x += new_position.x;
+            b1.y += new_position.y;
+            b2.x += new_position.x;
+            b2.y += new_position.y;
+            b3.x += new_position.x;
+            b3.y += new_position.y;
+          }
+#endif
+
+          new_width  = width * fabs (current_cos) + height * fabs (current_sin);
+          new_height = width * fabs (current_sin) + height * fabs (current_cos);
+
+          border_from.x = new_position.x - new_width;
+          border_from.y = new_position.y - new_height;
+
+          border_to.x = new_position.x + new_width;
+          border_to.y = new_position.y + new_height;
+
+#ifdef DEBUG_GRAPHIC_MARK
+
+          HyScanGeoCartesian2D p0 = {-width, -height},
+                               p1 = {-width,  height},
+                               p2 = { width,  height},
+                               p3 = { width, -height};
+
+          tmp = p0.x;
+          p0.x = current_cos * tmp - current_sin * p0.y;
+          p0.y = current_sin * tmp + current_cos * p0.y;
+
+          tmp = p1.x;
+          p1.x = current_cos * tmp - current_sin * p1.y;
+          p1.y = current_sin * tmp + current_cos * p1.y;
+
+          tmp = p2.x;
+          p2.x = current_cos * tmp - current_sin * p2.y;
+          p2.y = current_sin * tmp + current_cos * p2.y;
+
+          tmp = p3.x;
+          p3.x = current_cos * tmp - current_sin * p3.y;
+          p3.y = current_sin * tmp + current_cos * p3.y;
+
+          p0.x += new_position.x;
+          p0.y += new_position.y;
+          p1.x += new_position.x;
+          p1.y += new_position.y;
+          p2.x += new_position.x;
+          p2.y += new_position.y;
+          p3.x += new_position.x;
+          p3.y += new_position.y;
+
+#endif
+
+          tile = hyscan_tile_new (priv->hover_location->mloc->track_name);
+
+          tile->info.source = hyscan_source_get_type_by_id (priv->hover_location->mloc->mark->source);
+
+          if (tile->info.source != HYSCAN_SOURCE_INVALID)
             {
-              HyScanCancellable *cancellable;
-              cancellable = hyscan_cancellable_new ();
-              depth = hyscan_depthometer_get (dm, cancellable, priv->hover_location->mloc->time);
-              g_object_unref (cancellable);
-            }
+              HyScanAmplitude *dc;
+              HyScanProjector *projector;
+              HyScanDepthometer *dm = NULL;
+              gdouble along, across, depth = 0.0;
 
-          if (depth < 0.0)
-            depth = 0.0;
+              dm = hyscan_factory_depth_produce (priv->factory_dpt, priv->hover_location->mloc->track_name);
 
-          dc = hyscan_factory_amplitude_produce (priv->factory_amp,
-                                                 priv->hover_location->mloc->track_name,
-                                                 tile->info.source);
-          projector = hyscan_projector_new (dc);
+              if (dm != NULL)
+                {
+                  HyScanCancellable *cancellable;
+                  cancellable = hyscan_cancellable_new ();
+                  depth = hyscan_depthometer_get (dm, cancellable, priv->hover_location->mloc->time);
+                  g_object_unref (cancellable);
+                }
 
-          hyscan_projector_index_to_coord (projector,
+              if (depth < 0.0)
+                depth = 0.0;
+
+              dc = hyscan_factory_amplitude_produce (priv->factory_amp,
+                                                     priv->hover_location->mloc->track_name,
+                                                     tile->info.source);
+              projector = hyscan_projector_new (dc);
+
+              hyscan_projector_index_to_coord (projector,
                                            priv->hover_location->mloc->mark->index,
                                            &along);
-          hyscan_projector_count_to_coord (projector,
+              hyscan_projector_count_to_coord (projector,
                                            priv->hover_location->mloc->mark->count,
                                            &across,
                                            depth);
-          g_clear_object (&dc);
-          g_clear_object (&projector);
+              g_clear_object (&dc);
+              g_clear_object (&projector);
 
-          along -= offset.y;
-          /* Для левого борта тайл надо отразить по оси X. */
-          if (priv->hover_location->mloc->offset > 0)
-            {
-              across -= offset.x;
-              /* Поэтому значения отрицательные, и start и end меняются местами. */
-              tile->info.across_start = -round ( (across + current_tile_width) * 1000.0);
-              tile->info.across_end   = -round ( (across - current_tile_width) * 1000.0);
-            }
-          else
-            {
-               across += offset.x;
-               tile->info.across_start = round ( (across - current_tile_width) * 1000.0);
-               tile->info.across_end   = round ( (across + current_tile_width) * 1000.0);
-            }
-
-          tile->info.along_start = round ( (along - current_tile_height) * 1000.0);
-          tile->info.along_end   = round ( (along + current_tile_height) * 1000.0);
-
-          tile->info.scale    = 1.0f;
-          tile->info.ppi      = ppi;
-          tile->info.upsample = 2;
-          tile->info.rotate   = FALSE;
-          tile->info.flags    = HYSCAN_TILE_GROUND;
-
-          tile_cacheable.w =      /* Будет заполнено генератором. */
-          tile_cacheable.h = 0;   /* Будет заполнено генератором. */
-          tile_cacheable.finalized = FALSE;   /* Будет заполнено генератором. */
-
-          if (hyscan_tile_queue_check (priv->tile_queue, tile, &tile_cacheable, NULL))
-            {
-              if (hyscan_tile_queue_get (priv->tile_queue, tile, &tile_cacheable, &image, &size))
+              along -= offset.y;
+              /* Для левого борта тайл надо отразить по оси X. */
+              if (priv->hover_location->mloc->direction == HYSCAN_MARK_LOCATION_PORT)
                 {
-                  /* Тайл найден в кэше. */
+                  across -= offset.x;
+                  /* Поэтому значения отрицательные, и start и end меняются местами. */
+                  tile->info.across_start = -round ( (across + current_tile_width) * 1000.0);
+                  tile->info.across_end   = -round ( (across - current_tile_width) * 1000.0);
+                }
+              else
+                {
+                   across += offset.x;
+                   tile->info.across_start = round ( (across - current_tile_width) * 1000.0);
+                   tile->info.across_end   = round ( (across + current_tile_width) * 1000.0);
+                }
 
-                  HyScanTileColor *tile_color;
-                  HyScanTileSurface tile_surface;
+              tile->info.along_start = round ( (along - current_tile_height) * 1000.0);
+              tile->info.along_end   = round ( (along + current_tile_height) * 1000.0);
 
-                  tile_color = hyscan_tile_color_new (priv->cache);
-                  /* 1.0 / 2.2 = 0.454545... */
-                  hyscan_tile_color_set_levels (tile_color, tile->info.source, 0.0, 0.454545, 1.0);
+              tile->info.scale    = 1.0f;
+              tile->info.ppi      = ppi;
+              tile->info.upsample = 2;
+              tile->info.rotate   = FALSE;
+              tile->info.flags    = HYSCAN_TILE_GROUND;
 
-                  tile_surface.width  = tile_cacheable.w;
-                  tile_surface.height = tile_cacheable.h;
-                  tile_surface.stride = cairo_format_stride_for_width (CAIRO_FORMAT_ARGB32, tile_surface.width);
-                  tile_surface.data   = g_malloc0 (tile_surface.height * tile_surface.stride);
+              tile_cacheable.w =      /* Будет заполнено генератором. */
+              tile_cacheable.h = 0;   /* Будет заполнено генератором. */
+              tile_cacheable.finalized = FALSE;   /* Будет заполнено генератором. */
 
-                  hyscan_tile_color_add (tile_color, tile, image, size, &tile_surface);
-
-                  if (hyscan_tile_color_check (tile_color, tile, &tile_cacheable))
+              if (hyscan_tile_queue_check (priv->tile_queue, tile, &tile_cacheable, NULL))
+                {
+                  if (hyscan_tile_queue_get (priv->tile_queue, tile, &tile_cacheable, &image, &size))
                     {
-                       hyscan_tile_color_get (tile_color, tile, &tile_cacheable, &tile_surface);
-                       surface = cairo_image_surface_create_for_data ( (guchar*)tile_surface.data,
+                      /* Тайл найден в кэше. */
+
+                      HyScanTileColor *tile_color;
+                      HyScanTileSurface tile_surface;
+
+                      tile_color = hyscan_tile_color_new (priv->cache);
+                      /* 1.0 / 2.2 = 0.454545... */
+                      hyscan_tile_color_set_levels (tile_color, tile->info.source, 0.0, 0.454545, 1.0);
+
+                      tile_surface.width  = tile_cacheable.w;
+                      tile_surface.height = tile_cacheable.h;
+                      tile_surface.stride = cairo_format_stride_for_width (CAIRO_FORMAT_ARGB32, tile_surface.width);
+                      tile_surface.data   = g_malloc0 (tile_surface.height * tile_surface.stride);
+
+                      hyscan_tile_color_add (tile_color, tile, image, size, &tile_surface);
+
+                      if (hyscan_tile_color_check (tile_color, tile, &tile_cacheable))
+                        {
+                           hyscan_tile_color_get (tile_color, tile, &tile_cacheable, &tile_surface);
+                           surface = cairo_image_surface_create_for_data ( (guchar*)tile_surface.data,
                                                      CAIRO_FORMAT_ARGB32, tile_surface.width,
                                                      tile_surface.height, tile_surface.stride);
-                    }
+                        }
 
-                  g_free (tile_surface.data);
-                  hyscan_tile_color_close (tile_color);
-                  g_object_unref (tile_color);
+                      g_free (tile_surface.data);
+                      hyscan_tile_color_close (tile_color);
+                      g_object_unref (tile_color);
+                    }
+                }
+              else
+                {
+                  HyScanCancellable *cancellable;
+                  cancellable = hyscan_cancellable_new ();
+                  /* Добавляем тайл в очередь на генерацию. */
+                  hyscan_tile_queue_add (priv->tile_queue, tile, cancellable);
+                  g_object_unref (cancellable);
+                  hyscan_tile_queue_add_finished (priv->tile_queue, id++);
                 }
             }
-          else
-            {
-              HyScanCancellable *cancellable;
-              cancellable = hyscan_cancellable_new ();
-              /* Добавляем тайл в очередь на генерацию. */
-              hyscan_tile_queue_add (priv->tile_queue, tile, cancellable);
-              g_object_unref (cancellable);
-              hyscan_tile_queue_add_finished (priv->tile_queue, id++);
-            }
+          g_object_unref (tile);
         }
-      g_object_unref (tile);
-
 #ifdef DEBUG_TRACK_POINTS
       {
         gdouble track_x, track_y;
@@ -1275,52 +1300,60 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
           /* Аккустическое изображение метки. */
           cairo_save (cairo);
           cairo_rotate (cairo, priv->hover_location->angle);
-          cairo_set_source_surface (cairo, surface, -width, -height);
-          cairo_paint (cairo);
-          cairo_surface_destroy (surface);
-
-          cairo_set_line_width (cairo, 1);
-
-          cairo_set_source_rgb (cairo, 1.0, 1.0, 1.0);
-
-          cairo_move_to (cairo, -width, -height);
-          cairo_line_to (cairo, -width,  height);
-          cairo_line_to (cairo,  width,  height);
-          cairo_line_to (cairo,  width, -height);
-          cairo_close_path (cairo);
-
-          cairo_stroke (cairo);
-
-          cairo_set_line_width (cairo, 5);
-
-          if (priv->hover_location->mloc->offset > 0)
+          if (priv->hover_location->mloc->direction != HYSCAN_MARK_LOCATION_BOTTOM)
             {
-              /* Левый борт. */
-              cairo_set_source_rgb (cairo, 1.0, 0.0, 0.0);
+              cairo_set_source_surface (cairo, surface, -width, -height);
+              cairo_paint (cairo);
+              cairo_surface_destroy (surface);
 
-              cairo_move_to (cairo, width, -height);
-              cairo_line_to (cairo, width,  height);
+              cairo_set_line_width (cairo, 1);
 
-              cairo_stroke (cairo);
-
-              cairo_move_to (cairo, width + 10, -height     );
-              cairo_line_to (cairo, width - 10, -height     );
-              cairo_line_to (cairo, width,      -height - 20);
-            }
-          else
-            {
-              /* Правый борт. */
-              cairo_set_source_rgb (cairo, 0.0, 1.0, 0.0);
+              cairo_set_source_rgb (cairo, 1.0, 1.0, 1.0);
 
               cairo_move_to (cairo, -width, -height);
               cairo_line_to (cairo, -width,  height);
+              cairo_line_to (cairo,  width,  height);
+              cairo_line_to (cairo,  width, -height);
+              cairo_close_path (cairo);
 
               cairo_stroke (cairo);
-
-              cairo_move_to (cairo, -width + 10, -height     );
-              cairo_line_to (cairo, -width - 10, -height     );
-              cairo_line_to (cairo, -width,      -height - 20);
             }
+          cairo_set_line_width (cairo, 5);
+
+          switch (priv->hover_location->mloc->direction)
+          {
+            /* Левый борт. */
+            case HYSCAN_MARK_LOCATION_PORT:
+              {
+                cairo_set_source_rgb (cairo, 1.0, 0.0, 0.0);
+
+                cairo_move_to (cairo, width, -height);
+                cairo_line_to (cairo, width,  height);
+
+                cairo_stroke (cairo);
+
+                cairo_move_to (cairo, width + 10, -height     );
+                cairo_line_to (cairo, width - 10, -height     );
+                cairo_line_to (cairo, width,      -height - 20);
+              }
+            break;
+            /* Правый борт. */
+            case HYSCAN_MARK_LOCATION_STARBOARD:
+              {
+                cairo_set_source_rgb (cairo, 0.0, 1.0, 0.0);
+
+                cairo_move_to (cairo, -width, -height);
+                cairo_line_to (cairo, -width,  height);
+
+                cairo_stroke (cairo);
+
+                cairo_move_to (cairo, -width + 10, -height     );
+                cairo_line_to (cairo, -width - 10, -height     );
+                cairo_line_to (cairo, -width,      -height - 20);
+              }
+            break;
+            default: break;
+          }
 
           cairo_close_path (cairo);
           cairo_fill (cairo);
@@ -1368,7 +1401,26 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 #endif
 
         }
+      else if (priv->hover_location->mloc->direction == HYSCAN_MARK_LOCATION_BOTTOM)
+        {
+          cairo_save (cairo);
+          cairo_rotate (cairo, priv->hover_location->angle);
+          cairo_set_line_width (cairo, 5);
+          cairo_set_source_rgb (cairo, 0.0, 0.0, 1.0);
 
+          cairo_move_to (cairo, 0.0, -height);
+          cairo_line_to (cairo, 0.0,  height);
+
+          cairo_stroke (cairo);
+
+          cairo_move_to (cairo,  10.0, -height     );
+          cairo_line_to (cairo, -10.0, -height     );
+          cairo_line_to (cairo,   0.0, -height - 20);
+
+          cairo_fill (cairo);
+
+          cairo_restore (cairo);
+        }
       {
         /* Название метки. */
         gint text_width, text_height;
@@ -1415,6 +1467,7 @@ hyscan_gtk_map_wfmark_find_hover (HyScanGtkMapWfmark   *wfm_layer,
         continue;
 
       hyscan_cartesian_rotate (cursor, &location->center_c2d, location->angle, &rotated);
+      hyscan_gtk_map_wfmark_project_location(wfm_layer, location);
       if (hyscan_cartesian_is_point_inside (&rotated, &location->rect_from, &location->rect_to))
         {
           gdouble mark_distance;
@@ -1592,7 +1645,7 @@ hyscan_gtk_map_wfmark_hint_find (HyScanGtkLayer *layer,
       HyScanDepthometer *dm = NULL;
 
       hint = g_strdup (priv->hover_candidate->mloc->mark->name);
-      hint = g_strconcat (hint,".", (gchar*) NULL);
+      hint = g_strconcat (hint, ".", (gchar*) NULL);
 
       strcpy (str, g_date_time_format (
                         g_date_time_new_from_unix_local (
@@ -1604,7 +1657,7 @@ hyscan_gtk_map_wfmark_hint_find (HyScanGtkLayer *layer,
                         g_date_time_new_from_unix_local (
                           priv->hover_candidate->mloc->mark->mtime / G_TIME_SPAN_SECOND),
                           "%d.%m.%Y %H:%M:%S."));
-      hint = g_strconcat (hint,"\nEdited: ", str, (gchar*) NULL);
+      hint = g_strconcat (hint, "\nEdited: ", str, (gchar*) NULL);
 
       g_snprintf (str, sizeof (str),
                   "\nLocation: %.6f°, %.6f°.",
@@ -1631,8 +1684,8 @@ hyscan_gtk_map_wfmark_hint_find (HyScanGtkLayer *layer,
           strcpy (str, "Empty.");
         }
 
-      hint = g_strconcat (hint,"\nDepth: ", str, (gchar*) NULL);
-      hint = g_strconcat (hint,"\nTrack: ", priv->hover_candidate->mloc->track_name, ".", (gchar*) NULL);
+      hint = g_strconcat (hint, "\nDepth: ", str, (gchar*) NULL);
+      hint = g_strconcat (hint, "\nTrack: ", priv->hover_candidate->mloc->track_name, ".", (gchar*) NULL);
 
       empty_string = (0 == g_strcmp0 (priv->hover_candidate->mloc->mark->description, ""))? TRUE : FALSE;
 
