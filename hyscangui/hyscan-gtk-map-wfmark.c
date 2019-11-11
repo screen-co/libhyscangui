@@ -558,10 +558,10 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
       width  = (border_to.x - border_from.x) / 2.0;
       if (width <= 0.0)
-	continue;
+  continue;
       height = (border_to.y - border_from.y) / 2.0;
       if (height <= 0.0)
-	continue;
+  continue;
 
       offset.x = (border_to.x + border_from.x) / 2.0;
       offset.y = (border_to.y + border_from.y) / 2.0;
@@ -655,7 +655,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
           HyScanAmplitude *dc;
           HyScanProjector *projector;
           HyScanDepthometer *dm = NULL;
-          gdouble along, across, depth;
+          gdouble along, across, depth = 0.0;
 
           dm = hyscan_factory_depth_produce (priv->factory_dpt, location->mloc->track_name);
           if (dm != NULL)
@@ -869,7 +869,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
         }
 
       {
-	/* Название метки. */
+        /* Название метки. */
         gint text_width, text_height;
 
         pango_layout_set_text (priv->pango_layout, location->mloc->mark->name, -1);
@@ -1033,10 +1033,10 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
       width  = (border_to.x - border_from.x) / 2.0;
       if (width <= 0.0)
-	return;
+  return;
       height = (border_to.y - border_from.y) / 2.0;
       if (height <= 0.0)
-	return;
+  return;
 
       gdouble current_tile_width  = width  / scale_px,
       current_tile_height = height / scale_px;
@@ -1124,7 +1124,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
           HyScanAmplitude *dc;
           HyScanProjector *projector;
           HyScanDepthometer *dm = NULL;
-          gdouble along, across, depth;
+          gdouble along, across, depth = 0.0;
 
           dm = hyscan_factory_depth_produce (priv->factory_dpt, priv->hover_location->mloc->track_name);
 
@@ -1588,7 +1588,7 @@ hyscan_gtk_map_wfmark_hint_find (HyScanGtkLayer *layer,
     {
       gboolean empty_string;
       gchar str[64] = {0};
-      gdouble depth;
+      gdouble depth = 0.0;
       HyScanDepthometer *dm = NULL;
 
       hint = g_strdup (priv->hover_candidate->mloc->mark->name);
