@@ -92,7 +92,7 @@ typedef struct
   HyScanMarkLocation          *mloc;            /* Указатель на оригинальную метку (принадлежит priv->marks). */
 
   /* Поля ниже определяются переводом географических координат метки в СК карты с учетом текущей проекции. */
-  HyScanGeoCartesian2D         track_c2d;       /* Координаты положения судна в СК карт. */
+  HyScanGeoCartesian2D         antenna_c2d;     /* Координаты антенны в СК карт. */
   HyScanGeoCartesian2D         center_c2d;      /* Координаты центра метки в СК карты. */
 
   gdouble                      angle;           /* Угол курса в радианах. */
@@ -304,11 +304,11 @@ hyscan_gtk_map_wfmark_project_location (HyScanGtkMapWfmark         *wfm_layer,
   offset = location->mloc->offset / scale;
 
   /* Определяем координаты центра метки в СК проекции. */
-  hyscan_gtk_map_geo_to_value (priv->map, location->mloc->center_geo, &location->track_c2d);
+  hyscan_gtk_map_geo_to_value (priv->map, location->mloc->center_geo, &location->antenna_c2d);
 
   location->angle = location->mloc->center_geo.h / 180.0 * G_PI;
-  location->center_c2d.x = location->track_c2d.x - offset * cos (location->angle);
-  location->center_c2d.y = location->track_c2d.y + offset * sin (location->angle);
+  location->center_c2d.x = location->antenna_c2d.x - offset * cos (location->angle);
+  location->center_c2d.y = location->antenna_c2d.y + offset * sin (location->angle);
 
   location->rect_from.x = location->center_c2d.x - location->width;
   location->rect_to.x = location->center_c2d.x + location->width;
@@ -766,7 +766,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
         const gdouble dashes[] = { 12.0, 2.0 };
 
         gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &track_x, &track_y,
-                                               location->track_c2d.x, location->track_c2d.y);
+                                               location->antenna_c2d.x, location->antenna_c2d.y);
 
         cairo_set_source_rgb (cairo, 0.1, 0.7, 0.1);
         cairo_set_line_width (cairo, 1.0);
@@ -1236,7 +1236,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
         const gdouble dashes[] = { 12.0, 2.0 };
 
         gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &track_x, &track_y,
-                                               priv->hover_location->track_c2d.x, priv->hover_location->track_c2d.y);
+                                               priv->hover_location->antenna_c2d.x, priv->hover_location->antenna_c2d.y);
         g_strdup (
         cairo_set_source_rgb (cairo, 0.1, 0.7, 0.1);
         cairo_set_line_width (cairo, 1.0);
