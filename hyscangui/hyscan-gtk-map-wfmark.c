@@ -300,16 +300,10 @@ hyscan_gtk_map_wfmark_project_location (HyScanGtkMapWfmark         *wfm_layer,
   /* Переводим из метров в единицы картографической проекции. */
   scale = hyscan_gtk_map_get_scale_value (priv->map, location->mloc->center_geo);
   if (location->mloc->direction == HYSCAN_MARK_LOCATION_BOTTOM)
-    {
-      double tmp = location->mloc->mark->width * hyscan_gtk_map_get_scale_px (priv->map);
-      /* Ширина эхолотной метки для отслеживания наведения курсра мыши.
-       * 2.5 * 2 = 5 пикселей - толщина линии стрелки у метки.*/
-      location->width = ( (location->mloc->mark->width * 2.5) / tmp) / scale;
-    }
+    location->width = 0.0;
   else
-    {
-      location->width = location->mloc->mark->width / scale;
-    }
+    location->width = location->mloc->mark->width / scale;
+
   location->height = location->mloc->mark->height / scale;
   offset = location->mloc->offset / scale;
 
@@ -1462,13 +1456,30 @@ hyscan_gtk_map_wfmark_find_hover (HyScanGtkMapWfmark   *wfm_layer,
   while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &location))
     {
       HyScanGeoCartesian2D rotated;
+      gboolean is_inside;           /* Признак того, что курсор внутри метки. */
 
       if (!location->mloc->loaded)
         continue;
 
       hyscan_cartesian_rotate (cursor, &location->center_c2d, location->angle, &rotated);
-      hyscan_gtk_map_wfmark_project_location(wfm_layer, location);
-      if (hyscan_cartesian_is_point_inside (&rotated, &location->rect_from, &location->rect_to))
+      if (location->rect_from.x != location->rect_to.x)
+        /* В случае, если метка имеет ненулевую ширину, проверяем,
+         * что курсор мыши попал во внутреннюю область метки .*/
+        {
+          is_inside = hyscan_cartesian_is_point_inside (&rotated, &location->rect_from, &location->rect_to);
+        }
+      else
+        /* В случае, если метка с нулевой шириной, проверяем,
+         * что курсор мыши на расстоянии 5px от линии метки. */
+        {
+          gdouble scale;
+
+          gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &scale, NULL);
+          is_inside = location->rect_from.y < rotated.y && rotated.y < location->rect_to.y &&
+                      ABS (location->rect_from.x - rotated.x) < 5.0 * scale;
+        }
+
+      if (is_inside)
         {
           gdouble mark_distance;
 
