@@ -1723,6 +1723,9 @@ hyscan_gtk_map_kit_set_project (HyScanGtkMapKit *kit,
 
   if (priv->track_layer != NULL)
     hyscan_gtk_map_track_set_project (HYSCAN_GTK_MAP_TRACK (priv->track_layer), priv->project_name);
+
+  if (priv->wfmark_layer != NULL)
+    hyscan_gtk_map_wfmark_set_project (HYSCAN_GTK_MAP_WFMARK(priv->wfmark_layer), priv->project_name);
 }
 
 
@@ -1875,7 +1878,8 @@ hyscan_gtk_map_kit_add_marks_wf (HyScanGtkMapKit *kit)
   g_signal_connect_swapped (priv->mark_model, "changed", G_CALLBACK (on_marks_changed), kit);
 
   /* Слой с метками. */
-  priv->wfmark_layer = hyscan_gtk_map_wfmark_new (priv->ml_model);
+
+  priv->wfmark_layer = hyscan_gtk_map_wfmark_new (priv->ml_model, priv->db, priv->cache);
   add_layer_row (kit, priv->wfmark_layer, FALSE, "wfmark", _("Waterfall Marks"));
 
   /* Виджет навигации по меткам. */
@@ -1886,6 +1890,7 @@ hyscan_gtk_map_kit_add_marks_wf (HyScanGtkMapKit *kit)
     {
       hyscan_object_model_set_project (priv->mark_model, priv->db, priv->project_name);
       hyscan_mark_loc_model_set_project (priv->ml_model, priv->project_name);
+      hyscan_gtk_map_wfmark_set_project (priv->wfmark_layer, priv->project_name);
     }
 }
 

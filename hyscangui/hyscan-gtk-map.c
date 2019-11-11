@@ -96,9 +96,6 @@
 #include <hyscan-pseudo-mercator.h>
 #include <math.h>
 
-#define DEFAULT_PPI 96.0
-#define MM_PER_INCH 25.4
-
 enum
 {
   PROP_O,
@@ -222,12 +219,12 @@ hyscan_gtk_map_configure (GtkWidget         *widget,
   /* Диагональ в миллиметрах. */
   monitor_h = gdk_screen_get_monitor_height_mm (gdkscreen, monitor_num);
   monitor_w = gdk_screen_get_monitor_width_mm (gdkscreen, monitor_num);
-  diagonal_mm = sqrt (monitor_w * monitor_w + monitor_h * monitor_h) / MM_PER_INCH;
+  diagonal_mm = sqrt (monitor_w * monitor_w + monitor_h * monitor_h) / HYSCAN_GTK_MAP_MM_PER_INCH;
 
   /* Вычисляем PPI. */
   ppi = diagonal_pix / diagonal_mm;
   if (isnan (ppi) || isinf (ppi) || ppi <= 0.0 || monitor_h <= 0 || monitor_w <= 0)
-    ppi = DEFAULT_PPI;
+    ppi = HYSCAN_GTK_MAP_DEFAULT_PPI;
 
   priv->ppi = ppi;
 
@@ -661,7 +658,7 @@ hyscan_gtk_map_get_scale_ratio (HyScanGtkMap *map)
   priv = map->priv;
 
   /* Pixels per meter. */
-  ppm = priv->ppi / (1e-3 * MM_PER_INCH);
+  ppm = priv->ppi / (1e-3 * HYSCAN_GTK_MAP_MM_PER_INCH);
 
   return hyscan_gtk_map_get_scale_px (map) / ppm;
 }
