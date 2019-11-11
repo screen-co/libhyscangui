@@ -142,7 +142,8 @@ static inline gdouble         hyscan_mark_loc_model_weight                   (gi
                                                                               gint64                 rtime,
                                                                               gdouble                lval,
                                                                               gdouble                rval);
-static inline gdouble         hyscan_mark_loc_model_direction                (HyScanSourceType       source_type);
+static inline HyScanMarkLocationDirection
+                              hyscan_mark_loc_model_direction                (HyScanSourceType       source_type);
 
 static guint       hyscan_mark_loc_model_signals[SIGNAL_LAST] = { 0 };
 
@@ -280,8 +281,8 @@ hyscan_mark_loc_model_object_finalize (GObject *object)
 }
 
 /* Возвращает коэффициент поправки на направление источника.
- * "1" - левый борт, "-1" - правый борт. */
-static inline gdouble
+ * "1" - левый борт, "-1" - правый борт, "0" - под собой. */
+static inline HyScanMarkLocationDirection
 hyscan_mark_loc_model_direction (HyScanSourceType source_type)
 {
   switch (source_type)
@@ -290,16 +291,16 @@ hyscan_mark_loc_model_direction (HyScanSourceType source_type)
     case HYSCAN_SOURCE_SIDE_SCAN_STARBOARD_HI:
     case HYSCAN_SOURCE_SIDE_SCAN_STARBOARD_LOW:
     case HYSCAN_SOURCE_BATHYMETRY_STARBOARD:
-      return -1;
+      return HYSCAN_MARK_LOCATION_STARBOARD;
 
     case HYSCAN_SOURCE_SIDE_SCAN_PORT:
     case HYSCAN_SOURCE_SIDE_SCAN_PORT_HI:
     case HYSCAN_SOURCE_SIDE_SCAN_PORT_LOW:
     case HYSCAN_SOURCE_BATHYMETRY_PORT:
-      return 1;
+      return HYSCAN_MARK_LOCATION_PORT;
 
     default:
-      return 0;
+      return HYSCAN_MARK_LOCATION_BOTTOM;
     }
 }
 
@@ -457,7 +458,6 @@ hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
   HyScanProjector *projector;
   HyScanAcousticData *acoustic_data;
   gdouble depth;
-  gdouble direction;
   HyScanAntennaOffset amp_offset;
 
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
@@ -519,8 +519,8 @@ hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
   depth -= amp_offset.z;
 
   /* Определяем дистанцию до точки. */
-  direction = hyscan_mark_loc_model_direction (source);
-  if (direction == 0)
+  location->direction = hyscan_mark_loc_model_direction (source);
+  if (location->direction == 0)
     {
       location->offset = 0.0;
     }
@@ -528,7 +528,7 @@ hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
     {
       projector = hyscan_projector_new (HYSCAN_AMPLITUDE (acoustic_data));
       hyscan_projector_count_to_coord (projector, mark->count, &location->offset, depth);
-      location->offset *= direction;
+      location->offset *= location->direction;
       g_clear_object (&projector);
     }
 

@@ -39,10 +39,22 @@
 #include <hyscan-geo.h>
 
 /**
+ * HyScanMarkLocationDirection:
+ * @HYSCAN_MARK_LOCATION_STARBOARD: правый борт
+ * @HYSCAN_MARK_LOCATION_BOTTOM: под собой
+ * @HYSCAN_MARK_LOCATION_PORT: левый борт
+ *
+ * Направление излучения передающей антенны, с которой сделана метка
+ */
+typedef enum
+{
+  HYSCAN_MARK_LOCATION_STARBOARD = -1,
+  HYSCAN_MARK_LOCATION_BOTTOM = 0,
+  HYSCAN_MARK_LOCATION_PORT = 1,
+} HyScanMarkLocationDirection;
+
+/**
  * HyScanMarkLocation:
- *
- * Местоположение метки, содержит в себе географические координаты метки.
- *
  * @mark: указатель на метку водопада #HyScanMarkWaterfall
  * @loaded: признак того, что геолокационные данные по метке загружены
  * @track_name: имя галса
@@ -50,16 +62,20 @@
  * @center_geo: географические координаты и курс антенны в момент фиксации метки
  * @mark_geo: географические координаты центра метки
  * @offset: горизонтальное расстояние от антенны до метки в метрах (положительные значения по левому борту)
+ * @direction: направление излучения передающей антенны
+ *
+ * Местоположение метки, содержит в себе географические координаты метки.
  */
 typedef struct
 {
-  HyScanMarkWaterfall  *mark;
-  gboolean              loaded;
-  gchar                *track_name;
-  gint64                time;
-  HyScanGeoGeodetic     center_geo;
-  HyScanGeoGeodetic     mark_geo;
-  gdouble               offset;
+  HyScanMarkWaterfall          *mark;
+  gboolean                      loaded;
+  gchar                        *track_name;
+  gint64                        time;
+  HyScanGeoGeodetic             center_geo;
+  HyScanGeoGeodetic             mark_geo;
+  gdouble                       offset;
+  HyScanMarkLocationDirection   direction;
 } HyScanMarkLocation;
 
 HYSCAN_API
