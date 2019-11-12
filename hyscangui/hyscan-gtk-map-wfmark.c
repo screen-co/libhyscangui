@@ -936,6 +936,8 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       gdouble current_sin, current_cos,
               width, height,
               new_width, new_height,
+              current_tile_width,
+              current_tile_height,
               tmp;
       GdkRGBA *color = NULL;
       gfloat *image = NULL;
@@ -1057,8 +1059,8 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       if (height < 0.0)
   return;
 
-      gdouble current_tile_width  = width  / scale_px,
-              current_tile_height = height / scale_px;
+      current_tile_width  = width  / scale_px,
+      current_tile_height = height / scale_px;
 
       offset.x = (border_to.x + border_from.x) / 2.0;
       offset.y = (border_to.y + border_from.y) / 2.0;
