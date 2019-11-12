@@ -62,6 +62,7 @@
 #include <hyscan-tile-queue.h>
 #include <hyscan-tile-color.h>
 #include <hyscan-types.h>
+#include <glib/gi18n-lib.h>
 
 /* Оформление по умолчанию. */
 #define MARK_COLOR              "#61B243"                     /* Цвет обводки меток. */
@@ -1662,19 +1663,18 @@ hyscan_gtk_map_wfmark_hint_find (HyScanGtkLayer *layer,
                         g_date_time_new_from_unix_local (
                           priv->hover_candidate->mloc->mark->ctime / G_TIME_SPAN_SECOND),
                           "%d.%m.%Y %H:%M:%S."));
-      hint = g_strconcat (hint,"\nCreated: ", str, (gchar*) NULL);
+      hint = g_strconcat (hint,"\n", _("Created: "), str, (gchar*) NULL);
 
       strcpy (str, g_date_time_format (
                         g_date_time_new_from_unix_local (
                           priv->hover_candidate->mloc->mark->mtime / G_TIME_SPAN_SECOND),
                           "%d.%m.%Y %H:%M:%S."));
-      hint = g_strconcat (hint, "\nEdited: ", str, (gchar*) NULL);
+      hint = g_strconcat (hint, "\n", _("Edited: "), str, (gchar*) NULL);
 
-      g_snprintf (str, sizeof (str),
-                  "\nLocation: %.6f°, %.6f°.",
+      g_snprintf (str, sizeof (str), "%.6f°, %.6f°.",
                   priv->hover_candidate->mloc->mark_geo.lat,
                   priv->hover_candidate->mloc->mark_geo.lon);
-      hint = g_strconcat (hint, str, (gchar*) NULL);
+      hint = g_strconcat (hint, "\n", _("Location: "), str, (gchar*) NULL);
 
       dm = hyscan_factory_depth_produce (priv->factory_dpt, priv->hover_candidate->mloc->track_name);
 
@@ -1688,15 +1688,15 @@ hyscan_gtk_map_wfmark_hint_find (HyScanGtkLayer *layer,
 
       if (depth != -1.0)
         {
-          g_snprintf (str, sizeof (str), "%.2f m.", depth);
+          g_snprintf (str, sizeof (str), _("%.2f m."), depth);
         }
       else
         {
-          strcpy (str, "Empty.");
+          strcpy (str, _("Empty."));
         }
 
-      hint = g_strconcat (hint, "\nDepth: ", str, (gchar*) NULL);
-      hint = g_strconcat (hint, "\nTrack: ", priv->hover_candidate->mloc->track_name, ".", (gchar*) NULL);
+      hint = g_strconcat (hint, "\n", _("Depth: "), str, (gchar*) NULL);
+      hint = g_strconcat (hint, "\n", _("Track: "), priv->hover_candidate->mloc->track_name, ".", (gchar*) NULL);
 
       empty_string = (0 == g_strcmp0 (priv->hover_candidate->mloc->mark->description, ""))? TRUE : FALSE;
 
@@ -1706,7 +1706,7 @@ hyscan_gtk_map_wfmark_hint_find (HyScanGtkLayer *layer,
           gchar **list = NULL;
           guint array_size, index = 0;
 
-          tmp = g_strconcat ("Note: ", priv->hover_candidate->mloc->mark->description, (gchar*) NULL);
+          tmp = g_strconcat (_("Note: "), priv->hover_candidate->mloc->mark->description, (gchar*) NULL);
           list = g_strsplit (tmp, " ", -1);
           array_size = g_strv_length (list);
 
