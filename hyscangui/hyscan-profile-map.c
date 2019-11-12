@@ -612,6 +612,24 @@ hyscan_profile_map_set_offline (HyScanProfileMap *profile,
 }
 
 /**
+ * hyscan_profile_map_set_cache_dir:
+ * @profile: указатель на #HyScanProfileMap
+ * @cache_dir: путь к директории для кэширования тайлов
+ *
+ * Установка пути к кэшу тайлов карты
+ */
+void
+hyscan_profile_map_set_cache_dir (HyScanProfileMap   *profile,
+                                  const gchar        *cache_dir)
+{
+  g_return_if_fail (HYSCAN_IS_PROFILE_MAP (profile));
+
+  g_free (profile->priv->cache_dir);
+  profile->priv->cache_dir = g_strdup (cache_dir);
+  hyscan_profile_map_configure (profile);
+}
+
+/**
  * hyscan_profile_map_apply:
  * @profile: указатель на #HyScanProfileMap
  * @map: указатель на карту #HyScanGtkMap
