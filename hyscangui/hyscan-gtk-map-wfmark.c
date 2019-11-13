@@ -458,6 +458,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
                            m1, m3, b1, b3,
 #endif
                            border_from, border_to;
+      HyScanTileSurface tile_surface;
 
       current_sin = sin (location->angle);
       current_cos = cos (location->angle);
@@ -727,7 +728,6 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
                       /* Тайл найден в кэше. */
 
                       HyScanTileColor *tile_color;
-                      HyScanTileSurface tile_surface;
 
                       tile_color = hyscan_tile_color_new (priv->cache);
                       /* 1.0 / 2.2 = 0.454545... */
@@ -748,7 +748,6 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
                                                 tile_surface.height, tile_surface.stride);
                         }
 
-                      g_free (tile_surface.data);
                       hyscan_tile_color_close (tile_color);
                       g_object_unref (tile_color);
                    }
@@ -815,6 +814,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
           cairo_set_source_surface (cairo, surface, -width, -height);
           cairo_paint (cairo);
           cairo_surface_destroy (surface);
+          g_free (tile_surface.data);
 
           cairo_set_line_width (cairo, 1);
 
@@ -949,6 +949,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
                            m1, m3, b1, b3,
 #endif
                            border_from, border_to;
+      HyScanTileSurface tile_surface;
 
       current_sin = sin (priv->hover_location->angle);
       current_cos = cos (priv->hover_location->angle);
@@ -1212,7 +1213,6 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
                       /* Тайл найден в кэше. */
 
                       HyScanTileColor *tile_color;
-                      HyScanTileSurface tile_surface;
 
                       tile_color = hyscan_tile_color_new (priv->cache);
                       /* 1.0 / 2.2 = 0.454545... */
@@ -1233,7 +1233,6 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
                                                      tile_surface.height, tile_surface.stride);
                         }
 
-                      g_free (tile_surface.data);
                       hyscan_tile_color_close (tile_color);
                       g_object_unref (tile_color);
                     }
@@ -1302,6 +1301,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
               cairo_set_source_surface (cairo, surface, -width, -height);
               cairo_paint (cairo);
               cairo_surface_destroy (surface);
+              g_free (tile_surface.data);
 
               cairo_set_line_width (cairo, 1);
 
