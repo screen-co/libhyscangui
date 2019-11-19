@@ -316,7 +316,7 @@ hyscan_gtk_param_tree_populate (const HyScanDataSchemaNode *node,
       gboolean populated;
       HyScanDataSchemaNode *child = link->data;
 
-      /* После этого добавляем узел в дерево и углубляемся. */
+      /* Добавляем узел в дерево и углубляемся. */
       hyscan_gtk_param_tree_append_node (store, &iter, parent, child);
       populated = hyscan_gtk_param_tree_populate (child, view, &iter,
                                                   stack, widgets, plists,
