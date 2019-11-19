@@ -61,7 +61,6 @@ static void        hyscan_gtk_export_object_finalize          (GObject          
 static gboolean    hyscan_gtk_export_update                   (gpointer               data);
 static gboolean    hyscan_gtk_export_run                      (gpointer               data);
 static void        hyscan_gtk_export_gui_make                 (HyScanGtkExport       *self);
-static gboolean    hyscan_gtk_export_gui_clear                (HyScanGtkExport       *self);
 
 static void        hyscan_gtk_export_msg_set                  (HyScanGtkExport       *self,
                                                                const gchar           *message,
@@ -138,6 +137,8 @@ hyscan_gtk_export_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_gtk_export_parent_class)->constructed (object);
 
+  gtk_grid_set_column_spacing (GTK_GRID (gtk_export), 10);
+  gtk_grid_set_row_spacing (GTK_GRID (gtk_export), 10);
   priv->out_path = g_strdup (".");
   g_debug ("Before make GUI\n");
   hyscan_gtk_export_gui_make (gtk_export);
@@ -249,6 +250,8 @@ hyscan_gtk_export_run (gpointer data)
       goto remove;
     }
 
+  hyscan_gtk_export_msg_set (self, "Convert track %s", current_track);
+
   g_debug ("Convert track %s\n", current_track);
 
   return G_SOURCE_CONTINUE;
@@ -330,18 +333,6 @@ hyscan_gtk_export_gui_make (HyScanGtkExport *self)
   gtk_grid_attach (GTK_GRID (self), ui->button_stop, 2, row++, 1, 1);
 }
 
-static gboolean
-hyscan_gtk_export_gui_clear (HyScanGtkExport *self)
-{
-  HyScanGtkExportGUI *ui = NULL;
-  ui = self->priv->ui;
-  
-  if (ui == NULL)
-    return FALSE;
-
-  /* TODO What do I need free here? */
-}
-
 static void
 hyscan_gtk_export_msg_set (HyScanGtkExport *self,
                            const gchar     *message,
@@ -353,7 +344,7 @@ hyscan_gtk_export_msg_set (HyScanGtkExport *self,
   g_clear_pointer (&self->priv->message, g_free);
 
   self->priv->message = g_strdup_vprintf (message, args);
-  gtk_label_set_text (GTK_LABEL (self->priv->ui->label_bottom), message);
+  gtk_label_set_text (GTK_LABEL (self->priv->ui->label_bottom), self->priv->message);
   va_end (args);
 }
 
@@ -379,6 +370,35 @@ hyscan_gtk_export_on_select (GtkWidget       *sender,
   else if (ui->out_path_elem->button == sender)
     {
       g_debug ("Select out_path\n");
+      {
+        GtkWidget *dialog;
+        GtkFileChooserAction action = GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER;
+        gint res;
+
+        dialog = gtk_file_chooser_dialog_new ("Select Folder",
+                                              GTK_WINDOW (self),
+                                              action,
+                                              _("_Cancel"),
+                                              GTK_RESPONSE_CANCEL,
+                                              _("_Open"),
+                                              GTK_RESPONSE_ACCEPT,
+                                              NULL);
+
+        res = gtk_dialog_run (GTK_DIALOG (dialog));
+        if (res == GTK_RESPONSE_ACCEPT)
+          {
+            char *filename;
+            GtkFileChooser *chooser = GTK_FILE_CHOOSER (dialog);
+            filename = gtk_file_chooser_get_filename (chooser);
+            gtk_entry_set_text (GTK_ENTRY (ui->out_path_elem->entry), filename);
+            //g_free (filename);
+          }
+        else
+          gtk_entry_set_text (GTK_ENTRY (ui->out_path_elem->entry), ".");
+
+        gtk_widget_destroy (dialog);
+      }
+
       hyscan_hsx_converter_set_out_path (priv->converter, 
                                          gtk_entry_get_text (GTK_ENTRY (ui->out_path_elem->entry)));
     }
