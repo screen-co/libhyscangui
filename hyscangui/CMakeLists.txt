@@ -44,6 +44,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-planner-origin.c
              hyscan-gtk-planner-status.c
              hyscan-cairo.c
+             hyscan-gtk-export.c
 
              #[[ Виджет карты ]]
              hyscan-gtk-map.c
@@ -151,6 +152,7 @@ install (FILES hyscan-gtk-area.h
                hyscan-map-tile-loader.h
                hyscan-planner-selection.h
                hyscan-cairo.h
+               hyscan-gtk-export.h
          COMPONENT development
          DESTINATION "include/hyscan-${HYSCAN_MAJOR_VERSION}/hyscangui"
          PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
