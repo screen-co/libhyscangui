@@ -13,7 +13,8 @@ main (int argc, char **argv)
   gchar *db_uri = NULL;
   gchar *project_name = NULL;
   HyScanDB *db = NULL;
-  gint i = 0;
+  gchar **tracks = NULL;
+  gint i = 0, pid;
   
   gtk_init (&argc, &argv);
 
@@ -46,8 +47,16 @@ main (int argc, char **argv)
     g_error ("Can't create DB");
   g_free (db_uri);
 
-  if ((gtk_export = hyscan_gtk_export_new (db, project_name)) == NULL)
+  pid = hyscan_db_project_open (db, project_name);
+  tracks = hyscan_db_track_list (db, pid);
+  g_debug ("%s", tracks[0]);
+  if (tracks == NULL)
+    g_error ("DB Invalid");
+
+  if ((gtk_export = hyscan_gtk_export_new (db, project_name, tracks[0])) == NULL)
     g_error ("Can't create export widget");
+
+  hyscan_db_close (db, pid);
 
   hyscan_gtk_export_set_watch_period (HYSCAN_GTK_EXPORT (gtk_export), 100);
  
@@ -55,8 +64,8 @@ main (int argc, char **argv)
   button_exit = gtk_button_new_with_label ("Exit"); 
   g_signal_connect (button_exit, "clicked",G_CALLBACK (gtk_main_quit), NULL);
 
-  gtk_box_pack_start (GTK_BOX (box), gtk_export, TRUE, TRUE, 10);
-  gtk_box_pack_end (GTK_BOX (box), button_exit, FALSE, FALSE, 10);
+  gtk_box_pack_start (GTK_BOX (box), gtk_export, TRUE, TRUE, 0);
+  gtk_box_pack_end (GTK_BOX (box), button_exit, FALSE, FALSE, 3);
 
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_container_add (GTK_CONTAINER (window), box);

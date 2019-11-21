@@ -5,6 +5,7 @@
 #include <gtk/gtk.h>
 #include <hyscan-api.h>
 #include <hyscan-db.h>
+#include <hyscan-nmea-data.h>
 
 G_BEGIN_DECLS
 
@@ -36,7 +37,8 @@ GType                  hyscan_gtk_export_get_type         (void);
 
 HYSCAN_API
 GtkWidget*             hyscan_gtk_export_new              (HyScanDB             *db,
-                                                           const gchar          *project_name);
+                                                           const gchar          *project_name,
+                                                           const gchar          *tracks);
 
 HYSCAN_API
 void                   hyscan_gtk_export_set_watch_period (HyScanGtkExport      *self,
