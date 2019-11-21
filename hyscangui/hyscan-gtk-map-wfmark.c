@@ -66,7 +66,7 @@
 
 /* Оформление по умолчанию. */
 #define MARK_COLOR              "#61B243"                     /* Цвет обводки меток. */
-#define MARK_COLOR_HOVER        "#9443B2"                     /* Цвет обводки меток при наведении мыши. */
+#define MARK_COLOR_HOVER        "#9443B2"                     /* Цвет подписи метки при наведении курсора. */
 #define MARK_COLOR_BG           "rgba(255, 255, 255, 0.8)"    /* Цвет фона текста. */
 #define LINE_WIDTH              1.0                           /* Толщина линии обводки. */
 
@@ -86,6 +86,12 @@ enum
   PROP_MODEL,
   PROP_CACHE,
   PROP_DB,
+};
+/* Режим отображения меток. */
+enum
+{
+	SHOW_ACOUSTIC_IMAGE, /*Отображать акустическое изображение метки.*/
+	SHOW_ONLY_BORDER     /*Отображать только границу метки.*/
 };
 
 typedef struct
@@ -136,6 +142,8 @@ struct _HyScanGtkMapWfmarkPrivate
   GdkRGBA                                color_bg;        /* Фоновый цвет текста. */
   gdouble                                line_width;      /* Толщина обводки. */
   PangoLayout                           *pango_layout;    /* Шрифт. */
+
+  gint                                   show_mode;       /* Режим отображения меток. */
 };
 
 static void    hyscan_gtk_map_wfmark_interface_init           (HyScanGtkLayerInterface    *iface);
@@ -251,6 +259,8 @@ hyscan_gtk_map_wfmark_object_constructed (GObject *object)
                                             priv->cache,
                                             priv->factory_amp,
                                             priv->factory_dpt);
+  /* Отображаем акустические изображения меток.*/
+  priv->show_mode = SHOW_ACOUSTIC_IMAGE;
 
   /* Соединяем сигнал готовности тайла с функцией-обработчиком. */
   g_signal_connect_swapped (priv->tile_queue, "tile-queue-image",
@@ -564,10 +574,10 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
       width  = (border_to.x - border_from.x) / 2.0;
       if (width < 0.0)
-  continue;
+        continue;
       height = (border_to.y - border_from.y) / 2.0;
       if (height < 0.0)
-  continue;
+        continue;
 
       offset.x = (border_to.x + border_from.x) / 2.0;
       offset.y = (border_to.y + border_from.y) / 2.0;
@@ -615,7 +625,8 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
           border_to.y < area_rect_from.y)
         continue;
 
-      if (location->mloc->direction != HYSCAN_MARK_LOCATION_BOTTOM)
+      if (location->mloc->direction != HYSCAN_MARK_LOCATION_BOTTOM &&
+      		priv->show_mode == SHOW_ACOUSTIC_IMAGE)
        {
           gdouble current_tile_width  = width  / scale_px,
                   current_tile_height = height / scale_px;
@@ -733,10 +744,10 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
                       /* 1.0 / 2.2 = 0.454545... */
                       hyscan_tile_color_set_levels (tile_color, tile->info.source, 0.0, 0.454545, 1.0);
 
-                      tile_surface.width = tile_cacheable.w;
+                      tile_surface.width  = tile_cacheable.w;
                       tile_surface.height = tile_cacheable.h;
                       tile_surface.stride = cairo_format_stride_for_width (CAIRO_FORMAT_ARGB32, tile_surface.width);
-                      tile_surface.data = g_malloc0 (tile_surface.height * tile_surface.stride);
+                      tile_surface.data   = g_malloc0 (tile_surface.height * tile_surface.stride);
 
                       hyscan_tile_color_add (tile_color, tile, image, size, &tile_surface);
 
@@ -882,6 +893,21 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
           cairo_move_to (cairo, 0.0, -height);
           cairo_line_to (cairo, 0.0,  height);
+
+          cairo_stroke (cairo);
+
+          cairo_restore(cairo);
+        }
+      else if (priv->show_mode == SHOW_ONLY_BORDER)
+        {
+          cairo_save (cairo);
+          cairo_rotate (cairo, location->angle);
+
+          cairo_set_line_width (cairo, 1);
+
+          gdk_cairo_set_source_rgba (cairo, &priv->color_default);
+
+          cairo_rectangle (cairo, -width, -height, 2.0 * width, 2.0 * height);
 
           cairo_stroke (cairo);
 
@@ -1055,10 +1081,10 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
       width  = (border_to.x - border_from.x) / 2.0;
       if (width < 0.0)
-  return;
+        return;
       height = (border_to.y - border_from.y) / 2.0;
       if (height < 0.0)
-  return;
+        return;
 
       current_tile_width  = width  / scale_px,
       current_tile_height = height / scale_px;
@@ -1068,7 +1094,8 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
       new_position.x = position.x + current_cos * offset.x - current_sin * offset.y;
       new_position.y = position.y + current_sin * offset.x + current_cos * offset.y;
-      if (priv->hover_location->mloc->direction != HYSCAN_MARK_LOCATION_BOTTOM)
+      if (priv->hover_location->mloc->direction != HYSCAN_MARK_LOCATION_BOTTOM &&
+      		priv->show_mode == SHOW_ACOUSTIC_IMAGE)
         {
           offset.x /=  scale_px;
           offset.y /=  scale_px;
@@ -1307,14 +1334,11 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
               cairo_set_source_rgb (cairo, 1.0, 1.0, 1.0);
 
-              cairo_move_to (cairo, -width, -height);
-              cairo_line_to (cairo, -width,  height);
-              cairo_line_to (cairo,  width,  height);
-              cairo_line_to (cairo,  width, -height);
-              cairo_close_path (cairo);
+              cairo_rectangle (cairo, -width, -height, 2.0 * width, 2.0 * height);
 
               cairo_stroke (cairo);
             }
+
           cairo_set_line_width (cairo, 5);
 
           switch (priv->hover_location->mloc->direction)
@@ -1418,6 +1442,60 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
           cairo_restore (cairo);
         }
+      else if (priv->show_mode == SHOW_ONLY_BORDER)
+        {
+          cairo_save (cairo);
+          cairo_rotate (cairo, priv->hover_location->angle);
+
+          cairo_set_line_width (cairo, 1);
+
+          gdk_cairo_set_source_rgba (cairo, &priv->color_default);
+
+          cairo_rectangle (cairo, -width, -height, 2.0 * width, 2.0 * height);
+
+          cairo_stroke (cairo);
+
+          cairo_set_line_width (cairo, 5);
+
+          switch (priv->hover_location->mloc->direction)
+          {
+            /* Левый борт. */
+            case HYSCAN_MARK_LOCATION_PORT:
+              {
+                cairo_set_source_rgb (cairo, 1.0, 0.0, 0.0);
+                cairo_move_to (cairo, width, -height);
+                cairo_line_to (cairo, width,  height);
+
+                cairo_stroke (cairo);
+
+                cairo_move_to (cairo, width + 10, -height     );
+                cairo_line_to (cairo, width - 10, -height     );
+                cairo_line_to (cairo, width,      -height - 20);
+              }
+            break;
+            /* Правый борт. */
+            case HYSCAN_MARK_LOCATION_STARBOARD:
+              {
+                cairo_set_source_rgb (cairo, 0.0, 1.0, 0.0);
+
+                cairo_move_to (cairo, -width, -height);
+                cairo_line_to (cairo, -width,  height);
+
+                cairo_stroke (cairo);
+
+                cairo_move_to (cairo, -width + 10, -height     );
+                cairo_line_to (cairo, -width - 10, -height     );
+                cairo_line_to (cairo, -width,      -height - 20);
+              }
+            break;
+            default: break;
+          }
+
+          cairo_close_path (cairo);
+          cairo_fill (cairo);
+
+          cairo_restore(cairo);
+        }
       {
         /* Название метки. */
         gint text_width, text_height;
@@ -1438,7 +1516,6 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
       cairo_restore (cairo);
     }
-
 }
 
 /* Находит метку под курсором мыши. */
@@ -1719,7 +1796,7 @@ hyscan_gtk_map_wfmark_hint_find (HyScanGtkLayer *layer,
               while (size < 48 && index < array_size)
                 {
                   hint = g_strconcat (hint, list[index], " ", (gchar*) NULL);
-                  size += strlen (list[index]) - 1;
+                  size += g_utf8_strlen (list[index], -1) - 1;
                   index++;
                 }
             }
@@ -1853,10 +1930,10 @@ hyscan_gtk_map_wfmark_mark_view (HyScanGtkMapWfmark *wfm_layer,
  * @param project_name - указатель на название проекта.
  * */
 void
-hyscan_gtk_map_wfmark_set_project (HyScanGtkMapWfmark    *wfm_layer,
+hyscan_gtk_map_wfmark_set_project (HyScanGtkLayer        *wfm_layer,
                                    const gchar           *project_name)
 {
-  HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
+  HyScanGtkMapWfmarkPrivate *priv = ((HyScanGtkMapWfmark*)wfm_layer)->priv;
   g_free (priv->project);
   priv->project = g_strdup (project_name);
   hyscan_factory_amplitude_set_project (priv->factory_amp,
@@ -1865,4 +1942,19 @@ hyscan_gtk_map_wfmark_set_project (HyScanGtkMapWfmark    *wfm_layer,
   hyscan_factory_depth_set_project (priv->factory_dpt,
                                     priv->db,
                                     priv->project);
+}
+
+/* @brief Функция hyscan_gtk_map_wfmark_mark_set_project устанавливает проект для слоя.
+ * @param wfm_layer - указатель на объект;
+ * @param mode - идентификатор режима отображения меток:
+ * SHOW_ACOUSTIC_IMAGE - отображать акустическое изображение метки;
+ * SHOW_ONLY_BORDER - отображать только границу метки.
+ * */
+void
+hyscan_gtk_map_wfmark_set_show_mode (HyScanGtkLayer        *wfm_layer,
+                                     gint                   mode)
+{
+	HyScanGtkMapWfmarkPrivate *priv = ((HyScanGtkMapWfmark*)wfm_layer)->priv;
+	priv->show_mode = mode;
+	g_idle_add ((GSourceFunc)gtk_widget_queue_draw, GTK_WIDGET (priv->map));
 }

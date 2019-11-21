@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-12 10:05+0300\n"
+"POT-Creation-Date: 2019-11-21 10:09+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1691
+#: hyscangui/hyscan-gtk-map-wfmark.c:1770
 #, c-format
 msgid "%.2f m."
 msgstr ""
@@ -52,7 +52,7 @@ msgstr ""
 msgid "Coordinate system is not available"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1666
+#: hyscangui/hyscan-gtk-map-wfmark.c:1745
 msgid "Created: "
 msgstr ""
 
@@ -65,7 +65,7 @@ msgstr ""
 msgid "Delete"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1698
+#: hyscangui/hyscan-gtk-map-wfmark.c:1777
 msgid "Depth: "
 msgstr ""
 
@@ -81,11 +81,11 @@ msgstr ""
 msgid "Duplicate"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1672
+#: hyscangui/hyscan-gtk-map-wfmark.c:1751
 msgid "Edited: "
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1695
+#: hyscangui/hyscan-gtk-map-wfmark.c:1774
 msgid "Empty."
 msgstr ""
 
@@ -119,7 +119,7 @@ msgstr ""
 msgid "Length"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1677
+#: hyscangui/hyscan-gtk-map-wfmark.c:1756
 msgid "Location: "
 msgstr ""
 
@@ -153,7 +153,7 @@ msgstr ""
 msgid "No active track"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1709
+#: hyscangui/hyscan-gtk-map-wfmark.c:1788
 msgid "Note: "
 msgstr ""
 
@@ -222,7 +222,7 @@ msgstr ""
 msgid "Track settings"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1699
+#: hyscangui/hyscan-gtk-map-wfmark.c:1778
 msgid "Track: "
 msgstr ""
 
