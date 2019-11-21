@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-10-07 10:58+0300\n"
+"POT-Creation-Date: 2019-11-12 10:05+0300\n"
 "PO-Revision-Date: 2019-05-31 17:01+0300\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -19,6 +19,11 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
 "%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
+#: hyscangui/hyscan-gtk-map-wfmark.c:1691
+#, c-format
+msgid "%.2f m."
+msgstr "%.2f м."
+
 #: hyscangui/hyscan-gtk-planner-editor.c:432
 #, c-format
 msgid "%d track selected"
@@ -27,7 +32,7 @@ msgstr[0] "Выбран %d галс"
 msgstr[1] "Выбрано %d галса"
 msgstr[2] "Выбрано %d галсов"
 
-#: hyscangui/hyscan-gtk-planner-editor.c:258
+#: hyscangui/hyscan-gtk-planner-editor.c:252
 msgid "Angle"
 msgstr "Угол"
 
@@ -41,7 +46,7 @@ msgctxt "Heading"
 msgid "COG"
 msgstr "ПУ"
 
-#: hyscangui/hyscan-gtk-map-track-item.c:585
+#: hyscangui/hyscan-gtk-map-track-item.c:593
 msgid "Configure track channel data"
 msgstr "Настройка каналов данных галса"
 
@@ -49,32 +54,48 @@ msgstr "Настройка каналов данных галса"
 msgid "Coordinate system is not available"
 msgstr "Точка отсчёта не установлена"
 
-#: hyscangui/hyscan-gtk-map-track-item.c:596
+#: hyscangui/hyscan-gtk-map-wfmark.c:1666
+msgid "Created: "
+msgstr "Создано: "
+
+#: hyscangui/hyscan-gtk-map-track-item.c:604
 msgid "DPT Channel"
 msgstr "Канал DPT"
 
+#: hyscangui/hyscan-gtk-planner-zeditor.c:269
 #: hyscangui/hyscan-gtk-map-planner.c:454
-#: hyscangui/hyscan-gtk-planner-zeditor.c:272
 msgid "Delete"
 msgstr "Удалить"
+
+#: hyscangui/hyscan-gtk-map-wfmark.c:1698
+msgid "Depth: "
+msgstr "Глубина: "
 
 #: hyscangui/hyscan-gtk-param-tree.c:245
 msgid "Description"
 msgstr "Описание"
 
-#: hyscangui/hyscan-gtk-map-track-item.c:514
+#: hyscangui/hyscan-gtk-map-track-item.c:522
 msgid "Disabled"
 msgstr "Отключен"
 
-#: hyscangui/hyscan-gtk-planner-zeditor.c:271
+#: hyscangui/hyscan-gtk-planner-zeditor.c:268
 msgid "Duplicate"
 msgstr "Дублировать"
 
-#: hyscangui/hyscan-gtk-planner-editor.c:252
+#: hyscangui/hyscan-gtk-map-wfmark.c:1672
+msgid "Edited: "
+msgstr "Отредактировано: "
+
+#: hyscangui/hyscan-gtk-map-wfmark.c:1695
+msgid "Empty."
+msgstr "Нет данных."
+
+#: hyscangui/hyscan-gtk-planner-editor.c:258
 msgid "End X"
 msgstr "Конец, X"
 
-#: hyscangui/hyscan-gtk-planner-editor.c:254
+#: hyscangui/hyscan-gtk-planner-editor.c:260
 msgid "End Y"
 msgstr "Конец, Y"
 
@@ -87,8 +108,8 @@ msgstr "ИК"
 msgid "Invert"
 msgstr "Сменить направление"
 
-#: hyscangui/hyscan-gtk-planner-zeditor.c:259
 #: hyscangui/hyscan-gtk-planner-origin.c:140
+#: hyscangui/hyscan-gtk-planner-zeditor.c:256
 msgid "Latitude"
 msgstr "Широта"
 
@@ -96,12 +117,16 @@ msgstr "Широта"
 msgid "Layer"
 msgstr "Слой"
 
-#: hyscangui/hyscan-gtk-planner-editor.c:256
+#: hyscangui/hyscan-gtk-planner-editor.c:250
 msgid "Length"
 msgstr "Длина"
 
-#: hyscangui/hyscan-gtk-planner-zeditor.c:260
+#: hyscangui/hyscan-gtk-map-wfmark.c:1677
+msgid "Location: "
+msgstr "Координаты: "
+
 #: hyscangui/hyscan-gtk-planner-origin.c:142
+#: hyscangui/hyscan-gtk-planner-zeditor.c:257
 msgid "Longitude"
 msgstr "Долгота"
 
@@ -116,7 +141,7 @@ msgstr ""
 "\n"
 "%s"
 
-#: hyscangui/hyscan-gtk-planner-zeditor.c:255
+#: hyscangui/hyscan-gtk-planner-zeditor.c:252
 msgid "N"
 msgstr "№"
 
@@ -128,25 +153,29 @@ msgstr "Название"
 msgid "Navigate"
 msgstr "Начать навигацию"
 
-#: hyscangui/hyscan-gtk-map-steer.c:1149
 #: hyscangui/hyscan-gtk-planner-status.c:110
+#: hyscangui/hyscan-gtk-map-steer.c:1209
 msgid "No active track"
 msgstr "Галс не выбран"
+
+#: hyscangui/hyscan-gtk-map-wfmark.c:1709
+msgid "Note: "
+msgstr "Описание:"
 
 #: hyscangui/hyscan-gtk-planner-origin.c:144
 msgid "OX Direction"
 msgstr "Направление OX"
 
-#: hyscangui/hyscan-gtk-map-steer.c:1198
+#: hyscangui/hyscan-gtk-map-steer.c:1230
 #, c-format
 msgid "Plan: %.1f m/s %.0f° L%.0fm ~%02d:%02d"
 msgstr "План: %1.f м/с %.0f° L%.0fм ~%02d:%02d"
 
-#: hyscangui/hyscan-gtk-map-track-item.c:602
+#: hyscangui/hyscan-gtk-map-track-item.c:610
 msgid "Port Channel"
 msgstr "Левый борт"
 
-#: hyscangui/hyscan-gtk-map-track-item.c:591
+#: hyscangui/hyscan-gtk-map-track-item.c:599
 msgid "RMC Channel"
 msgstr "Канал RMC"
 
@@ -154,11 +183,11 @@ msgstr "Канал RMC"
 msgid "Show"
 msgstr "Вид"
 
-#: hyscangui/hyscan-gtk-map-track-item.c:603
+#: hyscangui/hyscan-gtk-map-track-item.c:611
 msgid "Show side-scan port channel data"
 msgstr "Показывать левый борт"
 
-#: hyscangui/hyscan-gtk-map-track-item.c:610
+#: hyscangui/hyscan-gtk-map-track-item.c:618
 msgid "Show side-scan starboard channel data"
 msgstr "Показывать правый борт"
 
@@ -166,27 +195,27 @@ msgstr "Показывать правый борт"
 msgid "Signal lost"
 msgstr "Нет сигнала"
 
-#: hyscangui/hyscan-gtk-planner-editor.c:260
+#: hyscangui/hyscan-gtk-planner-editor.c:248
 msgid "Speed"
 msgstr "Скорость"
 
-#: hyscangui/hyscan-gtk-map-track-item.c:609
+#: hyscangui/hyscan-gtk-map-track-item.c:617
 msgid "Starboard Channel"
 msgstr "Правый борт"
 
-#: hyscangui/hyscan-gtk-planner-editor.c:248
+#: hyscangui/hyscan-gtk-planner-editor.c:254
 msgid "Start X"
 msgstr "Начало, X"
 
-#: hyscangui/hyscan-gtk-planner-editor.c:250
+#: hyscangui/hyscan-gtk-planner-editor.c:256
 msgid "Start Y"
 msgstr "Начало, Y"
 
-#: hyscangui/hyscan-gtk-map-track-item.c:597
+#: hyscangui/hyscan-gtk-map-track-item.c:605
 msgid "The NMEA-channel with DPT sentences"
 msgstr "Канал NMEA с сообщениями DPT"
 
-#: hyscangui/hyscan-gtk-map-track-item.c:592
+#: hyscangui/hyscan-gtk-map-track-item.c:600
 msgid "The NMEA-channel with RMC sentences"
 msgstr "Канал NMEA с сообщениями RMC"
 
@@ -194,19 +223,23 @@ msgstr "Канал NMEA с сообщениями RMC"
 msgid "The origin of coordinate system is not set."
 msgstr "Точка отсчёта не установлена"
 
-#: hyscangui/hyscan-gtk-map-track-item.c:585
+#: hyscangui/hyscan-gtk-map-track-item.c:593
 msgid "Track settings"
 msgstr "Настройки галса"
+
+#: hyscangui/hyscan-gtk-map-wfmark.c:1699
+msgid "Track: "
+msgstr "Галс: "
 
 #: hyscangui/hyscan-gtk-planner-status.c:125
 msgid "Wrong value"
 msgstr "Неправильное значение"
 
-#: hyscangui/hyscan-gtk-planner-zeditor.c:261
+#: hyscangui/hyscan-gtk-planner-zeditor.c:258
 msgid "X"
 msgstr "X"
 
-#: hyscangui/hyscan-gtk-planner-zeditor.c:262
+#: hyscangui/hyscan-gtk-planner-zeditor.c:259
 msgid "Y"
 msgstr "Y"
 
@@ -220,8 +253,8 @@ msgstr "км"
 
 #: hyscangui/hyscan-gtk-map-scale.c:298
 #: hyscangui/hyscan-gtk-planner-status.c:138
-#: hyscangui/hyscan-gtk-map-ruler.c:443 hyscangui/hyscan-gtk-map-ruler.c:445
 #: hyscangui/hyscan-gtk-waterfall-grid.c:596
+#: hyscangui/hyscan-gtk-map-ruler.c:443 hyscangui/hyscan-gtk-map-ruler.c:445
 msgid "m"
 msgstr "м"
 

@@ -85,6 +85,10 @@ HYSCAN_API
 void             hyscan_gtk_map_wfmark_set_project    (HyScanGtkMapWfmark    *wfm_layer,
                                                        const gchar           *project_name);
 
+HYSCAN_API
+void             hyscan_gtk_map_wfmark_set_show_mode  (HyScanGtkMapWfmark    *wfm_layer,
+                                                       gint                   mode);
+
 G_END_DECLS
 
 #endif /* __HYSCAN_GTK_MAP_WFMARK_H__ */
