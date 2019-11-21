@@ -908,7 +908,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
           cairo_stroke (cairo);
 
-          cairo_restore(cairo);
+          cairo_restore (cairo);
         }
       else if (priv->show_mode == SHOW_ONLY_BORDER)
         {
@@ -923,7 +923,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
           cairo_stroke (cairo);
 
-          cairo_restore(cairo);
+          cairo_restore (cairo);
         }
       {
         /* Название метки. */
@@ -1509,7 +1509,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
           cairo_close_path (cairo);
           cairo_fill (cairo);
 
-          cairo_restore(cairo);
+          cairo_restore (cairo);
         }
       {
         /* Название метки. */
