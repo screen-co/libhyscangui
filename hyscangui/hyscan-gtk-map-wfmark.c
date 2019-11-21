@@ -1838,12 +1838,13 @@ hyscan_gtk_map_wfmark_interface_init (HyScanGtkLayerInterface *iface)
   iface->hint_shown = hyscan_gtk_map_wfmark_hint_shown;
 }
 
-/* @brief Функция-обработчик завершения гененрации тайла. По завершении генерации обновляет виджет.
- * @param wfm_layer - указатель на объект;
- * @param tile - указатель на структуру содержащую информацию о сгененрированном тайле. Не связана с тайлом, передаваемым в HyScanTileQueue для генерации;
- * @param img - указатель на данные аккустического изображения;
- * @param size - размер данных аккустического изображения;
- * @param hash - хэш состояния.
+/* Функция-обработчик завершения гененрации тайла. По завершении генерации обновляет виджет.
+ * wfm_layer - указатель на объект;
+ * tile - указатель на структуру содержащую информацию о сгененрированном тайле. Не связана
+ * с тайлом, передаваемым в HyScanTileQueue для генерации;
+ * img - указатель на данные аккустического изображения;
+ * size - размер данных аккустического изображения;
+ * hash - хэш состояния.
  * */
 static void
 hyscan_gtk_map_wfmark_tile_loaded (HyScanGtkMapWfmark *wfm_layer,
@@ -1941,10 +1942,14 @@ hyscan_gtk_map_wfmark_mark_view (HyScanGtkMapWfmark *wfm_layer,
   g_rw_lock_reader_unlock (&priv->mark_lock);
 }
 
-/* @brief Функция hyscan_gtk_map_wfmark_mark_set_project устанавливает проект для слоя.
- * @param wfm_layer - указатель на объект;
- * @param project_name - указатель на название проекта.
- * */
+/**
+ * hyscan_gtk_map_wfmark_mark_set_project:
+ * @wfm_layer: указатель на объект
+ * @project_name: указатель на название проекта
+ *
+ * Функция устанавливает проект для слоя.
+ *
+ **/
 void
 hyscan_gtk_map_wfmark_set_project (HyScanGtkMapWfmark    *wfm_layer,
                                    const gchar           *project_name)
@@ -1960,12 +1965,16 @@ hyscan_gtk_map_wfmark_set_project (HyScanGtkMapWfmark    *wfm_layer,
                                     priv->project);
 }
 
-/* @brief Функция hyscan_gtk_map_wfmark_mark_set_project устанавливает проект для слоя.
- * @param wfm_layer - указатель на объект;
- * @param mode - идентификатор режима отображения меток:
+/**
+ * hyscan_gtk_map_wfmark_mark_set_project:
+ * @wfm_layer: указатель на объект
+ * @mode: идентификатор режима отображения меток
+ *
+ * Функция устанавливает режим отображения меток:
  * SHOW_ACOUSTIC_IMAGE - отображать акустическое изображение метки;
  * SHOW_ONLY_BORDER - отображать только границу метки.
- * */
+ *
+ **/
 void
 hyscan_gtk_map_wfmark_set_show_mode (HyScanGtkMapWfmark    *wfm_layer,
                                      gint                   mode)
