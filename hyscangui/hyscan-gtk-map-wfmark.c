@@ -1098,6 +1098,9 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       if (height < 0.0)
         return;
 
+      new_width  = width * fabs (current_cos) + height * fabs (current_sin);
+      new_height = width * fabs (current_sin) + height * fabs (current_cos);
+
       current_tile_width  = width  / scale_px,
       current_tile_height = height / scale_px;
 
@@ -1106,6 +1109,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
       new_position.x = position.x + current_cos * offset.x - current_sin * offset.y;
       new_position.y = position.y + current_sin * offset.x + current_cos * offset.y;
+
       if (priv->hover_location->mloc->direction != HYSCAN_MARK_LOCATION_BOTTOM &&
           priv->show_mode == SHOW_ACOUSTIC_IMAGE)
         {
@@ -1133,9 +1137,6 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
             b3.y += new_position.y;
           }
 #endif
-
-          new_width  = width * fabs (current_cos) + height * fabs (current_sin);
-          new_height = width * fabs (current_sin) + height * fabs (current_cos);
 
           border_from.x = new_position.x - new_width;
           border_from.y = new_position.y - new_height;
@@ -1462,7 +1463,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
           cairo_set_line_width (cairo, 1);
 
-          gdk_cairo_set_source_rgba (cairo, &priv->color_default);
+          gdk_cairo_set_source_rgba (cairo, &priv->color_hover);
 
           cairo_rectangle (cairo, -width, -height, 2.0 * width, 2.0 * height);
 
@@ -1526,6 +1527,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
         cairo_move_to (cairo, -text_width / 2.0, new_height + text_height / 2.0);
         gdk_cairo_set_source_rgba (cairo, color);
         pango_cairo_show_layout (cairo, priv->pango_layout);
+
       }
 
       cairo_restore (cairo);
