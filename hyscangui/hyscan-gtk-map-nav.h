@@ -72,6 +72,14 @@ HYSCAN_API
 HyScanGtkLayer *         hyscan_gtk_map_nav_new          (HyScanNavModel        *nav_model);
 
 HYSCAN_API
+void                     hyscan_gtk_map_nav_set_cog_len  (HyScanGtkMapNav       *nav_layer,
+                                                          gdouble                seconds);
+
+HYSCAN_API
+void                     hyscan_gtk_map_nav_set_hdg_len  (HyScanGtkMapNav       *nav_layer,
+                                                          gdouble                meters);
+
+HYSCAN_API
 void                     hyscan_gtk_map_nav_set_lifetime (HyScanGtkMapNav       *nav_layer,
                                                           guint64                lifetime);
 
