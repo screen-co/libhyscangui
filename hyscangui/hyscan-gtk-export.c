@@ -32,17 +32,17 @@ typedef struct
 {
   GtkWidget                   *combo;
   gchar                       *label_name;
-} HyScanGtkExportGUINMEAElem;
+} HyScanGtkExportGUICombo;
 
 typedef struct 
 {
   GtkWidget                   *label_top;
 
   HyScanGtkExportGUIElem      *project_elem;
-  HyScanGtkExportGUIElem      *track_elem;
+  HyScanGtkExportGUICombo      track_elem;
   HyScanGtkExportGUIElem      *out_path_elem;
 
-  HyScanGtkExportGUINMEAElem   nmea_elem[HYSCAN_NMEA_TYPE_LAST];
+  HyScanGtkExportGUICombo     nmea_elem[HYSCAN_NMEA_TYPE_LAST];
   
   GtkWidget                   *label_execute;
   GtkWidget                   *progress_bar;
@@ -81,16 +81,21 @@ static void        hyscan_gtk_export_object_finalize          (GObject          
 static gboolean    hyscan_gtk_export_update                   (gpointer               data);
 static gboolean    hyscan_gtk_export_run                      (gpointer               data);
 
+HyScanNmeaDataType hyscan_gtk_export_nmeadt2hyscan_nmeadt     (NmeaType               type);
+
+static void        hyscan_gtk_export_gui_nmea_select_make     (HyScanGtkExport       *self);
+
 static HyScanGtkExportGUIElem*
                    hyscan_gtk_export_gui_elem_make            (HyScanGtkExport       *self,
                                                                gboolean               editable,
                                                                const gchar           *label_title,
                                                                const gchar           *entry_text);
 
-HyScanNmeaDataType hyscan_gtk_export_nmeadt2hyscan_nmeadt     (NmeaType               type);
+static gint        hyscan_gtk_export_gui_tracks_compare       (gconstpointer          a,
+                                                               gconstpointer          b,
+                                                               gpointer               udata);
 
-static void        hyscan_gtk_export_gui_nmea_select_make     (HyScanGtkExport       *self);
-
+static void        hyscan_gtk_export_gui_tracks_make          (HyScanGtkExport       *self);
 static void        hyscan_gtk_export_gui_make                 (HyScanGtkExport       *self);
 
 static void        hyscan_gtk_export_msg_set                  (HyScanGtkExport       *self,
@@ -103,7 +108,7 @@ static void        hyscan_gtk_export_on_select                (GtkWidget        
 static void        hyscan_gtk_export_on_select_path           (GtkWidget             *sender,
                                                                HyScanGtkExport       *self);
 
-static void        hyscan_gtk_export_on_select_track          (GtkWidget             *sender,
+static void        hyscan_gtk_export_on_select_track          (GtkComboBox           *box,
                                                                HyScanGtkExport       *self);
 
 static void        hyscan_gtk_export_track_to_queue           (HyScanGtkExport       *self);
@@ -232,8 +237,14 @@ hyscan_gtk_export_object_finalize (GObject *object)
   g_free (priv->project_name);
   g_strfreev (priv->track_names);
   g_queue_clear (&priv->track_queue);
-  g_free (priv->out_path);
+  g_clear_pointer (&priv->out_path, g_free);
 
+  g_clear_pointer (&priv->message, g_free);
+  g_clear_pointer (&priv->ui->track_elem.label_name, g_free);
+  g_clear_pointer (&priv->ui->nmea_elem[HYSCAN_NMEA_TYPE_RMC].label_name, g_free);
+  g_clear_pointer (&priv->ui->nmea_elem[HYSCAN_NMEA_TYPE_GGA].label_name, g_free);
+  g_clear_pointer (&priv->ui->nmea_elem[HYSCAN_NMEA_TYPE_DPT].label_name, g_free);
+  g_clear_pointer (&priv->ui->nmea_elem[HYSCAN_NMEA_TYPE_HDT].label_name, g_free);
   g_object_unref (priv->converter);
 
   G_OBJECT_CLASS (hyscan_gtk_export_parent_class)->finalize (object);
@@ -315,29 +326,6 @@ remove:
   return G_SOURCE_REMOVE;
 }
 
-static HyScanGtkExportGUIElem*
-hyscan_gtk_export_gui_elem_make (HyScanGtkExport *self,
-                                 gboolean         editable,
-                                 const gchar     *label_title,
-                                 const gchar     *entry_text)
-{
-  HyScanGtkExportGUIElem *el = NULL;
-  el = g_malloc0 (sizeof (HyScanGtkExportGUIElem));
-
-  el->editable = editable;
-  el->label    = gtk_label_new (_(label_title));
-  el->entry    = gtk_entry_new ();
-  gtk_entry_set_text (GTK_ENTRY (el->entry), _(entry_text));
-  gtk_widget_set_sensitive (el->entry, editable);
-  if (editable)
-    {
-      el->button = gtk_button_new_with_label (_("Select"));
-      g_signal_connect (el->button, "clicked", 
-                        G_CALLBACK (hyscan_gtk_export_on_select), self);
-    }
-  return el;
-}
-
 HyScanNmeaDataType
 hyscan_gtk_export_nmeadt2hyscan_nmeadt (NmeaType type)
 {
@@ -381,7 +369,6 @@ hyscan_gtk_export_gui_nmea_select_make (HyScanGtkExport *self)
   if (priv->track_names == NULL)
     goto exit;
 
-  /* TODO Сейчас список источников по первому галсу */
   track_id = hyscan_db_track_open (priv->db, project_id, priv->track_names[0]);
   if (track_id < 0)
     goto exit;
@@ -432,7 +419,8 @@ hyscan_gtk_export_gui_nmea_select_make (HyScanGtkExport *self)
                                                      id, sensor_name);
       gtk_combo_box_text_append (GTK_COMBO_BOX_TEXT (ui->nmea_elem[HYSCAN_NMEA_TYPE_DPT].combo),
                                                      id, sensor_name);
-      //g_free (sensor_name);
+      g_free (sensor_name);
+      g_free (id);
     }
 
 exit:
@@ -445,22 +433,91 @@ exit:
     hyscan_db_close (priv->db, project_id);
 }
 
+static HyScanGtkExportGUIElem*
+hyscan_gtk_export_gui_elem_make (HyScanGtkExport *self,
+                                 gboolean         editable,
+                                 const gchar     *label_title,
+                                 const gchar     *entry_text)
+{
+  HyScanGtkExportGUIElem *el = NULL;
+  el = g_malloc0 (sizeof (HyScanGtkExportGUIElem));
+
+  el->editable = editable;
+  el->label    = gtk_label_new (_(label_title));
+  el->entry    = gtk_entry_new ();
+  gtk_entry_set_text (GTK_ENTRY (el->entry), _(entry_text));
+  gtk_widget_set_sensitive (el->entry, editable);
+  if (editable)
+    {
+      el->button = gtk_button_new_with_label (_("Select"));
+      g_signal_connect (el->button, "clicked", 
+                        G_CALLBACK (hyscan_gtk_export_on_select), self);
+    }
+  return el;
+}
+
+static gint
+hyscan_gtk_export_gui_tracks_compare (gconstpointer a,
+                                      gconstpointer b,
+                                      gpointer      udata)
+{
+  return g_strcmp0 ((const char*)a, (const char*)b);
+}
+
+static void
+hyscan_gtk_export_gui_tracks_make (HyScanGtkExport *self)
+{
+  HyScanGtkExportPrivate *priv = self->priv;
+  HyScanGtkExportGUI *ui = priv->ui;
+  
+  gint i = 0;
+  gint32 pid = 0;
+  gchar **tracks = NULL;
+
+  ui->track_elem.label_name = g_strdup (_("Tracks: "));
+  ui->track_elem.combo      = gtk_combo_box_text_new ();
+
+  pid = hyscan_db_project_open (priv->db, priv->project_name);
+  if (pid < 0)
+    goto exit;
+
+  tracks = hyscan_db_track_list (priv->db, pid);
+  if (tracks == NULL)
+    goto exit;
+
+  g_qsort_with_data (tracks, i, sizeof (gchar*),
+                     (GCompareDataFunc)hyscan_gtk_export_gui_tracks_compare,
+                     NULL);
+
+  i = 0;
+  while (tracks[i] != NULL)
+    {
+      gtk_combo_box_text_append (GTK_COMBO_BOX_TEXT (ui->track_elem.combo), tracks[i], tracks[i]);
+      i++;
+    }
+
+  gtk_combo_box_set_active_id (GTK_COMBO_BOX (ui->track_elem.combo), priv->track_names[0]);
+
+  gtk_widget_set_tooltip_text (GTK_WIDGET (ui->track_elem.combo), _("Select track"));
+  g_signal_connect (ui->track_elem.combo, "changed", G_CALLBACK (hyscan_gtk_export_on_select_track), self);
+
+exit:
+  hyscan_db_close (priv->db, pid);
+}
+
 static void
 hyscan_gtk_export_gui_make (HyScanGtkExport *self)
 {
   HyScanGtkExportPrivate *priv;
   HyScanGtkExportGUI *ui = NULL;
-  gchar *track_str = NULL;
+  GtkWidget *label = NULL;
   gint row = 0, i = 0;
-
   priv = self->priv;
-  g_debug ("Track_names[0] MG %s", priv->track_names[0]);
-  track_str = g_strjoinv (",", priv->track_names);
 
   ui = priv->ui = g_malloc0 (sizeof (HyScanGtkExportGUI));
   ui->label_top     = gtk_label_new (_("HSX Converter"));
   ui->project_elem  = hyscan_gtk_export_gui_elem_make (self, FALSE, "Project: ", priv->project_name);
-  ui->track_elem    = hyscan_gtk_export_gui_elem_make (self, TRUE, "Tracks: ", track_str);
+
   ui->out_path_elem = hyscan_gtk_export_gui_elem_make (self, TRUE, "Out path: ", priv->out_path);
   ui->label_execute = gtk_label_new (_("Execute: "));
   ui->progress_bar  = gtk_progress_bar_new ();
@@ -470,18 +527,18 @@ hyscan_gtk_export_gui_make (HyScanGtkExport *self)
   g_signal_connect (ui->button_stop, "clicked", G_CALLBACK (hyscan_gtk_export_on_stop), self);
   ui->label_bottom  = gtk_label_new ("");
 
+  hyscan_gtk_export_gui_tracks_make (self);
+
   gtk_progress_bar_set_show_text (GTK_PROGRESS_BAR (ui->progress_bar), TRUE);
- 
-  g_free (track_str);
 
   gtk_grid_attach (GTK_GRID (self), ui->label_top, 0, row++, 3, 1);
 
   gtk_grid_attach (GTK_GRID (self), ui->project_elem->label, 0, row, 1, 1);
   gtk_grid_attach (GTK_GRID (self), ui->project_elem->entry, 1, row++, 2, 1);
 
-  gtk_grid_attach (GTK_GRID (self), ui->track_elem->label, 0, row, 1, 1);
-  gtk_grid_attach (GTK_GRID (self), ui->track_elem->entry, 1, row, 1, 1);
-  gtk_grid_attach (GTK_GRID (self), ui->track_elem->button, 2, row++, 1, 1);
+  label = gtk_label_new (ui->track_elem.label_name);
+  gtk_grid_attach (GTK_GRID (self), label, 0, row, 1, 1);
+  gtk_grid_attach (GTK_GRID (self), ui->track_elem.combo, 1, row++, 2, 1);
 
   gtk_grid_attach (GTK_GRID (self), ui->out_path_elem->label, 0, row, 1, 1);
   gtk_grid_attach (GTK_GRID (self), ui->out_path_elem->entry, 1, row, 1, 1);
@@ -531,13 +588,8 @@ hyscan_gtk_export_msg_set (HyScanGtkExport *self,
 static void
 hyscan_gtk_export_on_select (GtkWidget       *sender,
                              HyScanGtkExport *self)
-{
-  HyScanGtkExportGUI *ui = self->priv->ui;
-
-  if (ui->track_elem->button == sender)
-    hyscan_gtk_export_on_select_track (sender, self);
-  else if (ui->out_path_elem->button == sender)
-    hyscan_gtk_export_on_select_path (sender, self);
+{ 
+  hyscan_gtk_export_on_select_path (sender, self);
 }
 
 /* Выбор конечного пути для файлов */
@@ -576,20 +628,23 @@ hyscan_gtk_export_on_select_path (GtkWidget       *sender,
 
   gtk_entry_set_text (GTK_ENTRY (ui->out_path_elem->entry), filename);
   gtk_widget_destroy (dialog); 
+  g_free (filename);
 }
 
 /* Получение из UI списка галсов и отправка их в очередь конвертации */
 static void
-hyscan_gtk_export_on_select_track (GtkWidget       *sender,
+hyscan_gtk_export_on_select_track (GtkComboBox     *box,
                                    HyScanGtkExport *self)
 {
   /* TODO Make select tracks & put result to entry */
   g_debug ("On select track names");
   
-  /* Realloc track names to correct select sources for nmea */
+  gchar *track = gtk_combo_box_text_get_active_text (GTK_COMBO_BOX_TEXT (box));
+  if (track == NULL)
+    return;
+
   g_strfreev (self->priv->track_names);
-  self->priv->track_names = g_strsplit (gtk_entry_get_text (
-                              GTK_ENTRY (self->priv->ui->track_elem->entry)), ",", -1);
+  self->priv->track_names = g_strsplit (track, ",", -1);
 
   hyscan_gtk_export_gui_nmea_select_make (self);
 
@@ -598,14 +653,15 @@ hyscan_gtk_export_on_select_track (GtkWidget       *sender,
 static void
 hyscan_gtk_export_track_to_queue (HyScanGtkExport *self)
 {
-  HyScanGtkExportGUI *ui = NULL;
+  // HyScanGtkExportGUI *ui = NULL;
   HyScanGtkExportPrivate *priv = self->priv;
-  ui = priv->ui;
+  // ui = priv->ui;
   gint i = 0;
 
-  g_strfreev (priv->track_names);
-  priv->track_names = g_strsplit (gtk_entry_get_text (GTK_ENTRY (ui->track_elem->entry)), ",", -1);
-
+/*  g_strfreev (priv->track_names);
+  priv->track_names = g_strsplit (gtk_combo_box_text_get_active_text (
+                                  GTK_COMBO_BOX_TEXT (ui->track_elem.combo)),",", -1);
+*/
   g_debug ("Add tracks to convert queue");
   while (priv->track_names[i] != NULL)
     g_queue_push_head (&priv->track_queue, priv->track_names[i++]);

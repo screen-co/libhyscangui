@@ -14,7 +14,7 @@ main (int argc, char **argv)
   gchar *project_name = NULL;
   HyScanDB *db = NULL;
   gchar **tracks = NULL;
-  gint i = 0, pid;
+  gint pid;
   
   gtk_init (&argc, &argv);
 
