@@ -65,14 +65,14 @@
 #include <glib/gi18n-lib.h>
 
 /* Оформление по умолчанию. */
-#define MARK_COLOR              "#61B243"                     /* Цвет обводки меток. */
-#define MARK_COLOR_HOVER        "#9443B2"                     /* Цвет подписи метки при наведении курсора. */
-#define MARK_COLOR_BG           "rgba(255, 255, 255, 0.8)"    /* Цвет фона текста. */
-#define BORDER_COLOR_OF_ACOUSTIC_IMAGE      "#FFFFFF"         /* Цвет рамки вокруг акустического изображения метки. */
-#define MARK_LOCATION_BOTTOM_COLOR          "#0000FF"         /* Цвет эхолотной метки и стрелки указывающей направление. */
-#define MARK_LOCATION_PORT_ARROW_COLOR      "#FF0000"         /* Цвет стрелки для метки левого борта. */
-#define MARK_LOCATION_STARBOARD_ARROW_COLOR "#00FF00"         /* Цвет стрелки для метки правого борта. */
-#define LINE_WIDTH              1.0                           /* Толщина линии обводки. */
+#define MARK_COLOR                 "#61B243"                  /* Цвет обводки меток. */
+#define MARK_COLOR_HOVER           "#9443B2"                  /* Цвет подписи метки при наведении курсора. */
+#define MARK_COLOR_BG              "rgba(255, 255, 255, 0.8)" /* Цвет фона текста. */
+#define AI_BORDER_COLOR            "#FFFFFF"                  /* Цвет рамки вокруг акустического изображения метки. */
+#define MARK_BOTTOM_COLOR          "#0000FF"                  /* Цвет эхолотной метки и стрелки указывающей направление. */
+#define MARK_PORT_ARROW_COLOR      "#FF0000"                  /* Цвет стрелки для метки левого борта. */
+#define MARK_STARBOARD_ARROW_COLOR "#00FF00"                  /* Цвет стрелки для метки правого борта. */
+#define LINE_WIDTH                  1.0                       /* Толщина линии обводки. */
 
 /* Раскомментируйте строку ниже для отладки положения меток относительно галса. */
 /* #define DEBUG_TRACK_POINTS */
@@ -94,8 +94,8 @@ enum
 /* Режим отображения меток. */
 enum
 {
-	SHOW_ACOUSTIC_IMAGE, /*Отображать акустическое изображение метки.*/
-	SHOW_ONLY_BORDER     /*Отображать только границу метки.*/
+  SHOW_ACOUSTIC_IMAGE, /*Отображать акустическое изображение метки.*/
+  SHOW_ONLY_BORDER     /*Отображать только границу метки.*/
 };
 
 typedef struct
@@ -146,8 +146,8 @@ struct _HyScanGtkMapWfmarkPrivate
                                          color_bg,        /* Фоновый цвет текста. */
                                          color_ai_border, /* Цвет рамки вокруг акустического изображения метки. */
                                          color_echo_mark, /* Цвет эхолотной метки и стрелки указывающей направление. */
-                                         color_left_board_arrow,  /* Цвет стрелки для метки левого борта. */
-                                         color_right_board_arrow; /* Цвет стрелки для метки правого борта. */
+                                         color_lb_arrow,  /* Цвет стрелки для метки левого борта. */
+                                         color_rb_arrow;  /* Цвет стрелки для метки правого борта. */
   gdouble                                line_width;      /* Толщина обводки. */
   PangoLayout                           *pango_layout;    /* Шрифт. */
 
@@ -254,10 +254,10 @@ hyscan_gtk_map_wfmark_object_constructed (GObject *object)
   gdk_rgba_parse (&priv->color_default,           MARK_COLOR);
   gdk_rgba_parse (&priv->color_hover,             MARK_COLOR_HOVER);
   gdk_rgba_parse (&priv->color_bg,                MARK_COLOR_BG);
-  gdk_rgba_parse (&priv->color_ai_border,         BORDER_COLOR_OF_ACOUSTIC_IMAGE);
-  gdk_rgba_parse (&priv->color_echo_mark,         MARK_LOCATION_BOTTOM_COLOR);
-  gdk_rgba_parse (&priv->color_left_board_arrow,  MARK_LOCATION_PORT_ARROW_COLOR);
-  gdk_rgba_parse (&priv->color_right_board_arrow, MARK_LOCATION_STARBOARD_ARROW_COLOR);
+  gdk_rgba_parse (&priv->color_ai_border,         AI_BORDER_COLOR);
+  gdk_rgba_parse (&priv->color_echo_mark,         MARK_BOTTOM_COLOR);
+  gdk_rgba_parse (&priv->color_lb_arrow,  MARK_PORT_ARROW_COLOR);
+  gdk_rgba_parse (&priv->color_rb_arrow, MARK_STARBOARD_ARROW_COLOR);
   priv->line_width = LINE_WIDTH;
 
   /* Создаём фабрику объектов доступа к данным амплитуд. */
@@ -638,7 +638,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
         continue;
 
       if (location->mloc->direction != HYSCAN_MARK_LOCATION_BOTTOM &&
-      		priv->show_mode == SHOW_ACOUSTIC_IMAGE)
+          priv->show_mode == SHOW_ACOUSTIC_IMAGE)
        {
           gdouble current_tile_width  = width  / scale_px,
                   current_tile_height = height / scale_px;
@@ -1107,7 +1107,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       new_position.x = position.x + current_cos * offset.x - current_sin * offset.y;
       new_position.y = position.y + current_sin * offset.x + current_cos * offset.y;
       if (priv->hover_location->mloc->direction != HYSCAN_MARK_LOCATION_BOTTOM &&
-      		priv->show_mode == SHOW_ACOUSTIC_IMAGE)
+          priv->show_mode == SHOW_ACOUSTIC_IMAGE)
         {
           offset.x /=  scale_px;
           offset.y /=  scale_px;
@@ -1358,7 +1358,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
             /* Левый борт. */
             case HYSCAN_MARK_LOCATION_PORT:
               {
-                gdk_cairo_set_source_rgba (cairo, &priv->color_left_board_arrow);
+                gdk_cairo_set_source_rgba (cairo, &priv->color_lb_arrow);
 
                 cairo_move_to (cairo, width, -height);
                 cairo_line_to (cairo, width,  height);
@@ -1373,7 +1373,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
             /* Правый борт. */
             case HYSCAN_MARK_LOCATION_STARBOARD:
               {
-                gdk_cairo_set_source_rgba (cairo, &priv->color_right_board_arrow);
+                gdk_cairo_set_source_rgba (cairo, &priv->color_rb_arrow);
 
                 cairo_move_to (cairo, -width, -height);
                 cairo_line_to (cairo, -width,  height);
@@ -1475,7 +1475,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
             /* Левый борт. */
             case HYSCAN_MARK_LOCATION_PORT:
               {
-                gdk_cairo_set_source_rgba (cairo, &priv->color_left_board_arrow);
+                gdk_cairo_set_source_rgba (cairo, &priv->color_lb_arrow);
 
                 cairo_move_to (cairo, width, -height);
                 cairo_line_to (cairo, width,  height);
@@ -1490,7 +1490,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
             /* Правый борт. */
             case HYSCAN_MARK_LOCATION_STARBOARD:
               {
-                gdk_cairo_set_source_rgba (cairo, &priv->color_right_board_arrow);
+                gdk_cairo_set_source_rgba (cairo, &priv->color_rb_arrow);
 
                 cairo_move_to (cairo, -width, -height);
                 cairo_line_to (cairo, -width,  height);
