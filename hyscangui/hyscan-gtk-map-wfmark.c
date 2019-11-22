@@ -169,6 +169,7 @@ static void    hyscan_gtk_map_wfmark_tile_loaded              (HyScanGtkMapWfmar
                                                                gfloat                     *img,
                                                                gint                        size,
                                                                gulong                      hash);
+static gboolean hyscan_gtk_map_wfmark_queue_draw              (GtkWidget                  *map);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapWfmark, hyscan_gtk_map_wfmark, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapWfmark)
@@ -1838,6 +1839,15 @@ hyscan_gtk_map_wfmark_interface_init (HyScanGtkLayerInterface *iface)
   iface->hint_shown = hyscan_gtk_map_wfmark_hint_shown;
 }
 
+/* Функция добавляет виджет в очередь на рисование. Должна вызываться в Main Loop. */
+static gboolean
+hyscan_gtk_map_wfmark_queue_draw (GtkWidget *map)
+{
+  gtk_widget_queue_draw (map);
+
+  return G_SOURCE_REMOVE;
+}
+
 /* Функция-обработчик завершения гененрации тайла. По завершении генерации обновляет виджет.
  * wfm_layer - указатель на объект;
  * tile - указатель на структуру содержащую информацию о сгененрированном тайле. Не связана
@@ -1854,7 +1864,7 @@ hyscan_gtk_map_wfmark_tile_loaded (HyScanGtkMapWfmark *wfm_layer,
                                    gulong              hash)
 {
   HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
-  g_idle_add ((GSourceFunc)gtk_widget_queue_draw, GTK_WIDGET (priv->map));
+  g_idle_add ((GSourceFunc) hyscan_gtk_map_wfmark_queue_draw, GTK_WIDGET (priv->map));
 }
 
 /**
