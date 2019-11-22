@@ -59,10 +59,11 @@ enum
 
 enum
 {
-  LAYER_VISIBLE_COLUMN, /* Признак видимости слоя. */
-  LAYER_KEY_COLUMN,     /* Уникальное слоя. */
-  LAYER_TITLE_COLUMN,   /* Название слоя. */
-  LAYER_COLUMN,         /* Указатель на объект слоя #HyScanGtkLayer. */
+  LAYER_VISIBLE_COLUMN,   /* Признак видимости слоя. */
+  LAYER_KEY_COLUMN,       /* Уникальный ключ. */
+  LAYER_TITLE_COLUMN,     /* Название слоя. */
+  LAYER_COLUMN,           /* Указатель на объект слоя #HyScanGtkLayer. */
+  LAYER_SENSITIVE_COLUMN, /* Доступна ли галочка видимости слоя. */
   N_COLUMNS
 };
 
@@ -124,7 +125,8 @@ hyscan_gtk_layer_list_object_constructed (GObject *object)
                                           G_TYPE_BOOLEAN,        /* LAYER_VISIBLE_COLUMN */
                                           G_TYPE_STRING,         /* LAYER_KEY_COLUMN     */
                                           G_TYPE_STRING,         /* LAYER_TITLE_COLUMN   */
-                                          HYSCAN_TYPE_GTK_LAYER  /* LAYER_COLUMN         */);
+                                          HYSCAN_TYPE_GTK_LAYER, /* LAYER_COLUMN           */
+                                          G_TYPE_BOOLEAN         /* LAYER_SENSITIVE_COLUMN */);
 
   priv->tree_view = hyscan_gtk_layer_list_create_tree_view (layer_list, GTK_TREE_MODEL (priv->layer_store));
 
@@ -219,7 +221,9 @@ hyscan_gtk_layer_list_create_tree_view (HyScanGtkLayerList *layer_list,
   renderer = gtk_cell_renderer_toggle_new ();
   g_signal_connect (renderer, "toggled", G_CALLBACK (hyscan_gtk_layer_list_on_enable), layer_list);
   visible_column = gtk_tree_view_column_new_with_attributes (_("Show"), renderer,
-                                                             "active", LAYER_VISIBLE_COLUMN, NULL);
+                                                             "active", LAYER_VISIBLE_COLUMN,
+                                                             "visible", LAYER_SENSITIVE_COLUMN,
+                                                             NULL);
 
   /* Название галса. */
   renderer = gtk_cell_renderer_text_new ();
@@ -278,24 +282,6 @@ hyscan_gtk_layer_list_changed (GtkTreeSelection   *selection,
   g_clear_object (&layer);
 }
 
-#if !GLIB_CHECK_VERSION (2, 44, 0)
-static gboolean
-g_strv_contains (const gchar * const *strv,
-                 const gchar         *str)
-{
-  g_return_val_if_fail (strv != NULL, FALSE);
-  g_return_val_if_fail (str != NULL, FALSE);
-
-  for (; *strv != NULL; strv++)
-    {
-      if (g_str_equal (str, *strv))
-        return TRUE;
-    }
-
-  return FALSE;
-}
-#endif
-
 /**
  * hyscan_gtk_layer_list_new:
  * @container: указатель на контейнер слоёв #HyScanGtkLayerContainer
@@ -339,6 +325,7 @@ hyscan_gtk_layer_list_add (HyScanGtkLayerList *layer_list,
                       LAYER_KEY_COLUMN, name,
                       LAYER_TITLE_COLUMN, title,
                       LAYER_COLUMN, layer,
+                      LAYER_SENSITIVE_COLUMN, layer != NULL,
                       -1);
 }
 
@@ -435,7 +422,8 @@ hyscan_gtk_layer_list_set_visible_ids (HyScanGtkLayerList  *list,
                          LAYER_COLUMN, &layer,
                          -1);
 
-     visible = g_strv_contains ((const gchar *const *) ids, layer_key);
+     /* Записи, у которых нет слоя, всегда считаем видимыми. */
+     visible = layer == NULL || g_strv_contains ((const gchar *const *) ids, layer_key);
      gtk_list_store_set (priv->layer_store, &iter, LAYER_VISIBLE_COLUMN, visible, -1);
      if (layer != NULL)
        hyscan_gtk_layer_set_visible (layer, visible);
