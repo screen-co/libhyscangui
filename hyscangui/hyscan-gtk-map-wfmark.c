@@ -908,7 +908,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
           cairo_stroke (cairo);
 
-          cairo_restore(cairo);
+          cairo_restore (cairo);
         }
       else if (priv->show_mode == SHOW_ONLY_BORDER)
         {
@@ -923,7 +923,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
           cairo_stroke (cairo);
 
-          cairo_restore(cairo);
+          cairo_restore (cairo);
         }
       {
         /* Название метки. */
@@ -1098,6 +1098,9 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       if (height < 0.0)
         return;
 
+      new_width  = width * fabs (current_cos) + height * fabs (current_sin);
+      new_height = width * fabs (current_sin) + height * fabs (current_cos);
+
       current_tile_width  = width  / scale_px,
       current_tile_height = height / scale_px;
 
@@ -1106,6 +1109,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
       new_position.x = position.x + current_cos * offset.x - current_sin * offset.y;
       new_position.y = position.y + current_sin * offset.x + current_cos * offset.y;
+
       if (priv->hover_location->mloc->direction != HYSCAN_MARK_LOCATION_BOTTOM &&
           priv->show_mode == SHOW_ACOUSTIC_IMAGE)
         {
@@ -1133,9 +1137,6 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
             b3.y += new_position.y;
           }
 #endif
-
-          new_width  = width * fabs (current_cos) + height * fabs (current_sin);
-          new_height = width * fabs (current_sin) + height * fabs (current_cos);
 
           border_from.x = new_position.x - new_width;
           border_from.y = new_position.y - new_height;
@@ -1462,7 +1463,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
           cairo_set_line_width (cairo, 1);
 
-          gdk_cairo_set_source_rgba (cairo, &priv->color_default);
+          gdk_cairo_set_source_rgba (cairo, &priv->color_hover);
 
           cairo_rectangle (cairo, -width, -height, 2.0 * width, 2.0 * height);
 
@@ -1508,7 +1509,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
           cairo_close_path (cairo);
           cairo_fill (cairo);
 
-          cairo_restore(cairo);
+          cairo_restore (cairo);
         }
       {
         /* Название метки. */
@@ -1526,6 +1527,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
         cairo_move_to (cairo, -text_width / 2.0, new_height + text_height / 2.0);
         gdk_cairo_set_source_rgba (cairo, color);
         pango_cairo_show_layout (cairo, priv->pango_layout);
+
       }
 
       cairo_restore (cairo);
@@ -1836,12 +1838,13 @@ hyscan_gtk_map_wfmark_interface_init (HyScanGtkLayerInterface *iface)
   iface->hint_shown = hyscan_gtk_map_wfmark_hint_shown;
 }
 
-/* @brief Функция-обработчик завершения гененрации тайла. По завершении генерации обновляет виджет.
- * @param wfm_layer - указатель на объект;
- * @param tile - указатель на структуру содержащую информацию о сгененрированном тайле. Не связана с тайлом, передаваемым в HyScanTileQueue для генерации;
- * @param img - указатель на данные аккустического изображения;
- * @param size - размер данных аккустического изображения;
- * @param hash - хэш состояния.
+/* Функция-обработчик завершения гененрации тайла. По завершении генерации обновляет виджет.
+ * wfm_layer - указатель на объект;
+ * tile - указатель на структуру содержащую информацию о сгененрированном тайле. Не связана
+ * с тайлом, передаваемым в HyScanTileQueue для генерации;
+ * img - указатель на данные аккустического изображения;
+ * size - размер данных аккустического изображения;
+ * hash - хэш состояния.
  * */
 static void
 hyscan_gtk_map_wfmark_tile_loaded (HyScanGtkMapWfmark *wfm_layer,
@@ -1939,10 +1942,14 @@ hyscan_gtk_map_wfmark_mark_view (HyScanGtkMapWfmark *wfm_layer,
   g_rw_lock_reader_unlock (&priv->mark_lock);
 }
 
-/* @brief Функция hyscan_gtk_map_wfmark_mark_set_project устанавливает проект для слоя.
- * @param wfm_layer - указатель на объект;
- * @param project_name - указатель на название проекта.
- * */
+/**
+ * hyscan_gtk_map_wfmark_mark_set_project:
+ * @wfm_layer: указатель на объект
+ * @project_name: указатель на название проекта
+ *
+ * Функция устанавливает проект для слоя.
+ *
+ **/
 void
 hyscan_gtk_map_wfmark_set_project (HyScanGtkMapWfmark    *wfm_layer,
                                    const gchar           *project_name)
@@ -1958,12 +1965,16 @@ hyscan_gtk_map_wfmark_set_project (HyScanGtkMapWfmark    *wfm_layer,
                                     priv->project);
 }
 
-/* @brief Функция hyscan_gtk_map_wfmark_mark_set_project устанавливает проект для слоя.
- * @param wfm_layer - указатель на объект;
- * @param mode - идентификатор режима отображения меток:
+/**
+ * hyscan_gtk_map_wfmark_mark_set_project:
+ * @wfm_layer: указатель на объект
+ * @mode: идентификатор режима отображения меток
+ *
+ * Функция устанавливает режим отображения меток:
  * SHOW_ACOUSTIC_IMAGE - отображать акустическое изображение метки;
  * SHOW_ONLY_BORDER - отображать только границу метки.
- * */
+ *
+ **/
 void
 hyscan_gtk_map_wfmark_set_show_mode (HyScanGtkMapWfmark    *wfm_layer,
                                      gint                   mode)
