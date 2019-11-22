@@ -171,6 +171,7 @@ struct _HyScanGtkWaterfallPrivate
 static void     hyscan_gtk_waterfall_object_constructed      (GObject                       *object);
 static void     hyscan_gtk_waterfall_object_finalize         (GObject                       *object);
 
+static gboolean hyscan_gtk_waterfall_redraw_once             (gpointer                       data);
 static gint32   hyscan_gtk_waterfall_aligner                 (gdouble                        in,
                                                               gint                           size);
 static void     hyscan_gtk_waterfall_prepare_csurface        (cairo_surface_t              **surface,
@@ -394,6 +395,14 @@ hyscan_gtk_waterfall_object_finalize (GObject *object)
     }
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_parent_class)->finalize (object);
+}
+
+static gboolean
+hyscan_gtk_waterfall_redraw_once (gpointer data)
+{
+  GtkWidget *w = data;
+  gtk_widget_queue_draw (w);
+  return G_SOURCE_REMOVE;
 }
 
 /* Округление координат тайла. */
@@ -1342,7 +1351,7 @@ void
 hyscan_gtk_waterfall_queue_draw (HyScanGtkWaterfall *self)
 {
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (self));
-  g_idle_add ((GSourceFunc)gtk_widget_queue_draw, self);
+  g_idle_add ((GSourceFunc)hyscan_gtk_waterfall_redraw_once, self);
 }
 
 /**
