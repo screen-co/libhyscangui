@@ -445,11 +445,20 @@ hyscan_gtk_export_gui_elem_make (HyScanGtkExport *self,
   el->editable = editable;
   el->label    = gtk_label_new (_(label_title));
   el->entry    = gtk_entry_new ();
+  
   gtk_entry_set_text (GTK_ENTRY (el->entry), _(entry_text));
   gtk_widget_set_sensitive (el->entry, editable);
+
+  gtk_widget_set_halign (el->label, GTK_ALIGN_END);
+  gtk_widget_set_hexpand (el->label, FALSE);
+  gtk_widget_set_halign (el->entry, GTK_ALIGN_FILL);
+  gtk_widget_set_hexpand (el->entry, TRUE);
+
   if (editable)
     {
       el->button = gtk_button_new_with_label (_("Select"));
+      gtk_widget_set_halign (el->button, GTK_ALIGN_END);
+      gtk_widget_set_hexpand (el->button, FALSE);
       g_signal_connect (el->button, "clicked", 
                         G_CALLBACK (hyscan_gtk_export_on_select), self);
     }
@@ -475,7 +484,10 @@ hyscan_gtk_export_gui_tracks_make (HyScanGtkExport *self)
   gchar **tracks = NULL;
 
   ui->track_elem.label_name = g_strdup (_("Tracks: "));
+  
   ui->track_elem.combo      = gtk_combo_box_text_new ();
+  gtk_widget_set_halign (ui->track_elem.combo, GTK_ALIGN_FILL);
+  gtk_widget_set_hexpand (ui->track_elem.combo, TRUE);
 
   pid = hyscan_db_project_open (priv->db, priv->project_name);
   if (pid < 0)
@@ -516,16 +528,33 @@ hyscan_gtk_export_gui_make (HyScanGtkExport *self)
 
   ui = priv->ui = g_malloc0 (sizeof (HyScanGtkExportGUI));
   ui->label_top     = gtk_label_new (_("HSX Converter"));
-  ui->project_elem  = hyscan_gtk_export_gui_elem_make (self, FALSE, "Project: ", priv->project_name);
+  gtk_widget_set_valign (ui->label_top, GTK_ALIGN_CENTER);
+  gtk_widget_set_vexpand (ui->label_top, TRUE);
 
+  ui->project_elem  = hyscan_gtk_export_gui_elem_make (self, FALSE, "Project: ", priv->project_name);
   ui->out_path_elem = hyscan_gtk_export_gui_elem_make (self, TRUE, "Out path: ", priv->out_path);
+
   ui->label_execute = gtk_label_new (_("Execute: "));
+  gtk_widget_set_halign (ui->label_execute, GTK_ALIGN_FILL);
+  gtk_widget_set_hexpand (ui->label_execute, FALSE);
+
   ui->progress_bar  = gtk_progress_bar_new ();
+  gtk_widget_set_halign (ui->progress_bar, GTK_ALIGN_FILL);
+  gtk_widget_set_hexpand (ui->progress_bar, TRUE);
+
   ui->button_run    = gtk_button_new_with_label (_("Convert"));
+  gtk_widget_set_halign (ui->button_run, GTK_ALIGN_START);
+  gtk_widget_set_hexpand (ui->button_run, FALSE);
   g_signal_connect (ui->button_run, "clicked", G_CALLBACK (hyscan_gtk_export_on_run), self);
+
   ui->button_stop   = gtk_button_new_with_label (_("Abort"));
+  gtk_widget_set_halign (ui->button_stop, GTK_ALIGN_END);
+  gtk_widget_set_hexpand (ui->button_stop, FALSE);
   g_signal_connect (ui->button_stop, "clicked", G_CALLBACK (hyscan_gtk_export_on_stop), self);
+
   ui->label_bottom  = gtk_label_new ("");
+  gtk_widget_set_halign (ui->label_bottom, GTK_ALIGN_FILL);
+  gtk_widget_set_hexpand (ui->label_bottom, TRUE);
 
   hyscan_gtk_export_gui_tracks_make (self);
 
@@ -537,6 +566,9 @@ hyscan_gtk_export_gui_make (HyScanGtkExport *self)
   gtk_grid_attach (GTK_GRID (self), ui->project_elem->entry, 1, row++, 2, 1);
 
   label = gtk_label_new (ui->track_elem.label_name);
+  gtk_widget_set_halign (label, GTK_ALIGN_END);
+  gtk_widget_set_hexpand (label, FALSE);
+
   gtk_grid_attach (GTK_GRID (self), label, 0, row, 1, 1);
   gtk_grid_attach (GTK_GRID (self), ui->track_elem.combo, 1, row++, 2, 1);
 
@@ -544,17 +576,22 @@ hyscan_gtk_export_gui_make (HyScanGtkExport *self)
   gtk_grid_attach (GTK_GRID (self), ui->out_path_elem->entry, 1, row, 1, 1);
   gtk_grid_attach (GTK_GRID (self), ui->out_path_elem->button, 2, row++, 1, 1);
 
-  ui->nmea_elem[HYSCAN_NMEA_TYPE_RMC].label_name = g_strdup ("RMC");
-  ui->nmea_elem[HYSCAN_NMEA_TYPE_GGA].label_name = g_strdup ("GGA");
-  ui->nmea_elem[HYSCAN_NMEA_TYPE_HDT].label_name = g_strdup ("HDT");
-  ui->nmea_elem[HYSCAN_NMEA_TYPE_DPT].label_name = g_strdup ("DPT");
+  ui->nmea_elem[HYSCAN_NMEA_TYPE_RMC].label_name = g_strdup ("RMC:");
+  ui->nmea_elem[HYSCAN_NMEA_TYPE_GGA].label_name = g_strdup ("GGA:");
+  ui->nmea_elem[HYSCAN_NMEA_TYPE_HDT].label_name = g_strdup ("HDT:");
+  ui->nmea_elem[HYSCAN_NMEA_TYPE_DPT].label_name = g_strdup ("DPT:");
 
   i = 0;
   while (i < HYSCAN_NMEA_TYPE_LAST)
     {
       GtkWidget *label = gtk_label_new (ui->nmea_elem[i].label_name);
+      gtk_widget_set_halign (label, GTK_ALIGN_END);
+      gtk_widget_set_hexpand (label, FALSE);
+
       gtk_grid_attach (GTK_GRID (self), label, 0, row, 1, 1);
       ui->nmea_elem[i].combo = gtk_combo_box_text_new ();
+      gtk_widget_set_halign (ui->nmea_elem[i].combo, GTK_ALIGN_FILL);
+      gtk_widget_set_hexpand (ui->nmea_elem[i].combo, TRUE);
       gtk_widget_set_tooltip_text (ui->nmea_elem[i].combo, _("Select NMEA source"));
       gtk_grid_attach (GTK_GRID (self), ui->nmea_elem[i++].combo, 1, row++, 2, 1);
     }
