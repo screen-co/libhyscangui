@@ -1845,22 +1845,11 @@ hyscan_gtk_map_wfmark_interface_init (HyScanGtkLayerInterface *iface)
  * Функция обновляет виджет и перерисовывает акустические изображения меток.
  *
  */
-static
-gboolean hyscan_gtk_map_wfmark_redraw (gpointer data)
+static gboolean
+hyscan_gtk_map_wfmark_redraw (gpointer data)
 {
   gtk_widget_queue_draw (GTK_WIDGET (data));
   return FALSE;
-}
-
-/** hyscan_gtk_map_wfmark_tile_loaded:
- * wfm_layer - указатель на объект
-/* Функция добавляет виджет в очередь на рисование. Должна вызываться в Main Loop. */
-static gboolean
-hyscan_gtk_map_wfmark_queue_draw (GtkWidget *map)
-{
-  gtk_widget_queue_draw (map);
-
-  return G_SOURCE_REMOVE;
 }
 
 /* Функция-обработчик завершения гененрации тайла. По завершении генерации обновляет виджет.
