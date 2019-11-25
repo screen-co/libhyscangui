@@ -154,21 +154,21 @@ struct _HyScanGtkMapWfmarkPrivate
   gint                                   show_mode;       /* Режим отображения меток. */
 };
 
-static void    hyscan_gtk_map_wfmark_interface_init           (HyScanGtkLayerInterface    *iface);
-static void    hyscan_gtk_map_wfmark_set_property             (GObject                    *object,
-                                                               guint                       prop_id,
-                                                               const GValue               *value,
-                                                               GParamSpec                 *pspec);
-static void    hyscan_gtk_map_wfmark_object_constructed       (GObject                    *object);
-static void    hyscan_gtk_map_wfmark_object_finalize          (GObject                    *object);
-static void    hyscan_gtk_map_wfmark_model_changed            (HyScanGtkMapWfmark         *wfm_layer);
-static void    hyscan_gtk_map_wfmark_location_free            (HyScanGtkMapWfmarkLocation *location);
-
-static void    hyscan_gtk_map_wfmark_tile_loaded              (HyScanGtkMapWfmark         *wfm_layer,
-                                                               HyScanTile                 *tile,
-                                                               gfloat                     *img,
-                                                               gint                        size,
-                                                               gulong                      hash);
+static void     hyscan_gtk_map_wfmark_interface_init           (HyScanGtkLayerInterface    *iface);
+static void     hyscan_gtk_map_wfmark_set_property             (GObject                    *object,
+                                                                guint                       prop_id,
+                                                                const GValue               *value,
+                                                                GParamSpec                 *pspec);
+static void     hyscan_gtk_map_wfmark_object_constructed       (GObject                    *object);
+static void     hyscan_gtk_map_wfmark_object_finalize          (GObject                    *object);
+static void     hyscan_gtk_map_wfmark_model_changed            (HyScanGtkMapWfmark         *wfm_layer);
+static void     hyscan_gtk_map_wfmark_location_free            (HyScanGtkMapWfmarkLocation *location);
+static gboolean hyscan_gtk_map_wfmark_redraw                   (gpointer                    data)
+static void     hyscan_gtk_map_wfmark_tile_loaded              (HyScanGtkMapWfmark         *wfm_layer,
+                                                                HyScanTile                 *tile,
+                                                                gfloat                     *img,
+                                                                gint                        size,
+                                                                gulong                      hash);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapWfmark, hyscan_gtk_map_wfmark, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapWfmark)
@@ -1837,15 +1837,30 @@ hyscan_gtk_map_wfmark_interface_init (HyScanGtkLayerInterface *iface)
   iface->hint_find = hyscan_gtk_map_wfmark_hint_find;
   iface->hint_shown = hyscan_gtk_map_wfmark_hint_shown;
 }
+/**
+ * hyscan_gtk_map_wfmark_redraw:
+ * data - указатель на виджет требующий перерисовки
+ *
+ * Функция обновляет виджет и перерисовывает акустические изображения меток.
+ *
+ */
+static
+gboolean hyscan_gtk_map_wfmark_redraw (gpointer data)
+{
+  gtk_widget_queue_draw (GTK_WIDGET (data));
+  return FALSE;
+}
 
-/* Функция-обработчик завершения гененрации тайла. По завершении генерации обновляет виджет.
- * wfm_layer - указатель на объект;
+/** hyscan_gtk_map_wfmark_tile_loaded:
+ * wfm_layer - указатель на объект
  * tile - указатель на структуру содержащую информацию о сгененрированном тайле. Не связана
- * с тайлом, передаваемым в HyScanTileQueue для генерации;
- * img - указатель на данные аккустического изображения;
- * size - размер данных аккустического изображения;
- * hash - хэш состояния.
- * */
+ * с тайлом, передаваемым в HyScanTileQueue для генерации
+ * img - указатель на данные аккустического изображения
+ * size - размер данных аккустического изображения
+ * hash - хэш состояния
+ *
+ * Функция-обработчик завершения гененрации тайла. По завершении генерации обновляет виджет.
+ */
 static void
 hyscan_gtk_map_wfmark_tile_loaded (HyScanGtkMapWfmark *wfm_layer,
                                    HyScanTile         *tile,
@@ -1854,7 +1869,7 @@ hyscan_gtk_map_wfmark_tile_loaded (HyScanGtkMapWfmark *wfm_layer,
                                    gulong              hash)
 {
   HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
-  g_idle_add ((GSourceFunc)gtk_widget_queue_draw, GTK_WIDGET (priv->map));
+  g_idle_add (hyscan_gtk_map_wfmark_redraw, GTK_WIDGET (priv->map));
 }
 
 /**
@@ -1981,5 +1996,5 @@ hyscan_gtk_map_wfmark_set_show_mode (HyScanGtkMapWfmark    *wfm_layer,
 {
   HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
   priv->show_mode = mode;
-  g_idle_add ((GSourceFunc)gtk_widget_queue_draw, GTK_WIDGET (priv->map));
+  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }
