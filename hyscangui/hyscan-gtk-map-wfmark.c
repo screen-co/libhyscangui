@@ -163,12 +163,13 @@ static void     hyscan_gtk_map_wfmark_object_constructed       (GObject         
 static void     hyscan_gtk_map_wfmark_object_finalize          (GObject                    *object);
 static void     hyscan_gtk_map_wfmark_model_changed            (HyScanGtkMapWfmark         *wfm_layer);
 static void     hyscan_gtk_map_wfmark_location_free            (HyScanGtkMapWfmarkLocation *location);
-static gboolean hyscan_gtk_map_wfmark_redraw                   (gpointer                    data)
+static gboolean hyscan_gtk_map_wfmark_redraw                   (gpointer                    data);
 static void     hyscan_gtk_map_wfmark_tile_loaded              (HyScanGtkMapWfmark         *wfm_layer,
                                                                 HyScanTile                 *tile,
                                                                 gfloat                     *img,
                                                                 gint                        size,
                                                                 gulong                      hash);
+
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapWfmark, hyscan_gtk_map_wfmark, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapWfmark)
@@ -1853,6 +1854,17 @@ gboolean hyscan_gtk_map_wfmark_redraw (gpointer data)
 
 /** hyscan_gtk_map_wfmark_tile_loaded:
  * wfm_layer - указатель на объект
+/* Функция добавляет виджет в очередь на рисование. Должна вызываться в Main Loop. */
+static gboolean
+hyscan_gtk_map_wfmark_queue_draw (GtkWidget *map)
+{
+  gtk_widget_queue_draw (map);
+
+  return G_SOURCE_REMOVE;
+}
+
+/* Функция-обработчик завершения гененрации тайла. По завершении генерации обновляет виджет.
+ * wfm_layer - указатель на объект;
  * tile - указатель на структуру содержащую информацию о сгененрированном тайле. Не связана
  * с тайлом, передаваемым в HyScanTileQueue для генерации
  * img - указатель на данные аккустического изображения

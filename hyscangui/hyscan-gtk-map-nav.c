@@ -94,6 +94,8 @@ typedef struct
 {
   HyScanGtkMapPoint                    coord;          /* Путевая точка. */
   gdouble                              speed;          /* Скорость, м/с. */
+  gdouble                              cog;            /* Курс COG. */
+  gdouble                              heading;        /* Истинный курс HDG. */
   gboolean                             true_heading;   /* Курс истинный? */
   gdouble                              time;           /* Время фиксации точки. */
   gboolean                             start;          /* Признак того, что точка является началом куска. */
@@ -112,6 +114,8 @@ struct _HyScanGtkMapNavPrivate
   gboolean                      has_cache;                  /* Флаг, используется ли кэш? */
   HyScanNavModel               *nav_model;                  /* Модель навигационных данных, которые отображаются. */
   guint64                       life_time;                  /* Время жизни точки трека, секунды. */
+  gdouble                       cog_line_time;              /* Время предсказания движения по COG, сек. */
+  gdouble                       hdg_line_length;            /* Длина линии истинного курса HDG, м. */
   PangoLayout                  *pango_layout;               /* Раскладка шрифта. */
 
   gboolean                      visible;                    /* Признак видимости слоя. */
@@ -231,6 +235,8 @@ hyscan_gtk_map_nav_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_nav_parent_class)->constructed (object);
 
   priv->track = g_queue_new ();
+  priv->cog_line_time = 120.0;
+  priv->hdg_line_length = 1000.0;
 
   g_mutex_init (&priv->track_lock);
 
@@ -433,12 +439,7 @@ hyscan_gtk_map_nav_point_free (HyScanGtkMapNavPoint *point)
 static HyScanGtkMapNavPoint *
 hyscan_gtk_map_nav_point_copy (HyScanGtkMapNavPoint *point)
 {
-  HyScanGtkMapNavPoint *copy;
-
-  copy = g_slice_new (HyScanGtkMapNavPoint);
-  *copy = *point;
-
-  return copy;
+  return g_slice_dup (HyScanGtkMapNavPoint, point);
 }
 
 /* Обработчик сигнала "changed" модели. */
@@ -464,6 +465,8 @@ hyscan_gtk_map_nav_model_changed (HyScanGtkMapNav    *nav_layer,
       point.coord.geo.lon = data->coord.lon;
       point.coord.geo.h = data->heading;
       point.speed = data->speed;
+      point.heading = data->heading;
+      point.cog = data->coord.h;
       point.true_heading = data->true_heading;
       if (priv->map != NULL)
         hyscan_gtk_map_geo_to_value (priv->map, point.coord.geo, &point.coord.c2d);
@@ -493,33 +496,21 @@ hyscan_gtk_map_nav_create_arrow (HyScanGtkMapNavArrow *arrow,
 {
   cairo_t *cairo;
   guint line_width = 1;
-  gdouble peak_length, peak_size, peak_width, height;
 
   g_clear_pointer (&arrow->surface, cairo_surface_destroy);
 
-  peak_length = ARROW_SIZE;
-  peak_size = 0.2 * ARROW_SIZE;
-  peak_width = 0.1 * ARROW_SIZE;
-  height = ARROW_SIZE + 2 * line_width + peak_length + peak_size;
   arrow->surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32,
-                                               ARROW_SIZE + 2 * line_width, (guint) height);
+                                               ARROW_SIZE + 2 * line_width, ARROW_SIZE + 2 * line_width);
   cairo = cairo_create (arrow->surface);
 
   cairo_translate (cairo, line_width, line_width);
 
-  /* Пика. */
-  cairo_line_to (cairo, .5 * ARROW_SIZE, peak_size + peak_length);
-  cairo_line_to (cairo, .5 * ARROW_SIZE, peak_size);
-  cairo_line_to (cairo, .5 * ARROW_SIZE - peak_width, peak_size);
-  cairo_line_to (cairo, .5 * ARROW_SIZE, 0);
-  cairo_line_to (cairo, .5 * ARROW_SIZE + peak_width, peak_size);
-  cairo_line_to (cairo, .5 * ARROW_SIZE, peak_size);
-  cairo_line_to (cairo, .5 * ARROW_SIZE, peak_size + peak_length);
-
   /* Стрелка. */
-  cairo_line_to (cairo, .8 * ARROW_SIZE, height);
-  cairo_line_to (cairo, .5 * ARROW_SIZE, peak_size + peak_length + .8 * ARROW_SIZE);
-  cairo_line_to (cairo, .2 * ARROW_SIZE, height);
+  cairo_line_to (cairo, .5 * ARROW_SIZE, .0);
+  cairo_line_to (cairo, .8 * ARROW_SIZE, ARROW_SIZE);
+  cairo_line_to (cairo, .5 * ARROW_SIZE, .8 * ARROW_SIZE);
+  cairo_line_to (cairo, .2 * ARROW_SIZE, ARROW_SIZE);
+  cairo_line_to (cairo, .5 * ARROW_SIZE, .0);
   cairo_close_path (cairo);
 
   gdk_cairo_set_source_rgba (cairo, color_fill);
@@ -533,7 +524,7 @@ hyscan_gtk_map_nav_create_arrow (HyScanGtkMapNavArrow *arrow,
 
   /* Координаты начала отсчета на поверхности. */
   arrow->x = -.5 * ARROW_SIZE - (gdouble) line_width;
-  arrow->y = - (peak_size + peak_length + .8 * ARROW_SIZE + (gdouble) line_width);
+  arrow->y = - (.8 * ARROW_SIZE + (gdouble) line_width);
 }
 
 /* Реализация HyScanGtkLayerInterface.set_visible.
@@ -798,8 +789,10 @@ hyscan_gtk_map_nav_draw (HyScanGtkMap    *map,
   HyScanGtkMapNavPrivate *priv = nav_layer->priv;
 
   gdouble x, y;
-  gdouble bearing, speed;
+  gdouble heading, cog, speed;
   gboolean true_heading;
+  gdouble scale_proj, scale_px, cog_len;
+  HyScanGtkMapPoint last_point;
 
   HyScanGtkMapNavArrow *arrow;
 
@@ -820,7 +813,6 @@ hyscan_gtk_map_nav_draw (HyScanGtkMap    *map,
   /* Получаем координаты последней точки - маркера текущего местоположения. */
   {
     HyScanGtkMapNavPoint *last_track_point;
-    HyScanGtkMapPoint *last_point;
 
     g_mutex_lock (&priv->track_lock);
 
@@ -831,10 +823,11 @@ hyscan_gtk_map_nav_draw (HyScanGtkMap    *map,
       }
 
     last_track_point = priv->track->head->data;
-    last_point = &last_track_point->coord;
+    last_point = last_track_point->coord;
 
-    gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y, last_point->c2d.x, last_point->c2d.y);
-    bearing = last_point->geo.h;
+    gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y, last_point.c2d.x, last_point.c2d.y);
+    heading = last_track_point->heading;
+    cog = last_track_point->cog;
     speed = last_track_point->speed;
     true_heading = last_track_point->true_heading;
 
@@ -850,10 +843,56 @@ hyscan_gtk_map_nav_draw (HyScanGtkMap    *map,
   /* Рисуем маркер движущегося объекта. */
   cairo_save (cairo);
   cairo_translate (cairo, x, y);
-  cairo_rotate (cairo, bearing);
+  cairo_rotate (cairo, heading);
   arrow = priv->track_lost ? &priv->arrow_lost : &priv->arrow_default;
   cairo_set_source_surface (cairo, arrow->surface, arrow->x, arrow->y);
   cairo_paint (cairo);
+
+  /* Линия COG и HDG. */
+  scale_proj = hyscan_gtk_map_get_scale_value (priv->map, last_point.geo);
+  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &scale_px, NULL);
+  gdk_cairo_set_source_rgba (cairo, &priv->line_color);
+
+  /* HDG. */
+  if (true_heading)
+    {
+      gdouble hdg_length;
+
+      hdg_length = priv->hdg_line_length / scale_proj / scale_px;
+      if (hdg_length > ARROW_SIZE)
+        {
+          gdouble hdg_dash[] = { 2.0, 4.0 };
+
+          cairo_move_to (cairo, 0, 0);
+          cairo_line_to (cairo, 0, -hdg_length);
+          cairo_set_dash (cairo, hdg_dash, G_N_ELEMENTS (hdg_dash), 0.0);
+          cairo_stroke (cairo);
+
+          cairo_set_dash (cairo, NULL, 0, 0.0);
+        }
+    }
+
+  /* COG. */
+  cairo_rotate (cairo, cog - heading);
+  cog_len = priv->cog_line_time * speed / scale_proj / scale_px;
+  if (cog_len > ARROW_SIZE)
+    {
+      gdouble cog_dash[] = { 10.0, 4.0 };
+
+      /* Квадрат со стороной 10 и центром в конце линии COG. */
+      cairo_move_to (cairo, -5, - (cog_len - 5)),
+      cairo_rel_line_to (cairo,  10,   0);
+      cairo_rel_line_to (cairo,   0, -10);
+      cairo_rel_line_to (cairo, -10,   0);
+      cairo_rel_line_to (cairo,   0,  10);
+      cairo_stroke (cairo);
+
+      /* Линия COG, укороченная на половину стороны квадрата. */
+      cairo_move_to (cairo, 0, 0);
+      cairo_line_to (cairo, 0, - (cog_len - 5 ));
+      cairo_set_dash (cairo, cog_dash, G_N_ELEMENTS (cog_dash), 0.0);
+      cairo_stroke (cairo);
+    }
   cairo_restore (cairo);
 
   /* Рисуем текущий курс, скорость и координаты. */
@@ -871,7 +910,7 @@ hyscan_gtk_map_nav_draw (HyScanGtkMap    *map,
     else
       {
         label = g_strdup_printf ("<big>%06.2f° (%s)\n%03.2f %s</big>",
-                                 bearing / G_PI * 180.0,
+                                 heading / G_PI * 180.0,
                                  true_heading ? C_("Heading", "HDG") : C_("Heading", "COG"),
                                  speed,
                                  _("m/s"));
@@ -1027,4 +1066,41 @@ hyscan_gtk_map_nav_set_lifetime (HyScanGtkMapNav *nav_layer,
   g_return_if_fail (HYSCAN_IS_GTK_MAP_NAV (nav_layer));
 
   nav_layer->priv->life_time = lifetime;
+}
+
+/**
+ * hyscan_gtk_map_nav_set_cog_len:
+ * @nav_layer: указатель на #HyScanGtkMapNav
+ * @seconds: время, на которое продлевать путевую линия
+ *
+ * Устанавливает время, по которому определяется путевая линия. Путевая линия
+ * показывает траекторию, по какой будет двигаться судно ближайшие @seconds секунд,
+ * при текущей скорости и направлении движения.
+ */
+void
+hyscan_gtk_map_nav_set_cog_len (HyScanGtkMapNav *nav_layer,
+                                gdouble          seconds)
+{
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_NAV (nav_layer));
+
+  nav_layer->priv->cog_line_time = seconds;
+  gtk_widget_queue_draw (GTK_WIDGET (nav_layer->priv->map));
+}
+
+/**
+ * hyscan_gtk_map_nav_set_hdg_len:
+ * @nav_layer: указатель на #HyScanGtkMapNav
+ * @meters: длина линии истинного курса
+ *
+ * Устанавливает длину линии истинного курса.
+ */
+void
+hyscan_gtk_map_nav_set_hdg_len  (HyScanGtkMapNav *nav_layer,
+                                 gdouble          meters)
+{
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_NAV (nav_layer));
+
+  nav_layer->priv->hdg_line_length = meters;
+  gtk_widget_queue_draw (GTK_WIDGET (nav_layer->priv->map));
 }
