@@ -53,7 +53,7 @@ main (int argc, char **argv)
   if (tracks == NULL)
     g_error ("DB Invalid");
 
-  if ((gtk_export = hyscan_gtk_export_new (db, project_name, tracks[0])) == NULL)
+  if ((gtk_export = hyscan_gtk_export_new (db, project_name, NULL/*tracks[0]*/)) == NULL)
     g_error ("Can't create export widget");
 
   hyscan_db_close (db, pid);

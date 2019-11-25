@@ -177,9 +177,10 @@ hyscan_gtk_export_set_property (GObject      *object,
       break;
     case PROP_TRACKS:
       {
-        gchar *tracks = g_value_dup_string (value);
-        priv->track_names = g_strsplit (tracks, ",", -1);
-        g_free (tracks);
+        gchar *tracks;
+        if ((tracks = g_value_dup_string (value)) != NULL)
+          priv->track_names = g_strsplit (tracks, ",", -1);
+        g_clear_pointer (&tracks, g_free);
         break;
 
       }
@@ -508,7 +509,8 @@ hyscan_gtk_export_gui_tracks_make (HyScanGtkExport *self)
       i++;
     }
 
-  gtk_combo_box_set_active_id (GTK_COMBO_BOX (ui->track_elem.combo), priv->track_names[0]);
+  if (priv->track_names != NULL)
+    gtk_combo_box_set_active_id (GTK_COMBO_BOX (ui->track_elem.combo), priv->track_names[0]);
 
   gtk_widget_set_tooltip_text (GTK_WIDGET (ui->track_elem.combo), _("Select track"));
   g_signal_connect (ui->track_elem.combo, "changed", G_CALLBACK (hyscan_gtk_export_on_select_track), self);
@@ -699,6 +701,9 @@ hyscan_gtk_export_track_to_queue (HyScanGtkExport *self)
   priv->track_names = g_strsplit (gtk_combo_box_text_get_active_text (
                                   GTK_COMBO_BOX_TEXT (ui->track_elem.combo)),",", -1);
 */
+  if (priv->track_names == NULL)
+    return;
+  
   g_debug ("Add tracks to convert queue");
   while (priv->track_names[i] != NULL)
     g_queue_push_head (&priv->track_queue, priv->track_names[i++]);
@@ -781,7 +786,7 @@ hyscan_gtk_export_new (HyScanDB    *db,
                        const gchar *tracks)
 {
   HyScanGtkExport *export = NULL;
-  if (db == NULL || project_name == NULL || tracks == NULL)
+  if (db == NULL || project_name == NULL)
     return NULL;
 
   export =  g_object_new (HYSCAN_TYPE_GTK_EXPORT, 
