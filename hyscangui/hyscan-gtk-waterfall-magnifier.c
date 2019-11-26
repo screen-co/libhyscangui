@@ -115,13 +115,13 @@ hyscan_gtk_waterfall_magnifier_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_waterfall_magnifier_parent_class)->constructed (object);
 
   hyscan_gtk_waterfall_magnifier_set_size (self, 100, 100);
-  hyscan_gtk_waterfall_magnifier_set_position (self, 16, 16);
+  hyscan_gtk_waterfall_magnifier_set_position (self, 24, 24);
 
   gdk_rgba_parse (&color_frame, FRAME_DEFAULT);
   hyscan_gtk_waterfall_magnifier_set_frame_color (self, color_frame);
   hyscan_gtk_waterfall_magnifier_set_frame_width (self, 1);
 
-  hyscan_gtk_waterfall_magnifier_set_zoom (self, 2);
+  hyscan_gtk_waterfall_magnifier_set_zoom (self, 1);
 
   /* Включаем видимость слоя. */
   hyscan_gtk_layer_set_visible (HYSCAN_GTK_LAYER (self), TRUE);
@@ -207,7 +207,7 @@ hyscan_gtk_waterfall_magnifier_draw (GtkWidget                    *widget,
   if (priv->mouse.x == -1 || priv->mouse.y == -1)
     return;
 
-  if (priv->zoom == 0)
+  if (priv->zoom <= 1)
     return;
 
   /* Наивное решение: просто берем и поточечно копируем всё, что попало в
@@ -251,7 +251,7 @@ hyscan_gtk_waterfall_magnifier_draw (GtkWidget                    *widget,
   /* Рисуем отзуммированную картинку. */
   cairo_surface_mark_dirty (priv->surface);
   cairo_save (cairo);
-  cairo_translate (cairo, priv->window.x, priv->window.y);
+  cairo_translate (cairo, priv->mouse.x - w_2 * priv->zoom, priv->mouse.y - h_2 * priv->zoom);
   cairo_scale (cairo, priv->zoom, priv->zoom);
   cairo_set_source_surface (cairo, priv->surface, 0, 0);
   cairo_paint (cairo);
@@ -261,8 +261,8 @@ hyscan_gtk_waterfall_magnifier_draw (GtkWidget                    *widget,
   hyscan_cairo_set_source_gdk_rgba (cairo, &priv->frame_color);
   cairo_set_line_width (cairo, priv->frame_width);
   cairo_rectangle (cairo,
-                   round (priv->window.x) + 0.5,
-                   round (priv->window.y) + 0.5,
+                   round (priv->mouse.x - w_2 * priv->zoom) + 0.5,
+                   round (priv->mouse.y - h_2 * priv->zoom) + 0.5,
                    round (priv->width * priv->zoom),
                    round (priv->height * priv->zoom));
   cairo_stroke (cairo);

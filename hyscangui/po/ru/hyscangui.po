@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-12 10:05+0300\n"
+"POT-Creation-Date: 2019-11-26 16:55+0300\n"
 "PO-Revision-Date: 2019-05-31 17:01+0300\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -19,7 +19,7 @@ msgstr ""
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n"
 "%10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1691
+#: hyscangui/hyscan-gtk-map-wfmark.c:1787
 #, c-format
 msgid "%.2f m."
 msgstr "%.2f м."
@@ -41,7 +41,7 @@ msgstr "Угол"
 msgid "Angle %.2f°, Length %.2f %s"
 msgstr "Угол %.2f°, Длина %.2f %s"
 
-#: hyscangui/hyscan-gtk-map-nav.c:875
+#: hyscangui/hyscan-gtk-map-nav.c:914
 msgctxt "Heading"
 msgid "COG"
 msgstr "ПУ"
@@ -54,7 +54,7 @@ msgstr "Настройка каналов данных галса"
 msgid "Coordinate system is not available"
 msgstr "Точка отсчёта не установлена"
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1666
+#: hyscangui/hyscan-gtk-map-wfmark.c:1762
 msgid "Created: "
 msgstr "Создано: "
 
@@ -67,7 +67,7 @@ msgstr "Канал DPT"
 msgid "Delete"
 msgstr "Удалить"
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1698
+#: hyscangui/hyscan-gtk-map-wfmark.c:1794
 msgid "Depth: "
 msgstr "Глубина: "
 
@@ -83,11 +83,11 @@ msgstr "Отключен"
 msgid "Duplicate"
 msgstr "Дублировать"
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1672
+#: hyscangui/hyscan-gtk-map-wfmark.c:1768
 msgid "Edited: "
 msgstr "Отредактировано: "
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1695
+#: hyscangui/hyscan-gtk-map-wfmark.c:1791
 msgid "Empty."
 msgstr "Нет данных."
 
@@ -99,21 +99,25 @@ msgstr "Конец, X"
 msgid "End Y"
 msgstr "Конец, Y"
 
-#: hyscangui/hyscan-gtk-map-nav.c:875
+#: hyscangui/hyscan-gtk-map-nav.c:914
 msgctxt "Heading"
 msgid "HDG"
 msgstr "ИК"
+
+#: hyscangui/hyscan-gtk-waterfall.c:990
+msgid "HHHHHHH"
+msgstr "sdasdasd"
 
 #: hyscangui/hyscan-gtk-map-planner.c:453
 msgid "Invert"
 msgstr "Сменить направление"
 
-#: hyscangui/hyscan-gtk-planner-origin.c:140
 #: hyscangui/hyscan-gtk-planner-zeditor.c:256
+#: hyscangui/hyscan-gtk-planner-origin.c:140
 msgid "Latitude"
 msgstr "Широта"
 
-#: hyscangui/hyscan-gtk-layer-list.c:226
+#: hyscangui/hyscan-gtk-layer-list.c:230
 msgid "Layer"
 msgstr "Слой"
 
@@ -121,12 +125,12 @@ msgstr "Слой"
 msgid "Length"
 msgstr "Длина"
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1677
+#: hyscangui/hyscan-gtk-map-wfmark.c:1773
 msgid "Location: "
 msgstr "Координаты: "
 
-#: hyscangui/hyscan-gtk-planner-origin.c:142
 #: hyscangui/hyscan-gtk-planner-zeditor.c:257
+#: hyscangui/hyscan-gtk-planner-origin.c:142
 msgid "Longitude"
 msgstr "Долгота"
 
@@ -158,7 +162,7 @@ msgstr "Начать навигацию"
 msgid "No active track"
 msgstr "Галс не выбран"
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1709
+#: hyscangui/hyscan-gtk-map-wfmark.c:1805
 msgid "Note: "
 msgstr "Описание:"
 
@@ -179,7 +183,7 @@ msgstr "Левый борт"
 msgid "RMC Channel"
 msgstr "Канал RMC"
 
-#: hyscangui/hyscan-gtk-layer-list.c:221
+#: hyscangui/hyscan-gtk-layer-list.c:223
 msgid "Show"
 msgstr "Вид"
 
@@ -191,7 +195,7 @@ msgstr "Показывать левый борт"
 msgid "Show side-scan starboard channel data"
 msgstr "Показывать правый борт"
 
-#: hyscangui/hyscan-gtk-map-nav.c:869
+#: hyscangui/hyscan-gtk-map-nav.c:908
 msgid "Signal lost"
 msgstr "Нет сигнала"
 
@@ -227,7 +231,7 @@ msgstr "Точка отсчёта не установлена"
 msgid "Track settings"
 msgstr "Настройки галса"
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1699
+#: hyscangui/hyscan-gtk-map-wfmark.c:1795
 msgid "Track: "
 msgstr "Галс: "
 
@@ -252,13 +256,13 @@ msgid "km"
 msgstr "км"
 
 #: hyscangui/hyscan-gtk-map-scale.c:298
-#: hyscangui/hyscan-gtk-planner-status.c:138
 #: hyscangui/hyscan-gtk-waterfall-grid.c:596
+#: hyscangui/hyscan-gtk-planner-status.c:138
 #: hyscangui/hyscan-gtk-map-ruler.c:443 hyscangui/hyscan-gtk-map-ruler.c:445
 msgid "m"
 msgstr "м"
 
-#: hyscangui/hyscan-gtk-map-nav.c:877
+#: hyscangui/hyscan-gtk-map-nav.c:916
 msgid "m/s"
 msgstr "м/с"
 
