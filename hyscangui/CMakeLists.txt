@@ -27,6 +27,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-waterfall-grid.c
              hyscan-gtk-waterfall-tools.c
              hyscan-gtk-waterfall-mark.c
+             hyscan-gtk-waterfall-coord.c
              hyscan-gtk-waterfall-meter.c
              hyscan-gtk-waterfall-shadowm.c
              hyscan-gtk-waterfall-player.c

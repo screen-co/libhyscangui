@@ -488,7 +488,6 @@ hyscan_gtk_waterfall_shadowm_handle_find (HyScanGtkLayer       *layer,
   coord.x = item->_end;
   re = hyscan_gtk_waterfall_tools_distance (&mouse, &coord);
 
-
   if (rs <= rm && rs <= re)
     handle->val_x = item->_start;
   else if (rm <= rs && rm <= re)
@@ -752,23 +751,19 @@ hyscan_gtk_waterfall_shadowm_draw_task (HyScanGtkWaterfallShadowm     *self,
     /*
                                /--
                            /---  |
-                e      /---      |
-                   /---          | d
-               /-|-              |
+                D      /---      |
+                   /---          | h
+          d1   /-M-              |
            /---  |x              |
        /---      |               |
-    S------------M---------------E
-          a
-                 b
-
-    x = d * a / b; b = sqrt(e^2 - d^2)
+    S----------------------------E
+    X = H * D1 / D
     */
-    gdouble a, b, d, e;
-    a = hyscan_gtk_waterfall_tools_distance (&start, &mid);
-    d = hyscan_gtk_waterfall_tools_distance (&end, &zero);
-    e = hyscan_gtk_waterfall_tools_distance (&start, &zero);
-    b = sqrt (pow (e, 2) - pow (d, 2));
-    dist = d * a / b;
+    gdouble d1, d, h;
+    d1 = hyscan_gtk_waterfall_tools_distance (&start, &mid);
+    d = hyscan_gtk_waterfall_tools_distance (&start, &zero);
+    h = hyscan_gtk_waterfall_tools_distance (&end, &zero);
+    dist = h * d1 / d;
 
     dist_px = hyscan_gtk_waterfall_tools_distance (&ca_start, &ca_mid);
     ca_mid = hyscan_gtk_waterfall_tools_middle (&ca_start, &ca_mid);
