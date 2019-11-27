@@ -55,7 +55,6 @@ struct _HyScanGtkWaterfallMagnifierPrivate
   guint                        zoom;              /**< Во сколько раз увеличивать. */
   gdouble                      height;            /**< Высота области. */
   gdouble                      width;             /**< Ширина области. */
-  HyScanCoordinates            window;            /**< Начальная координата окошка. */
   gboolean                     width_auto;        /**< Автоматическая ширина области. */
 
   GdkRGBA                      frame_color;       /**< Цвет рамки. */
@@ -115,7 +114,6 @@ hyscan_gtk_waterfall_magnifier_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_waterfall_magnifier_parent_class)->constructed (object);
 
   hyscan_gtk_waterfall_magnifier_set_size (self, 100, 100);
-  hyscan_gtk_waterfall_magnifier_set_position (self, 24, 24);
 
   gdk_rgba_parse (&color_frame, FRAME_DEFAULT);
   hyscan_gtk_waterfall_magnifier_set_frame_color (self, color_frame);
@@ -350,28 +348,6 @@ hyscan_gtk_waterfall_magnifier_set_size (HyScanGtkWaterfallMagnifier *self,
 
   if (self->priv->wfall != NULL)
     hyscan_gtk_waterfall_queue_draw (priv->wfall);
-}
-
-/**
- * hyscan_gtk_waterfall_magnifier_set_position:
- * @magnifier: объект #HyScanGtkWaterfallMagnifier
- * @x: горизонтальная координата
- * @y: вертикальная координата
- *
- * Функция задает начальную координату (левый верхний угол) окошка с увеличенным изображением.
- */
-void
-hyscan_gtk_waterfall_magnifier_set_position (HyScanGtkWaterfallMagnifier *self,
-                                             gdouble                      x,
-                                             gdouble                      y)
-{
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_MAGNIFIER (self));
-
-  self->priv->window.x = x;
-  self->priv->window.y = y;
-
-  if (self->priv->wfall != NULL)
-    hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
 }
 
 /**

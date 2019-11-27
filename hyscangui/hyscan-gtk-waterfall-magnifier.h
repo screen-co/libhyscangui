@@ -79,11 +79,6 @@ void  hyscan_gtk_waterfall_magnifier_set_size           (HyScanGtkWaterfallMagni
                                                          gdouble                      height);
 
 HYSCAN_API
-void  hyscan_gtk_waterfall_magnifier_set_position       (HyScanGtkWaterfallMagnifier *magnifier,
-                                                         gdouble                      x,
-                                                         gdouble                      y);
-
-HYSCAN_API
 void  hyscan_gtk_waterfall_magnifier_set_frame_color    (HyScanGtkWaterfallMagnifier *magnifier,
                                                          GdkRGBA                      color);
 

@@ -5,6 +5,7 @@
 #include <hyscan-gtk-waterfall-grid.h>
 #include <hyscan-gtk-waterfall-mark.h>
 #include <hyscan-gtk-waterfall-meter.h>
+#include <hyscan-gtk-waterfall-shadowm.h>
 #include <hyscan-gtk-waterfall-player.h>
 #include <hyscan-tile-color.h>
 #include <hyscan-cached.h>
@@ -57,6 +58,7 @@ static HyScanGtkWaterfallGrid    *wf_grid;
 static void    *wf_mark;
 // static HyScanGtkWaterfallMark    *wf_mark;
 static HyScanGtkWaterfallMeter   *wf_metr;
+static HyScanGtkWaterfallShadowm *wf_shad;
 static void  *wf_play;
 // static HyScanGtkWaterfallPlayer  *wf_play;
 
@@ -142,6 +144,7 @@ main (int    argc,
   wf_grid = hyscan_gtk_waterfall_grid_new ();
   wf_ctrl = hyscan_gtk_waterfall_control_new ();
   wf_metr = hyscan_gtk_waterfall_meter_new ();
+  wf_shad = hyscan_gtk_waterfall_shadowm_new ();
   wf_mark = hyscan_gtk_waterfall_mark_new (markmodel);
   wf_play = hyscan_gtk_waterfall_player_new ();
 
@@ -151,6 +154,7 @@ main (int    argc,
   hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (wf), HYSCAN_GTK_LAYER (wf_ctrl), "control");
   hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (wf), HYSCAN_GTK_LAYER (wf_metr), "meter");
   hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (wf), HYSCAN_GTK_LAYER (wf_mark), "mark");
+  hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (wf), HYSCAN_GTK_LAYER (wf_shad), "shadowmeter");
   hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (wf), HYSCAN_GTK_LAYER (wf_play), "player");
   //hyscan_gtk_waterfall_echosounder (wf, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD);
 
@@ -225,6 +229,7 @@ make_menu (HyScanGtkWaterfall *wf,
   GtkWidget *lay_ctrl = make_layer_btn (HYSCAN_GTK_LAYER (wf_ctrl), NULL);
   GtkWidget *lay_mark = make_layer_btn (HYSCAN_GTK_LAYER (wf_mark), lay_ctrl);
   GtkWidget *lay_metr = make_layer_btn (HYSCAN_GTK_LAYER (wf_metr), lay_mark);
+  GtkWidget *lay_shad = make_layer_btn (HYSCAN_GTK_LAYER (wf_shad), lay_mark);
 
   GtkWidget *lay_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
   GtkWidget *track_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
@@ -257,6 +262,7 @@ make_menu (HyScanGtkWaterfall *wf,
   gtk_box_pack_start (GTK_BOX (lay_box), lay_ctrl, TRUE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (lay_box), lay_mark, TRUE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (lay_box), lay_metr, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (lay_box), lay_shad, TRUE, TRUE, 0);
 
   /* Кладём в коробку. */
   gtk_box_pack_start (GTK_BOX (track_box), zoom_btn_in,  TRUE, TRUE, 0);
@@ -287,6 +293,7 @@ make_menu (HyScanGtkWaterfall *wf,
   g_signal_connect_swapped (lay_ctrl, "clicked", G_CALLBACK (hyscan_gtk_layer_grab_input), HYSCAN_GTK_LAYER (wf_ctrl));
   g_signal_connect_swapped (lay_mark, "clicked", G_CALLBACK (hyscan_gtk_layer_grab_input), HYSCAN_GTK_LAYER (wf_mark));
   g_signal_connect_swapped (lay_metr, "clicked", G_CALLBACK (hyscan_gtk_layer_grab_input), HYSCAN_GTK_LAYER (wf_metr));
+  g_signal_connect_swapped (lay_shad, "clicked", G_CALLBACK (hyscan_gtk_layer_grab_input), HYSCAN_GTK_LAYER (wf_shad));
   g_signal_connect (slant_ground_switch, "state-set", G_CALLBACK (slant_ground), wf);
 
   // g_signal_connect (wf_play, "player-stop", G_CALLBACK (player_stop), scale_player);
