@@ -805,6 +805,7 @@ hyscan_gtk_waterfall_coord_track_changed (HyScanGtkWaterfallState *model,
                                        &priv->new_state.track);
   priv->new_state.amp_changed = TRUE;
 
+  g_atomic_int_set (&priv->click_set, FALSE);
   g_atomic_int_set (&priv->state_changed, TRUE);
   g_mutex_unlock (&priv->state_lock);
 

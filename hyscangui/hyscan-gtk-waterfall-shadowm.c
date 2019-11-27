@@ -533,6 +533,7 @@ hyscan_gtk_waterfall_shadowm_handle_click (HyScanGtkLayer       *layer,
 
   item = ((GList*)handle->user_data)->data;
 
+  priv->current = *item;
   /* Нужно найти линейку в списке отрисовываемых и перетащить её
    * в cancellable, на случай если пользователю захочется отменить редактирование. */
   link = g_list_find_custom (priv->all, &priv->current, hyscan_gtk_waterfall_shadowm_find_by_id);
