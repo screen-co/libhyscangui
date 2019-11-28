@@ -539,7 +539,7 @@ hyscan_gtk_waterfall_coord_processing (gpointer data)
       apos = hyscan_amplitude_get_offset (amp);
       hyscan_amplitude_get_amplitude (amp, NULL, index0, &n, &time, NULL);
       g_object_unref (amp);
-      if (!hyscan_mloc_get (mloc, NULL, time, &apos, 0, ABS (priv->click.x), 0, &position))
+      if (!hyscan_mloc_get (mloc, NULL, time, &apos, 0, priv->click.x, 0, &position))
         continue;
 
       priv->click_out = position;
