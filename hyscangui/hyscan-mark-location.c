@@ -61,16 +61,10 @@ hyscan_mark_location_copy (const HyScanMarkLocation *mark_location)
 {
   HyScanMarkLocation *copy;
 
-  copy = hyscan_mark_location_new ();
-
+  copy = g_slice_dup (HyScanMarkLocation, mark_location);
   copy->mark = hyscan_mark_waterfall_copy (mark_location->mark);
-  copy->loaded = mark_location->loaded;
   copy->track_name = g_strdup (mark_location->track_name);
-  copy->time = mark_location->time;
-  copy->center_geo = mark_location->center_geo;
-  copy->mark_geo = mark_location->mark_geo;
-  copy->offset = mark_location->offset;
-  copy->direction = mark_location->direction;
+
   return copy;
 }
 

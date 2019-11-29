@@ -63,6 +63,9 @@ typedef enum
  * @mark_geo: географические координаты центра метки
  * @offset: горизонтальное расстояние от антенны до метки в метрах (положительные значения по левому борту)
  * @direction: направление излучения передающей антенны
+ * @depth: глубина метки относительно ватерлинии или -1, если глубина не известна, м
+ * @along: координата метки вдоль галса, м
+ * @across: координата метки поперёк галса, всегда неотрицательное, м
  *
  * Местоположение метки, содержит в себе географические координаты метки.
  */
@@ -76,6 +79,9 @@ typedef struct
   HyScanGeoGeodetic             mark_geo;
   gdouble                       offset;
   HyScanMarkLocationDirection   direction;
+  gdouble                       depth;
+  gdouble                       along;
+  gdouble                       across;
 } HyScanMarkLocation;
 
 HYSCAN_API

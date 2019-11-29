@@ -56,7 +56,6 @@
 #include <hyscan-cartesian.h>
 #include <math.h>
 #include <string.h>
-#include <hyscan-projector.h>
 #include <hyscan-factory-amplitude.h>
 #include <hyscan-factory-depth.h>
 #include <hyscan-tile-queue.h>
@@ -684,37 +683,10 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
           if (tile->info.source != HYSCAN_SOURCE_INVALID)
             {
-              HyScanAmplitude *dc;
-              HyScanProjector *projector;
-              HyScanDepthometer *dm = NULL;
-              gdouble along, across, depth = 0.0;
+              gdouble along, across;
 
-              dm = hyscan_factory_depth_produce (priv->factory_dpt, location->mloc->track_name);
-              if (dm != NULL)
-                {
-                  HyScanCancellable *cancellable;
-                  cancellable = hyscan_cancellable_new ();
-                  depth = hyscan_depthometer_get (dm, cancellable, location->mloc->time);
-                  g_object_unref (cancellable);
-                }
-
-              if (depth < 0.0)
-                depth = 0.0;
-
-              dc = hyscan_factory_amplitude_produce (priv->factory_amp,
-                                                     location->mloc->track_name,
-                                                     tile->info.source);
-              projector = hyscan_projector_new (dc);
-
-              hyscan_projector_index_to_coord (projector,
-                                               location->mloc->mark->index,
-                                               &along);
-              hyscan_projector_count_to_coord (projector,
-                                               location->mloc->mark->count,
-                                               &across,
-                                               depth);
-              g_clear_object (&dc);
-              g_clear_object (&projector);
+              along = location->mloc->along;
+              across = location->mloc->across;
 
               along -= offset.y;
               /* Для левого борта тайл надо отразить по оси X. */
@@ -1185,38 +1157,10 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
 
           if (tile->info.source != HYSCAN_SOURCE_INVALID)
             {
-              HyScanAmplitude *dc;
-              HyScanProjector *projector;
-              HyScanDepthometer *dm = NULL;
-              gdouble along, across, depth = 0.0;
+              gdouble along, across;
 
-              dm = hyscan_factory_depth_produce (priv->factory_dpt, priv->hover_location->mloc->track_name);
-
-              if (dm != NULL)
-                {
-                  HyScanCancellable *cancellable;
-                  cancellable = hyscan_cancellable_new ();
-                  depth = hyscan_depthometer_get (dm, cancellable, priv->hover_location->mloc->time);
-                  g_object_unref (cancellable);
-                }
-
-              if (depth < 0.0)
-                depth = 0.0;
-
-              dc = hyscan_factory_amplitude_produce (priv->factory_amp,
-                                                     priv->hover_location->mloc->track_name,
-                                                     tile->info.source);
-              projector = hyscan_projector_new (dc);
-
-              hyscan_projector_index_to_coord (projector,
-                                           priv->hover_location->mloc->mark->index,
-                                           &along);
-              hyscan_projector_count_to_coord (projector,
-                                           priv->hover_location->mloc->mark->count,
-                                           &across,
-                                           depth);
-              g_clear_object (&dc);
-              g_clear_object (&projector);
+              along = priv->hover_location->mloc->along;
+              across = priv->hover_location->mloc->across;
 
               along -= offset.y;
               /* Для левого борта тайл надо отразить по оси X. */
@@ -1749,8 +1693,7 @@ hyscan_gtk_map_wfmark_hint_find (HyScanGtkLayer *layer,
     {
       gboolean empty_string;
       gchar str[64] = {0};
-      gdouble depth = 0.0;
-      HyScanDepthometer *dm = NULL;
+      gdouble depth;
 
       hint = g_strdup (priv->hover_candidate->mloc->mark->name);
       hint = g_strconcat (hint, ".", (gchar*) NULL);
@@ -1772,15 +1715,7 @@ hyscan_gtk_map_wfmark_hint_find (HyScanGtkLayer *layer,
                   priv->hover_candidate->mloc->mark_geo.lon);
       hint = g_strconcat (hint, "\n", _("Location: "), str, (gchar*) NULL);
 
-      dm = hyscan_factory_depth_produce (priv->factory_dpt, priv->hover_candidate->mloc->track_name);
-
-      if (dm != NULL)
-        {
-          HyScanCancellable *cancellable;
-          cancellable = hyscan_cancellable_new ();
-          depth = hyscan_depthometer_get (dm, cancellable, priv->hover_candidate->mloc->time);
-          g_object_unref (cancellable);
-        }
+      depth = priv->hover_candidate->mloc->depth;
 
       if (depth != -1.0)
         {

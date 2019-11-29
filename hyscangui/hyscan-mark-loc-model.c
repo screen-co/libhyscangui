@@ -56,15 +56,14 @@
 #include <hyscan-db-info.h>
 #include <hyscan-object-model.h>
 #include <hyscan-projector.h>
-#include <hyscan-acoustic-data.h>
 #include <hyscan-nmea-parser.h>
 #include <string.h>
 #include <hyscan-depthometer.h>
+#include <hyscan-factory-depth.h>
+#include <hyscan-factory-amplitude.h>
 
 // todo: вместо этих макросов брать номера каналов из каких-то пользовательских настроек
-#define ACOUSTIC_CHANNEL 1   /* Канал ГБО с акустическими данными. */
-#define NMEA_RMC_CHANNEL 1   /* Канал NMEA с навигационными данными. */
-#define NMEA_DPT_CHANNEL 2   /* Канал NMEA с данными эхолота. */
+#define NMEA_RMC_CHANNEL   1             /* Канал NMEA с навигационными данными. */
 
 #define CHANGED_NONE       0u            /* Нет изменений. */
 #define CHANGED_TRACKS     1u            /* Изменилась информация о галсах проекта. */
@@ -109,6 +108,8 @@ struct _HyScanMarkLocModelPrivate
 
   GHashTable              *locations;    /* Хэш-таблица с метками HyScanMarkLocation.*/
   GRWLock                  mark_lock;    /* Блокировка доступа к locations. */
+  HyScanFactoryAmplitude  *amp_factory;  /* Амплитудная фабрика. */
+  HyScanFactoryDepth      *dpt_factory;  /* Глубинная фабрика. */
 };
 
 static void                   hyscan_mark_loc_model_set_property             (GObject               *object,
@@ -128,10 +129,7 @@ static gboolean               hyscan_mark_loc_model_load_nav                 (Hy
                                                                               HyScanMarkLocation    *location);
 static gboolean               hyscan_mark_loc_model_load_offset              (HyScanMarkLocModel    *ml_model,
                                                                               HyScanMarkLocation    *location,
-                                                                              HyScanSourceType       source);
-static gboolean               hyscan_mark_loc_model_load_time                (HyScanMarkLocModel    *ml_model,
-                                                                              HyScanMarkLocation    *location,
-                                                                              HyScanSourceType       source);
+                                                                              HyScanAmplitude       *amp);
 static gboolean               hyscan_mark_loc_model_load_geo                 (HyScanMarkLocModel    *ml_model,
                                                                               HyScanMarkLocation    *location);
 inline static HyScanNavData * hyscan_mark_loc_model_rmc_data_new             (HyScanMarkLocModel    *ml_model,
@@ -320,35 +318,6 @@ hyscan_mark_loc_model_load_geo (HyScanMarkLocModel *ml_model,
   return hyscan_geo_topoXY2geo (priv->geo, &location->mark_geo, position, 0);
 }
 
-/* Определяет время фиксации метки. */
-static gboolean
-hyscan_mark_loc_model_load_time (HyScanMarkLocModel *ml_model,
-                                 HyScanMarkLocation *location,
-                                 HyScanSourceType    source)
-{
-  HyScanMarkLocModelPrivate *priv = ml_model->priv;
-  const HyScanMarkWaterfall *mark = location->mark;
-
-  gint32 project_id, track_id, channel_id;
-  const gchar *acoustic_channel_name;
-
-  acoustic_channel_name = hyscan_channel_get_id_by_types (source, HYSCAN_CHANNEL_DATA, ACOUSTIC_CHANNEL);
-  project_id = hyscan_db_project_open (priv->db, priv->project);
-  track_id = hyscan_db_track_open (priv->db, project_id, location->track_name);
-  channel_id = hyscan_db_channel_open (priv->db, track_id, acoustic_channel_name);
-
-  if (channel_id > 0)
-    location->time = hyscan_db_channel_get_data_time (priv->db, channel_id, mark->index);
-  else
-    location->time = -1;
-
-  hyscan_db_close (priv->db, channel_id);
-  hyscan_db_close (priv->db, track_id);
-  hyscan_db_close (priv->db, project_id);
-
-  return location->time >= 0;
-}
-
 inline static HyScanNavData *
 hyscan_mark_loc_model_rmc_data_new (HyScanMarkLocModel *ml_model,
                                     const gchar        *track_name,
@@ -453,30 +422,18 @@ exit:
 static gboolean
 hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
                                    HyScanMarkLocation *location,
-                                   HyScanSourceType    source)
+                                   HyScanAmplitude    *amp)
 {
   HyScanProjector *projector;
-  HyScanAcousticData *acoustic_data;
+  HyScanDepthometer *dm;
   gdouble depth;
   HyScanAntennaOffset amp_offset;
 
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
   const HyScanMarkWaterfall *mark = location->mark;
 
-  HyScanNavData *dpt_data;
-
-  acoustic_data = hyscan_acoustic_data_new (priv->db, priv->cache,
-                                            priv->project, location->track_name,
-                                            source, ACOUSTIC_CHANNEL, FALSE);
-
-  if (acoustic_data == NULL)
-    {
-      g_warning ("HyScanMarkLocModel: failed to open acoustic data");
-      return FALSE;
-    }
-
   /* Добавляем поворот антенны. */
-  amp_offset = hyscan_amplitude_get_offset (HYSCAN_AMPLITUDE (acoustic_data));
+  amp_offset = hyscan_amplitude_get_offset (amp);
   if (amp_offset.psi != 0)
     location->center_geo.h -= amp_offset.psi / G_PI * 180.0;
 
@@ -496,44 +453,33 @@ hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
     }
 
   /* Находим глубину при возможности. Делаем поправки на заглубление эхолота и ГБО. */
-  dpt_data =  HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache,
-                                                       priv->project, location->track_name, NMEA_DPT_CHANNEL,
-                                                       HYSCAN_NMEA_DATA_DPT, HYSCAN_NMEA_FIELD_DEPTH));
-  if (dpt_data != NULL)
+  dm = hyscan_factory_depth_produce (priv->dpt_factory, location->track_name);
+  location->depth = -1.0;
+  if (dm != NULL)
     {
-      HyScanDepthometer *depthometer;
-      HyScanAntennaOffset  dpt_offset;
+      HyScanNavData *dpt_data;
+      HyScanAntennaOffset dpt_offset;
 
+      dpt_data = hyscan_depthometer_get_nav_data (dm);
       dpt_offset = hyscan_nav_data_get_offset (dpt_data);
-      depthometer = hyscan_depthometer_new (dpt_data, priv->cache);
-      depth = hyscan_depthometer_get (depthometer, NULL, location->time);
-      if (depth < 0)
-        depth = 0;
+      depth = hyscan_depthometer_get (dm, NULL, location->time);
+      if (depth >= 0)
+        location->depth = depth + dpt_offset.z;
 
-      depth += dpt_offset.z;
+      g_object_unref (dpt_data);
+      g_object_unref (dm);
     }
-  else
-    {
-      depth = 0;
-    }
-  depth -= amp_offset.z;
+
+  /* Глубина относительно антенны. */
+  depth = location->depth < 0 ? 0 : MAX (0, location->depth - amp_offset.z);
 
   /* Определяем дистанцию до точки. */
-  location->direction = hyscan_mark_loc_model_direction (source);
-  if (location->direction == 0)
-    {
-      location->offset = 0.0;
-    }
-  else
-    {
-      projector = hyscan_projector_new (HYSCAN_AMPLITUDE (acoustic_data));
-      hyscan_projector_count_to_coord (projector, mark->count, &location->offset, depth);
-      location->offset *= location->direction;
-      g_clear_object (&projector);
-    }
+  projector = hyscan_projector_new (amp);
+  hyscan_projector_count_to_coord (projector, mark->count, &location->across, depth);
+  hyscan_projector_index_to_coord (projector, mark->index, &location->along);
+  g_clear_object (&projector);
 
-  g_clear_object (&dpt_data);
-  g_clear_object (&acoustic_data);
+  location->offset = location->direction * location->across;
 
   return TRUE;
 }
@@ -546,6 +492,7 @@ hyscan_mark_loc_model_load (HyScanMarkLocModel  *ml_model,
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
   HyScanMarkLocation *location;
 
+  HyScanAmplitude *amp;
   HyScanSourceType source;
   const gchar *track_name;
 
@@ -563,10 +510,21 @@ hyscan_mark_loc_model_load (HyScanMarkLocModel  *ml_model,
   if (source == HYSCAN_SOURCE_INVALID)
     return location;
 
-  location->loaded = hyscan_mark_loc_model_load_time (ml_model, location, source) &&
+  amp = hyscan_factory_amplitude_produce (priv->amp_factory, location->track_name, source);
+  if (amp == NULL)
+    {
+      g_warning ("HyScanMarkLocModel: failed to open acoustic data");
+      return location;
+    }
+
+  location->direction = hyscan_mark_loc_model_direction (source);
+
+  location->loaded = hyscan_amplitude_get_size_time (amp, location->mark->index, NULL, &location->time) &&
                      hyscan_mark_loc_model_load_nav (ml_model, location) &&
-                     hyscan_mark_loc_model_load_offset (ml_model, location, source) &&
+                     hyscan_mark_loc_model_load_offset (ml_model, location, amp) &&
                      hyscan_mark_loc_model_load_geo (ml_model, location);
+
+  g_object_unref (amp);
 
   return location;
 }
@@ -604,6 +562,9 @@ hyscan_mark_loc_model_process (gpointer data)
 
   memset (&new_state, 0, sizeof (new_state));
 
+  priv->dpt_factory = hyscan_factory_depth_new (priv->cache);
+  priv->amp_factory = hyscan_factory_amplitude_new (priv->cache);
+
   /* В цикле копируем текущее состояния из основного потока и проверяем, что изменилось. */
   while (!(new_state.changed & CHANGED_SHUTDOWN))
     {
@@ -625,6 +586,8 @@ hyscan_mark_loc_model_process (gpointer data)
           priv->project = new_state.project;
           hyscan_db_info_set_project (priv->db_info, priv->project);
           hyscan_object_model_set_project (priv->mark_model, priv->db, priv->project);
+          hyscan_factory_amplitude_set_project (priv->amp_factory, priv->db, priv->project);
+          hyscan_factory_depth_set_project (priv->dpt_factory, priv->db, priv->project);
 
           new_state.changed |= CHANGED_TRACKS;
         }
@@ -695,6 +658,9 @@ hyscan_mark_loc_model_process (gpointer data)
                            g_object_ref (ml_model), g_object_unref);
         }
     }
+
+  g_clear_object (&priv->amp_factory);
+  g_clear_object (&priv->dpt_factory);
 
   return NULL;
 }
