@@ -38,6 +38,7 @@
 #include <hyscan-gtk-map-tiled.h>
 #include <hyscan-gtk-map-track-item.h>
 #include <hyscan-db.h>
+#include <hyscan-cancellable.h>
 
 G_BEGIN_DECLS
 
@@ -88,9 +89,10 @@ HyScanGtkMapTrackItem *   hyscan_gtk_map_track_lookup              (HyScanGtkMap
                                                                     const gchar        *track_name);
 
 HYSCAN_API
-gboolean                  hyscan_gtk_map_track_view                (HyScanGtkMapTrack  *track_layer,
+void                      hyscan_gtk_map_track_view                (HyScanGtkMapTrack  *track_layer,
                                                                     const gchar        *track_name,
-                                                                    gboolean            zoom_in);
+                                                                    gboolean            zoom_in,
+                                                                    HyScanCancellable  *cancellable);
 
 HYSCAN_API
 void                      hyscan_gtk_map_track_set_color_track     (HyScanGtkMapTrack  *track_layer,

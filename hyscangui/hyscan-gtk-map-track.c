@@ -340,6 +340,9 @@ hyscan_gtk_map_track_projection_notify (HyScanGtkMap      *map,
   while (g_hash_table_iter_next (&iter, (gpointer *) &track_name, (gpointer *) &track))
     hyscan_gtk_map_track_item_set_projection (track, projection);
 
+  /* Сообщаем об изменении параметров и необходимости перерисовки. */
+  hyscan_gtk_map_tiled_set_param_mod (HYSCAN_GTK_MAP_TILED (layer));
+
   g_object_unref (projection);
 }
 
@@ -519,6 +522,80 @@ hyscan_gtk_map_track_get_track (HyScanGtkMapTrack *track_layer,
   return track;
 }
 
+/* Коллбэк функция для hyscan_gtk_map_track_view. */
+static void
+hyscan_gtk_map_track_view_cb (GObject      *source_object,
+                              GAsyncResult *res,
+                              gpointer      callback_data)
+{
+  HyScanGtkMapTrack *track = HYSCAN_GTK_MAP_TRACK (source_object);
+  HyScanGtkMapTrackPrivate *priv = track->priv;
+  GTask *task = G_TASK (res);
+  HyScanGeoCartesian2D *view;
+  gboolean zoom_in;
+  gdouble prev_scale = -1.0;
+  gdouble margin = 0;
+
+  view = g_task_propagate_pointer (task, NULL);
+  if (view == NULL)
+    return;
+
+  zoom_in = GPOINTER_TO_INT (callback_data);
+  if (!zoom_in)
+    gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &prev_scale, NULL);
+
+  if (view[0].x == view[1].x || view[0].y == view[1].y)
+    margin = prev_scale;
+
+  gtk_cifro_area_set_view (GTK_CIFRO_AREA (priv->map),
+                           view[0].x - margin, view[1].x + margin,
+                           view[0].y - margin, view[1].y + margin);
+
+  if (!zoom_in)
+    {
+      gtk_cifro_area_set_scale (GTK_CIFRO_AREA (priv->map), prev_scale, prev_scale,
+                                (view[0].x + view[1].x) / 2.0, (view[0].y + view[1].y) / 2.0);
+    }
+
+  gtk_cifro_area_set_view (GTK_CIFRO_AREA (priv->map), view[0].x, view[1].x, view[0].y, view[1].y);
+  g_free (view);
+}
+
+/* Асинхронная загрузка координат галса. */
+static void
+hyscan_gtk_map_track_view_load (GTask        *task,
+                                gpointer      source_object,
+                                gpointer      task_data,
+                                GCancellable *cancellable)
+{
+  HyScanGtkMapTrack *track_layer = HYSCAN_GTK_MAP_TRACK (source_object);
+  HyScanGeoCartesian2D *view;
+  HyScanGtkMapTrackItem *track;
+  gchar *track_name;
+  gboolean result = FALSE;
+
+  view = g_new0 (HyScanGeoCartesian2D, 2);
+
+  /* Находим запрошенный галс. */
+  track_name = task_data;
+  track = hyscan_gtk_map_track_get_track (track_layer, track_name, TRUE);
+  if (track == NULL)
+    goto exit;
+
+  result = hyscan_gtk_map_track_item_view (track, &view[0], &view[1]);
+
+exit:
+  if (result)
+    {
+      g_task_return_pointer (task, view, g_free);
+    }
+  else
+    {
+      g_free (view);
+      g_task_return_pointer (task, NULL, NULL);
+    }
+}
+
 /**
  * hyscan_gtk_map_track_new:
  * @db: база данных #HyScanDB
@@ -644,55 +721,32 @@ hyscan_gtk_map_track_lookup (HyScanGtkMapTrack *track_layer,
  * @track_layer: указатель на слой #HyScanGtkMapTrack
  * @track_name: название галса
  * @zoom_in: надо ли вписывать галс в видимую область
+ * @cancellable: объект для отмены перемещения
  *
  * Перемешает видимую область карты к галсу с названием @track_name. Если установлен
  * флаг @zoom_in, то функция устанавливает границы видимой области карты так,
  * чтобы галс был виден полностью.
- *
- * Returns: %TRUE, если получилось определить границы галса; иначе %FALSE
  */
-gboolean 
+void
 hyscan_gtk_map_track_view (HyScanGtkMapTrack *track_layer,
                            const gchar       *track_name,
-                           gboolean           zoom_in)
+                           gboolean           zoom_in,
+                           HyScanCancellable *cancellable)
 {
   HyScanGtkMapTrackPrivate *priv;
-  HyScanGtkMapTrackItem *track;
-  HyScanGeoCartesian2D from, to;
-  gdouble prev_scale = -1.0;
-  gdouble margin = 0;
+  GTask *task;
 
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track_layer), FALSE);
-  g_return_val_if_fail (track_name != NULL, FALSE);
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track_layer));
+  g_return_if_fail (track_name != NULL);
   priv = track_layer->priv;
   
-  g_return_val_if_fail (priv->map != NULL, FALSE);
+  g_return_if_fail (priv->map != NULL);
 
-  /* Находим запрошенный галс. */
-  track = hyscan_gtk_map_track_get_track (track_layer, track_name, TRUE);
-  if (track == NULL)
-    return FALSE;
-
-  if (!hyscan_gtk_map_track_item_view (track, &from, &to))
-    return FALSE;
-
-  if (!zoom_in)
-    gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &prev_scale, NULL);
-
-  if (from.x == to.x || from.y == to.y)
-    margin = prev_scale;
-
-  gtk_cifro_area_set_view (GTK_CIFRO_AREA (priv->map),
-                           from.x - margin, to.x + margin,
-                           from.y - margin, to.y + margin);
-
-  if (!zoom_in)
-    {
-      gtk_cifro_area_set_scale (GTK_CIFRO_AREA (priv->map), prev_scale, prev_scale,
-                                (from.x + to.x) / 2.0, (from.y + to.y) / 2.0);
-    }
-
-  return TRUE;
+  /* Запускаем задачу в отдельном потоке. */
+  task = g_task_new (track_layer, G_CANCELLABLE (cancellable), hyscan_gtk_map_track_view_cb, GINT_TO_POINTER (zoom_in));
+  g_task_set_task_data (task, g_strdup (track_name), g_free);
+  g_task_run_in_thread (task, hyscan_gtk_map_track_view_load);
+  g_object_unref (task);
 }
 
 /**

@@ -140,7 +140,6 @@ struct _HyScanGtkMapTrackItemPrivate
   HyScanDB                       *db;                /* База данных. */
   HyScanCache                    *cache;             /* Кэш. */
   HyScanGtkMapTiled              *tiled_layer;       /* Тайловый слой, на котором размещён галс. */
-  HyScanGeoProjection            *projection;        /* Картографическая проекция. */
   HyScanDataSchema               *schema;            /* Схема параметров галса (номера каналов данных). */
 
   gchar                          *project;           /* Название проекта. */
@@ -149,7 +148,11 @@ struct _HyScanGtkMapTrackItemPrivate
   gboolean                        opened;            /* Признак того, что каналы галса открыты. */
   gboolean                        loaded;            /* Признак того, что данные галса загружены. */
   gboolean                        writeable;         /* Признак того, что галс открыт для записи. */
-  GRWLock                         lock;              /* Блокировка доступа к точкам галса. */
+  HyScanGeoProjection            *projection;        /* Картографическая проекция. */
+  GRWLock                         lock;              /* Блокировка доступа к точкам галса и текущей проекции. */
+
+  GMutex                          mutex;             /* Блокировка доступа к новой проекции. */
+  HyScanGeoProjection            *new_projection;    /* Новая проекция. */
 
   /* Каналы данных. */
   guint                           channel_starboard; /* Номер канала правого борта. */
@@ -282,6 +285,7 @@ hyscan_gtk_map_track_item_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_track_item_parent_class)->constructed (object);
 
   g_rw_lock_init (&priv->lock);
+  g_mutex_init (&priv->mutex);
 
   /* Устанавливаем номера каналов по умолчанию. */
   hyscan_gtk_map_track_item_schema_build (track);
@@ -317,6 +321,9 @@ hyscan_gtk_map_track_item_object_finalize (GObject *object)
   g_clear_object (&priv->lat_data);
   g_clear_object (&priv->lon_data);
   g_clear_object (&priv->angle_data);
+
+  g_mutex_clear (&priv->mutex);
+  g_clear_object (&priv->new_projection);
 
   g_list_free_full (priv->points, g_free);
 
@@ -1160,6 +1167,18 @@ hyscan_gtk_map_track_item_load (HyScanGtkMapTrackItem *track)
   HyScanGtkMapTrackItemPrivate *priv = track->priv;
   guint32 first_index, last_index;
   guint32 mod_count;
+  gboolean proj_changed;
+
+  g_mutex_lock (&priv->mutex);
+  if ((proj_changed = (priv->new_projection != NULL)))
+    {
+      g_clear_object (&priv->projection);
+      priv->projection = priv->new_projection;
+      priv->new_projection = NULL;
+    }
+  g_mutex_unlock (&priv->mutex);
+  if (proj_changed)
+    hyscan_gtk_map_track_item_cartesian (track, priv->points, FALSE);
 
   /* Открываем каналы данных. */
   if (!priv->opened)
@@ -1623,9 +1642,9 @@ hyscan_gtk_map_track_item_set_projection (HyScanGtkMapTrackItem *track,
   g_return_if_fail (HYSCAN_IS_GTK_MAP_TRACK_ITEM (track));
   priv = track->priv;
 
-  g_rw_lock_writer_lock (&priv->lock);
-  g_clear_object (&priv->projection);
-  priv->projection = g_object_ref (projection);
-  hyscan_gtk_map_track_item_cartesian (track, priv->points, FALSE);
-  g_rw_lock_writer_unlock (&priv->lock);
+  /* Пока что не перепроецируем, чтобы не блокировать GUI, а просто запоминаем новую проекцию. */
+  g_mutex_lock (&priv->mutex);
+  g_clear_object (&priv->new_projection);
+  priv->new_projection = g_object_ref (projection);
+  g_mutex_unlock (&priv->mutex);
 }
