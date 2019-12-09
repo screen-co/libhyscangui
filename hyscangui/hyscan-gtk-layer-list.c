@@ -317,12 +317,35 @@ hyscan_gtk_layer_list_add (HyScanGtkLayerList *layer_list,
 {
   HyScanGtkLayerListPrivate *priv = layer_list->priv;
   GtkTreeIter tree_iter;
+  gboolean valid, found = FALSE;
+
+  /* Пробуем найти слой с указанным именем среди уже добавленных. */
+  valid = gtk_tree_model_get_iter_first (GTK_TREE_MODEL (priv->layer_store), &tree_iter);
+  while (valid)
+    {
+      gchar *row_name;
+
+      gtk_tree_model_get (GTK_TREE_MODEL (priv->layer_store), &tree_iter, LAYER_KEY_COLUMN, &row_name, -1);
+      found = (g_strcmp0 (name, row_name) == 0);
+      g_free (row_name);
+
+      if (found)
+        break;
+
+      valid = gtk_tree_model_iter_next (GTK_TREE_MODEL (priv->layer_store), &tree_iter);
+    }
 
   /* Регистрируем слой в layer_store. */
-  gtk_list_store_append (priv->layer_store, &tree_iter);
+  if (!found)
+    {
+      gtk_list_store_append (priv->layer_store, &tree_iter);
+      gtk_list_store_set (priv->layer_store, &tree_iter,
+                          LAYER_KEY_COLUMN, name,
+                          -1);
+    }
+
   gtk_list_store_set (priv->layer_store, &tree_iter,
                       LAYER_VISIBLE_COLUMN, layer == NULL ? TRUE : hyscan_gtk_layer_get_visible (layer),
-                      LAYER_KEY_COLUMN, name,
                       LAYER_TITLE_COLUMN, title,
                       LAYER_COLUMN, layer,
                       LAYER_SENSITIVE_COLUMN, layer != NULL,

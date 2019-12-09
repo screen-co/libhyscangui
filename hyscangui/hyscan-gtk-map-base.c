@@ -110,6 +110,7 @@ struct _HyScanGtkMapBasePrivate
 
   cairo_surface_t             *dummy_tile;          /* Тайл-заглушка. Рисуется, когда настоящий тайл еще не загружен. */
   guint                        tile_size;           /* Размер тайла в пикселях. */
+  gboolean                     visible;             /* Признак видимости слоя. */
 };
 
 static void                 hyscan_gtk_map_base_set_property             (GObject                  *object,
@@ -223,6 +224,7 @@ hyscan_gtk_map_base_object_constructed (GObject *object)
   /* Создаём очередь задач по поиску тайлов. */
   hyscan_gtk_map_base_queue_start (gtk_map_base);
 
+  priv->visible = TRUE;
   priv->tile_grid = hyscan_map_tile_source_get_grid (priv->source);
   priv->tile_size = hyscan_map_tile_grid_get_tile_size (priv->tile_grid);
   priv->dummy_tile = hyscan_gtk_map_base_create_dummy_tile (priv);
@@ -295,10 +297,30 @@ hyscan_gtk_map_base_added (HyScanGtkLayer          *gtk_layer,
 }
 
 static void
+hyscan_gtk_map_set_visible (HyScanGtkLayer *gtk_layer,
+                            gboolean        visible)
+{
+  HyScanGtkMapBase *base = HYSCAN_GTK_MAP_BASE (gtk_layer);
+  HyScanGtkMapBasePrivate *priv = base->priv;
+
+  priv->visible = visible;
+  if (priv->map != NULL)
+    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+}
+
+static gboolean
+hyscan_gtk_map_get_visible (HyScanGtkLayer *gtk_layer)
+{
+  HyScanGtkMapBase *base = HYSCAN_GTK_MAP_BASE (gtk_layer);
+
+  return base->priv->visible;
+}
+
+static void
 hyscan_gtk_map_base_interface_init (HyScanGtkLayerInterface *iface)
 {
-  iface->get_visible = NULL;
-  iface->set_visible = NULL;
+  iface->get_visible = hyscan_gtk_map_get_visible;
+  iface->set_visible = hyscan_gtk_map_set_visible;
   iface->added = hyscan_gtk_map_base_added;
   iface->removed = hyscan_gtk_map_base_removed;
   iface->grab_input = NULL;
@@ -776,6 +798,9 @@ hyscan_gtk_map_base_draw (HyScanGtkMapBase *layer,
 #ifdef HYSCAN_GTK_MAP_BASE_DEBUG
   gdouble time;
 #endif
+
+  if (!priv->visible)
+    return;
 
   if (!hyscan_gtk_map_base_verify_projection (layer))
     return;
