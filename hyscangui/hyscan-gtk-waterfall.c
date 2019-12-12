@@ -88,7 +88,6 @@
 #include <hyscan-track-rect.h>
 #include <math.h>
 
-#define ZOOM_LEVELS 15
 #define EPS -0.000001
 #define EPS2 0.000001
 
@@ -107,7 +106,11 @@ enum
 };
 
 #define TILE_SIZE_PX (256)
-static const gdouble zooms_gost[ZOOM_LEVELS] = {5000.0, 2000.0, 1000.0, 800.0, 500.0, 400.0, 200.0, 100.0, 50.0, 20.0, 10.0, 5.0, 4.0, 2.0, 1.0};
+static const gdouble zooms_gost[] = {5000.0, 4000., 3000., 2000.0, 1000.0,
+                                       800.,  500.,  400.,  300.,   200.,
+                                       100.,   75.,   50.,   40.,    20.,
+                                        10.,    5.,    4.,    2.,     1.};
+static const int ZOOM_LEVELS = G_N_ELEMENTS (zooms_gost);
 
 struct _HyScanGtkWaterfallPrivate
 {

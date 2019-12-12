@@ -168,8 +168,7 @@ hyscan_gtk_waterfall_magnifier_removed (HyScanGtkLayer *layer)
 }
 
 static gboolean
-hyscan_gtk_waterfall_magnifier_get_visible (HyScanGtkLayer *layer,
-                                            gboolean        visible)
+hyscan_gtk_waterfall_magnifier_get_visible (HyScanGtkLayer *layer)
 {
   HyScanGtkWaterfallMagnifier *self = HYSCAN_GTK_WATERFALL_MAGNIFIER (layer);
 
