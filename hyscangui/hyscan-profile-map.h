@@ -108,6 +108,11 @@ HYSCAN_API
 gboolean               hyscan_profile_map_apply            (HyScanProfileMap   *profile,
                                                             HyScanGtkMap       *map);
 
+HYSCAN_API
+gboolean               hyscan_profile_map_write             (HyScanProfileMap   *profile,
+                                                             HyScanGtkMap       *map,
+                                                             const gchar        *file);
+
 G_END_DECLS
 
 #endif /* __HYSCAN_PROFILE_MAP_H__ */

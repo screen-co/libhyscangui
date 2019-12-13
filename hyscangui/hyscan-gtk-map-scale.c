@@ -43,27 +43,22 @@
  *    например, 1:10000; степень уменьшения рассчитывается на основе PPI дисплея;
  * 2. графическое изображение линейки с подписью соответствующей её длины на местности.
  *
- * Стиль оформления слоя можно задать с помощью функций класса или свойств из файла
- * конфигурации:
+ * Стиль оформления слоя можно задать с помощью функций класса или параметрами #HyScanParam:
  *
- * - hyscan_gtk_map_scale_set_bg_color() "bg-color" - цвет фона
+ * - hyscan_gtk_map_scale_set_bg_color()    "bg-color" - цвет фона
  * - hyscan_gtk_map_scale_set_label_color() "label-color" - цвет текста
  * - hyscan_gtk_map_scale_set_scale_width()
  *
- * Загрузить конфигурационный файл можно функциями hyscan_gtk_layer_load_key_file()
- * или hyscan_gtk_layer_container_load_key_file().
+ * Получить объект параметров стиля оформления можно с помощью функции hyscan_gtk_layer_get_param().
  */
 
 #include "hyscan-gtk-map-scale.h"
+#include "hyscan-gtk-layer-param.h"
 #include <glib/gi18n-lib.h>
 #include <math.h>
 
 #define MIN_SCALE_SIZE_PX   50.0      /* Минимальная длина линейки масштаба. */
 #define SCALE_WIDTH         2.0       /* Толщина линии линейки масштаба. */
-
-#define LINE_COLOR_DEFAULT  "rgba( 80, 120, 180, 0.5)"   /* Цвет линий по умолчанию. */
-#define LABEL_COLOR_DEFAULT "rgba( 33,  33,  33, 1.0)"   /* Цвет текста подписей по умолчанию. */
-#define BG_COLOR_DEFAULT    "rgba(255, 255, 255, 0.6)"   /* Цвет фона подписей по умолчанию. */
 
 enum
 {
@@ -77,6 +72,7 @@ struct _HyScanGtkMapScalePrivate
   PangoLayout                      *pango_layout;       /* Раскладка шрифта. */
   guint                             min_scale_size;     /* Минимальная длина линейки масштаба. */
 
+  HyScanGtkLayerParam              *param;              /* Параметры оформления. */
   GdkRGBA                           label_color;        /* Цвет подписей. */
   GdkRGBA                           bg_color;           /* Фоновый цвет подписей. */
   guint                             label_padding;      /* Отступы подписей от края видимой области. */
@@ -119,18 +115,17 @@ hyscan_gtk_map_scale_object_constructed (GObject *object)
 {
   HyScanGtkMapScale *gtk_map_scale = HYSCAN_GTK_MAP_SCALE (object);
   HyScanGtkMapScalePrivate *priv = gtk_map_scale->priv;
-  GdkRGBA color;
 
   G_OBJECT_CLASS (hyscan_gtk_map_scale_parent_class)->constructed (object);
 
   priv->label_padding = 2;
   priv->min_scale_size = MIN_SCALE_SIZE_PX;
 
-  gdk_rgba_parse (&color, LABEL_COLOR_DEFAULT);
-  hyscan_gtk_map_scale_set_label_color (gtk_map_scale, color);
-
-  gdk_rgba_parse (&color, BG_COLOR_DEFAULT);
-  hyscan_gtk_map_scale_set_bg_color (gtk_map_scale, color);
+  priv->param = hyscan_gtk_layer_param_new ();
+  hyscan_gtk_layer_param_set_stock_schema (priv->param, "map-scale");
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/bg-color", &priv->bg_color);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/label-color", &priv->label_color);
+  hyscan_gtk_layer_param_set_default (priv->param);
 
   hyscan_gtk_map_scale_set_scale_width (gtk_map_scale, SCALE_WIDTH);
 }
@@ -143,6 +138,7 @@ hyscan_gtk_map_scale_object_finalize (GObject *object)
 
   g_clear_object (&priv->pango_layout);
   g_object_unref (priv->map);
+  g_object_unref (priv->param);
 
   G_OBJECT_CLASS (hyscan_gtk_map_scale_parent_class)->finalize (object);
 }
@@ -180,26 +176,13 @@ hyscan_gtk_map_scale_added (HyScanGtkLayer          *gtk_layer,
                             G_CALLBACK (hyscan_gtk_map_scale_configure), gtk_layer);
 }
 
-static gboolean
-hyscan_gtk_map_scale_load_key_file (HyScanGtkLayer *gtk_layer,
-                                    GKeyFile       *key_file,
-                                    const gchar    *group)
+static HyScanParam *
+hyscan_gtk_map_scale_get_param (HyScanGtkLayer *gtk_layer)
 {
   HyScanGtkMapScale *scale_layer = HYSCAN_GTK_MAP_SCALE (gtk_layer);
   HyScanGtkMapScalePrivate *priv = scale_layer->priv;
 
-  GdkRGBA color;
-
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "bg-color", BG_COLOR_DEFAULT);
-  hyscan_gtk_map_scale_set_bg_color (scale_layer, color);
-
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "label-color", LABEL_COLOR_DEFAULT);
-  hyscan_gtk_map_scale_set_label_color (scale_layer, color);
-
-  if (priv->map != NULL)
-    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
-
-  return TRUE;
+  return g_object_ref (priv->param);
 }
 
 static void
@@ -208,7 +191,7 @@ hyscan_gtk_map_scale_interface_init (HyScanGtkLayerInterface *iface)
   iface->set_visible = hyscan_gtk_map_scale_set_visible;
   iface->get_visible = hyscan_gtk_map_scale_get_visible;
   iface->added = hyscan_gtk_map_scale_added;
-  iface->load_key_file = hyscan_gtk_map_scale_load_key_file;
+  iface->get_param = hyscan_gtk_map_scale_get_param;
 }
 
 /* Обновление раскладки шрифта по сигналу "configure-event". */

@@ -83,8 +83,9 @@
  *
  * Однако это всего лишь совет, а не требование.
  *
- * Для конфигурации внешнего вида слоя также можно использовать файлы настроек
- * #GKeyFile, которые загружаются с помощью функции hyscan_gtk_layer_load_key_file().
+ * Для конфигурации внешнего вида слоя также можно использовать #HyScanParam с
+ * параметрами оформления. Получить объект настроек стиля можно с помощью
+ * функции hyscan_gtk_layer_get_param().
  *
  * Подробнее про добавление слоёв описано в классе #HyScanGtkLayerContainer.
  *
@@ -178,57 +179,27 @@ hyscan_gtk_layer_get_visible (HyScanGtkLayer *layer)
 }
 
 /**
- * hyscan_gtk_layer_load_key_file:
+ * hyscan_gtk_layer_get_param:
  * @layer: указатель на слой #HyScanGtkLayer
- * @key_file: указатель на #GKeyFile
- * @group: название группы, относящейся к данному слою
  *
- * Загружает конфигурацию слоя из группы @group в ini-файле.
+ * Получает объект параметров оформления слоя или NULL, если слой не содержит
+ * никаких параметров.
  *
- * Returns: %TRUE, если слой сконфигурировался; иначе %FALSE.
+ * Returns: (transfer full) (nullable): объект параметров слоя,
+ *   для удаления g_object_unref()
  */
-gboolean
-hyscan_gtk_layer_load_key_file (HyScanGtkLayer *layer,
-                                GKeyFile       *key_file,
-                                const gchar    *group)
+HyScanParam *
+hyscan_gtk_layer_get_param (HyScanGtkLayer *layer)
 {
   HyScanGtkLayerInterface *iface;
 
-  g_return_val_if_fail (HYSCAN_IS_GTK_LAYER (layer), TRUE);
+  g_return_val_if_fail (HYSCAN_IS_GTK_LAYER (layer), NULL);
 
   iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
-  if (iface->load_key_file != NULL)
-    return (*iface->load_key_file) (layer, key_file, group);
+  if (iface->get_param != NULL)
+    return (*iface->get_param) (layer);
 
-  return FALSE;
-}
-
-/**
- * hyscan_gtk_layer_load_key_file_color:
- * @color: (out): указатель на #GdkRGBA
- * @key_file: файл конфигурации #GKeyFile
- * @group_name: имя группы
- * @key: имя ключа
- * @default_spec: цвет по умолчанию
- *
- * Парсит цвет из конфигурационного файла. Если в файле цвет не указан, или
- * указанное значение не может быть распознано, то используется значение по
- * умолчанию @default_spec.
- */
-void
-hyscan_gtk_layer_load_key_file_rgba (GdkRGBA     *color,
-                                     GKeyFile    *key_file,
-                                     const gchar *group_name,
-                                     const gchar *key,
-                                     const gchar *default_spec)
-{
-  gchar *color_spec;
-
-  color_spec = g_key_file_get_string (key_file, group_name, key, NULL);
-  if (color_spec == NULL || !gdk_rgba_parse (color, color_spec))
-    gdk_rgba_parse (color, default_spec);
-
-  g_free (color_spec);
+  return NULL;
 }
 
 /**

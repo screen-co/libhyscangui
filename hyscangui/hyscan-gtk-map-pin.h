@@ -37,6 +37,7 @@
 
 #include <hyscan-gtk-layer.h>
 #include <hyscan-gtk-map.h>
+#include <hyscan-param.h>
 
 G_BEGIN_DECLS
 

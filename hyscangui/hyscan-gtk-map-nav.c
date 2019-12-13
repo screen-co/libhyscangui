@@ -43,7 +43,7 @@
  *
  * Слой изображет траекторию движения в виде линии пройденного маршрута, а текущее
  * положение объекта в виде стрелки, направленной по курсу движения. Стиль
- * оформления можно задать параметрами конфигурации (см. hyscan_gtk_layer_container_load_key_file()):
+ * оформления можно задать параметрами конфигурации (см. hyscan_gtk_layer_get_param()):
  *
  * - "line-width" - толщина линии траектории,
  * - "line-color" - цвет линии траектории,
@@ -62,23 +62,15 @@
 
 #include "hyscan-gtk-map-nav.h"
 #include "hyscan-gtk-map.h"
+#include "hyscan-gtk-layer-param.h"
 #include <hyscan-cartesian.h>
 #include <hyscan-nav-model.h>
 #include <glib/gi18n-lib.h>
 #include <string.h>
-#include <math.h>
+#include <hyscan-param-controller.h>
 
 #define ARROW_SIZE            40                           /* Размер маркера, изображающего движущийся объект. */
 #define LIFETIME              600                          /* Время жизни путевых точек, секунды. */
-#define LINE_WIDTH            2.0                          /* Толщина линии. */
-#define LINE_COLOR            "#23505D"                    /* Цвет линии. */
-#define LINE_LOST_COLOR       "rgba(144,  88,  71, 0.2)"   /* Цвет линии при потере сигнала. */
-#define ARROW_DEFAULT_STROKE  LINE_COLOR                   /* Цвет обводки стрелки. */
-#define ARROW_DEFAULT_FILL    "rgba(255, 255, 255, 0.85)"  /* Цвет стрелки. */
-#define ARROW_LOST_STROKE     "rgba(144,  87,  71, 0.2)"   /* Цвет обводки стрелки при потере сигнала. */
-#define ARROW_LOST_FILL       "rgba(255, 255, 255, 0.2)"   /* Цвет стрелки при потере сигнала. */
-#define TEXT_COLOR            "rgba(  0,   0,   0, 1)"     /* Цвет текста. */
-#define BG_COLOR              "rgba(255, 255, 255, 0.8)"   /* Цвет подложки под текстом. */
 
 /* Раскомментируйте строку ниже для вывода отладочной информации о скорости отрисовки слоя. */
 // #define HYSCAN_GTK_MAP_DEBUG_FPS
@@ -100,6 +92,19 @@ typedef struct
   gdouble                              time;           /* Время фиксации точки. */
   gboolean                             start;          /* Признак того, что точка является началом куска. */
 } HyScanGtkMapNavPoint;
+
+typedef struct
+{
+  gdouble                              line_width;                 /* Ширина линии трека. */
+  GdkRGBA                              line_color;                 /* Цвет линии трека. */
+  GdkRGBA                              line_lost_color;            /* Цвет линии при обрыве связи. */
+  GdkRGBA                              arrow_color;                /* Цвет заливки стрелки. */
+  GdkRGBA                              arrow_stroke_color;         /* Цвет обводки стрелки. */
+  GdkRGBA                              lost_arrow_color;           /* Цвет заливки стрелки при обрыве связи. */
+  GdkRGBA                              lost_arrow_stroke_color;    /* Цвет заливки обводки при обрыве связи. */
+  GdkRGBA                              text_color;                 /* Цвет текса на панели навигационной информации. */
+  GdkRGBA                              bg_color;                   /* Фоновый цвет панели навигационной информации. */
+} HyScanGtkMapNavStyle;
 
 typedef struct
 {
@@ -127,46 +132,44 @@ struct _HyScanGtkMapNavPrivate
   GMutex                        track_lock;                 /* Блокировка доступа к точкам трека.  */
 
   /* Внешний вид. */
+  HyScanGtkLayerParam          *param;                      /* Параметры оформления. */
+  HyScanGtkMapNavStyle          new_style;                  /* Новый стиль оформления, который надо применить. */
+  HyScanGtkMapNavStyle          style;                      /* Стиль оформления. */
   HyScanGtkMapNavArrow          arrow_default;              /* Маркер объекта в обычном режиме. */
   HyScanGtkMapNavArrow          arrow_lost;                 /* Маркер объекта, если сигнал потерян. */
-  GdkRGBA                       line_color;                 /* Цвет линии трека. */
-  GdkRGBA                       line_lost_color;            /* Цвет линии при обрыве связи. */
-  gdouble                       line_width;                 /* Ширина линии трека. */
   guint                         margin;                     /* Внешний отступ панели навигационной информации. */
   guint                         padding;                    /* Внутренний отступ панели навигационной информации. */
-  GdkRGBA                       text_color;                 /* Цвет текса на панели навигационной информации. */
-  GdkRGBA                       bg_color;                   /* Фоновый цвет панели навигационной информации. */
 };
 
-static void    hyscan_gtk_map_nav_interface_init           (HyScanGtkLayerInterface       *iface);
-static void    hyscan_gtk_map_nav_set_property             (GObject                       *object,
-                                                            guint                          prop_id,
-                                                            const GValue                  *value,
-                                                            GParamSpec                    *pspec);
-static void     hyscan_gtk_map_nav_object_constructed      (GObject                       *object);
-static void     hyscan_gtk_map_nav_object_finalize         (GObject                       *object);
-static gboolean hyscan_gtk_map_nav_load_key_file           (HyScanGtkLayer                *layer,
-                                                            GKeyFile                      *key_file,
-                                                            const gchar                   *group);
-static void     hyscan_gtk_map_nav_removed                 (HyScanGtkLayer                *layer);
-static void     hyscan_gtk_map_nav_draw                    (HyScanGtkMap                  *map,
-                                                            cairo_t                       *cairo,
-                                                            HyScanGtkMapNav               *nav_layer);
-static void     hyscan_gtk_map_nav_proj_notify             (HyScanGtkMapNav               *nav_layer,
-                                                            GParamSpec                    *pspec);
-static void     hyscan_gtk_map_nav_added                   (HyScanGtkLayer                *layer,
-                                                            HyScanGtkLayerContainer       *container);
-static gboolean hyscan_gtk_map_nav_get_visible             (HyScanGtkLayer                *layer);
-static void     hyscan_gtk_map_nav_set_visible             (HyScanGtkLayer                *layer,
-                                                            gboolean                       visible);
-static void     hyscan_gtk_map_nav_create_arrow            (HyScanGtkMapNavArrow          *arrow,
-                                                            GdkRGBA                       *color_fill,
-                                                            GdkRGBA                       *color_stroke);
-static void     hyscan_gtk_map_nav_model_changed           (HyScanGtkMapNav               *nav_layer,
-                                                           HyScanNavModelData             *data);
-static void     hyscan_gtk_map_nav_point_free              (HyScanGtkMapNavPoint          *point);
-static void     hyscan_gtk_map_nav_fill_tile               (HyScanGtkMapTiled             *tiled_layer,
-                                                            HyScanMapTile                 *tile);
+static void              hyscan_gtk_map_nav_interface_init          (HyScanGtkLayerInterface       *iface);
+static void              hyscan_gtk_map_nav_set_property            (GObject                       *object,
+                                                                     guint                          prop_id,
+                                                                     const GValue                  *value,
+                                                                     GParamSpec                    *pspec);
+static void              hyscan_gtk_map_nav_object_constructed      (GObject                       *object);
+static void              hyscan_gtk_map_nav_object_finalize         (GObject                       *object);
+static void              hyscan_gtk_map_nav_param_set               (HyScanGtkLayer                *layer,
+                                                                     HyScanParamList               *list);
+static HyScanParam *     hyscan_gtk_map_nav_get_param               (HyScanGtkLayer                *layer);
+static void              hyscan_gtk_map_nav_removed                 (HyScanGtkLayer                *layer);
+static void              hyscan_gtk_map_nav_draw                    (HyScanGtkMap                  *map,
+                                                                     cairo_t                       *cairo,
+                                                                     HyScanGtkMapNav               *nav_layer);
+static void              hyscan_gtk_map_nav_proj_notify             (HyScanGtkMapNav               *nav_layer,
+                                                                     GParamSpec                    *pspec);
+static void              hyscan_gtk_map_nav_added                   (HyScanGtkLayer                *layer,
+                                                                     HyScanGtkLayerContainer       *container);
+static gboolean          hyscan_gtk_map_nav_get_visible             (HyScanGtkLayer                *layer);
+static void              hyscan_gtk_map_nav_set_visible             (HyScanGtkLayer                *layer,
+                                                                     gboolean                       visible);
+static void              hyscan_gtk_map_nav_create_arrow            (HyScanGtkMapNavArrow          *arrow,
+                                                                     GdkRGBA                       *color_fill,
+                                                                     GdkRGBA                       *color_stroke);
+static void              hyscan_gtk_map_nav_model_changed           (HyScanGtkMapNav               *nav_layer,
+                                                                    HyScanNavModelData             *data);
+static void              hyscan_gtk_map_nav_point_free              (HyScanGtkMapNavPoint          *point);
+static void              hyscan_gtk_map_nav_fill_tile               (HyScanGtkMapTiled             *tiled_layer,
+                                                                     HyScanMapTile                 *tile);
 
 static HyScanGtkLayerInterface *hyscan_gtk_layer_parent_interface = NULL;
 
@@ -235,32 +238,28 @@ hyscan_gtk_map_nav_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_nav_parent_class)->constructed (object);
 
   priv->track = g_queue_new ();
-  priv->cog_line_time = 120.0;
-  priv->hdg_line_length = 1000.0;
 
   g_mutex_init (&priv->track_lock);
 
-  /* Настройки внешнего вида по умолчанию. */
-  {
-    GdkRGBA color_fill, color_stroke;
+  /* Настройки внешнего вида. */
+  priv->param = hyscan_gtk_layer_param_new ();
+  hyscan_gtk_layer_param_set_stock_schema (priv->param, "map-nav");
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/line-color", &priv->new_style.line_color);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/lost-line-color", &priv->new_style.line_lost_color);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/arrow-color", &priv->new_style.arrow_color);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/arrow-stroke-color", &priv->new_style.arrow_stroke_color);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/lost-arrow-color", &priv->new_style.lost_arrow_color);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/lost-arrow-stroke-color", &priv->new_style.lost_arrow_stroke_color);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/text-color", &priv->new_style.text_color);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/bg-color", &priv->new_style.bg_color);
+  hyscan_param_controller_add_double (HYSCAN_PARAM_CONTROLLER (priv->param), "/line-width", &priv->new_style.line_width);
+  g_signal_connect_swapped (priv->param, "set", G_CALLBACK (hyscan_gtk_map_nav_param_set), nav_layer);
 
-    hyscan_gtk_map_nav_set_lifetime (nav_layer, LIFETIME);
-    priv->line_width = LINE_WIDTH;
+  hyscan_gtk_layer_param_set_default (priv->param);
 
-    gdk_rgba_parse (&priv->line_color, LINE_COLOR);
-    gdk_rgba_parse (&priv->line_lost_color, LINE_LOST_COLOR);
-
-    gdk_rgba_parse (&color_fill, ARROW_DEFAULT_FILL);
-    gdk_rgba_parse (&color_stroke, ARROW_DEFAULT_STROKE);
-    hyscan_gtk_map_nav_create_arrow (&priv->arrow_default, &color_fill, &color_stroke);
-
-    gdk_rgba_parse (&color_fill, ARROW_LOST_FILL);
-    gdk_rgba_parse (&color_stroke, ARROW_LOST_STROKE);
-    hyscan_gtk_map_nav_create_arrow (&priv->arrow_lost, &color_fill, &color_stroke);
-
-    gdk_rgba_parse (&priv->text_color, TEXT_COLOR);
-    gdk_rgba_parse (&priv->bg_color,   BG_COLOR);
-  }
+  priv->cog_line_time = 120.0;
+  priv->hdg_line_length = 1000.0;
+  hyscan_gtk_map_nav_set_lifetime (nav_layer, LIFETIME);
 
   g_signal_connect_swapped (priv->nav_model, "changed", G_CALLBACK (hyscan_gtk_map_nav_model_changed), nav_layer);
 }
@@ -273,6 +272,7 @@ hyscan_gtk_map_nav_object_finalize (GObject *object)
 
   g_signal_handlers_disconnect_by_data (priv->nav_model, nav_layer);
   g_clear_object (&priv->nav_model);
+  g_clear_object (&priv->param);
   g_clear_pointer (&priv->arrow_default.surface, cairo_surface_destroy);
   g_clear_pointer (&priv->arrow_lost.surface, cairo_surface_destroy);
   g_clear_object (&priv->pango_layout);
@@ -295,42 +295,25 @@ hyscan_gtk_map_nav_interface_init (HyScanGtkLayerInterface *iface)
   iface->removed = hyscan_gtk_map_nav_removed;
   iface->set_visible = hyscan_gtk_map_nav_set_visible;
   iface->get_visible = hyscan_gtk_map_nav_get_visible;
-  iface->load_key_file = hyscan_gtk_map_nav_load_key_file;
+  iface->get_param = hyscan_gtk_map_nav_get_param;
 }
 
-/* Загружает настройки слоя из ini-файла. */
-static gboolean
-hyscan_gtk_map_nav_load_key_file (HyScanGtkLayer *layer,
-                                  GKeyFile       *key_file,
-                                  const gchar    *group)
+static void
+hyscan_gtk_map_nav_param_set (HyScanGtkLayer  *layer,
+                              HyScanParamList *list)
 {
   HyScanGtkMapNav *nav_layer = HYSCAN_GTK_MAP_NAV (layer);
   HyScanGtkMapNavPrivate *priv = nav_layer->priv;
 
-  gdouble line_width;
-  GdkRGBA color_fill, color_stroke;
-
   /* Блокируем доступ к треку, пока не установим новые параметры. */
   g_mutex_lock (&priv->track_lock);
 
-  /* Внешний вид линии. */
-  line_width = g_key_file_get_double (key_file, group, "line-width", NULL);
-  priv->line_width = line_width > 0 ? line_width : LINE_WIDTH ;
-  hyscan_gtk_layer_load_key_file_rgba (&priv->line_color, key_file, group, "line-color", LINE_COLOR);
-  hyscan_gtk_layer_load_key_file_rgba (&priv->line_lost_color, key_file, group, "lost-line-color", LINE_LOST_COLOR);
+  /* Стиль оформления. */
+  priv->style = priv->new_style;
 
-  /* Маркер в обычном состоянии. */
-  hyscan_gtk_layer_load_key_file_rgba (&color_fill, key_file, group, "arrow-color", ARROW_DEFAULT_FILL);
-  hyscan_gtk_layer_load_key_file_rgba (&color_stroke, key_file, group, "arrow-stroke-color", ARROW_DEFAULT_STROKE);
-  hyscan_gtk_map_nav_create_arrow (&priv->arrow_default, &color_fill, &color_stroke);
-
-  /* Маркер при потери сигнала. */
-  hyscan_gtk_layer_load_key_file_rgba (&color_fill, key_file, group, "lost-arrow-color", ARROW_LOST_FILL);
-  hyscan_gtk_layer_load_key_file_rgba (&color_stroke, key_file, group, "lost-arrow-stroke-color", ARROW_LOST_STROKE);
-  hyscan_gtk_map_nav_create_arrow (&priv->arrow_lost, &color_fill, &color_stroke);
-
-  hyscan_gtk_layer_load_key_file_rgba (&priv->text_color, key_file, group, "text-color", TEXT_COLOR);
-  hyscan_gtk_layer_load_key_file_rgba (&priv->bg_color,   key_file, group, "bg-color",   BG_COLOR);
+  /* Маркер в обычном состоянии и при потери сигнала. */
+  hyscan_gtk_map_nav_create_arrow (&priv->arrow_default, &priv->style.arrow_color, &priv->style.arrow_stroke_color);
+  hyscan_gtk_map_nav_create_arrow (&priv->arrow_lost, &priv->style.lost_arrow_color, &priv->style.lost_arrow_stroke_color);
 
   g_mutex_unlock (&priv->track_lock);
 
@@ -338,10 +321,17 @@ hyscan_gtk_map_nav_load_key_file (HyScanGtkLayer *layer,
   hyscan_gtk_map_tiled_set_param_mod (HYSCAN_GTK_MAP_TILED (nav_layer));
   /* Ставим флаг о необходимости перерисовки. */
   hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (nav_layer));
-
-  return TRUE;
 }
 
+/* Получает настройки оформления слоя. */
+static HyScanParam *
+hyscan_gtk_map_nav_get_param (HyScanGtkLayer *layer)
+{
+  HyScanGtkMapNav *nav_layer = HYSCAN_GTK_MAP_NAV (layer);
+  HyScanGtkMapNavPrivate *priv = nav_layer->priv;
+
+  return g_object_ref (priv->param);
+}
 
 /* Обрабатывает "истекшие" путевые точки, т.е. те, у которых время жизни закончилось:
  * - удаляет эти точки из трека,
@@ -584,7 +574,7 @@ hyscan_gtk_map_nav_draw_chunk (HyScanGtkMapNav *nav_layer,
   GList *chunk_l;
   gboolean finish;
 
-  cairo_set_line_width (cairo, priv->line_width);
+  cairo_set_line_width (cairo, priv->style.line_width);
 
   /* Рисуем линию по всем точкам от chunk_start до chunk_end.
    * В момент потери сигнала рисуем линию другим цветом (line_lost_color). */
@@ -607,7 +597,7 @@ hyscan_gtk_map_nav_draw_chunk (HyScanGtkMapNav *nav_layer,
           gdouble prev_x, prev_y;
 
           cairo_get_current_point (cairo, &prev_x, &prev_y);
-          gdk_cairo_set_source_rgba (cairo, &priv->line_color);
+          gdk_cairo_set_source_rgba (cairo, &priv->style.line_color);
           cairo_stroke (cairo);
 
           cairo_move_to (cairo, prev_x, prev_y);
@@ -618,7 +608,7 @@ hyscan_gtk_map_nav_draw_chunk (HyScanGtkMapNav *nav_layer,
       /* Точка после потери сигнала - рисуем lost-линию. */
       if (track_point->start)
         {
-          gdk_cairo_set_source_rgba (cairo, &priv->line_lost_color);
+          gdk_cairo_set_source_rgba (cairo, &priv->style.line_lost_color);
           cairo_stroke (cairo);
 
           cairo_move_to (cairo, x, y);
@@ -628,7 +618,7 @@ hyscan_gtk_map_nav_draw_chunk (HyScanGtkMapNav *nav_layer,
       chunk_l = chunk_l->next;
     }
 
-  gdk_cairo_set_source_rgba (cairo, &priv->line_color);
+  gdk_cairo_set_source_rgba (cairo, &priv->style.line_color);
   cairo_stroke (cairo);
 }
 
@@ -851,7 +841,7 @@ hyscan_gtk_map_nav_draw (HyScanGtkMap    *map,
   /* Линия COG и HDG. */
   scale_proj = hyscan_gtk_map_get_scale_value (priv->map, last_point.geo);
   gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &scale_px, NULL);
-  gdk_cairo_set_source_rgba (cairo, &priv->line_color);
+  gdk_cairo_set_source_rgba (cairo, &priv->style.line_color);
 
   /* HDG. */
   if (true_heading)
@@ -927,10 +917,10 @@ hyscan_gtk_map_nav_draw (HyScanGtkMap    *map,
     cairo_translate (cairo, area_width - priv->margin - (width + 2 * priv->padding), priv->margin);
 
     cairo_rectangle (cairo, 0, 0, width + 2 * priv->padding, height + 2 * priv->padding);
-    gdk_cairo_set_source_rgba (cairo, &priv->bg_color);
+    gdk_cairo_set_source_rgba (cairo, &priv->style.bg_color);
     cairo_fill (cairo);
 
-    gdk_cairo_set_source_rgba (cairo, &priv->text_color);
+    gdk_cairo_set_source_rgba (cairo, &priv->style.text_color);
     cairo_move_to (cairo, priv->padding, priv->padding);
     pango_cairo_show_layout (cairo, priv->pango_layout);
 

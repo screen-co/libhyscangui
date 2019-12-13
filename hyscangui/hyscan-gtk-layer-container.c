@@ -173,9 +173,10 @@
 
 #include "hyscan-gtk-layer-container.h"
 #include "hyscan-gui-marshallers.h"
+#include "hyscan-gtk-layer-param.h"
+#include <hyscan-param-controller.h>
+#include <hyscan-param-proxy.h>
 #include <math.h>
-
-#define INI_GROUP_NAME     "container"
 
 typedef struct
 {
@@ -185,22 +186,26 @@ typedef struct
 
 struct _HyScanGtkLayerContainerPrivate
 {
-  GList           *layers;           /* Упорядоченный список слоёв, HyScanGtkLayerContainerInfo. */
+  GList                 *layers;           /* Упорядоченный список слоёв, HyScanGtkLayerContainerInfo. */
+  HyScanDataSchema      *schema;           /* Схема параметров контейнера. */
+  GdkRGBA                background;       /* Цвет заливки. */
+  HyScanParamProxy      *param_proxy;      /* Параметры контейнера и всех его слоев. */
+  HyScanGtkLayerParam   *params;           /* Контроллер параметров, которому делигируем HyScanParam. */
 
   /* Хэндл — это интерактивный элемент слоя, который можно "взять" кликом мыши. */
-  gconstpointer    howner;           /* Текущий активный хэндл, с которым взаимодействует пользователь. */
-  HyScanGtkLayer  *hshow_layer;      /* Слой, чей хэндл отображается в данный момент. */
+  gconstpointer          howner;           /* Текущий активный хэндл, с которым взаимодействует пользователь. */
+  HyScanGtkLayer        *hshow_layer;      /* Слой, чей хэндл отображается в данный момент. */
 
-  gconstpointer    iowner;           /* Слой, которому разрешён ввод. */
-  gboolean         changes_allowed;  /* Признак, что ввод в принципе разрешён пользователем. */
+  gconstpointer          iowner;           /* Слой, которому разрешён ввод. */
+  gboolean               changes_allowed;  /* Признак, что ввод в принципе разрешён пользователем. */
 
-  gchar           *hint;             /* Текст всплывающей подсказки. */
+  gchar                 *hint;             /* Текст всплывающей подсказки. */
 
   struct
   {
-    GtkWidget     *window;           /* Окно всплывающей подсказки. */
-    GtkWidget     *label;            /* Текст всплывающей подсказки. */
-  } tooltip;                         /* Всплывающая подсказка. */
+    GtkWidget           *window;           /* Окно всплывающей подсказки. */
+    GtkWidget           *label;            /* Текст всплывающей подсказки. */
+  } tooltip;                               /* Всплывающая подсказка. */
 };
 
 static void         hyscan_gtk_layer_container_object_constructed      (GObject                 *object);
@@ -276,7 +281,14 @@ hyscan_gtk_layer_container_object_constructed (GObject *object)
 
   hyscan_gtk_layer_container_set_changes_allowed (container, TRUE);
 
-  g_signal_connect_swapped (container, "area-draw", G_CALLBACK (hyscan_gtk_layer_container_draw), container);
+  /* Параметры оформления. */
+  priv->params = hyscan_gtk_layer_param_new ();
+  hyscan_gtk_layer_param_set_stock_schema (priv->params, "container");
+  hyscan_gtk_layer_param_add_rgba (priv->params, "/background", &priv->background);
+  hyscan_gtk_layer_param_set_default (priv->params);
+  g_signal_connect_swapped (priv->params, "set", G_CALLBACK (gtk_widget_queue_draw), container);
+
+  g_signal_connect_swapped (container, "visible-draw", G_CALLBACK (hyscan_gtk_layer_container_draw), container);
 }
 
 static void
@@ -287,6 +299,7 @@ hyscan_gtk_layer_container_object_finalize (GObject *object)
 
   g_free (priv->hint);
   g_list_free_full (priv->layers, g_object_unref);
+  g_object_unref (priv->params);
   g_signal_handlers_disconnect_by_data (object, object);
 
   G_OBJECT_CLASS (hyscan_gtk_layer_container_parent_class)->finalize (object);
@@ -563,12 +576,15 @@ hyscan_gtk_layer_container_button_release (GtkWidget       *widget,
   return GDK_EVENT_PROPAGATE;
 }
 
-/* Обработчик сигнала "visible-draw". Рисует всплывающую подсказку. */
+/* Обработчик сигнала "visible-draw". Рисует заливку. */
 static void
 hyscan_gtk_layer_container_draw (HyScanGtkLayerContainer *container,
                                  cairo_t                 *cairo)
 {
+  HyScanGtkLayerContainerPrivate *priv = container->priv;
 
+  gdk_cairo_set_source_rgba (cairo, &priv->background);
+  cairo_paint (cairo);
 }
 
 /* Устанавливает всплывающую подсказку. */
@@ -725,6 +741,53 @@ hyscan_gtk_layer_container_remove_all (HyScanGtkLayerContainer *container)
 }
 
 /**
+ * hyscan_gtk_layer_container_get_param:
+ * @container: указатель на #HyScanGtkLayerContainer
+ *
+ * Формирует прокси параметров оформления контейнера и вложенных слоев. Параметры слоя
+ * размещаются в ветке /container, каждого из слоев - в ветке соответствующей названию слоя,
+ * указанного в функции hyscan_gtk_layer_container_add().
+ *
+ * Схема полученного объекта #HyScanParam может быть изменена при добавлении или
+ * удалении слоев из контейнера.
+ *
+ * Returns: (transfer full): новый объек HyScanParam. Для удаления g_object_unref().
+ */
+HyScanParam *
+hyscan_gtk_layer_container_get_param (HyScanGtkLayerContainer *container)
+{
+  HyScanGtkLayerContainerPrivate *priv = container->priv;
+  GList *link;
+  HyScanParamProxy *param_proxy;
+
+  param_proxy = hyscan_param_proxy_new ();
+  hyscan_param_proxy_add (param_proxy, "/container", HYSCAN_PARAM (priv->params), "/");
+  for (link = priv->layers; link != NULL; link = link->next)
+    {
+      HyScanGtkLayerContainerInfo *info = link->data;
+      HyScanParam *layer_param;
+      gchar *prefix;
+
+      if (info->key == NULL)
+        continue;
+
+      layer_param = hyscan_gtk_layer_get_param (info->layer);
+      if (layer_param == NULL)
+        continue;
+
+      prefix = g_strdup_printf ("/%s", info->key);
+      hyscan_param_proxy_add (param_proxy, prefix, layer_param, "/");
+      g_free (prefix);
+
+      g_object_unref (layer_param);
+    }
+
+  hyscan_param_proxy_bind (param_proxy);
+
+  return HYSCAN_PARAM (param_proxy);
+}
+
+/**
  * hyscan_gtk_layer_container_lookup:
  * @container: указатель на #HyScanGtkLayerContainer
  * @key: ключ для поиска
@@ -749,36 +812,6 @@ hyscan_gtk_layer_container_lookup (HyScanGtkLayerContainer *container,
 
   info = link->data;
   return info->layer;
-}
-
-/**
- * hyscan_gtk_layer_container_load_key_file:
- * @container: указатель на #HyScanGtkLayerContainer
- * @key_file: указатель на #GKeyFile
- *
- * Загружает конфигурацию слоев из файла @key_file. Каждому слою передается
- * конфигурация из группы с именем, соответствующем ключу слоя, назначенном в
- * hyscan_gtk_layer_container_add().
- *
- * Внутри функция вызывает hyscan_gtk_layer_load_key_file() на каждом слое.
- *
- */
-void
-hyscan_gtk_layer_container_load_key_file (HyScanGtkLayerContainer *container,
-                                          GKeyFile                *key_file)
-{
-  HyScanGtkLayerContainerPrivate *priv;
-  GList *link;
-
-  g_return_if_fail (HYSCAN_IS_GTK_LAYER_CONTAINER (container));
-  priv = container->priv;
-
-  /* Загружаем конфигурацию каждого слоя. */
-  for (link = priv->layers; link != NULL; link = link->next)
-    {
-       HyScanGtkLayerContainerInfo *info = link->data;
-       hyscan_gtk_layer_load_key_file (info->layer, key_file, info->key);
-    }
 }
 
 /**

@@ -60,24 +60,20 @@
  * - hyscan_gtk_map_track_set_bar_width()
  * - hyscan_gtk_map_track_set_bar_margin()
  *
- * Также слой поддерживает загрузку конфигурационных ini-файлов. Подробнее в
- * функции hyscan_gtk_layer_container_load_key_file().
+ * Также слой поддерживает загрузку стилей через #HyScanParam. Подробнее в
+ * функции hyscan_gtk_layer_get_param().
  *
  */
 
 #include "hyscan-gtk-map-track.h"
 #include "hyscan-gtk-map.h"
+#include "hyscan-gtk-layer-param.h"
 #include <hyscan-cartesian.h>
 #include <hyscan-projector.h>
 
 /* Стиль оформления по умолчанию. */
-#define DEFAULT_COLOR_TRACK           "#AC67C6"                     /* Цвет линии движения. */
-#define DEFAULT_COLOR_PORT            "#DDC3BB"                     /* Цвет левого борта. */
-#define DEFAULT_COLOR_STARBOARD       "#C4DDBB"                     /* Цвет правого борта. */
 #define DEFAULT_COLOR_STROKE          "#000000"                     /* Цвет обводки некоторых элементов. */
 #define DEFAULT_COLOR_SHADOW          "rgba(150, 150, 150, 0.5)"    /* Цвет затенения. */
-#define DEFAULT_BAR_WIDTH             3                             /* Ширина полос дальности. */
-#define DEFAULT_BAR_MARGIN            30                            /* Расстояние между соседними полосами. */
 #define DEFAULT_LINE_WIDTH            1                             /* Толщина линии движения. */
 #define DEFAULT_STROKE_WIDTH          1.0                           /* Толщина обводки. */
 
@@ -111,6 +107,7 @@ struct _HyScanGtkMapTrackPrivate
   GRWLock                    a_lock;           /* Доступ к модификации массива active_tracks. */
   gchar                    **active_tracks;    /* NULL-терминированный массив названий видимых галсов. */
 
+  HyScanGtkLayerParam       *param;            /* Параметры оформления. */
   HyScanGtkMapTrackItemStyle style;            /* Стиль оформления. */
 };
 
@@ -209,13 +206,17 @@ hyscan_gtk_map_track_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_track_parent_class)->constructed (object);
 
   /* Оформление трека. */
-  style->bar_width = DEFAULT_BAR_WIDTH;
-  style->bar_margin = DEFAULT_BAR_MARGIN;
+  priv->param = hyscan_gtk_layer_param_new ();
+  hyscan_gtk_layer_param_set_stock_schema (priv->param, "map-track");
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/track-color", &style->color_track);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/port-color", &style->color_left);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/starboard-color", &style->color_right);
+  hyscan_param_controller_add_double (HYSCAN_PARAM_CONTROLLER (priv->param), "/bar-width", &style->bar_width);
+  hyscan_param_controller_add_double (HYSCAN_PARAM_CONTROLLER (priv->param), "/bar-margin", &style->bar_margin);
+  hyscan_gtk_layer_param_set_default (priv->param);
+
   style->line_width = DEFAULT_LINE_WIDTH;
   style->stroke_width = DEFAULT_STROKE_WIDTH;
-  gdk_rgba_parse (&style->color_left, DEFAULT_COLOR_PORT);
-  gdk_rgba_parse (&style->color_right, DEFAULT_COLOR_STARBOARD);
-  gdk_rgba_parse (&style->color_track, DEFAULT_COLOR_TRACK);
   gdk_rgba_parse (&style->color_stroke, DEFAULT_COLOR_STROKE);
   gdk_rgba_parse (&style->color_shadow, DEFAULT_COLOR_SHADOW);
 }
@@ -233,6 +234,7 @@ hyscan_gtk_map_track_object_finalize (GObject *object)
   g_free (priv->project);
   g_hash_table_destroy (priv->tracks);
   g_clear_pointer (&priv->active_tracks, g_strfreev);
+  g_object_unref (priv->param);
 
   G_OBJECT_CLASS (hyscan_gtk_map_track_parent_class)->finalize (object);
 }
@@ -451,36 +453,15 @@ hyscan_gtk_map_track_get_visible (HyScanGtkLayer *layer)
   return priv->visible;
 }
 
-/* Реализация HyScanGtkLayerInterface.load_key_file.
- * Загружает параметры отображения слоя из конфигурационного файла. */
-static gboolean
-hyscan_gtk_map_track_load_key_file (HyScanGtkLayer *gtk_layer,
-                                    GKeyFile       *key_file,
-                                    const gchar    *group)
+/* Реализация HyScanGtkLayerInterface.get_param.
+ * Получает параметры стиля оформления слоя. */
+static HyScanParam *
+hyscan_gtk_map_track_get_param (HyScanGtkLayer *gtk_layer)
 {
   HyScanGtkMapTrack *track_layer = HYSCAN_GTK_MAP_TRACK (gtk_layer);
-  GdkRGBA rgba;
-  gdouble value;
+  HyScanGtkMapTrackPrivate *priv = track_layer->priv;
 
-  hyscan_gtk_layer_load_key_file_rgba (&rgba, key_file, group,
-                                       "track-color", DEFAULT_COLOR_TRACK);
-  hyscan_gtk_map_track_set_color_track (track_layer, rgba);
-
-  hyscan_gtk_layer_load_key_file_rgba (&rgba, key_file, group,
-                                       "port-color", DEFAULT_COLOR_PORT);
-  hyscan_gtk_map_track_set_color_port (track_layer, rgba);
-
-  hyscan_gtk_layer_load_key_file_rgba (&rgba, key_file, group,
-                                       "starboard-color", DEFAULT_COLOR_STARBOARD);
-  hyscan_gtk_map_track_set_color_starboard (track_layer, rgba);
-
-  value = g_key_file_get_double (key_file, group, "bar-width", NULL);
-  hyscan_gtk_map_track_set_bar_width (track_layer, (value > 0.0) ? value : DEFAULT_BAR_WIDTH);
-
-  value = g_key_file_get_double (key_file, group, "bar-margin", NULL);
-  hyscan_gtk_map_track_set_bar_margin (track_layer, (value > 0.0) ? value : DEFAULT_BAR_MARGIN);
-
-  return TRUE;
+  return g_object_ref (priv->param);
 }
 
 static void
@@ -488,7 +469,7 @@ hyscan_gtk_map_track_interface_init (HyScanGtkLayerInterface *iface)
 {
   hyscan_gtk_layer_parent_interface = g_type_interface_peek_parent (iface);
 
-  iface->load_key_file = hyscan_gtk_map_track_load_key_file;
+  iface->get_param = hyscan_gtk_map_track_get_param;
   iface->added = hyscan_gtk_map_track_added;
   iface->removed = hyscan_gtk_map_track_removed;
   iface->set_visible = hyscan_gtk_map_track_set_visible;

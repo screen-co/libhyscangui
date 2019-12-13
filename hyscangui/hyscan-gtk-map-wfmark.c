@@ -53,6 +53,7 @@
 
 #include "hyscan-gtk-map-wfmark.h"
 #include "hyscan-gtk-map.h"
+#include "hyscan-gtk-layer-param.h"
 #include <hyscan-cartesian.h>
 #include <math.h>
 #include <string.h>
@@ -62,16 +63,6 @@
 #include <hyscan-tile-color.h>
 #include <hyscan-types.h>
 #include <glib/gi18n-lib.h>
-
-/* Оформление по умолчанию. */
-#define MARK_COLOR                 "#61B243"                  /* Цвет обводки меток. */
-#define MARK_COLOR_HOVER           "#9443B2"                  /* Цвет подписи метки при наведении курсора. */
-#define MARK_COLOR_BG              "rgba(255, 255, 255, 0.8)" /* Цвет фона текста. */
-#define AI_BORDER_COLOR            "#FFFFFF"                  /* Цвет рамки вокруг акустического изображения метки. */
-#define MARK_BOTTOM_COLOR          "#0000FF"                  /* Цвет эхолотной метки и стрелки указывающей направление. */
-#define MARK_PORT_ARROW_COLOR      "#FF0000"                  /* Цвет стрелки для метки левого борта. */
-#define MARK_STARBOARD_ARROW_COLOR "#00FF00"                  /* Цвет стрелки для метки правого борта. */
-#define LINE_WIDTH                  1.0                       /* Толщина линии обводки. */
 
 /* Раскомментируйте строку ниже для отладки положения меток относительно галса. */
 /* #define DEBUG_TRACK_POINTS */
@@ -132,7 +123,6 @@ struct _HyScanGtkMapWfmarkPrivate
   HyScanFactoryDepth                    *factory_dpt;     /* Фабрика объектов глубины. */
   HyScanTileQueue                       *tile_queue;      /* Очередь для работы с аккустическими изображениями. */
 
-  GRWLock                                mark_lock;       /* Блокировка данных по меткам. .*/
   GHashTable                            *marks;           /* Хэш-таблица меток #HyScanGtkMapWfmarkLocation. */
 
   const HyScanGtkMapWfmarkLocation      *hover_location;  /* Метка, над которой находится курсор мыши. */
@@ -140,6 +130,7 @@ struct _HyScanGtkMapWfmarkPrivate
   gchar                                 *active_mark_id;  /* Выбранная метка. */
 
   /* Стиль отображения. */
+  HyScanGtkLayerParam                   *param;           /* Параметры отображения. */
   GdkRGBA                                color_default,   /* Цвет обводки меток. */
                                          color_hover,     /* Цвет обводки метки при наведении курсора мыши. */
                                          color_bg,        /* Фоновый цвет текста. */
@@ -243,7 +234,6 @@ hyscan_gtk_map_wfmark_object_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_gtk_map_wfmark_parent_class)->constructed (object);
 
-  g_rw_lock_init (&priv->mark_lock);
   priv->marks = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
                                        (GDestroyNotify) hyscan_gtk_map_wfmark_location_free);
 
@@ -251,14 +241,17 @@ hyscan_gtk_map_wfmark_object_constructed (GObject *object)
                             G_CALLBACK (hyscan_gtk_map_wfmark_model_changed), wfm_layer);
 
   /* Стиль оформления. */
-  gdk_rgba_parse (&priv->color_default,           MARK_COLOR);
-  gdk_rgba_parse (&priv->color_hover,             MARK_COLOR_HOVER);
-  gdk_rgba_parse (&priv->color_bg,                MARK_COLOR_BG);
-  gdk_rgba_parse (&priv->color_ai_border,         AI_BORDER_COLOR);
-  gdk_rgba_parse (&priv->color_echo_mark,         MARK_BOTTOM_COLOR);
-  gdk_rgba_parse (&priv->color_lb_arrow,  MARK_PORT_ARROW_COLOR);
-  gdk_rgba_parse (&priv->color_rb_arrow, MARK_STARBOARD_ARROW_COLOR);
-  priv->line_width = LINE_WIDTH;
+  priv->param = hyscan_gtk_layer_param_new ();
+  hyscan_gtk_layer_param_set_stock_schema (priv->param, "map-wfmark");
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/color", &priv->color_default);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/hover-color", &priv->color_hover);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/ai-border-color", &priv->color_ai_border);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/echo-mark-color", &priv->color_echo_mark);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/port-color", &priv->color_lb_arrow);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/starboard-color", &priv->color_rb_arrow);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/bg-color", &priv->color_bg);
+  hyscan_param_controller_add_double (HYSCAN_PARAM_CONTROLLER (priv->param), "/line-width", &priv->line_width);
+  hyscan_gtk_layer_param_set_default (priv->param);
 
   /* Создаём фабрику объектов доступа к данным амплитуд. */
   priv->factory_amp = hyscan_factory_amplitude_new (priv->cache);
@@ -288,9 +281,8 @@ hyscan_gtk_map_wfmark_object_finalize (GObject *object)
   /*  Отключаемся от сигнала готовности тайла. */
   g_signal_handlers_disconnect_by_data (priv->tile_queue, gtk_map_wfmark);
 
-  g_rw_lock_clear (&priv->mark_lock);
-
   g_hash_table_unref (priv->marks);
+  g_object_unref (priv->param);
   g_object_unref (priv->pango_layout);
   g_object_unref (priv->model);
   g_object_unref (priv->db);
@@ -407,13 +399,9 @@ hyscan_gtk_map_wfmark_model_changed (HyScanGtkMapWfmark *wfm_layer)
   /* Загружаем гео-данные по меткам. */
   marks = hyscan_mark_loc_model_get (priv->model);
 
-  g_rw_lock_writer_lock (&priv->mark_lock);
-
   priv->hover_location = NULL;
   g_hash_table_remove_all (priv->marks);
   g_hash_table_foreach_steal (marks, hyscan_gtk_map_wfmark_insert_mark, wfm_layer);
-
-  g_rw_lock_writer_unlock (&priv->mark_lock);
 
   if (priv->map != NULL)
     gtk_widget_queue_draw (GTK_WIDGET (priv->map));
@@ -452,8 +440,6 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
   scale_px = hyscan_gtk_map_get_scale_px (priv->map);
 
   ppi = 1e-3 * HYSCAN_GTK_MAP_MM_PER_INCH * scale_px;
-
-  g_rw_lock_reader_lock (&priv->mark_lock);
 
   g_hash_table_iter_init (&iter, priv->marks);
   while (g_hash_table_iter_next (&iter, (gpointer *) &mark_id, (gpointer *) &location))
@@ -812,7 +798,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
           cairo_surface_destroy (surface);
           g_free (tile_surface.data);
 
-          cairo_set_line_width (cairo, 1);
+          cairo_set_line_width (cairo, priv->line_width);
 
           gdk_cairo_set_source_rgba (cairo, &priv->color_ai_border);
 
@@ -936,8 +922,6 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
     {
       hyscan_tile_queue_add_finished (priv->tile_queue, id++);
     }
-
-  g_rw_lock_reader_unlock (&priv->mark_lock);
 
   if (priv->hover_location)
    {
@@ -1288,7 +1272,7 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
               cairo_surface_destroy (surface);
               g_free (tile_surface.data);
 
-              cairo_set_line_width (cairo, 1);
+              cairo_set_line_width (cairo, priv->line_width);
 
               gdk_cairo_set_source_rgba (cairo, &priv->color_ai_border);
 
@@ -1551,14 +1535,10 @@ hyscan_gtk_map_wfmark_proj_notify (HyScanGtkMap *map,
   GHashTableIter iter;
   HyScanGtkMapWfmarkLocation *location;
 
-  g_rw_lock_writer_lock (&priv->mark_lock);
-
   /* Обновляем координаты меток согласно новой проекции. */
   g_hash_table_iter_init (&iter, priv->marks);
   while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &location))
     hyscan_gtk_map_wfmark_project_location (wfm_layer, location);
-
-  g_rw_lock_writer_unlock (&priv->mark_lock);
 
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }
@@ -1625,33 +1605,14 @@ hyscan_gtk_map_wfmark_get_visible (HyScanGtkLayer *layer)
   return wfm_layer->priv->visible;
 }
 
-/* Загружает настройки слоя из ini-файла. */
-static gboolean
-hyscan_gtk_map_wfmark_load_key_file (HyScanGtkLayer *layer,
-                                     GKeyFile       *key_file,
-                                     const gchar    *group)
+/* Получает настройки оформления слоя. */
+static HyScanParam *
+hyscan_gtk_map_wfmark_get_param (HyScanGtkLayer *layer)
 {
   HyScanGtkMapWfmark *wfm_layer = HYSCAN_GTK_MAP_WFMARK (layer);
   HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
 
-  gdouble value;
-
-  /* Блокируем доступ к меткам, пока не установим новые параметры. */
-  g_rw_lock_writer_lock (&priv->mark_lock);
-
-  /* Внешний вид линии. */
-  value = g_key_file_get_double (key_file, group, "line-width", NULL);
-  priv->line_width = value > 0 ? value : LINE_WIDTH ;
-  hyscan_gtk_layer_load_key_file_rgba (&priv->color_default, key_file, group, "color",       MARK_COLOR);
-  hyscan_gtk_layer_load_key_file_rgba (&priv->color_hover,   key_file, group, "hover-color", MARK_COLOR_HOVER);
-  hyscan_gtk_layer_load_key_file_rgba (&priv->color_bg,      key_file, group, "bg-color",    MARK_COLOR_BG);
-
-  g_rw_lock_writer_unlock (&priv->mark_lock);
-
-  /* Перерисовываем. */
-  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
-
-  return TRUE;
+  return g_object_ref (priv->param);
 }
 
 static void
@@ -1682,8 +1643,6 @@ hyscan_gtk_map_wfmark_hint_find (HyScanGtkLayer *layer,
   HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
   HyScanGeoCartesian2D cursor;
   gchar *hint = NULL;
-
-  g_rw_lock_reader_lock (&priv->mark_lock);
 
   gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), x, y, &cursor.x, &cursor.y);
 
@@ -1757,8 +1716,6 @@ hyscan_gtk_map_wfmark_hint_find (HyScanGtkLayer *layer,
         }
     }
 
-  g_rw_lock_reader_unlock (&priv->mark_lock);
-
   return hint;
 }
 
@@ -1769,17 +1726,13 @@ hyscan_gtk_map_wfmark_interface_init (HyScanGtkLayerInterface *iface)
   iface->added = hyscan_gtk_map_wfmark_added;
   iface->set_visible = hyscan_gtk_map_wfmark_set_visible;
   iface->get_visible = hyscan_gtk_map_wfmark_get_visible;
-  iface->load_key_file = hyscan_gtk_map_wfmark_load_key_file;
+  iface->get_param = hyscan_gtk_map_wfmark_get_param;
   iface->hint_find = hyscan_gtk_map_wfmark_hint_find;
   iface->hint_shown = hyscan_gtk_map_wfmark_hint_shown;
 }
 
-/**
- * hyscan_gtk_map_wfmark_redraw:
- * @data: указатель на виджет требующий перерисовки
- *
- * обновляет виджет чтобы перерисовать акустические изображения меток
- */
+/* Функция обновляет виджет и перерисовывает акустические изображения меток.
+ * data - указатель на виджет требующий перерисовки. */
 static gboolean
 hyscan_gtk_map_wfmark_redraw (gpointer data)
 {
@@ -1787,16 +1740,13 @@ hyscan_gtk_map_wfmark_redraw (gpointer data)
   return FALSE;
 }
 
-/**
- * hyscan_gtk_map_wfmark_tile_loaded:
- * @wfm_layer: указатель на объект;
- * @tile: указатель на структуру содержащую информацию о сгененрированном тайле.
- * Не связана с тайлом, передаваемым в HyScanTileQueue для генерации
- * @img: указатель на данные аккустического изображения
- * @size: размер данных аккустического изображения
- * @hash: хэш состояния
- *
- * Функция-обработчик завершения гененрации тайла. По завершении генерации обновляет виджет.
+/* Функция-обработчик завершения гененрации тайла. По завершении генерации обновляет виджет.
+ * wfm_layer - указатель на объект;
+ * tile - указатель на структуру содержащую информацию о сгененрированном тайле. Не связана
+ * с тайлом, передаваемым в HyScanTileQueue для генерации
+ * img - указатель на данные аккустического изображения
+ * size - размер данных аккустического изображения
+ * hash - хэш состояния
  */
 static void
 hyscan_gtk_map_wfmark_tile_loaded (HyScanGtkMapWfmark *wfm_layer,
@@ -1827,6 +1777,13 @@ hyscan_gtk_map_wfmark_new (HyScanMarkLocModel *model,
                        NULL);
 }
 
+/**
+ * hyscan_gtk_map_wfmark_mark_highlight:
+ * @wfm_layer: указатель на объект
+ * @mark_id: идентификатор метки
+ *
+ * Подсвечивает метку с указанным идентификатором
+ */
 void
 hyscan_gtk_map_wfmark_mark_highlight (HyScanGtkMapWfmark *wfm_layer,
                                       const gchar        *mark_id)
@@ -1839,19 +1796,17 @@ hyscan_gtk_map_wfmark_mark_highlight (HyScanGtkMapWfmark *wfm_layer,
   if (priv->map == NULL)
     return;
 
-  g_rw_lock_writer_lock (&priv->mark_lock);
   g_free (priv->active_mark_id);
   priv->active_mark_id = g_strdup (mark_id);
-  g_rw_lock_writer_unlock (&priv->mark_lock);
 
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }
 
 /**
  * hyscan_gtk_map_wfmark_mark_view:
- * @wfm_layer
- * @mark_id
- * @keep_scale
+ * @wfm_layer: указатель на объект
+ * @mark_id: идентификатор метки
+ * @zoom_in: изменить масштаб видимой области до размеров метки
  *
  * Перемещает область видимости карты в положение метки @mark_id и выделяет
  * эту метку.
@@ -1869,8 +1824,6 @@ hyscan_gtk_map_wfmark_mark_view (HyScanGtkMapWfmark *wfm_layer,
 
   if (priv->map == NULL)
     return;
-
-  g_rw_lock_reader_lock (&priv->mark_lock);
 
   location = g_hash_table_lookup (priv->marks, mark_id);
   if (location != NULL)
@@ -1890,8 +1843,6 @@ hyscan_gtk_map_wfmark_mark_view (HyScanGtkMapWfmark *wfm_layer,
         }
 
     }
-
-  g_rw_lock_reader_unlock (&priv->mark_lock);
 }
 
 /**
@@ -1903,10 +1854,14 @@ hyscan_gtk_map_wfmark_mark_view (HyScanGtkMapWfmark *wfm_layer,
  *
  **/
 void
-hyscan_gtk_map_wfmark_set_project (HyScanGtkMapWfmark    *wfm_layer,
-                                   const gchar           *project_name)
+hyscan_gtk_map_wfmark_set_project (HyScanGtkMapWfmark *wfm_layer,
+                                   const gchar        *project_name)
 {
-  HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
+  HyScanGtkMapWfmarkPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_WFMARK (wfm_layer));
+  priv = wfm_layer->priv;
+
   g_free (priv->project);
   priv->project = g_strdup (project_name);
   hyscan_factory_amplitude_set_project (priv->factory_amp,
@@ -1928,10 +1883,14 @@ hyscan_gtk_map_wfmark_set_project (HyScanGtkMapWfmark    *wfm_layer,
  *
  **/
 void
-hyscan_gtk_map_wfmark_set_show_mode (HyScanGtkMapWfmark    *wfm_layer,
-                                     gint                   mode)
+hyscan_gtk_map_wfmark_set_show_mode (HyScanGtkMapWfmark *wfm_layer,
+                                     gint                mode)
 {
-  HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
+  HyScanGtkMapWfmarkPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_WFMARK (wfm_layer));
+  priv = wfm_layer->priv;
+
   priv->show_mode = mode;
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }

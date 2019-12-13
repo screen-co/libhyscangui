@@ -58,6 +58,7 @@
 #include "hyscan-gtk-map.h"
 #include "hyscan-cairo.h"
 #include "hyscan-planner-selection.h"
+#include "hyscan-gtk-layer-param.h"
 #include <hyscan-planner.h>
 #include <math.h>
 #include <hyscan-cartesian.h>
@@ -69,15 +70,6 @@
 #define AXIS_LENGTH                  50.0
 #define AXIS_ARROW_LENGTH            5.0
 #define MAX_PARALLEL_TRACKS          100
-
-#define DEFAULT_ZONE_WIDTH           0.5                    /* Толщина периметра полигона. */
-#define DEFAULT_ZONE_COLOR           "rgba(0,50,0,0.8)"     /* Цвет периметра полигона. */
-#define DEFAULT_TRACK_WIDTH          1.0                    /* Толщина галсов. */
-#define DEFAULT_TRACK_COLOR          "rgba(0,128,0,1.0)"    /* Цвет галсов. */
-#define DEFAULT_ORIGIN_WIDTH         1.0                    /* Толщина галсов. */
-#define DEFAULT_ORIGIN_COLOR         "rgba(80,120,180,0.5)" /* Цвет осей координат. */
-#define DEFAULT_TRACK_SELECTED_COLOR "rgba(128,0,128,1.0)"  /* Цвет выделенных галсов. */
-#define DEFAULT_TRACK_ACTIVE_COLOR   "rgba(128,0,0,1.0)"    /* Цвет активных галсов. */
 
 #define IS_INSIDE(x, a, b) ((a) < (b) ? (a) < (x) && (x) < (b) : (b) < (x) && (x) < (a))
 
@@ -178,6 +170,7 @@ struct _HyScanGtkMapPlannerPrivate
   HyScanGeoCartesian2D               selection_end;        /* Координаты второго угла выбранной области. */
   GHashTable                        *selection_keep;       /* Таблица с галсами, которые надо оставить выбранными. */
 
+  HyScanGtkLayerParam               *param;                /* Параметры оформления. */
   PangoLayout                       *pango_layout;         /* Шрифт. */
   HyScanGtkMapPlannerStyle           track_style;          /* Стиль оформления галса. */
   HyScanGtkMapPlannerStyle           track_style_selected; /* Стиль оформления выбранного галса. */
@@ -206,6 +199,10 @@ static void                       hyscan_gtk_map_planner_get_property          (
                                                                                 GParamSpec                *pspec);
 static void                       hyscan_gtk_map_planner_object_constructed    (GObject                   *object);
 static void                       hyscan_gtk_map_planner_object_finalize       (GObject                   *object);
+static void                       hyscan_gtk_map_planner_add_style_param       (HyScanGtkLayerParam       *param,
+                                                                                HyScanGtkMapPlannerStyle  *style,
+                                                                                const gchar               *color_key,
+                                                                                const gchar               *width_key);
 static void                       hyscan_gtk_map_planner_model_changed         (HyScanGtkMapPlanner       *planner);
 static void                       hyscan_gtk_map_planner_activated             (HyScanGtkMapPlanner       *planner);
 static void                       hyscan_gtk_map_planner_zone_changed          (HyScanGtkMapPlanner       *planner);
@@ -437,16 +434,13 @@ hyscan_gtk_map_planner_object_constructed (GObject *object)
   priv->selection_keep = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 
   /* Стиль оформления. */
-  priv->zone_style.line_width = DEFAULT_ZONE_WIDTH;
-  gdk_rgba_parse (&priv->zone_style.color, DEFAULT_ZONE_COLOR);
-  priv->track_style.line_width = DEFAULT_TRACK_WIDTH;
-  gdk_rgba_parse (&priv->track_style.color, DEFAULT_TRACK_COLOR);
-  priv->track_style_selected.line_width = DEFAULT_TRACK_WIDTH;
-  gdk_rgba_parse (&priv->track_style_selected.color, DEFAULT_TRACK_SELECTED_COLOR);
-  priv->track_style_active.line_width = DEFAULT_TRACK_WIDTH;
-  gdk_rgba_parse (&priv->track_style_active.color, DEFAULT_TRACK_ACTIVE_COLOR);
-  priv->origin_style.line_width = DEFAULT_ORIGIN_WIDTH;
-  gdk_rgba_parse (&priv->origin_style.color, DEFAULT_ORIGIN_COLOR);
+  priv->param = hyscan_gtk_layer_param_new ();
+  hyscan_gtk_map_planner_add_style_param (priv->param, &priv->zone_style, "/zone-color", "/zone-width");
+  hyscan_gtk_map_planner_add_style_param (priv->param, &priv->track_style, "/track-color", "/track-width");
+  hyscan_gtk_map_planner_add_style_param (priv->param, &priv->origin_style, "/origin-color", "/origin-width");
+  hyscan_gtk_map_planner_add_style_param (priv->param, &priv->track_style_selected,
+                                          "/track-selected-color", "/track-selected-width");
+  hyscan_gtk_layer_param_set_default (priv->param);
 
   priv->track_menu.menu = gtk_menu_new ();
   priv->track_menu.nav = hyscan_gtk_map_planner_menu_add (planner, _("Navigate"));
@@ -467,6 +461,7 @@ hyscan_gtk_map_planner_object_finalize (GObject *object)
   g_signal_handlers_disconnect_by_data (priv->model, gtk_map_planner);
 
   g_clear_pointer (&priv->track_menu.track, hyscan_gtk_map_planner_track_free);
+  g_clear_object (&priv->param);
   g_clear_object (&priv->pango_layout);
   g_clear_object (&priv->model);
   g_clear_object (&priv->selection);
@@ -479,6 +474,16 @@ hyscan_gtk_map_planner_object_finalize (GObject *object)
   g_hash_table_destroy (priv->selection_keep);
 
   G_OBJECT_CLASS (hyscan_gtk_map_planner_parent_class)->finalize (object);
+}
+
+static void
+hyscan_gtk_map_planner_add_style_param (HyScanGtkLayerParam      *param,
+                                        HyScanGtkMapPlannerStyle *style,
+                                        const gchar              *color_key,
+                                        const gchar              *width_key)
+{
+  hyscan_gtk_layer_param_add_rgba (param, color_key, &style->color);
+  hyscan_param_controller_add_double (HYSCAN_PARAM_CONTROLLER (param), width_key, &style->line_width);
 }
 
 static void
@@ -2407,39 +2412,13 @@ hyscan_gtk_map_planner_removed (HyScanGtkLayer *layer)
   g_signal_handlers_disconnect_by_data (priv->map, planner);
 }
 
-static gboolean
-hyscan_gtk_map_planner_load_key_file (HyScanGtkLayer *layer,
-                                      GKeyFile       *key_file,
-                                      const gchar    *group)
+static HyScanParam *
+hyscan_gtk_map_planner_get_param (HyScanGtkLayer *layer)
 {
   HyScanGtkMapPlanner *planner = HYSCAN_GTK_MAP_PLANNER (layer);
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
-  gdouble line_width;
 
-  hyscan_gtk_layer_load_key_file_rgba (&priv->track_style.color, key_file, group,
-                                       "track-color", DEFAULT_TRACK_COLOR);
-  line_width = g_key_file_get_double (key_file, group, "track-width", NULL);
-  priv->track_style.line_width = line_width > 0 ? line_width : DEFAULT_TRACK_WIDTH;
-
-  hyscan_gtk_layer_load_key_file_rgba (&priv->track_style_selected.color, key_file, group,
-                                       "track-selected-color", DEFAULT_TRACK_SELECTED_COLOR);
-  line_width = g_key_file_get_double (key_file, group, "track-selected-width", NULL);
-  priv->track_style_selected.line_width = line_width > 0 ? line_width : DEFAULT_TRACK_WIDTH;
-
-  hyscan_gtk_layer_load_key_file_rgba (&priv->zone_style.color, key_file, group,
-                                       "zone-color", DEFAULT_ZONE_COLOR);
-  line_width = g_key_file_get_double (key_file, group, "zone-width", NULL);
-  priv->track_style_selected.line_width = line_width > 0 ? line_width : DEFAULT_ZONE_WIDTH;
-
-  hyscan_gtk_layer_load_key_file_rgba (&priv->origin_style.color, key_file, group,
-                                       "origin-color", DEFAULT_ORIGIN_COLOR);
-  line_width = g_key_file_get_double (key_file, group, "origin-width", NULL);
-  priv->origin_style.line_width = line_width > 0 ? line_width : DEFAULT_ORIGIN_WIDTH;
-
-  if (priv->map != NULL)
-    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
-
-  return TRUE;
+  return g_object_ref (priv->param);
 }
 
 static void
@@ -2455,7 +2434,7 @@ hyscan_gtk_map_planner_interface_init (HyScanGtkLayerInterface *iface)
   iface->grab_input = hyscan_gtk_map_planner_grab_input;
   iface->added = hyscan_gtk_map_planner_added;
   iface->removed = hyscan_gtk_map_planner_removed;
-  iface->load_key_file = hyscan_gtk_map_planner_load_key_file;
+  iface->get_param = hyscan_gtk_map_planner_get_param;
 }
 
 /**

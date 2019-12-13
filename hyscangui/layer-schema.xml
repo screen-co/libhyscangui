@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="hyscangui">
+  <schema id="container" name="Container">
+    <key id="background" name="Background" type="string" view="rgba">
+      <default>rgba(0, 0, 0, 0)</default>
+    </key>
+  </schema>
+
+  <schema id="map-pin" name="Pin">
+    <key id="stroke-color" name="Stroke color" type="string" view="rgba">
+      <default>#537845</default>
+    </key>
+    <key id="prime-color" name="Prime color" type="string" view="rgba">
+      <default>#699857</default>
+    </key>
+    <key id="second-color" name="Second color" type="string" view="rgba">
+      <default>#ffffff</default>
+    </key>
+  </schema>
+
+  <schema id="map-ruler" name="Ruler">
+    <key id="bg-color" name="Label background" type="string" view="rgba">
+      <default>rgba(255, 255, 255, 0.6)</default>
+    </key>
+    <key id="label-color" name="Label color" type="string" view="rgba">
+      <default>rgba(33, 33, 33, 1.0)</default>
+    </key>
+    <key id="line-color" name="Line color" type="string" view="rgba">
+      <default>#72856A</default>
+    </key>
+    <key id="line-width" name="Line thickness" type="double">
+      <default>1.0</default>
+      <range min="0" step="0.5"/>
+    </key>
+  </schema>
+
+  <schema id="map-scale" name="Scale">
+    <key id="bg-color" name="Label background" type="string" view="rgba">
+      <default>rgba(255, 255, 255, 0.6)</default>
+    </key>
+    <key id="label-color" name="Label color" type="string" view="rgba">
+      <default>rgba(33, 33, 33, 1.0)</default>
+    </key>
+  </schema>
+
+  <schema id="map-grid" name="Grid">
+    <key id="bg-color" name="Label background" type="string" view="rgba">
+      <default>rgba(255, 255, 255, 0.6)</default>
+    </key>
+    <key id="label-color" name="Label color" type="string" view="rgba">
+      <default>rgba( 33, 33, 33, 1.0)</default>
+    </key>
+    <key id="line-color" name="Line color" type="string" view="rgba">
+      <default>rgba( 80, 120, 180, 0.5)</default>
+    </key>
+    <key id="line-width" name="Line thickness" type="double">
+      <default>0.5</default>
+      <range min="0" step="0.5"/>
+    </key>
+  </schema>
+
+  <schema id="map-track" name="Tracks">
+    <key id="track-color" name="Trajectory" type="string" view="rgba">
+      <default>#AC67C6</default>
+    </key>
+    <key id="port-color" name="Port" type="string" view="rgba">
+      <default>#DDC3BB</default>
+    </key>
+    <key id="starboard-color" name="Starboard" type="string" view="rgba">
+      <default>#C4DDBB</default>
+    </key>
+    <key id="bar-width" name="Bar width" type="double">
+      <default>3</default>
+      <range min="0" step="0.5"/>
+    </key>
+    <key id="bar-margin" name="Bar step" type="double">
+      <default>30</default>
+      <range min="0" step="1"/>
+    </key>
+  </schema>
+
+  <schema id="map-nav" name="Navigation">
+    <key id="line-width" name="Line thickness" type="double">
+      <default>2.0</default>
+      <range min="0" step="0.5"/>
+    </key>
+    <key id="line-color" name="Line" type="string" view="rgba">
+      <default>#23505D</default>
+    </key>
+    <key id="lost-line-color" name="Signal lost line" type="string" view="rgba">
+      <default>rgba(144,  88,  71, 0.2)</default>
+    </key>
+    <key id="arrow-color" name="Arrow fill" type="string" view="rgba">
+      <default>rgba(255, 255, 255, 0.85)</default>
+    </key>
+    <key id="arrow-stroke-color" name="Arrow stroke" type="string" view="rgba">
+      <default>#23505D</default>
+    </key>
+    <key id="lost-arrow-color" name="Signal lost arrow fill" type="string" view="rgba">
+      <default>rgba(255, 255, 255, 0.2)</default>
+    </key>
+    <key id="lost-arrow-stroke-color" name="Signal lost arrow stroke" type="string" view="rgba">
+      <default>rgba(144,  87,  71, 0.2)</default>
+    </key>
+    <key id="text-color" name="Text" type="string" view="rgba">
+      <default>rgba(  0,   0,   0, 1)</default>
+    </key>
+    <key id="bg-color" name="Text background" type="string" view="rgba">
+      <default>rgba(255, 255, 255, 0.8)</default>
+    </key>
+  </schema>
+
+  <schema id="map-geomark" name="Geo Marks">
+    <key id="line-width" name="Line thickness" type="double">
+      <default>1.0</default>
+      <range min="0" step="0.5"/>
+    </key>
+
+    <key id="color" name="Main color" type="string" view="rgba">
+      <default>#B25D43</default>
+    </key>
+
+    <key id="hover-color" name="Hover color" type="string" view="rgba">
+      <default>#9443B2</default>
+    </key>
+
+    <key id="pending-color" name="Pending color" type="string" view="rgba">
+      <default>rgba(0,0,0,0.5)</default>
+    </key>
+
+    <key id="bg-color" name="Label background" type="string" view="rgba">
+      <default>rgba(255,255,255,0.8)</default>
+    </key>
+
+  </schema>
+
+  <schema id="map-wfmark" name="Waterfall Marks">
+
+    <key id="line-width" name="Line thickness" type="double">
+      <default>1.0</default>
+      <range min="0" step="0.5"/>
+    </key>
+    <key id="color" name="Main color" type="string" view="rgba">
+      <default>#61B243</default>
+    </key>
+    <key id="hover-color" name="Hover color" type="string" view="rgba">
+      <default>#9443B2</default>
+    </key>
+    <key id="ai-border-color" name="Image border" type="string" view="rgba">
+      <default>#FFFFFF</default>
+    </key>
+    <key id="echo-mark-color" name="Echo mark" type="string" view="rgba">
+      <default>#0000FF</default>
+    </key>
+    <key id="port-color" name="Port arrow" type="string" view="rgba">
+      <default>#FF0000</default>
+    </key>
+    <key id="starboard-color" name="Starboard arrow" type="string" view="rgba">
+      <default>#00FF00</default>
+    </key>
+    <key id="bg-color" name="Text background" type="string" view="rgba">
+      <default>rgba(255, 255, 255, 0.8)</default>
+    </key>
+  </schema>
+
+  <schema id="map-planner" name="Planner">
+
+    <key id="track-width" name="Track thickness" type="double">
+      <default>1.0</default>
+      <range min="0" step="0.5"/>
+    </key>
+    <key id="track-color" name="Track" type="string" view="rgba">
+      <default>rgba(0,128,0,1.0)</default>
+    </key>
+
+    <key id="track-selected-width" name="Selected track thickness" type="double">
+      <default>1.0</default>
+      <range min="0" step="0.5"/>
+    </key>
+    <key id="track-selected-color" name="Selected track" type="string" view="rgba">
+      <default>rgba(128,0,128,1.0)</default>
+    </key>
+
+    <key id="zone-width" name="Zone thickness" type="double">
+      <default>0.5</default>
+      <range min="0" step="0.5"/>
+    </key>
+    <key id="zone-color" name="Zone" type="string" view="rgba">
+      <default>rgba(0,50,0,0.8)</default>
+    </key>
+
+    <key id="origin-width" name="Origin thickness" type="double">
+      <default>1.0</default>
+      <range min="0" step="0.5"/>
+    </key>
+    <key id="origin-color" name="Origin" type="string" view="rgba">
+      <default>rgba(80,120,180,0.5)</default>
+    </key>
+
+  </schema>
+
+</schemalist>
