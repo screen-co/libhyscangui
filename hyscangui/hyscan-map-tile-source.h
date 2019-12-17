@@ -55,6 +55,7 @@ typedef struct _HyScanMapTileSourceInterface HyScanMapTileSourceInterface;
  * @fill_tile: заполняет тайл изображением
  * @get_grid: возвращает тайловую сетку источника
  * @get_projection: возвращает картографическую проекцию источника
+ * @hash: возвращает хэш источника
  */
 struct _HyScanMapTileSourceInterface
 {
@@ -67,6 +68,8 @@ struct _HyScanMapTileSourceInterface
   HyScanMapTileGrid *    (*get_grid)                (HyScanMapTileSource        *source);
 
   HyScanGeoProjection *  (*get_projection)          (HyScanMapTileSource        *source);
+
+  guint                  (*hash)                    (HyScanMapTileSource        *source);
 };
 
 HYSCAN_API
@@ -82,6 +85,9 @@ HYSCAN_API
 gboolean                hyscan_map_tile_source_fill                      (HyScanMapTileSource *source,
                                                                           HyScanMapTile       *tile,
                                                                           GCancellable        *cancellable);
+
+HYSCAN_API
+guint                   hyscan_map_tile_source_hash                      (HyScanMapTileSource *source);
 
 
 G_END_DECLS

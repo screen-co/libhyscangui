@@ -68,7 +68,10 @@ HYSCAN_API
 GType                    hyscan_gtk_map_base_get_type   (void);
 
 HYSCAN_API
-HyScanGtkLayer *         hyscan_gtk_map_base_new        (HyScanCache          *cache,
+HyScanGtkLayer *         hyscan_gtk_map_base_new        (HyScanCache          *cache);
+
+HYSCAN_API
+void                     hyscan_gtk_map_base_set_source (HyScanGtkMapBase     *base,
                                                          HyScanMapTileSource  *source);
 
 HYSCAN_API

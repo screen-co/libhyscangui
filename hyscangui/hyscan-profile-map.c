@@ -98,10 +98,8 @@
 #include "hyscan-gtk-layer-param.h"
 #include <hyscan-pseudo-mercator.h>
 #include <hyscan-mercator.h>
-#include <hyscan-cached.h>
 #include <string.h>
 
-#define CACHE_SIZE        256
 #define PROJ_MERC         "merc"
 #define PROJ_WEBMERC      "webmerc"
 #define INI_PREFIX_URL    "url"
@@ -346,7 +344,7 @@ hyscan_profile_map_source_wrap (HyScanProfileMap       *profile,
 
   cache_path = g_build_path (G_DIR_SEPARATOR_S, priv->cache_dir, params->cache_dir, NULL);
   file_source = hyscan_map_tile_source_file_new (cache_path, fb_source);
-  hyscan_map_tile_source_file_fb_enable (file_source, !priv->offline);;
+  hyscan_map_tile_source_file_fb_enable (file_source, !priv->offline);
   g_free (cache_path);
 
   return HYSCAN_MAP_TILE_SOURCE (file_source);
@@ -378,22 +376,6 @@ hyscan_profile_map_source_create (HyScanProfileMap *profile)
     }
 
   return HYSCAN_MAP_TILE_SOURCE (merged_source);
-}
-
-/* Создаёт тайловый слой, соответствующий профилю. */
-static HyScanGtkLayer *
-hyscan_profile_map_create_base (HyScanProfileMap *profile)
-{
-  HyScanProfileMapPrivate *priv = profile->priv;
-  HyScanGtkLayer *base;
-
-  HyScanCache *cache;
-
-  cache = HYSCAN_CACHE (hyscan_cached_new (CACHE_SIZE));
-  base = hyscan_gtk_map_base_new (cache, priv->tile_source);
-  g_object_unref (cache);
-
-  return base;
 }
 
 /**
@@ -633,15 +615,18 @@ hyscan_profile_map_set_cache_dir (HyScanProfileMap   *profile,
  * hyscan_profile_map_apply:
  * @profile: указатель на #HyScanProfileMap
  * @map: указатель на карту #HyScanGtkMap
+ * @base_layer_id: идентификатор слоя подложки
  *
  * Применяет профиль @profile к карте @map.
  */
 gboolean
 hyscan_profile_map_apply (HyScanProfileMap *profile,
-                          HyScanGtkMap     *map)
+                          HyScanGtkMap     *map,
+                          const gchar      *base_layer_id)
 {
   HyScanProfileMapPrivate *priv;
   HyScanGtkLayerContainer *container;
+  HyScanGtkLayer *base;
   GKeyFile *key_file;
   const gchar *file_name;
   HyScanParam *param;
@@ -658,13 +643,13 @@ hyscan_profile_map_apply (HyScanProfileMap *profile,
   /* Заменяем проекцию. */
   hyscan_gtk_map_set_projection (map, priv->geo_projection);
 
-  /* Устанавливаем новый слой тайлов в самый низ. */
-  hyscan_gtk_layer_container_add (container,
-                                  hyscan_profile_map_create_base (profile),
-                                  HYSCAN_PROFILE_MAP_BASE_ID);
+  /* Обновляем источник тайлов в подложке. */
+  base = base_layer_id != NULL ? hyscan_gtk_layer_container_lookup (container, base_layer_id) : NULL;
+  if (HYSCAN_IS_GTK_MAP_BASE (base))
+    hyscan_gtk_map_base_set_source (HYSCAN_GTK_MAP_BASE (base), priv->tile_source);
 
   /* Конфигурируем остальные слои. */
-  param = hyscan_gtk_layer_container_get_param (HYSCAN_GTK_LAYER_CONTAINER (map));
+  param = hyscan_gtk_layer_container_get_param (container);
   schema = hyscan_param_schema (param);
   list = hyscan_param_list_new ();
   key_file = g_key_file_new ();

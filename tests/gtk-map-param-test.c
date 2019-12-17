@@ -40,6 +40,7 @@
 #include <hyscan-gtk-layer-list.h>
 #include <hyscan-gtk-map-ruler.h>
 #include <hyscan-gtk-param-cc.h>
+#include <hyscan-gtk-map-base.h>
 
 static GtkWidget *map;
 static HyScanProfileMap *profile;
@@ -89,7 +90,7 @@ main (int    argc,
   GtkWidget *layer_list, *window, *config_window;
   HyScanGeoGeodetic center = { 59.9934843, 29.7034145, 0 };
   GtkWidget *paned;
-  HyScanGtkLayer *pin, *control, *ruler;
+  HyScanGtkLayer *pin, *control, *ruler, *base;
 
   gdouble *scales;
   gint scales_len;
@@ -117,11 +118,13 @@ main (int    argc,
   hyscan_gtk_map_set_scales_meter (HYSCAN_GTK_MAP (map), scales, scales_len);
   g_free (scales);
 
+  base = hyscan_gtk_map_base_new (NULL);
   pin = hyscan_gtk_map_pin_new ();
   ruler = hyscan_gtk_map_ruler_new ();
   control = hyscan_gtk_map_control_new ();
 
   layer_list = hyscan_gtk_layer_list_new (HYSCAN_GTK_LAYER_CONTAINER (map));
+  hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), base,    "base");
   hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), control, "control");
   hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), pin,     "pin");
   hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), ruler,   "ruler");
@@ -135,7 +138,7 @@ main (int    argc,
     profile = hyscan_profile_map_new_default (NULL);
 
   hyscan_profile_read (HYSCAN_PROFILE (profile));
-  hyscan_profile_map_apply (profile, HYSCAN_GTK_MAP (map));
+  hyscan_profile_map_apply (profile, HYSCAN_GTK_MAP (map), "base");
 
   paned = gtk_paned_new (GTK_ORIENTATION_HORIZONTAL);
   gtk_paned_set_wide_handle (GTK_PANED (paned), TRUE);

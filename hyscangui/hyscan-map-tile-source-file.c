@@ -63,6 +63,7 @@ struct _HyScanMapTileSourceFilePrivate
   gchar                       *source_dir;        /* Каталог для хранения тайлов. */
   HyScanMapTileSource         *fallback_source;   /* Источник тайлов на случай, если файл с тайлом отсутствует. */
   gboolean                     fallback_enabled;  /* Признак того, что fallback-источник можно использовать. */
+  guint                        hash;              /* Хэш источника тайлов. */
 };
 
 static void       hyscan_map_tile_source_file_interface_init           (HyScanMapTileSourceInterface    *iface);
@@ -70,6 +71,7 @@ static void       hyscan_map_tile_source_file_set_property             (GObject 
                                                                         guint                            prop_id,
                                                                         const GValue                    *value,
                                                                         GParamSpec                      *pspec);
+static void       hyscan_map_tile_source_file_object_constructed       (GObject                         *object);
 static void       hyscan_map_tile_source_file_object_finalize          (GObject                         *object);
 static gboolean   hyscan_map_tile_source_file_fill_from_file           (HyScanMapTile                   *tile,
                                                                         const gchar                     *tile_path);
@@ -90,6 +92,7 @@ hyscan_map_tile_source_file_class_init (HyScanMapTileSourceFileClass *klass)
 
   object_class->set_property = hyscan_map_tile_source_file_set_property;
 
+  object_class->constructed = hyscan_map_tile_source_file_object_constructed;
   object_class->finalize = hyscan_map_tile_source_file_object_finalize;
 
   g_object_class_install_property (object_class, PROP_FALLBACK_SOURCE,
@@ -130,6 +133,23 @@ hyscan_map_tile_source_file_set_property (GObject      *object,
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
     }
+}
+
+static void
+hyscan_map_tile_source_file_object_constructed (GObject *object)
+{
+  HyScanMapTileSourceFile *map_tile_source_file = HYSCAN_MAP_TILE_SOURCE_FILE (object);
+  HyScanMapTileSourceFilePrivate *priv = map_tile_source_file->priv;
+  gchar *hash_str;
+  guint hash_fb;
+
+  G_OBJECT_CLASS (hyscan_map_tile_source_file_parent_class)->constructed (object);
+
+  hash_fb = priv->fallback_source != NULL ? hyscan_map_tile_source_hash (priv->fallback_source) : 0;
+  hash_str = g_strdup_printf ("%u:%s", hash_fb, priv->source_dir);
+  priv->hash = g_str_hash (hash_str);
+
+  g_free (hash_str);
 }
 
 static void
@@ -269,12 +289,21 @@ hyscan_map_tile_source_file_get_projection (HyScanMapTileSource *source)
   return hyscan_map_tile_source_get_projection (priv->fallback_source);
 }
 
+static guint
+hyscan_map_tile_source_file_hash (HyScanMapTileSource *source)
+{
+  HyScanMapTileSourceFilePrivate *priv = HYSCAN_MAP_TILE_SOURCE_FILE (source)->priv;
+
+  return priv->hash;
+}
+
 static void
 hyscan_map_tile_source_file_interface_init (HyScanMapTileSourceInterface *iface)
 {
   iface->fill_tile = hyscan_map_tile_source_file_fill_tile;
   iface->get_grid = hyscan_map_tile_source_file_get_grid;
   iface->get_projection = hyscan_map_tile_source_file_get_projection;
+  iface->hash = hyscan_map_tile_source_file_hash;
 }
 
 /**

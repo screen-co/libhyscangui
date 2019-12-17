@@ -106,7 +106,8 @@ void                   hyscan_profile_map_set_cache_dir    (HyScanProfileMap   *
 
 HYSCAN_API
 gboolean               hyscan_profile_map_apply            (HyScanProfileMap   *profile,
-                                                            HyScanGtkMap       *map);
+                                                            HyScanGtkMap       *map,
+                                                            const gchar        *base_layer_id);
 
 HYSCAN_API
 gboolean               hyscan_profile_map_write             (HyScanProfileMap   *profile,

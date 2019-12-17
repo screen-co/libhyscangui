@@ -125,6 +125,7 @@ struct _HyScanMapTileSourceWebPrivate
   gchar                          *url_format;    /* Формат URL к изображению тайла. */
   HyScanMapTileSourceWebType      url_type;      /* Тип формата URL. */
   gboolean                        inverse_y;     /* Признак того, что координаты по y должны быть инвертированны. */
+  guint                           hash;          /* Хэш источника тайлов. */
 
   guint                           min_zoom;      /* Минимальный доступный зум (уровень детализации). */
   guint                           max_zoom;      /* Максимальный доступный зум (уровень детализации). */
@@ -322,6 +323,7 @@ hyscan_map_tile_source_web_object_constructed (GObject *object)
 {
   HyScanMapTileSourceWeb *nw_source = HYSCAN_MAP_TILE_SOURCE_WEB (object);
   HyScanMapTileSourceWebPrivate *priv = nw_source->priv;
+  gchar *hash_str;
 
   G_OBJECT_CLASS (hyscan_map_tile_source_web_parent_class)->constructed (object);
 
@@ -343,6 +345,13 @@ hyscan_map_tile_source_web_object_constructed (GObject *object)
     priv->grid = hyscan_map_tile_grid_new (min_x, max_x, min_y, max_y, priv->min_zoom, priv->tile_size);
     hyscan_map_tile_grid_set_xnums (priv->grid, nums, nums_len);
   }
+
+  hash_str = g_strdup_printf ("%u:%u:%u:%s",
+                              priv->min_zoom, priv->max_zoom,
+                              hyscan_geo_projection_hash (priv->projection),
+                              priv->url_format);
+  priv->hash = g_str_hash (hash_str);
+  g_free (hash_str);
 
   priv->thread_pool = g_thread_pool_new (hyscan_map_tile_source_web_task_do, nw_source, -1, FALSE, NULL);
 }
@@ -623,6 +632,17 @@ hyscan_map_tile_source_web_get_projection (HyScanMapTileSource *source)
   return g_object_ref (priv->projection);
 }
 
+/* Реализация функции get_hash интерфейса HyScanMapTileSource.*/
+static guint
+hyscan_map_tile_source_web_hash (HyScanMapTileSource *source)
+{
+  HyScanMapTileSourceWebPrivate *priv;
+
+  priv = HYSCAN_MAP_TILE_SOURCE_WEB (source)->priv;
+
+  return priv->hash;
+}
+
 /* Реализация интерфейса HyScanMapTileSource. */
 static void
 hyscan_map_tile_source_web_interface_init (HyScanMapTileSourceInterface *iface)
@@ -630,6 +650,7 @@ hyscan_map_tile_source_web_interface_init (HyScanMapTileSourceInterface *iface)
   iface->fill_tile = hyscan_map_tile_source_web_fill_tile;
   iface->get_grid = hyscan_map_tile_source_web_get_grid;
   iface->get_projection = hyscan_map_tile_source_web_get_projection;
+  iface->hash = hyscan_map_tile_source_web_hash;
 }
 
 /**

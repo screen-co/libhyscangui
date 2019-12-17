@@ -88,6 +88,7 @@ struct _HyScanGtkMapKitPrivate
   HyScanGeoGeodetic        center;           /* Географические координаты для виджета навигации. */
 
   /* Слои. */
+  HyScanGtkLayer          *base_layer;       /* Слой подложки. */
   HyScanGtkLayer          *track_layer;      /* Слой просмотра галсов. */
   HyScanGtkLayer          *wfmark_layer;     /* Слой с метками водопада. */
   HyScanGtkLayer          *geomark_layer;    /* Слой с метками водопада. */
@@ -1504,6 +1505,7 @@ create_layers (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
+  priv->base_layer = hyscan_gtk_map_base_new (priv->cache);
   priv->map_grid = hyscan_gtk_map_grid_new ();
   priv->ruler = hyscan_gtk_map_ruler_new ();
   priv->pin_layer = hyscan_gtk_map_pin_new ();
@@ -1514,7 +1516,7 @@ create_layers (HyScanGtkMapKit *kit)
 
   priv->layer_list = hyscan_gtk_layer_list_new (HYSCAN_GTK_LAYER_CONTAINER (kit->map));
 
-  add_layer_row (kit, NULL,              FALSE, "base",   _("Base Map"));
+  add_layer_row (kit, priv->base_layer,  FALSE, "base",   _("Base Map"));
   add_layer_row (kit, priv->track_layer, FALSE, "track",  _("Tracks"));
   add_layer_row (kit, priv->ruler,       TRUE,  "ruler",  _("Ruler"));
   add_layer_row (kit, priv->pin_layer,   TRUE,  "pin",    _("Pin"));
@@ -1746,7 +1748,7 @@ hyscan_gtk_map_kit_set_profile_name (HyScanGtkMapKit *kit,
   g_free (priv->profile_active);
   priv->profile_active = g_strdup (profile_name);
   hyscan_profile_map_set_offline (profile, priv->profile_offline);
-  hyscan_profile_map_apply (profile, map);
+  hyscan_profile_map_apply (profile, map, "base");
 
   g_signal_handlers_block_by_func (priv->profiles_box, on_profile_change, kit);
   gtk_combo_box_set_active_id (GTK_COMBO_BOX (priv->profiles_box), priv->profile_active);
