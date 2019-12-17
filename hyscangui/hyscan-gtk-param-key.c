@@ -59,13 +59,15 @@
 #define TEXT_WIDTH 24
 #define INVALID "HyScanGtkParam: invalid key"
 
-#define time_view(view) (view == HYSCAN_DATA_SCHEMA_VIEW_DATE || \
-                        view == HYSCAN_DATA_SCHEMA_VIEW_TIME || \
-                        view == HYSCAN_DATA_SCHEMA_VIEW_DATE_TIME)
-#define value_view(view) (view == HYSCAN_DATA_SCHEMA_VIEW_DEFAULT || \
-                          view == HYSCAN_DATA_SCHEMA_VIEW_HEX || \
-                          view == HYSCAN_DATA_SCHEMA_VIEW_BIN || \
-                          view == HYSCAN_DATA_SCHEMA_VIEW_DEC)
+#define time_view(view) ((view) == HYSCAN_DATA_SCHEMA_VIEW_DATE || \
+                        (view) == HYSCAN_DATA_SCHEMA_VIEW_TIME || \
+                        (view) == HYSCAN_DATA_SCHEMA_VIEW_DATE_TIME)
+#define value_view(view) ((view) == HYSCAN_DATA_SCHEMA_VIEW_DEFAULT || \
+                          (view) == HYSCAN_DATA_SCHEMA_VIEW_HEX || \
+                          (view) == HYSCAN_DATA_SCHEMA_VIEW_BIN || \
+                          (view) == HYSCAN_DATA_SCHEMA_VIEW_DEC)
+#define color_view(view) ((view) == HYSCAN_DATA_SCHEMA_VIEW_RGB || \
+                          (view) == HYSCAN_DATA_SCHEMA_VIEW_RGBA)
 
 typedef void (*notify_func) (GObject *, GParamSpec *, gpointer);
 
@@ -119,6 +121,8 @@ static GtkWidget* hyscan_gtk_param_key_make_editor_time      (HyScanDataSchema  
                                                               HyScanDataSchemaKey   *key);
 static GtkWidget* hyscan_gtk_param_key_make_editor_double    (HyScanDataSchema      *schema,
                                                               HyScanDataSchemaKey   *key);
+static GtkWidget* hyscan_gtk_param_key_make_editor_color     (HyScanDataSchema      *schema,
+                                                              HyScanDataSchemaKey   *key);
 static GtkWidget* hyscan_gtk_param_key_make_editor_string    (HyScanDataSchema      *schema,
                                                               HyScanDataSchemaKey   *key);
 static GtkWidget* hyscan_gtk_param_key_make_editor_enum      (HyScanDataSchema      *schema,
@@ -136,6 +140,9 @@ static void       hyscan_gtk_param_key_notify_double         (GObject           
                                                               GParamSpec            *pspec,
                                                               gpointer               udata);
 static void       hyscan_gtk_param_key_notify_string         (GObject               *object,
+                                                              GParamSpec            *pspec,
+                                                              gpointer               udata);
+static void       hyscan_gtk_param_key_notify_color          (GObject               *object,
                                                               GParamSpec            *pspec,
                                                               gpointer               udata);
 static void       hyscan_gtk_param_key_notify_enum           (GObject               *object,
@@ -305,9 +312,18 @@ hyscan_gtk_param_key_make_editor (HyScanGtkParamKey *self)
       break;
 
     case HYSCAN_DATA_SCHEMA_KEY_STRING:
-      editor = hyscan_gtk_param_key_make_editor_string (schema, key);
-      signal = "notify::text";
-      cbk = hyscan_gtk_param_key_notify_string;
+      if (color_view (key->view))
+        {
+          editor = hyscan_gtk_param_key_make_editor_color (schema, key);
+          signal = "notify::color";
+          cbk = hyscan_gtk_param_key_notify_color;
+        }
+      else
+        {
+          editor = hyscan_gtk_param_key_make_editor_string (schema, key);
+          signal = "notify::text";
+          cbk = hyscan_gtk_param_key_notify_string;
+        }
       break;
 
     case HYSCAN_DATA_SCHEMA_KEY_ENUM:
@@ -360,7 +376,7 @@ hyscan_gtk_param_key_make_editor_integer (HyScanDataSchema    *schema,
   GtkAdjustment *adjustment;
   GVariant *_min, *_max, *_step, *_def;
   gint64 def, min, max, step;
-  guint base = 10;
+  guint base;
 
   def = 0;
   min = G_MININT64;
@@ -483,6 +499,32 @@ hyscan_gtk_param_key_make_editor_double (HyScanDataSchema    *schema,
   g_clear_pointer (&_min, g_variant_unref);
   g_clear_pointer (&_max, g_variant_unref);
   g_clear_pointer (&_step, g_variant_unref);
+
+  return editor;
+}
+
+/* Функция создает редактор для цветовых значений. */
+static GtkWidget *
+hyscan_gtk_param_key_make_editor_color (HyScanDataSchema    *schema,
+                                        HyScanDataSchemaKey *key)
+{
+  GtkWidget *editor;
+  GVariant *_def;
+  const gchar *def = "";
+  GdkRGBA color;
+
+  editor = gtk_color_button_new ();
+  if (key->view == HYSCAN_DATA_SCHEMA_VIEW_RGBA)
+    gtk_color_chooser_set_use_alpha (GTK_COLOR_CHOOSER (editor), TRUE);
+
+  _def = hyscan_data_schema_key_get_default (schema, key->id);
+  if (_def != NULL)
+    def = g_variant_get_string (_def, NULL);
+
+  if (gdk_rgba_parse (&color, def))
+    gtk_color_chooser_set_rgba (GTK_COLOR_CHOOSER (editor), &color);
+
+  g_clear_pointer (&_def, g_variant_unref);
 
   return editor;
 }
@@ -659,6 +701,28 @@ hyscan_gtk_param_key_notify_string (GObject    *object,
   g_variant_unref (variant);
 }
 
+/* Функция уведомления о смене значения цвета. */
+static void
+hyscan_gtk_param_key_notify_color (GObject    *object,
+                                   GParamSpec *pspec,
+                                   gpointer    udata)
+{
+  HyScanGtkParamKey *self = udata;
+  gchar * val = NULL;
+  GVariant *variant;
+  GdkRGBA rgba;
+
+  gtk_color_chooser_get_rgba (GTK_COLOR_CHOOSER (object), &rgba);
+  val = gdk_rgba_to_string (&rgba);
+  variant = g_variant_new_take_string (val);
+  g_variant_ref_sink (variant);
+
+  g_signal_emit (self, hyscan_gtk_param_key_signals[SIGNAL_CHANGED], 0,
+                 self->priv->key->id, variant);
+
+  g_variant_unref (variant);
+}
+
 /* Функция уведомления о смене перечисления. */
 static void
 hyscan_gtk_param_key_notify_enum (GObject    *object,
@@ -820,7 +884,18 @@ hyscan_gtk_param_key_set (HyScanGtkParamKey *self,
           break;
 
         val = g_variant_get_string (value, NULL);
-        gtk_entry_set_text (GTK_ENTRY (priv->value), val);
+        if (color_view (priv->key->view))
+          {
+            GdkRGBA rgba;
+
+            gdk_rgba_parse (&rgba, val);
+            gtk_color_chooser_set_rgba (GTK_COLOR_CHOOSER (priv->value), &rgba);
+          }
+        else
+          {
+            gtk_entry_set_text (GTK_ENTRY (priv->value), val);
+          }
+
         break;
       }
 
