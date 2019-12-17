@@ -692,13 +692,13 @@ hyscan_gtk_map_track_item_width (HyScanGtkMapTrackItem  *track,
       if (depth < 0)
         depth = 0;
 
-      depth += priv->depth_offset.z;
+      depth += priv->depth_offset.vertical;
     }
   else
     {
       depth = 0;
     }
-  depth -= board->offset.z;
+  depth -= board->offset.vertical;
 
   hyscan_amplitude_get_size_time (board->amplitude, amp_lindex, &nvals, NULL);
   hyscan_projector_count_to_coord (board->projector, nvals, &distance, depth);
@@ -787,24 +787,32 @@ hyscan_gtk_map_track_item_cartesian (HyScanGtkMapTrackItem *track,
 
       /* Делаем поправки на смещение приёмника GPS: 1-2. */
 
-      /* 1. Поправка курса. Курс считается по часовой стрелке, поворот антенны - против часовой. */
-      point->angle = point->geo.h / 180.0 * G_PI + priv->nav_offset.psi;
+      /* 1. Поправка курса. */
+      point->angle = point->geo.h / 180.0 * G_PI - priv->nav_offset.yaw;
       hdg_sin = sin (point->angle);
       hdg_cos = cos (point->angle);
 
       /* 2. Поправка смещений x, y. */
-      point->center_c2d.x -= priv->nav_offset.x / point->scale * hdg_sin;
-      point->center_c2d.y -= priv->nav_offset.x / point->scale * hdg_cos;
-      point->center_c2d.x -= priv->nav_offset.y / point->scale * hdg_cos;
-      point->center_c2d.y -= -priv->nav_offset.y / point->scale * hdg_sin;
+      point->center_c2d.x -= priv->nav_offset.forward / point->scale * hdg_sin;
+      point->center_c2d.y -= priv->nav_offset.forward / point->scale * hdg_cos;
+      point->center_c2d.x -= priv->nav_offset.starboard / point->scale * hdg_cos;
+      point->center_c2d.y -= -priv->nav_offset.starboard / point->scale * hdg_sin;
 
       /* Определяем положения антенн левого и правого бортов ГБО. */
-      point->l_angle = point->angle - priv->port.offset.psi;
-      point->r_angle = point->angle - priv->starboard.offset.psi;
-      point->r_start_c2d.x = point->center_c2d.x + (priv->starboard.offset.x * hdg_sin + priv->starboard.offset.y * hdg_cos) / point->scale;
-      point->r_start_c2d.y = point->center_c2d.y + (priv->starboard.offset.x * hdg_cos - priv->starboard.offset.y * hdg_sin) / point->scale;
-      point->l_start_c2d.x = point->center_c2d.x + (priv->port.offset.x * hdg_sin + priv->port.offset.y * hdg_cos) / point->scale;
-      point->l_start_c2d.y = point->center_c2d.y + (priv->port.offset.x * hdg_cos - priv->port.offset.y * hdg_sin) / point->scale;
+      point->l_angle = point->angle - priv->port.offset.yaw;
+      point->r_angle = point->angle - priv->starboard.offset.yaw;
+      point->r_start_c2d.x = point->center_c2d.x +
+                             (priv->starboard.offset.forward * hdg_sin +
+                              priv->starboard.offset.starboard * hdg_cos) / point->scale;
+      point->r_start_c2d.y = point->center_c2d.y +
+                             (priv->starboard.offset.forward * hdg_cos -
+                              priv->starboard.offset.starboard * hdg_sin) / point->scale;
+      point->l_start_c2d.x = point->center_c2d.x +
+                             (priv->port.offset.forward * hdg_sin +
+                              priv->port.offset.starboard * hdg_cos) / point->scale;
+      point->l_start_c2d.y = point->center_c2d.y +
+                             (priv->port.offset.forward * hdg_cos -
+                              priv->port.offset.starboard * hdg_sin) / point->scale;
 
       /* Определяем расстояние от начала галса на основе соседней точки. */
       neighbour = reverse ? point_l->next : point_l->prev;

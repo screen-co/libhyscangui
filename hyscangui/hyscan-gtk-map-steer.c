@@ -399,8 +399,8 @@ hyscan_gtk_map_steer_calc_point (HyScanGtkMapSteerPoint *point,
 
       cosa = cos (DEG2RAD (point->d_angle));
       sina = sin (DEG2RAD (point->d_angle));
-      point->position.x = ship_pos.x + priv->offset->y * cosa + priv->offset->x * sina;
-      point->position.y = ship_pos.y - priv->offset->y * sina + priv->offset->x * cosa;
+      point->position.x = ship_pos.x + priv->offset->starboard * cosa + priv->offset->forward * sina;
+      point->position.y = ship_pos.y - priv->offset->starboard * sina + priv->offset->forward * cosa;
     }
   else
     {

@@ -392,17 +392,17 @@ hyscan_mark_loc_model_load_nav (HyScanMarkLocModel *ml_model,
 
   /* Поправка на поворот датчика GPS. */
   offset = hyscan_nav_data_get_offset (lat_data);
-  if (offset.psi != 0)
-    location->center_geo.h += offset.psi / G_PI * 180.0;
+  if (offset.yaw != 0)
+    location->center_geo.h -= offset.yaw / G_PI * 180.0;
 
   /* Поправка на смещение датчика GPS. */
-  if (offset.x != 0 || offset.y != 0)
+  if (offset.forward != 0 || offset.starboard != 0)
     {
       HyScanGeoCartesian2D shift;
       HyScanGeoGeodetic center;
 
-      shift.x = -offset.x;
-      shift.y = offset.y;
+      shift.x = -offset.forward;
+      shift.y = offset.starboard;
 
       hyscan_geo_set_origin (priv->geo, location->center_geo, HYSCAN_GEO_ELLIPSOID_WGS84);
       hyscan_geo_topoXY2geo (priv->geo, &center, shift, 0);
@@ -434,17 +434,17 @@ hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
 
   /* Добавляем поворот антенны. */
   amp_offset = hyscan_amplitude_get_offset (amp);
-  if (amp_offset.psi != 0)
-    location->center_geo.h -= amp_offset.psi / G_PI * 180.0;
+  if (amp_offset.yaw != 0)
+    location->center_geo.h += amp_offset.yaw / G_PI * 180.0;
 
   /* Добавляем смещение x, y. */
-  if (amp_offset.x != 0 || amp_offset.y != 0)
+  if (amp_offset.forward != 0 || amp_offset.starboard != 0)
     {
       HyScanGeoCartesian2D shift;
       HyScanGeoGeodetic center;
 
-      shift.x = amp_offset.x;
-      shift.y = -amp_offset.y;
+      shift.x = amp_offset.forward;
+      shift.y = -amp_offset.starboard;
 
       hyscan_geo_set_origin (priv->geo, location->center_geo, HYSCAN_GEO_ELLIPSOID_WGS84);
       hyscan_geo_topoXY2geo (priv->geo, &center, shift, 0);
@@ -464,14 +464,14 @@ hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
       dpt_offset = hyscan_nav_data_get_offset (dpt_data);
       depth = hyscan_depthometer_get (dm, NULL, location->time);
       if (depth >= 0)
-        location->depth = depth + dpt_offset.z;
+        location->depth = depth + dpt_offset.vertical;
 
       g_object_unref (dpt_data);
       g_object_unref (dm);
     }
 
   /* Глубина относительно антенны. */
-  depth = location->depth < 0 ? 0 : MAX (0, location->depth - amp_offset.z);
+  depth = location->depth < 0 ? 0 : MAX (0, location->depth - amp_offset.vertical);
 
   /* Определяем дистанцию до точки. */
   projector = hyscan_projector_new (amp);
