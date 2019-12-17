@@ -554,9 +554,7 @@ on_button_press_event (GtkTreeView     *tree_view,
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
   if ((event_button->type == GDK_BUTTON_PRESS) && (event_button->button == GDK_BUTTON_SECONDARY))
-    {
-      gtk_menu_popup (priv->track_menu, NULL, NULL, NULL, NULL, event_button->button, event_button->time);
-    }
+    gtk_menu_popup_at_pointer (priv->track_menu, (const GdkEvent *) event_button);
 
   return FALSE;
 }
@@ -1892,7 +1890,7 @@ hyscan_gtk_map_kit_add_marks_wf (HyScanGtkMapKit *kit)
     {
       hyscan_object_model_set_project (priv->mark_model, priv->db, priv->project_name);
       hyscan_mark_loc_model_set_project (priv->ml_model, priv->project_name);
-      hyscan_gtk_map_wfmark_set_project (priv->wfmark_layer, priv->project_name);
+      hyscan_gtk_map_wfmark_set_project (HYSCAN_GTK_MAP_WFMARK (priv->wfmark_layer), priv->project_name);
     }
 }
 

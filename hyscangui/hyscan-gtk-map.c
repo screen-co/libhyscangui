@@ -202,23 +202,24 @@ hyscan_gtk_map_configure (GtkWidget         *widget,
 {
   HyScanGtkMap *map = HYSCAN_GTK_MAP (widget);
   HyScanGtkMapPrivate *priv = map->priv;
-  GdkScreen *gdkscreen;
   GdkRectangle mon_geom;
+  GdkDisplay *display;
+  GdkMonitor *monitor;
 
-  gint monitor_num, monitor_h, monitor_w;
+  gint monitor_h, monitor_w;
   gfloat ppi, diagonal_mm, diagonal_pix;
 
   /* Получаем монитор, на котором расположено окно. */
-  gdkscreen = gdk_window_get_screen (event->window);
-  monitor_num = gdk_screen_get_monitor_at_window (gdkscreen, event->window);
+  display = gdk_window_get_display (event->window);
+  monitor = gdk_display_get_monitor_at_window (display, event->window);
 
   /* Диагональ в пикселях. */
-  gdk_screen_get_monitor_geometry (gdkscreen, monitor_num, &mon_geom);
+  gdk_monitor_get_geometry (monitor, &mon_geom);
   diagonal_pix = sqrt (mon_geom.width * mon_geom.width + mon_geom.height * mon_geom.height);
 
   /* Диагональ в миллиметрах. */
-  monitor_h = gdk_screen_get_monitor_height_mm (gdkscreen, monitor_num);
-  monitor_w = gdk_screen_get_monitor_width_mm (gdkscreen, monitor_num);
+  monitor_h = gdk_monitor_get_height_mm (monitor);
+  monitor_w = gdk_monitor_get_width_mm (monitor);
   diagonal_mm = sqrt (monitor_w * monitor_w + monitor_h * monitor_h) / HYSCAN_GTK_MAP_MM_PER_INCH;
 
   /* Вычисляем PPI. */

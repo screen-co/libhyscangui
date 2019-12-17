@@ -28,8 +28,6 @@ G_DEFINE_TYPE_WITH_CODE (HyScanGtkLayerParam, hyscan_gtk_layer_param, HYSCAN_TYP
 static void
 hyscan_gtk_layer_param_class_init (HyScanGtkLayerParamClass *klass)
 {
-  GObjectClass *object_class = G_OBJECT_CLASS (klass);
-
   /**
    * HyScanGtkLayerParam::set:
    * @layer_param: указатель на #HyScanGtkLayerParam
