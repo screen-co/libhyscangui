@@ -109,6 +109,16 @@ typedef struct
   HyScanGeoCartesian2D         extent_to;       /* Координаты правой нижней вершины прямоугольника extent. */
 } HyScanGtkMapWfmarkLocation;
 
+typedef struct
+{
+  const HyScanGtkMapWfmarkLocation    *location;           /* Информация о метке. */
+  HyScanGeoCartesian2D                 area_rect_from;     /* Границы региона для рисования, от. */
+  HyScanGeoCartesian2D                 area_rect_to;       /* Границы региона для рисования, до. */
+  gdouble                              scale;              /* Масштаб GtkCifroArea. */
+  gdouble                              scale_px;           /* Масштаб изображения карты в пикселах на метр. */
+  gfloat                               ppi;                /* PPI дисплея. */
+} HyScanGtkMapWfmarkDrawMark;
+
 struct _HyScanGtkMapWfmarkPrivate
 {
   HyScanGtkMap                          *map;             /* Карта. */
@@ -409,6 +419,551 @@ hyscan_gtk_map_wfmark_model_changed (HyScanGtkMapWfmark *wfm_layer)
   g_hash_table_unref (marks);
 }
 
+/* Функция рисует отдельную метку с параметрами mark. Если в результате тайл
+ * с изображением метки был отправлен на генерацию, то будет поднят флаг queue_added. */
+static void
+hyscan_gtk_map_wfmark_draw_mark (HyScanGtkMapWfmark         *wfm_layer,
+                                 cairo_t                    *cairo,
+                                 const gchar                *mark_id,
+                                 HyScanGtkMapWfmarkDrawMark *mark,
+                                 gboolean                   *queue_added)
+{
+  HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
+  gboolean selected;
+
+  const HyScanGtkMapWfmarkLocation *location = mark->location;
+  gdouble scale = mark->scale, scale_px = mark->scale_px, ppi = mark->ppi;
+  HyScanGeoCartesian2D area_rect_from = mark->area_rect_from, area_rect_to = mark->area_rect_to;
+
+  HyScanTile *tile = NULL;
+  HyScanTileCacheable tile_cacheable;
+  cairo_surface_t *surface = NULL;
+  gdouble current_sin, current_cos,
+          width, height,
+          new_width, new_height,
+          tmp;
+  GdkRGBA *color = NULL;
+  gfloat *image = NULL;
+  guint32 size = 0;
+
+  HyScanGeoCartesian2D position, new_position, offset,
+                       m0, m2, b0, b2,
+#ifdef DEBUG_GRAPHIC_MARK
+                       m1, m3, b1, b3,
+#endif
+                       border_from, border_to;
+  HyScanTileSurface tile_surface;
+
+  current_sin = sin (location->angle);
+  current_cos = cos (location->angle);
+
+  width = (location->mloc->direction == HYSCAN_MARK_LOCATION_BOTTOM)? 5.0 : location->width / scale;
+  height = location->height / scale;
+
+  gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map),
+                                         &position.x, &position.y,
+                                         location->center_c2d.x, location->center_c2d.y);
+
+  new_width  = ( (area_rect_to.x - area_rect_from.x) / 2.0) * fabs (current_cos) +
+               ( (area_rect_to.y - area_rect_from.y) / 2.0) * fabs (current_sin);
+  new_height = ( (area_rect_to.x - area_rect_from.x) / 2.0) * fabs (current_sin) +
+               ( (area_rect_to.y - area_rect_from.y) / 2.0) * fabs (current_cos);
+
+  b0.x = -new_width;
+  b0.y = -new_height;
+  b2.x =  new_width;
+  b2.y =  new_height;
+
+  tmp = b0.x;
+  b0.x = current_cos * tmp - current_sin * b0.y;
+  b0.y = current_sin * tmp + current_cos * b0.y;
+
+  tmp = b2.x;
+  b2.x = current_cos * tmp - current_sin * b2.y;
+  b2.y = current_sin * tmp + current_cos * b2.y;
+
+  tmp = (area_rect_to.x + area_rect_from.x) / 2.0;
+  b0.x += tmp;
+  b2.x += tmp;
+
+  tmp = (area_rect_to.y + area_rect_from.y) / 2.0;
+  b0.y += tmp;
+  b2.y += tmp;
+
+  m0.x = -width;
+  m0.y = -height;
+  m2.x =  width;
+  m2.y =  height;
+
+  b0.x -= position.x;
+  b0.y -= position.y;
+  b2.x -= position.x;
+  b2.y -= position.y;
+
+  tmp = b0.x;
+  b0.x = current_cos * tmp + current_sin * b0.y;
+  b0.y = current_cos * b0.y - current_sin * tmp;
+
+  tmp = b2.x;
+  b2.x = current_cos * tmp + current_sin * b2.y;
+  b2.y = current_cos * b2.y - current_sin * tmp;
+
+#ifdef DEBUG_GRAPHIC_MARK
+  {
+    b1.x = -new_width;
+    b1.y =  new_height;
+    b3.x =  new_width;
+    b3.y = -new_height;
+
+    tmp = b1.x;
+    b1.x = current_cos * tmp - current_sin * b1.y;
+    b1.y = current_sin * tmp + current_cos * b1.y;
+
+    tmp = b3.x;
+    b3.x = current_cos * tmp - current_sin * b3.y;
+    b3.y = current_sin * tmp + current_cos * b3.y;
+
+    tmp = (area_rect_to.x + area_rect_from.x) / 2.0;
+    b1.x += tmp;
+    b3.x += tmp;
+
+    tmp = (area_rect_to.y + area_rect_from.y) / 2.0;
+    b1.y += tmp;
+    b3.y += tmp;
+
+    m1.x = -width;
+    m1.y =  height;
+    m3.x =  width;
+    m3.y = -height;
+
+    b1.x -= position.x;
+    b1.y -= position.y;
+    b3.x -= position.x;
+    b3.y -= position.y;
+
+    tmp = b1.x;
+    b1.x = current_cos * tmp + current_sin * b1.y;
+    b1.y = current_cos * b1.y - current_sin * tmp;
+
+    tmp = b3.x;
+    b3.x = current_cos * tmp + current_sin * b3.y;
+    b3.y = current_cos * b3.y - current_sin * tmp;
+  }
+#endif
+
+  border_from.x = fmax (b0.x, m0.x);
+  border_from.y = fmax (b0.y, m0.y);
+  border_to.x   = fmin (b2.x, m2.x);
+  border_to.y   = fmin (b2.y, m2.y);
+
+  width  = (border_to.x - border_from.x) / 2.0;
+  if (width < 0.0)
+    return;
+  height = (border_to.y - border_from.y) / 2.0;
+  if (height < 0.0)
+    return;
+
+  offset.x = (border_to.x + border_from.x) / 2.0;
+  offset.y = (border_to.y + border_from.y) / 2.0;
+
+  new_position.x = position.x + current_cos * offset.x - current_sin * offset.y;
+  new_position.y = position.y + current_sin * offset.x + current_cos * offset.y;
+
+  offset.x /= scale_px;
+  offset.y /= scale_px;
+
+#ifdef DEBUG_GRAPHIC_MARK
+  {
+    m0.x += new_position.x;
+    m0.y += new_position.y;
+    m1.x += new_position.x;
+    m1.y += new_position.y;
+    m2.x += new_position.x;
+    m2.y += new_position.y;
+    m3.x += new_position.x;
+    m3.y += new_position.y;
+
+    b0.x += new_position.x;
+    b0.y += new_position.y;
+    b1.x += new_position.x;
+    b1.y += new_position.y;
+    b2.x += new_position.x;
+    b2.y += new_position.y;
+    b3.x += new_position.x;
+    b3.y += new_position.y;
+  }
+#endif
+
+  new_width  = width * fabs (current_cos) + height * fabs (current_sin);
+  new_height = width * fabs (current_sin) + height * fabs (current_cos);
+
+  border_from.x = new_position.x - new_width;
+  border_from.y = new_position.y - new_height;
+
+  border_to.x = new_position.x + new_width;
+  border_to.y = new_position.y + new_height;
+
+  if (border_from.x > area_rect_to.x ||
+      border_from.y > area_rect_to.y ||
+      border_to.x < area_rect_from.x ||
+      border_to.y < area_rect_from.y)
+    return;
+
+  if (location->mloc->direction != HYSCAN_MARK_LOCATION_BOTTOM &&
+      priv->show_mode == SHOW_ACOUSTIC_IMAGE)
+   {
+      gdouble current_tile_width  = width  / scale_px,
+              current_tile_height = height / scale_px;
+
+#ifdef DEBUG_GRAPHIC_MARK
+
+      HyScanGeoCartesian2D p0 = {-width, -height},
+                           p1 = {-width,  height},
+                           p2 = { width,  height},
+                           p3 = { width, -height};
+
+      tmp = p0.x;
+      p0.x = current_cos * tmp - current_sin * p0.y;
+      p0.y = current_sin * tmp + current_cos * p0.y;
+
+      tmp = p1.x;
+      p1.x = current_cos * tmp - current_sin * p1.y;
+      p1.y = current_sin * tmp + current_cos * p1.y;
+
+      tmp = p2.x;
+      p2.x = current_cos * tmp - current_sin * p2.y;
+      p2.y = current_sin * tmp + current_cos * p2.y;
+
+      tmp = p3.x;
+      p3.x = current_cos * tmp - current_sin * p3.y;
+      p3.y = current_sin * tmp + current_cos * p3.y;
+
+      p0.x += new_position.x;
+      p0.y += new_position.y;
+      p1.x += new_position.x;
+      p1.y += new_position.y;
+      p2.x += new_position.x;
+      p2.y += new_position.y;
+      p3.x += new_position.x;
+      p3.y += new_position.y;
+
+#endif
+
+      tile = hyscan_tile_new (location->mloc->track_name);
+
+      tile->info.source = hyscan_source_get_type_by_id (location->mloc->mark->source);
+
+      if (tile->info.source != HYSCAN_SOURCE_INVALID)
+        {
+          gdouble along, across;
+
+          along = location->mloc->along;
+          across = location->mloc->across;
+
+          along -= offset.y;
+          /* Для левого борта тайл надо отразить по оси X. */
+          if (location->mloc->direction == HYSCAN_MARK_LOCATION_PORT)
+            {
+              across -= offset.x;
+              /* Поэтому значения отрицательные, и start и end меняются местами. */
+              tile->info.across_start = -round ( (across + current_tile_width) * 1000.0);
+              tile->info.across_end   = -round ( (across - current_tile_width) * 1000.0);
+            }
+          else
+            {
+              across += offset.x;
+              tile->info.across_start = round ( (across - current_tile_width) * 1000.0);
+              tile->info.across_end   = round ( (across + current_tile_width) * 1000.0);
+            }
+
+          tile->info.along_start = round ( (along - current_tile_height) * 1000.0);
+          tile->info.along_end   = round ( (along + current_tile_height) * 1000.0);
+
+          tile->info.scale    = 1.0f;
+          tile->info.ppi      = ppi;
+          tile->info.upsample = 2;
+          tile->info.rotate   = FALSE;
+          tile->info.flags    = HYSCAN_TILE_GROUND;
+
+          tile_cacheable.w =      /* Будет заполнено генератором. */
+          tile_cacheable.h = 0;   /* Будет заполнено генератором. */
+          tile_cacheable.finalized = FALSE;   /* Будет заполнено генератором. */
+
+          if (hyscan_tile_queue_check (priv->tile_queue, tile, &tile_cacheable, NULL))
+            {
+              if (hyscan_tile_queue_get (priv->tile_queue, tile, &tile_cacheable, &image, &size))
+                {
+                  /* Тайл найден в кэше. */
+
+                  HyScanTileColor *tile_color;
+
+                  tile_color = hyscan_tile_color_new (priv->cache);
+                  /* 1.0 / 2.2 = 0.454545... */
+                  hyscan_tile_color_set_levels (tile_color, tile->info.source, 0.0, 0.454545, 1.0);
+
+                  tile_surface.width  = tile_cacheable.w;
+                  tile_surface.height = tile_cacheable.h;
+                  tile_surface.stride = cairo_format_stride_for_width (CAIRO_FORMAT_ARGB32, tile_surface.width);
+                  tile_surface.data   = g_malloc0 (tile_surface.height * tile_surface.stride);
+
+                  hyscan_tile_color_add (tile_color, tile, image, size, &tile_surface);
+
+                  if (hyscan_tile_color_check (tile_color, tile, &tile_cacheable))
+                    {
+                      hyscan_tile_color_get (tile_color, tile, &tile_cacheable, &tile_surface);
+                      surface = cairo_image_surface_create_for_data ( (guchar*)tile_surface.data,
+                                            CAIRO_FORMAT_ARGB32, tile_surface.width,
+                                            tile_surface.height, tile_surface.stride);
+                    }
+
+                  hyscan_tile_color_close (tile_color);
+                  g_object_unref (tile_color);
+               }
+            }
+          else
+            {
+              HyScanCancellable *cancellable;
+              cancellable = hyscan_cancellable_new ();
+              /* Добавляем тайл в очередь на генерацию. */
+              hyscan_tile_queue_add (priv->tile_queue, tile, cancellable);
+              g_object_unref (cancellable);
+              *queue_added = TRUE;
+            }
+        }
+      g_object_unref (tile);
+    }
+#ifdef DEBUG_TRACK_POINTS
+  {
+    gdouble track_x, track_y;
+    gdouble ext_x, ext_y, ext_width, ext_height;
+
+    const gdouble dashes[] = { 12.0, 2.0 };
+
+    gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &track_x, &track_y,
+                                           location->antenna_c2d.x, location->antenna_c2d.y);
+
+    cairo_set_source_rgb (cairo, 0.1, 0.7, 0.1);
+    cairo_set_line_width (cairo, 1.0);
+
+    cairo_new_sub_path (cairo);
+    cairo_arc (cairo, position.x, position.y, 4.0, 0, 2 * G_PI);
+    cairo_fill (cairo);
+
+    cairo_new_sub_path (cairo);
+    cairo_arc (cairo, track_x, track_y, 4.0, 0, 2 * G_PI);
+    cairo_fill (cairo);
+
+    cairo_move_to (cairo, x, y);
+    cairo_line_to (cairo, track_x, track_y);
+    cairo_set_dash (cairo, dashes, G_N_ELEMENTS (dashes), 0.0);
+    cairo_stroke (cairo);
+
+    gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &ext_x, &ext_y,
+                                           location->extent_from.x, location->extent_from.y);
+    ext_width = (location->extent_to.x - location->extent_from.x) / scale;
+    ext_height = (location->extent_to.y - location->extent_from.y) / scale;
+    cairo_rectangle (cairo, ext_x, ext_y, ext_width, -ext_height);
+    cairo_stroke (cairo);
+
+    cairo_set_dash (cairo, NULL, 0, 0.0);
+  }
+#endif
+
+  selected = (mark_id != NULL && g_strcmp0 (mark_id, priv->active_mark_id) == 0);
+  color = priv->hover_location == location ? &priv->color_hover : &priv->color_default;
+
+  cairo_save (cairo);
+  cairo_translate (cairo, new_position.x, new_position.y);
+
+  if (surface != NULL)
+    {
+      /* Аккустическое изображение метки. */
+      cairo_save (cairo);
+      cairo_rotate (cairo, location->angle);
+      cairo_set_source_surface (cairo, surface, -width, -height);
+      cairo_paint (cairo);
+      cairo_surface_destroy (surface);
+      g_free (tile_surface.data);
+
+      cairo_set_line_width (cairo, selected ? 2.0 * priv->line_width : priv->line_width);
+
+      gdk_cairo_set_source_rgba (cairo, &priv->color_ai_border);
+
+      cairo_move_to (cairo, -width, -height);
+      cairo_line_to (cairo, -width,  height);
+      cairo_line_to (cairo,  width,  height);
+      cairo_line_to (cairo,  width, -height);
+      cairo_close_path (cairo);
+
+      cairo_stroke (cairo);
+
+      cairo_restore (cairo);
+
+#ifdef DEBUG_GRAPHIC_MARK
+      {
+        HyScanGeoCartesian2D p0 = {-width, -height},
+                             p1 = {-width,  height},
+                             p2 = { width,  height},
+                             p3 = { width, -height};
+
+        cairo_save (cairo);
+        cairo_translate (cairo, -new_position.x, -new_position.y);
+
+        cairo_set_line_width (cairo, 3);
+
+        cairo_set_source_rgb (cairo, 0.0, 0.0, 1.0);
+
+        cairo_rectangle (cairo,
+                         border_from.x,
+                         border_from.y,
+                         border_to.x - border_from.x,
+                         border_to.y - border_from.y);
+
+        cairo_stroke (cairo);
+
+        cairo_set_source_rgb (cairo, 1.0, 1.0, 0.0);
+
+        cairo_move_to (cairo, p0.x, p0.y);
+        cairo_line_to (cairo, p1.x, p1.y);
+        cairo_line_to (cairo, p2.x, p2.y);
+        cairo_line_to (cairo, p3.x, p3.y);
+        cairo_close_path (cairo);
+
+        cairo_stroke (cairo);
+
+        cairo_set_source_rgb (cairo, 0.0, 0.0, 1.0);
+        cairo_arc (cairo, position.x, position.y, 5.0, 0.0, 2.0 * G_PI);
+        cairo_fill (cairo);
+
+        cairo_set_source_rgb (cairo, 1.0, 1.0, 0.0);
+        cairo_arc (cairo, new_position.x, new_position.y, 5.0, 0.0, 2.0 * G_PI);
+        cairo_fill (cairo);
+
+        cairo_translate (cairo, new_position.x, new_position.y);
+        cairo_restore (cairo);
+      }
+#endif
+
+    }
+  else if (location->mloc->direction == HYSCAN_MARK_LOCATION_BOTTOM)
+    {
+      cairo_save (cairo);
+      cairo_rotate (cairo, location->angle);
+
+      cairo_set_line_width (cairo, 5);
+
+      gdk_cairo_set_source_rgba (cairo, &priv->color_echo_mark);
+
+      cairo_move_to (cairo, 0.0, -height);
+      cairo_line_to (cairo, 0.0,  height);
+
+      cairo_stroke (cairo);
+
+      cairo_restore (cairo);
+    }
+  else if (priv->show_mode == SHOW_ONLY_BORDER)
+    {
+      cairo_save (cairo);
+      cairo_rotate (cairo, location->angle);
+
+      cairo_set_line_width (cairo, selected ? 2.0 * priv->line_width : priv->line_width);
+
+      gdk_cairo_set_source_rgba (cairo, &priv->color_default);
+
+      cairo_rectangle (cairo, -width, -height, 2.0 * width, 2.0 * height);
+
+      cairo_stroke (cairo);
+
+      cairo_restore (cairo);
+    }
+
+  /* Стрелка направления движения судна с цветом борта. Рисуется только для меток под курсором мыши. */
+  if (priv->hover_location == location)
+    {
+      cairo_save (cairo);
+      cairo_rotate (cairo, priv->hover_location->angle);
+      cairo_set_line_width (cairo, 5);
+
+      switch (location->mloc->direction)
+      {
+        /* Левый борт. */
+        case HYSCAN_MARK_LOCATION_PORT:
+          {
+            gdk_cairo_set_source_rgba (cairo, &priv->color_lb_arrow);
+
+            cairo_move_to (cairo, width, -height);
+            cairo_line_to (cairo, width,  height);
+
+            cairo_stroke (cairo);
+
+            cairo_move_to (cairo, width + 10, -height     );
+            cairo_line_to (cairo, width - 10, -height     );
+            cairo_line_to (cairo, width,      -height - 20);
+          }
+          break;
+
+        /* Правый борт. */
+        case HYSCAN_MARK_LOCATION_STARBOARD:
+          {
+            gdk_cairo_set_source_rgba (cairo, &priv->color_rb_arrow);
+
+            cairo_move_to (cairo, -width, -height);
+            cairo_line_to (cairo, -width,  height);
+
+            cairo_stroke (cairo);
+
+            cairo_move_to (cairo, -width + 10, -height     );
+            cairo_line_to (cairo, -width - 10, -height     );
+            cairo_line_to (cairo, -width,      -height - 20);
+          }
+          break;
+
+        /* Под судном. */
+        case HYSCAN_MARK_LOCATION_BOTTOM:
+          {
+            gdk_cairo_set_source_rgba (cairo, &priv->color_echo_mark);
+
+            cairo_move_to (cairo, 0.0, -height);
+            cairo_line_to (cairo, 0.0,  height);
+
+            cairo_stroke (cairo);
+
+            cairo_move_to (cairo,  10.0, -height     );
+            cairo_line_to (cairo, -10.0, -height     );
+            cairo_line_to (cairo,   0.0, -height - 20);
+          }
+          break;
+
+        default:
+          break;
+      }
+
+      cairo_close_path (cairo);
+      cairo_fill (cairo);
+      cairo_restore (cairo);
+    }
+
+  {
+    /* Название метки. */
+    gint text_width, text_height;
+
+    pango_layout_set_text (priv->pango_layout, location->mloc->mark->name, -1);
+    pango_layout_get_size (priv->pango_layout, &text_width, &text_height);
+    text_width /= PANGO_SCALE;
+    text_height /= PANGO_SCALE;
+
+    cairo_rectangle (cairo, -text_width / 2.0, new_height + text_height / 2.0, text_width, text_height);
+    gdk_cairo_set_source_rgba (cairo, &priv->color_bg);
+    cairo_fill (cairo);
+
+    cairo_move_to (cairo, -text_width / 2.0, new_height + text_height / 2.0);
+    gdk_cairo_set_source_rgba (cairo, color);
+    pango_cairo_show_layout (cairo, priv->pango_layout);
+  }
+
+  cairo_restore (cairo);
+}
+
 /* Рисует слой по сигналу "visible-draw". */
 static void
 hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
@@ -420,489 +975,41 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
   HyScanGtkMapWfmarkLocation *location;
   gchar *mark_id;
   static guint id = 0;
-  guint counter = 0, area_width, area_height;
-  gfloat ppi;
-  gdouble scale, scale_px;
-  HyScanGeoCartesian2D area_rect_from = {VISIBLE_AREA_PADDING, VISIBLE_AREA_PADDING},
-                       area_rect_to;
+  gboolean queue_added = FALSE;
+  guint area_width, area_height;
+  HyScanGtkMapWfmarkDrawMark draw_mark;
+  const gchar *hover_id = NULL;
 
   if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (wfm_layer)))
     return;
 
   /* Переводим размеры метки из логической СК в пиксельные. */
-  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &scale, NULL);
+  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &draw_mark.scale, NULL);
 
   gtk_cifro_area_get_visible_size (GTK_CIFRO_AREA (priv->map), &area_width, &area_height);
 
-  area_rect_to.x = area_width - VISIBLE_AREA_PADDING;
-  area_rect_to.y = area_height - VISIBLE_AREA_PADDING;
+  draw_mark.area_rect_from.x = VISIBLE_AREA_PADDING;
+  draw_mark.area_rect_from.y = VISIBLE_AREA_PADDING;
+  draw_mark.area_rect_to.x = area_width - VISIBLE_AREA_PADDING;
+  draw_mark.area_rect_to.y = area_height - VISIBLE_AREA_PADDING;
 
-  scale_px = hyscan_gtk_map_get_scale_px (priv->map);
+  draw_mark.scale_px = hyscan_gtk_map_get_scale_px (priv->map);
 
-  ppi = 1e-3 * HYSCAN_GTK_MAP_MM_PER_INCH * scale_px;
+  draw_mark.ppi = 1e-3 * HYSCAN_GTK_MAP_MM_PER_INCH * draw_mark.scale_px;
 
   g_hash_table_iter_init (&iter, priv->marks);
   while (g_hash_table_iter_next (&iter, (gpointer *) &mark_id, (gpointer *) &location))
     {
-      gboolean hovered = (priv->hover_location == location)? TRUE : FALSE;
+      gboolean hovered = (priv->hover_location == location) ? TRUE : FALSE;
+
+      if (hovered)
+        hover_id = mark_id;
 
       if (!location->mloc->loaded || hovered)
         continue;
 
-      HyScanTile *tile = NULL;
-      HyScanTileCacheable tile_cacheable;
-      cairo_surface_t *surface = NULL;
-      gdouble current_sin, current_cos,
-              width, height,
-              new_width, new_height,
-              tmp;
-      GdkRGBA *color = NULL;
-      gfloat *image = NULL;
-      guint32 size = 0;
-
-      HyScanGeoCartesian2D position, new_position, offset,
-                           m0, m2, b0, b2,
-#ifdef DEBUG_GRAPHIC_MARK
-                           m1, m3, b1, b3,
-#endif
-                           border_from, border_to;
-      HyScanTileSurface tile_surface;
-
-      current_sin = sin (location->angle);
-      current_cos = cos (location->angle);
-
-      width = (location->mloc->direction == HYSCAN_MARK_LOCATION_BOTTOM)? 5.0 : location->width / scale;
-      height = location->height / scale;
-
-      gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map),
-                                             &position.x, &position.y,
-                                             location->center_c2d.x, location->center_c2d.y);
-
-      new_width  = ( (area_rect_to.x - area_rect_from.x) / 2.0) * fabs (current_cos) +
-                   ( (area_rect_to.y - area_rect_from.y) / 2.0) * fabs (current_sin);
-      new_height = ( (area_rect_to.x - area_rect_from.x) / 2.0) * fabs (current_sin) +
-                   ( (area_rect_to.y - area_rect_from.y) / 2.0) * fabs (current_cos);
-
-      b0.x = -new_width;
-      b0.y = -new_height;
-      b2.x =  new_width;
-      b2.y =  new_height;
-
-      tmp = b0.x;
-      b0.x = current_cos * tmp - current_sin * b0.y;
-      b0.y = current_sin * tmp + current_cos * b0.y;
-
-      tmp = b2.x;
-      b2.x = current_cos * tmp - current_sin * b2.y;
-      b2.y = current_sin * tmp + current_cos * b2.y;
-
-      tmp = (area_rect_to.x + area_rect_from.x) / 2.0;
-      b0.x += tmp;
-      b2.x += tmp;
-
-      tmp = (area_rect_to.y + area_rect_from.y) / 2.0;
-      b0.y += tmp;
-      b2.y += tmp;
-
-      m0.x = -width;
-      m0.y = -height;
-      m2.x =  width;
-      m2.y =  height;
-
-      b0.x -= position.x;
-      b0.y -= position.y;
-      b2.x -= position.x;
-      b2.y -= position.y;
-
-      tmp = b0.x;
-      b0.x = current_cos * tmp + current_sin * b0.y;
-      b0.y = current_cos * b0.y - current_sin * tmp;
-
-      tmp = b2.x;
-      b2.x = current_cos * tmp + current_sin * b2.y;
-      b2.y = current_cos * b2.y - current_sin * tmp;
-
-#ifdef DEBUG_GRAPHIC_MARK
-      {
-        b1.x = -new_width;
-        b1.y =  new_height;
-        b3.x =  new_width;
-        b3.y = -new_height;
-
-        tmp = b1.x;
-        b1.x = current_cos * tmp - current_sin * b1.y;
-        b1.y = current_sin * tmp + current_cos * b1.y;
-
-        tmp = b3.x;
-        b3.x = current_cos * tmp - current_sin * b3.y;
-        b3.y = current_sin * tmp + current_cos * b3.y;
-
-        tmp = (area_rect_to.x + area_rect_from.x) / 2.0;
-        b1.x += tmp;
-        b3.x += tmp;
-
-        tmp = (area_rect_to.y + area_rect_from.y) / 2.0;
-        b1.y += tmp;
-        b3.y += tmp;
-
-        m1.x = -width;
-        m1.y =  height;
-        m3.x =  width;
-        m3.y = -height;
-
-        b1.x -= position.x;
-        b1.y -= position.y;
-        b3.x -= position.x;
-        b3.y -= position.y;
-
-        tmp = b1.x;
-        b1.x = current_cos * tmp + current_sin * b1.y;
-        b1.y = current_cos * b1.y - current_sin * tmp;
-
-        tmp = b3.x;
-        b3.x = current_cos * tmp + current_sin * b3.y;
-        b3.y = current_cos * b3.y - current_sin * tmp;
-      }
-#endif
-
-      border_from.x = fmax (b0.x, m0.x);
-      border_from.y = fmax (b0.y, m0.y);
-      border_to.x   = fmin (b2.x, m2.x);
-      border_to.y   = fmin (b2.y, m2.y);
-
-      width  = (border_to.x - border_from.x) / 2.0;
-      if (width < 0.0)
-        continue;
-      height = (border_to.y - border_from.y) / 2.0;
-      if (height < 0.0)
-        continue;
-
-      offset.x = (border_to.x + border_from.x) / 2.0;
-      offset.y = (border_to.y + border_from.y) / 2.0;
-
-      new_position.x = position.x + current_cos * offset.x - current_sin * offset.y;
-      new_position.y = position.y + current_sin * offset.x + current_cos * offset.y;
-
-      offset.x /=  scale_px;
-      offset.y /=  scale_px;
-
-#ifdef DEBUG_GRAPHIC_MARK
-      {
-        m0.x += new_position.x;
-        m0.y += new_position.y;
-        m1.x += new_position.x;
-        m1.y += new_position.y;
-        m2.x += new_position.x;
-        m2.y += new_position.y;
-        m3.x += new_position.x;
-        m3.y += new_position.y;
-
-        b0.x += new_position.x;
-        b0.y += new_position.y;
-        b1.x += new_position.x;
-        b1.y += new_position.y;
-        b2.x += new_position.x;
-        b2.y += new_position.y;
-        b3.x += new_position.x;
-        b3.y += new_position.y;
-      }
-#endif
-
-      new_width  = width * fabs (current_cos) + height * fabs (current_sin);
-      new_height = width * fabs (current_sin) + height * fabs (current_cos);
-
-      border_from.x = new_position.x - new_width;
-      border_from.y = new_position.y - new_height;
-
-      border_to.x = new_position.x + new_width;
-      border_to.y = new_position.y + new_height;
-
-      if (border_from.x > area_rect_to.x ||
-          border_from.y > area_rect_to.y ||
-          border_to.x < area_rect_from.x ||
-          border_to.y < area_rect_from.y)
-        continue;
-
-      if (location->mloc->direction != HYSCAN_MARK_LOCATION_BOTTOM &&
-          priv->show_mode == SHOW_ACOUSTIC_IMAGE)
-       {
-          gdouble current_tile_width  = width  / scale_px,
-                  current_tile_height = height / scale_px;
-
-#ifdef DEBUG_GRAPHIC_MARK
-
-          HyScanGeoCartesian2D p0 = {-width, -height},
-                               p1 = {-width,  height},
-                               p2 = { width,  height},
-                               p3 = { width, -height};
-
-          tmp = p0.x;
-          p0.x = current_cos * tmp - current_sin * p0.y;
-          p0.y = current_sin * tmp + current_cos * p0.y;
-
-          tmp = p1.x;
-          p1.x = current_cos * tmp - current_sin * p1.y;
-          p1.y = current_sin * tmp + current_cos * p1.y;
-
-          tmp = p2.x;
-          p2.x = current_cos * tmp - current_sin * p2.y;
-          p2.y = current_sin * tmp + current_cos * p2.y;
-
-          tmp = p3.x;
-          p3.x = current_cos * tmp - current_sin * p3.y;
-          p3.y = current_sin * tmp + current_cos * p3.y;
-
-          p0.x += new_position.x;
-          p0.y += new_position.y;
-          p1.x += new_position.x;
-          p1.y += new_position.y;
-          p2.x += new_position.x;
-          p2.y += new_position.y;
-          p3.x += new_position.x;
-          p3.y += new_position.y;
-
-#endif
-
-          tile = hyscan_tile_new (location->mloc->track_name);
-
-          tile->info.source = hyscan_source_get_type_by_id (location->mloc->mark->source);
-
-          if (tile->info.source != HYSCAN_SOURCE_INVALID)
-            {
-              gdouble along, across;
-
-              along = location->mloc->along;
-              across = location->mloc->across;
-
-              along -= offset.y;
-              /* Для левого борта тайл надо отразить по оси X. */
-              if (location->mloc->direction == HYSCAN_MARK_LOCATION_PORT)
-                {
-                  across -= offset.x;
-                  /* Поэтому значения отрицательные, и start и end меняются местами. */
-                  tile->info.across_start = -round ( (across + current_tile_width) * 1000.0);
-                  tile->info.across_end   = -round ( (across - current_tile_width) * 1000.0);
-                }
-              else
-                {
-                  across += offset.x;
-                  tile->info.across_start = round ( (across - current_tile_width) * 1000.0);
-                  tile->info.across_end   = round ( (across + current_tile_width) * 1000.0);
-                }
-
-              tile->info.along_start = round ( (along - current_tile_height) * 1000.0);
-              tile->info.along_end   = round ( (along + current_tile_height) * 1000.0);
-
-              tile->info.scale    = 1.0f;
-              tile->info.ppi      = ppi;
-              tile->info.upsample = 2;
-              tile->info.rotate   = FALSE;
-              tile->info.flags    = HYSCAN_TILE_GROUND;
-
-              tile_cacheable.w =      /* Будет заполнено генератором. */
-              tile_cacheable.h = 0;   /* Будет заполнено генератором. */
-              tile_cacheable.finalized = FALSE;   /* Будет заполнено генератором. */
-
-              if (hyscan_tile_queue_check (priv->tile_queue, tile, &tile_cacheable, NULL))
-                {
-                  if (hyscan_tile_queue_get (priv->tile_queue, tile, &tile_cacheable, &image, &size))
-                    {
-                      /* Тайл найден в кэше. */
-
-                      HyScanTileColor *tile_color;
-
-                      tile_color = hyscan_tile_color_new (priv->cache);
-                      /* 1.0 / 2.2 = 0.454545... */
-                      hyscan_tile_color_set_levels (tile_color, tile->info.source, 0.0, 0.454545, 1.0);
-
-                      tile_surface.width  = tile_cacheable.w;
-                      tile_surface.height = tile_cacheable.h;
-                      tile_surface.stride = cairo_format_stride_for_width (CAIRO_FORMAT_ARGB32, tile_surface.width);
-                      tile_surface.data   = g_malloc0 (tile_surface.height * tile_surface.stride);
-
-                      hyscan_tile_color_add (tile_color, tile, image, size, &tile_surface);
-
-                      if (hyscan_tile_color_check (tile_color, tile, &tile_cacheable))
-                        {
-                          hyscan_tile_color_get (tile_color, tile, &tile_cacheable, &tile_surface);
-                          surface = cairo_image_surface_create_for_data ( (guchar*)tile_surface.data,
-                                                CAIRO_FORMAT_ARGB32, tile_surface.width,
-                                                tile_surface.height, tile_surface.stride);
-                        }
-
-                      hyscan_tile_color_close (tile_color);
-                      g_object_unref (tile_color);
-                   }
-                }
-              else
-                {
-                  HyScanCancellable *cancellable;
-                  cancellable = hyscan_cancellable_new ();
-                  /* Добавляем тайл в очередь на генерацию. */
-                  hyscan_tile_queue_add (priv->tile_queue, tile, cancellable);
-                  g_object_unref (cancellable);
-                  counter++;
-                }
-            }
-          g_object_unref (tile);
-        }
-#ifdef DEBUG_TRACK_POINTS
-      {
-        gdouble track_x, track_y;
-        gdouble ext_x, ext_y, ext_width, ext_height;
-
-        const gdouble dashes[] = { 12.0, 2.0 };
-
-        gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &track_x, &track_y,
-                                               location->antenna_c2d.x, location->antenna_c2d.y);
-
-        cairo_set_source_rgb (cairo, 0.1, 0.7, 0.1);
-        cairo_set_line_width (cairo, 1.0);
-
-        cairo_new_sub_path (cairo);
-        cairo_arc (cairo, position.x, position.y, 4.0, 0, 2 * G_PI);
-        cairo_fill (cairo);
-
-        cairo_new_sub_path (cairo);
-        cairo_arc (cairo, track_x, track_y, 4.0, 0, 2 * G_PI);
-        cairo_fill (cairo);
-
-        cairo_move_to (cairo, x, y);
-        cairo_line_to (cairo, track_x, track_y);
-        cairo_set_dash (cairo, dashes, G_N_ELEMENTS (dashes), 0.0);
-        cairo_stroke (cairo);
-
-        gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &ext_x, &ext_y,
-                                               location->extent_from.x, location->extent_from.y);
-        ext_width = (location->extent_to.x - location->extent_from.x) / scale;
-        ext_height = (location->extent_to.y - location->extent_from.y) / scale;
-        cairo_rectangle (cairo, ext_x, ext_y, ext_width, -ext_height);
-        cairo_stroke (cairo);
-
-        cairo_set_dash (cairo, NULL, 0, 0.0);
-      }
-#endif
-
-      color = &priv->color_default;
-
-      cairo_save (cairo);
-      cairo_translate (cairo, new_position.x, new_position.y);
-
-      if (surface != NULL)
-        {
-          /* Аккустическое изображение метки. */
-          cairo_save (cairo);
-          cairo_rotate (cairo, location->angle);
-          cairo_set_source_surface (cairo, surface, -width, -height);
-          cairo_paint (cairo);
-          cairo_surface_destroy (surface);
-          g_free (tile_surface.data);
-
-          cairo_set_line_width (cairo, priv->line_width);
-
-          gdk_cairo_set_source_rgba (cairo, &priv->color_ai_border);
-
-          cairo_move_to (cairo, -width, -height);
-          cairo_line_to (cairo, -width,  height);
-          cairo_line_to (cairo,  width,  height);
-          cairo_line_to (cairo,  width, -height);
-          cairo_close_path (cairo);
-
-          cairo_stroke (cairo);
-
-          cairo_restore (cairo);
-
-#ifdef DEBUG_GRAPHIC_MARK
-          {
-            cairo_save (cairo);
-            cairo_translate (cairo, -new_position.x, -new_position.y);
-
-            cairo_set_line_width (cairo, 3);
-
-            cairo_set_source_rgb (cairo, 0.0, 0.0, 1.0);
-
-            cairo_rectangle (cairo,
-                             border_from.x,
-                             border_from.y,
-                             border_to.x - border_from.x,
-                             border_to.y - border_from.y);
-
-            cairo_stroke (cairo);
-
-            cairo_set_source_rgb (cairo, 1.0, 1.0, 0.0);
-
-            cairo_move_to (cairo, p0.x, p0.y);
-            cairo_line_to (cairo, p1.x, p1.y);
-            cairo_line_to (cairo, p2.x, p2.y);
-            cairo_line_to (cairo, p3.x, p3.y);
-            cairo_close_path (cairo);
-
-            cairo_stroke (cairo);
-
-            cairo_set_source_rgb (cairo, 0.0, 0.0, 1.0);
-            cairo_arc (cairo, position.x, position.y, 5.0, 0.0, 2.0 * G_PI);
-            cairo_fill (cairo);
-
-            cairo_set_source_rgb (cairo, 1.0, 1.0, 0.0);
-            cairo_arc (cairo, new_position.x, new_position.y, 5.0, 0.0, 2.0 * G_PI);
-            cairo_fill (cairo);
-
-            cairo_translate (cairo, new_position.x, new_position.y);
-            cairo_restore (cairo);
-          }
-#endif
-
-        }
-      else if (location->mloc->direction == HYSCAN_MARK_LOCATION_BOTTOM)
-        {
-          cairo_save (cairo);
-          cairo_rotate (cairo, location->angle);
-
-          cairo_set_line_width (cairo, 5);
-
-          gdk_cairo_set_source_rgba (cairo, &priv->color_echo_mark);
-
-          cairo_move_to (cairo, 0.0, -height);
-          cairo_line_to (cairo, 0.0,  height);
-
-          cairo_stroke (cairo);
-
-          cairo_restore (cairo);
-        }
-      else if (priv->show_mode == SHOW_ONLY_BORDER)
-        {
-          cairo_save (cairo);
-          cairo_rotate (cairo, location->angle);
-
-          cairo_set_line_width (cairo, 1);
-
-          gdk_cairo_set_source_rgba (cairo, &priv->color_default);
-
-          cairo_rectangle (cairo, -width, -height, 2.0 * width, 2.0 * height);
-
-          cairo_stroke (cairo);
-
-          cairo_restore (cairo);
-        }
-      {
-        /* Название метки. */
-        gint text_width, text_height;
-
-        pango_layout_set_text (priv->pango_layout, location->mloc->mark->name, -1);
-        pango_layout_get_size (priv->pango_layout, &text_width, &text_height);
-        text_width /= PANGO_SCALE;
-        text_height /= PANGO_SCALE;
-
-        cairo_rectangle (cairo, -text_width / 2.0, new_height + text_height / 2.0, text_width, text_height);
-        gdk_cairo_set_source_rgba (cairo, &priv->color_bg);
-        cairo_fill (cairo);
-
-        cairo_move_to (cairo, -text_width / 2.0, new_height + text_height / 2.0);
-        gdk_cairo_set_source_rgba (cairo, color);
-        pango_cairo_show_layout (cairo, priv->pango_layout);
-      }
-
-      cairo_restore (cairo);
+      draw_mark.location = location;
+      hyscan_gtk_map_wfmark_draw_mark (wfm_layer, cairo, mark_id, &draw_mark, &queue_added);
     }
 
 #ifdef DEBUG_GRAPHIC_MARK
@@ -910,557 +1017,22 @@ hyscan_gtk_map_wfmark_draw (HyScanGtkMap       *map,
       cairo_set_line_width (cairo, 2);
       cairo_set_source_rgb (cairo, 1.0, 0.0, 0.0);
       cairo_rectangle (cairo,
-                       area_rect_from.x,
-                       area_rect_from.y,
-                       area_rect_to.x - area_rect_from.x,
-                       area_rect_to.y - area_rect_from.y);
+                       draw_mark.area_rect_from.x,
+                       draw_mark.area_rect_from.y,
+                       draw_mark.area_rect_to.x - draw_mark.area_rect_from.x,
+                       draw_mark.area_rect_to.y - draw_mark.area_rect_from.y);
       cairo_stroke (cairo);
     }
 #endif
 
-  if (counter)
+  if (priv->hover_location != NULL)
     {
-      hyscan_tile_queue_add_finished (priv->tile_queue, id++);
+      draw_mark.location = priv->hover_location;
+      hyscan_gtk_map_wfmark_draw_mark (wfm_layer, cairo, hover_id, &draw_mark, &queue_added);
     }
 
-  if (priv->hover_location)
-   {
-      HyScanTile *tile = NULL;
-      HyScanTileCacheable tile_cacheable;
-      cairo_surface_t *surface = NULL;
-      gdouble current_sin, current_cos,
-              width, height,
-              new_width, new_height,
-              current_tile_width,
-              current_tile_height,
-              tmp;
-      GdkRGBA *color = NULL;
-      gfloat *image = NULL;
-      guint32 size = 0;
-
-      HyScanGeoCartesian2D position, new_position, offset,
-                           m0, m2, b0, b2,
-#ifdef DEBUG_GRAPHIC_MARK
-                           m1, m3, b1, b3,
-#endif
-                           border_from, border_to;
-      HyScanTileSurface tile_surface;
-
-      current_sin = sin (priv->hover_location->angle);
-      current_cos = cos (priv->hover_location->angle);
-
-      width = priv->hover_location->width / scale;
-      height = priv->hover_location->height / scale;
-
-      gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map),
-                                             &position.x, &position.y,
-                                             priv->hover_location->center_c2d.x, priv->hover_location->center_c2d.y);
-
-      new_width  = ( (area_rect_to.x - area_rect_from.x) / 2.0) * fabs (current_cos) +
-                   ( (area_rect_to.y - area_rect_from.y) / 2.0) * fabs (current_sin);
-      new_height = ( (area_rect_to.x - area_rect_from.x) / 2.0) * fabs (current_sin) +
-                   ( (area_rect_to.y - area_rect_from.y) / 2.0) * fabs (current_cos);
-
-      b0.x = -new_width;
-      b0.y = -new_height;
-      b2.x =  new_width;
-      b2.y =  new_height;
-
-      tmp = b0.x;
-      b0.x = current_cos * tmp - current_sin * b0.y;
-      b0.y = current_sin * tmp + current_cos * b0.y;
-
-      tmp = b2.x;
-      b2.x = current_cos * tmp - current_sin * b2.y;
-      b2.y = current_sin * tmp + current_cos * b2.y;
-
-      tmp = (area_rect_to.x + area_rect_from.x) / 2.0;
-      b0.x += tmp;
-      b2.x += tmp;
-
-      tmp = (area_rect_to.y + area_rect_from.y) / 2.0;
-      b0.y += tmp;
-      b2.y += tmp;
-
-      m0.x = -width;
-      m0.y = -height;
-      m2.x =  width;
-      m2.y =  height;
-
-      b0.x -= position.x;
-      b0.y -= position.y;
-      b2.x -= position.x;
-      b2.y -= position.y;
-
-      tmp = b0.x;
-      b0.x = current_cos * tmp + current_sin * b0.y;
-      b0.y = current_cos * b0.y - current_sin * tmp;
-
-      tmp = b2.x;
-      b2.x = current_cos * tmp + current_sin * b2.y;
-      b2.y = current_cos * b2.y - current_sin * tmp;
-
-#ifdef DEBUG_GRAPHIC_MARK
-      {
-        b1.x = -new_width;
-        b1.y =  new_height;
-        b3.x =  new_width;
-        b3.y = -new_height;
-
-        tmp = b1.x;
-        b1.x = current_cos * tmp - current_sin * b1.y;
-        b1.y = current_sin * tmp + current_cos * b1.y;
-
-        tmp = b3.x;
-        b3.x = current_cos * tmp - current_sin * b3.y;
-        b3.y = current_sin * tmp + current_cos * b3.y;
-
-        tmp = (area_rect_to.x + area_rect_from.x) / 2.0;
-        b1.x += tmp;
-        b3.x += tmp;
-
-        tmp = (area_rect_to.y + area_rect_from.y) / 2.0;
-        b1.y += tmp;
-        b3.y += tmp;
-
-        m1.x = -width;
-        m1.y =  height;
-        m3.x =  width;
-        m3.y = -height;
-
-        b1.x -= position.x;
-        b1.y -= position.y;
-        b3.x -= position.x;
-        b3.y -= position.y;
-
-        tmp = b1.x;
-        b1.x = current_cos * tmp + current_sin * b1.y;
-        b1.y = current_cos * b1.y - current_sin * tmp;
-
-        tmp = b3.x;
-        b3.x = current_cos * tmp + current_sin * b3.y;
-        b3.y = current_cos * b3.y - current_sin * tmp;
-      }
-#endif
-
-      border_from.x = fmax (b0.x, m0.x);
-      border_from.y = fmax (b0.y, m0.y);
-      border_to.x   = fmin (b2.x, m2.x);
-      border_to.y   = fmin (b2.y, m2.y);
-
-      width  = (border_to.x - border_from.x) / 2.0;
-      if (width < 0.0)
-        return;
-      height = (border_to.y - border_from.y) / 2.0;
-      if (height < 0.0)
-        return;
-
-      new_width  = width * fabs (current_cos) + height * fabs (current_sin);
-      new_height = width * fabs (current_sin) + height * fabs (current_cos);
-
-      current_tile_width  = width  / scale_px,
-      current_tile_height = height / scale_px;
-
-      offset.x = (border_to.x + border_from.x) / 2.0;
-      offset.y = (border_to.y + border_from.y) / 2.0;
-
-      new_position.x = position.x + current_cos * offset.x - current_sin * offset.y;
-      new_position.y = position.y + current_sin * offset.x + current_cos * offset.y;
-
-      if (priv->hover_location->mloc->direction != HYSCAN_MARK_LOCATION_BOTTOM &&
-          priv->show_mode == SHOW_ACOUSTIC_IMAGE)
-        {
-          offset.x /=  scale_px;
-          offset.y /=  scale_px;
-
-#ifdef DEBUG_GRAPHIC_MARK
-          {
-            m0.x += new_position.x;
-            m0.y += new_position.y;
-            m1.x += new_position.x;
-            m1.y += new_position.y;
-            m2.x += new_position.x;
-            m2.y += new_position.y;
-            m3.x += new_position.x;
-            m3.y += new_position.y;
-
-            b0.x += new_position.x;
-            b0.y += new_position.y;
-            b1.x += new_position.x;
-            b1.y += new_position.y;
-            b2.x += new_position.x;
-            b2.y += new_position.y;
-            b3.x += new_position.x;
-            b3.y += new_position.y;
-          }
-#endif
-
-          border_from.x = new_position.x - new_width;
-          border_from.y = new_position.y - new_height;
-
-          border_to.x = new_position.x + new_width;
-          border_to.y = new_position.y + new_height;
-
-#ifdef DEBUG_GRAPHIC_MARK
-
-          HyScanGeoCartesian2D p0 = {-width, -height},
-                               p1 = {-width,  height},
-                               p2 = { width,  height},
-                               p3 = { width, -height};
-
-          tmp = p0.x;
-          p0.x = current_cos * tmp - current_sin * p0.y;
-          p0.y = current_sin * tmp + current_cos * p0.y;
-
-          tmp = p1.x;
-          p1.x = current_cos * tmp - current_sin * p1.y;
-          p1.y = current_sin * tmp + current_cos * p1.y;
-
-          tmp = p2.x;
-          p2.x = current_cos * tmp - current_sin * p2.y;
-          p2.y = current_sin * tmp + current_cos * p2.y;
-
-          tmp = p3.x;
-          p3.x = current_cos * tmp - current_sin * p3.y;
-          p3.y = current_sin * tmp + current_cos * p3.y;
-
-          p0.x += new_position.x;
-          p0.y += new_position.y;
-          p1.x += new_position.x;
-          p1.y += new_position.y;
-          p2.x += new_position.x;
-          p2.y += new_position.y;
-          p3.x += new_position.x;
-          p3.y += new_position.y;
-
-#endif
-
-          tile = hyscan_tile_new (priv->hover_location->mloc->track_name);
-
-          tile->info.source = hyscan_source_get_type_by_id (priv->hover_location->mloc->mark->source);
-
-          if (tile->info.source != HYSCAN_SOURCE_INVALID)
-            {
-              gdouble along, across;
-
-              along = priv->hover_location->mloc->along;
-              across = priv->hover_location->mloc->across;
-
-              along -= offset.y;
-              /* Для левого борта тайл надо отразить по оси X. */
-              if (priv->hover_location->mloc->direction == HYSCAN_MARK_LOCATION_PORT)
-                {
-                  across -= offset.x;
-                  /* Поэтому значения отрицательные, и start и end меняются местами. */
-                  tile->info.across_start = -round ( (across + current_tile_width) * 1000.0);
-                  tile->info.across_end   = -round ( (across - current_tile_width) * 1000.0);
-                }
-              else
-                {
-                   across += offset.x;
-                   tile->info.across_start = round ( (across - current_tile_width) * 1000.0);
-                   tile->info.across_end   = round ( (across + current_tile_width) * 1000.0);
-                }
-
-              tile->info.along_start = round ( (along - current_tile_height) * 1000.0);
-              tile->info.along_end   = round ( (along + current_tile_height) * 1000.0);
-
-              tile->info.scale    = 1.0f;
-              tile->info.ppi      = ppi;
-              tile->info.upsample = 2;
-              tile->info.rotate   = FALSE;
-              tile->info.flags    = HYSCAN_TILE_GROUND;
-
-              tile_cacheable.w =      /* Будет заполнено генератором. */
-              tile_cacheable.h = 0;   /* Будет заполнено генератором. */
-              tile_cacheable.finalized = FALSE;   /* Будет заполнено генератором. */
-
-              if (hyscan_tile_queue_check (priv->tile_queue, tile, &tile_cacheable, NULL))
-                {
-                  if (hyscan_tile_queue_get (priv->tile_queue, tile, &tile_cacheable, &image, &size))
-                    {
-                      /* Тайл найден в кэше. */
-
-                      HyScanTileColor *tile_color;
-
-                      tile_color = hyscan_tile_color_new (priv->cache);
-                      /* 1.0 / 2.2 = 0.454545... */
-                      hyscan_tile_color_set_levels (tile_color, tile->info.source, 0.0, 0.454545, 1.0);
-
-                      tile_surface.width  = tile_cacheable.w;
-                      tile_surface.height = tile_cacheable.h;
-                      tile_surface.stride = cairo_format_stride_for_width (CAIRO_FORMAT_ARGB32, tile_surface.width);
-                      tile_surface.data   = g_malloc0 (tile_surface.height * tile_surface.stride);
-
-                      hyscan_tile_color_add (tile_color, tile, image, size, &tile_surface);
-
-                      if (hyscan_tile_color_check (tile_color, tile, &tile_cacheable))
-                        {
-                           hyscan_tile_color_get (tile_color, tile, &tile_cacheable, &tile_surface);
-                           surface = cairo_image_surface_create_for_data ( (guchar*)tile_surface.data,
-                                                     CAIRO_FORMAT_ARGB32, tile_surface.width,
-                                                     tile_surface.height, tile_surface.stride);
-                        }
-
-                      hyscan_tile_color_close (tile_color);
-                      g_object_unref (tile_color);
-                    }
-                }
-              else
-                {
-                  HyScanCancellable *cancellable;
-                  cancellable = hyscan_cancellable_new ();
-                  /* Добавляем тайл в очередь на генерацию. */
-                  hyscan_tile_queue_add (priv->tile_queue, tile, cancellable);
-                  g_object_unref (cancellable);
-                  hyscan_tile_queue_add_finished (priv->tile_queue, id++);
-                }
-            }
-          g_object_unref (tile);
-        }
-#ifdef DEBUG_TRACK_POINTS
-      {
-        gdouble track_x, track_y;
-        gdouble ext_x, ext_y, ext_width, ext_height;
-
-        const gdouble dashes[] = { 12.0, 2.0 };
-
-        gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &track_x, &track_y,
-                                               priv->hover_location->antenna_c2d.x, priv->hover_location->antenna_c2d.y);
-        g_strdup (
-        cairo_set_source_rgb (cairo, 0.1, 0.7, 0.1);
-        cairo_set_line_width (cairo, 1.0);
-
-        cairo_new_sub_path (cairo);
-        cairo_arc (cairo, position.x, position.y, 4.0, 0, 2 * G_PI);
-        cairo_fill (cairo);
-
-        cairo_new_sub_path (cairo);
-        cairo_arc (cairo, track_x, track_y, 4.0, 0, 2 * G_PI);
-        cairo_fill (cairo);
-
-        cairo_move_to (cairo, x, y);
-        cairo_line_to (cairo, track_x, track_y);
-        cairo_set_dash (cairo, dashes, G_N_ELEMENTS (dashes), 0.0);
-        cairo_stroke (cairo);
-
-        gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &ext_x, &ext_y,
-                                               priv->hover_location->extent_from.x, priv->hover_location->extent_from.y);
-        ext_width = (priv->hover_location->extent_to.x - priv->hover_location->extent_from.x) / scale;
-        ext_height = (priv->hover_location->extent_to.y - priv->hover_location->extent_from.y) / scale;
-        cairo_rectangle (cairo, ext_x, ext_y, ext_width, -ext_height);
-        cairo_stroke (cairo);
-
-        cairo_set_dash (cairo, NULL, 0, 0.0);
-      }
-#endif
-
-      color = &priv->color_hover;
-
-      cairo_save (cairo);
-      cairo_translate (cairo, new_position.x, new_position.y);
-
-      if (surface != NULL)
-        {
-          /* Аккустическое изображение метки. */
-          cairo_save (cairo);
-          cairo_rotate (cairo, priv->hover_location->angle);
-          if (priv->hover_location->mloc->direction != HYSCAN_MARK_LOCATION_BOTTOM)
-            {
-              cairo_set_source_surface (cairo, surface, -width, -height);
-              cairo_paint (cairo);
-              cairo_surface_destroy (surface);
-              g_free (tile_surface.data);
-
-              cairo_set_line_width (cairo, priv->line_width);
-
-              gdk_cairo_set_source_rgba (cairo, &priv->color_ai_border);
-
-              cairo_rectangle (cairo, -width, -height, 2.0 * width, 2.0 * height);
-
-              cairo_stroke (cairo);
-            }
-
-          cairo_set_line_width (cairo, 5);
-
-          switch (priv->hover_location->mloc->direction)
-          {
-            /* Левый борт. */
-            case HYSCAN_MARK_LOCATION_PORT:
-              {
-                gdk_cairo_set_source_rgba (cairo, &priv->color_lb_arrow);
-
-                cairo_move_to (cairo, width, -height);
-                cairo_line_to (cairo, width,  height);
-
-                cairo_stroke (cairo);
-
-                cairo_move_to (cairo, width + 10, -height     );
-                cairo_line_to (cairo, width - 10, -height     );
-                cairo_line_to (cairo, width,      -height - 20);
-              }
-            break;
-            /* Правый борт. */
-            case HYSCAN_MARK_LOCATION_STARBOARD:
-              {
-                gdk_cairo_set_source_rgba (cairo, &priv->color_rb_arrow);
-
-                cairo_move_to (cairo, -width, -height);
-                cairo_line_to (cairo, -width,  height);
-
-                cairo_stroke (cairo);
-
-                cairo_move_to (cairo, -width + 10, -height     );
-                cairo_line_to (cairo, -width - 10, -height     );
-                cairo_line_to (cairo, -width,      -height - 20);
-              }
-            break;
-            default: break;
-          }
-
-          cairo_close_path (cairo);
-          cairo_fill (cairo);
-
-          cairo_restore (cairo);
-
-#ifdef DEBUG_GRAPHIC_MARK
-          {
-            cairo_save (cairo);
-            cairo_translate (cairo, -new_position.x, -new_position.y);
-
-            cairo_set_line_width (cairo, 3);
-
-            cairo_set_source_rgb (cairo, 0.0, 0.0, 1.0);
-
-            cairo_rectangle (cairo,
-                             border_from.x,
-                             border_from.y,
-                             border_to.x - border_from.x,
-                             border_to.y - border_from.y);
-
-            cairo_stroke (cairo);
-
-            cairo_set_source_rgb (cairo, 1.0, 1.0, 0.0);
-
-            cairo_move_to (cairo, p0.x, p0.y);
-            cairo_line_to (cairo, p1.x, p1.y);
-            cairo_line_to (cairo, p2.x, p2.y);
-            cairo_line_to (cairo, p3.x, p3.y);
-            cairo_close_path (cairo);
-
-            cairo_stroke (cairo);
-
-            cairo_set_source_rgb (cairo, 0.0, 0.0, 1.0);
-            cairo_arc (cairo, position.x, position.y, 5.0, 0.0, 2.0 * G_PI);
-            cairo_fill (cairo);
-
-            cairo_set_source_rgb (cairo, 1.0, 1.0, 0.0);
-            cairo_arc (cairo, new_position.x, new_position.y, 5.0, 0.0, 2.0 * G_PI);
-            cairo_fill (cairo);
-
-            cairo_translate (cairo, new_position.x, new_position.y);
-            cairo_restore (cairo);
-          }
-#endif
-
-        }
-      else if (priv->hover_location->mloc->direction == HYSCAN_MARK_LOCATION_BOTTOM)
-        {
-          cairo_save (cairo);
-          cairo_rotate (cairo, priv->hover_location->angle);
-          cairo_set_line_width (cairo, 5);
-
-          gdk_cairo_set_source_rgba (cairo, &priv->color_echo_mark);
-
-          cairo_move_to (cairo, 0.0, -height);
-          cairo_line_to (cairo, 0.0,  height);
-
-          cairo_stroke (cairo);
-
-          cairo_move_to (cairo,  10.0, -height     );
-          cairo_line_to (cairo, -10.0, -height     );
-          cairo_line_to (cairo,   0.0, -height - 20);
-
-          cairo_fill (cairo);
-
-          cairo_restore (cairo);
-        }
-      else if (priv->show_mode == SHOW_ONLY_BORDER)
-        {
-          cairo_save (cairo);
-          cairo_rotate (cairo, priv->hover_location->angle);
-
-          cairo_set_line_width (cairo, 1);
-
-          gdk_cairo_set_source_rgba (cairo, &priv->color_hover);
-
-          cairo_rectangle (cairo, -width, -height, 2.0 * width, 2.0 * height);
-
-          cairo_stroke (cairo);
-
-          cairo_set_line_width (cairo, 5);
-
-          switch (priv->hover_location->mloc->direction)
-          {
-            /* Левый борт. */
-            case HYSCAN_MARK_LOCATION_PORT:
-              {
-                gdk_cairo_set_source_rgba (cairo, &priv->color_lb_arrow);
-
-                cairo_move_to (cairo, width, -height);
-                cairo_line_to (cairo, width,  height);
-
-                cairo_stroke (cairo);
-
-                cairo_move_to (cairo, width + 10, -height     );
-                cairo_line_to (cairo, width - 10, -height     );
-                cairo_line_to (cairo, width,      -height - 20);
-              }
-            break;
-            /* Правый борт. */
-            case HYSCAN_MARK_LOCATION_STARBOARD:
-              {
-                gdk_cairo_set_source_rgba (cairo, &priv->color_rb_arrow);
-
-                cairo_move_to (cairo, -width, -height);
-                cairo_line_to (cairo, -width,  height);
-
-                cairo_stroke (cairo);
-
-                cairo_move_to (cairo, -width + 10, -height     );
-                cairo_line_to (cairo, -width - 10, -height     );
-                cairo_line_to (cairo, -width,      -height - 20);
-              }
-            break;
-            default: break;
-          }
-
-          cairo_close_path (cairo);
-          cairo_fill (cairo);
-
-          cairo_restore (cairo);
-        }
-      {
-        /* Название метки. */
-        gint text_width, text_height;
-
-        pango_layout_set_text (priv->pango_layout, priv->hover_location->mloc->mark->name, -1);
-        pango_layout_get_size (priv->pango_layout, &text_width, &text_height);
-        text_width /= PANGO_SCALE;
-        text_height /= PANGO_SCALE;
-
-        cairo_rectangle (cairo, -text_width / 2.0, new_height + text_height / 2.0, text_width, text_height);
-        gdk_cairo_set_source_rgba (cairo, &priv->color_bg);
-        cairo_fill (cairo);
-
-        cairo_move_to (cairo, -text_width / 2.0, new_height + text_height / 2.0);
-        gdk_cairo_set_source_rgba (cairo, color);
-        pango_cairo_show_layout (cairo, priv->pango_layout);
-
-      }
-
-      cairo_restore (cairo);
-    }
+  if (queue_added)
+    hyscan_tile_queue_add_finished (priv->tile_queue, id++);
 }
 
 /* Находит метку под курсором мыши. */
