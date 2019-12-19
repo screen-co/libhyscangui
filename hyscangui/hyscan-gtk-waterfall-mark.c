@@ -84,8 +84,7 @@ typedef struct
   gchar               *id;        /*< Идентификатор. */
   HyScanMarkWaterfall *mark;      /*< Метка. */
   HyScanCoordinates    center;    /*< Координата центра. */
-  gdouble              dx;        /*< Ширина. */
-  gdouble              dy;        /*< Высота. */
+  HyScanCoordinates    d;         /*< Размеры метки. */
   HyScanGtkWaterfallMarkTaskActions action;    /*< Что требуется сделать. */
 } HyScanGtkWaterfallMarkTask;
 
@@ -861,15 +860,15 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
             {
               mc.y = task->center.y;
               mc.x = ABS (task->center.x);
-              mw = task->dx;
-              mh = task->dy;
+              mw = task->d.x;
+              mh = task->d.y;
             }
           else /*if (state->display_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER)*/
             {
               mc.y = task->center.x;
               mc.x = ABS (task->center.y);
-              mw = task->dy;
-              mh = task->dx;
+              mw = task->d.y;
+              mh = task->d.x;
             }
 
           if (task->center.x >= 0)
@@ -960,8 +959,8 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
                 {
                   task->center.y = mc.y;
                   task->center.x = mc.x;
-                  task->dx = mw;
-                  task->dy = mh;
+                  task->d.x = mw;
+                  task->d.y = mh;
 
                   if (source == state->lsource)
                     task->center.x *= -1;
@@ -971,8 +970,8 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
                 {
                   task->center.y = - mc.x;
                   task->center.x = mc.y;
-                  task->dx = mh;
-                  task->dy = mw;
+                  task->d.x = mh;
+                  task->d.y = mw;
                 }
 
               list = g_list_prepend (list, task);
@@ -1089,8 +1088,8 @@ hyscan_gtk_waterfall_mark_find_closest (HyScanGtkWaterfallMark *self,
           mlink = link;
         }
 
-      corner.x = task->center.x - task->dx;
-      corner.y = task->center.y - task->dy;
+      corner.x = task->center.x - task->d.x;
+      corner.y = task->center.y - task->d.y;
       r = hyscan_gtk_waterfall_tools_distance (&corner, pointer);
       if (r < rmin)
         {
@@ -1099,8 +1098,8 @@ hyscan_gtk_waterfall_mark_find_closest (HyScanGtkWaterfallMark *self,
           mlink = link;
         }
 
-      corner.x = task->center.x + task->dx;
-      corner.y = task->center.y - task->dy;
+      corner.x = task->center.x + task->d.x;
+      corner.y = task->center.y - task->d.y;
       r = hyscan_gtk_waterfall_tools_distance (&corner, pointer);
       if (r < rmin)
         {
@@ -1109,8 +1108,8 @@ hyscan_gtk_waterfall_mark_find_closest (HyScanGtkWaterfallMark *self,
           mlink = link;
         }
 
-      corner.x = task->center.x - task->dx;
-      corner.y = task->center.y + task->dy;
+      corner.x = task->center.x - task->d.x;
+      corner.y = task->center.y + task->d.y;
       r = hyscan_gtk_waterfall_tools_distance (&corner, pointer);
       if (r < rmin)
         {
@@ -1119,8 +1118,8 @@ hyscan_gtk_waterfall_mark_find_closest (HyScanGtkWaterfallMark *self,
           mlink = link;
         }
 
-      corner.x = task->center.x + task->dx;
-      corner.y = task->center.y + task->dy;
+      corner.x = task->center.x + task->d.x;
+      corner.y = task->center.y + task->d.y;
       r = hyscan_gtk_waterfall_tools_distance (&corner, pointer);
       if (r < rmin)
         {
@@ -1178,7 +1177,7 @@ hyscan_gtk_waterfall_mark_handle_create (HyScanGtkLayer *layer,
   /* Координаты центра. */
   gtk_cifro_area_visible_point_to_value (GTK_CIFRO_AREA (priv->wfall), event->x, event->y,
                                          &priv->current.center.x, &priv->current.center.y);
-  priv->current.dx = priv->current.dy = 0;
+  priv->current.d.x = priv->current.d.y = 0;
   priv->current.action = TASK_CREATE;
 
   hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->wfall), self);
@@ -1282,14 +1281,20 @@ hyscan_gtk_waterfall_mark_handle_click (HyScanGtkLayer       *layer,
 
   mouse.x = task->center.x + ABS (task->center.x - mouse.x);
   mouse.y = task->center.y + ABS (task->center.y - mouse.y);
-  corner.x = ABS (task->center.x + task->dx);
-  corner.y = ABS (task->center.y + task->dy);
+  corner.x = task->center.x + ABS (task->d.x);
+  corner.y = task->center.y + ABS (task->d.y);
   rb = hyscan_gtk_waterfall_tools_distance (&corner, &mouse);
 
   if (rc < rb)
     mode = LOCAL_EDIT_CENTER;
   else
     mode = LOCAL_EDIT_BORDER;
+  g_message("CENTER I %f %f", task->center.x, task->center.y);
+  g_message("DX I %f %f", task->d.x, task->d.y);
+  // g_message("MOUSE O  %f %f", mouse.x, mouse.y);
+  g_message("CORNER O  %f %f", corner.x, corner.y);
+  // g_message("CENTER O  %f %f", task->center.x, task->center.y);
+  g_message ("Mode (C2 B3): %i| c%f b%f", mode, rc, rb);
 
   priv->current.action = TASK_MODIFY;
   priv->mode = mode;
@@ -1377,8 +1382,8 @@ hyscan_gtk_waterfall_mark_motion (GtkWidget              *widget,
     {
     case LOCAL_CREATE:
     case LOCAL_EDIT_BORDER:
-      priv->current.dx = ABS (coord.x - priv->current.center.x);
-      priv->current.dy = ABS (coord.y - priv->current.center.y);
+      priv->current.d.x = ABS (coord.x - priv->current.center.x);
+      priv->current.d.y = ABS (coord.y - priv->current.center.y);
       break;
     case LOCAL_EDIT_CENTER:
       priv->current.center.x = coord.x;
@@ -1426,8 +1431,8 @@ hyscan_gtk_waterfall_mark_intersection (HyScanGtkWaterfallMark     *self,
   gdouble mx0, my0, mw, mh, dx, dy;
   gdouble vx0, vy0, vw, vh;
 
-  dx = ABS (task->center.x - task->dx);
-  dy = ABS (task->center.y - task->dy);
+  dx = ABS (task->center.x - task->d.x);
+  dy = ABS (task->center.y - task->d.y);
 
   mx0 = task->center.x - dx;
   my0 = task->center.y - dy;
@@ -1528,7 +1533,7 @@ hyscan_gtk_waterfall_mark_draw_task (HyScanGtkWaterfallMark     *self,
 
   /* Иначе показываем на экране и добавляем в список видимых меток. */
   gtk_cifro_area_visible_value_to_point (carea, &center.x, &center.y, task->center.x, task->center.y);
-  gtk_cifro_area_visible_value_to_point (carea, &corner.x, &corner.y, task->center.x - task->dx, task->center.y - task->dy);
+  gtk_cifro_area_visible_value_to_point (carea, &corner.x, &corner.y, task->center.x - task->d.x, task->center.y - task->d.y);
 
   dx = ABS (center.x - corner.x);
   dy = ABS (center.y - corner.y);
