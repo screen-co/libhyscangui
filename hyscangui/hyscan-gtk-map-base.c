@@ -783,6 +783,7 @@ hyscan_gtk_map_base_refresh_surface (HyScanGtkMapBasePrivate *priv,
   /* Рисуем все нужные тайлы в их исходном размере. */
   g_clear_pointer (&priv->surface, cairo_surface_destroy);
   priv->surface = hyscan_gtk_map_base_surface_make (priv, &priv->surface_filled);
+  priv->surface_hash = hyscan_map_tile_source_hash (priv->source);
 
   return TRUE;
 }

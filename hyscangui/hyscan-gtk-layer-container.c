@@ -189,7 +189,6 @@ struct _HyScanGtkLayerContainerPrivate
   GList                 *layers;           /* Упорядоченный список слоёв, HyScanGtkLayerContainerInfo. */
   HyScanDataSchema      *schema;           /* Схема параметров контейнера. */
   GdkRGBA                background;       /* Цвет заливки. */
-  HyScanParamProxy      *param_proxy;      /* Параметры контейнера и всех его слоев. */
   HyScanGtkLayerParam   *params;           /* Контроллер параметров, которому делигируем HyScanParam. */
 
   /* Хэндл — это интерактивный элемент слоя, который можно "взять" кликом мыши. */
