@@ -215,7 +215,7 @@ struct _HyScanGtkMapPlannerPrivate
   HyScanGtkMapPlannerStyle           track_style_selected; /* Стиль оформления выбранного галса. */
   HyScanGtkMapPlannerStyle           track_style_active;   /* Стиль оформления активного галса. */
   HyScanGtkMapPlannerStyle           zone_style;           /* Стиль оформления периметра полигона. */
-  HyScanGtkMapPlannerStyle           zone_style_hover;     /* Стиль оформления периметра полигона. */
+  HyScanGtkMapPlannerStyle           zone_style_hover;     /* Стиль оформления периметра активного полигона. */
   HyScanGtkMapPlannerStyle           origin_style;         /* Стиль оформления начала координат. */
 
   struct
@@ -520,10 +520,14 @@ hyscan_gtk_map_planner_object_constructed (GObject *object)
   priv->param = hyscan_gtk_layer_param_new ();
   hyscan_gtk_layer_param_set_stock_schema (priv->param, "map-planner");
   hyscan_gtk_map_planner_add_style_param (priv->param, &priv->zone_style, "/zone-color", "/zone-width");
+  hyscan_gtk_map_planner_add_style_param (priv->param, &priv->zone_style_hover,
+                                          "/zone-hover-color", "/zone-hover-width");
   hyscan_gtk_map_planner_add_style_param (priv->param, &priv->track_style, "/track-color", "/track-width");
   hyscan_gtk_map_planner_add_style_param (priv->param, &priv->origin_style, "/origin-color", "/origin-width");
   hyscan_gtk_map_planner_add_style_param (priv->param, &priv->track_style_selected,
                                           "/track-selected-color", "/track-selected-width");
+  hyscan_gtk_map_planner_add_style_param (priv->param, &priv->track_style_active,
+                                          "/track-active-color", "/track-active-width");
   hyscan_gtk_layer_param_set_default (priv->param);
 
   menu = GTK_MENU_SHELL (gtk_menu_new ());
@@ -1004,6 +1008,8 @@ hyscan_gtk_map_planner_draw (GtkCifroArea        *carea,
   if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (planner)))
     return;
 
+  cairo_save (cairo);
+
   /* Рисуем начало отсчёта и направление осей координат. */
   if (priv->mode == HYSCAN_GTK_MAP_PLANNER_MODE_ORIGIN)
     hyscan_gtk_map_planner_origin_draw (planner, cairo);
@@ -1029,6 +1035,8 @@ hyscan_gtk_map_planner_draw (GtkCifroArea        *carea,
 
   if (priv->cur_group.visible)
     hyscan_gtk_map_planner_group_draw (planner, cairo);
+
+  cairo_restore (cairo);
 }
 
 /* Редактирование зоны при захвате за вершину. */
@@ -2199,11 +2207,23 @@ hyscan_gtk_map_planner_track_draw (HyScanGtkMapPlanner      *planner,
   gdouble start_x, start_y, mid_x, mid_y, end_x, end_y;
   gdouble start_size, end_size, mid_size;
   guint width, height;
+  gdouble length;
   gboolean is_labeled;
 
   /* Пропускаем активный галс. */
   if (skip_current && hyscan_gtk_map_planner_track_is_cur (planner, track))
     return;
+
+  gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &start_x, &start_y, track->start.x, track->start.y);
+  gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &end_x, &end_y, track->end.x, track->end.y);
+  length = hypot (start_x - end_x, start_y - end_y);
+
+  /* Пропускаем галсы, которые плохо видно на текущем масштабе. */
+  if (length < HANDLE_HOVER_RADIUS)
+    return;
+
+  mid_x = (start_x + end_x) / 2.0;
+  mid_y = (start_y + end_y) / 2.0;
 
   if (hyscan_planner_selection_contains (priv->selection, track->id))
     style = &priv->track_style_selected;
@@ -2213,59 +2233,51 @@ hyscan_gtk_map_planner_track_draw (HyScanGtkMapPlanner      *planner,
     style = &priv->track_style;
   hyscan_gtk_map_planner_cairo_style (cairo, style);
 
-  /* Определяем размеры хэндлов. */
-  start_size = mid_size = end_size = HANDLE_RADIUS;
+  /* Определяем размеры хэндлов, с поправкой на их состояние и установленную толщину линий. */
+  start_size = mid_size = end_size = HANDLE_RADIUS + style->line_width;
   if (priv->hover_track_id != NULL && g_strcmp0 (priv->hover_track_id, track->id) == 0)
     {
       if (priv->hover_state == STATE_DRAG_START)
-        start_size = HANDLE_HOVER_RADIUS;
+        start_size = HANDLE_HOVER_RADIUS + style->line_width;
       else if (priv->hover_state == STATE_DRAG_MIDDLE)
-        mid_size = HANDLE_HOVER_RADIUS;
+        mid_size = HANDLE_HOVER_RADIUS + style->line_width;
       else if (priv->hover_state == STATE_DRAG_END)
-        end_size = HANDLE_HOVER_RADIUS;
+        end_size = HANDLE_HOVER_RADIUS + style->line_width;
     }
-
-  gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &start_x, &start_y, track->start.x, track->start.y);
-  gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &end_x, &end_y, track->end.x, track->end.y);
-  mid_x = (start_x + end_x) / 2.0;
-  mid_y = (start_y + end_y) / 2.0;
 
   /* Определяем наличие подписи. */
   gtk_cifro_area_get_visible_size (GTK_CIFRO_AREA (priv->map), &width, &height);
   is_labeled = track->object->number > 0 &&                                     /* (1) имеет номер, */
-               hypot (start_x - end_x, start_y - end_y) > 40.0 &&               /* (2) достаточно крупный, */
+               length > 40.0 &&                                                 /* (2) достаточно крупный, */
                (0 < mid_x && mid_x < width) && (0 < mid_y && mid_y < height);   /* (3) попадает в видимую область. */
 
+  /* Переходим в СК, где (0, 0) совпадает с началом галса, а направление оси Y в сторону конца галса. */
+  cairo_save (cairo);
+  cairo_translate (cairo, start_x, start_y);
+  cairo_rotate (cairo, atan2 (start_x - end_x, end_y - start_y));
 
   /* Точка в начале галса. */
-  cairo_arc (cairo, start_x, start_y, start_size, -G_PI, G_PI);
-  cairo_fill (cairo);
+  cairo_move_to (cairo, -start_size, style->line_width / 2.0);
+  cairo_line_to (cairo,  start_size, style->line_width / 2.0);
+  cairo_stroke (cairo);
 
-  /* Точка в середние галса. */
-  if (!is_labeled && !is_preview && !hyscan_gtk_map_planner_track_is_grouped (planner, track))
-    {
-      cairo_arc (cairo, mid_x, mid_y, mid_size, -G_PI, G_PI);
-      cairo_stroke (cairo);
-    }
+  /* Линия галса. */
+  cairo_move_to (cairo, 0, length);
+  cairo_line_to (cairo, -end_size, length - 2 * end_size);
+  cairo_line_to (cairo,  end_size, length - 2 * end_size);
+  cairo_close_path (cairo);
+  cairo_fill (cairo);
 
   /* Стрелка в конце галса. */
-  cairo_save (cairo);
-  cairo_translate (cairo, end_x, end_y);
-  cairo_rotate (cairo, atan2 (start_y - end_y, start_x - end_x) - G_PI_2);
   cairo_move_to (cairo, 0, 0);
-  cairo_line_to (cairo,  end_size, 2 * end_size);
-  cairo_line_to (cairo, -end_size, 2 * end_size);
-  cairo_fill (cairo);
-  cairo_restore (cairo);
-
-  cairo_save (cairo);
+  cairo_line_to (cairo, 0, length - end_size);
   if (is_preview)
     cairo_set_dash (cairo, (gdouble[]) {3.0}, 1, 0);
-  hyscan_cairo_line_to (cairo, start_x, start_y, end_x, end_y);
   cairo_stroke (cairo);
+
   cairo_restore (cairo);
 
-  /* Подпись галса. */
+  /* Подпись галса в качестве хэндла. */
   if (is_labeled)
     {
       gchar label[16];
@@ -2283,6 +2295,14 @@ hyscan_gtk_map_planner_track_draw (HyScanGtkMapPlanner      *planner,
       cairo_move_to (cairo, mid_x - label_width / 2, mid_y - label_height / 2);
       hyscan_gtk_map_planner_cairo_style (cairo, style);
       pango_cairo_show_layout (cairo, priv->pango_layout);
+    }
+
+  /* Хэндл в центре галса, если нет подписи. */
+  else if (!is_preview && !hyscan_gtk_map_planner_track_is_grouped (planner, track))
+    {
+      cairo_new_path (cairo);
+      cairo_arc (cairo, mid_x, mid_y, mid_size, -G_PI, G_PI);
+      cairo_stroke (cairo);
     }
 }
 

@@ -182,8 +182,6 @@
 #include <hyscan-param-proxy.h>
 #include <math.h>
 
-#define COLOR_SELECTION_BG "rgba(100, 100, 255, 0.1)"
-#define COLOR_SELECTION    "rgba(100, 100, 255, 1.0)"
 #define MOVE_THRESHOLD     2.0                              /* Сдвиг мыши при котором начинается перетаскивание. */
 #define SCROLL_MARGIN      10                               /* Граница от края виджета, с которой начинается автопрокрутка. */
 #define SCROLL_INTERVAL    50                               /* Интервал автопрокрутки. */

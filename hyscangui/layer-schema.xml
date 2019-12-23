@@ -4,6 +4,12 @@
     <key id="background" name="Background" type="string" view="rgba">
       <default>rgba(0, 0, 0, 0)</default>
     </key>
+    <key id="selection" name="Selection" type="string" view="rgba">
+      <default>rgba(100, 100, 255, 1.0)</default>
+    </key>
+    <key id="selection-bg" name="Selection background" type="string" view="rgba">
+      <default>rgba(100, 100, 255, 0.1)</default>
+    </key>
   </schema>
 
   <schema id="map-pin" name="Pin">
@@ -181,11 +187,27 @@
       <default>rgba(128,0,128,1.0)</default>
     </key>
 
+    <key id="track-active-width" name="Active track thickness" type="double">
+      <default>1.0</default>
+      <range min="0" step="0.5"/>
+    </key>
+    <key id="track-active-color" name="Active track" type="string" view="rgba">
+      <default>rgba(128,0,0,1.0)</default>
+    </key>
+
     <key id="zone-width" name="Zone thickness" type="double">
       <default>0.5</default>
       <range min="0" step="0.5"/>
     </key>
     <key id="zone-color" name="Zone" type="string" view="rgba">
+      <default>rgba(0,50,0,0.8)</default>
+    </key>
+
+    <key id="zone-hover-width" name="Highlighted zone thickness" type="double">
+      <default>1.0</default>
+      <range min="0" step="0.5"/>
+    </key>
+    <key id="zone-hover-color" name="Highlighted zone" type="string" view="rgba">
       <default>rgba(0,50,0,0.8)</default>
     </key>
 
