@@ -65,6 +65,7 @@ struct _HyScanMapTileSourceBlendPrivate
   HyScanMapTileGrid                 *grid;         /* Параметры тайловой сетки. */
   guint                              min_zoom;     /* Минимальный допустимый масштаб. */
   guint                              max_zoom;     /* Максимальный допустимый масштаб. */
+  guint                              hash;         /* Хэш источника тайлов. */
 };
 
 static void hyscan_map_tile_source_blend_interface_init (HyScanMapTileSourceInterface *iface);
@@ -174,12 +175,23 @@ hyscan_map_tile_source_blend_get_projection (HyScanMapTileSource *source)
   return g_object_ref (priv->projection);
 }
 
+/* Реализация #HyScanMapTileSourceInterface.get_hash. */
+static guint
+hyscan_map_tile_source_blend_hash (HyScanMapTileSource *source)
+{
+  HyScanMapTileSourceBlend *blend = HYSCAN_MAP_TILE_SOURCE_BLEND (source);
+  HyScanMapTileSourceBlendPrivate *priv = blend->priv;
+
+  return priv->hash;
+}
+
 static void
 hyscan_map_tile_source_blend_interface_init (HyScanMapTileSourceInterface *iface)
 {
   iface->get_projection = hyscan_map_tile_source_blend_get_projection;
   iface->get_grid = hyscan_map_tile_source_blend_get_grid;
   iface->fill_tile = hyscan_map_tile_source_blend_fill_tile;
+  iface->hash = hyscan_map_tile_source_blend_hash;
 }
 
 /**
@@ -223,6 +235,7 @@ hyscan_map_tile_source_blend_append (HyScanMapTileSourceBlend *blend,
     {
       priv->grid = hyscan_map_tile_source_get_grid (source);
       priv->projection = hyscan_map_tile_source_get_projection (source);
+      priv->hash = hyscan_map_tile_source_hash (source);
     }
   else
     {
@@ -230,6 +243,7 @@ hyscan_map_tile_source_blend_append (HyScanMapTileSourceBlend *blend,
       guint blend_hash, source_hash;
       HyScanGeoProjection *source_projection;
       HyScanMapTileGrid *grid;
+      gchar *hash_str;
 
       /* Проверяем, что добавляемый источник совместим с уже добавленными. */
       source_projection = hyscan_map_tile_source_get_projection (source);
@@ -241,6 +255,10 @@ hyscan_map_tile_source_blend_append (HyScanMapTileSourceBlend *blend,
           g_warning ("HyScanMapTileSourceBlend: source projection is not compatible with current one");
           return FALSE;
         }
+
+      hash_str = g_strdup_printf ("%u:%u", priv->hash, hyscan_map_tile_source_hash (source));
+      priv->hash = g_str_hash (hash_str);
+      g_free (hash_str);
 
       grid = hyscan_map_tile_source_get_grid (source);
 

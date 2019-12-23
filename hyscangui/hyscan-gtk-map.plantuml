@@ -137,13 +137,13 @@ interface HyScanMapTileSource
 
 class HyScanGtkMapGeomark
 {
-    {field} HyScanMarkModel *model
+    {field} HyScanObjectModel *model
     {method} added()
 }
 
 class HyScanGtkMapWfmark
 {
-    {field} HyScanMarkModel *model
+    {field} HyScanObjectModel *model
     {method} added()
 }
 

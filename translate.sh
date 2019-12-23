@@ -15,14 +15,21 @@ MO_FILE=${MO_DIR}/${LANG_DIR}/LC_MESSAGES/${TEXTDOMAIN}.mo
 
 case "$1" in
   pot)
-    find ${SRC_DIR[@]} -iname *.c -o -iname *.ui | xargs \
+    echo "Extracting lines from hyscan data schema..."
+    mkdir tmp
+    find . -name layer-schema.xml -exec \
+    sed -n -e 's/^.*name="\([^"]\+\).*/char *s = N_("\1");/p' {}  \; > tmp/extract-data-schema.c
+    echo "Extracting lines from C source files..."
+    find ${SRC_DIR[@]} ./tmp -iname *.c -o -iname *.ui | xargs \
     xgettext --sort-output \
     --keyword=_ \
     --keyword=N_ \
     --keyword=C_:1c,2 \
     --keyword=Q_:1g \
+    --keyword=g_dngettext:2,3 \
     --from-code=UTF-8 \
     -o ${POT_FILE}
+    rm -r tmp
     ;;
 
   mo)

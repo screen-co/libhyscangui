@@ -41,6 +41,8 @@ void              hyscan_gtk_map_kit_add_nav          (HyScanGtkMapKit   *kit,
 
 void              hyscan_gtk_map_kit_add_marks_wf     (HyScanGtkMapKit   *kit);
 
+void              hyscan_gtk_map_kit_add_planner      (HyScanGtkMapKit   *kit);
+
 void              hyscan_gtk_map_kit_add_marks_geo    (HyScanGtkMapKit   *kit);
 
 void              hyscan_gtk_map_kit_free             (HyScanGtkMapKit   *kit);

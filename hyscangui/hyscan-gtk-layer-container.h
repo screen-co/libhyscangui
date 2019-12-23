@@ -36,7 +36,7 @@
 #ifndef __HYSCAN_GTK_LAYER_CONTAINER_H__
 #define __HYSCAN_GTK_LAYER_CONTAINER_H__
 
-#include <hyscan-api.h>
+#include <hyscan-param.h>
 #include <hyscan-gtk-layer.h>
 #include <hyscan-gtk-layer-common.h>
 #include <gtk-cifro-area.h>
@@ -81,12 +81,11 @@ HYSCAN_API
 void                      hyscan_gtk_layer_container_remove_all          (HyScanGtkLayerContainer *container);
 
 HYSCAN_API
-HyScanGtkLayer *          hyscan_gtk_layer_container_lookup              (HyScanGtkLayerContainer *container,
-                                                                          const gchar             *key);
+HyScanParam *             hyscan_gtk_layer_container_get_param           (HyScanGtkLayerContainer *container);
 
 HYSCAN_API
-void                      hyscan_gtk_layer_container_load_key_file       (HyScanGtkLayerContainer *container,
-                                                                          GKeyFile                *key_file);
+HyScanGtkLayer *          hyscan_gtk_layer_container_lookup              (HyScanGtkLayerContainer *container,
+                                                                          const gchar             *key);
 
 HYSCAN_API
 void                      hyscan_gtk_layer_container_set_changes_allowed (HyScanGtkLayerContainer *container,

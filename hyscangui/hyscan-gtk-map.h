@@ -43,6 +43,17 @@
  * Длина экватора в метрах
  */
 #define HYSCAN_GTK_MAP_EQUATOR_LENGTH 40075696.0
+/*
+ * HYSCAN_GTK_MAP_DEFAULT_PPI: (value 96.0)
+ * Разрешающая способность монитора по умолчанию
+ * (количество пикселей на дюйм).
+ */
+#define HYSCAN_GTK_MAP_DEFAULT_PPI 96.0
+/*
+ * HYSCAN_GTK_MAP_MM_PER_INCH: (value 25.4)
+ * Размер дюйма в миллиметрах.
+ */
+#define HYSCAN_GTK_MAP_MM_PER_INCH 25.4
 
 G_BEGIN_DECLS
 

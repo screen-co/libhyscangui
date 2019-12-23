@@ -75,7 +75,7 @@
 #define KEY_CHANNEL_PORT      "/channel-port"
 #define KEY_CHANNEL_STARBOARD "/channel-starboard"
 
-#define STRAIGHT_LINE_MAX_ANGLE 15.0   /* Максимальное изменение курса на прямолинейном участке, градусы. */
+#define STRAIGHT_LINE_MAX_ANGLE 0.26   /* Максимальное изменение курса на прямолинейном участке, рад. */
 #define STRAIGHT_LINE_MIN_DIST  30.0   /* Минимальная длина прямолинейного участка, метры. */
 
 /* Номера каналов по умолчанию. */
@@ -114,9 +114,14 @@ typedef struct {
   gdouble                         r_width;          /* Дальность по правому борту, метры. */
 
   /* Координаты на картографической проекции (зависят от текущей проекции). */
-  HyScanGeoCartesian2D            c2d;              /* Координаты точки галса на проекции. */
-  HyScanGeoCartesian2D            l_c2d;            /* Координаты конца дальности по левому борту. */
-  HyScanGeoCartesian2D            r_c2d;            /* Координаты конца дальности по правому борту. */
+  gdouble                         angle;            /* Курс судна, рад (с поправкой на смещение приёмника). */
+  gdouble                         l_angle;          /* Направление антенны левого борта по курсу. */
+  gdouble                         r_angle;          /* Направление антенны правого борта по курсу. */
+  HyScanGeoCartesian2D            center_c2d;       /* Координаты центра судна на проекции. */
+  HyScanGeoCartesian2D            l_start_c2d;      /* Координаты начала дальности по левому борту. */
+  HyScanGeoCartesian2D            l_end_c2d;        /* Координаты конца дальности по левому борту. */
+  HyScanGeoCartesian2D            r_start_c2d;      /* Координаты начала дальности по правому борту. */
+  HyScanGeoCartesian2D            r_end_c2d;        /* Координаты конца дальности по правому борту. */
   gdouble                         dist;             /* Расстояние от начала галса. */
   gdouble                         l_dist;           /* Дальность по левому борту, единицы проекции. */
   gdouble                         r_dist;           /* Дальность по правому борту, единицы проекции. */
@@ -127,6 +132,7 @@ typedef struct {
 typedef struct {
   HyScanAmplitude                *amplitude;         /* Амплитудные данные трека. */
   HyScanProjector                *projector;         /* Сопоставления индексов и отсчётов реальным координатам. */
+  HyScanAntennaOffset             offset;            /* Смещение антенны. */
 } HyScanGtkMapTrackBoard;
 
 struct _HyScanGtkMapTrackItemPrivate
@@ -134,7 +140,6 @@ struct _HyScanGtkMapTrackItemPrivate
   HyScanDB                       *db;                /* База данных. */
   HyScanCache                    *cache;             /* Кэш. */
   HyScanGtkMapTiled              *tiled_layer;       /* Тайловый слой, на котором размещён галс. */
-  HyScanGeoProjection            *projection;        /* Картографическая проекция. */
   HyScanDataSchema               *schema;            /* Схема параметров галса (номера каналов данных). */
 
   gchar                          *project;           /* Название проекта. */
@@ -143,17 +148,23 @@ struct _HyScanGtkMapTrackItemPrivate
   gboolean                        opened;            /* Признак того, что каналы галса открыты. */
   gboolean                        loaded;            /* Признак того, что данные галса загружены. */
   gboolean                        writeable;         /* Признак того, что галс открыт для записи. */
-  GRWLock                         lock;              /* Блокировка доступа к точкам галса. */
+  HyScanGeoProjection            *projection;        /* Картографическая проекция. */
+  GRWLock                         lock;              /* Блокировка доступа к точкам галса и текущей проекции. */
+
+  GMutex                          mutex;             /* Блокировка доступа к новой проекции. */
+  HyScanGeoProjection            *new_projection;    /* Новая проекция. */
 
   /* Каналы данных. */
   guint                           channel_starboard; /* Номер канала правого борта. */
   guint                           channel_port;      /* Номер канала левого борта. */
   guint                           channel_rmc;       /* Номер канала nmea с RMC. */
   guint                           channel_dpt;       /* Номер канала nmea с DPT. */
+  HyScanAntennaOffset             nav_offset;        /* Смещение антенны GPS. */
 
   HyScanGtkMapTrackBoard          port;              /* Данные левого борта. */
   HyScanGtkMapTrackBoard          starboard;         /* Данные правого борта. */
   HyScanDepthometer              *depthometer;       /* Определение глубины. */
+  HyScanAntennaOffset             depth_offset;      /* Смещение эхолота. */
   HyScanNavData                  *lat_data;          /* Навигационные данные - широта. */
   HyScanNavData                  *lon_data;          /* Навигационные данные - долгота. */
   HyScanNavData                  *angle_data;        /* Навигационные данные - курс в градусах. */
@@ -274,6 +285,7 @@ hyscan_gtk_map_track_item_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_track_item_parent_class)->constructed (object);
 
   g_rw_lock_init (&priv->lock);
+  g_mutex_init (&priv->mutex);
 
   /* Устанавливаем номера каналов по умолчанию. */
   hyscan_gtk_map_track_item_schema_build (track);
@@ -309,6 +321,9 @@ hyscan_gtk_map_track_item_object_finalize (GObject *object)
   g_clear_object (&priv->lat_data);
   g_clear_object (&priv->lon_data);
   g_clear_object (&priv->angle_data);
+
+  g_mutex_clear (&priv->mutex);
+  g_clear_object (&priv->new_projection);
 
   g_list_free_full (priv->points, g_free);
 
@@ -656,11 +671,12 @@ hyscan_gtk_map_track_item_set_channel_real (HyScanGtkMapTrackItem *track,
 
 /* Определяет ширину трека в момент времени time по борту board. */
 static gdouble
-hyscan_gtk_map_track_item_width (HyScanGtkMapTrackBoard *board,
-                                 HyScanDepthometer      *depthometer,
+hyscan_gtk_map_track_item_width (HyScanGtkMapTrackItem  *track,
+                                 HyScanGtkMapTrackBoard *board,
                                  gint64                  time,
                                  HyScanDBFindStatus     *find_status)
 {
+  HyScanGtkMapTrackItemPrivate *priv = track->priv;
   guint32 amp_rindex, amp_lindex;
   guint32 nvals;
   gdouble depth;
@@ -676,9 +692,20 @@ hyscan_gtk_map_track_item_width (HyScanGtkMapTrackBoard *board,
   if (find_status_ret != HYSCAN_DB_FIND_OK)
     goto exit;
 
-  depth = (depthometer != NULL) ? hyscan_depthometer_get (depthometer, NULL, time) : 0.0;
-  if (depth < 0.0)
-    depth = 0.0;
+  /* Определяем глубину с поправкой на заглубление эхолота и ГБО. */
+  if (priv->depthometer != NULL)
+    {
+      depth = hyscan_depthometer_get (priv->depthometer, NULL, time);
+      if (depth < 0)
+        depth = 0;
+
+      depth += priv->depth_offset.vertical;
+    }
+  else
+    {
+      depth = 0;
+    }
+  depth -= board->offset.vertical;
 
   hyscan_amplitude_get_size_time (board->amplitude, amp_lindex, &nvals, NULL);
   hyscan_projector_count_to_coord (board->projector, nvals, &distance, depth);
@@ -708,7 +735,7 @@ hyscan_gtk_map_track_item_is_straight (GList *l_point)
     {
       HyScanGtkMapTrackPoint *point_prev = list->data;
 
-      if (ABS (point->geo.h - point_prev->geo.h) > STRAIGHT_LINE_MAX_ANGLE)
+      if (ABS (point->angle - point_prev->angle) > STRAIGHT_LINE_MAX_ANGLE)
         {
           is_straight = FALSE;
           break;
@@ -725,7 +752,7 @@ hyscan_gtk_map_track_item_is_straight (GList *l_point)
     {
       HyScanGtkMapTrackPoint *point_next = list->data;
 
-      if (ABS (point->geo.h - point_next->geo.h) > STRAIGHT_LINE_MAX_ANGLE)
+      if (ABS (point->angle - point_next->angle) > STRAIGHT_LINE_MAX_ANGLE)
         {
           is_straight = FALSE;
           break;
@@ -749,16 +776,50 @@ hyscan_gtk_map_track_item_cartesian (HyScanGtkMapTrackItem *track,
   HyScanGtkMapTrackItemPrivate *priv = track->priv;
   GList *point_l;
 
+  /* Вычисляем положение приёмника GPS в картографической проекции. */
+  for (point_l = points; point_l != NULL; point_l = reverse ? point_l->prev : point_l->next)
+    {
+      HyScanGtkMapTrackPoint *point = point_l->data;
+      hyscan_geo_projection_geo_to_value (priv->projection, point->geo, &point->center_c2d);
+    }
+
   for (point_l = points; point_l != NULL; point_l = reverse ? point_l->prev : point_l->next)
     {
       HyScanGtkMapTrackPoint *point, *neighbour_point;
       GList *neighbour;
-      gdouble angle;
-      gdouble angle_sin, angle_cos;
+      gdouble hdg_sin, hdg_cos;
 
       point = point_l->data;
+      point->scale = hyscan_geo_projection_get_scale (priv->projection, point->geo);
 
-      hyscan_geo_projection_geo_to_value (priv->projection, point->geo, &point->c2d);
+      /* Делаем поправки на смещение приёмника GPS: 1-2. */
+
+      /* 1. Поправка курса. */
+      point->angle = point->geo.h / 180.0 * G_PI - priv->nav_offset.yaw;
+      hdg_sin = sin (point->angle);
+      hdg_cos = cos (point->angle);
+
+      /* 2. Поправка смещений x, y. */
+      point->center_c2d.x -= priv->nav_offset.forward / point->scale * hdg_sin;
+      point->center_c2d.y -= priv->nav_offset.forward / point->scale * hdg_cos;
+      point->center_c2d.x -= priv->nav_offset.starboard / point->scale * hdg_cos;
+      point->center_c2d.y -= -priv->nav_offset.starboard / point->scale * hdg_sin;
+
+      /* Определяем положения антенн левого и правого бортов ГБО. */
+      point->l_angle = point->angle - priv->port.offset.yaw;
+      point->r_angle = point->angle - priv->starboard.offset.yaw;
+      point->r_start_c2d.x = point->center_c2d.x +
+                             (priv->starboard.offset.forward * hdg_sin +
+                              priv->starboard.offset.starboard * hdg_cos) / point->scale;
+      point->r_start_c2d.y = point->center_c2d.y +
+                             (priv->starboard.offset.forward * hdg_cos -
+                              priv->starboard.offset.starboard * hdg_sin) / point->scale;
+      point->l_start_c2d.x = point->center_c2d.x +
+                             (priv->port.offset.forward * hdg_sin +
+                              priv->port.offset.starboard * hdg_cos) / point->scale;
+      point->l_start_c2d.y = point->center_c2d.y +
+                             (priv->port.offset.forward * hdg_cos -
+                              priv->port.offset.starboard * hdg_sin) / point->scale;
 
       /* Определяем расстояние от начала галса на основе соседней точки. */
       neighbour = reverse ? point_l->next : point_l->prev;
@@ -766,7 +827,7 @@ hyscan_gtk_map_track_item_cartesian (HyScanGtkMapTrackItem *track,
       if (neighbour_point != NULL)
         {
           point->dist = neighbour_point->dist +
-                        (reverse ? -1 : 1) *  hyscan_cartesian_distance (&point->c2d, &neighbour_point->c2d);
+                        (reverse ? -1 : 1) *  hyscan_cartesian_distance (&point->center_c2d, &neighbour_point->center_c2d);
         }
       else
         {
@@ -774,16 +835,12 @@ hyscan_gtk_map_track_item_cartesian (HyScanGtkMapTrackItem *track,
         }
 
       /* Правый и левый борт. */
-      angle = point->geo.h / 180.0 * G_PI;
-      angle_sin = sin (angle);
-      angle_cos = cos (angle);
-      point->scale = hyscan_geo_projection_get_scale (priv->projection, point->geo);
       point->r_dist = point->r_width / point->scale;
       point->l_dist = point->l_width / point->scale;
-      point->r_c2d.x = point->c2d.x + point->r_dist * angle_cos;
-      point->r_c2d.y = point->c2d.y - point->r_dist * angle_sin;
-      point->l_c2d.x = point->c2d.x - point->l_dist * angle_cos;
-      point->l_c2d.y = point->c2d.y + point->l_dist * angle_sin;
+      point->r_end_c2d.x = point->r_start_c2d.x + point->r_dist * cos (point->r_angle);
+      point->r_end_c2d.y = point->r_start_c2d.y - point->r_dist * sin (point->r_angle);
+      point->l_end_c2d.x = point->l_start_c2d.x - point->l_dist * cos (point->l_angle);
+      point->l_end_c2d.y = point->l_start_c2d.y + point->l_dist * sin (point->l_angle);
     }
 
     for (point_l = points; point_l != NULL; point_l = reverse ? point_l->prev : point_l->next)
@@ -804,31 +861,25 @@ hyscan_gtk_map_track_points_view (GList                *points,
   HyScanGtkMapTrackPoint *point;
   GList *point_l;
 
-  gdouble max_margin = 0;
   gdouble from_x = G_MAXDOUBLE;
   gdouble to_x = G_MINDOUBLE;
   gdouble from_y = G_MAXDOUBLE;
   gdouble to_y = G_MINDOUBLE;
 
-  /* Определеяем границы координат путевых точек галса. */
+  /* Смотрим область, внутри которой размещены концы дальности. */
   for (point_l = points; point_l != end; point_l = point_l->next)
     {
       point = point_l->data;
 
-      from_x = MIN (from_x, point->c2d.x);
-      to_x = MAX (to_x, point->c2d.x);
-      from_y = MIN (from_y, point->c2d.y);
-      to_y = MAX (to_y, point->c2d.y);
-
-      max_margin = MAX (max_margin, point->r_dist);
-      max_margin = MAX (max_margin, point->l_dist);
+      from_x = MIN (from_x, point->l_end_c2d.x);
+      from_x = MIN (from_x, point->r_end_c2d.x);
+      to_x = MAX (to_x, point->l_end_c2d.x);
+      to_x = MAX (to_x, point->r_end_c2d.x);
+      from_y = MIN (from_y, point->l_end_c2d.y);
+      from_y = MIN (from_y, point->r_end_c2d.y);
+      to_y = MAX (to_y, point->l_end_c2d.y);
+      to_y = MAX (to_y, point->r_end_c2d.y);
     }
-
-  /* Добавим к границам отступы в размере длины максимальной дальности. */
-  from_x -= max_margin;
-  to_x += max_margin;
-  from_y -= max_margin;
-  to_y += max_margin;
 
   from->x = from_x;
   from->y = from_y;
@@ -854,7 +905,6 @@ hyscan_gtk_map_track_item_load_range (HyScanGtkMapTrackItem *track,
                                       guint32                last)
 {
   HyScanGtkMapTrackItemPrivate *priv = track->priv;
-  HyScanGeoCartesian2D from, to;
   GList *result;
   GList *points = NULL;
   guint32 index;
@@ -882,9 +932,9 @@ hyscan_gtk_map_track_item_load_range (HyScanGtkMapTrackItem *track,
       point->geo = coords;
 
       /* Определяем ширину отснятых данных в этот момент. */
-      point->r_width = hyscan_gtk_map_track_item_width (&priv->starboard, priv->depthometer, time,
+      point->r_width = hyscan_gtk_map_track_item_width (track, &priv->starboard, time,
                                                         &point->r_find_status);
-      point->l_width = hyscan_gtk_map_track_item_width (&priv->port, priv->depthometer, time,
+      point->l_width = hyscan_gtk_map_track_item_width (track, &priv->port, time,
                                                         &point->l_find_status);
 
       points = g_list_append (points, point);
@@ -905,8 +955,14 @@ hyscan_gtk_map_track_item_load_range (HyScanGtkMapTrackItem *track,
   /* Отмечаем на тайловом слое устаревшую область. */
   if (points != NULL)
     {
-      hyscan_gtk_map_track_points_view (points->prev != NULL ? points->prev : points, tail, &from, &to);
-      hyscan_gtk_map_tiled_set_area_mod (HYSCAN_GTK_MAP_TILED (priv->tiled_layer), &from, &to);
+      GList *link;
+      HyScanGtkMapTrackPoint *point;
+
+      for (link = points->prev != NULL ? points->prev : points; link != tail; link = link->next)
+        {
+          point = link->data;
+          hyscan_gtk_map_tiled_set_area_mod (HYSCAN_GTK_MAP_TILED (priv->tiled_layer), &point->l_end_c2d, &point->r_end_c2d);
+        }
     }
 
 
@@ -1041,6 +1097,7 @@ hyscan_gtk_map_track_item_open (HyScanGtkMapTrackItem *track)
       if (priv->starboard.amplitude == NULL)
         g_warning ("HyScanGtkMapTrackItem: failed to open acoustic data");
 
+      priv->starboard.offset = hyscan_amplitude_get_offset (priv->starboard.amplitude);
       priv->starboard.projector = hyscan_projector_new (priv->starboard.amplitude);
     }
   if (priv->channel_port > 0)
@@ -1049,6 +1106,7 @@ hyscan_gtk_map_track_item_open (HyScanGtkMapTrackItem *track)
                                                                          priv->name,
                                                                          HYSCAN_SOURCE_SIDE_SCAN_PORT,
                                                                          priv->channel_port, FALSE));
+      priv->port.offset = hyscan_amplitude_get_offset (priv->port.amplitude);
       priv->port.projector = hyscan_projector_new (priv->port.amplitude);
     }
 
@@ -1065,6 +1123,7 @@ hyscan_gtk_map_track_item_open (HyScanGtkMapTrackItem *track)
                                                                    priv->name, priv->channel_rmc,
                                                                    HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_TRACK));
       priv->writeable = hyscan_nav_data_is_writable (priv->lat_data);
+      priv->nav_offset = hyscan_nav_data_get_offset (priv->lat_data);
     }
 
   if (priv->channel_dpt > 0)
@@ -1073,7 +1132,10 @@ hyscan_gtk_map_track_item_open (HyScanGtkMapTrackItem *track)
                                            priv->project, priv->name, priv->channel_dpt,
                                            HYSCAN_NMEA_DATA_DPT, HYSCAN_NMEA_FIELD_DEPTH);
       if (dpt_parser != NULL)
-        priv->depthometer = hyscan_depthometer_new (HYSCAN_NAV_DATA (dpt_parser), priv->cache);
+        {
+          priv->depthometer = hyscan_depthometer_new (HYSCAN_NAV_DATA (dpt_parser), priv->cache);
+          priv->depth_offset = hyscan_nav_data_get_offset (HYSCAN_NAV_DATA (dpt_parser));
+        }
 
       g_clear_object (&dpt_parser);
     }
@@ -1105,6 +1167,18 @@ hyscan_gtk_map_track_item_load (HyScanGtkMapTrackItem *track)
   HyScanGtkMapTrackItemPrivate *priv = track->priv;
   guint32 first_index, last_index;
   guint32 mod_count;
+  gboolean proj_changed;
+
+  g_mutex_lock (&priv->mutex);
+  if ((proj_changed = (priv->new_projection != NULL)))
+    {
+      g_clear_object (&priv->projection);
+      priv->projection = priv->new_projection;
+      priv->new_projection = NULL;
+    }
+  g_mutex_unlock (&priv->mutex);
+  if (proj_changed)
+    hyscan_gtk_map_track_item_cartesian (track, priv->points, FALSE);
 
   /* Открываем каналы данных. */
   if (!priv->opened)
@@ -1169,8 +1243,7 @@ hyscan_gtk_map_track_draw_chunk (HyScanGeoCartesian2D       *from,
   cairo_new_path (cairo);
   for (point_l = chunk_start; point_l != chunk_end; point_l = point_l->next)
     {
-      gdouble x0, y0;
-      gdouble shadow_len;
+      gdouble x0, y0, xc, yc;
 
       point = point_l->data;
       next_point = point_l->next ? point_l->next->data : NULL;
@@ -1183,47 +1256,62 @@ hyscan_gtk_map_track_draw_chunk (HyScanGeoCartesian2D       *from,
       if (next_point == NULL || round (next_point->dist / threshold) == round (point->dist / threshold))
         continue;
 
-      /* Координаты точки на поверхности cairo. */
-      x0 = (point->c2d.x - from->x) / scale;
-      y0 = (from->y - to->y) / scale - (point->c2d.y - to->y) / scale;
-
-      cairo_save (cairo);
-      cairo_translate (cairo, x0, y0);
-      cairo_rotate (cairo, point->geo.h / 180 * G_PI);
+      xc = (point->center_c2d.x - from->x) / scale;
+      yc = (from->y - to->y) / scale - (point->center_c2d.y - to->y) / scale;
 
       /* Правый борт. */
       if (point->r_dist > 0)
         {
+          /* Координаты точки на поверхности cairo. */
+          x0 = (point->r_start_c2d.x - from->x) / scale;
+          y0 = (from->y - to->y) / scale - (point->r_start_c2d.y - to->y) / scale;
+
+          cairo_save (cairo);
+          cairo_translate (cairo, x0, y0);
+          cairo_rotate (cairo, point->r_angle);
+
           cairo_rectangle (cairo, 0, -style->bar_width / 2.0, point->r_dist / scale, style->bar_width);
           cairo_set_line_width (cairo, style->stroke_width);
           gdk_cairo_set_source_rgba (cairo, &style->color_stroke);
           cairo_stroke_preserve (cairo);
           gdk_cairo_set_source_rgba (cairo, &style->color_right);
           cairo_fill (cairo);
+
+          cairo_restore (cairo);
+
+          cairo_move_to (cairo, x0, y0);
+          cairo_line_to (cairo, xc, yc);
+          gdk_cairo_set_source_rgba (cairo, &style->color_shadow);
+          cairo_set_line_width (cairo, style->bar_width);
+          cairo_stroke (cairo);
         }
 
       /* Левый борт. */
       if (point->l_dist > 0)
         {
+          /* Координаты точки на поверхности cairo. */
+          x0 = (point->l_start_c2d.x - from->x) / scale;
+          y0 = (from->y - to->y) / scale - (point->l_start_c2d.y - to->y) / scale;
+
+          cairo_save (cairo);
+          cairo_translate (cairo, x0, y0);
+          cairo_rotate (cairo, point->l_angle);
+
           cairo_rectangle (cairo, 0, -style->bar_width / 2.0, -point->l_dist / scale, style->bar_width);
           cairo_set_line_width (cairo, style->stroke_width);
           gdk_cairo_set_source_rgba (cairo, &style->color_stroke);
           cairo_stroke_preserve (cairo);
           gdk_cairo_set_source_rgba (cairo, &style->color_left);
           cairo_fill (cairo);
-        }
 
-      /* Тень в пересечении линии движения и полос от бортов. */
-      if (point->r_dist > 0 || point->l_dist > 0)
-        {
+          cairo_restore (cairo);
+
+          cairo_move_to (cairo, x0, y0);
+          cairo_line_to (cairo, xc, yc);
           gdk_cairo_set_source_rgba (cairo, &style->color_shadow);
-          shadow_len =  MIN (point->r_dist / scale, point->l_dist / scale) - 1.0;
-          shadow_len = MIN (style->bar_width, shadow_len);
-          cairo_rectangle (cairo, - shadow_len / 2.0, - style->bar_width / 2.0, shadow_len, style->bar_width);
-          cairo_fill (cairo);
+          cairo_set_line_width (cairo, style->bar_width);
+          cairo_stroke (cairo);
         }
-
-      cairo_restore (cairo);
     }
 
   /* Рисуем линию движения. */
@@ -1235,8 +1323,8 @@ hyscan_gtk_map_track_draw_chunk (HyScanGeoCartesian2D       *from,
       point = point_l->data;
 
       /* Координаты точки на поверхности cairo. */
-      x = (point->c2d.x - from->x) / scale;
-      y = (from->y - to->y) / scale - (point->c2d.y - to->y) / scale;
+      x = (point->center_c2d.x - from->x) / scale;
+      y = (from->y - to->y) / scale - (point->center_c2d.y - to->y) / scale;
 
       cairo_line_to (cairo, x, y);
     }
@@ -1263,8 +1351,8 @@ hyscan_gtk_map_track_draw_region (HyScanGtkMapTrackItem      *track,
       HyScanGeoCartesian2D *prev_point, *cur_point, *next_point;
       gboolean is_inside;
 
-      cur_point  = &((HyScanGtkMapTrackPoint *) point_l->data)->c2d;
-      prev_point = &((HyScanGtkMapTrackPoint *) prev_point_l->data)->c2d;
+      cur_point  = &((HyScanGtkMapTrackPoint *) point_l->data)->center_c2d;
+      prev_point = &((HyScanGtkMapTrackPoint *) prev_point_l->data)->center_c2d;
 
       /* 1. Отрезок до предыдущего узла в указанной области. */
       is_inside = hyscan_cartesian_is_inside (prev_point, cur_point, from, to);
@@ -1272,7 +1360,7 @@ hyscan_gtk_map_track_draw_region (HyScanGtkMapTrackItem      *track,
       /* 2. Отрезок до следующего узла в указанной области. */
       if (!is_inside && next_point_l != NULL)
         {
-          next_point = &((HyScanGtkMapTrackPoint *) next_point_l->data)->c2d;
+          next_point = &((HyScanGtkMapTrackPoint *) next_point_l->data)->center_c2d;
           is_inside = hyscan_cartesian_is_inside (next_point, cur_point, from, to);
         }
 
@@ -1281,7 +1369,10 @@ hyscan_gtk_map_track_draw_region (HyScanGtkMapTrackItem      *track,
         {
           HyScanGtkMapTrackPoint *cur_track_point = point_l->data;
 
-          is_inside = hyscan_cartesian_is_inside (&cur_track_point->l_c2d, &cur_track_point->r_c2d, from, to);
+          is_inside = hyscan_cartesian_is_inside (&cur_track_point->l_start_c2d, &cur_track_point->l_end_c2d, from, to) ||
+                      hyscan_cartesian_is_inside (&cur_track_point->l_start_c2d, &cur_track_point->center_c2d, from, to) ||
+                      hyscan_cartesian_is_inside (&cur_track_point->r_start_c2d, &cur_track_point->center_c2d, from, to) ||
+                      hyscan_cartesian_is_inside (&cur_track_point->r_start_c2d, &cur_track_point->r_end_c2d, from, to);
         }
 
       if (is_inside)
@@ -1393,13 +1484,13 @@ hyscan_gtk_map_track_item_draw (HyScanGtkMapTrackItem      *track,
 
   /* Точка начала трека. */
   start_point = priv->points->data;
-  if (hyscan_cartesian_is_point_inside (&start_point->c2d, from, to))
+  if (hyscan_cartesian_is_point_inside (&start_point->center_c2d, from, to))
   {
     gdouble x, y;
 
     /* Координаты точки на поверхности cairo. */
-    x = (start_point->c2d.x - from->x) / scale;
-    y = (from->y - to->y) / scale - (start_point->c2d.y - to->y) / scale;
+    x = (start_point->center_c2d.x - from->x) / scale;
+    y = (from->y - to->y) / scale - (start_point->center_c2d.y - to->y) / scale;
 
     cairo_arc (cairo, x, y, 2.0 * style->line_width, 0, 2.0 * G_PI);
 
@@ -1551,9 +1642,9 @@ hyscan_gtk_map_track_item_set_projection (HyScanGtkMapTrackItem *track,
   g_return_if_fail (HYSCAN_IS_GTK_MAP_TRACK_ITEM (track));
   priv = track->priv;
 
-  g_rw_lock_writer_lock (&priv->lock);
-  g_clear_object (&priv->projection);
-  priv->projection = g_object_ref (projection);
-  hyscan_gtk_map_track_item_cartesian (track, priv->points, FALSE);
-  g_rw_lock_writer_unlock (&priv->lock);
+  /* Пока что не перепроецируем, чтобы не блокировать GUI, а просто запоминаем новую проекцию. */
+  g_mutex_lock (&priv->mutex);
+  g_clear_object (&priv->new_projection);
+  priv->new_projection = g_object_ref (projection);
+  g_mutex_unlock (&priv->mutex);
 }

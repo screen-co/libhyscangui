@@ -53,6 +53,7 @@
 
 #include "hyscan-gtk-map-geomark.h"
 #include "hyscan-gtk-map.h"
+#include "hyscan-gtk-layer-param.h"
 #include <hyscan-cartesian.h>
 
 #define HOVER_RADIUS            7                             /* Радиус хэндла. */
@@ -95,7 +96,7 @@ typedef struct
 struct _HyScanGtkMapGeomarkPrivate
 {
   HyScanGtkMap                            *map;                /* Карта. */
-  HyScanMarkModel                         *model;              /* Модель меток. */
+  HyScanObjectModel                       *model;              /* Модель меток. */
 
   gboolean                                 visible;            /* Признак видимости слоя. */
 
@@ -108,6 +109,7 @@ struct _HyScanGtkMapGeomarkPrivate
   gchar                                   *drag_mark_id;       /* Идентификатор активной метки drag_mark. */
 
   gchar                                   *hover_id;           /* Идентификатор метки под курсором мыши */
+  gchar                                   *hover_candidate_id; /* Идентификатор метки под курсором мыши */
   gchar                                   *active_mark_id;     /* Идентификатор активной метки */
 
   gchar                                   *hover_handle_id;    /* Идентификатор метки, чей хэндл сейчас отображается. */
@@ -117,11 +119,11 @@ struct _HyScanGtkMapGeomarkPrivate
   guint                                    found_mode;         /* Режим найденного хэндла. */
 
   /* Стиль оформления. */
+  HyScanGtkLayerParam                     *param;              /* Параметры оформления. */
   gdouble                                  line_width;         /* Толщина линий. */
   GdkRGBA                                  color;              /* Основной цвет. */
   GdkRGBA                                  color_hover;        /* Цвет метки под курсором мыши. */
   GdkRGBA                                  color_pending;      /* Цвет обрабатываемой метки. */
-  GdkRGBA                                  color_blackout;     /* Цвет затемнения. */
   GdkRGBA                                  color_bg;           /* Цвет фона текста. */
   PangoLayout                             *pango_layout;       /* Шрифт. */
 };
@@ -156,7 +158,7 @@ hyscan_gtk_map_geomark_class_init (HyScanGtkMapGeomarkClass *klass)
 
   g_object_class_install_property (object_class, PROP_MODEL,
     g_param_spec_object ("model", "Geo mark model",
-                         "The HyScanMarkModel with geo marks", HYSCAN_TYPE_MARK_MODEL,
+                         "The HyScanObjectModel with geo marks", HYSCAN_TYPE_OBJECT_MODEL,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -199,13 +201,15 @@ hyscan_gtk_map_geomark_object_constructed (GObject *object)
   priv->marks = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
                                        (GDestroyNotify) hyscan_gtk_map_geomark_location_free);
 
-  /* Оформление по умолчанию. */
-  priv->line_width = DEFAULT_LINE_WIDTH;
-  gdk_rgba_parse (&priv->color,          DEFAULT_COLOR);
-  gdk_rgba_parse (&priv->color_hover,    DEFAULT_HOVER_COLOR);
-  gdk_rgba_parse (&priv->color_pending,  DEFAULT_PENDING_COLOR);
-  gdk_rgba_parse (&priv->color_blackout, DEFAULT_BLACKOUT_COLOR);
-  gdk_rgba_parse (&priv->color_bg,       DEFAULT_BG_COLOR);
+  /* Параметры оформления. */
+  priv->param = hyscan_gtk_layer_param_new ();
+  hyscan_gtk_layer_param_set_stock_schema (priv->param, "map-geomark");
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/color", &priv->color);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/hover-color", &priv->color_hover);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/pending-color", &priv->color_pending);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/bg-color", &priv->color_bg);
+  hyscan_param_controller_add_double (HYSCAN_PARAM_CONTROLLER (priv->param), "/line-width", &priv->line_width);
+  hyscan_gtk_layer_param_set_default (priv->param);
 
   g_signal_connect_swapped (priv->model, "changed",
                             G_CALLBACK (hyscan_gtk_map_geomark_model_changed), gm_layer);
@@ -223,9 +227,11 @@ hyscan_gtk_map_geomark_object_finalize (GObject *object)
   g_rw_lock_clear (&priv->mark_lock);
   g_free (priv->hover_handle_id);
   g_free (priv->hover_id);
+  g_free (priv->hover_candidate_id);
   g_free (priv->active_mark_id);
   g_clear_pointer (&priv->marks, g_hash_table_destroy);
   g_clear_object (&priv->pango_layout);
+  g_clear_object (&priv->param);
 
   G_OBJECT_CLASS (hyscan_gtk_map_geomark_parent_class)->finalize (object);
 }
@@ -234,7 +240,7 @@ hyscan_gtk_map_geomark_object_finalize (GObject *object)
 static void
 hyscan_gtk_map_geomark_location_free (HyScanGtkMapGeomarkLocation *location)
 {
-  hyscan_mark_free ((HyScanMark *) location->mark);
+  hyscan_mark_geo_free (location->mark);
   g_free (location->mark_id);
   g_slice_free (HyScanGtkMapGeomarkLocation, location);
 }
@@ -251,7 +257,7 @@ hyscan_gtk_map_geomark_location_copy (HyScanGtkMapGeomarkLocation *location)
   copy->height = location->height;
   copy->width = location->width;
   copy->c2d = location->c2d;
-  copy->mark = (HyScanMarkGeo *) hyscan_mark_copy ((HyScanMark *) location->mark);
+  copy->mark = hyscan_mark_geo_copy (location->mark);
 
   return copy;
 }
@@ -321,7 +327,7 @@ hyscan_gtk_map_geomark_model_changed (HyScanGtkMapGeomark *gm_layer)
   HyScanGtkMapGeomarkPrivate *priv = gm_layer->priv;
   GHashTable *marks;
 
-  marks = hyscan_mark_model_get (priv->model);
+  marks = hyscan_object_model_get (priv->model);
 
   g_rw_lock_writer_lock (&priv->mark_lock);
 
@@ -453,23 +459,6 @@ hyscan_gtk_map_geomark_handle_at (HyScanGtkMapGeomark  *gm_layer,
   HyScanGeoCartesian2D handle_point = {0, 0};
   const gchar *handle_id = NULL;
 
-  gconstpointer howner;
-
-  /* Никак не реагируем на точки, если выполнено хотя бы одно из условий (1-3): */
-
-  /* 1. какой-то хэндл захвачен, ... */
-  howner = hyscan_gtk_layer_container_get_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map));
-  if (howner != NULL)
-    goto exit;
-
-  /* 2. редактирование запрещено, ... */
-  if (!hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (priv->map)))
-    goto exit;
-
-  /* 3. слой не отображается. */
-  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (gm_layer)))
-    goto exit;
-
   cursor.x = x;
   cursor.y = y;
   gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &scale, NULL);
@@ -508,7 +497,6 @@ hyscan_gtk_map_geomark_handle_at (HyScanGtkMapGeomark  *gm_layer,
         }
     }
 
-exit:
   if (mode != NULL)
     *mode = handle_mode;
 
@@ -696,19 +684,12 @@ hyscan_gtk_map_geomark_handle_create (HyScanGtkLayer *layer,
 
   container = HYSCAN_GTK_LAYER_CONTAINER (priv->map);
 
-  if (!hyscan_gtk_layer_container_get_changes_allowed (container))
-    return GDK_EVENT_PROPAGATE;
-
   /* Проверяем, что у нас есть право ввода. */
   if (hyscan_gtk_layer_container_get_input_owner (container) != layer)
     return GDK_EVENT_PROPAGATE;
 
-  /* Если слой не видно, то никак не реагируем. */
-  if (!hyscan_gtk_layer_get_visible (layer))
-    return GDK_EVENT_PROPAGATE;
-
-  if (priv->mode != MODE_NONE)
-    return GDK_EVENT_PROPAGATE;
+  /* Если это условие не выполняется, то какая-то ошибка в логике программы. */
+  g_return_val_if_fail (priv->mode == MODE_NONE, GDK_EVENT_PROPAGATE);
 
   /* Создаём новую метку. */
   {
@@ -719,7 +700,7 @@ hyscan_gtk_map_geomark_handle_create (HyScanGtkLayer *layer,
     g_rw_lock_writer_lock (&priv->mark_lock);
 
     location = g_slice_new0 (HyScanGtkMapGeomarkLocation);
-    location->mark = (HyScanMarkGeo *) hyscan_mark_new (HYSCAN_MARK_GEO);
+    location->mark = hyscan_mark_geo_new ();
     gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &location->c2d.x, &location->c2d.y);
 
     mark_name = g_strdup_printf ("Geo Mark #%d", ++priv->count);
@@ -763,6 +744,7 @@ hyscan_gtk_map_geomark_drag_clear (HyScanGtkMapGeomark *gm_layer,
 /* Возвращает %TRUE, если мы разрешаем отпустить хэндл. */
 static gboolean
 hyscan_gtk_map_geomark_handle_release (HyScanGtkLayer *layer,
+                                       GdkEventButton *event,
                                        gconstpointer   howner)
 {
   HyScanGtkMapGeomark *gm_layer = HYSCAN_GTK_MAP_GEOMARK (layer);
@@ -809,9 +791,9 @@ hyscan_gtk_map_geomark_handle_release (HyScanGtkLayer *layer,
 
   /* Обновляем модель меток. */
   if (mark_id == NULL)
-    hyscan_mark_model_add_mark (priv->model, mark);
+    hyscan_object_model_add_object (priv->model, (const HyScanObject *) mark);
   else
-    hyscan_mark_model_modify_mark (priv->model, mark_id, mark);
+    hyscan_object_model_modify_object (priv->model, mark_id, (const HyScanObject *) mark);
 
   hyscan_gtk_map_geomark_location_free (location);
   g_free (mark_id);
@@ -858,26 +840,30 @@ hyscan_gtk_map_geomark_start_mode (HyScanGtkMapGeomark *gm_layer,
 }
 
 /* Захватывает хэндл под указателем мыши. */
-static gconstpointer
-hyscan_gtk_map_geomark_handle_grab (HyScanGtkLayer       *layer,
-                                    HyScanGtkLayerHandle *handle)
+static void
+hyscan_gtk_map_geomark_handle_click (HyScanGtkLayer       *layer,
+                                     GdkEventButton       *event,
+                                     HyScanGtkLayerHandle *handle)
 {
   HyScanGtkMapGeomark *gm_layer = HYSCAN_GTK_MAP_GEOMARK (layer);
   HyScanGtkMapGeomarkPrivate *priv = gm_layer->priv;
+  gconstpointer howner;
 
-  g_return_val_if_fail (g_strcmp0 (handle->type_name, HANDLE_TYPE_NAME) == 0, NULL);
+  g_return_if_fail (g_strcmp0 (handle->type_name, HANDLE_TYPE_NAME) == 0);
 
   if (priv->found_handle_id == NULL)
-    return NULL;
+    return;
 
-  return hyscan_gtk_map_geomark_start_mode (gm_layer, priv->found_handle_id, priv->found_mode);
+  howner = hyscan_gtk_map_geomark_start_mode (gm_layer, priv->found_handle_id, priv->found_mode);
+  if (howner != NULL)
+    hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), howner);
 }
 
 static gboolean
-hyscan_gtk_map_geomark_handle_find (HyScanGtkLayer          *layer,
-                                    gdouble                  x,
-                                    gdouble                  y,
-                                    HyScanGtkLayerHandle    *handle)
+hyscan_gtk_map_geomark_handle_find (HyScanGtkLayer       *layer,
+                                    gdouble               x,
+                                    gdouble               y,
+                                    HyScanGtkLayerHandle *handle)
 {
   HyScanGtkMapGeomark *gm_layer = HYSCAN_GTK_MAP_GEOMARK (layer);
   HyScanGtkMapGeomarkPrivate *priv = gm_layer->priv;
@@ -926,7 +912,7 @@ hyscan_gtk_map_geomark_key_press (HyScanGtkMapGeomark *gm_layer,
       g_rw_lock_writer_unlock (&priv->mark_lock);
 
       if (mark_id != NULL)
-        hyscan_mark_model_remove_mark (priv->model, mark_id);
+        hyscan_object_model_remove_object (priv->model, mark_id);
       g_free (mark_id);
 
       hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);
@@ -1047,7 +1033,15 @@ hyscan_gtk_map_geomark_hint_shown (HyScanGtkLayer *layer,
   HyScanGtkMapGeomarkPrivate *priv = gm_layer->priv;
 
   if (!shown)
-    g_clear_pointer (&priv->hover_id, g_free);
+    g_clear_pointer (&priv->hover_candidate_id, g_free);
+
+  if (g_strcmp0 (priv->hover_candidate_id, priv->hover_id) != 0)
+    {
+      g_free (priv->hover_id);
+      priv->hover_id = priv->hover_candidate_id;
+      priv->hover_candidate_id = NULL;
+      gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+    }
 }
 
 /* Находит метку, которая находится в точке (x, y)
@@ -1101,10 +1095,10 @@ hyscan_gtk_map_geomark_hint_find (HyScanGtkLayer *layer,
   g_rw_lock_reader_lock (&priv->mark_lock);
 
   location = hyscan_gtk_map_geomark_find_hover (gm_layer, x, y, distance);
-  g_clear_pointer (&priv->hover_id, g_free);
+  g_clear_pointer (&priv->hover_candidate_id, g_free);
   if (location != NULL)
     {
-      priv->hover_id = g_strdup (location->mark_id);
+      priv->hover_candidate_id = g_strdup (location->mark_id);
       hint = g_strdup (location->mark->name);
     }
 
@@ -1113,28 +1107,13 @@ hyscan_gtk_map_geomark_hint_find (HyScanGtkLayer *layer,
   return hint;
 }
 
-static gboolean
-hyscan_gtk_map_geomark_load_key_file (HyScanGtkLayer *gtk_layer,
-                                      GKeyFile       *key_file,
-                                      const gchar    *group)
+static HyScanParam *
+hyscan_gtk_map_geomark_get_param (HyScanGtkLayer *gtk_layer)
 {
   HyScanGtkMapGeomark *gm_layer = HYSCAN_GTK_MAP_GEOMARK (gtk_layer);
   HyScanGtkMapGeomarkPrivate *priv = gm_layer->priv;
-  gdouble width;
 
-  width = g_key_file_get_double (key_file, group, "line-width", NULL);
-  priv->line_width = width > 0 ? width : DEFAULT_LINE_WIDTH;
-
-  hyscan_gtk_layer_load_key_file_rgba (&priv->color,          key_file, group, "color",          DEFAULT_COLOR);
-  hyscan_gtk_layer_load_key_file_rgba (&priv->color_hover,    key_file, group, "hover-color",    DEFAULT_HOVER_COLOR);
-  hyscan_gtk_layer_load_key_file_rgba (&priv->color_pending,  key_file, group, "pending-color",  DEFAULT_PENDING_COLOR);
-  hyscan_gtk_layer_load_key_file_rgba (&priv->color_blackout, key_file, group, "blackout-color", DEFAULT_BLACKOUT_COLOR);
-  hyscan_gtk_layer_load_key_file_rgba (&priv->color_bg,       key_file, group, "bg-color",       DEFAULT_BG_COLOR);
-
-  if (priv->map != NULL)
-    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
-
-  return TRUE;
+  return g_object_ref (priv->param);
 }
 
 static void
@@ -1147,8 +1126,8 @@ hyscan_gtk_map_geomark_interface_init (HyScanGtkLayerInterface *iface)
   iface->set_visible = hyscan_gtk_map_geomark_set_visible;
   iface->hint_find = hyscan_gtk_map_geomark_hint_find;
   iface->hint_shown = hyscan_gtk_map_geomark_hint_shown;
-  iface->load_key_file = hyscan_gtk_map_geomark_load_key_file;
-  iface->handle_grab = hyscan_gtk_map_geomark_handle_grab;
+  iface->get_param = hyscan_gtk_map_geomark_get_param;
+  iface->handle_click = hyscan_gtk_map_geomark_handle_click;
   iface->handle_find = hyscan_gtk_map_geomark_handle_find;
   iface->handle_release = hyscan_gtk_map_geomark_handle_release;
   iface->handle_create = hyscan_gtk_map_geomark_handle_create;
@@ -1157,12 +1136,12 @@ hyscan_gtk_map_geomark_interface_init (HyScanGtkLayerInterface *iface)
 
 /**
  * hyscan_gtk_map_geomark_new:
- * @model: указатель на #HyScanMarkModel
+ * @model: указатель на #HyScanObjectModel
  *
  * Returns: новый объект #HyScanGtkMapGeomark
  */
 HyScanGtkLayer *
-hyscan_gtk_map_geomark_new (HyScanMarkModel *model)
+hyscan_gtk_map_geomark_new (HyScanObjectModel *model)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_GEOMARK,
                        "model", model, NULL);

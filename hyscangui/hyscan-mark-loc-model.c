@@ -36,7 +36,7 @@
  * SECTION: hyscan-mark-loc-model
  * @Short_description: Модель местоположения акустических меток
  * @Title: HyScanMarkLocModel
- * @See_also: #HyScanMarkLocation, #HyScanMarkModel
+ * @See_also: #HyScanMarkLocation, #HyScanObjectModel
  *
  * Модель #HyScanMarkLocModel отслеживает изменение меток в проекте и определяет их
  * географическое местоположение на основе NMEA-данных.
@@ -54,15 +54,22 @@
 
 #include "hyscan-mark-loc-model.h"
 #include <hyscan-db-info.h>
-#include <hyscan-mark-model.h>
+#include <hyscan-object-model.h>
 #include <hyscan-projector.h>
-#include <hyscan-acoustic-data.h>
 #include <hyscan-nmea-parser.h>
+#include <string.h>
+#include <hyscan-depthometer.h>
+#include <hyscan-factory-depth.h>
+#include <hyscan-factory-amplitude.h>
 
 // todo: вместо этих макросов брать номера каналов из каких-то пользовательских настроек
-#define ACOUSTIC_CHANNEL 1   /* Канал ГБО с акустическими данными. */
-#define NMEA_RMC_CHANNEL 1   /* Канал NMEA с навигационными данными. */
-#define NMEA_DPT_CHANNEL 2   /* Канал NMEA с данными эхолота. */
+#define NMEA_RMC_CHANNEL   1             /* Канал NMEA с навигационными данными. */
+
+#define CHANGED_NONE       0u            /* Нет изменений. */
+#define CHANGED_TRACKS     1u            /* Изменилась информация о галсах проекта. */
+#define CHANGED_PROJECT    1u << 1u      /* Изменился проект. */
+#define CHANGED_MARKS      1u << 2u      /* Изменились метки водопада. */
+#define CHANGED_SHUTDOWN   1u << 3u      /* Признак завершения работы. */
 
 enum
 {
@@ -77,29 +84,64 @@ enum
   SIGNAL_LAST
 };
 
+typedef struct
+{
+  guint          changed;      /* Битовая маска изменённых параметров. */
+  gchar         *project;      /* Имя проекта, на который надо переключится. */
+} HyScanMarkLocModelState;
+
 struct _HyScanMarkLocModelPrivate
 {
-  HyScanDB        *db;                          /* База данных. */
-  HyScanCache     *cache;                       /* Кэш. */
-  gchar           *project;                     /* Название проекта. */
+  HyScanDB                *db;           /* База данных. */
+  HyScanCache             *cache;        /* Кэш. */
+  HyScanDBInfo            *db_info;      /* Модель галсов в БД. */
+  HyScanObjectModel       *mark_model;   /* Модель меток. */
+  HyScanGeo               *geo;          /* Перевод географических координат. */
 
-  HyScanDBInfo    *db_info;                     /* Модель галсов в БД. */
-  HyScanMarkModel *mark_model;                  /* Модель меток. */
+  gchar                   *project;      /* Название проекта. */
+  GHashTable              *track_names;  /* Хэш-таблица соотвествтия id галса с его названием.*/
 
-  GRWLock          mark_lock;                   /* Блокировка данных по меткам. .*/
-  GHashTable      *track_names;                 /* Хэш-таблица соотвествтия id галса с его названием.*/
-  GHashTable      *locations;                   /* Хэш-таблица с метками HyScanMarkLocation.*/
+  GThread                 *processor;    /* Поток обработки меток. */
+  HyScanMarkLocModelState  state;        /* Состояние для передачи изменений из основного потока в поток обработки. */
+  GCond                    cond;         /* Сигнализатор изменения состояние. */
+  GMutex                   mutex;        /* Мьютек для доступа к state. */
+
+  GHashTable              *locations;    /* Хэш-таблица с метками HyScanMarkLocation.*/
+  GRWLock                  mark_lock;    /* Блокировка доступа к locations. */
+  HyScanFactoryAmplitude  *amp_factory;  /* Амплитудная фабрика. */
+  HyScanFactoryDepth      *dpt_factory;  /* Глубинная фабрика. */
 };
 
-static void         hyscan_mark_loc_model_set_property             (GObject               *object,
-                                                                    guint                  prop_id,
-                                                                    const GValue          *value,
-                                                                    GParamSpec            *pspec);
-static void         hyscan_mark_loc_model_object_constructed       (GObject               *object);
-static void         hyscan_mark_loc_model_object_finalize          (GObject               *object);
-static void         hyscan_mark_loc_model_db_changed               (HyScanMarkLocModel    *ml_model);
-static void         hyscan_mark_loc_model_model_changed            (HyScanMarkLocModel    *ml_model);
-static GHashTable * hyscan_mark_loc_model_create_table             (void);
+static void                   hyscan_mark_loc_model_set_property             (GObject               *object,
+                                                                              guint                  prop_id,
+                                                                              const GValue          *value,
+                                                                              GParamSpec            *pspec);
+static void                   hyscan_mark_loc_model_object_constructed       (GObject               *object);
+static void                   hyscan_mark_loc_model_object_finalize          (GObject               *object);
+static void                   hyscan_mark_loc_model_db_changed               (HyScanMarkLocModel    *ml_model);
+static void                   hyscan_mark_loc_model_model_changed            (HyScanMarkLocModel    *ml_model);
+static GHashTable *           hyscan_mark_loc_model_create_table             (void);
+static gboolean               hyscan_mark_loc_model_emit_changed             (gpointer               data);
+static gpointer               hyscan_mark_loc_model_process                  (gpointer               data);
+static HyScanMarkLocation *   hyscan_mark_loc_model_load                     (HyScanMarkLocModel    *ml_model,
+                                                                              HyScanMarkWaterfall   *mark);
+static gboolean               hyscan_mark_loc_model_load_nav                 (HyScanMarkLocModel    *ml_model,
+                                                                              HyScanMarkLocation    *location);
+static gboolean               hyscan_mark_loc_model_load_offset              (HyScanMarkLocModel    *ml_model,
+                                                                              HyScanMarkLocation    *location,
+                                                                              HyScanAmplitude       *amp);
+static gboolean               hyscan_mark_loc_model_load_geo                 (HyScanMarkLocModel    *ml_model,
+                                                                              HyScanMarkLocation    *location);
+inline static HyScanNavData * hyscan_mark_loc_model_rmc_data_new             (HyScanMarkLocModel    *ml_model,
+                                                                              const gchar           *track_name,
+                                                                              HyScanNMEAField        field);
+static inline gdouble         hyscan_mark_loc_model_weight                   (gint64                 mtime,
+                                                                              gint64                 ltime,
+                                                                              gint64                 rtime,
+                                                                              gdouble                lval,
+                                                                              gdouble                rval);
+static inline HyScanMarkLocationDirection
+                              hyscan_mark_loc_model_direction                (HyScanSourceType       source_type);
 
 static guint       hyscan_mark_loc_model_signals[SIGNAL_LAST] = { 0 };
 
@@ -175,16 +217,25 @@ hyscan_mark_loc_model_object_constructed (GObject *object)
 {
   HyScanMarkLocModel *ml_model = HYSCAN_MARK_LOC_MODEL (object);
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
+  HyScanGeoGeodetic origin = {.lat = 0.0, .lon = 0.0, .h = 0.0};
 
   G_OBJECT_CLASS (hyscan_mark_loc_model_parent_class)->constructed (object);
 
+  g_mutex_init (&priv->mutex);
+  g_cond_init (&priv->cond);
   g_rw_lock_init (&priv->mark_lock);
   priv->track_names = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
   priv->locations = hyscan_mark_loc_model_create_table ();
 
   /* Модели данных. */
-  priv->mark_model = hyscan_mark_model_new (HYSCAN_MARK_WATERFALL);
+  priv->mark_model = hyscan_object_model_new (HYSCAN_TYPE_OBJECT_DATA_WFMARK);
   priv->db_info = hyscan_db_info_new (priv->db);
+  priv->geo = hyscan_geo_new (origin, HYSCAN_GEO_ELLIPSOID_WGS84);
+
+  /* Устанавливаем, что изменился список меток, чтобы подгрузить его в первой итерации. */
+  priv->state.changed = CHANGED_MARKS;
+
+  priv->processor = g_thread_new ("mark-loc", hyscan_mark_loc_model_process, ml_model);
 
   g_signal_connect_swapped (priv->mark_model, "changed",
                             G_CALLBACK (hyscan_mark_loc_model_model_changed), ml_model);
@@ -198,6 +249,16 @@ hyscan_mark_loc_model_object_finalize (GObject *object)
   HyScanMarkLocModel *mark_loc_model = HYSCAN_MARK_LOC_MODEL (object);
   HyScanMarkLocModelPrivate *priv = mark_loc_model->priv;
 
+  /* Завершаем работу потока обработки. */
+  g_mutex_lock (&priv->mutex);
+  priv->state.changed |= CHANGED_SHUTDOWN;
+  g_cond_signal (&priv->cond);
+  g_mutex_unlock (&priv->mutex);
+  g_thread_join (priv->processor);
+
+  g_cond_clear (&priv->cond);
+  g_mutex_clear (&priv->mutex);
+
   /* Отключаемся от всех сигналов. */
   g_signal_handlers_disconnect_by_data (priv->mark_model, mark_loc_model);
   g_signal_handlers_disconnect_by_data (priv->db_info, mark_loc_model);
@@ -210,75 +271,51 @@ hyscan_mark_loc_model_object_finalize (GObject *object)
   g_object_unref (priv->mark_model);
   g_object_unref (priv->db_info);
   g_object_unref (priv->db);
+  g_object_unref (priv->geo);
   g_object_unref (priv->cache);
   g_free (priv->project);
 
   G_OBJECT_CLASS (hyscan_mark_loc_model_parent_class)->finalize (object);
 }
 
-/* Возвращает %TRUE, если источник данных соответствует правому борту. */
-static inline gboolean
-hyscan_mark_loc_model_is_starboard (HyScanSourceType source_type)
+/* Возвращает коэффициент поправки на направление источника.
+ * "1" - левый борт, "-1" - правый борт, "0" - под собой. */
+static inline HyScanMarkLocationDirection
+hyscan_mark_loc_model_direction (HyScanSourceType source_type)
 {
   switch (source_type)
     {
     case HYSCAN_SOURCE_SIDE_SCAN_STARBOARD:
     case HYSCAN_SOURCE_SIDE_SCAN_STARBOARD_HI:
     case HYSCAN_SOURCE_SIDE_SCAN_STARBOARD_LOW:
-      return TRUE;
+    case HYSCAN_SOURCE_BATHYMETRY_STARBOARD:
+      return HYSCAN_MARK_LOCATION_STARBOARD;
+
+    case HYSCAN_SOURCE_SIDE_SCAN_PORT:
+    case HYSCAN_SOURCE_SIDE_SCAN_PORT_HI:
+    case HYSCAN_SOURCE_SIDE_SCAN_PORT_LOW:
+    case HYSCAN_SOURCE_BATHYMETRY_PORT:
+      return HYSCAN_MARK_LOCATION_PORT;
 
     default:
-      return FALSE;
+      return HYSCAN_MARK_LOCATION_BOTTOM;
     }
 }
 
-/* Определяет географические координаты метки.
- * Функция должна вызываться за g_rw_lock_reader_lock (&priv->mark_lock). */
-static void
-hyscan_mark_loc_model_load_coord (HyScanMarkLocation *location)
+/* Определяет географические координаты метки. */
+static gboolean
+hyscan_mark_loc_model_load_geo (HyScanMarkLocModel *ml_model,
+                                HyScanMarkLocation *location)
 {
+  HyScanMarkLocModelPrivate *priv = ml_model->priv;
   HyScanGeoCartesian2D position;
-  HyScanGeo *geo;
 
   /* Положение метки относительно судна. */
   position.x = 0;
   position.y = location->offset;
 
-  geo = hyscan_geo_new (location->center_geo, HYSCAN_GEO_ELLIPSOID_WGS84);
-  hyscan_geo_topoXY2geo (geo, &location->mark_geo, position, 0);
-
-  g_object_unref (geo);
-}
-
-/* Определяет время фиксации метки.
- * Функция должна вызываться за g_rw_lock_reader_lock (&priv->mark_lock). */
-static gboolean
-hyscan_mark_loc_model_load_time (HyScanMarkLocModel *ml_model,
-                                 HyScanMarkLocation *location,
-                                 const gchar        *track_name,
-                                 HyScanSourceType    source)
-{
-  HyScanMarkLocModelPrivate *priv = ml_model->priv;
-  const HyScanMarkWaterfall *mark = location->mark;
-
-  gint32 project_id, track_id, channel_id;
-  const gchar *acoustic_channel_name;
-
-  acoustic_channel_name = hyscan_channel_get_id_by_types (source, HYSCAN_CHANNEL_DATA, ACOUSTIC_CHANNEL);
-  project_id = hyscan_db_project_open (priv->db, priv->project);
-  track_id = hyscan_db_track_open (priv->db, project_id, track_name);
-  channel_id = hyscan_db_channel_open (priv->db, track_id, acoustic_channel_name);
-
-  if (channel_id > 0)
-    location->time = hyscan_db_channel_get_data_time (priv->db, channel_id, mark->index);
-  else
-    location->time = -1;
-
-  hyscan_db_close (priv->db, channel_id);
-  hyscan_db_close (priv->db, track_id);
-  hyscan_db_close (priv->db, project_id);
-
-  return location->time >= 0;
+  hyscan_geo_set_origin (priv->geo, location->center_geo, HYSCAN_GEO_ELLIPSOID_WGS84);
+  return hyscan_geo_topoXY2geo (priv->geo, &location->mark_geo, position, 0);
 }
 
 inline static HyScanNavData *
@@ -315,24 +352,24 @@ hyscan_mark_loc_model_weight (gint64  mtime,
   return lweight * lval + rweight * rval;
 }
 
-/* Определяет положение и курс судна в момент фиксации метки.
- * Функция должна вызываться за g_rw_lock_reader_lock (&priv->mark_lock). */
+/* Определяет положение и курс судна в момент фиксации метки. */
 static gboolean
 hyscan_mark_loc_model_load_nav (HyScanMarkLocModel *ml_model,
-                                HyScanMarkLocation *location,
-                                const gchar        *track_name)
+                                HyScanMarkLocation *location)
 {
+  HyScanMarkLocModelPrivate *priv = ml_model->priv;
   HyScanNavData *lat_data, *lon_data, *angle_data;
 
   HyScanGeoGeodetic lgeo, rgeo;
   guint32 lindex, rindex;
   gint64 ltime, rtime;
 
+  HyScanAntennaOffset offset;
   gboolean found = FALSE;
 
-  lat_data   = hyscan_mark_loc_model_rmc_data_new (ml_model, track_name, HYSCAN_NMEA_FIELD_LAT);
-  lon_data   = hyscan_mark_loc_model_rmc_data_new (ml_model, track_name, HYSCAN_NMEA_FIELD_LON);
-  angle_data = hyscan_mark_loc_model_rmc_data_new (ml_model, track_name, HYSCAN_NMEA_FIELD_TRACK);
+  lat_data   = hyscan_mark_loc_model_rmc_data_new (ml_model, location->track_name, HYSCAN_NMEA_FIELD_LAT);
+  lon_data   = hyscan_mark_loc_model_rmc_data_new (ml_model, location->track_name, HYSCAN_NMEA_FIELD_LON);
+  angle_data = hyscan_mark_loc_model_rmc_data_new (ml_model, location->track_name, HYSCAN_NMEA_FIELD_TRACK);
 
   if (hyscan_nav_data_find_data (lat_data, location->time, &lindex, &rindex, &ltime, &rtime) != HYSCAN_DB_FIND_OK)
     goto exit;
@@ -340,10 +377,10 @@ hyscan_mark_loc_model_load_nav (HyScanMarkLocModel *ml_model,
   /* Пробуем распарсить навигационные данные по найденным индексам. */
   found =  hyscan_nav_data_get (lat_data, NULL, lindex, NULL, &lgeo.lat) &&
            hyscan_nav_data_get (lon_data, NULL, lindex, NULL, &lgeo.lon) &&
-           hyscan_nav_data_get (angle_data, NULL, lindex, NULL, &lgeo.h);
-  found &=  hyscan_nav_data_get (lat_data, NULL, rindex, NULL, &rgeo.lat) &&
-            hyscan_nav_data_get (lon_data, NULL, rindex, NULL, &rgeo.lon) &&
-            hyscan_nav_data_get (angle_data, NULL, rindex, NULL, &rgeo.h);
+           hyscan_nav_data_get (angle_data, NULL, lindex, NULL, &lgeo.h) &&
+           hyscan_nav_data_get (lat_data, NULL, rindex, NULL, &rgeo.lat) &&
+           hyscan_nav_data_get (lon_data, NULL, rindex, NULL, &rgeo.lon) &&
+           hyscan_nav_data_get (angle_data, NULL, rindex, NULL, &rgeo.h);
 
   if (!found) // todo: если в текущем индексе нет данных, то пробовать брать соседние
     goto exit;
@@ -353,6 +390,26 @@ hyscan_mark_loc_model_load_nav (HyScanMarkLocModel *ml_model,
   location->center_geo.lon = hyscan_mark_loc_model_weight (location->time, ltime, rtime, lgeo.lon, rgeo.lon);
   location->center_geo.h   = hyscan_mark_loc_model_weight (location->time, ltime, rtime, lgeo.h, rgeo.h);
 
+  /* Поправка на поворот датчика GPS. */
+  offset = hyscan_nav_data_get_offset (lat_data);
+  if (offset.yaw != 0)
+    location->center_geo.h -= offset.yaw / G_PI * 180.0;
+
+  /* Поправка на смещение датчика GPS. */
+  if (offset.forward != 0 || offset.starboard != 0)
+    {
+      HyScanGeoCartesian2D shift;
+      HyScanGeoGeodetic center;
+
+      shift.x = -offset.forward;
+      shift.y = offset.starboard;
+
+      hyscan_geo_set_origin (priv->geo, location->center_geo, HYSCAN_GEO_ELLIPSOID_WGS84);
+      hyscan_geo_topoXY2geo (priv->geo, &center, shift, 0);
+      location->center_geo.lat = center.lat;
+      location->center_geo.lon = center.lon;
+    }
+
 exit:
   g_object_unref (angle_data);
   g_object_unref (lat_data);
@@ -361,202 +418,263 @@ exit:
   return found;
 }
 
-/* Определяет расстояние от метки до борта судна.
- * Функция должна вызываться за g_rw_lock_reader_lock (&priv->mark_lock). */
+/* Определяет расстояние от метки до борта судна. */
 static gboolean
 hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
                                    HyScanMarkLocation *location,
-                                   const gchar        *track_name,
-                                   HyScanSourceType    source)
+                                   HyScanAmplitude    *amp)
 {
   HyScanProjector *projector;
-  HyScanAcousticData *acoustic_data;
+  HyScanDepthometer *dm;
   gdouble depth;
+  HyScanAntennaOffset amp_offset;
 
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
   const HyScanMarkWaterfall *mark = location->mark;
 
-  HyScanNavData *dpt_data;
-  gdouble ldepth, rdepth;
+  /* Добавляем поворот антенны. */
+  amp_offset = hyscan_amplitude_get_offset (amp);
+  if (amp_offset.yaw != 0)
+    location->center_geo.h += amp_offset.yaw / G_PI * 180.0;
 
-  guint32 lindex, rindex;
-  gint64 ltime, rtime;
-
-  acoustic_data = hyscan_acoustic_data_new (priv->db, priv->cache,
-                                            priv->project, track_name,
-                                            source, ACOUSTIC_CHANNEL, FALSE);
-
-  if (acoustic_data == NULL)
+  /* Добавляем смещение x, y. */
+  if (amp_offset.forward != 0 || amp_offset.starboard != 0)
     {
-      g_warning ("HyScanMarkLocModel: failed to open acoustic data");
-      return FALSE;
+      HyScanGeoCartesian2D shift;
+      HyScanGeoGeodetic center;
+
+      shift.x = amp_offset.forward;
+      shift.y = -amp_offset.starboard;
+
+      hyscan_geo_set_origin (priv->geo, location->center_geo, HYSCAN_GEO_ELLIPSOID_WGS84);
+      hyscan_geo_topoXY2geo (priv->geo, &center, shift, 0);
+      location->center_geo.lat = center.lat;
+      location->center_geo.lon = center.lon;
     }
 
-  /* Находим глубину при возможности. */
-  depth = 0.0;
-  dpt_data =  HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache,
-                                                       priv->project, track_name, NMEA_DPT_CHANNEL,
-                                                       HYSCAN_NMEA_DATA_DPT, HYSCAN_NMEA_FIELD_DEPTH));
-
-  if (hyscan_nav_data_find_data (dpt_data, location->time, &lindex, &rindex, &ltime, &rtime) == HYSCAN_DB_FIND_OK)
+  /* Находим глубину при возможности. Делаем поправки на заглубление эхолота и ГБО. */
+  dm = hyscan_factory_depth_produce (priv->dpt_factory, location->track_name);
+  location->depth = -1.0;
+  if (dm != NULL)
     {
-      if (hyscan_nav_data_get (dpt_data, NULL, lindex, NULL, &ldepth) &&
-          hyscan_nav_data_get (dpt_data, NULL, rindex, NULL, &rdepth))
-        {
-          depth = hyscan_mark_loc_model_weight (location->time, ltime, rtime, ldepth, rdepth);
-        }
+      HyScanNavData *dpt_data;
+      HyScanAntennaOffset dpt_offset;
+
+      dpt_data = hyscan_depthometer_get_nav_data (dm);
+      dpt_offset = hyscan_nav_data_get_offset (dpt_data);
+      depth = hyscan_depthometer_get (dm, NULL, location->time);
+      if (depth >= 0)
+        location->depth = depth + dpt_offset.vertical;
+
+      g_object_unref (dpt_data);
+      g_object_unref (dm);
     }
+
+  /* Глубина относительно антенны. */
+  depth = location->depth < 0 ? 0 : MAX (0, location->depth - amp_offset.vertical);
 
   /* Определяем дистанцию до точки. */
-  projector = hyscan_projector_new (HYSCAN_AMPLITUDE (acoustic_data));
-  hyscan_projector_count_to_coord (projector, mark->count, &location->offset, depth);
-  if (hyscan_mark_loc_model_is_starboard (source))
-    location->offset *= -1.0;
-
-  g_clear_object (&dpt_data);
+  projector = hyscan_projector_new (amp);
+  hyscan_projector_count_to_coord (projector, mark->count, &location->across, depth);
+  hyscan_projector_index_to_coord (projector, mark->index, &location->along);
   g_clear_object (&projector);
-  g_clear_object (&acoustic_data);
+
+  location->offset = location->direction * location->across;
 
   return TRUE;
 }
 
-/* Загружает геолокационные данные по метке.
- * Функция должна вызываться за g_rw_lock_reader_lock (&priv->mark_lock). */
-static gboolean
-hyscan_mark_loc_model_load_location (HyScanMarkLocModel *ml_model,
-                                     HyScanMarkLocation *location)
+/* Загружает геолокационные данные по метке. */
+static HyScanMarkLocation *
+hyscan_mark_loc_model_load (HyScanMarkLocModel  *ml_model,
+                            HyScanMarkWaterfall *mark)
 {
-
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
+  HyScanMarkLocation *location;
 
-  const HyScanMarkWaterfall *mark = location->mark;
-
+  HyScanAmplitude *amp;
   HyScanSourceType source;
   const gchar *track_name;
 
-  location->loaded = FALSE;
+  location = hyscan_mark_location_new ();
+  location->mark = mark;
 
   /* Получаем название галса. */
-  if (mark->track == NULL)
-    return FALSE;
-
-  track_name = g_hash_table_lookup (priv->track_names, mark->track);
+  track_name = mark->track != NULL ? g_hash_table_lookup (priv->track_names, mark->track) : NULL;
   if (track_name == NULL)
-    return FALSE;
+    return location;
+
+  location->track_name = g_strdup (track_name);
 
   source = hyscan_source_get_type_by_id (mark->source);
   if (source == HYSCAN_SOURCE_INVALID)
-    return FALSE;
+    return location;
 
-  /* Получаем временную метку из канала акустических данных. */
-  if (!hyscan_mark_loc_model_load_time (ml_model, location, track_name, source))
-    return FALSE;
+  amp = hyscan_factory_amplitude_produce (priv->amp_factory, location->track_name, source);
+  if (amp == NULL)
+    {
+      g_warning ("HyScanMarkLocModel: failed to open acoustic data");
+      return location;
+    }
 
-  /* Находим географические координаты метки и курс. */
-  if (!hyscan_mark_loc_model_load_nav (ml_model, location, track_name))
-    return FALSE;
+  location->direction = hyscan_mark_loc_model_direction (source);
 
-  /* Определяем дальность расположения метки от борта судна. */
-  if (!hyscan_mark_loc_model_load_offset (ml_model, location, track_name, source))
-    return FALSE;
+  location->loaded = hyscan_amplitude_get_size_time (amp, location->mark->index, NULL, &location->time) &&
+                     hyscan_mark_loc_model_load_nav (ml_model, location) &&
+                     hyscan_mark_loc_model_load_offset (ml_model, location, amp) &&
+                     hyscan_mark_loc_model_load_geo (ml_model, location);
 
-  /* Определяем координаты центра метки. */
-  hyscan_mark_loc_model_load_coord (location);
-  location->loaded = TRUE;
+  g_object_unref (amp);
 
-  return TRUE;
+  return location;
 }
 
-/* Перезагружает данные priv->marks.
- * Функция должна вызываться за g_rw_lock_writer_lock (&priv->mark_lock). */
-static void
-hyscan_mark_loc_model_reload_locations (HyScanMarkLocModel *ml_model)
-{
-  HyScanMarkLocModelPrivate *priv = ml_model->priv;
-
-  GHashTableIter iter;
-  HyScanMarkLocation *location;
-
-  g_hash_table_iter_init (&iter, priv->locations);
-  while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &location))
-    hyscan_mark_loc_model_load_location (ml_model, location);
-}
-
-/* Обработчик сигнала HyScanDBInfo::tracks-changed.
- * Составляет таблицу соответствия ИД - название по каждому галсу. */
+/* Обработчик сигнала HyScanDBInfo::tracks-changed. */
 static void
 hyscan_mark_loc_model_db_changed (HyScanMarkLocModel *ml_model)
 {
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
-  GHashTable *tracks;
-  GHashTableIter iter;
-  HyScanTrackInfo *track_info;
 
-  tracks = hyscan_db_info_get_tracks (priv->db_info);
-
-  g_rw_lock_writer_lock (&priv->mark_lock);
-
-  /* Загружаем информацию по названиям галсов и их ИД. */
-  g_hash_table_remove_all (priv->track_names);
-  g_hash_table_iter_init (&iter, tracks);
-  while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &track_info))
-    {
-      if (track_info->id == NULL)
-        continue;
-
-      g_hash_table_insert (priv->track_names, g_strdup (track_info->id), g_strdup (track_info->name));
-    }
-
-  /* Перезагружаем геолокационную информацию. */
-  hyscan_mark_loc_model_reload_locations (ml_model);
-
-  g_rw_lock_writer_unlock (&priv->mark_lock);
-
-  g_hash_table_destroy (tracks);
-
-  g_signal_emit (ml_model, hyscan_mark_loc_model_signals[SIGNAL_CHANGED], 0);
+  g_mutex_lock (&priv->mutex);
+  priv->state.changed |= CHANGED_TRACKS;
+  g_cond_signal (&priv->cond);
+  g_mutex_unlock (&priv->mutex);
 }
 
 static gboolean
-hyscan_mark_loc_model_model_append_mark (gpointer key,
-                                         gpointer value,
-                                         gpointer user_data)
+hyscan_mark_loc_model_emit_changed (gpointer data)
 {
-  HyScanMarkLocModel *ml_model = HYSCAN_MARK_LOC_MODEL (user_data);
-  HyScanMarkLocModelPrivate *priv = ml_model->priv;
-  HyScanMarkLocation *location;
+  HyScanMarkLocModel *ml_model = HYSCAN_MARK_LOC_MODEL (data);
 
-  location = hyscan_mark_location_new ();
-  location->mark = value;
+  g_signal_emit (ml_model, hyscan_mark_loc_model_signals[SIGNAL_CHANGED], 0);
 
-  g_hash_table_insert (priv->locations, key, location);
-
-  return TRUE;
+  return G_SOURCE_REMOVE;
 }
 
-/* Обработчик сигнала HyScanMarkModel::changed.
- * Обновляет список меток. */
+static gpointer
+hyscan_mark_loc_model_process (gpointer data)
+{
+  HyScanMarkLocModel *ml_model = HYSCAN_MARK_LOC_MODEL (data);
+  HyScanMarkLocModelPrivate *priv = ml_model->priv;
+
+  HyScanMarkLocModelState new_state;
+  HyScanMarkLocModelState *state = &priv->state;
+
+  memset (&new_state, 0, sizeof (new_state));
+
+  priv->dpt_factory = hyscan_factory_depth_new (priv->cache);
+  priv->amp_factory = hyscan_factory_amplitude_new (priv->cache);
+
+  /* В цикле копируем текущее состояния из основного потока и проверяем, что изменилось. */
+  while (!(new_state.changed & CHANGED_SHUTDOWN))
+    {
+      {
+        g_mutex_lock (&priv->mutex);
+
+        while (state->changed == CHANGED_NONE)
+          g_cond_wait (&priv->cond, &priv->mutex);
+
+        new_state = *state;
+        memset (state, 0, sizeof (*state));
+
+        g_mutex_unlock (&priv->mutex);
+      }
+
+      if (new_state.changed & CHANGED_PROJECT)
+        {
+          g_free (priv->project);
+          priv->project = new_state.project;
+          hyscan_db_info_set_project (priv->db_info, priv->project);
+          hyscan_object_model_set_project (priv->mark_model, priv->db, priv->project);
+          hyscan_factory_amplitude_set_project (priv->amp_factory, priv->db, priv->project);
+          hyscan_factory_depth_set_project (priv->dpt_factory, priv->db, priv->project);
+
+          new_state.changed |= CHANGED_TRACKS;
+        }
+
+      /* Составляем таблицу соответствия ИД — название по каждому галсу. */
+      if (new_state.changed & CHANGED_TRACKS)
+        {
+          GHashTable *tracks;
+          GHashTableIter iter;
+          HyScanTrackInfo *track_info;
+
+          tracks = hyscan_db_info_get_tracks (priv->db_info);
+
+          /* Загружаем информацию по названиям галсов и их ИД. */
+          g_hash_table_remove_all (priv->track_names);
+          g_hash_table_iter_init (&iter, tracks);
+          while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &track_info))
+            {
+              if (track_info->id == NULL)
+                continue;
+
+              g_hash_table_insert (priv->track_names, g_strdup (track_info->id), g_strdup (track_info->name));
+            }
+
+          g_hash_table_destroy (tracks);
+
+          new_state.changed |= CHANGED_MARKS;
+        }
+
+      /* Загружаем список меток и их местоположение. */
+      if (new_state.changed & CHANGED_MARKS)
+        {
+          GHashTable *wfmarks;
+          GHashTable *new_locations, *prev_locations;
+
+          new_locations = hyscan_mark_loc_model_create_table ();
+
+          /* Получаем список меток. */
+          wfmarks = hyscan_object_model_get (priv->mark_model);
+          if (wfmarks != NULL)
+            {
+              GHashTableIter iter;
+              gchar *key;
+              HyScanMarkWaterfall *mark;
+              HyScanMarkLocation *location;
+
+              /* Загружаем гео-данные по меткам. */
+              g_hash_table_iter_init (&iter, wfmarks);
+              while (g_hash_table_iter_next (&iter, (gpointer *) &key, (gpointer *) &mark))
+                {
+                  g_hash_table_iter_steal (&iter);
+
+                  location = hyscan_mark_loc_model_load (ml_model, mark);
+                  g_hash_table_insert (new_locations, key, location);
+                }
+
+              g_hash_table_unref (wfmarks);
+            }
+
+          g_rw_lock_writer_lock (&priv->mark_lock);
+          prev_locations = priv->locations;
+          priv->locations = new_locations;
+          g_rw_lock_writer_unlock (&priv->mark_lock);
+
+          g_hash_table_unref (prev_locations);
+
+          g_idle_add_full (G_PRIORITY_DEFAULT_IDLE, hyscan_mark_loc_model_emit_changed,
+                           g_object_ref (ml_model), g_object_unref);
+        }
+    }
+
+  g_clear_object (&priv->amp_factory);
+  g_clear_object (&priv->dpt_factory);
+
+  return NULL;
+}
+
+/* Обработчик сигнала HyScanMarkModel::changed. */
 static void
 hyscan_mark_loc_model_model_changed (HyScanMarkLocModel *ml_model)
 {
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
-  GHashTable *wfmarks;
 
-  /* Получаем список меток. */
-  wfmarks = hyscan_mark_model_get (priv->mark_model);
-
-  g_rw_lock_writer_lock (&priv->mark_lock);
-
-  /* Загружаем гео-данные по меткам. */
-  g_hash_table_remove_all (priv->locations);
-  g_hash_table_foreach_steal (wfmarks, hyscan_mark_loc_model_model_append_mark, ml_model);
-  hyscan_mark_loc_model_reload_locations (ml_model);
-
-  g_rw_lock_writer_unlock (&priv->mark_lock);
-
-  g_hash_table_unref (wfmarks);
-
-  g_signal_emit (ml_model, hyscan_mark_loc_model_signals[SIGNAL_CHANGED], 0);
+  g_mutex_lock (&priv->mutex);
+  priv->state.changed |= CHANGED_MARKS;
+  g_cond_signal (&priv->cond);
+  g_mutex_unlock (&priv->mutex);
 }
 
 static GHashTable *
@@ -597,11 +715,12 @@ hyscan_mark_loc_model_set_project (HyScanMarkLocModel *ml_model,
   g_return_if_fail (HYSCAN_IS_MARK_LOC_MODEL (ml_model));
   priv = ml_model->priv;
 
-  g_free (priv->project);
-  priv->project = g_strdup (project);
-
-  hyscan_db_info_set_project (priv->db_info, priv->project);
-  hyscan_mark_model_set_project (priv->mark_model, priv->db, priv->project);
+  g_mutex_lock (&priv->mutex);
+  g_free (priv->state.project);
+  priv->state.project = g_strdup (project);
+  priv->state.changed |= CHANGED_PROJECT;
+  g_cond_signal (&priv->cond);
+  g_mutex_unlock (&priv->mutex);
 }
 
 /**

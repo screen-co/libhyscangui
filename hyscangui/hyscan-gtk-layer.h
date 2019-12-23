@@ -77,7 +77,7 @@ struct _HyScanGtkLayerHandle
 /**
  * HyScanGtkLayerInterface:
  * @g_iface: Базовый интерфейс.
- * @load_key_file: Загружает конфигурацию слоя из указанной группы в #GKeyFile.
+ * @get_param: Получает #HyScanParam с настройками оформления слоя.
  * @added: Регистрирует слой в контейнере @container.
  * @removed: Удаляет слой из контейнера @container.
  * @grab_input: Захватывает пользовательский ввод в своём контейнере.
@@ -96,9 +96,7 @@ struct _HyScanGtkLayerInterface
 {
   GTypeInterface         g_iface;
 
-  gboolean             (*load_key_file)    (HyScanGtkLayer          *gtk_layer,
-                                            GKeyFile                *key_file,
-                                            const gchar             *group);
+  HyScanParam *        (*get_param)        (HyScanGtkLayer          *gtk_layer);
 
   void                 (*added)            (HyScanGtkLayer          *gtk_layer,
                                             HyScanGtkLayerContainer *container);
@@ -126,6 +124,7 @@ struct _HyScanGtkLayerInterface
                                             GdkEventButton          *event);
 
   gboolean             (*handle_release)   (HyScanGtkLayer          *layer,
+                                            GdkEventButton          *event,
                                             gconstpointer            howner);
 
   gboolean             (*handle_find)      (HyScanGtkLayer          *layer,
@@ -136,7 +135,8 @@ struct _HyScanGtkLayerInterface
   void                 (*handle_show)      (HyScanGtkLayer          *layer,
                                             HyScanGtkLayerHandle    *handle);
 
-  gconstpointer        (*handle_grab)      (HyScanGtkLayer          *layer,
+  void                 (*handle_click)     (HyScanGtkLayer          *layer,
+                                            GdkEventButton          *event,
                                             HyScanGtkLayerHandle    *handle);
 };
 
@@ -161,16 +161,7 @@ HYSCAN_API
 gboolean      hyscan_gtk_layer_get_visible            (HyScanGtkLayer          *layer);
 
 HYSCAN_API
-gboolean      hyscan_gtk_layer_load_key_file          (HyScanGtkLayer          *layer,
-                                                       GKeyFile                *key_file,
-                                                       const gchar             *group);
-
-HYSCAN_API
-void          hyscan_gtk_layer_load_key_file_rgba     (GdkRGBA                 *color,
-                                                       GKeyFile                *key_file,
-                                                       const gchar             *group_name,
-                                                       const gchar             *key,
-                                                       const gchar             *default_spec);
+HyScanParam * hyscan_gtk_layer_get_param              (HyScanGtkLayer          *layer);
 
 HYSCAN_API
 const gchar * hyscan_gtk_layer_get_icon_name          (HyScanGtkLayer          *layer);
@@ -190,6 +181,7 @@ gboolean      hyscan_gtk_layer_handle_create          (HyScanGtkLayer          *
                                                        GdkEventButton          *event);
 HYSCAN_API
 gboolean      hyscan_gtk_layer_handle_release         (HyScanGtkLayer          *layer,
+                                                       GdkEventButton          *event,
                                                        gconstpointer            howner);
 
 HYSCAN_API
@@ -203,8 +195,9 @@ void          hyscan_gtk_layer_handle_show            (HyScanGtkLayer          *
                                                        HyScanGtkLayerHandle    *handle);
 
 HYSCAN_API
-gconstpointer hyscan_gtk_layer_handle_grab            (HyScanGtkLayer          *layer,
-                                                       HyScanGtkLayerHandle    *handle);
+void          hyscan_gtk_layer_handle_click            (HyScanGtkLayer          *layer,
+                                                        GdkEventButton          *event,
+                                                        HyScanGtkLayerHandle    *handle);
 
 G_END_DECLS
 

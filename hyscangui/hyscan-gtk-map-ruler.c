@@ -52,17 +52,16 @@
 
 #include "hyscan-gtk-map-ruler.h"
 #include "hyscan-gtk-map.h"
+#include "hyscan-cairo.h"
+#include "hyscan-gtk-layer-param.h"
 #include <hyscan-cartesian.h>
 #include <glib/gi18n-lib.h>
 #include <math.h>
+#include <cairo-sdline.h>
+#include <hyscan-param-proxy.h>
 
 #define SNAP_DISTANCE       10.0          /* Максимальное расстояние прилипания курсора мыши к звену ломаной. */
 #define EARTH_RADIUS        6378137.0     /* Радиус Земли. */
-
-#define LINE_WIDTH_DEFAULT  1.0
-#define LINE_COLOR_DEFAULT  "#72856A"
-#define LABEL_COLOR_DEFAULT "rgba( 33,  33,  33, 1.0)"
-#define BG_COLOR_DEFAULT    "rgba(255, 255, 255, 0.6)"
 
 #define IS_INSIDE(x, a, b) ((a) < (b) ? (a) < (x) && (x) < (b) : (b) < (x) && (x) < (a))
 #define DEG2RAD(x) ((x) * G_PI / 180.0)
@@ -73,6 +72,7 @@
 struct _HyScanGtkMapRulerPrivate
 {
   HyScanGtkMap              *map;                      /* Виджет карты. */
+  HyScanParamProxy          *params;                   /* Параметры оформления слоя. */
 
   PangoLayout               *pango_layout;             /* Раскладка шрифта. */
 
@@ -143,21 +143,33 @@ hyscan_gtk_map_ruler_object_constructed (GObject *object)
   HyScanGtkMapRuler *gtk_map_ruler = HYSCAN_GTK_MAP_RULER (object);
   HyScanGtkMapPin *pin_layer = HYSCAN_GTK_MAP_PIN (object);
   HyScanGtkMapRulerPrivate *priv = gtk_map_ruler->priv;
-
-  GdkRGBA color;
+  HyScanParam *parent_param;
+  HyScanGtkLayerParam *param_controller;
 
   G_OBJECT_CLASS (hyscan_gtk_map_ruler_parent_class)->constructed (object);
 
-  hyscan_gtk_map_ruler_set_line_width (gtk_map_ruler, LINE_WIDTH_DEFAULT);
-  gdk_rgba_parse (&color, LINE_COLOR_DEFAULT);
-  hyscan_gtk_map_ruler_set_line_color (gtk_map_ruler, color);
-  gdk_rgba_parse (&color, BG_COLOR_DEFAULT);
-  hyscan_gtk_map_ruler_set_bg_color (gtk_map_ruler, color);
-  gdk_rgba_parse (&color, LABEL_COLOR_DEFAULT);
-  hyscan_gtk_map_ruler_set_label_color (gtk_map_ruler, color);
+  param_controller = hyscan_gtk_layer_param_new ();
+  hyscan_gtk_layer_param_set_stock_schema (param_controller, "map-ruler");
+  hyscan_gtk_layer_param_add_rgba (param_controller, "/bg-color", &priv->bg_color);
+  hyscan_gtk_layer_param_add_rgba (param_controller, "/label-color", &priv->label_color);
+  hyscan_gtk_layer_param_add_rgba (param_controller, "/line-color", &priv->line_color);
+  hyscan_param_controller_add_double (HYSCAN_PARAM_CONTROLLER (param_controller), "/line-width", &priv->line_width);
+  hyscan_gtk_layer_param_set_default (param_controller);
+
+  priv->params = hyscan_param_proxy_new ();
+  parent_param = hyscan_gtk_layer_parent_interface->get_param (HYSCAN_GTK_LAYER (object));
+
+  hyscan_param_proxy_add (priv->params, "/", parent_param, "/");
+  hyscan_param_proxy_add (priv->params, "/", HYSCAN_PARAM (param_controller), "/");
+  hyscan_param_proxy_bind (priv->params);
+
+  g_object_unref (parent_param);
+  g_object_unref (param_controller);
+
   hyscan_gtk_map_pin_set_marker_size (pin_layer, SNAP_DISTANCE / 2.0);
   hyscan_gtk_map_pin_set_marker_shape (pin_layer, HYSCAN_GTK_MAP_PIN_SHAPE_CIRCLE);
 
+  priv->radius = SNAP_DISTANCE;
   priv->label_padding = 5;
 }
 
@@ -168,6 +180,7 @@ hyscan_gtk_map_ruler_object_finalize (GObject *object)
   HyScanGtkMapRulerPrivate *priv = gtk_map_ruler->priv;
 
   g_clear_object (&priv->pango_layout);
+  g_clear_object (&priv->params);
 
   G_OBJECT_CLASS (hyscan_gtk_map_ruler_parent_class)->finalize (object);
 }
@@ -175,9 +188,10 @@ hyscan_gtk_map_ruler_object_finalize (GObject *object)
 /* Захватывает хэндл.
  * Если указатель мыши над одним из отрезков, то помещает новую точку в это место и
  * начинает ее перетаскивать. */
-static gconstpointer
-hyscan_gtk_map_ruler_handle_grab (HyScanGtkLayer       *layer,
-                                  HyScanGtkLayerHandle *handle)
+static void
+hyscan_gtk_map_ruler_handle_click (HyScanGtkLayer       *layer,
+                                   GdkEventButton       *event,
+                                   HyScanGtkLayerHandle *handle)
 {
   if (g_strcmp0 (handle->type_name, HANDLE_TYPE_NAME) == 0)
     {
@@ -190,10 +204,10 @@ hyscan_gtk_map_ruler_handle_grab (HyScanGtkLayer       *layer,
       coordinate.y = handle->val_y;
       new_item = hyscan_gtk_map_pin_insert_before (pin_layer, &coordinate, found_section);
 
-      return hyscan_gtk_map_pin_start_drag (pin_layer, new_item, TRUE);
+      hyscan_gtk_map_pin_start_drag (pin_layer, new_item, TRUE);
     }
 
-  return hyscan_gtk_layer_parent_interface->handle_grab (layer, handle);
+  hyscan_gtk_layer_parent_interface->handle_click (layer, event, handle);
 }
 
 /* Показывает/прячет хэндл.
@@ -295,30 +309,12 @@ hyscan_gtk_map_ruler_added (HyScanGtkLayer          *gtk_layer,
                     G_CALLBACK (hyscan_gtk_map_ruler_configure), gtk_layer);
 }
 
-static gboolean
-hyscan_gtk_map_ruler_load_key_file (HyScanGtkLayer *gtk_layer,
-                                    GKeyFile       *key_file,
-                                    const gchar    *group)
+static HyScanParam *
+hyscan_gtk_map_ruler_get_param (HyScanGtkLayer *gtk_layer)
 {
   HyScanGtkMapRuler *ruler = HYSCAN_GTK_MAP_RULER (gtk_layer);
-  GdkRGBA color;
-  gdouble width;
 
-  hyscan_gtk_layer_parent_interface->load_key_file (gtk_layer, key_file, group);
-
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "bg-color", BG_COLOR_DEFAULT);
-  hyscan_gtk_map_ruler_set_bg_color (ruler, color);
-
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "label-color", LABEL_COLOR_DEFAULT);
-  hyscan_gtk_map_ruler_set_label_color (ruler, color);
-
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "line-color", LINE_COLOR_DEFAULT);
-  hyscan_gtk_map_ruler_set_line_color (ruler, color);
-
-  width = g_key_file_get_double (key_file, group, "line-width", NULL);
-  hyscan_gtk_map_ruler_set_line_width (ruler, width > 0 ? width : LINE_WIDTH_DEFAULT);
-
-  return TRUE;
+  return g_object_ref (ruler->priv->params);
 }
 
 static void
@@ -328,10 +324,10 @@ hyscan_gtk_map_ruler_interface_init (HyScanGtkLayerInterface *iface)
 
   iface->added = hyscan_gtk_map_ruler_added;
   iface->removed = hyscan_gtk_map_ruler_removed;
-  iface->load_key_file = hyscan_gtk_map_ruler_load_key_file;
   iface->handle_find = hyscan_gtk_map_ruler_handle_find;
   iface->handle_show = hyscan_gtk_map_ruler_handle_show;
-  iface->handle_grab = hyscan_gtk_map_ruler_handle_grab;
+  iface->handle_click = hyscan_gtk_map_ruler_handle_click;
+  iface->get_param = hyscan_gtk_map_ruler_get_param;
 }
 
 /* Обработка сигнала "configure-event" виджета карты. */
@@ -506,10 +502,11 @@ hyscan_gtk_map_ruler_draw_line (HyScanGtkMapRuler *ruler,
 
   GList *points;
   GList *point_l;
+  gint i;
   HyScanGtkMapPoint *point = NULL;
 
-  gdouble x;
-  gdouble y;
+  gdouble x[2];
+  gdouble y[2];
 
   carea = GTK_CIFRO_AREA (map);
 
@@ -518,12 +515,18 @@ hyscan_gtk_map_ruler_draw_line (HyScanGtkMapRuler *ruler,
 
   cairo_new_path (cairo);
   points = hyscan_gtk_map_pin_get_points (HYSCAN_GTK_MAP_PIN (ruler));
-  for (point_l = points; point_l != NULL; point_l = point_l->next)
+  for (point_l = points, i = 0; point_l != NULL; point_l = point_l->next, ++i)
     {
+      gint cur_idx;
       point = point_l->data;
 
-      gtk_cifro_area_visible_value_to_point (carea, &x, &y, point->c2d.x, point->c2d.y);
-      cairo_line_to (cairo, x, y);
+      cur_idx = i % 2;
+      gtk_cifro_area_visible_value_to_point (carea, &x[cur_idx], &y[cur_idx], point->c2d.x, point->c2d.y);
+
+      if (i == 0)
+        continue;
+
+      hyscan_cairo_line_to (cairo, x[0], y[0], x[1], y[1]);
     }
   cairo_stroke (cairo);
 }
@@ -581,23 +584,6 @@ hyscan_gtk_map_ruler_get_segment_at (HyScanGtkMapRuler    *ruler,
   HyScanGeoCartesian2D cursor;
   gdouble scale_x;
   gdouble snap_distance;
-
-  gconstpointer howner;
-
-  /* Никак не реагируем на точки, если выполнено хотя бы одно из условий (1-3): */
-
-  /* 1. какой-то хэндл захвачен, ... */
-  howner = hyscan_gtk_layer_container_get_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (map));
-  if (howner != NULL)
-    return NULL;
-
-  /* 2. редактирование запрещено, ... */
-  if (!hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (map)))
-    return NULL;
-
-  /* 3. слой не отображается. */
-  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (ruler)))
-    return NULL;
 
   carea = GTK_CIFRO_AREA (map);
   gtk_cifro_area_get_scale (carea, &scale_x, NULL);
@@ -681,7 +667,6 @@ hyscan_gtk_map_ruler_set_line_width (HyScanGtkMapRuler *ruler,
   g_return_if_fail (width > 0);
 
   ruler->priv->line_width = width;
-  ruler->priv->radius = SNAP_DISTANCE;
   hyscan_gtk_map_grid_queue_draw (ruler);
 }
 

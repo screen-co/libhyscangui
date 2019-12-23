@@ -37,6 +37,7 @@
 
 #include <hyscan-gtk-layer.h>
 #include <hyscan-gtk-map.h>
+#include <hyscan-param.h>
 
 G_BEGIN_DECLS
 
@@ -113,7 +114,7 @@ void                   hyscan_gtk_map_pin_set_marker_shape (HyScanGtkMapPin     
                                                             HyScanGtkMapPinMarkerShape  shape);
 
 HYSCAN_API
-gconstpointer          hyscan_gtk_map_pin_start_drag       (HyScanGtkMapPin            *layer,
+gboolean               hyscan_gtk_map_pin_start_drag       (HyScanGtkMapPin            *layer,
                                                             HyScanGtkMapPinItem        *handle_point,
                                                             gboolean                    delete_on_cancel);
 

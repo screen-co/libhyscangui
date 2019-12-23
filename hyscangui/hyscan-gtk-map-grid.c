@@ -40,20 +40,19 @@
  *
  * Слой с изображением координатной сетки.
  *
- * Стиль оформления сетки можно задать с помощью функций класса или свойств из файла
- * конфигурации:
+ * Стиль оформления сетки можно задать с помощью функций класса или свойств из через
+ * #HyScanParam (см. hyscan_gtk_layer_get_param()):
  *
- * - hyscan_gtk_map_grid_set_bg_color()      "bg-color"
- * - hyscan_gtk_map_grid_set_label_color()   "label-color"
- * - hyscan_gtk_map_grid_set_line_color()    "line-color"
- * - hyscan_gtk_map_grid_set_line_width()    "line-width"
+ * - hyscan_gtk_map_grid_set_bg_color()      "/bg-color"
+ * - hyscan_gtk_map_grid_set_label_color()   "/label-color"
+ * - hyscan_gtk_map_grid_set_line_color()    "/line-color"
+ * - hyscan_gtk_map_grid_set_line_width()    "/line-width"
  * - hyscan_gtk_map_grid_set_step_width()
  *
- * Загрузить конфигурационный файл можно функциями hyscan_gtk_layer_load_key_file()
- * или hyscan_gtk_layer_container_load_key_file().
  */
 
 #include "hyscan-gtk-map-grid.h"
+#include "hyscan-gtk-layer-param.h"
 #include <glib/gi18n-lib.h>
 #include <math.h>
 
@@ -61,12 +60,7 @@
 #define MAX_LON             180.0     /* Максимальное по модулю значение долготы. */
 #define LINE_POINTS_NUM     5         /* Количество точек, по которым строится линия сетки. */
 
-#define LINE_WIDTH          0.5       /* Толщина линии координатной сетки. */
 #define GRID_STEP           200       /* Среднее расстояние между соседними линиями сетки. */
-
-#define LINE_COLOR_DEFAULT  "rgba( 80, 120, 180, 0.5)"   /* Цвет линий по умолчанию. */
-#define LABEL_COLOR_DEFAULT "rgba( 33,  33,  33, 1.0)"   /* Цвет текста подписей по умолчанию. */
-#define BG_COLOR_DEFAULT    "rgba(255, 255, 255, 0.6)"   /* Цвет фона подписей по умолчанию. */
 
 enum
 {
@@ -79,6 +73,7 @@ struct _HyScanGtkMapGridPrivate
 
   PangoLayout                      *pango_layout;       /* Раскладка шрифта. */
 
+  HyScanGtkLayerParam              *param;              /* Параметры оформления слоя. */
   GdkRGBA                           line_color;         /* Цвет линий координатной сетки. */
   gdouble                           line_width;         /* Ширина линии координатной сетки. */
   GdkRGBA                           label_color;        /* Цвет подписей. */
@@ -124,23 +119,18 @@ hyscan_gtk_map_grid_object_constructed (GObject *object)
 {
   HyScanGtkMapGrid *gtk_map_grid = HYSCAN_GTK_MAP_GRID (object);
   HyScanGtkMapGridPrivate *priv = gtk_map_grid->priv;
-  GdkRGBA color;
 
   G_OBJECT_CLASS (hyscan_gtk_map_grid_parent_class)->constructed (object);
 
+  priv->param = hyscan_gtk_layer_param_new ();
+  hyscan_gtk_layer_param_set_stock_schema (priv->param, "map-grid");
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/bg-color", &priv->bg_color);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/label-color", &priv->label_color);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/line-color", &priv->line_color);
+  hyscan_param_controller_add_double (HYSCAN_PARAM_CONTROLLER (priv->param), "/line-width", &priv->line_width);
+  hyscan_gtk_layer_param_set_default (priv->param);
+
   priv->label_padding = 2;
-
-  gdk_rgba_parse (&color, LINE_COLOR_DEFAULT);
-  hyscan_gtk_map_grid_set_line_color (gtk_map_grid, color);
-
-  gdk_rgba_parse (&color, LABEL_COLOR_DEFAULT);
-  hyscan_gtk_map_grid_set_label_color (gtk_map_grid, color);
-
-  gdk_rgba_parse (&color, BG_COLOR_DEFAULT);
-  hyscan_gtk_map_grid_set_bg_color (gtk_map_grid, color);
-
-  hyscan_gtk_map_grid_set_line_width (gtk_map_grid, LINE_WIDTH);
-
   hyscan_gtk_map_grid_set_step_width (gtk_map_grid, GRID_STEP);
 }
 
@@ -152,6 +142,7 @@ hyscan_gtk_map_grid_object_finalize (GObject *object)
 
   g_clear_object (&priv->pango_layout);
   g_object_unref (priv->map);
+  g_object_unref (priv->param);
 
   G_OBJECT_CLASS (hyscan_gtk_map_grid_parent_class)->finalize (object);
 }
@@ -183,39 +174,19 @@ hyscan_gtk_map_grid_added (HyScanGtkLayer          *gtk_layer,
 
   priv->map = g_object_ref (HYSCAN_GTK_MAP (container));
 
-  g_signal_connect_after (priv->map, "visible-draw",
+  g_signal_connect_after (priv->map, "area-draw",
                           G_CALLBACK (hyscan_gtk_map_grid_draw), gtk_layer);
   g_signal_connect_swapped (priv->map, "configure-event",
                             G_CALLBACK (hyscan_gtk_map_grid_configure), gtk_layer);
 }
 
-static gboolean
-hyscan_gtk_map_grid_load_key_file (HyScanGtkLayer *gtk_layer,
-                                   GKeyFile       *key_file,
-                                   const gchar    *group)
+static HyScanParam *
+hyscan_gtk_map_grid_get_param (HyScanGtkLayer *gtk_layer)
 {
   HyScanGtkMapGrid *grid_layer = HYSCAN_GTK_MAP_GRID (gtk_layer);
   HyScanGtkMapGridPrivate *priv = grid_layer->priv;
 
-  gdouble width;
-  GdkRGBA color;
-
-  width = g_key_file_get_double (key_file, group, "line-width", NULL);
-  hyscan_gtk_map_grid_set_line_width (grid_layer, width > 0 ? width : LINE_WIDTH);
-
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "bg-color", BG_COLOR_DEFAULT);
-  hyscan_gtk_map_grid_set_bg_color (grid_layer, color);
-
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "label-color", LABEL_COLOR_DEFAULT);
-  hyscan_gtk_map_grid_set_label_color (grid_layer, color);
-
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "line-color", LINE_COLOR_DEFAULT);
-  hyscan_gtk_map_grid_set_line_color (grid_layer, color);
-
-  if (priv->map != NULL)
-    gtk_widget_queue_draw (GTK_WIDGET (priv->map));
-
-  return TRUE;
+  return g_object_ref (priv->param);
 }
 
 static void
@@ -224,7 +195,7 @@ hyscan_gtk_map_grid_interface_init (HyScanGtkLayerInterface *iface)
   iface->set_visible = hyscan_gtk_map_grid_set_visible;
   iface->get_visible = hyscan_gtk_map_grid_get_visible;
   iface->added = hyscan_gtk_map_grid_added;
-  iface->load_key_file = hyscan_gtk_map_grid_load_key_file;
+  iface->get_param = hyscan_gtk_map_grid_get_param;
 }
 
 /* Обновление раскладки шрифта по сигналу "configure-event". */
@@ -295,7 +266,7 @@ hyscan_gtk_map_grid_draw_lat (HyScanGtkMapGrid *grid,
   /* Рисуем подпись. */
   hyscan_gtk_map_grid_format_label (geo.lat, value_power, label, sizeof (label));
   hyscan_gtk_map_geo_to_value (priv->map, geo, &point);
-  gtk_cifro_area_visible_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
+  gtk_cifro_area_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
   pango_layout_set_text (priv->pango_layout, label, -1);
   pango_layout_get_size (priv->pango_layout, &text_width, &text_height);
   text_height /= PANGO_SCALE;
@@ -324,7 +295,7 @@ hyscan_gtk_map_grid_draw_lat (HyScanGtkMapGrid *grid,
     {
       geo.lon = from_lon + step * i;
       hyscan_gtk_map_geo_to_value (priv->map, geo, &point);
-      gtk_cifro_area_visible_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
+      gtk_cifro_area_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
       cairo_line_to (cairo, grid_x, grid_y);
     }
   cairo_set_line_width (cairo, priv->line_width);
@@ -361,7 +332,7 @@ hyscan_gtk_map_grid_draw_lon (HyScanGtkMapGrid *grid,
   /* Рисуем подпись. */
   cairo_save (cairo);
   hyscan_gtk_map_geo_to_value (priv->map, geo, &point);
-  gtk_cifro_area_visible_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
+  gtk_cifro_area_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
   hyscan_gtk_map_grid_format_label (longitude, value_power, label, sizeof (label));
   pango_layout_set_text (priv->pango_layout, label, -1);
   pango_layout_get_size (priv->pango_layout, &text_width, &text_height);
@@ -389,7 +360,7 @@ hyscan_gtk_map_grid_draw_lon (HyScanGtkMapGrid *grid,
     {
       geo.lat = from_lat + step * i;
       hyscan_gtk_map_geo_to_value (priv->map, geo, &point);
-      gtk_cifro_area_visible_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
+      gtk_cifro_area_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
       cairo_line_to (cairo, grid_x, grid_y);
     }
   cairo_set_line_width (cairo, priv->line_width);

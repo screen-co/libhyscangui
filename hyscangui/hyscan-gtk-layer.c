@@ -83,8 +83,9 @@
  *
  * Однако это всего лишь совет, а не требование.
  *
- * Для конфигурации внешнего вида слоя также можно использовать файлы настроек
- * #GKeyFile, которые загружаются с помощью функции hyscan_gtk_layer_load_key_file().
+ * Для конфигурации внешнего вида слоя также можно использовать #HyScanParam с
+ * параметрами оформления. Получить объект настроек стиля можно с помощью
+ * функции hyscan_gtk_layer_get_param().
  *
  * Подробнее про добавление слоёв описано в классе #HyScanGtkLayerContainer.
  *
@@ -178,57 +179,27 @@ hyscan_gtk_layer_get_visible (HyScanGtkLayer *layer)
 }
 
 /**
- * hyscan_gtk_layer_load_key_file:
+ * hyscan_gtk_layer_get_param:
  * @layer: указатель на слой #HyScanGtkLayer
- * @key_file: указатель на #GKeyFile
- * @group: название группы, относящейся к данному слою
  *
- * Загружает конфигурацию слоя из группы @group в ini-файле.
+ * Получает объект параметров оформления слоя или NULL, если слой не содержит
+ * никаких параметров.
  *
- * Returns: %TRUE, если слой сконфигурировался; иначе %FALSE.
+ * Returns: (transfer full) (nullable): объект параметров слоя,
+ *   для удаления g_object_unref()
  */
-gboolean
-hyscan_gtk_layer_load_key_file (HyScanGtkLayer *layer,
-                                GKeyFile       *key_file,
-                                const gchar    *group)
+HyScanParam *
+hyscan_gtk_layer_get_param (HyScanGtkLayer *layer)
 {
   HyScanGtkLayerInterface *iface;
 
-  g_return_val_if_fail (HYSCAN_IS_GTK_LAYER (layer), TRUE);
+  g_return_val_if_fail (HYSCAN_IS_GTK_LAYER (layer), NULL);
 
   iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
-  if (iface->load_key_file != NULL)
-    return (*iface->load_key_file) (layer, key_file, group);
+  if (iface->get_param != NULL)
+    return (*iface->get_param) (layer);
 
-  return FALSE;
-}
-
-/**
- * hyscan_gtk_layer_load_key_file_color:
- * @color: (out): указатель на #GdkRGBA
- * @key_file: файл конфигурации #GKeyFile
- * @group_name: имя группы
- * @key: имя ключа
- * @default_spec: цвет по умолчанию
- *
- * Парсит цвет из конфигурационного файла. Если в файле цвет не указан, или
- * указанное значение не может быть распознано, то используется значение по
- * умолчанию @default_spec.
- */
-void
-hyscan_gtk_layer_load_key_file_rgba (GdkRGBA     *color,
-                                     GKeyFile    *key_file,
-                                     const gchar *group_name,
-                                     const gchar *key,
-                                     const gchar *default_spec)
-{
-  gchar *color_spec;
-
-  color_spec = g_key_file_get_string (key_file, group_name, key, NULL);
-  if (color_spec == NULL || !gdk_rgba_parse (color, color_spec))
-    gdk_rgba_parse (color, default_spec);
-
-  g_free (color_spec);
+  return NULL;
 }
 
 /**
@@ -365,7 +336,7 @@ hyscan_gtk_layer_handle_create (HyScanGtkLayer *layer,
  * в структуру @handle.
  *
  * Найденный хэндл затем может быть передан в функции
- * hyscan_gtk_layer_handle_show() и hyscan_gtk_layer_handle_grab().
+ * hyscan_gtk_layer_handle_show() и hyscan_gtk_layer_handle_click().
  *
  * Returns: %TRUE, если хэндл был найден; иначе %FALSE.
  */
@@ -409,37 +380,38 @@ hyscan_gtk_layer_handle_show (HyScanGtkLayer       *layer,
 }
 
 /**
- * hyscan_gtk_layer_handle_grab:
+ * hyscan_gtk_layer_handle_click:
  * @layer: указатель на слой #HyScanGtkLayer
+ * @event: событие #GdkEventButton, которое привело к захвату хэндла
  * @handle: указатель на хэндл #HyScanGtkLayerHandle
  *
- * Захватывает хэндл @handle, который был найден слоем при последнем вызове функции
+ * Обрабатывает клик по хэндлу @handle, который был найден слоем при последнем вызове функции
  * hyscan_gtk_layer_handle_find().
+ *
+ * В результате клика слой может захватить хэндл или не захватывать его.
  *
  * Для того, чтобы отпустить хэндл, необходимо вызывать функцию
  * hyscan_gtk_layer_handle_release().
- *
- * Returns: (nullable): указатель на владельца хэндла, если хэндл был схвачен; иначе %NULL.
  */
-gconstpointer
-hyscan_gtk_layer_handle_grab (HyScanGtkLayer       *layer,
-                              HyScanGtkLayerHandle *handle)
+void
+hyscan_gtk_layer_handle_click (HyScanGtkLayer       *layer,
+                               GdkEventButton       *event,
+                               HyScanGtkLayerHandle *handle)
 {
   HyScanGtkLayerInterface *iface;
 
-  g_return_val_if_fail (HYSCAN_IS_GTK_LAYER (layer), NULL);
+  g_return_if_fail (HYSCAN_IS_GTK_LAYER (layer));
 
   iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
-  if (iface->handle_grab != NULL)
-    return iface->handle_grab (layer, handle);
-
-  return NULL;
+  if (iface->handle_click != NULL)
+    iface->handle_click (layer, event, handle);
 }
 
 
 /**
  * hyscan_gtk_layer_handle_release:
  * @layer: указатель на слой #HyScanGtkLayer
+ * @event: событие #GdkEventButton, которое привело к отпусканию хэндла
  * @howner: признак того, что подсказка показана
  *
  * Отпускает хэндл, принадлежащий владельцу @howner.
@@ -448,6 +420,7 @@ hyscan_gtk_layer_handle_grab (HyScanGtkLayer       *layer,
  */
 gboolean
 hyscan_gtk_layer_handle_release (HyScanGtkLayer *layer,
+                                 GdkEventButton *event,
                                  gconstpointer   howner)
 {
   HyScanGtkLayerInterface *iface;
@@ -456,7 +429,7 @@ hyscan_gtk_layer_handle_release (HyScanGtkLayer *layer,
 
   iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
   if (iface->handle_release != NULL)
-    return iface->handle_release (layer, howner);
+    return iface->handle_release (layer, event, howner);
 
   return FALSE;
 }

@@ -62,6 +62,7 @@
 #include <hyscan-cartesian.h>
 #include <hyscan-task-queue.h>
 #include <hyscan-buffer.h>
+#include <math.h>
 
 #define TILE_SIZE              256           /* Размер тайла. */
 
@@ -447,7 +448,7 @@ hyscan_gtk_map_tiled_added (HyScanGtkLayer          *layer,
   g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
 
   /* Создаем очередь задач по заполнению тайлов. */
-  priv->task_queue = hyscan_task_queue_new (hyscan_gtk_map_tiled_process, tiled_layer,
+  priv->task_queue = hyscan_task_queue_new ((HyScanTaskQueueFunc) hyscan_gtk_map_tiled_process, tiled_layer,
                                             (GCompareFunc) hyscan_map_tile_compare);
 
   /* Подключаемся к карте. */
@@ -545,7 +546,7 @@ hyscan_gtk_map_tiled_draw (HyScanGtkMapTiled *tiled_layer,
           /* Переносим поверхность тайла на изображение слоя. */
           hyscan_map_tile_get_bounds (tile, &coord, NULL);
           gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x_source, &y_source, coord.x, coord.y);
-          cairo_set_source_surface (cairo, surface, x_source, y_source);
+          cairo_set_source_surface (cairo, surface, round (x_source), round (y_source));
           cairo_paint (cairo);
 
           /* Освобождаем поверхность. */

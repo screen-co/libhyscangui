@@ -102,6 +102,7 @@ static GList*   hyscan_gtk_waterfall_meter_find_closest            (HyScanGtkWat
 static gboolean hyscan_gtk_waterfall_meter_handle_create           (HyScanGtkLayer          *layer,
                                                                     GdkEventButton          *event);
 static gboolean hyscan_gtk_waterfall_meter_handle_release          (HyScanGtkLayer          *layer,
+                                                                    GdkEventButton          *event,
                                                                     gconstpointer            howner);
 static gboolean hyscan_gtk_waterfall_meter_handle_find             (HyScanGtkLayer          *layer,
                                                                     gdouble                  x,
@@ -109,7 +110,8 @@ static gboolean hyscan_gtk_waterfall_meter_handle_find             (HyScanGtkLay
                                                                     HyScanGtkLayerHandle    *handle);
 static void     hyscan_gtk_waterfall_meter_handle_show             (HyScanGtkLayer          *layer,
                                                                     HyScanGtkLayerHandle    *handle);
-static gconstpointer hyscan_gtk_waterfall_meter_handle_grab        (HyScanGtkLayer          *layer,
+static void     hyscan_gtk_waterfall_meter_handle_click            (HyScanGtkLayer          *layer,
+                                                                    GdkEventButton          *event,
                                                                     HyScanGtkLayerHandle    *handle);
 
 static gboolean hyscan_gtk_waterfall_meter_key                     (GtkWidget               *widget,
@@ -343,13 +345,8 @@ hyscan_gtk_waterfall_meter_handle_create (HyScanGtkLayer *layer,
   HyScanGtkWaterfallMeterPrivate *priv = self->priv;
 
   /* Обязательные проверки: слой не владеет вводом, редактирование запрещено, слой скрыт. */
-  if (self != hyscan_gtk_layer_container_get_input_owner (HYSCAN_GTK_LAYER_CONTAINER (priv->wfall)) ||
-      !hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (priv->wfall)) ||
-      !hyscan_gtk_layer_get_visible (layer))
-    {
-      return FALSE;
-    }
-
+  if (self != hyscan_gtk_layer_container_get_input_owner (HYSCAN_GTK_LAYER_CONTAINER (priv->wfall)))
+    return FALSE;
 
   /* Запоминаем координаты начала. */
   gtk_cifro_area_visible_point_to_value (GTK_CIFRO_AREA (priv->wfall),
@@ -374,6 +371,7 @@ hyscan_gtk_waterfall_meter_handle_create (HyScanGtkLayer *layer,
 /* Функция отпускает хэндл. */
 static gboolean
 hyscan_gtk_waterfall_meter_handle_release (HyScanGtkLayer *layer,
+                                           GdkEventButton *event,
                                            gconstpointer   howner)
 {
   HyScanGtkWaterfallMeter *self = HYSCAN_GTK_WATERFALL_METER (layer);
@@ -415,13 +413,6 @@ hyscan_gtk_waterfall_meter_handle_find (HyScanGtkLayer       *layer,
   gdouble re, rs;
   GList *link;
 
-  /* Обязательные проверки: редактирование запрещено, слой скрыт. */
-  if (!hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (self->priv->wfall)) ||
-      !hyscan_gtk_layer_get_visible (layer))
-    {
-      return FALSE;
-    }
-
   /* Поиск хэндла в списке видимых линеек. */
   link = hyscan_gtk_waterfall_meter_find_closest (self, &mouse);
 
@@ -456,9 +447,10 @@ hyscan_gtk_waterfall_meter_handle_show (HyScanGtkLayer       *layer,
 }
 
 /* Функция хватает хэндл. */
-static gconstpointer
-hyscan_gtk_waterfall_meter_handle_grab (HyScanGtkLayer       *layer,
-                                        HyScanGtkLayerHandle *handle)
+static void
+hyscan_gtk_waterfall_meter_handle_click (HyScanGtkLayer       *layer,
+                                         GdkEventButton       *event,
+                                         HyScanGtkLayerHandle *handle)
 {
   HyScanGtkWaterfallMeter *self = HYSCAN_GTK_WATERFALL_METER (layer);
   HyScanGtkWaterfallMeterPrivate *priv = self->priv;
@@ -485,7 +477,7 @@ hyscan_gtk_waterfall_meter_handle_grab (HyScanGtkLayer       *layer,
   priv->editing = TRUE;
   hyscan_gtk_waterfall_queue_draw (priv->wfall);
 
-  return self;
+  hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->wfall), self);
 }
 
 /* Функция обрабатывает нажатия клавиш клавиатуры. */
@@ -893,5 +885,5 @@ hyscan_gtk_waterfall_meter_interface_init (HyScanGtkLayerInterface *iface)
   iface->handle_release = hyscan_gtk_waterfall_meter_handle_release;
   iface->handle_find = hyscan_gtk_waterfall_meter_handle_find;
   iface->handle_show = hyscan_gtk_waterfall_meter_handle_show;
-  iface->handle_grab = hyscan_gtk_waterfall_meter_handle_grab;
+  iface->handle_click = hyscan_gtk_waterfall_meter_handle_click;
 }

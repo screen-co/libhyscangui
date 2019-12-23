@@ -60,28 +60,24 @@
  * - hyscan_gtk_map_track_set_bar_width()
  * - hyscan_gtk_map_track_set_bar_margin()
  *
- * Также слой поддерживает загрузку конфигурационных ini-файлов. Подробнее в
- * функции hyscan_gtk_layer_container_load_key_file().
+ * Также слой поддерживает загрузку стилей через #HyScanParam. Подробнее в
+ * функции hyscan_gtk_layer_get_param().
  *
  */
 
 #include "hyscan-gtk-map-track.h"
 #include "hyscan-gtk-map.h"
+#include "hyscan-gtk-layer-param.h"
 #include <hyscan-cartesian.h>
 #include <hyscan-projector.h>
 
 /* Стиль оформления по умолчанию. */
-#define DEFAULT_COLOR_TRACK           "#AC67C6"                     /* Цвет линии движения. */
-#define DEFAULT_COLOR_PORT            "#DDC3BB"                     /* Цвет левого борта. */
-#define DEFAULT_COLOR_STARBOARD       "#C4DDBB"                     /* Цвет правого борта. */
 #define DEFAULT_COLOR_STROKE          "#000000"                     /* Цвет обводки некоторых элементов. */
 #define DEFAULT_COLOR_SHADOW          "rgba(150, 150, 150, 0.5)"    /* Цвет затенения. */
-#define DEFAULT_BAR_WIDTH             3                             /* Ширина полос дальности. */
-#define DEFAULT_BAR_MARGIN            30                            /* Расстояние между соседними полосами. */
 #define DEFAULT_LINE_WIDTH            1                             /* Толщина линии движения. */
 #define DEFAULT_STROKE_WIDTH          1.0                           /* Толщина обводки. */
 
-#define REFRESH_INTERVAL              500                           /* Период проверки каналов данных на новые данные, мс. */
+#define REFRESH_INTERVAL              300000                        /* Период проверки каналов данных на новые данные, мкс. */
 
 /* Раскомментируйте строку ниже для вывода отладочной информации о скорости отрисовки слоя. */
 // #define HYSCAN_GTK_MAP_DEBUG_FPS
@@ -98,7 +94,8 @@ struct _HyScanGtkMapTrackPrivate
 {
   HyScanGtkMap              *map;              /* Карта. */
   gboolean                   visible;          /* Признак видимости слоя. */
-  guint                      draw_tag;         /* Тег функции перерисовки слоя. */
+  GThread                   *watcher;          /* Тег функции перерисовки слоя. */
+  gboolean                   shutdown;         /* Признак удаления слоя. */
 
   HyScanDB                  *db;               /* База данных. */
   gchar                     *project;          /* Название проекта. */
@@ -110,6 +107,7 @@ struct _HyScanGtkMapTrackPrivate
   GRWLock                    a_lock;           /* Доступ к модификации массива active_tracks. */
   gchar                    **active_tracks;    /* NULL-терминированный массив названий видимых галсов. */
 
+  HyScanGtkLayerParam       *param;            /* Параметры оформления. */
   HyScanGtkMapTrackItemStyle style;            /* Стиль оформления. */
 };
 
@@ -208,13 +206,17 @@ hyscan_gtk_map_track_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_track_parent_class)->constructed (object);
 
   /* Оформление трека. */
-  style->bar_width = DEFAULT_BAR_WIDTH;
-  style->bar_margin = DEFAULT_BAR_MARGIN;
+  priv->param = hyscan_gtk_layer_param_new ();
+  hyscan_gtk_layer_param_set_stock_schema (priv->param, "map-track");
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/track-color", &style->color_track);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/port-color", &style->color_left);
+  hyscan_gtk_layer_param_add_rgba (priv->param, "/starboard-color", &style->color_right);
+  hyscan_param_controller_add_double (HYSCAN_PARAM_CONTROLLER (priv->param), "/bar-width", &style->bar_width);
+  hyscan_param_controller_add_double (HYSCAN_PARAM_CONTROLLER (priv->param), "/bar-margin", &style->bar_margin);
+  hyscan_gtk_layer_param_set_default (priv->param);
+
   style->line_width = DEFAULT_LINE_WIDTH;
   style->stroke_width = DEFAULT_STROKE_WIDTH;
-  gdk_rgba_parse (&style->color_left, DEFAULT_COLOR_PORT);
-  gdk_rgba_parse (&style->color_right, DEFAULT_COLOR_STARBOARD);
-  gdk_rgba_parse (&style->color_track, DEFAULT_COLOR_TRACK);
   gdk_rgba_parse (&style->color_stroke, DEFAULT_COLOR_STROKE);
   gdk_rgba_parse (&style->color_shadow, DEFAULT_COLOR_SHADOW);
 }
@@ -232,6 +234,7 @@ hyscan_gtk_map_track_object_finalize (GObject *object)
   g_free (priv->project);
   g_hash_table_destroy (priv->tracks);
   g_clear_pointer (&priv->active_tracks, g_strfreev);
+  g_object_unref (priv->param);
 
   G_OBJECT_CLASS (hyscan_gtk_map_track_parent_class)->finalize (object);
 }
@@ -339,12 +342,15 @@ hyscan_gtk_map_track_projection_notify (HyScanGtkMap      *map,
   while (g_hash_table_iter_next (&iter, (gpointer *) &track_name, (gpointer *) &track))
     hyscan_gtk_map_track_item_set_projection (track, projection);
 
+  /* Сообщаем об изменении параметров и необходимости перерисовки. */
+  hyscan_gtk_map_tiled_set_param_mod (HYSCAN_GTK_MAP_TILED (layer));
+
   g_object_unref (projection);
 }
 
 /* Запрашивает перерисовку слоя, если есть изменения в каналах данных. */
-static gboolean
-hyscan_gtk_map_track_redraw (gpointer data)
+static gpointer
+hyscan_gtk_map_track_watcher (gpointer data)
 {
   HyScanGtkMapTrack *track_layer = HYSCAN_GTK_MAP_TRACK (data);
   HyScanGtkMapTrackPrivate *priv = track_layer->priv;
@@ -355,19 +361,27 @@ hyscan_gtk_map_track_redraw (gpointer data)
   HyScanGtkMapTrackItem *track;
   gchar *key;
 
-  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (track_layer)))
-    return G_SOURCE_CONTINUE;
+  while (TRUE)
+    {
+      g_usleep (REFRESH_INTERVAL);
 
-  /* Загружаем новые данные из каждого галса и запоминаем, есть ли изменения.. */
-  any_changes = FALSE;
-  g_hash_table_iter_init (&iter, priv->tracks);
-  while (g_hash_table_iter_next (&iter, (gpointer *) &key, (gpointer *) &track))
-    any_changes = hyscan_gtk_map_track_item_update (track) || any_changes;
+      if (g_atomic_int_get (&priv->shutdown))
+        break;
 
-  if (any_changes)
-    hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (track_layer));
+      if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (track_layer)))
+        continue;
 
-  return G_SOURCE_CONTINUE;
+      /* Загружаем новые данные из каждого галса и запоминаем, есть ли изменения.. */
+      any_changes = FALSE;
+      g_hash_table_iter_init (&iter, priv->tracks);
+      while (!any_changes && g_hash_table_iter_next (&iter, (gpointer *) &key, (gpointer *) &track))
+        any_changes = hyscan_gtk_map_track_item_update (track);
+
+      if (any_changes)
+        hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (track_layer));
+    }
+
+  return NULL;
 }
 
 /* Реализация HyScanGtkLayerInterface.added.
@@ -389,7 +403,7 @@ hyscan_gtk_map_track_added (HyScanGtkLayer          *gtk_layer,
                     G_CALLBACK (hyscan_gtk_map_track_projection_notify), track_layer);
 
   hyscan_gtk_layer_parent_interface->added (gtk_layer, container);
-  priv->draw_tag = g_timeout_add (REFRESH_INTERVAL, hyscan_gtk_map_track_redraw, track_layer);
+  priv->watcher = g_thread_new ("map-track", hyscan_gtk_map_track_watcher, track_layer);
 }
 
 /* Реализация HyScanGtkLayerInterface.removed.
@@ -402,8 +416,8 @@ hyscan_gtk_map_track_removed (HyScanGtkLayer *gtk_layer)
 
   g_return_if_fail (priv->map != NULL);
 
-  g_source_remove (priv->draw_tag);
-  priv->draw_tag = 0;
+  g_atomic_int_set (&priv->shutdown, TRUE);
+  g_clear_pointer (&priv->watcher, g_thread_join);
   hyscan_gtk_layer_parent_interface->removed (gtk_layer);
 
   g_signal_handlers_disconnect_by_data (priv->map, track_layer);
@@ -439,36 +453,15 @@ hyscan_gtk_map_track_get_visible (HyScanGtkLayer *layer)
   return priv->visible;
 }
 
-/* Реализация HyScanGtkLayerInterface.load_key_file.
- * Загружает параметры отображения слоя из конфигурационного файла. */
-static gboolean
-hyscan_gtk_map_track_load_key_file (HyScanGtkLayer *gtk_layer,
-                                    GKeyFile       *key_file,
-                                    const gchar    *group)
+/* Реализация HyScanGtkLayerInterface.get_param.
+ * Получает параметры стиля оформления слоя. */
+static HyScanParam *
+hyscan_gtk_map_track_get_param (HyScanGtkLayer *gtk_layer)
 {
   HyScanGtkMapTrack *track_layer = HYSCAN_GTK_MAP_TRACK (gtk_layer);
-  GdkRGBA rgba;
-  gdouble value;
+  HyScanGtkMapTrackPrivate *priv = track_layer->priv;
 
-  hyscan_gtk_layer_load_key_file_rgba (&rgba, key_file, group,
-                                       "track-color", DEFAULT_COLOR_TRACK);
-  hyscan_gtk_map_track_set_color_track (track_layer, rgba);
-
-  hyscan_gtk_layer_load_key_file_rgba (&rgba, key_file, group,
-                                       "port-color", DEFAULT_COLOR_PORT);
-  hyscan_gtk_map_track_set_color_port (track_layer, rgba);
-
-  hyscan_gtk_layer_load_key_file_rgba (&rgba, key_file, group,
-                                       "starboard-color", DEFAULT_COLOR_STARBOARD);
-  hyscan_gtk_map_track_set_color_starboard (track_layer, rgba);
-
-  value = g_key_file_get_double (key_file, group, "bar-width", NULL);
-  hyscan_gtk_map_track_set_bar_width (track_layer, (value > 0.0) ? value : DEFAULT_BAR_WIDTH);
-
-  value = g_key_file_get_double (key_file, group, "bar-margin", NULL);
-  hyscan_gtk_map_track_set_bar_margin (track_layer, (value > 0.0) ? value : DEFAULT_BAR_MARGIN);
-
-  return TRUE;
+  return g_object_ref (priv->param);
 }
 
 static void
@@ -476,7 +469,7 @@ hyscan_gtk_map_track_interface_init (HyScanGtkLayerInterface *iface)
 {
   hyscan_gtk_layer_parent_interface = g_type_interface_peek_parent (iface);
 
-  iface->load_key_file = hyscan_gtk_map_track_load_key_file;
+  iface->get_param = hyscan_gtk_map_track_get_param;
   iface->added = hyscan_gtk_map_track_added;
   iface->removed = hyscan_gtk_map_track_removed;
   iface->set_visible = hyscan_gtk_map_track_set_visible;
@@ -508,6 +501,80 @@ hyscan_gtk_map_track_get_track (HyScanGtkMapTrack *track_layer,
   g_mutex_unlock (&priv->t_lock);
 
   return track;
+}
+
+/* Коллбэк функция для hyscan_gtk_map_track_view. */
+static void
+hyscan_gtk_map_track_view_cb (GObject      *source_object,
+                              GAsyncResult *res,
+                              gpointer      callback_data)
+{
+  HyScanGtkMapTrack *track = HYSCAN_GTK_MAP_TRACK (source_object);
+  HyScanGtkMapTrackPrivate *priv = track->priv;
+  GTask *task = G_TASK (res);
+  HyScanGeoCartesian2D *view;
+  gboolean zoom_in;
+  gdouble prev_scale = -1.0;
+  gdouble margin = 0;
+
+  view = g_task_propagate_pointer (task, NULL);
+  if (view == NULL)
+    return;
+
+  zoom_in = GPOINTER_TO_INT (callback_data);
+  if (!zoom_in)
+    gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &prev_scale, NULL);
+
+  if (view[0].x == view[1].x || view[0].y == view[1].y)
+    margin = prev_scale;
+
+  gtk_cifro_area_set_view (GTK_CIFRO_AREA (priv->map),
+                           view[0].x - margin, view[1].x + margin,
+                           view[0].y - margin, view[1].y + margin);
+
+  if (!zoom_in)
+    {
+      gtk_cifro_area_set_scale (GTK_CIFRO_AREA (priv->map), prev_scale, prev_scale,
+                                (view[0].x + view[1].x) / 2.0, (view[0].y + view[1].y) / 2.0);
+    }
+
+  gtk_cifro_area_set_view (GTK_CIFRO_AREA (priv->map), view[0].x, view[1].x, view[0].y, view[1].y);
+  g_free (view);
+}
+
+/* Асинхронная загрузка координат галса. */
+static void
+hyscan_gtk_map_track_view_load (GTask        *task,
+                                gpointer      source_object,
+                                gpointer      task_data,
+                                GCancellable *cancellable)
+{
+  HyScanGtkMapTrack *track_layer = HYSCAN_GTK_MAP_TRACK (source_object);
+  HyScanGeoCartesian2D *view;
+  HyScanGtkMapTrackItem *track;
+  gchar *track_name;
+  gboolean result = FALSE;
+
+  view = g_new0 (HyScanGeoCartesian2D, 2);
+
+  /* Находим запрошенный галс. */
+  track_name = task_data;
+  track = hyscan_gtk_map_track_get_track (track_layer, track_name, TRUE);
+  if (track == NULL)
+    goto exit;
+
+  result = hyscan_gtk_map_track_item_view (track, &view[0], &view[1]);
+
+exit:
+  if (result)
+    {
+      g_task_return_pointer (task, view, g_free);
+    }
+  else
+    {
+      g_free (view);
+      g_task_return_pointer (task, NULL, NULL);
+    }
 }
 
 /**
@@ -561,7 +628,7 @@ hyscan_gtk_map_track_set_project (HyScanGtkMapTrack *track_layer,
 /**
  * hyscan_gtk_map_track_set_tracks:
  * @track_layer: указатель на #HyScanGtkMapTrack
- * @tracks: (nullable): (array zero-terminated=1): нуль-терминированный массив с названиями галсов
+ * @tracks: (nullable) (array zero-terminated=1): нуль-терминированный массив с названиями галсов
  *
  * Устанавливает видимые на слое галсы.
  */
@@ -635,55 +702,32 @@ hyscan_gtk_map_track_lookup (HyScanGtkMapTrack *track_layer,
  * @track_layer: указатель на слой #HyScanGtkMapTrack
  * @track_name: название галса
  * @zoom_in: надо ли вписывать галс в видимую область
+ * @cancellable: объект для отмены перемещения
  *
  * Перемешает видимую область карты к галсу с названием @track_name. Если установлен
  * флаг @zoom_in, то функция устанавливает границы видимой области карты так,
  * чтобы галс был виден полностью.
- *
- * Returns: %TRUE, если получилось определить границы галса; иначе %FALSE
  */
-gboolean 
+void
 hyscan_gtk_map_track_view (HyScanGtkMapTrack *track_layer,
                            const gchar       *track_name,
-                           gboolean           zoom_in)
+                           gboolean           zoom_in,
+                           HyScanCancellable *cancellable)
 {
   HyScanGtkMapTrackPrivate *priv;
-  HyScanGtkMapTrackItem *track;
-  HyScanGeoCartesian2D from, to;
-  gdouble prev_scale = -1.0;
-  gdouble margin = 0;
+  GTask *task;
 
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track_layer), FALSE);
-  g_return_val_if_fail (track_name != NULL, FALSE);
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track_layer));
+  g_return_if_fail (track_name != NULL);
   priv = track_layer->priv;
   
-  g_return_val_if_fail (priv->map != NULL, FALSE);
+  g_return_if_fail (priv->map != NULL);
 
-  /* Находим запрошенный галс. */
-  track = hyscan_gtk_map_track_get_track (track_layer, track_name, TRUE);
-  if (track == NULL)
-    return FALSE;
-
-  if (!hyscan_gtk_map_track_item_view (track, &from, &to))
-    return FALSE;
-
-  if (!zoom_in)
-    gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &prev_scale, NULL);
-
-  if (from.x == to.x || from.y == to.y)
-    margin = prev_scale;
-
-  gtk_cifro_area_set_view (GTK_CIFRO_AREA (priv->map),
-                           from.x - margin, to.x + margin,
-                           from.y - margin, to.y + margin);
-
-  if (!zoom_in)
-    {
-      gtk_cifro_area_set_scale (GTK_CIFRO_AREA (priv->map), prev_scale, prev_scale,
-                                (from.x + to.x) / 2.0, (from.y + to.y) / 2.0);
-    }
-
-  return TRUE;
+  /* Запускаем задачу в отдельном потоке. */
+  task = g_task_new (track_layer, G_CANCELLABLE (cancellable), hyscan_gtk_map_track_view_cb, GINT_TO_POINTER (zoom_in));
+  g_task_set_task_data (task, g_strdup (track_name), g_free);
+  g_task_run_in_thread (task, hyscan_gtk_map_track_view_load);
+  g_object_unref (task);
 }
 
 /**

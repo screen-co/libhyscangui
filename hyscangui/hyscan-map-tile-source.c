@@ -135,3 +135,26 @@ hyscan_map_tile_source_get_projection (HyScanMapTileSource *source)
 
   return (* iface->get_projection) (source);
 }
+
+/**
+ * hyscan_map_tile_source_hash:
+ * @source: указатель на #HyScanMapTileSource
+ *
+ * Получает хэш источника тайлов. Источники, которые дают на выходе разные
+ * изображения тайлов имеют разное значение хэша. При этом один и тот же объект
+ * источника не меняет значение хэша в течение всего своего времени жизни.
+ *
+ * Returns: хэш источника тайлов
+ */
+guint
+hyscan_map_tile_source_hash (HyScanMapTileSource *source)
+{
+  HyScanMapTileSourceInterface *iface;
+
+  g_return_val_if_fail (HYSCAN_IS_MAP_TILE_SOURCE (source), 0);
+
+  iface = HYSCAN_MAP_TILE_SOURCE_GET_IFACE (source);
+  g_return_val_if_fail (iface->hash != NULL, 0);
+
+  return (* iface->hash) (source);
+}

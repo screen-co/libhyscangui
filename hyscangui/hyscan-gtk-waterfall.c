@@ -88,7 +88,6 @@
 #include <hyscan-track-rect.h>
 #include <math.h>
 
-#define ZOOM_LEVELS 15
 #define EPS -0.000001
 #define EPS2 0.000001
 
@@ -107,7 +106,11 @@ enum
 };
 
 #define TILE_SIZE_PX (256)
-static const gdouble zooms_gost[ZOOM_LEVELS] = {5000.0, 2000.0, 1000.0, 800.0, 500.0, 400.0, 200.0, 100.0, 50.0, 20.0, 10.0, 5.0, 4.0, 2.0, 1.0};
+static const gdouble zooms_gost[] = {5000.0, 4000., 3000., 2000.0, 1000.0,
+                                       800.,  500.,  400.,  300.,   200.,
+                                       100.,   75.,   50.,   40.,    20.,
+                                        10.,    5.,    4.,    2.,     1.};
+static const int ZOOM_LEVELS = G_N_ELEMENTS (zooms_gost);
 
 struct _HyScanGtkWaterfallPrivate
 {
@@ -160,7 +163,7 @@ struct _HyScanGtkWaterfallPrivate
   guint                  regen_time;         /* Время предыдущей генерации. */
   guint                  regen_time_prev;    /* Время предыдущей генерации. */
   guint                  regen_period;       /* Интервал между перегенерациями. */
-  gboolean               regen_sent;         /* Интервал между перегенерациями. */
+  gboolean               task_sent;          /* Что-то отправлено на генерацию. */
   gboolean               regen_allowed;      /* Интервал между перегенерациями. */
 
   GtkAdjustment         *hadjustment;
@@ -171,6 +174,7 @@ struct _HyScanGtkWaterfallPrivate
 static void     hyscan_gtk_waterfall_object_constructed      (GObject                       *object);
 static void     hyscan_gtk_waterfall_object_finalize         (GObject                       *object);
 
+static gboolean hyscan_gtk_waterfall_redraw_once             (gpointer                       data);
 static gint32   hyscan_gtk_waterfall_aligner                 (gdouble                        in,
                                                               gint                           size);
 static void     hyscan_gtk_waterfall_prepare_csurface        (cairo_surface_t              **surface,
@@ -396,6 +400,14 @@ hyscan_gtk_waterfall_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_waterfall_parent_class)->finalize (object);
 }
 
+static gboolean
+hyscan_gtk_waterfall_redraw_once (gpointer data)
+{
+  GtkWidget *w = data;
+  gtk_widget_queue_draw (w);
+  return G_SOURCE_REMOVE;
+}
+
 /* Округление координат тайла. */
 static gint32
 hyscan_gtk_waterfall_aligner (gdouble in,
@@ -548,6 +560,7 @@ hyscan_gtk_waterfall_get_tile (HyScanGtkWaterfall *self,
       cancellable = hyscan_cancellable_new ();
       hyscan_tile_queue_add (priv->queue, tile, cancellable);
       g_object_unref (cancellable);
+      priv->task_sent = TRUE;
     }
   /* ПЕРЕгенерация разрешена не всегда. */
   else if (regenerate && priv->regen_allowed)
@@ -555,7 +568,7 @@ hyscan_gtk_waterfall_get_tile (HyScanGtkWaterfall *self,
       cancellable = hyscan_cancellable_new ();
       hyscan_tile_queue_add (priv->queue, tile, cancellable);
       g_object_unref (cancellable);
-      priv->regen_sent = TRUE;
+      priv->task_sent = TRUE;
     }
 
   if (surface == NULL)
@@ -698,6 +711,7 @@ hyscan_gtk_waterfall_visible_draw (GtkWidget *widget,
   priv->regen_time = g_get_monotonic_time ();
   priv->regen_allowed =  priv->regen_time - priv->regen_time_prev > priv->regen_period;
 
+
   gtk_cifro_area_visible_value_to_point	(GTK_CIFRO_AREA (widget), &x_coord0, &y_coord0,
                                         (gdouble)(start_tile_x0 / 1000.0),
                                         (gdouble)((start_tile_y0 + tile_size) / 1000.0));
@@ -747,14 +761,14 @@ hyscan_gtk_waterfall_visible_draw (GtkWidget *widget,
 
   priv->view_finalised = view_finalised;
 
-  if (priv->regen_sent)
+  if (priv->task_sent)
     {
       priv->regen_time_prev = priv->regen_time;
-      priv->regen_sent = FALSE;
+      priv->task_sent = FALSE;
+      hyscan_tile_queue_add_finished (priv->queue, priv->view_id);
     }
 
   /* Необходимо сообщить тайл-менеджеру, что view закончился. */
-  hyscan_tile_queue_add_finished (priv->queue, priv->view_id);
 
   {
     gdouble from_x, to_x, from_y, to_y, min_x, max_x, min_y, max_y;
@@ -873,23 +887,26 @@ hyscan_gtk_waterfall_configure (GtkWidget         *widget,
   HyScanGtkWaterfall *self = HYSCAN_GTK_WATERFALL (widget);
   HyScanGtkWaterfallPrivate *priv = self->priv;
   GdkScreen *gdkscreen;
+  GdkDisplay *gdkdisplay;
+  GdkMonitor *gdkmonitor;
   GdkRectangle mon_geom;
 
   gint i = 0;
-  gint monitor_num, monitor_h, monitor_w;
+  gint monitor_h, monitor_w;
   gfloat old_ppi, ppi, diagonal_mm, diagonal_pix;
 
   /* Получаем монитор, на котором расположено окно. */
   gdkscreen = gdk_window_get_screen (event->window);
-  monitor_num = gdk_screen_get_monitor_at_window (gdkscreen, event->window);
+  gdkdisplay = gdk_screen_get_display (gdkscreen);
+  gdkmonitor = gdk_display_get_monitor_at_window (gdkdisplay, event->window);
 
   /* Диагональ в пикселях. */
-  gdk_screen_get_monitor_geometry (gdkscreen, monitor_num, &mon_geom);
+  gdk_monitor_get_geometry (gdkmonitor, &mon_geom);
   diagonal_pix = sqrt (mon_geom.width * mon_geom.width + mon_geom.height * mon_geom.height);
 
   /* Диагональ в миллиметрах. */
-  monitor_h = gdk_screen_get_monitor_height_mm (gdkscreen, monitor_num);
-  monitor_w = gdk_screen_get_monitor_width_mm (gdkscreen, monitor_num);
+  monitor_h = gdk_monitor_get_height_mm (gdkmonitor);
+  monitor_w = gdk_monitor_get_width_mm (gdkmonitor);
   diagonal_mm = sqrt (monitor_w * monitor_w + monitor_h * monitor_h) / 25.4;
 
   /* Запомним старый PPI, чтобы определить, надо ли его менять. */
@@ -1337,7 +1354,7 @@ void
 hyscan_gtk_waterfall_queue_draw (HyScanGtkWaterfall *self)
 {
   g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (self));
-  g_idle_add ((GSourceFunc)gtk_widget_queue_draw, self);
+  g_idle_add ((GSourceFunc)hyscan_gtk_waterfall_redraw_once, self);
 }
 
 /**

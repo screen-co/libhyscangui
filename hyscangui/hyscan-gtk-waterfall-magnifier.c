@@ -55,7 +55,6 @@ struct _HyScanGtkWaterfallMagnifierPrivate
   guint                        zoom;              /**< Во сколько раз увеличивать. */
   gdouble                      height;            /**< Высота области. */
   gdouble                      width;             /**< Ширина области. */
-  HyScanCoordinates            window;            /**< Начальная координата окошка. */
   gboolean                     width_auto;        /**< Автоматическая ширина области. */
 
   GdkRGBA                      frame_color;       /**< Цвет рамки. */
@@ -115,7 +114,6 @@ hyscan_gtk_waterfall_magnifier_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_waterfall_magnifier_parent_class)->constructed (object);
 
   hyscan_gtk_waterfall_magnifier_set_size (self, 100, 100);
-  hyscan_gtk_waterfall_magnifier_set_position (self, 16, 16);
 
   gdk_rgba_parse (&color_frame, FRAME_DEFAULT);
   hyscan_gtk_waterfall_magnifier_set_frame_color (self, color_frame);
@@ -169,6 +167,14 @@ hyscan_gtk_waterfall_magnifier_removed (HyScanGtkLayer *layer)
   self->priv->carea = NULL;
 }
 
+static gboolean
+hyscan_gtk_waterfall_magnifier_get_visible (HyScanGtkLayer *layer)
+{
+  HyScanGtkWaterfallMagnifier *self = HYSCAN_GTK_WATERFALL_MAGNIFIER (layer);
+
+  return self->priv->layer_visibility;
+}
+
 static void
 hyscan_gtk_waterfall_magnifier_set_visible (HyScanGtkLayer *layer,
                                             gboolean        visible)
@@ -207,7 +213,7 @@ hyscan_gtk_waterfall_magnifier_draw (GtkWidget                    *widget,
   if (priv->mouse.x == -1 || priv->mouse.y == -1)
     return;
 
-  if (priv->zoom == 0)
+  if (priv->zoom <= 1)
     return;
 
   /* Наивное решение: просто берем и поточечно копируем всё, что попало в
@@ -251,7 +257,7 @@ hyscan_gtk_waterfall_magnifier_draw (GtkWidget                    *widget,
   /* Рисуем отзуммированную картинку. */
   cairo_surface_mark_dirty (priv->surface);
   cairo_save (cairo);
-  cairo_translate (cairo, priv->window.x, priv->window.y);
+  cairo_translate (cairo, priv->mouse.x - w_2 * priv->zoom, priv->mouse.y - h_2 * priv->zoom);
   cairo_scale (cairo, priv->zoom, priv->zoom);
   cairo_set_source_surface (cairo, priv->surface, 0, 0);
   cairo_paint (cairo);
@@ -261,8 +267,8 @@ hyscan_gtk_waterfall_magnifier_draw (GtkWidget                    *widget,
   hyscan_cairo_set_source_gdk_rgba (cairo, &priv->frame_color);
   cairo_set_line_width (cairo, priv->frame_width);
   cairo_rectangle (cairo,
-                   round (priv->window.x) + 0.5,
-                   round (priv->window.y) + 0.5,
+                   round (priv->mouse.x - w_2 * priv->zoom) + 0.5,
+                   round (priv->mouse.y - h_2 * priv->zoom) + 0.5,
                    round (priv->width * priv->zoom),
                    round (priv->height * priv->zoom));
   cairo_stroke (cairo);
@@ -353,28 +359,6 @@ hyscan_gtk_waterfall_magnifier_set_size (HyScanGtkWaterfallMagnifier *self,
 }
 
 /**
- * hyscan_gtk_waterfall_magnifier_set_position:
- * @magnifier: объект #HyScanGtkWaterfallMagnifier
- * @x: горизонтальная координата
- * @y: вертикальная координата
- *
- * Функция задает начальную координату (левый верхний угол) окошка с увеличенным изображением.
- */
-void
-hyscan_gtk_waterfall_magnifier_set_position (HyScanGtkWaterfallMagnifier *self,
-                                             gdouble                      x,
-                                             gdouble                      y)
-{
-  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL_MAGNIFIER (self));
-
-  self->priv->window.x = x;
-  self->priv->window.y = y;
-
-  if (self->priv->wfall != NULL)
-    hyscan_gtk_waterfall_queue_draw (self->priv->wfall);
-}
-
-/**
  * hyscan_gtk_waterfall_magnifier_set_frame_color:
  * @magnifier: объект #HyScanGtkWaterfallMagnifier
  *
@@ -417,6 +401,7 @@ hyscan_gtk_waterfall_magnifier_interface_init (HyScanGtkLayerInterface *iface)
 {
   iface->added = hyscan_gtk_waterfall_magnifier_added;
   iface->removed = hyscan_gtk_waterfall_magnifier_removed;
+  iface->get_visible = hyscan_gtk_waterfall_magnifier_get_visible;
   iface->set_visible = hyscan_gtk_waterfall_magnifier_set_visible;
   iface->get_icon_name = hyscan_gtk_waterfall_magnifier_get_icon_name;
 }

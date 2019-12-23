@@ -58,13 +58,11 @@
  */
 
 #include "hyscan-gtk-map-pin.h"
+#include "hyscan-gtk-layer-param.h"
+#include <hyscan-param-controller.h>
 #include <math.h>
 
 #define DEFAULT_SIZE          8
-#define DEFAULT_COLOR_PRIME   "#699857"
-#define DEFAULT_COLOR_STROKE  "#537845"
-#define DEFAULT_COLOR_SECOND  "#ffffff"
-
 #define HANDLE_TYPE_NAME "map_pin"
 
 enum
@@ -112,6 +110,7 @@ typedef HyScanGtkMapPinMarker * (*HyScanGtkMapPinFactory) (HyScanGtkMapPin *laye
 struct _HyScanGtkMapPinPrivate
 {
   HyScanGtkMap              *map;                      /* Виджет карты. */
+  HyScanGtkLayerParam       *params;                   /* Управление параметрами слоя. */
 
   PangoLayout               *pango_layout;             /* Раскладка шрифта. */
 
@@ -178,6 +177,8 @@ static HyScanGtkMapPinMarker *
 static inline HyScanGtkMapPinMarker *
                      hyscan_gtk_map_pin_get_marker                (HyScanGtkMapPinPrivate   *priv,
                                                                    HyScanGtkMapPinItem      *item);
+static void          hyscan_gtk_map_pin_param_set                 (HyScanParam              *param,
+                                                                   HyScanParamList          *list);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapPin, hyscan_gtk_map_pin, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapPin)
@@ -400,21 +401,24 @@ hyscan_gtk_map_pin_object_constructed (GObject *object)
 {
   HyScanGtkMapPin *gtk_map_pin = HYSCAN_GTK_MAP_PIN (object);
   HyScanGtkMapPinPrivate *priv = gtk_map_pin->priv;
-  GdkRGBA color;
 
   G_OBJECT_CLASS (hyscan_gtk_map_pin_parent_class)->constructed (object);
 
   priv->mode = MODE_NONE;
   gtk_map_pin->priv->pin_stroke_width = 1.0;
 
+  priv->params = hyscan_gtk_layer_param_new ();
+  hyscan_gtk_layer_param_set_stock_schema (priv->params, "map-pin");
+  hyscan_gtk_layer_param_add_rgba (priv->params, "/prime-color", &priv->pin_color_prime);
+  hyscan_gtk_layer_param_add_rgba (priv->params, "/second-color", &priv->pin_color_second);
+  hyscan_gtk_layer_param_add_rgba (priv->params, "/stroke-color", &priv->pin_color_stroke);
+
   hyscan_gtk_map_pin_set_marker_shape (gtk_map_pin, HYSCAN_GTK_MAP_PIN_SHAPE_PIN);
   hyscan_gtk_map_pin_set_marker_size (gtk_map_pin, DEFAULT_SIZE);
-  gdk_rgba_parse (&color, DEFAULT_COLOR_PRIME);
-  hyscan_gtk_map_pin_set_color_prime (gtk_map_pin, color);
-  gdk_rgba_parse (&color, DEFAULT_COLOR_STROKE);
-  hyscan_gtk_map_pin_set_color_stroke (gtk_map_pin, color);
-  gdk_rgba_parse (&color, DEFAULT_COLOR_SECOND);
-  hyscan_gtk_map_pin_set_color_second (gtk_map_pin, color);
+
+  /* Устанавливаем параметры по умолчанию из схемы. */
+  g_signal_connect_swapped (priv->params, "set", G_CALLBACK (hyscan_gtk_map_pin_param_set), gtk_map_pin);
+  hyscan_gtk_layer_param_set_default (priv->params);
 }
 
 /* Находит хэндл в точке (x, y) логической СК. */
@@ -443,22 +447,24 @@ hyscan_gtk_map_pin_handle_find (HyScanGtkLayer       *layer,
 }
 
 /* Захватывает ранее найденный хэндл handle. */
-static gconstpointer
-hyscan_gtk_map_pin_handle_grab (HyScanGtkLayer       *layer,
-                                HyScanGtkLayerHandle *handle)
+static void
+hyscan_gtk_map_pin_handle_click (HyScanGtkLayer       *layer,
+                                 GdkEventButton       *event,
+                                 HyScanGtkLayerHandle *handle)
 {
   HyScanGtkMapPin *pin = HYSCAN_GTK_MAP_PIN (layer);
   HyScanGtkMapPinPrivate *priv = pin->priv;
 
-  g_return_val_if_fail (priv->found_handle != NULL, NULL);
-  g_return_val_if_fail (g_strcmp0 (handle->type_name, HANDLE_TYPE_NAME) == 0, NULL);
+  g_return_if_fail (priv->found_handle != NULL);
+  g_return_if_fail (g_strcmp0 (handle->type_name, HANDLE_TYPE_NAME) == 0);
 
-  return hyscan_gtk_map_pin_start_drag (pin, priv->found_handle, FALSE);
+  hyscan_gtk_map_pin_start_drag (pin, priv->found_handle, FALSE);
 }
 
 /* Возвращает %TRUE, если мы разрешаем отпустить хэндл. */
 static gboolean
 hyscan_gtk_map_pin_handle_release (HyScanGtkLayer *layer,
+                                   GdkEventButton *event,
                                    gconstpointer   howner)
 {
   HyScanGtkMapPin *pin = HYSCAN_GTK_MAP_PIN (layer);
@@ -578,26 +584,6 @@ hyscan_gtk_map_pin_grab_input (HyScanGtkLayer *layer)
   return TRUE;
 }
 
-static gboolean
-hyscan_gtk_map_pin_load_key_file (HyScanGtkLayer *gtk_layer,
-                                  GKeyFile       *key_file,
-                                  const gchar    *group)
-{
-  HyScanGtkMapPin *pin_layer = HYSCAN_GTK_MAP_PIN (gtk_layer);
-  GdkRGBA color;
-
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "stroke-color", DEFAULT_COLOR_STROKE);
-  hyscan_gtk_map_pin_set_color_stroke (pin_layer, color);
-
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "prime-color", DEFAULT_COLOR_PRIME);
-  hyscan_gtk_map_pin_set_color_prime (pin_layer, color);
-
-  hyscan_gtk_layer_load_key_file_rgba (&color, key_file, group, "second-color", DEFAULT_COLOR_SECOND);
-  hyscan_gtk_map_pin_set_color_second (pin_layer, color);
-
-  return TRUE;
-}
-
 static void
 hyscan_gtk_map_pin_item_free (HyScanGtkMapPinItem *item)
 {
@@ -613,6 +599,7 @@ hyscan_gtk_map_pin_object_finalize (GObject *object)
 
   g_list_free_full (priv->points, (GDestroyNotify) hyscan_gtk_map_pin_item_free);
   g_clear_object (&priv->pango_layout);
+  g_clear_object (&priv->params);
   g_clear_pointer (&priv->pin, hyscan_gtk_map_pin_marker_free);
   g_clear_pointer (&priv->pin_hover, hyscan_gtk_map_pin_marker_free);
 
@@ -783,19 +770,12 @@ hyscan_gtk_map_pin_handle_create (HyScanGtkLayer *layer,
 
   container = HYSCAN_GTK_LAYER_CONTAINER (priv->map);
 
-  if (!hyscan_gtk_layer_container_get_changes_allowed (container))
-    return GDK_EVENT_PROPAGATE;
-
   /* Проверяем, что у нас есть право ввода. */
   if (hyscan_gtk_layer_container_get_input_owner (container) != layer)
     return GDK_EVENT_PROPAGATE;
 
-  /* Если слой не видно, то никак не реагируем. */
-  if (!hyscan_gtk_layer_get_visible (layer))
-    return GDK_EVENT_PROPAGATE;
-
-  if (priv->mode != MODE_NONE)
-    return GDK_EVENT_PROPAGATE;
+  /* Если это условие не выполняется, то какая-то ошибка в логике программы. */
+  g_return_val_if_fail (priv->mode == MODE_NONE, GDK_EVENT_PROPAGATE);
 
   gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &point.x, &point.y);
   hyscan_gtk_map_pin_insert_before (pin_layer, &point, NULL);
@@ -824,23 +804,6 @@ hyscan_gtk_map_pin_get_item_at (HyScanGtkMapPin *pin_layer,
   GList *point_l;
   HyScanGtkMapPinMarker *marker;
   gdouble scale_x, scale_y;
-
-  gconstpointer howner;
-
-  /* Никак не реагируем на точки, если выполнено хотя бы одно из условий (1-3): */
-
-  /* 1. какой-то хэндл захвачен, ... */
-  howner = hyscan_gtk_layer_container_get_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map));
-  if (howner != NULL)
-    return NULL;
-
-  /* 2. редактирование запрещено, ... */
-  if (!hyscan_gtk_layer_container_get_changes_allowed (HYSCAN_GTK_LAYER_CONTAINER (priv->map)))
-    return NULL;
-
-  /* 3. слой не отображается. */
-  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (pin_layer)))
-    return NULL;
 
   /* Проверяем каждую точку, лежит ли она в поле действия маркера. */
   gtk_cifro_area_get_scale (carea, &scale_x, &scale_y);
@@ -889,6 +852,25 @@ hyscan_gtk_map_pin_queue_draw (HyScanGtkMapPin *layer)
     gtk_widget_queue_draw (GTK_WIDGET (layer->priv->map));
 }
 
+static HyScanParam *
+hyscan_gtk_map_pin_get_param (HyScanGtkLayer *gtk_layer)
+{
+  HyScanGtkMapPin *pin_layer = HYSCAN_GTK_MAP_PIN (gtk_layer);
+  HyScanGtkMapPinPrivate *priv = pin_layer->priv;
+
+  return g_object_ref (priv->params);
+}
+
+static void
+hyscan_gtk_map_pin_param_set (HyScanParam     *param,
+                              HyScanParamList *list)
+{
+  HyScanGtkMapPin *pin = HYSCAN_GTK_MAP_PIN (param);
+
+  hyscan_gtk_map_pin_marker_update (pin);
+  hyscan_gtk_map_pin_queue_draw (pin);
+}
+
 /* Реализация интерфейса HyScanGtkLayerInterface. */
 static void
 hyscan_gtk_map_pin_interface_init (HyScanGtkLayerInterface *iface)
@@ -898,12 +880,12 @@ hyscan_gtk_map_pin_interface_init (HyScanGtkLayerInterface *iface)
   iface->grab_input = hyscan_gtk_map_pin_grab_input;
   iface->set_visible = hyscan_gtk_map_pin_set_visible;
   iface->get_visible = hyscan_gtk_map_pin_get_visible;
-  iface->load_key_file = hyscan_gtk_map_pin_load_key_file;
   iface->handle_find = hyscan_gtk_map_pin_handle_find;
-  iface->handle_grab = hyscan_gtk_map_pin_handle_grab;
+  iface->handle_click = hyscan_gtk_map_pin_handle_click;
   iface->handle_release = hyscan_gtk_map_pin_handle_release;
   iface->handle_create = hyscan_gtk_map_pin_handle_create;
   iface->handle_show = hyscan_gtk_map_pin_handle_show;
+  iface->get_param = hyscan_gtk_map_pin_get_param;
 }
 
 /**
@@ -952,7 +934,7 @@ hyscan_gtk_map_pin_clear (HyScanGtkMapPin *layer)
  *
  * Возвращает список точек #HyScanGtkMapPoint в слое.
  *
- * Returns: (transfer none): (element-type HyScanGtkMapPinItem): список точек
+ * Returns: (transfer none) (element-type HyScanGtkMapPinItem): список точек
  */
 GList *
 hyscan_gtk_map_pin_get_points (HyScanGtkMapPin *layer)
@@ -1002,9 +984,9 @@ hyscan_gtk_map_pin_insert_before  (HyScanGtkMapPin      *pin_layer,
  *
  * Начинает перетаскивание точки @handle_point.
  *
- * Returns: указатель на хэндл, если началось перетаскивание; иначе %NULL
+ * Returns: %TRUE, если началось перетаскивание; иначе %FALSE
  */
-gconstpointer
+gboolean
 hyscan_gtk_map_pin_start_drag (HyScanGtkMapPin     *layer,
                                HyScanGtkMapPinItem *handle_point,
                                gboolean             delete_on_cancel)
@@ -1020,12 +1002,12 @@ hyscan_gtk_map_pin_start_drag (HyScanGtkMapPin     *layer,
   if (howner != NULL)
     {
       g_warning ("HyScanGtkMapPin: failed to start drag - handle is grabbed");
-      return NULL;
+      return FALSE;
     }
   if (priv->mode == MODE_DRAG)
     {
       g_warning ("HyScanGtkMapPin: failed to start drag - already in drag mode");
-      return NULL;
+      return FALSE;
     }
 
   priv->mode = MODE_DRAG;
@@ -1036,7 +1018,9 @@ hyscan_gtk_map_pin_start_drag (HyScanGtkMapPin     *layer,
   gtk_widget_grab_focus (GTK_WIDGET (priv->map));
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 
-  return layer;
+  hyscan_gtk_layer_container_set_handle_grabbed (container, layer);
+
+  return TRUE;
 }
 
 /**
@@ -1111,7 +1095,6 @@ hyscan_gtk_map_pin_set_color_stroke (HyScanGtkMapPin *layer,
   hyscan_gtk_map_pin_marker_update (layer);
   hyscan_gtk_map_pin_queue_draw (layer);
 }
-
 
 /**
  * hyscan_gtk_map_pin_set_marker_shape:

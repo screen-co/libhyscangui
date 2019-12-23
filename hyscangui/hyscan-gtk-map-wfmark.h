@@ -68,7 +68,9 @@ HYSCAN_API
 GType            hyscan_gtk_map_wfmark_get_type       (void);
 
 HYSCAN_API
-HyScanGtkLayer * hyscan_gtk_map_wfmark_new            (HyScanMarkLocModel    *model);
+HyScanGtkLayer * hyscan_gtk_map_wfmark_new            (HyScanMarkLocModel    *model,
+                                                       HyScanDB              *db,
+                                                       HyScanCache           *cache);
                                                                              
 HYSCAN_API                                                                   
 void             hyscan_gtk_map_wfmark_mark_highlight (HyScanGtkMapWfmark    *wfm_layer,
@@ -78,6 +80,14 @@ HYSCAN_API
 void             hyscan_gtk_map_wfmark_mark_view      (HyScanGtkMapWfmark    *wfm_layer,
                                                        const gchar           *mark_id,
                                                        gboolean               zoom_in);
+
+HYSCAN_API
+void             hyscan_gtk_map_wfmark_set_project    (HyScanGtkMapWfmark    *wfm_layer,
+                                                       const gchar           *project_name);
+
+HYSCAN_API
+void             hyscan_gtk_map_wfmark_set_show_mode  (HyScanGtkMapWfmark    *wfm_layer,
+                                                       gint                   mode);
 
 G_END_DECLS
 

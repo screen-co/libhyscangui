@@ -1,7 +1,23 @@
+find_program (RESOURCE_COMPILER glib-compile-resources)
+if (${RESOURCE_COMPILER} STREQUAL RESOURCE_COMPILER-NOTFOUND)
+  message (FATAL_ERROR "GLib resource compiler not found.")
+endif ()
+
 find_program (MARSHAL_COMPILER glib-genmarshal)
 if (${MARSHAL_COMPILER} STREQUAL MARSHAL_COMPILER-NOTFOUND)
   message (FATAL_ERROR "GLib marshallers compiler not found.")
 endif ()
+
+file (MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/resources")
+
+add_custom_command (OUTPUT "${CMAKE_BINARY_DIR}/resources/hyscan-gui-resources.c"
+                    COMMAND ${RESOURCE_COMPILER} --generate-source
+                            --target "${CMAKE_BINARY_DIR}/resources/hyscan-gui-resources.c"
+                            hyscan-gui-resources.xml
+                    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+                    DEPENDS hyscan-gui-resources.xml
+                    DEPENDS layer-schema.xml
+                    VERBATIM)
 
 file (MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/marshallers")
 include_directories ("${CMAKE_BINARY_DIR}/marshallers")
@@ -27,7 +43,9 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-waterfall-grid.c
              hyscan-gtk-waterfall-tools.c
              hyscan-gtk-waterfall-mark.c
+             hyscan-gtk-waterfall-coord.c
              hyscan-gtk-waterfall-meter.c
+             hyscan-gtk-waterfall-shadowm.c
              hyscan-gtk-waterfall-player.c
              hyscan-gtk-waterfall-magnifier.c
              # hyscan-gtk-waterfall-depth.c
@@ -38,12 +56,20 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-param-list.c
              hyscan-gtk-param-cc.c
              hyscan-gtk-param-tree.c
+             hyscan-gtk-layer-list.c
+             hyscan-gtk-planner-editor.c
+             hyscan-gtk-planner-zeditor.c
+             hyscan-gtk-planner-origin.c
+             hyscan-gtk-planner-status.c
+             hyscan-cairo.c
+             hyscan-gtk-export.c
 
              #[[ Виджет карты ]]
              hyscan-gtk-map.c
              hyscan-profile-map.c
 
              #[[ Слои ]]
+             hyscan-gtk-layer-param.c
              hyscan-gtk-layer-container.c
              hyscan-gtk-layer.c
              hyscan-gtk-map-base.c
@@ -58,6 +84,8 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-map-track.c
              hyscan-gtk-map-wfmark.c
              hyscan-gtk-map-geomark.c
+             hyscan-gtk-map-planner.c
+             hyscan-gtk-map-steer.c
 
              #[[ Загрузка тайлов ]]
              hyscan-map-tile.c
@@ -70,7 +98,9 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              # [[ Модели ]]
              hyscan-mark-location.c
              hyscan-mark-loc-model.c
-             ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c)
+             hyscan-planner-selection.c
+             ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c
+             ${CMAKE_BINARY_DIR}/resources/hyscan-gui-resources.c)
 
 target_link_libraries (${HYSCAN_GUI_LIBRARY}
                        ${GTK3_LIBRARIES}
@@ -110,7 +140,13 @@ install (FILES hyscan-gtk-area.h
                hyscan-gtk-waterfall-meter.h
                hyscan-gtk-waterfall-player.h
                hyscan-gtk-waterfall-magnifier.h
+               hyscan-gtk-layer-list.h
+               hyscan-gtk-planner-editor.h
+               hyscan-gtk-planner-zeditor.h
+               hyscan-gtk-planner-origin.h
+               hyscan-gtk-planner-status.h
                hyscan-gtk-layer-common.h
+               hyscan-gtk-layer-param.h
                hyscan-gtk-layer-container.h
                hyscan-gtk-layer.h
                hyscan-gtk-map.h
@@ -122,6 +158,8 @@ install (FILES hyscan-gtk-area.h
                hyscan-gtk-map-grid.h
                hyscan-gtk-map-scale.h
                hyscan-gtk-map-pin.h
+               hyscan-gtk-map-planner.h
+               hyscan-gtk-map-steer.h
                hyscan-gtk-map-nav.h
                hyscan-gtk-map-track-item.h
                hyscan-gtk-map-track.h
@@ -133,6 +171,9 @@ install (FILES hyscan-gtk-area.h
                hyscan-map-tile-source-file.h
                hyscan-map-tile-source-blend.h
                hyscan-map-tile-loader.h
+               hyscan-planner-selection.h
+               hyscan-cairo.h
+               hyscan-gtk-export.h
          COMPONENT development
          DESTINATION "include/hyscan-${HYSCAN_MAJOR_VERSION}/hyscangui"
          PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)

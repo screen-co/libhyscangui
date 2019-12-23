@@ -55,6 +55,9 @@
  * 2. С плейсхолдером {quadkey}. Этот формат используется в Bing Maps (Microsoft).
  *    Пример, "http://ecn.t0.tiles.virtualearth.net/tiles/a{quadkey}.jpeg?g=6897"
  *
+ * Существует возможность передавать в запросе к серверу дополнительные HTTP-заголовоки.
+ * Указать заголовки запроса можно при помощи функции hyscan_map_tile_source_add_header().
+ *
  */
 
 #include "hyscan-map-tile-source-web.h"
@@ -118,9 +121,11 @@ typedef enum
 
 struct _HyScanMapTileSourceWebPrivate
 {
+  GList                          *headers;       /* Список заголовков запроса. */
   gchar                          *url_format;    /* Формат URL к изображению тайла. */
   HyScanMapTileSourceWebType      url_type;      /* Тип формата URL. */
   gboolean                        inverse_y;     /* Признак того, что координаты по y должны быть инвертированны. */
+  guint                           hash;          /* Хэш источника тайлов. */
 
   guint                           min_zoom;      /* Минимальный доступный зум (уровень детализации). */
   guint                           max_zoom;      /* Максимальный доступный зум (уровень детализации). */
@@ -318,6 +323,7 @@ hyscan_map_tile_source_web_object_constructed (GObject *object)
 {
   HyScanMapTileSourceWeb *nw_source = HYSCAN_MAP_TILE_SOURCE_WEB (object);
   HyScanMapTileSourceWebPrivate *priv = nw_source->priv;
+  gchar *hash_str;
 
   G_OBJECT_CLASS (hyscan_map_tile_source_web_parent_class)->constructed (object);
 
@@ -340,6 +346,13 @@ hyscan_map_tile_source_web_object_constructed (GObject *object)
     hyscan_map_tile_grid_set_xnums (priv->grid, nums, nums_len);
   }
 
+  hash_str = g_strdup_printf ("%u:%u:%u:%s",
+                              priv->min_zoom, priv->max_zoom,
+                              hyscan_geo_projection_hash (priv->projection),
+                              priv->url_format);
+  priv->hash = g_str_hash (hash_str);
+  g_free (hash_str);
+
   priv->thread_pool = g_thread_pool_new (hyscan_map_tile_source_web_task_do, nw_source, -1, FALSE, NULL);
 }
 
@@ -350,6 +363,7 @@ hyscan_map_tile_source_web_object_finalize (GObject *object)
   HyScanMapTileSourceWebPrivate *priv = nw_source->priv;
 
   g_free (priv->url_format);
+  g_list_free_full (priv->headers, g_free);
   g_thread_pool_free (priv->thread_pool, FALSE, TRUE);
   g_clear_object (&priv->grid);
   g_clear_object (&priv->projection);
@@ -495,6 +509,7 @@ hyscan_map_tile_source_web_task_new (HyScanMapTileSourceWebPrivate *priv,
   gchar *quad_key;
   guint x, y, z;
   HyScanMapTileSourceWebTask *task;
+  GList *link;
 
   gchar *url;
 
@@ -526,6 +541,17 @@ hyscan_map_tile_source_web_task_new (HyScanMapTileSourceWebPrivate *priv,
   task->tile = g_object_ref (tile);
   task->url = url;
   task->soup_msg = soup_message_new ("GET", task->url);
+  link = priv->headers;
+  while (link != NULL)
+    {
+      gchar *hdr_name, *hdr_value;
+      hdr_name = link->data;
+      link = link->next;
+      hdr_value = link->data;
+      link = link->next;
+      soup_message_headers_append (task->soup_msg->request_headers, hdr_name, hdr_value);
+    }
+
   task->soup_session = soup_session_new_with_options (SOUP_SESSION_ADD_FEATURE_BY_TYPE, SOUP_TYPE_CONTENT_SNIFFER,
                                                       SOUP_SESSION_USER_AGENT, USER_AGENT,
                                                       /* На windows не базы данных сертификатов, поэтому отключаем их проверку. */
@@ -606,6 +632,17 @@ hyscan_map_tile_source_web_get_projection (HyScanMapTileSource *source)
   return g_object_ref (priv->projection);
 }
 
+/* Реализация функции get_hash интерфейса HyScanMapTileSource.*/
+static guint
+hyscan_map_tile_source_web_hash (HyScanMapTileSource *source)
+{
+  HyScanMapTileSourceWebPrivate *priv;
+
+  priv = HYSCAN_MAP_TILE_SOURCE_WEB (source)->priv;
+
+  return priv->hash;
+}
+
 /* Реализация интерфейса HyScanMapTileSource. */
 static void
 hyscan_map_tile_source_web_interface_init (HyScanMapTileSourceInterface *iface)
@@ -613,6 +650,7 @@ hyscan_map_tile_source_web_interface_init (HyScanMapTileSourceInterface *iface)
   iface->fill_tile = hyscan_map_tile_source_web_fill_tile;
   iface->get_grid = hyscan_map_tile_source_web_get_grid;
   iface->get_projection = hyscan_map_tile_source_web_get_projection;
+  iface->hash = hyscan_map_tile_source_web_hash;
 }
 
 /**
@@ -638,4 +676,28 @@ hyscan_map_tile_source_web_new (const gchar         *url_format,
                        "min-zoom", min_zoom,
                        "max-zoom", max_zoom,
                        NULL);
+}
+
+/**
+ * hyscan_map_tile_source_add_header:
+ * @source: указатель на HyScanMapTileSourceWeb
+ * @name: имя заголовка
+ * @value: значение
+ *
+ * Добавляет заголовок в запрос к серверу тайлов. Например, чтобы добавить
+ * заголовок "Referer: https://example.com", необходимо передать в качестве аргументов
+ * @name - "Referer", @value - "https://example.com".
+ */
+void
+hyscan_map_tile_source_add_header (HyScanMapTileSourceWeb *source,
+                                   const gchar            *name,
+                                   const gchar            *value)
+{
+  HyScanMapTileSourceWebPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_MAP_TILE_SOURCE_WEB (source));
+  priv = source->priv;
+
+  priv->headers = g_list_append (priv->headers, g_strdup (name));
+  priv->headers = g_list_append (priv->headers, g_strdup (value));
 }
