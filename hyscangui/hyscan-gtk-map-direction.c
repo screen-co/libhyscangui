@@ -52,7 +52,7 @@ static void    hyscan_gtk_map_direction_nav_chgd             (HyScanGtkMapDirect
 static void    hyscan_gtk_map_direction_trk_chgd             (HyScanGtkMapDirection *direction);
 static void    hyscan_gtk_map_direction_update_pos           (HyScanGtkMapDirection *direction);
 
-G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMapDirection, hyscan_gtk_map_direction, GTK_TYPE_BUTTON_BOX)
+G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMapDirection, hyscan_gtk_map_direction, GTK_TYPE_BOX)
 
 static void
 hyscan_gtk_map_direction_class_init (HyScanGtkMapDirectionClass *klass)
@@ -115,22 +115,29 @@ hyscan_gtk_map_direction_object_constructed (GObject *object)
 {
   HyScanGtkMapDirection *gtk_map_direction = HYSCAN_GTK_MAP_DIRECTION (object);
   HyScanGtkMapDirectionPrivate *priv = gtk_map_direction->priv;
+  GtkWidget *line1, *line2;
 
   G_OBJECT_CLASS (hyscan_gtk_map_direction_parent_class)->constructed (object);
+
+  gtk_orientable_set_orientation (GTK_ORIENTABLE (object), GTK_ORIENTATION_VERTICAL);
 
   priv->btn_manual = gtk_radio_button_new_with_mnemonic_from_widget (NULL, _("_User"));
   priv->btn_track  = gtk_radio_button_new_with_mnemonic_from_widget (GTK_RADIO_BUTTON (priv->btn_manual), _("_Track"));
   priv->btn_ship   = gtk_radio_button_new_with_mnemonic_from_widget (GTK_RADIO_BUTTON (priv->btn_manual), _("_Ship"));
-  priv->btn_follow = gtk_check_button_new_with_mnemonic(_("_Follow"));
+  priv->btn_follow = gtk_check_button_new_with_mnemonic(_("_Follow ship"));
 
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->btn_manual), priv->mode == MODE_MANUAL);
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->btn_track), priv->mode == MODE_TRACK);
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->btn_ship), priv->mode == MODE_SHIP);
 
-  gtk_container_add (GTK_CONTAINER (object), priv->btn_manual);
-  gtk_container_add (GTK_CONTAINER (object), priv->btn_track);
-  gtk_container_add (GTK_CONTAINER (object), priv->btn_ship);
-  gtk_container_add (GTK_CONTAINER (object), priv->btn_follow);
+  line1 = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+  gtk_box_pack_start (GTK_BOX (line1), gtk_label_new (_("Orientation")), TRUE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (line1), priv->btn_manual, TRUE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (line1), priv->btn_track, TRUE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (line1), priv->btn_ship, TRUE, FALSE, 0);
+
+  gtk_box_pack_start (GTK_BOX (object), line1, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (object), priv->btn_follow, TRUE, TRUE, 0);
 
   g_signal_connect (priv->btn_manual, "toggled", G_CALLBACK (hyscan_gtk_map_direction_mode_toggled), object);
   g_signal_connect (priv->btn_track,  "toggled", G_CALLBACK (hyscan_gtk_map_direction_mode_toggled), object);

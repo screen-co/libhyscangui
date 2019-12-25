@@ -19,14 +19,14 @@ typedef struct _HyScanGtkPlannerOriginClass HyScanGtkPlannerOriginClass;
 
 struct _HyScanGtkPlannerOrigin
 {
-  GtkGrid parent_instance;
+  GtkBox parent_instance;
 
   HyScanGtkPlannerOriginPrivate *priv;
 };
 
 struct _HyScanGtkPlannerOriginClass
 {
-  GtkGridClass parent_class;
+  GtkBoxClass parent_class;
 };
 
 HYSCAN_API

@@ -145,6 +145,8 @@ static void        hyscan_gtk_planner_editor_convert_point           (HyScanGtkP
                                                                       GtkWidget                   *widget_x,
                                                                       GtkWidget                   *widget_y,
                                                                       HyScanGeoGeodetic           *value);
+static void        hyscan_gtk_planner_editor_spin_changed            (GtkWidget                   *spin_button,
+                                                                      HyScanGtkPlannerEditor      *editor);
 static void        hyscan_gtk_planner_editor_model_changed           (HyScanGtkPlannerEditor      *editor);
 static void        hyscan_gtk_planner_editor_end_changed             (HyScanGtkPlannerEditor      *editor);
 static void        hyscan_gtk_planner_editor_start_changed           (HyScanGtkPlannerEditor      *editor);
@@ -152,23 +154,35 @@ static void        hyscan_gtk_planner_editor_length_changed          (HyScanGtkP
 static void        hyscan_gtk_planner_editor_angle_changed           (HyScanGtkPlannerEditor      *editor);
 static void        hyscan_gtk_planner_editor_speed_changed           (HyScanGtkPlannerEditor      *editor);
 static void        hyscan_gtk_planner_editor_update_view             (HyScanGtkPlannerEditor      *editor);
-static inline void hyscan_gtk_planner_editor_attach                  (GtkGrid                     *grid,
-                                                                      const gchar                 *label,
-                                                                      GtkWidget                   *entry,
-                                                                      GtkWidget                   *checkbox,
-                                                                      gint                         top,
-                                                                      GCallback                    handler);
 
-G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkPlannerEditor, hyscan_gtk_planner_editor, GTK_TYPE_GRID)
+G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkPlannerEditor, hyscan_gtk_planner_editor, GTK_TYPE_BOX)
 
 static void
 hyscan_gtk_planner_editor_class_init (HyScanGtkPlannerEditorClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
+  GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
   object_class->set_property = hyscan_gtk_planner_editor_set_property;
   object_class->constructed = hyscan_gtk_planner_editor_object_constructed;
   object_class->finalize = hyscan_gtk_planner_editor_object_finalize;
+
+  gtk_widget_class_set_template_from_resource (widget_class, "/org/hyscan/gtk/hyscan-gtk-planner-editor.ui");
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, label);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, start_x);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, start_y);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, end_x);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, end_y);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, angle);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, length);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, speed);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, start_x_btn);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, start_y_btn);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, end_x_btn);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, end_y_btn);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, angle_btn);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, length_btn);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, speed_btn);
 
   g_object_class_install_property (object_class, PROP_MODEL,
     g_param_spec_object ("model", "HyScanPlannerModel", "HyScanPlannerModel with planner data",
@@ -184,6 +198,7 @@ static void
 hyscan_gtk_planner_editor_init (HyScanGtkPlannerEditor *editor)
 {
   editor->priv = hyscan_gtk_planner_editor_get_instance_private (editor);
+  gtk_widget_init_template (GTK_WIDGET (editor));
 }
 
 static void
@@ -216,55 +231,44 @@ hyscan_gtk_planner_editor_object_constructed (GObject *object)
 {
   HyScanGtkPlannerEditor *editor = HYSCAN_GTK_PLANNER_EDITOR (object);
   HyScanGtkPlannerEditorPrivate *priv = editor->priv;
-  gsize i = 0;
-
-  GtkGrid *grid = GTK_GRID (object);
+  guint i;
+  struct
+  {
+    GtkWidget     *spin_btn;
+    GtkWidget     *checkbox;
+    gdouble        lower;
+    gdouble        upper;
+    gdouble        step;
+  } ranges[] = {
+    { priv->start_x, priv->start_x_btn,  -MAX_DISTANCE, MAX_DISTANCE, DIST_STEP },
+    { priv->start_y, priv->start_y_btn,  -MAX_DISTANCE, MAX_DISTANCE, DIST_STEP },
+    { priv->end_x,   priv->end_x_btn,    -MAX_DISTANCE, MAX_DISTANCE, DIST_STEP },
+    { priv->end_y,   priv->end_y_btn,    -MAX_DISTANCE, MAX_DISTANCE, DIST_STEP },
+    { priv->angle,   priv->angle_btn,           -360.0,        360.0, ANGLE_STEP },
+    { priv->length,  priv->length_btn,   -MAX_DISTANCE, MAX_DISTANCE, DIST_STEP },
+    { priv->speed,   priv->speed_btn,                0, MAX_SPEED,    SPEED_STEP },
+  };
 
   G_OBJECT_CLASS (hyscan_gtk_planner_editor_parent_class)->constructed (object);
 
   priv->geo = hyscan_planner_model_get_geo (priv->model);
+  for (i = 0; i < G_N_ELEMENTS (ranges); i++)
+    {
+      GtkAdjustment *adjustment;
 
-  priv->label = gtk_label_new (NULL);
-  priv->start_x = gtk_spin_button_new_with_range (-MAX_DISTANCE, MAX_DISTANCE, DIST_STEP);
-  priv->start_y = gtk_spin_button_new_with_range (-MAX_DISTANCE, MAX_DISTANCE, DIST_STEP);
-  priv->end_x = gtk_spin_button_new_with_range (-MAX_DISTANCE, MAX_DISTANCE, DIST_STEP);
-  priv->end_y = gtk_spin_button_new_with_range (-MAX_DISTANCE, MAX_DISTANCE, DIST_STEP);
-  priv->angle = gtk_spin_button_new_with_range (-360.0, 360.0, ANGLE_STEP);
-  priv->length = gtk_spin_button_new_with_range (-MAX_DISTANCE, MAX_DISTANCE, DIST_STEP);
-  priv->speed = gtk_spin_button_new_with_range (0, MAX_SPEED, SPEED_STEP);
-  priv->start_x_btn = gtk_check_button_new ();
-  priv->start_y_btn = gtk_check_button_new ();
-  priv->end_x_btn = gtk_check_button_new ();
-  priv->end_y_btn = gtk_check_button_new ();
-  priv->length_btn = gtk_check_button_new ();
-  priv->angle_btn = gtk_check_button_new ();
-  priv->speed_btn = gtk_check_button_new ();
-
-  gtk_grid_set_row_spacing (grid, 3);
-  gtk_grid_set_column_spacing (grid, 6);
-  gtk_widget_set_halign (priv->label, GTK_ALIGN_START);
-  gtk_grid_attach (grid, priv->label, 0, ++i, 2, 1);
-
-  hyscan_gtk_planner_editor_attach (grid, _("Speed"), priv->speed, priv->speed_btn, ++i,
-                                    G_CALLBACK (hyscan_gtk_planner_editor_speed_changed));
-  hyscan_gtk_planner_editor_attach (grid, _("Length"), priv->length, priv->length_btn, ++i,
-                                    G_CALLBACK (hyscan_gtk_planner_editor_length_changed));
-  hyscan_gtk_planner_editor_attach (grid, _("Angle"), priv->angle, priv->angle_btn, ++i,
-                                    G_CALLBACK (hyscan_gtk_planner_editor_angle_changed));
-  hyscan_gtk_planner_editor_attach (grid, _("Start X"), priv->start_x, priv->start_x_btn, ++i,
-                                    G_CALLBACK (hyscan_gtk_planner_editor_start_changed));
-  hyscan_gtk_planner_editor_attach (grid, _("Start Y"), priv->start_y, priv->start_y_btn, ++i,
-                                    G_CALLBACK (hyscan_gtk_planner_editor_start_changed));
-  hyscan_gtk_planner_editor_attach (grid, _("End X"), priv->end_x, priv->end_x_btn, ++i,
-                                    G_CALLBACK (hyscan_gtk_planner_editor_end_changed));
-  hyscan_gtk_planner_editor_attach (grid, _("End Y"), priv->end_y, priv->end_y_btn, ++i,
-                                    G_CALLBACK (hyscan_gtk_planner_editor_end_changed));
+      adjustment = gtk_adjustment_new (0, ranges[i].lower, ranges[i].upper, ranges[i].step, 0, 0);
+      gtk_spin_button_set_digits (GTK_SPIN_BUTTON (ranges[i].spin_btn), 2);
+      gtk_spin_button_set_adjustment (GTK_SPIN_BUTTON (ranges[i].spin_btn), adjustment);
+      g_object_bind_property (ranges[i].checkbox, "active", ranges[i].spin_btn, "sensitive", G_BINDING_SYNC_CREATE);
+      g_signal_connect (ranges[i].spin_btn, "value-changed", G_CALLBACK (hyscan_gtk_planner_editor_spin_changed), editor);
+    }
 
   g_signal_connect_swapped (priv->selection, "tracks-changed",
                             G_CALLBACK (hyscan_gtk_planner_editor_tracks_changed), editor);
   g_signal_connect_swapped (priv->model, "changed", G_CALLBACK (hyscan_gtk_planner_editor_model_changed), editor);
 
-  hyscan_gtk_planner_editor_update_view (editor);
+  priv->selected_tracks = hyscan_planner_selection_get_tracks (priv->selection);
+  hyscan_gtk_planner_editor_model_changed (editor);
 }
 
 static void
@@ -282,28 +286,6 @@ hyscan_gtk_planner_editor_object_finalize (GObject *object)
   g_clear_object (&priv->geo);
 
   G_OBJECT_CLASS (hyscan_gtk_planner_editor_parent_class)->finalize (object);
-}
-
-static inline void
-hyscan_gtk_planner_editor_attach (GtkGrid     *grid,
-                                  const gchar *label,
-                                  GtkWidget   *entry,
-                                  GtkWidget   *checkbox,
-                                  gint         top,
-                                  GCallback    handler)
-{
-  GtkWidget *label_widget;
-
-  label_widget = gtk_label_new (label);
-  gtk_widget_set_halign (label_widget, GTK_ALIGN_END);
-
-  gtk_grid_attach (grid, label_widget, 0, top, 1, 1);
-  gtk_grid_attach (grid, entry,        1, top, 1, 1);
-  gtk_grid_attach (grid, checkbox,     2, top, 1, 1);
-
-  gtk_spin_button_set_numeric (GTK_SPIN_BUTTON (entry), FALSE);
-  g_object_bind_property (checkbox, "active", entry, "sensitive", G_BINDING_SYNC_CREATE);
-  g_signal_connect_swapped (entry, "value-changed", handler, grid);
 }
 
 /* Определяет значения параметров выбранных галсов. */
@@ -517,13 +499,36 @@ hyscan_gtk_planner_editor_iter_next (HyScanGtkPlannerEditorIter *iter)
 }
 
 static void
+hyscan_gtk_planner_editor_spin_changed (GtkWidget              *spin_button,
+                                        HyScanGtkPlannerEditor *editor)
+{
+  HyScanGtkPlannerEditorPrivate *priv = editor->priv;
+
+  if (priv->block_value_change || priv->objects == NULL || priv->geo == NULL)
+    return;
+
+  if (spin_button == priv->start_x || spin_button == priv->start_y)
+    hyscan_gtk_planner_editor_start_changed (editor);
+
+  else if (spin_button == priv->end_x || spin_button == priv->end_y)
+    hyscan_gtk_planner_editor_end_changed (editor);
+
+  else if (spin_button == priv->length)
+    hyscan_gtk_planner_editor_length_changed (editor);
+
+  else if (spin_button == priv->angle)
+    hyscan_gtk_planner_editor_angle_changed (editor);
+
+  else if (spin_button == priv->speed)
+    hyscan_gtk_planner_editor_speed_changed (editor);
+
+}
+
+static void
 hyscan_gtk_planner_editor_start_changed (HyScanGtkPlannerEditor *editor)
 {
   HyScanGtkPlannerEditorPrivate *priv = editor->priv;
   HyScanGtkPlannerEditorIter iter;
-
-  if (priv->block_value_change || priv->objects == NULL || priv->geo == NULL)
-    return;
 
   hyscan_gtk_planner_editor_iter_init (editor, &iter);
   while (hyscan_gtk_planner_editor_iter_next (&iter))
@@ -539,9 +544,6 @@ hyscan_gtk_planner_editor_end_changed (HyScanGtkPlannerEditor *editor)
   HyScanGtkPlannerEditorPrivate *priv = editor->priv;
   HyScanGtkPlannerEditorIter iter;
 
-  if (priv->block_value_change || priv->objects == NULL || priv->geo == NULL)
-    return;
-
   hyscan_gtk_planner_editor_iter_init (editor, &iter);
   while (hyscan_gtk_planner_editor_iter_next (&iter))
     {
@@ -556,9 +558,6 @@ hyscan_gtk_planner_editor_length_changed (HyScanGtkPlannerEditor *editor)
   HyScanGtkPlannerEditorPrivate *priv = editor->priv;
   HyScanGtkPlannerEditorIter iter;
   gdouble length;
-
-  if (priv->block_value_change || priv->objects == NULL || priv->geo == NULL)
-    return;
 
   length = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->length));
 
@@ -593,9 +592,6 @@ hyscan_gtk_planner_editor_angle_changed (HyScanGtkPlannerEditor *editor)
 
   gdouble angle;
 
-  if (priv->block_value_change || priv->objects == NULL || priv->geo == NULL)
-    return;
-
   angle = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->angle));
   angle = - angle / 180.0 * G_PI - G_PI - G_PI_2;
 
@@ -629,9 +625,6 @@ hyscan_gtk_planner_editor_speed_changed (HyScanGtkPlannerEditor *editor)
   HyScanGtkPlannerEditorIter iter;
 
   gdouble speed;
-
-  if (priv->block_value_change || priv->objects == NULL || priv->geo == NULL)
-    return;
 
   speed = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->speed));
 

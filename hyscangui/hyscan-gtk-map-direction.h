@@ -20,14 +20,14 @@ typedef struct _HyScanGtkMapDirectionClass HyScanGtkMapDirectionClass;
 
 struct _HyScanGtkMapDirection
 {
-  GtkButtonBox parent_instance;
+  GtkBox parent_instance;
 
   HyScanGtkMapDirectionPrivate *priv;
 };
 
 struct _HyScanGtkMapDirectionClass
 {
-  GtkButtonBoxClass parent_class;
+  GtkBoxClass parent_class;
 };
 
 HYSCAN_API
