@@ -1914,6 +1914,14 @@ hyscan_gtk_map_planner_key_press (HyScanGtkMapPlanner *planner,
   if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (planner)))
     return GDK_EVENT_PROPAGATE;
 
+  /* Отменяем текущее изменение. */
+  if (priv->cur_state != STATE_NONE && (event->keyval == GDK_KEY_Escape))
+    {
+      hyscan_gtk_map_planner_cancel (planner);
+      return GDK_EVENT_PROPAGATE;
+    }
+
+  /* Удаление объектов происходит только если слой активен, чтобы ничего случайно не удалить. */
   if (hyscan_gtk_layer_container_get_input_owner (HYSCAN_GTK_LAYER_CONTAINER (priv->map)) != planner)
     return GDK_EVENT_PROPAGATE;
 
@@ -1927,10 +1935,6 @@ hyscan_gtk_map_planner_key_press (HyScanGtkMapPlanner *planner,
       else
         hyscan_gtk_map_planner_selection_remove (planner);
     }
-
-  /* Отменяем текущее изменение. */
-  if (priv->cur_state != STATE_NONE && (event->keyval == GDK_KEY_Escape || event->keyval == GDK_KEY_Delete))
-    hyscan_gtk_map_planner_cancel (planner);
 
   return GDK_EVENT_PROPAGATE;
 }
