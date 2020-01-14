@@ -1,0 +1,28 @@
+.layer-list__bbox > button {
+  padding: 0 3px;
+  background: transparent;
+}
+
+.layer-list__bbox > button:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.layer-list__bbox > button.layer-list__activate {
+  padding: 0 3px 0 19px;
+}
+
+.layer-list__activate:checked {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.layer-list__activate image {
+  transition: -gtk-icon-transform 200ms;
+}
+
+.layer-list__activate:checked image {
+  -gtk-icon-transform: rotate(-90deg);
+}
+
+.layer-list__revealer {
+  padding: 3px 0 6px 6px;
+}

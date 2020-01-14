@@ -1,6 +1,6 @@
 /* hyscan-gtk-layer-list.h
  *
- * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
+ * Copyright 2019-2020 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *
  * This file is part of HyScanGui library.
  *
@@ -72,12 +72,12 @@ GtkWidget *            hyscan_gtk_layer_list_new              (HyScanGtkLayerCon
 HYSCAN_API
 void                   hyscan_gtk_layer_list_add              (HyScanGtkLayerList      *layer_list,
                                                                HyScanGtkLayer          *layer,
-                                                               const gchar             *name,
+                                                               const gchar             *key,
                                                                const gchar             *title);
 
 HYSCAN_API
 void                   hyscan_gtk_layer_list_set_tools        (HyScanGtkLayerList      *list,
-                                                               const gchar             *name,
+                                                               const gchar             *key,
                                                                GtkWidget               *tools);
 
 HYSCAN_API
