@@ -284,6 +284,7 @@ hyscan_gtk_layer_list_add (HyScanGtkLayerList *layer_list,
   item->activate_btn = gtk_toggle_button_new_with_label (title);
   activate_btn_arrow = gtk_image_new_from_icon_name ("pan-start-symbolic", GTK_ICON_SIZE_SMALL_TOOLBAR);
   gtk_button_set_image (GTK_BUTTON (item->activate_btn), activate_btn_arrow);
+  gtk_button_set_always_show_image (GTK_BUTTON (item->activate_btn), TRUE);
   gtk_toggle_button_set_mode (GTK_TOGGLE_BUTTON (item->activate_btn), FALSE);
   gtk_button_set_image_position (GTK_BUTTON (item->activate_btn), GTK_POS_RIGHT);
   gtk_style_context_add_class (gtk_widget_get_style_context (item->activate_btn), "layer-list__activate");
