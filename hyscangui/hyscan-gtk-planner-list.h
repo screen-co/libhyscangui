@@ -37,7 +37,7 @@
 
 #include <gtk/gtk.h>
 #include <hyscan-planner-model.h>
-#include <hyscan-track-stats.h>
+#include <hyscan-planner-stats.h>
 #include "hyscan-planner-selection.h"
 #include "hyscan-gtk-map-planner.h"
 
@@ -72,8 +72,16 @@ GType                  hyscan_gtk_planner_list_get_type         (void);
 HYSCAN_API
 GtkWidget *            hyscan_gtk_planner_list_new              (HyScanPlannerModel     *model,
                                                                  HyScanPlannerSelection *selection,
-                                                                 HyScanTrackStats       *stats,
+                                                                 HyScanPlannerStats     *stats,
                                                                  HyScanGtkMapPlanner    *viewer);
+
+HYSCAN_API
+void                   hyscan_gtk_planner_list_enable_binding   (HyScanGtkPlannerList   *list,
+                                                                 HyScanDBInfo           *db_info);
+
+HYSCAN_API
+void                   hyscan_gtk_planner_list_menu_append      (HyScanGtkPlannerList   *list,
+                                                                 GtkWidget              *item);
 
 G_END_DECLS
 

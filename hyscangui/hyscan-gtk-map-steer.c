@@ -97,7 +97,7 @@ typedef struct
   HyScanNavModelData   nav_data;     /* Исходные навигационные данные о положении и скорости судна. */
   HyScanGeoCartesian2D position;     /* Положение судна. */
   HyScanGeoCartesian2D track;        /* Проекция положения судна на галс. */
-  gdouble              d_x;          /* Отклонение положения антенны по расстоянию, м. */
+  gdouble              d_y;          /* Отклонение положения антенны по расстоянию, м. */
   gdouble              d_angle;      /* Отклонение курса судна по углу, рад. */
   gdouble              time_left;    /* Отклонение судна по скорости, м/с. */
 } HyScanGtkMapSteerPoint;
@@ -425,7 +425,7 @@ hyscan_gtk_map_steer_calc_point (HyScanGtkMapSteerPoint *point,
   if (!hyscan_geo_geo2topoXY (priv->geo, &ship_pos, point->nav_data.coord))
     return;
 
-  /* Смещение антенны учитваем только для рассчёта её местоположения.
+  /* Смещение антенны учитываем только для рассчёта её местоположения.
    * В качестве курса оставляем курс судна, т.к. иначе показания виджета становятся неочевидными. */
   if (priv->offset != NULL)
     {
@@ -433,8 +433,8 @@ hyscan_gtk_map_steer_calc_point (HyScanGtkMapSteerPoint *point,
 
       cosa = cos (DEG2RAD (point->d_angle));
       sina = sin (DEG2RAD (point->d_angle));
-      point->position.x = ship_pos.x + priv->offset->starboard * cosa + priv->offset->forward * sina;
-      point->position.y = ship_pos.y - priv->offset->starboard * sina + priv->offset->forward * cosa;
+      point->position.x = ship_pos.x - priv->offset->starboard * sina + priv->offset->forward * cosa;
+      point->position.y = ship_pos.y - priv->offset->starboard * cosa - priv->offset->forward * sina;
     }
   else
     {
@@ -443,7 +443,7 @@ hyscan_gtk_map_steer_calc_point (HyScanGtkMapSteerPoint *point,
 
   distance = hyscan_cartesian_distance_to_line (&priv->start, &priv->end, &point->position, &point->track);
   side = hyscan_cartesian_side (&priv->start, &priv->end, &point->position);
-  point->d_x = side * distance;
+  point->d_y = side * distance;
 
   hyscan_geo_geo2topoXY (priv->geo, &track_end, priv->track->plan.end);
   distance_to_end = hyscan_cartesian_distance (&track_end, &point->track);
@@ -473,7 +473,7 @@ hyscan_gtk_map_steer_nav_changed (HyScanGtkMapSteer *steer)
 
   if (priv->mode == MODE_VESSEL)
     {
-      gtk_cifro_area_set_view_center (GTK_CIFRO_AREA (priv->carea), point->d_x, 0);
+      gtk_cifro_area_set_view_center (GTK_CIFRO_AREA (priv->carea), point->d_y, 0);
       gtk_cifro_area_set_angle (GTK_CIFRO_AREA (priv->carea), -point->d_angle);
     }
 
@@ -489,27 +489,27 @@ hyscan_gtk_map_steer_nav_changed (HyScanGtkMapSteer *steer)
   /* Отправляем сигналы "start" и "stop" для начала и завершения записи галса. */
   if (!priv->recording)
     {
-      gdouble speed_y;
+      gdouble speed_along;
 
       /* Начинаем запись при выполнении условий:
        * (1) движение по направлению галса,
-       * (2) положение вдоль галса в интервале (-speed_y * time, track_length),
+       * (2) положение вдоль галса в интервале (-speed_along * time, track_length),
        * (3) расстояние до линии галса меньше заданного значения. */
-      speed_y = point->nav_data.speed * cos (point->d_angle);
-      if (speed_y > 0 &&                                                            /* (1) */
-          -1 * speed_y < point->position.y && point->position.y < priv->length &&   /* (2) */
-          ABS (point->d_x) < priv->threshold_x)                                     /* (3) */
+      speed_along = point->nav_data.speed * cos (point->d_angle);
+      if (speed_along > 0 &&                                                        /* (1) */
+          -speed_along < point->position.x && point->position.x < priv->length &&   /* (2) */
+          ABS (point->d_y) < priv->threshold_x)                                     /* (3) */
         {
           g_signal_emit (steer, hyscan_gtk_map_steer_signals[SIGNAL_START], 0);
         }
     }
   else
     {
-      if (point->position.y > priv->length)
+      if (point->position.x > priv->length)
         g_signal_emit (steer, hyscan_gtk_map_steer_signals[SIGNAL_STOP], 0);
     }
 
-  gtk_cifro_area_set_view_center (GTK_CIFRO_AREA (priv->carea), point->track.x, point->track.y);
+  gtk_cifro_area_set_view_center (GTK_CIFRO_AREA (priv->carea), -point->track.y, point->track.x);
   gtk_widget_queue_draw (GTK_WIDGET (steer));
 }
 
@@ -576,8 +576,8 @@ hyscan_gtk_map_steer_carea_draw_track (HyScanGtkMapSteer *steer,
   if (priv->track == NULL)
     return;
 
-  gtk_cifro_area_visible_value_to_point (carea, &start_x, &start_y, priv->start.x, priv->start.y);
-  gtk_cifro_area_visible_value_to_point (carea, &end_x, &end_y, priv->end.x, priv->end.y);
+  gtk_cifro_area_visible_value_to_point (carea, &start_x, &start_y, -priv->start.y, priv->start.x);
+  gtk_cifro_area_visible_value_to_point (carea, &end_x, &end_y, -priv->end.y, priv->end.x);
 
   cairo_move_to (cairo, start_x, start_y);
   cairo_line_to (cairo, end_x, end_y);
@@ -687,12 +687,12 @@ hyscan_gtk_map_steer_carea_draw_xaxis (HyScanGtkMapSteerCarea *steer_carea,
       gtk_cifro_area_get_visible_size (carea, &width, NULL);
       width2 = (gdouble) width / 2.0;
       line_width = steer_carea->border_size / 2.0;
-      line_length = CLAMP (point->d_x / scale_x, -width2, width2);
+      line_length = CLAMP (point->d_y / scale_x, -width2, width2);
 
       gtk_cifro_area_value_to_point (carea, &x, &y, 0, to_y);
       cairo_move_to (cairo, x, y - line_width / 2.0);
       cairo_line_to (cairo, x + line_length, y - line_width / 2.0);
-      track_color = hyscan_gtk_map_steer_value2color (ABS (point->d_x),
+      track_color = hyscan_gtk_map_steer_value2color (ABS (point->d_y),
                                                       -2.0 * priv->threshold_x,
                                                       2.0 * priv->threshold_x);
       gdk_cairo_set_source_rgba (cairo, &track_color);
@@ -1005,7 +1005,7 @@ hyscan_gtk_map_steer_carea_draw_current (HyScanGtkMapSteer *steer,
   /* Маленькая стрелка. */
   cairo_save (cairo);
 
-  gtk_cifro_area_visible_value_to_point (carea, &x, &y, point->position.x, point->position.y);
+  gtk_cifro_area_visible_value_to_point (carea, &x, &y, -point->position.y, point->position.x);
   cairo_translate (cairo, x, y);
   cairo_rotate (cairo, point->d_angle);
 
@@ -1042,7 +1042,7 @@ hyscan_gtk_map_steer_carea_draw_path (HyScanGtkMapSteer *steer,
     {
       HyScanGtkMapSteerPoint *point = link->data;
 
-      gtk_cifro_area_visible_value_to_point (carea, &x, &y, point->position.x, point->position.y);
+      gtk_cifro_area_visible_value_to_point (carea, &x, &y, -point->position.y, point->position.x);
       cairo_line_to (cairo, x, y);
     }
 

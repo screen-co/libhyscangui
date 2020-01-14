@@ -115,7 +115,7 @@ hyscan_gtk_map_direction_object_constructed (GObject *object)
 {
   HyScanGtkMapDirection *gtk_map_direction = HYSCAN_GTK_MAP_DIRECTION (object);
   HyScanGtkMapDirectionPrivate *priv = gtk_map_direction->priv;
-  GtkWidget *line1, *line2;
+  GtkWidget *line1;
 
   G_OBJECT_CLASS (hyscan_gtk_map_direction_parent_class)->constructed (object);
 
@@ -193,7 +193,7 @@ hyscan_gtk_map_direction_trk_chgd (HyScanGtkMapDirection *direction)
 
   track = (HyScanPlannerTrack *) hyscan_object_model_get_id (priv->obj_model, active_id);
   g_free (active_id);
-  if (track == NULL || track->type != HYSCAN_PLANNER_TRACK)
+  if (!HYSCAN_IS_PLANNER_TRACK (track))
     return;
 
   priv->track_angle = hyscan_planner_track_angle (track);

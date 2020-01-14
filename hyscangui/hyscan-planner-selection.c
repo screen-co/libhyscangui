@@ -184,7 +184,7 @@ hyscan_planner_selection_changed (HyScanPlannerSelection *selection)
 
       id = g_array_index (priv->tracks, gchar *, i);
       object = g_hash_table_lookup (priv->objects, id);
-      if (object == NULL || object->type != HYSCAN_PLANNER_TRACK)
+      if (!HYSCAN_IS_PLANNER_TRACK (object))
         {
           g_array_remove_index (priv->tracks, i);
           continue;
@@ -284,7 +284,7 @@ hyscan_planner_selection_set_zone (HyScanPlannerSelection *selection,
   if (zone_id != NULL)
     {
       object = g_hash_table_lookup (priv->objects, zone_id);
-      g_return_if_fail (object != NULL && object->type == HYSCAN_PLANNER_ZONE);
+      g_return_if_fail (HYSCAN_IS_PLANNER_ZONE (object));
 
       last_vertex_index = (gint) object->points_len - 1;
     }
@@ -355,7 +355,7 @@ hyscan_planner_selection_append (HyScanPlannerSelection  *selection,
     return;
 
   object = g_hash_table_lookup (priv->objects, track_id);
-  g_return_if_fail (object != NULL && object->type == HYSCAN_PLANNER_TRACK);
+  g_return_if_fail (HYSCAN_IS_PLANNER_TRACK (object));
 
   new_track_id = g_strdup (track_id);
   g_array_append_val (priv->tracks, new_track_id);

@@ -193,10 +193,10 @@ hyscan_gtk_planner_track_add (HyScanGtkPlannerShift    *shift,
   start = invert ? &priv->track_end : &priv->track_start;
   end = invert ? &priv->track_start : &priv->track_end;
 
-  new_start.x = start->x + distance * index;
-  new_start.y = start->y;
-  new_end.x = end->x + distance * index;
-  new_end.y = end->y;
+  new_start.x = start->x;
+  new_start.y = start->y + distance * index;
+  new_end.x = end->x;
+  new_end.y = end->y + distance * index;
 
   /* Если пользователь выбрал подгонять длину галса под размеры зоны и зона вогнутая, то может оказаться, что галс
    * разбивается на несколько. */
@@ -249,7 +249,7 @@ static void
 hyscan_gtk_planner_shift_update (HyScanGtkPlannerShift *shift)
 {
   HyScanGtkPlannerShiftPrivate *priv = shift->priv;
-  HyScanPlannerTrack track_tpl;
+  HyScanPlannerTrack track_tpl = {0};
 
   gdouble distance;
   gint num_right, num_left;
@@ -272,7 +272,6 @@ hyscan_gtk_planner_shift_update (HyScanGtkPlannerShift *shift)
   if (priv->track == NULL || (num_right == 0 && num_left == 0 && !fill_zone) || distance <= 0)
     goto exit;
 
-  memset (&track_tpl, 0, sizeof (track_tpl));
   track_tpl.zone_id = priv->track->zone_id;
   track_tpl.plan.velocity = priv->track->plan.velocity;
 
@@ -285,17 +284,17 @@ hyscan_gtk_planner_shift_update (HyScanGtkPlannerShift *shift)
       i = 1;
       do
         {
-          add_left &= hyscan_gtk_planner_track_add (shift, &track_tpl, -i, alternate, adjust_len, distance);
-          add_right &= hyscan_gtk_planner_track_add (shift, &track_tpl, i, alternate, adjust_len, distance);
+          add_left &= hyscan_gtk_planner_track_add (shift, &track_tpl, i, alternate, adjust_len, distance);
+          add_right &= hyscan_gtk_planner_track_add (shift, &track_tpl, -i, alternate, adjust_len, distance);
           i++;
         } while ((add_left || add_right) && i < MAX_TRACKS);
     }
   else
     {
-      for (i = 1; i <= num_right; ++i)
+      for (i = 1; i <= num_left; ++i)
         hyscan_gtk_planner_track_add (shift, &track_tpl, i, alternate, adjust_len, distance);
 
-      for (i = -1; i >= -num_left; --i)
+      for (i = -1; i >= -num_right; --i)
         hyscan_gtk_planner_track_add (shift, &track_tpl, i, alternate, adjust_len, distance);
     }
 

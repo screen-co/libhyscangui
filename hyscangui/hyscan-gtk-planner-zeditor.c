@@ -390,7 +390,7 @@ hyscan_gtk_planner_zeditor_vertex_duplicate (HyScanGtkPlannerZeditor *zeditor)
     return;
 
   zone = g_hash_table_lookup (priv->objects, priv->zone_id);
-  g_return_if_fail (zone != NULL && zone->type == HYSCAN_PLANNER_ZONE);
+  g_return_if_fail (HYSCAN_IS_PLANNER_ZONE (zone));
 
   hyscan_planner_zone_vertex_dup (zone, priv->vertex);
   hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, (const HyScanObject *) zone);
@@ -407,7 +407,7 @@ hyscan_gtk_planner_zeditor_vertex_delete (HyScanGtkPlannerZeditor *zeditor)
     return;
 
   zone = g_hash_table_lookup (priv->objects, priv->zone_id);
-  g_return_if_fail (zone != NULL && zone->type == HYSCAN_PLANNER_ZONE);
+  g_return_if_fail (HYSCAN_IS_PLANNER_ZONE (zone));
 
   if (zone->points_len > 3)
     {
@@ -513,7 +513,7 @@ hyscan_gtk_planner_zeditor_set_zone (HyScanGtkPlannerZeditor *zeditor)
     goto exit;
 
   zone = g_hash_table_lookup (priv->objects, priv->zone_id);
-  if (zone == NULL || zone->type != HYSCAN_PLANNER_ZONE)
+  if (!HYSCAN_IS_PLANNER_ZONE (zone))
     {
       g_clear_pointer (&priv->zone_id, g_free);
       goto exit;
@@ -623,7 +623,7 @@ hyscan_gtk_planner_zeditor_edited (GtkCellRendererText *cell,
     return;
 
   zone = g_hash_table_lookup (priv->objects, priv->zone_id);
-  if (zone == NULL || zone->type != HYSCAN_PLANNER_ZONE)
+  if (!HYSCAN_IS_PLANNER_ZONE (zone))
     return;
 
   gtk_tree_model_get_iter_from_string (GTK_TREE_MODEL (priv->store), &iter, path_string);

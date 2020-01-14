@@ -730,7 +730,7 @@ hyscan_gtk_map_planner_model_changed (HyScanGtkMapPlanner *planner)
       HyScanPlannerZone *orig_zone;
       HyScanGtkMapPlannerZone *zone;
 
-      if (object->type != HYSCAN_PLANNER_ZONE)
+      if (!HYSCAN_IS_PLANNER_ZONE (object))
         continue;
 
       orig_zone = (HyScanPlannerZone *) object;
@@ -763,7 +763,7 @@ hyscan_gtk_map_planner_model_changed (HyScanGtkMapPlanner *planner)
       HyScanPlannerTrack *orig_track;
       HyScanGtkMapPlannerTrack *track;
 
-      if (object->type != HYSCAN_PLANNER_TRACK)
+      if (!HYSCAN_IS_PLANNER_TRACK (object))
         continue;
 
       orig_track = (HyScanPlannerTrack *) object;

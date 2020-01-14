@@ -481,13 +481,12 @@ hyscan_gtk_planner_editor_iter_next (HyScanGtkPlannerEditorIter *iter)
   for (; iter->i < iter->n_items; ++iter->i)
     {
       gchar *selected_id;
-      gboolean found;
 
       selected_id = priv->selected_tracks[iter->i];
-      found = g_hash_table_lookup_extended (priv->objects, selected_id,
-                                            (gpointer *) &iter->id, (gpointer *) &iter->track);
+      g_hash_table_lookup_extended (priv->objects, selected_id,
+                                    (gpointer *) &iter->id, (gpointer *) &iter->track);
 
-      if (!found || iter->track->type != HYSCAN_PLANNER_TRACK)
+      if (!HYSCAN_IS_PLANNER_TRACK (iter->track))
         continue;
 
       ++iter->i;
