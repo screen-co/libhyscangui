@@ -9,5 +9,9 @@
   <gresource prefix="/org/hyscan">
     <file compressed="true">icons/16x16/actions/eye.symbolic.png</file>
     <file compressed="true">icons/16x16/actions/hidden.symbolic.png</file>
+    <file compressed="true">icons/32x32/actions/eye.symbolic.png</file>
+    <file compressed="true">icons/32x32/actions/hidden.symbolic.png</file>
+    <file compressed="true">icons/scalable/actions/eye.svg</file>
+    <file compressed="true">icons/scalable/actions/hidden.svg</file>
   </gresource>
 </gresources>
