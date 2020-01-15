@@ -1,6 +1,6 @@
 /* hyscan-gtk-planner-editor.c
  *
- * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
+ * Copyright 2020 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *
  * This file is part of HyScanGui library.
  *
@@ -38,13 +38,13 @@
  * @Title: HyScanGtkPlannerEditor
  *
  * Виджет HyScanGtkPlannerEditor содержит в себе поля для редактирования параметров галсов:
- * - координаты (x, y) точки начала,
- * - координаты (x, y) точки конца,
- * - длина галса,
+ * - скорость и длина галса,
+ * - курс движения,
+ * - координаты точек начала и конца,
  * - угол поворота.
  *
- * Виджет переводит географические координат галсов в декартовы (x, y) при заданных пользователем
- * координатах точки отсчёта и направлении оси OX.
+ * Виджет переводит географические координаты галсов в декартовы (x, y), если пользователь задал #HyScanPlannerOrigin -
+ * параметры декартовой СК (точку отсчёта и направление оси OX).
  *
  * При измении значений в полях редактирования параметры галса пересчитываются в географические координаты и сохраняются
  * в базу данных.
@@ -54,15 +54,18 @@
  *
  */
 
+#include "hyscan-gtk-planner-editor.h"
 #include <glib/gi18n-lib.h>
 #include <math.h>
-#include "hyscan-gtk-planner-editor.h"
 
 #define MAX_DISTANCE 1e6   /* Максимальное значение координат X, Y концов галса, метры. */
 #define MAX_SPEED    1e2   /* Максимальное значение координат X, Y концов галса, метры. */
 #define DIST_STEP    1e-2  /* Шаг координат и длины галса, метры. */
 #define ANGLE_STEP   1e-2  /* Шаг угла поворота, градусы. */
-#define SPEED_STEP   1e-2  /* Шаг угла поворота, градусы. */
+#define SPEED_STEP   1e-2  /* Шаг скорости, м/с. */
+#define LL_STEP      1e-6  /* Шаг широты и долготы, градусы. */
+
+#define NORMALIZE_DEG(x) ((x) < 0 ? (x) + 360.0 : (x))
 
 enum
 {
@@ -81,8 +84,13 @@ typedef struct
   gdouble  end_x;            /* Координата X конца галса. */
   gdouble  end_y;            /* Координата Y конца галса. */
   gdouble  length;           /* Длина галса. */
-  gdouble  angle;            /* Угол поворота галса. */
+  gdouble  angle;            /* Угол галса к оси OX. */
   gdouble  speed;            /* Скорость движения по галсу. */
+  gdouble  course;           /* Курс галса. */
+  gdouble  start_lat;        /* Широта начала галса. */
+  gdouble  start_lon;        /* Долгота начала галса. */
+  gdouble  end_lat;          /* Широта конца галса. */
+  gdouble  end_lon;          /* Долгота конца галса. */
 
   gboolean start_x_diffs;    /* Признак того, что значение start_x варьируется. */
   gboolean start_y_diffs;    /* Признак того, что значение start_y варьируется. */
@@ -91,6 +99,11 @@ typedef struct
   gboolean length_diffs;     /* Признак того, что значение length варьируется. */
   gboolean angle_diffs;      /* Признак того, что значение angle варьируется. */
   gboolean speed_diffs;      /* Признак того, что значение speed варьируется. */
+  gdouble  course_diffs;     /* Признак того, что значение track варьируется. */
+  gdouble  start_lat_diffs;  /* Признак того, что значение start_lat варьируется. */
+  gdouble  start_lon_diffs;  /* Признак того, что значение start_lon варьируется. */
+  gdouble  end_lat_diffs;    /* Признак того, что значение end_lat варьируется. */
+  gdouble  end_lon_diffs;    /* Признак того, что значение end_lon варьируется. */
 } HyScanGtkPlannerEditorValue;
 
 typedef struct {
@@ -105,13 +118,15 @@ struct _HyScanGtkPlannerEditorPrivate
 {
   HyScanPlannerModel     *model;                 /* Модель объектов планировщика. */
   HyScanPlannerSelection *selection;             /* Модель списка идентификаторов выбранных объектов. */
-  HyScanGeo              *geo;                   /* Объект перевода координат из географических в декртовы. */
+  HyScanGeo              *geo;                   /* Объект перевода координат из географических в декартовы. */
   gboolean                block_value_change;    /* Признак блокировки сигналов "value-changed" в полях ввода. */
 
   gchar                 **selected_tracks;       /* Список выбранных галсов. */
   GHashTable             *objects;               /* Хэш таблица с объектами планировщика. */
 
   GtkWidget              *label;                 /* Виджет счётчика выбранных объектов. */
+  GtkWidget              *topo_label;            /* Подпись топографических полeй. */
+  GtkWidget              *topo_box;              /* Контейнер топографических полeй. */
   GtkWidget              *start_x;               /* Поле ввода координаты X начала. */
   GtkWidget              *start_x_btn;           /* Галочка редактирования поля start_x. */
   GtkWidget              *start_y;               /* Поле ввода координаты Y начала. */
@@ -120,10 +135,20 @@ struct _HyScanGtkPlannerEditorPrivate
   GtkWidget              *end_x_btn;             /* Галочка редактирования поля end_x. */
   GtkWidget              *end_y;                 /* Поле ввода координаты Y конца. */
   GtkWidget              *end_y_btn;             /* Галочка редактирования поля end_y. */
+  GtkWidget              *start_lat;             /* Поле ввода координаты широты начала. */
+  GtkWidget              *start_lat_btn;         /* Галочка редактирования поля start_lat. */
+  GtkWidget              *start_lon;             /* Поле ввода координаты долготы начала. */
+  GtkWidget              *start_lon_btn;         /* Галочка редактирования поля start_lon. */
+  GtkWidget              *end_lat;               /* Поле ввода координаты широты конца. */
+  GtkWidget              *end_lat_btn;           /* Галочка редактирования поля end_lat. */
+  GtkWidget              *end_lon;               /* Поле ввода координаты долготы конца. */
+  GtkWidget              *end_lon_btn;           /* Галочка редактирования поля end_lon. */
   GtkWidget              *length;                /* Поле ввода длины галса. */
   GtkWidget              *length_btn;            /* Галочка редактирования поля end_y. */
   GtkWidget              *angle;                 /* Поле ввода угла поворота галса. */
   GtkWidget              *angle_btn;             /* Галочка редактирования поля angle. */
+  GtkWidget              *track;                 /* Поле ввода курса галса. */
+  GtkWidget              *track_btn;             /* Галочка редактирования поля track. */
   GtkWidget              *speed;                 /* Поле ввода скорости движения по галсу. */
   GtkWidget              *speed_btn;             /* Галочка редактирования поля speed. */
 };
@@ -150,9 +175,12 @@ static void        hyscan_gtk_planner_editor_spin_changed            (GtkWidget 
 static void        hyscan_gtk_planner_editor_model_changed           (HyScanGtkPlannerEditor      *editor);
 static void        hyscan_gtk_planner_editor_end_changed             (HyScanGtkPlannerEditor      *editor);
 static void        hyscan_gtk_planner_editor_start_changed           (HyScanGtkPlannerEditor      *editor);
+static void        hyscan_gtk_planner_editor_start_geo_changed       (HyScanGtkPlannerEditor      *editor);
+static void        hyscan_gtk_planner_editor_end_geo_changed         (HyScanGtkPlannerEditor      *editor);
 static void        hyscan_gtk_planner_editor_length_changed          (HyScanGtkPlannerEditor      *editor);
 static void        hyscan_gtk_planner_editor_angle_changed           (HyScanGtkPlannerEditor      *editor);
 static void        hyscan_gtk_planner_editor_speed_changed           (HyScanGtkPlannerEditor      *editor);
+static void        hyscan_gtk_planner_editor_track_changed           (HyScanGtkPlannerEditor      *editor);
 static void        hyscan_gtk_planner_editor_update_view             (HyScanGtkPlannerEditor      *editor);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkPlannerEditor, hyscan_gtk_planner_editor, GTK_TYPE_BOX)
@@ -169,10 +197,17 @@ hyscan_gtk_planner_editor_class_init (HyScanGtkPlannerEditorClass *klass)
 
   gtk_widget_class_set_template_from_resource (widget_class, "/org/hyscan/gtk/hyscan-gtk-planner-editor.ui");
   gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, label);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, topo_box);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, topo_label);
   gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, start_x);
   gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, start_y);
   gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, end_x);
   gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, end_y);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, start_lat);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, start_lon);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, end_lat);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, end_lon);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, track);
   gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, angle);
   gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, length);
   gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, speed);
@@ -180,6 +215,11 @@ hyscan_gtk_planner_editor_class_init (HyScanGtkPlannerEditorClass *klass)
   gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, start_y_btn);
   gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, end_x_btn);
   gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, end_y_btn);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, start_lat_btn);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, start_lon_btn);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, end_lat_btn);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, end_lon_btn);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, track_btn);
   gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, angle_btn);
   gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, length_btn);
   gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerEditor, speed_btn);
@@ -234,19 +274,25 @@ hyscan_gtk_planner_editor_object_constructed (GObject *object)
   guint i;
   struct
   {
-    GtkWidget     *spin_btn;
-    GtkWidget     *checkbox;
-    gdouble        lower;
-    gdouble        upper;
-    gdouble        step;
+    GtkWidget     *spin_btn;  /* Поле ввода. */
+    GtkWidget     *checkbox;  /* Галочка включения поля ввода. */
+    gdouble        lower;     /* Минимальное значение параметра. */
+    gdouble        upper;     /* Максимальное значение параметра. */
+    gdouble        step;      /* Шаг изменения. */
+    gint           digits;    /* Число знаков после запятой. */
   } ranges[] = {
-    { priv->start_x, priv->start_x_btn,  -MAX_DISTANCE, MAX_DISTANCE, DIST_STEP },
-    { priv->start_y, priv->start_y_btn,  -MAX_DISTANCE, MAX_DISTANCE, DIST_STEP },
-    { priv->end_x,   priv->end_x_btn,    -MAX_DISTANCE, MAX_DISTANCE, DIST_STEP },
-    { priv->end_y,   priv->end_y_btn,    -MAX_DISTANCE, MAX_DISTANCE, DIST_STEP },
-    { priv->angle,   priv->angle_btn,           -360.0,        360.0, ANGLE_STEP },
-    { priv->length,  priv->length_btn,   -MAX_DISTANCE, MAX_DISTANCE, DIST_STEP },
-    { priv->speed,   priv->speed_btn,                0, MAX_SPEED,    SPEED_STEP },
+    { priv->start_x,     priv->start_x_btn,   -MAX_DISTANCE, MAX_DISTANCE,  DIST_STEP, 2 },
+    { priv->start_y,     priv->start_y_btn,   -MAX_DISTANCE, MAX_DISTANCE,  DIST_STEP, 2 },
+    { priv->end_x,       priv->end_x_btn,     -MAX_DISTANCE, MAX_DISTANCE,  DIST_STEP, 2 },
+    { priv->end_y,       priv->end_y_btn,     -MAX_DISTANCE, MAX_DISTANCE,  DIST_STEP, 2 },
+    { priv->angle,       priv->angle_btn,            -360.0,        360.0, ANGLE_STEP, 2 },
+    { priv->track,       priv->track_btn,            -360.0,        360.0, ANGLE_STEP, 2 },
+    { priv->length,      priv->length_btn,    -MAX_DISTANCE, MAX_DISTANCE,  DIST_STEP, 2 },
+    { priv->speed,       priv->speed_btn,                 0,    MAX_SPEED, SPEED_STEP, 2 },
+    { priv->start_lat,   priv->start_lat_btn,         -90.0,         90.0,    LL_STEP, 6 },
+    { priv->start_lon,   priv->start_lon_btn,        -180.0,        180.0,    LL_STEP, 6 },
+    { priv->end_lat,     priv->end_lat_btn,           -90.0,         90.0,    LL_STEP, 6 },
+    { priv->end_lon,     priv->end_lon_btn,          -180.0,        180.0,    LL_STEP, 6 },
   };
 
   G_OBJECT_CLASS (hyscan_gtk_planner_editor_parent_class)->constructed (object);
@@ -257,7 +303,7 @@ hyscan_gtk_planner_editor_object_constructed (GObject *object)
       GtkAdjustment *adjustment;
 
       adjustment = gtk_adjustment_new (0, ranges[i].lower, ranges[i].upper, ranges[i].step, 0, 0);
-      gtk_spin_button_set_digits (GTK_SPIN_BUTTON (ranges[i].spin_btn), 2);
+      gtk_spin_button_set_digits (GTK_SPIN_BUTTON (ranges[i].spin_btn), ranges[i].digits);
       gtk_spin_button_set_adjustment (GTK_SPIN_BUTTON (ranges[i].spin_btn), adjustment);
       g_object_bind_property (ranges[i].checkbox, "active", ranges[i].spin_btn, "sensitive", G_BINDING_SYNC_CREATE);
       g_signal_connect (ranges[i].spin_btn, "value-changed", G_CALLBACK (hyscan_gtk_planner_editor_spin_changed), editor);
@@ -300,32 +346,40 @@ hyscan_gtk_planner_editor_get_value (HyScanGtkPlannerEditor      *editor,
   memset (value, 0, sizeof (*value));
   value->origin_set = (priv->geo != NULL);
 
-  if (priv->objects == NULL || priv->geo == NULL)
+  if (priv->objects == NULL)
     return;
 
   hyscan_gtk_planner_editor_iter_init (editor, &iter);
   while (hyscan_gtk_planner_editor_iter_next (&iter))
     {
       HyScanPlannerTrack *track = iter.track;
-      HyScanGeoCartesian2D start;
-      HyScanGeoCartesian2D end;
-      gdouble length, angle, speed;
+      HyScanTrackPlan *plan;
+      HyScanGeoCartesian2D start = {0};
+      HyScanGeoCartesian2D end = {0};
+      gdouble length, angle = 0.0, angle_north, speed;
 
-      if (!hyscan_geo_geo2topoXY (priv->geo, &start, track->plan.start) ||
-          !hyscan_geo_geo2topoXY (priv->geo, &end, track->plan.end))
+      plan = &track->plan;
+      speed = plan->velocity;
+
+      length = hyscan_planner_track_length (plan);
+      angle_north = hyscan_planner_track_angle (track) / G_PI * 180.0;
+      angle_north = NORMALIZE_DEG (angle_north);
+
+      if (priv->geo != NULL &&
+           hyscan_geo_geo2topoXY (priv->geo, &start, plan->start) &&
+           hyscan_geo_geo2topoXY (priv->geo, &end, plan->end))
         {
-          g_warning ("HyScanGtkPlannerEditor: failed to convert geo coordinates to (x, y)");
-          continue;
+          angle = atan2 (end.y - start.y, end.x - start.x) / G_PI * 180.0;
+          angle = NORMALIZE_DEG (angle);
         }
-
-      speed = track->plan.velocity;
-      length = hypot (end.x - start.x, end.y - start.y);
-      angle = atan2 (end.x - start.x, end.y - start.y) / G_PI * 180.0;
-      if (angle < 0)
-        angle += 360.0;
 
       if (value->n_items == 0)
         {
+          value->course = angle_north;
+          value->start_lat = plan->start.lat;
+          value->start_lon = plan->start.lon;
+          value->end_lat = plan->end.lat;
+          value->end_lon = plan->end.lon;
           value->start_x = start.x;
           value->start_y = start.y;
           value->end_x = end.x;
@@ -336,6 +390,21 @@ hyscan_gtk_planner_editor_get_value (HyScanGtkPlannerEditor      *editor,
         }
       else
         {
+          if (ABS (value->start_lat - plan->start.lat) > LL_STEP / 2.0)
+            value->start_lat_diffs = TRUE;
+
+          if (ABS (value->start_lon - plan->start.lon) > LL_STEP / 2.0)
+            value->start_lon_diffs = TRUE;
+
+          if (ABS (value->end_lat - plan->end.lat) > LL_STEP / 2.0)
+            value->end_lat_diffs = TRUE;
+
+          if (ABS (value->end_lon - plan->end.lon) > LL_STEP / 2.0)
+            value->end_lon_diffs = TRUE;
+
+          if (ABS (value->course - angle_north) > ANGLE_STEP / 2.0)
+            value->course_diffs = TRUE;
+
           if (ABS (value->start_x - start.x) > DIST_STEP / 2.0)
             value->start_x_diffs = TRUE;
 
@@ -385,6 +454,11 @@ hyscan_gtk_planner_editor_update_view (HyScanGtkPlannerEditor *editor)
       gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->angle), value.angle);
       gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->length), value.length);
       gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->speed), value.speed);
+      gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->start_lat), value.start_lat);
+      gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->start_lon), value.start_lon);
+      gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->end_lat), value.end_lat);
+      gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->end_lon), value.end_lon);
+      gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->track), value.course);
     }
   else
     {
@@ -395,9 +469,15 @@ hyscan_gtk_planner_editor_update_view (HyScanGtkPlannerEditor *editor)
       gtk_entry_set_text (GTK_ENTRY (priv->angle), "");
       gtk_entry_set_text (GTK_ENTRY (priv->length), "");
       gtk_entry_set_text (GTK_ENTRY (priv->speed), "");
+      gtk_entry_set_text (GTK_ENTRY (priv->start_lat), "");
+      gtk_entry_set_text (GTK_ENTRY (priv->start_lon), "");
+      gtk_entry_set_text (GTK_ENTRY (priv->end_lat), "");
+      gtk_entry_set_text (GTK_ENTRY (priv->end_lon), "");
+      gtk_entry_set_text (GTK_ENTRY (priv->track), "");
     }
 
   gtk_widget_set_sensitive (GTK_WIDGET (editor), value_set);
+  gtk_widget_set_sensitive (priv->topo_box, value.origin_set);
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->start_x_btn), !value.start_x_diffs && value_set);
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->start_y_btn), !value.start_y_diffs && value_set);
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->end_x_btn), !value.end_x_diffs && value_set);
@@ -405,22 +485,29 @@ hyscan_gtk_planner_editor_update_view (HyScanGtkPlannerEditor *editor)
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->angle_btn), !value.angle_diffs && value_set);
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->length_btn), !value.length_diffs && value_set);
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->speed_btn), !value.speed_diffs && value_set);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->start_lat_btn), !value.start_lat_diffs && value_set);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->start_lon_btn), !value.start_lon_diffs && value_set);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->end_lat_btn), !value.end_lat_diffs && value_set);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->end_lon_btn), !value.end_lon_diffs && value_set);
+  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->track_btn), !value.course_diffs && value_set);
 
   priv->block_value_change = FALSE;
 
-  if (value.origin_set)
-    {
-      gchar *label_text;
+  gchar *label_text;
 
+  if (value.n_items == 0)
+    {
+      gtk_label_set_text (GTK_LABEL (priv->label), _("Select track to edit its properties"));
+    }
+  else
+    {
       label_text = g_strdup_printf (g_dngettext (GETTEXT_PACKAGE, "%d track selected", "%d tracks selected", value.n_items),
                                     value.n_items);
       gtk_label_set_text (GTK_LABEL (priv->label), label_text);
       g_free (label_text);
     }
-  else
-    {
-      gtk_label_set_text (GTK_LABEL (priv->label), _("The origin of coordinate system is not set."));
-    }
+
+  gtk_widget_set_visible (priv->topo_label, !value.origin_set);
 }
 
 static void
@@ -503,7 +590,7 @@ hyscan_gtk_planner_editor_spin_changed (GtkWidget              *spin_button,
 {
   HyScanGtkPlannerEditorPrivate *priv = editor->priv;
 
-  if (priv->block_value_change || priv->objects == NULL || priv->geo == NULL)
+  if (priv->block_value_change || priv->objects == NULL)
     return;
 
   if (spin_button == priv->start_x || spin_button == priv->start_y)
@@ -511,6 +598,15 @@ hyscan_gtk_planner_editor_spin_changed (GtkWidget              *spin_button,
 
   else if (spin_button == priv->end_x || spin_button == priv->end_y)
     hyscan_gtk_planner_editor_end_changed (editor);
+
+  else if (spin_button == priv->end_lat || spin_button == priv->end_lon)
+    hyscan_gtk_planner_editor_end_geo_changed (editor);
+
+  else if (spin_button == priv->start_lat || spin_button == priv->start_lon)
+    hyscan_gtk_planner_editor_start_geo_changed (editor);
+
+  else if (spin_button == priv->track)
+    hyscan_gtk_planner_editor_track_changed (editor);
 
   else if (spin_button == priv->length)
     hyscan_gtk_planner_editor_length_changed (editor);
@@ -552,6 +648,40 @@ hyscan_gtk_planner_editor_end_changed (HyScanGtkPlannerEditor *editor)
 }
 
 static void
+hyscan_gtk_planner_editor_start_geo_changed (HyScanGtkPlannerEditor *editor)
+{
+  HyScanGtkPlannerEditorPrivate *priv = editor->priv;
+  HyScanGtkPlannerEditorIter iter;
+
+  hyscan_gtk_planner_editor_iter_init (editor, &iter);
+  while (hyscan_gtk_planner_editor_iter_next (&iter))
+    {
+      if (gtk_widget_get_sensitive (priv->start_lat))
+        iter.track->plan.start.lat = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->start_lat));
+      if (gtk_widget_get_sensitive (priv->start_lon))
+        iter.track->plan.start.lon = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->start_lon));
+      hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), iter.id, (HyScanObject *) iter.track);
+    }
+}
+
+static void
+hyscan_gtk_planner_editor_end_geo_changed (HyScanGtkPlannerEditor *editor)
+{
+  HyScanGtkPlannerEditorPrivate *priv = editor->priv;
+  HyScanGtkPlannerEditorIter iter;
+
+  hyscan_gtk_planner_editor_iter_init (editor, &iter);
+  while (hyscan_gtk_planner_editor_iter_next (&iter))
+    {
+      if (gtk_widget_get_sensitive (priv->end_lat))
+        iter.track->plan.end.lat = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->end_lat));
+      if (gtk_widget_get_sensitive (priv->end_lon))
+        iter.track->plan.end.lon = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->end_lon));
+      hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), iter.id, (HyScanObject *) iter.track);
+    }
+}
+
+static void
 hyscan_gtk_planner_editor_length_changed (HyScanGtkPlannerEditor *editor)
 {
   HyScanGtkPlannerEditorPrivate *priv = editor->priv;
@@ -563,23 +693,27 @@ hyscan_gtk_planner_editor_length_changed (HyScanGtkPlannerEditor *editor)
   hyscan_gtk_planner_editor_iter_init (editor, &iter);
   while (hyscan_gtk_planner_editor_iter_next (&iter))
     {
+      HyScanGeo *geo;
       HyScanPlannerTrack *track = iter.track;
+      HyScanTrackPlan *plan = &track->plan;
       const gchar *id = iter.id;
 
       HyScanGeoCartesian2D start_2d, end_2d;
       gdouble scale;
       gdouble dx, dy;
 
-      hyscan_geo_geo2topoXY (priv->geo, &start_2d, track->plan.start);
-      hyscan_geo_geo2topoXY (priv->geo, &end_2d, track->plan.end);
+      geo = hyscan_planner_track_geo (plan, NULL);
+      hyscan_geo_geo2topoXY (geo, &start_2d, plan->start);
+      hyscan_geo_geo2topoXY (geo, &end_2d, plan->end);
       dx = end_2d.x - start_2d.x;
       dy = end_2d.y - start_2d.y;
       scale = length / hypot (dx, dy);
       end_2d.x = start_2d.x + scale * dx;
       end_2d.y = start_2d.y + scale * dy;
 
-      hyscan_geo_topoXY2geo (priv->geo, &track->plan.end, end_2d, 0);
+      hyscan_geo_topoXY2geo (geo, &plan->end, end_2d, 0);
       hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), id, (HyScanObject *) track);
+      g_object_unref (geo);
     }
 }
 
@@ -592,7 +726,7 @@ hyscan_gtk_planner_editor_angle_changed (HyScanGtkPlannerEditor *editor)
   gdouble angle;
 
   angle = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->angle));
-  angle = - angle / 180.0 * G_PI - G_PI - G_PI_2;
+  angle = angle / 180.0 * G_PI;
 
   hyscan_gtk_planner_editor_iter_init (editor, &iter);
   while (hyscan_gtk_planner_editor_iter_next (&iter))
@@ -604,6 +738,7 @@ hyscan_gtk_planner_editor_angle_changed (HyScanGtkPlannerEditor *editor)
       gdouble length;
       gdouble dx, dy;
 
+      /* Сохраняем точку начала галса и его длину. */
       hyscan_geo_geo2topoXY (priv->geo, &start_2d, track->plan.start);
       hyscan_geo_geo2topoXY (priv->geo, &end_2d, track->plan.end);
       dx = end_2d.x - start_2d.x;
@@ -613,6 +748,59 @@ hyscan_gtk_planner_editor_angle_changed (HyScanGtkPlannerEditor *editor)
       end_2d.y = start_2d.y + length * sin (angle);
 
       hyscan_geo_topoXY2geo (priv->geo, &track->plan.end, end_2d, 0);
+      hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), id, (HyScanObject *) track);
+    }
+}
+
+static void
+hyscan_gtk_planner_editor_track_changed (HyScanGtkPlannerEditor *editor)
+{
+  HyScanGtkPlannerEditorPrivate *priv = editor->priv;
+  HyScanGtkPlannerEditorIter iter;
+
+  gdouble angle;
+
+  /* Новое значение курса. */
+  angle = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->track));
+  angle = angle / 180.0 * G_PI;
+
+  hyscan_gtk_planner_editor_iter_init (editor, &iter);
+  while (hyscan_gtk_planner_editor_iter_next (&iter))
+    {
+      HyScanPlannerTrack *track = iter.track;
+      const gchar *id = iter.id;
+
+      HyScanGeoCartesian2D start_2d, end_2d;
+      gdouble length;
+      gdouble dx, dy;
+      gint i;
+
+      /* Повторяем поворот до тех пор, пока не достигнем нужной точности. */
+      for (i = 0; i < 10; i++)
+        {
+          HyScanGeo *geo;
+          gdouble current_angle;
+          gdouble d_angle;
+
+          current_angle = hyscan_planner_track_angle (track);
+          d_angle = remainder (current_angle - angle, 2 * G_PI);
+          if (ABS (d_angle) < ANGLE_STEP / 180.0 * G_PI / 2.0)
+            break;
+
+          /* Сохраняем точку начала галса и его длину. */
+          geo = hyscan_planner_track_geo (&track->plan, NULL);
+          hyscan_geo_geo2topoXY (geo, &start_2d, track->plan.start);
+          hyscan_geo_geo2topoXY (geo, &end_2d, track->plan.end);
+          dx = end_2d.x - start_2d.x;
+          dy = end_2d.y - start_2d.y;
+          length = hypot (dx, dy);
+          end_2d.x = start_2d.x + length * cos (d_angle);
+          end_2d.y = start_2d.y + length * sin (d_angle);
+
+          hyscan_geo_topoXY2geo (geo, &track->plan.end, end_2d, 0);
+          g_object_unref (geo);
+        }
+
       hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), id, (HyScanObject *) track);
     }
 }
