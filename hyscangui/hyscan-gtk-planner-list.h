@@ -53,6 +53,35 @@ G_BEGIN_DECLS
 typedef struct _HyScanGtkPlannerList HyScanGtkPlannerList;
 typedef struct _HyScanGtkPlannerListPrivate HyScanGtkPlannerListPrivate;
 typedef struct _HyScanGtkPlannerListClass HyScanGtkPlannerListClass;
+typedef enum _HyScanGtkPlannerListCol HyScanGtkPlannerListCol;
+
+/**
+ * HyScanGtkPlannerListCol:
+ * @HYSCAN_GTK_PLANNER_LIST_INVALID: недопустимый тип, ошибка
+ * @HYSCAN_GTK_PLANNER_LIST_PROGRESS: прогресс выполнения
+ * @HYSCAN_GTK_PLANNER_LIST_QUALITY: качество
+ * @HYSCAN_GTK_PLANNER_LIST_LENGTH: длина
+ * @HYSCAN_GTK_PLANNER_LIST_TIME: время
+ * @HYSCAN_GTK_PLANNER_LIST_VELOCITY: скорость
+ * @HYSCAN_GTK_PLANNER_LIST_TRACK: курс
+ * @HYSCAN_GTK_PLANNER_LIST_TRACK_SD: среднеквадратическое отклонение курса
+ * @HYSCAN_GTK_PLANNER_LIST_VELOCITY_SD: среднеквадратическое отклонение скорости
+ * @HYSCAN_GTK_PLANNER_LIST_Y_SD: среднеквдартическое отклонение от прямолинейного движения
+ *
+ * Столбцы таблицы
+ */
+enum _HyScanGtkPlannerListCol {
+  HYSCAN_GTK_PLANNER_LIST_INVALID      = -1,
+  HYSCAN_GTK_PLANNER_LIST_PROGRESS     = 1 << 0,
+  HYSCAN_GTK_PLANNER_LIST_QUALITY      = 1 << 1,
+  HYSCAN_GTK_PLANNER_LIST_LENGTH       = 1 << 2,
+  HYSCAN_GTK_PLANNER_LIST_TIME         = 1 << 3,
+  HYSCAN_GTK_PLANNER_LIST_VELOCITY     = 1 << 4,
+  HYSCAN_GTK_PLANNER_LIST_TRACK        = 1 << 5,
+  HYSCAN_GTK_PLANNER_LIST_VELOCITY_SD  = 1 << 6,
+  HYSCAN_GTK_PLANNER_LIST_TRACK_SD     = 1 << 7,
+  HYSCAN_GTK_PLANNER_LIST_Y_SD         = 1 << 8,
+};
 
 struct _HyScanGtkPlannerList
 {
@@ -74,6 +103,13 @@ GtkWidget *            hyscan_gtk_planner_list_new              (HyScanPlannerMo
                                                                  HyScanPlannerSelection *selection,
                                                                  HyScanPlannerStats     *stats,
                                                                  HyScanGtkMapPlanner    *viewer);
+
+HYSCAN_API
+void                   hyscan_gtk_planner_list_set_visible_cols (HyScanGtkPlannerList   *list,
+                                                                 gint                    cols);
+
+HYSCAN_API
+gint                   hyscan_gtk_planner_list_get_visible_cols (HyScanGtkPlannerList   *list);
 
 HYSCAN_API
 void                   hyscan_gtk_planner_list_enable_binding   (HyScanGtkPlannerList   *list,

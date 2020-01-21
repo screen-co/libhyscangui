@@ -158,14 +158,14 @@ struct _HyScanGtkPlannerListPrivate
   }                             menu;                 /* Контекстное меню галса. */
 
   GtkTreeViewColumn            *title_col;            /* Столбец "Название". */
-  GtkTreeViewColumn            *y_var_col;            /* Столбец "Отклонение по Y". */
-  GtkTreeViewColumn            *dist_col;             /* Столбец "Длина". */
+  GtkTreeViewColumn            *y_sd_col;             /* Столбец "Отклонение по Y". */
+  GtkTreeViewColumn            *length_col;           /* Столбец "Длина". */
   GtkTreeViewColumn            *time_col;             /* Столбец "Время". */
-  GtkTreeViewColumn            *speed_col;            /* Столбец "Скорость". */
-  GtkTreeViewColumn            *speed_var_col;        /* Столбец "Std. Dev. скорости". */
-  GtkTreeViewColumn            *angle_col;            /* Столбец "Угол". */
+  GtkTreeViewColumn            *velocity_col;         /* Столбец "Скорость". */
+  GtkTreeViewColumn            *velocity_sd_col;      /* Столбец "Std. Dev. скорости". */
+  GtkTreeViewColumn            *track_col;            /* Столбец "Угол". */
   GtkTreeViewColumn            *progress_col;         /* Столбец "Прогресс". */
-  GtkTreeViewColumn            *angle_var_col;        /* Столбец "Std. Dev. курса". */
+  GtkTreeViewColumn            *track_sd_col;         /* Столбец "Std. Dev. курса". */
   GtkTreeViewColumn            *quality_col;          /* Столбец "Качество". */
 };
 
@@ -325,14 +325,14 @@ hyscan_gtk_planner_list_object_constructed (GObject *object)
   priv->title_col = hyscan_gtk_planner_list_add_title (list);
   priv->progress_col = hyscan_gtk_planner_list_add (list, _("Done"), _("Progress Done, %"), PROGRESS_COLUMN, NULL);
   priv->quality_col = hyscan_gtk_planner_list_add (list, _("Quality"), _("Quality (from 0 to 100)"), QUALITY_COLUMN, NULL);
-  priv->dist_col = hyscan_gtk_planner_list_add (list, _("L"), _("Length Along Track, m"), LENGTH_COLUMN, NULL);
+  priv->length_col = hyscan_gtk_planner_list_add (list, _("L"), _("Length Along Track, m"), LENGTH_COLUMN, NULL);
   priv->time_col = hyscan_gtk_planner_list_add (list, _("Time"), _("Time, hh:mm:ss"), TIME_COLUMN, NULL);
-  priv->speed_col = hyscan_gtk_planner_list_add (list, _("Vel"), _("Velocity, m/s"), SPEED_COLUMN,
-                    G_CALLBACK (hyscan_gtk_planner_list_speed_edited));
-  priv->angle_col = hyscan_gtk_planner_list_add (list, _("Trk, °"), _("Track, °"), ANGLE_COLUMN, NULL);
-  priv->y_var_col = hyscan_gtk_planner_list_add (list, _("SD(y)"), _("Std Dev Across Track, m"), Y_VAR_COLUMN, NULL);
-  priv->speed_var_col = hyscan_gtk_planner_list_add (list, _("SD(Vel)"), _("Std Dev of Velocity, m/s"), SPEED_VAR_COLUMN, NULL);
-  priv->angle_var_col = hyscan_gtk_planner_list_add (list, _("SD(Trk)"), _("Std Dev of Track, °"), ANGLE_VAR_COLUMN, NULL);
+  priv->velocity_col = hyscan_gtk_planner_list_add (list, _("Vel"), _("Velocity, m/s"), SPEED_COLUMN,
+                                                    G_CALLBACK (hyscan_gtk_planner_list_speed_edited));
+  priv->track_col = hyscan_gtk_planner_list_add (list, _("Trk, °"), _("Track, °"), ANGLE_COLUMN, NULL);
+  priv->y_sd_col = hyscan_gtk_planner_list_add (list, _("SD(y)"), _("Std Dev Across Track, m"), Y_VAR_COLUMN, NULL);
+  priv->velocity_sd_col = hyscan_gtk_planner_list_add (list, _("SD(Vel)"), _("Std Dev of Velocity, m/s"), SPEED_VAR_COLUMN, NULL);
+  priv->track_sd_col = hyscan_gtk_planner_list_add (list, _("SD(Trk)"), _("Std Dev of Track, °"), ANGLE_VAR_COLUMN, NULL);
 
   /* Контекстное меню. */
   priv->menu.menu = GTK_MENU (gtk_menu_new ());
@@ -777,7 +777,7 @@ hyscan_gtk_planner_list_cell_data (GtkTreeViewColumn *tree_column,
       g_value_unset (&value_id);
     }
 
-  else if (tree_column == priv->speed_col)
+  else if (tree_column == priv->velocity_col)
     {
       g_object_set (cell, "editable", type == TYPE_PLANNER_TRACK, NULL);
     }
@@ -791,7 +791,7 @@ hyscan_gtk_planner_list_cell_data (GtkTreeViewColumn *tree_column,
       text = number > 0 ? g_strdup_printf (_("%s %d"), _("Plan"), number) : g_strdup (_("Plan"));
     }
 
-  else if (tree_column == priv->speed_col)
+  else if (tree_column == priv->velocity_col)
     {
       gtk_tree_model_get (tree_model, iter, SPEED_COLUMN, &value, SPEED_VAR_COLUMN, &err_value, -1);
       text = g_strdup_printf ("%.2f", value);
@@ -803,7 +803,7 @@ hyscan_gtk_planner_list_cell_data (GtkTreeViewColumn *tree_column,
       text = value >= 0 ? g_strdup_printf ("%.0f", 100 * value) : g_strdup ("");
     }
 
-  else if (tree_column == priv->speed_var_col)
+  else if (tree_column == priv->velocity_sd_col)
     {
       gtk_tree_model_get (tree_model, iter, SPEED_VAR_COLUMN, &err_value, -1);
       if (type == TYPE_DB_TRACK)
@@ -812,7 +812,7 @@ hyscan_gtk_planner_list_cell_data (GtkTreeViewColumn *tree_column,
         text = NULL;
     }
 
-  else if (tree_column == priv->angle_col)
+  else if (tree_column == priv->track_col)
     {
       gtk_tree_model_get (tree_model, iter, ANGLE_COLUMN, &value, ANGLE_VAR_COLUMN, &err_value, -1);
       if (type == TYPE_DB_TRACK || type == TYPE_PLANNER_TRACK)
@@ -821,7 +821,7 @@ hyscan_gtk_planner_list_cell_data (GtkTreeViewColumn *tree_column,
         text = NULL;
     }
 
-  else if (tree_column == priv->angle_var_col)
+  else if (tree_column == priv->track_sd_col)
     {
       gtk_tree_model_get (tree_model, iter, ANGLE_VAR_COLUMN, &err_value, -1);
       if (type == TYPE_DB_TRACK)
@@ -830,13 +830,13 @@ hyscan_gtk_planner_list_cell_data (GtkTreeViewColumn *tree_column,
         text = NULL;
     }
 
-  else if (tree_column == priv->dist_col)
+  else if (tree_column == priv->length_col)
     {
       gtk_tree_model_get (tree_model, iter, LENGTH_COLUMN, &value, Y_VAR_COLUMN, &err_value, -1);
       text = g_strdup_printf ("%.0f", value);
     }
 
-  else if (tree_column == priv->y_var_col)
+  else if (tree_column == priv->y_sd_col)
     {
       gtk_tree_model_get (tree_model, iter, Y_VAR_COLUMN, &err_value, -1);
       if (type == TYPE_DB_TRACK)
@@ -867,7 +867,7 @@ hyscan_gtk_planner_list_cell_data (GtkTreeViewColumn *tree_column,
   else if (tree_column == priv->progress_col)
     {
       gtk_tree_model_get (tree_model, iter, PROGRESS_COLUMN, &value, -1);
-      text = g_strdup_printf ("%.0f", value * 100.0);
+      text = g_strdup_printf ("%.0f%%", value * 100.0);
     }
 
   else
@@ -1551,6 +1551,64 @@ hyscan_gtk_planner_list_new (HyScanPlannerModel     *model,
                        "selection", selection,
                        "viewer", viewer,
                        NULL);
+}
+
+/**
+ * hyscan_gtk_planner_list_set_visible_cols:
+ * @list: указатель на #HyScanGtkPlannerList
+ * @cols: битовая маска видимых столбцов
+ *
+ * Устанавливает битовую маску видимых столбцов #HyScanGtkPlannerListCol.
+ */
+void
+hyscan_gtk_planner_list_set_visible_cols (HyScanGtkPlannerList *list,
+                                          gint                 cols)
+{
+  HyScanGtkPlannerListPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_PLANNER_LIST (list));
+  priv = list->priv;
+
+  gtk_tree_view_column_set_visible (priv->progress_col, cols & HYSCAN_GTK_PLANNER_LIST_PROGRESS);
+  gtk_tree_view_column_set_visible (priv->quality_col, cols & HYSCAN_GTK_PLANNER_LIST_QUALITY);
+  gtk_tree_view_column_set_visible (priv->length_col, cols & HYSCAN_GTK_PLANNER_LIST_LENGTH);
+  gtk_tree_view_column_set_visible (priv->time_col, cols & HYSCAN_GTK_PLANNER_LIST_TIME);
+  gtk_tree_view_column_set_visible (priv->velocity_col, cols & HYSCAN_GTK_PLANNER_LIST_VELOCITY);
+  gtk_tree_view_column_set_visible (priv->track_col, cols & HYSCAN_GTK_PLANNER_LIST_TRACK);
+  gtk_tree_view_column_set_visible (priv->track_sd_col, cols & HYSCAN_GTK_PLANNER_LIST_TRACK_SD);
+  gtk_tree_view_column_set_visible (priv->velocity_sd_col, cols & HYSCAN_GTK_PLANNER_LIST_VELOCITY_SD);
+  gtk_tree_view_column_set_visible (priv->y_sd_col, cols & HYSCAN_GTK_PLANNER_LIST_Y_SD);
+}
+
+/**
+ * hyscan_gtk_planner_list_get_visible_cols:
+ * @list: указатель на #HyScanGtkPlannerList
+ *
+ * Получает битовую маску видимых столбцов #HyScanGtkPlannerListCol или
+ * %HYSCAN_GTK_PLANNER_LIST_INVALID в случае ошибки.
+ *
+ * Returns: битовая маска видимых столбцов
+ */
+gint
+hyscan_gtk_planner_list_get_visible_cols (HyScanGtkPlannerList *list)
+{
+  HyScanGtkPlannerListPrivate *priv;
+  gint cols = 0;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_PLANNER_LIST (list), HYSCAN_GTK_PLANNER_LIST_INVALID);
+  priv = list->priv;
+
+  cols |= gtk_tree_view_column_get_visible (priv->progress_col) ? HYSCAN_GTK_PLANNER_LIST_PROGRESS : 0;
+  cols |= gtk_tree_view_column_get_visible (priv->quality_col) ? HYSCAN_GTK_PLANNER_LIST_QUALITY : 0;
+  cols |= gtk_tree_view_column_get_visible (priv->length_col) ? HYSCAN_GTK_PLANNER_LIST_LENGTH : 0;
+  cols |= gtk_tree_view_column_get_visible (priv->time_col) ? HYSCAN_GTK_PLANNER_LIST_TIME : 0;
+  cols |= gtk_tree_view_column_get_visible (priv->velocity_col) ? HYSCAN_GTK_PLANNER_LIST_VELOCITY : 0;
+  cols |= gtk_tree_view_column_get_visible (priv->track_col) ? HYSCAN_GTK_PLANNER_LIST_TRACK : 0;
+  cols |= gtk_tree_view_column_get_visible (priv->track_sd_col) ? HYSCAN_GTK_PLANNER_LIST_TRACK_SD : 0;
+  cols |= gtk_tree_view_column_get_visible (priv->velocity_sd_col) ? HYSCAN_GTK_PLANNER_LIST_VELOCITY_SD : 0;
+  cols |= gtk_tree_view_column_get_visible (priv->y_sd_col) ? HYSCAN_GTK_PLANNER_LIST_Y_SD : 0;
+
+  return cols;
 }
 
 /**
