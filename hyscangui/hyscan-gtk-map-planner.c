@@ -114,6 +114,7 @@ typedef enum
 typedef struct
 {
   gchar                *id;       /* Идентификатор галса. */
+  gboolean              disabled; /* Признак того, что с объектом нельзя провзаимодействовать. */
   HyScanPlannerTrack   *object;   /* Структура с исходными данными галса. */
   HyScanGeoCartesian2D  start;    /* Проекция начала галса на карту. */
   HyScanGeoCartesian2D  end;      /* Проекция конца галса на карту. */
@@ -135,6 +136,7 @@ typedef struct
 typedef struct
 {
   gchar                *id;         /* Идентификатор зоны. */
+  gboolean              disabled;   /* Признак того, что с объектом нельзя провзаимодействовать. */
   HyScanPlannerZone    *object;     /* Структура с исходными данными зоны полигона. */
   GList                *points;     /* Проекция вершин зоны на карту, HyScanGtkMapPoint. */
 } HyScanGtkMapPlannerZone;
@@ -147,7 +149,7 @@ typedef struct
 
 typedef struct
 {
-  GList                         *tracks;                   /* Список галсов группы. */
+  GHashTable                    *tracks;                   /* Таблица галсов группы. */
   gboolean                       one_zone;                 /* Признак того, что все галсы из одной зоны. */
   gchar                         *zone_id;                  /* Идентификатор зоны галсов. */
   gchar                        **ids;                      /* Идентификаторы галсов внутри группы. */
@@ -173,7 +175,7 @@ struct _HyScanGtkMapPlannerPrivate
   HyScanPlannerSelection            *selection;            /* Список ИД выбранных объектов. */
   gboolean                           visible;              /* Признак видимости слоя. */
   GHashTable                        *zones;                /* Таблица зон полигона. */
-  GList                             *tracks;               /* Список галсов, которые не связаны ни с одной из зон. */
+  GHashTable                        *tracks;               /* Таблица плановых галсов. */
   HyScanGtkMapPlannerOrigin         *origin;               /* Точка начала отсчёта. */
 
   HyScanGtkMapPlannerMode            mode;                 /* Режим добавления новых элементов на слой. */
@@ -194,8 +196,8 @@ struct _HyScanGtkMapPlannerPrivate
   gint                               highlight_vertex;     /* Подсвечиваемая вершина. */
   gchar                             *active_track_id;      /* Активный галс. */
 
-  const HyScanGtkMapPlannerTrack    *found_track;          /* Указатель на галс под курсором мыши. */
-  const HyScanGtkMapPlannerZone     *found_zone;           /* Указатель на зону, чья вершина под курсором мыши. */
+  GString                           *found_track_id;       /* ИД галса под курсором мыши. */
+  GString                           *found_zone_id;        /* ИД зоны, чья вершина под курсором мыши. */
   gint                               found_vertex;         /* Номер вершины под курсором мыши. */
   HyScanGtkMapPlannerState           found_state;          /* Состояние, которое будет установлено при выборе хэндла. */
 
@@ -229,6 +231,13 @@ struct _HyScanGtkMapPlannerPrivate
     GtkWidget                       *extend;               /* Виджет пункта меню "Расятнуть до границ". */
     GtkWidget                       *num;                  /* Виджет пункта меню "Начать обход с этого галса." */
   } track_menu;                                            /* Контекстное меню галса. */
+
+  struct
+  {
+    GtkMenu                         *menu;                 /* Виджет меню. */
+    GtkWidget                       *del_vertex;           /* Виджет пункта меню "Удалить вершину". */
+    GtkWidget                       *del_zone;             /* Виджет пункта меню "Удалить зону". */
+  } zone_menu;                                             /* Контекстное меню зоны. */
 
   struct
   {
@@ -290,9 +299,14 @@ static void                       hyscan_gtk_map_planner_parallel_close        (
 static void                       hyscan_gtk_map_planner_track_remove          (HyScanGtkMapPlanner       *planner,
                                                                                 const gchar               *track_id);
 static void                       hyscan_gtk_map_planner_selection_remove      (HyScanGtkMapPlanner       *planner);
-static void                       hyscan_gtk_map_planner_vertex_remove         (HyScanGtkMapPlanner       *planner);
+static void                       hyscan_gtk_map_planner_vertex_remove         (HyScanGtkMapPlanner       *planner,
+                                                                                HyScanGtkMapPlannerZone   *zone,
+                                                                                GList                     *vertex);
+static void                       hyscan_gtk_map_planner_vertex_remove_found   (HyScanGtkMapPlanner       *planner);
 static void                       hyscan_gtk_map_planner_zone_save             (HyScanGtkMapPlanner       *planner,
                                                                                 HyScanGtkMapPlannerZone   *pzone);
+static void                       hyscan_gtk_map_planner_zone_remove           (HyScanGtkMapPlanner       *planner,
+                                                                                const gchar               *zone_id);
 
 static void                       hyscan_gtk_map_planner_zone_draw             (HyScanGtkMapPlanner       *planner,
                                                                                 HyScanGtkMapPlannerZone   *zone,
@@ -510,9 +524,16 @@ hyscan_gtk_map_planner_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_planner_parent_class)->constructed (object);
 
   priv->mode = HYSCAN_GTK_MAP_PLANNER_MODE_TRACK;
+  priv->found_zone_id = g_string_new (NULL);
+  priv->found_track_id = g_string_new (NULL);
+
   /* Не задаём функцию удаления ключей, т.к. ими владеет сама структура зоны, поле id. */
   priv->zones = g_hash_table_new_full (g_str_hash, g_str_equal, NULL,
                                        (GDestroyNotify) hyscan_gtk_map_planner_zone_free);
+  priv->tracks = g_hash_table_new_full (g_str_hash, g_str_equal, NULL,
+                                        (GDestroyNotify) hyscan_gtk_map_planner_track_free);
+  priv->cur_group.tracks = g_hash_table_new_full (g_str_hash, g_str_equal, NULL,
+                                                  (GDestroyNotify) hyscan_gtk_map_planner_track_edit_free);
 
   priv->selection_keep = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 
@@ -540,6 +561,11 @@ hyscan_gtk_map_planner_object_constructed (GObject *object)
   priv->track_menu.del = hyscan_gtk_map_planner_menu_add (planner, menu, _("Delete"));
 
   menu = GTK_MENU_SHELL (gtk_menu_new ());
+  priv->zone_menu.menu = GTK_MENU (menu);
+  priv->zone_menu.del_vertex = hyscan_gtk_map_planner_menu_add (planner, menu, _("Delete vertex"));
+  priv->zone_menu.del_zone = hyscan_gtk_map_planner_menu_add (planner, menu, _("Delete zone"));
+
+  menu = GTK_MENU_SHELL (gtk_menu_new ());
   priv->group_menu.menu = GTK_MENU (menu);
   priv->group_menu.extend = hyscan_gtk_map_planner_menu_add (planner, menu, _("Adjust length to zone boundary"));
   priv->group_menu.del = hyscan_gtk_map_planner_menu_add (planner, menu, _("Delete"));
@@ -563,20 +589,22 @@ hyscan_gtk_map_planner_object_finalize (GObject *object)
   g_clear_object (&priv->pango_layout);
   g_clear_object (&priv->model);
   g_clear_object (&priv->selection);
+  g_string_free (priv->found_track_id, TRUE);
+  g_string_free (priv->found_zone_id, TRUE);
   g_free (priv->active_track_id);
   g_free (priv->hover_track_id);
   g_free (priv->hover_zone_id);
   g_free (priv->hover_vertex.zone_id);
   g_free (priv->parallel_opts.track_id);
   g_clear_pointer (&priv->origin, hyscan_gtk_map_planner_origin_free);
-  g_list_free_full (priv->tracks, (GDestroyNotify) hyscan_gtk_map_planner_track_free);
+  g_hash_table_destroy (priv->tracks);
   g_list_free_full (priv->preview_tracks, (GDestroyNotify) hyscan_gtk_map_planner_track_free);
   g_hash_table_destroy (priv->zones);
   g_hash_table_destroy (priv->selection_keep);
 
   g_clear_pointer (&priv->cur_group.ids, g_strfreev);
   g_free (priv->cur_group.zone_id);
-  g_list_free_full (priv->cur_group.tracks, (GDestroyNotify) hyscan_gtk_map_planner_track_edit_free);
+  g_hash_table_destroy (priv->cur_group.tracks);
 
   G_OBJECT_CLASS (hyscan_gtk_map_planner_parent_class)->finalize (object);
 }
@@ -616,7 +644,8 @@ hyscan_gtk_map_planner_group_boundary (HyScanGtkMapPlanner *planner)
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
   HyScanGtkMapPlannerGroup *group = &planner->priv->cur_group;
   HyScanGtkMapPlannerTrack *track;
-  GList *link;
+  GHashTableIter iter;
+  gpointer value;
   gboolean iterate_all;
   gdouble from_x = G_MAXDOUBLE, from_y = G_MAXDOUBLE, to_x = -G_MAXDOUBLE, to_y = -G_MAXDOUBLE;
 
@@ -624,17 +653,18 @@ hyscan_gtk_map_planner_group_boundary (HyScanGtkMapPlanner *planner)
     return;
 
   iterate_all = group->handle_active == GROUP_HNDL_NONE;
-  for (link = iterate_all ? priv->tracks : group->tracks; link != NULL; link = link->next)
+  g_hash_table_iter_init (&iter, iterate_all ? priv->tracks : group->tracks);
+  while (g_hash_table_iter_next (&iter, NULL, &value))
     {
       if (iterate_all)
         {
-          track = link->data;
+          track = value;
           if (!g_strv_contains ((const gchar *const *) group->ids, track->id))
             continue;
         }
       else
         {
-          track = ((HyScanGtkMapPlannerTrackEdit *) link->data)->current;
+          track = ((HyScanGtkMapPlannerTrackEdit *) value)->current;
         }
 
       from_x = MIN (from_x, MIN (track->start.x, track->end.x));
@@ -696,8 +726,6 @@ hyscan_gtk_map_planner_model_changed (HyScanGtkMapPlanner *planner)
   GHashTable *objects;
   gchar *key;
   HyScanObject *object;
-  gchar *found_track_id, *found_zone_id;   /* Идентификаторы найденных галса и зоны. */
-  gint found_vertex;
 
   /* Получаем список всех объектов планировщика. */
   objects = hyscan_object_model_get (HYSCAN_OBJECT_MODEL (priv->model));
@@ -718,11 +746,6 @@ hyscan_gtk_map_planner_model_changed (HyScanGtkMapPlanner *planner)
   }
 
   /* Загружаем зоны. */
-  found_zone_id = priv->found_zone != NULL ? g_strdup (priv->found_zone->id) : NULL;
-  found_vertex = priv->found_vertex;
-  priv->found_zone = NULL;
-  priv->found_vertex = 0;
-
   g_hash_table_remove_all (priv->zones);
   g_hash_table_iter_init (&iter, objects);
   while (g_hash_table_iter_next (&iter, (gpointer *) &key, (gpointer *) &object))
@@ -742,21 +765,16 @@ hyscan_gtk_map_planner_model_changed (HyScanGtkMapPlanner *planner)
       hyscan_gtk_map_planner_zone_set_object (zone, orig_zone);
       hyscan_gtk_map_planner_zone_project (planner, zone);
       g_hash_table_insert (priv->zones, key, zone);
-
-      /* Восстанавливаем указатель на интересную зону. */
-      if (g_strcmp0 (found_zone_id, zone->id) == 0)
-        {
-          priv->found_zone = zone;
-          priv->found_vertex = found_vertex;
-        }
     }
 
-  /* Загружаем плановые галсы по каждой зоне. */
-  found_track_id = priv->found_track != NULL ? g_strdup (priv->found_track->id) : NULL;
-  priv->found_track = NULL;
+  /* Удаляем found_zone, если она больше не существует. */
+  if (priv->found_zone_id->len > 0 && !g_hash_table_contains (priv->zones, priv->found_zone_id->str))
+    {
+      g_string_truncate (priv->found_zone_id, 0);
+      priv->found_vertex = 0;
+    }
 
-  g_list_free_full (priv->tracks, (GDestroyNotify) hyscan_gtk_map_planner_track_free);
-  priv->tracks = NULL;
+  g_hash_table_remove_all (priv->tracks);
   g_hash_table_iter_init (&iter, objects);
   while (g_hash_table_iter_next (&iter, (gpointer *) &key, (gpointer *) &object))
     {
@@ -774,11 +792,7 @@ hyscan_gtk_map_planner_model_changed (HyScanGtkMapPlanner *planner)
       track->id = key;
       track->object = orig_track;
       hyscan_gtk_map_planner_track_project (planner, track);
-      priv->tracks = g_list_append (priv->tracks, track);
-
-      /* Восстанавливаем указатель на интересный галс. */
-      if (g_strcmp0 (found_track_id, track->id) == 0)
-        priv->found_track = track;
+      g_hash_table_insert (priv->tracks, key, track);
 
       /* Обновляем базовый галс для параллельных галсов. */
       if (g_strcmp0 (priv->parallel_opts.track_id, track->id) == 0)
@@ -794,12 +808,14 @@ hyscan_gtk_map_planner_model_changed (HyScanGtkMapPlanner *planner)
         }
     }
 
+  /* Удаляем found_track, если он больше не существует. */
+  if (priv->found_track_id->len != 0 && !g_hash_table_contains (priv->tracks, priv->found_track_id->str))
+    g_string_truncate (priv->found_track_id, 0);
+
   /* Обновляем границы выбранной группы галсов. */
   hyscan_gtk_map_planner_group_boundary (planner);
 
   g_hash_table_unref (objects);
-  g_free (found_track_id);
-  g_free (found_zone_id);
 
   if (priv->map != NULL)
     gtk_widget_queue_draw (GTK_WIDGET (priv->map));
@@ -901,8 +917,6 @@ hyscan_gtk_map_planner_zone_copy (const HyScanGtkMapPlannerZone *zone)
       copy->points = g_list_append (copy->points, hyscan_gtk_map_point_copy (point));
     }
 
-  /* todo: move copy->tracks out of zone -- keep them into the common track list. */
-
   return copy;
 }
 
@@ -978,15 +992,16 @@ hyscan_gtk_map_planner_projection (HyScanGtkMapPlanner *planner,
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
   GHashTableIter iter;
-  GList *link;
   HyScanGtkMapPlannerZone *zone;
+  HyScanGtkMapPlannerTrack *track;
 
   g_hash_table_iter_init (&iter, priv->zones);
   while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &zone))
     hyscan_gtk_map_planner_zone_project (planner, zone);
 
-  for (link = priv->tracks; link != NULL; link = link->next)
-    hyscan_gtk_map_planner_track_project (planner, link->data);
+  g_hash_table_iter_init (&iter, priv->tracks);
+  while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &track))
+    hyscan_gtk_map_planner_track_project (planner, track);
 
   if (priv->origin != NULL)
     hyscan_gtk_map_planner_origin_project (planner, priv->origin);
@@ -1003,6 +1018,7 @@ hyscan_gtk_map_planner_draw (GtkCifroArea        *carea,
   GHashTableIter iter;
   gchar *key;
   HyScanGtkMapPlannerZone *zone;
+  HyScanGtkMapPlannerTrack *track;
   GList *list;
 
   if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (planner)))
@@ -1022,8 +1038,9 @@ hyscan_gtk_map_planner_draw (GtkCifroArea        *carea,
   if (priv->cur_zone != NULL)
     hyscan_gtk_map_planner_zone_draw (planner, priv->cur_zone, FALSE, cairo);
 
-  for (list = priv->tracks; list != NULL; list = list->next)
-    hyscan_gtk_map_planner_track_draw (planner, list->data, TRUE, FALSE, cairo);
+  g_hash_table_iter_init (&iter, priv->tracks);
+  while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &track))
+    hyscan_gtk_map_planner_track_draw (planner, track, TRUE, FALSE, cairo);
 
   /* Параллельные галсы в режиме создания параллельных галсов. */
   for (list = priv->preview_tracks; list != NULL; list = list->next)
@@ -1154,7 +1171,7 @@ hyscan_gtk_map_planner_group_rotate (HyScanGtkMapPlanner *planner,
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
   HyScanGtkMapPlannerGroup *group = &priv->cur_group;
-  GList *link;
+  GHashTableIter iter;
   HyScanGtkMapPlannerTrackEdit *track_edit;
   HyScanGtkMapPlannerTrack *current, *original;
   HyScanGeoCartesian2D *center;
@@ -1167,9 +1184,9 @@ hyscan_gtk_map_planner_group_rotate (HyScanGtkMapPlanner *planner,
   angle = atan2 (cursor.y - center->y, cursor.x - center->x) -
           atan2 (group->orig_handle.y - center->y, group->orig_handle.x - center->x);
 
-  for (link = group->tracks; link != NULL; link = link->next)
+  g_hash_table_iter_init (&iter, group->tracks);
+  while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &track_edit))
     {
-      track_edit = link->data;
       current = track_edit->current;
       original = track_edit->original;
 
@@ -1188,7 +1205,7 @@ hyscan_gtk_map_planner_group_scale (HyScanGtkMapPlanner *planner,
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
   HyScanGtkMapPlannerGroup *group = &priv->cur_group;
   gdouble scale_x, scale_y;
-  GList *link;
+  GHashTableIter iter;
   HyScanGtkMapPlannerTrack *track;
   HyScanGtkMapPlannerTrackEdit *track_edit;
   HyScanGeoCartesian2D *center, *handle;
@@ -1224,9 +1241,9 @@ hyscan_gtk_map_planner_group_scale (HyScanGtkMapPlanner *planner,
   /* При отрицательном изменении масштаба активный хэндл меняется. */
   group->handle_active = hyscan_gtk_map_planner_group_opposite (group->handle_active, scale_x < 0, scale_y < 0);
 
-  for (link = group->tracks; link != NULL; link = link->next)
+  g_hash_table_iter_init (&iter, group->tracks);
+  while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &track_edit))
     {
-      track_edit = link->data;
       track = track_edit->current;
 
       track->start.x = (track->start.x - center->x) * scale_x + center->x;
@@ -1253,7 +1270,8 @@ hyscan_gtk_map_planner_group_drag (HyScanGtkMapPlanner *planner,
   /* Перемещение. */
   if (group->handle_active == GROUP_HNDL_C)
     {
-      GList *link;
+      GHashTableIter iter;
+      HyScanGtkMapPlannerTrackEdit *track;
       HyScanGeoCartesian2D movement;
       const gchar *parent_zone_id;
 
@@ -1262,9 +1280,9 @@ hyscan_gtk_map_planner_group_drag (HyScanGtkMapPlanner *planner,
 
       parent_zone_id = hyscan_gtk_map_planner_zone_find (planner, &cursor);
       COPYSTR_IF_NOT_EQUAL (group->zone_id, parent_zone_id);
-      for (link = group->tracks; link != NULL; link = link->next)
+      g_hash_table_iter_init (&iter, group->tracks);
+      while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &track))
         {
-          HyScanGtkMapPlannerTrackEdit *track = link->data;
           hyscan_gtk_map_planner_track_move (planner, track, &movement);
           COPYSTR_IF_NOT_EQUAL (track->current->object->zone_id, parent_zone_id);
         }
@@ -1297,17 +1315,17 @@ hyscan_gtk_map_planner_select_change (HyScanGtkLayer       *layer,
   HyScanGeoCartesian2D selection_start, selection_end;
   HyScanGtkMapPlannerTrack *track;
   gint total = 0;
-  GList *link;
+  GHashTableIter iter;
 
   selection_start.x = from_x;
   selection_start.y = from_y;
   selection_end.x = to_x;
   selection_end.y = to_y;
 
-  for (link = priv->tracks; link != NULL; link = link->next)
+  g_hash_table_iter_init (&iter, priv->tracks);
+  while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &track))
     {
       gboolean selected_before, selected;
-      track = link->data;
 
       if (g_hash_table_contains (priv->selection_keep, track->id))
         continue;
@@ -1533,22 +1551,12 @@ hyscan_gtk_map_planner_track_remove (HyScanGtkMapPlanner *planner,
                                      const gchar         *track_id)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
-  GList *link;
 
   /* Удаляем из модели. */
   hyscan_object_model_remove_object (HYSCAN_OBJECT_MODEL (priv->model), track_id);
 
   /* Удаляем из внутреннего списка. */
-  for (link = priv->tracks; link != NULL; link = link->next)
-    {
-      HyScanGtkMapPlannerTrack *track = link->data;
-
-      if (g_strcmp0 (track->id, track_id) != 0)
-        continue;
-
-      priv->tracks = g_list_remove_link (priv->tracks, link);
-      return;
-    }
+  g_hash_table_remove (priv->tracks, track_id);
 }
 
 /* Меняет направление галса. */
@@ -1577,17 +1585,16 @@ hyscan_gtk_map_planner_selection_extend (HyScanGtkMapPlanner *planner)
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
   HyScanGtkMapPlannerTrack *track;
   gchar **ids;
-  GList *link;
+  gint i;
 
   ids = hyscan_planner_selection_get_tracks (priv->selection);
   if (ids == NULL)
     return;
 
-  for (link = priv->tracks; link != NULL; link = link->next)
+  for (i = 0; ids[i] != NULL; i++)
     {
-      track = link->data;
-
-      if (!g_strv_contains ((const gchar *const *) ids, track->id))
+      track = g_hash_table_lookup (priv->tracks, ids[i]);
+      if (track == NULL)
         continue;
 
       hyscan_gtk_map_planner_track_extend (planner, track);
@@ -1618,14 +1625,37 @@ hyscan_gtk_map_planner_track_extend (HyScanGtkMapPlanner           *planner,
   hyscan_planner_track_free (modified_track);
 }
 
+/* Удаляет указанную вершину. */
 static void
-hyscan_gtk_map_planner_vertex_remove (HyScanGtkMapPlanner *planner)
+hyscan_gtk_map_planner_vertex_remove (HyScanGtkMapPlanner     *planner,
+                                      HyScanGtkMapPlannerZone *zone,
+                                      GList                   *vertex)
+{
+  hyscan_gtk_map_point_free (vertex->data);
+  zone->points = g_list_delete_link (zone->points, vertex);
+  hyscan_gtk_map_planner_zone_save (planner, zone);
+}
+
+/* Удаляет вершину под курсором мыши. */
+static void
+hyscan_gtk_map_planner_vertex_remove_found (HyScanGtkMapPlanner *planner)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  HyScanGtkMapPlannerZone *zone;
+  GList *vertex;
 
-  /* Удаляем из модели. */
-  priv->cur_zone->points = g_list_remove_link (priv->cur_zone->points, priv->cur_vertex);
-  hyscan_gtk_map_planner_zone_save (planner, priv->cur_zone);
+  if (priv->found_zone_id->len == 0)
+    return;
+
+  zone = g_hash_table_lookup (priv->zones, priv->found_zone_id->str);
+  if (zone == NULL)
+    return;
+
+  vertex = g_list_nth (zone->points, priv->found_vertex - 1);
+  if (vertex == NULL)
+    return;
+
+  hyscan_gtk_map_planner_vertex_remove (planner, zone, vertex);
 }
 
 /* Возвращае %TRUE, если в указанном состоянии редактируется галс. */
@@ -1794,6 +1824,12 @@ hyscan_gtk_map_planner_menu_activate (GtkButton *button,
   else if (GTK_WIDGET (button) == priv->track_menu.extend && priv->track_menu.track != NULL)
     hyscan_gtk_map_planner_track_extend (planner, priv->track_menu.track);
 
+  else if (GTK_WIDGET (button) == priv->zone_menu.del_vertex)
+    hyscan_gtk_map_planner_vertex_remove_found (planner);
+
+  else if (GTK_WIDGET (button) == priv->zone_menu.del_zone)
+    hyscan_gtk_map_planner_zone_remove (planner, priv->found_zone_id->str);
+
   else if (GTK_WIDGET (button) == priv->group_menu.del)
     hyscan_gtk_map_planner_selection_remove (planner);
 
@@ -1823,14 +1859,23 @@ hyscan_gtk_map_planner_handle_click_menu (HyScanGtkMapPlanner *planner,
                                           GdkEventButton      *event)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  HyScanGtkMapPlannerTrack *found_track;
 
   /* Контекстное меню галса. */
-  if (priv->found_track != NULL)
+  if (priv->found_track_id->len != 0)
     {
+      found_track = g_hash_table_lookup (priv->tracks, priv->found_track_id->str);
+
       g_clear_pointer (&priv->track_menu.track, hyscan_gtk_map_planner_track_free);
-      priv->track_menu.track = hyscan_gtk_map_planner_track_copy (priv->found_track);
+      priv->track_menu.track = hyscan_gtk_map_planner_track_copy (found_track);
       gtk_widget_set_sensitive (priv->track_menu.extend, priv->track_menu.track->object->zone_id != NULL);
       gtk_menu_popup_at_pointer (priv->track_menu.menu, (const GdkEvent *) event);
+    }
+
+  /* Контекстное меню зоны. */
+  else if (priv->found_state == STATE_ZONE_DRAG)
+    {
+      gtk_menu_popup_at_pointer (priv->zone_menu.menu, (const GdkEvent *) event);
     }
 
   /* Контекстное меню группы галсов. */
@@ -1851,9 +1896,9 @@ hyscan_gtk_map_planner_handle_click_select (HyScanGtkMapPlanner *planner,
   if (!(event->state & GDK_SHIFT_MASK))
     hyscan_planner_selection_remove_all (priv->selection);
 
-  if (hyscan_gtk_map_planner_is_state_track (priv->found_state) && priv->found_track != NULL)
+  if (hyscan_gtk_map_planner_is_state_track (priv->found_state) && priv->found_track_id->len != 0)
     {
-      id = priv->found_track->id;
+      id = priv->found_track_id->str;
 
       if (hyscan_planner_selection_contains (priv->selection, id))
         hyscan_planner_selection_remove (priv->selection, id);
@@ -1861,9 +1906,9 @@ hyscan_gtk_map_planner_handle_click_select (HyScanGtkMapPlanner *planner,
         hyscan_planner_selection_append (priv->selection, id);
     }
 
-  else if (hyscan_gtk_map_planner_is_state_vertex (priv->found_state) && priv->found_zone != NULL)
+  else if (hyscan_gtk_map_planner_is_state_vertex (priv->found_state) && priv->found_zone_id->len != 0)
     {
-      id = priv->found_zone->id;
+      id = priv->found_zone_id->str;
       hyscan_planner_selection_set_zone (priv->selection, id, priv->found_vertex - 1);
     }
 
@@ -1882,8 +1927,6 @@ hyscan_gtk_map_planner_cancel (HyScanGtkMapPlanner *planner)
   priv->cur_vertex = NULL;
   priv->cur_state = STATE_NONE;
   hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);
-
-  gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }
 
 static void
@@ -1918,6 +1961,8 @@ hyscan_gtk_map_planner_key_press (HyScanGtkMapPlanner *planner,
   if (priv->cur_state != STATE_NONE && (event->keyval == GDK_KEY_Escape))
     {
       hyscan_gtk_map_planner_cancel (planner);
+      gtk_widget_queue_draw (GTK_WIDGET (priv->map));
+
       return GDK_EVENT_PROPAGATE;
     }
 
@@ -1931,9 +1976,12 @@ hyscan_gtk_map_planner_key_press (HyScanGtkMapPlanner *planner,
       if (hyscan_gtk_map_planner_is_state_track (priv->cur_state))
         hyscan_gtk_map_planner_track_remove (planner, priv->cur_track->id);
       else if (hyscan_gtk_map_planner_is_state_vertex (priv->cur_state))
-        hyscan_gtk_map_planner_vertex_remove (planner);
+        hyscan_gtk_map_planner_vertex_remove (planner, priv->cur_zone, priv->cur_vertex);
       else
         hyscan_gtk_map_planner_selection_remove (planner);
+
+      hyscan_gtk_map_planner_cancel (planner);
+      gtk_widget_queue_draw (GTK_WIDGET (priv->map));
     }
 
   return GDK_EVENT_PROPAGATE;
@@ -1952,7 +2000,8 @@ hyscan_gtk_map_planner_group_draw (HyScanGtkMapPlanner *planner,
                                    cairo_t             *cairo)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
-  GList *link;
+  HyScanGtkMapPlannerTrackEdit *track_edit;
+  GHashTableIter iter;
   gdouble from_x, from_y;
   gdouble to_x, to_y;
 
@@ -1966,11 +2015,9 @@ hyscan_gtk_map_planner_group_draw (HyScanGtkMapPlanner *planner,
   cairo_save (cairo);
 
   /* Рисуем галсы. */
-  for (link = priv->cur_group.tracks; link != NULL; link = link->next)
-    {
-      HyScanGtkMapPlannerTrackEdit *track_edit = link->data;
-      hyscan_gtk_map_planner_track_draw (planner, track_edit->current, FALSE, FALSE, cairo);
-    }
+  g_hash_table_iter_init (&iter, priv->cur_group.tracks);
+  while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &track_edit))
+    hyscan_gtk_map_planner_track_draw (planner, track_edit->current, FALSE, FALSE, cairo);
 
   gdk_cairo_set_source_rgba (cairo, &priv->track_style_selected.color);
   cairo_set_line_width (cairo, priv->track_style_selected.line_width);
@@ -2063,6 +2110,7 @@ hyscan_gtk_map_planner_zone_draw (HyScanGtkMapPlanner     *planner,
                                   cairo_t                 *cairo)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  HyScanGtkMapPlannerGroup *group = &priv->cur_group;
   GList *link;
   gint vertex_num = 0;
   const gchar *hover_zone_id;
@@ -2088,8 +2136,8 @@ hyscan_gtk_map_planner_zone_draw (HyScanGtkMapPlanner     *planner,
   /* Определяем зону, над которой находится курсор - её надо подсветить. */
   if (priv->cur_track != NULL)
     hover_zone_id = priv->cur_track->object->zone_id;
-  else if (priv->cur_group.tracks != NULL && priv->cur_group.one_zone)
-    hover_zone_id = priv->cur_group.zone_id;
+  else if (g_hash_table_size (group->tracks) > 0 && group->one_zone)
+    hover_zone_id = group->zone_id;
   else
     hover_zone_id = NULL;
 
@@ -2174,8 +2222,6 @@ hyscan_gtk_map_planner_track_is_cur (HyScanGtkMapPlanner      *planner,
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
   HyScanGtkMapPlannerGroup *group = &priv->cur_group;
-  GList *link;
-  HyScanGtkMapPlannerTrackEdit *track_edit;
 
   if (track->id == NULL)
     return FALSE;
@@ -2188,12 +2234,8 @@ hyscan_gtk_map_planner_track_is_cur (HyScanGtkMapPlanner      *planner,
     return FALSE;
 
   /* Проверяем галсы внутри группы. */
-  for (link = group->tracks; link != NULL; link = link->next)
-    {
-      track_edit = link->data;
-      if (g_str_equal (track_edit->original->id, track->id))
-        return TRUE;
-    }
+  if (g_hash_table_contains (group->tracks, track->id))
+    return TRUE;
 
   return FALSE;
 }
@@ -2318,10 +2360,10 @@ hyscan_gtk_map_planner_handle_find_track (HyScanGtkMapPlanner  *planner,
                                           HyScanGeoCartesian2D *handle_coord)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
-  GList *list;
   gdouble scale_x, scale_y;
   gdouble max_x, max_y;
 
+  GHashTableIter iter;
   HyScanGtkMapPlannerTrack *track = NULL;
   gdouble handle_x = 0.0, handle_y = 0.0;
   gboolean handle_found = FALSE;
@@ -2330,9 +2372,11 @@ hyscan_gtk_map_planner_handle_find_track (HyScanGtkMapPlanner  *planner,
   max_x = HANDLE_HOVER_RADIUS * scale_x;
   max_y = HANDLE_HOVER_RADIUS * scale_y;
 
-  for (list = priv->tracks; list != NULL; list = list->next)
+  g_hash_table_iter_init (&iter, priv->tracks);
+  while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &track))
     {
-      track = list->data;
+      if (track->disabled)
+        continue;
 
       handle_x = track->start.x;
       handle_y = track->start.y;
@@ -2366,7 +2410,7 @@ hyscan_gtk_map_planner_handle_find_track (HyScanGtkMapPlanner  *planner,
     {
       handle_coord->x = handle_x;
       handle_coord->y = handle_y;
-      priv->found_track = track;
+      g_string_insert (priv->found_track_id, 0, track->id);
     }
 
   return handle_found;
@@ -2437,6 +2481,9 @@ hyscan_gtk_map_planner_handle_find_zone (HyScanGtkMapPlanner  *planner,
     {
       gint vertex_num = 0;
 
+      if (zone->disabled)
+        continue;
+
       for (list = zone->points; list != NULL; list = list->next)
         {
           gdouble distance;
@@ -2449,7 +2496,7 @@ hyscan_gtk_map_planner_handle_find_zone (HyScanGtkMapPlanner  *planner,
             {
               handle_coord->x = point->c2d.x;
               handle_coord->y = point->c2d.y;
-              priv->found_zone = zone;
+              g_string_insert (priv->found_zone_id, 0, zone->id);
               priv->found_vertex = vertex_num;
               priv->found_state = STATE_ZONE_DRAG;
 
@@ -2463,6 +2510,9 @@ hyscan_gtk_map_planner_handle_find_zone (HyScanGtkMapPlanner  *planner,
   while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &zone))
     {
       gint vertex_num = 0;
+
+      if (zone->disabled)
+        continue;
 
       for (list = zone->points; list != NULL; list = list->next)
         {
@@ -2479,7 +2529,7 @@ hyscan_gtk_map_planner_handle_find_zone (HyScanGtkMapPlanner  *planner,
             {
               handle_coord->x = edge_point.x;
               handle_coord->y = edge_point.y;
-              priv->found_zone = zone;
+              g_string_insert (priv->found_zone_id, 0, zone->id);
               priv->found_vertex = vertex_num;
               priv->found_state = STATE_ZONE_INSERT;
 
@@ -2542,8 +2592,7 @@ hyscan_gtk_map_planner_group_clear_cur (HyScanGtkMapPlanner *planner)
 
   group->handle_active = GROUP_HNDL_NONE;
   g_clear_pointer (&priv->cur_group.zone_id, g_free);
-  g_list_free_full (group->tracks, (GDestroyNotify) hyscan_gtk_map_planner_track_edit_free);
-  group->tracks = NULL;
+  g_hash_table_remove_all (group->tracks);
 
   hyscan_gtk_map_planner_group_boundary (planner);
 }
@@ -2556,7 +2605,7 @@ hyscan_gtk_map_planner_set_cur_group (HyScanGtkMapPlanner  *planner)
   HyScanGtkMapPlannerGroup *group = &priv->cur_group;
   HyScanGtkMapPlannerTrack *track;
   HyScanGtkMapPlannerTrackEdit *track_edit;
-  GList *link;
+  gint i;
 
   if (priv->cur_state != STATE_GROUP_EDIT)
     return;
@@ -2567,22 +2616,20 @@ hyscan_gtk_map_planner_set_cur_group (HyScanGtkMapPlanner  *planner)
   group->orig_center = group->handles[GROUP_HNDL_C];
 
   /* Копируем галсы на момент начала редактирования. */
-  g_list_free_full (group->tracks, (GDestroyNotify) hyscan_gtk_map_planner_track_edit_free);
-  g_clear_pointer (&priv->cur_group.zone_id, g_free);
-  group->tracks = NULL;
+  g_hash_table_remove_all (group->tracks);
+  g_clear_pointer (&group->zone_id, g_free);
   group->one_zone = TRUE;
-  for (link = priv->tracks; link != NULL; link = link->next)
+  for (i = 0; group->ids[i] != NULL; i++)
     {
-      track = link->data;
-
-      if (!g_strv_contains ((const gchar *const *) group->ids, track->id))
+      track = g_hash_table_lookup (priv->tracks, group->ids[i]);
+      if (track == NULL)
         continue;
 
       track_edit = hyscan_gtk_map_planner_track_edit_new ();
       track_edit->original = hyscan_gtk_map_planner_track_copy (track);
       track_edit->current = hyscan_gtk_map_planner_track_copy (track);
 
-      group->tracks = g_list_append (group->tracks, track_edit);
+      g_hash_table_replace (group->tracks, track_edit->original->id, track_edit);
 
       if (group->zone_id == NULL && track->object->zone_id != NULL)
         group->zone_id = g_strdup (track->object->zone_id);
@@ -2753,8 +2800,8 @@ hyscan_gtk_map_planner_handle_find (HyScanGtkLayer       *layer,
 
   priv->found_state = STATE_NONE;
   priv->cur_group.handle_found = GROUP_HNDL_NONE;
-  priv->found_track = NULL;
-  priv->found_zone = NULL;
+  g_string_truncate (priv->found_track_id, 0);
+  g_string_truncate (priv->found_zone_id, 0);
   priv->found_vertex = 0;
 
   if (hyscan_gtk_map_planner_handle_find_group (planner, x, y, &handle_coord) ||
@@ -2798,21 +2845,25 @@ hyscan_gtk_map_planner_handle_drag (HyScanGtkLayer       *layer,
 {
   HyScanGtkMapPlanner *planner = HYSCAN_GTK_MAP_PLANNER (layer);
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  HyScanGtkMapPlannerZone *found_zone;
+  HyScanGtkMapPlannerTrack *found_track;
 
   g_return_if_fail (g_strcmp0 (handle->type_name, HANDLE_TYPE_NAME) == 0);
 
   /* В момент захвата хэндла мы предполагаем, что текущий хэндл не выбран. Иначе это ошибка в логике программы. */
   g_assert (priv->cur_track == NULL && priv->cur_zone == NULL);
 
+  found_track = priv->found_track_id->len != 0 ? g_hash_table_lookup (priv->tracks, priv->found_track_id->str) : NULL;
   if (hyscan_gtk_map_planner_is_state_track (priv->found_state) &&
-      hyscan_gtk_map_planner_track_is_grouped (planner, priv->found_track))
+      hyscan_gtk_map_planner_track_is_grouped (planner, found_track))
     {
       return;
     }
 
   priv->cur_state = priv->found_state;
-  hyscan_gtk_map_planner_set_cur_track (planner, hyscan_gtk_map_planner_track_copy (priv->found_track));
-  hyscan_gtk_map_planner_set_cur_zone (planner, hyscan_gtk_map_planner_zone_copy (priv->found_zone), priv->found_vertex - 1);
+  hyscan_gtk_map_planner_set_cur_track (planner, hyscan_gtk_map_planner_track_copy (found_track));
+  found_zone = priv->found_zone_id->len > 0 ? g_hash_table_lookup (priv->zones, priv->found_zone_id->str) : NULL;
+  hyscan_gtk_map_planner_set_cur_zone (planner, hyscan_gtk_map_planner_zone_copy (found_zone), priv->found_vertex - 1);
   hyscan_gtk_map_planner_set_cur_group (planner);
 
   /* Перходим от состояния STATE_ZONE_INSERT к STATE_ZONE_DRAG. */
@@ -2835,10 +2886,10 @@ hyscan_gtk_map_planner_handle_show_track (HyScanGtkLayer       *layer,
 
   prev_state = priv->hover_state;
 
-  if (handle != NULL && priv->found_track != NULL)
+  if (handle != NULL && priv->found_track_id->len != 0)
     {
       priv->hover_state = priv->found_state;
-      hover_id = priv->found_track->id;
+      hover_id = priv->found_track_id->str;
 
       state_set = TRUE;
     }
@@ -2904,9 +2955,9 @@ hyscan_gtk_map_planner_handle_show_zone (HyScanGtkLayer       *layer,
   gboolean state_set;
 
   prev_state = priv->hover_state;
-  if (handle != NULL && priv->found_zone != NULL)
+  if (handle != NULL && priv->found_zone_id->len != 0)
     {
-      hover_id = priv->found_zone->id;
+      hover_id = priv->found_zone_id->str;
       hover_vertex = priv->found_vertex;
       priv->hover_state = priv->found_state;
       if (priv->hover_state == STATE_ZONE_INSERT)
@@ -2991,6 +3042,15 @@ hyscan_gtk_map_planner_handle_create (HyScanGtkLayer *layer,
   return FALSE;
 }
 
+static void
+hyscan_gtk_map_planner_zone_remove (HyScanGtkMapPlanner *planner,
+                                    const gchar         *zone_id)
+{
+  HyScanGtkMapPlannerPrivate *priv = planner->priv;
+  hyscan_object_model_remove_object (HYSCAN_OBJECT_MODEL (priv->model), zone_id);
+  g_hash_table_remove (priv->zones, zone_id);
+}
+
 /* Сохраняет текущую зону в БД. */
 static void
 hyscan_gtk_map_planner_zone_save (HyScanGtkMapPlanner     *planner,
@@ -3004,6 +3064,7 @@ hyscan_gtk_map_planner_zone_save (HyScanGtkMapPlanner     *planner,
   zone->points_len = g_list_length (pzone->points);
   if (zone->points_len > 2)
     {
+      HyScanGtkMapPlannerZone *zone_copy;
       GList *link;
       gint i = 0;
 
@@ -3016,14 +3077,20 @@ hyscan_gtk_map_planner_zone_save (HyScanGtkMapPlanner     *planner,
           zone->points[i++] = point->geo;
         }
 
+      /* Обновляем параметры зоны в БД. */
       if (pzone->id != NULL)
         hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), pzone->id, (HyScanObject *) zone);
       else
         hyscan_object_model_add_object (HYSCAN_OBJECT_MODEL (priv->model), (HyScanObject *) zone);
+
+      /* Обновляем внутреннее состояние, пока не пришло уведомление из БД. */
+      zone_copy = hyscan_gtk_map_planner_zone_copy (pzone);
+      zone_copy->disabled = TRUE;
+      g_hash_table_replace (priv->zones, pzone->id != NULL ? pzone->id : "new-zone", zone_copy);
     }
   else if (pzone->id != NULL)
     {
-      hyscan_object_model_remove_object (HYSCAN_OBJECT_MODEL (priv->model), pzone->id);
+      hyscan_gtk_map_planner_zone_remove (planner, pzone->id);
     }
 }
 
@@ -3066,6 +3133,7 @@ hyscan_gtk_map_planner_save_current (HyScanGtkMapPlanner *planner)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
   HyScanGtkMapPlannerTrack *cur_track = priv->cur_track;
+  HyScanGtkMapPlannerTrack *track_copy;
   HyScanObject *object;
 
   g_return_if_fail (cur_track != NULL);
@@ -3075,6 +3143,11 @@ hyscan_gtk_map_planner_save_current (HyScanGtkMapPlanner *planner)
     hyscan_object_model_add_object (HYSCAN_OBJECT_MODEL (priv->model), object);
   else
     hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), cur_track->id, object);
+
+  /* Обновляем внутреннюю таблицу галсов. */
+  track_copy = hyscan_gtk_map_planner_track_copy (cur_track);
+  track_copy->disabled = TRUE;
+  g_hash_table_replace (priv->tracks, cur_track->id != NULL ? cur_track->id : "new-track", track_copy);
 }
 
 static gboolean
@@ -3094,17 +3167,22 @@ static gboolean
 hyscan_gtk_map_planner_release_group (HyScanGtkMapPlanner *planner)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
-  GList *link;
+  GHashTableIter iter;
   HyScanGtkMapPlannerTrackEdit *track_edit;
   HyScanGtkMapPlannerTrack *track;
+  HyScanGtkMapPlannerGroup *group = &priv->cur_group;
 
   priv->cur_state = STATE_NONE;
-  for (link = priv->cur_group.tracks; link != NULL; link = link->next)
+  g_hash_table_iter_init (&iter, group->tracks);
+  while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &track_edit))
     {
-      track_edit = link->data;
-      track = track_edit->current;
+      track = hyscan_gtk_map_planner_track_copy (track_edit->current);
       hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), track->id,
                                          (const HyScanObject *) track->object);
+
+      /* Обновляем внутренний список галсов. */
+      track->disabled = TRUE;
+      g_hash_table_replace (priv->tracks, track->id, track);
     }
 
   hyscan_gtk_map_planner_group_clear_cur (planner);
@@ -3354,7 +3432,7 @@ hyscan_gtk_map_planner_track_view (HyScanGtkMapPlanner *planner,
                                    gboolean             zoom_in)
 {
   HyScanGtkMapPlannerPrivate *priv;
-  GList *link;
+  HyScanGtkMapPlannerTrack *track;
   gdouble prev_scale;
   gdouble from_x, to_x, from_y, to_y;
 
@@ -3364,28 +3442,22 @@ hyscan_gtk_map_planner_track_view (HyScanGtkMapPlanner *planner,
   if (priv->map == NULL)
     return;
 
-  for (link = priv->tracks; link != NULL; link = link->next)
+  track = g_hash_table_lookup (priv->tracks, track_id);
+  if (track == NULL)
+    return;
+
+  from_x = MIN (track->start.x, track->end.x);
+  to_x = MAX (track->start.x, track->end.x);
+  from_y = MIN (track->start.y, track->end.y);
+  to_y = MAX (track->start.y, track->end.y);
+
+  gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &prev_scale, NULL);
+  gtk_cifro_area_set_view (GTK_CIFRO_AREA (priv->map), from_x, to_x, from_y, to_y);
+
+  /* Возвращаем прежний масштаб. */
+  if (!zoom_in)
     {
-      HyScanGtkMapPlannerTrack *track = link->data;
-
-      if (g_strcmp0 (track->id, track_id) != 0)
-        continue;
-
-      from_x = MIN (track->start.x, track->end.x);
-      to_x = MAX (track->start.x, track->end.x);
-      from_y = MIN (track->start.y, track->end.y);
-      to_y = MAX (track->start.y, track->end.y);
-
-      gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &prev_scale, NULL);
-      gtk_cifro_area_set_view (GTK_CIFRO_AREA (priv->map), from_x, to_x, from_y, to_y);
-
-      /* Возвращаем прежний масштаб. */
-      if (!zoom_in)
-        {
-          gtk_cifro_area_set_scale (GTK_CIFRO_AREA (priv->map), prev_scale, prev_scale,
-                                    (from_x + to_x) / 2.0, (from_y + to_y) / 2.0);
-        }
-
-      return;
+      gtk_cifro_area_set_scale (GTK_CIFRO_AREA (priv->map), prev_scale, prev_scale,
+                                (from_x + to_x) / 2.0, (from_y + to_y) / 2.0);
     }
 }
