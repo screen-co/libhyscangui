@@ -61,6 +61,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-planner-shift.c
              hyscan-gtk-planner-list.c
              hyscan-gtk-planner-list-bar.c
+             hyscan-gtk-planner-import.c
              hyscan-cairo.c
              hyscan-gtk-export.c
 
@@ -154,6 +155,7 @@ install (FILES hyscan-gtk-area.h
                hyscan-gtk-planner-shift.h
                hyscan-gtk-planner-list.h
                hyscan-gtk-planner-list-bar.h
+               hyscan-gtk-planner-import.h
                hyscan-gtk-layer-common.h
                hyscan-gtk-layer-param.h
                hyscan-gtk-layer-container.h
