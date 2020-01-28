@@ -386,7 +386,7 @@ hyscan_gtk_planner_zeditor_vertex_duplicate (HyScanGtkPlannerZeditor *zeditor)
   HyScanGtkPlannerZeditorPrivate *priv = zeditor->priv;
   HyScanPlannerZone *zone;
 
-  if (priv->vertex < 0)
+  if (priv->vertex < 0 || priv->zone_id == NULL)
     return;
 
   zone = g_hash_table_lookup (priv->objects, priv->zone_id);

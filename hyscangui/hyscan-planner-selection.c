@@ -67,7 +67,6 @@ hyscan_planner_selection_class_init (HyScanPlannerSelectionClass *klass)
   /**
    * HyScanPlannerSelection::zone-changed:
    * @planner: указатель на #HyScanGtkMapPlanner
-   * @zone_id: идентификатор выбранной зоны или %NULL
    *
    * Сигнал посылается при изменении выбранной зоны.
    */
@@ -284,7 +283,8 @@ hyscan_planner_selection_set_zone (HyScanPlannerSelection *selection,
   if (zone_id != NULL)
     {
       object = g_hash_table_lookup (priv->objects, zone_id);
-      g_return_if_fail (HYSCAN_IS_PLANNER_ZONE (object));
+      if (!HYSCAN_IS_PLANNER_ZONE (object))
+        return;
 
       last_vertex_index = (gint) object->points_len - 1;
     }
