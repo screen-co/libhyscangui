@@ -96,8 +96,7 @@
 #include "hyscan-map-tile-source-blend.h"
 #include "hyscan-gtk-map-base.h"
 #include "hyscan-gtk-layer-param.h"
-#include <hyscan-pseudo-mercator.h>
-#include <hyscan-mercator.h>
+#include <hyscan-proj.h>
 #include <string.h>
 
 #define PROJ_MERC         "merc"
@@ -259,21 +258,14 @@ hyscan_profile_map_projection_create (HyScanProfileMap *profile)
   HyScanProfileMapPrivate *priv = profile->priv;
 
   if (g_str_equal (priv->projection, PROJ_WEBMERC))
-    {
-      return hyscan_pseudo_mercator_new ();
-    }
+    return hyscan_proj_new (HYSCAN_PROJ_WEBMERC);
 
   if (g_str_equal (priv->projection, PROJ_MERC))
-    {
-      HyScanGeoEllipsoidParam p;
-
-      hyscan_geo_init_ellipsoid (&p, HYSCAN_GEO_ELLIPSOID_WGS84);
-      return hyscan_mercator_new (p);
-    }
+    return hyscan_proj_new (HYSCAN_PROJ_MERC);
 
   g_warning ("HyScanProfileMap: unknown projection %s", priv->projection);
 
-  return NULL;
+  return hyscan_proj_new (priv->projection);
 }
 
 /* Разделяет HTTP-заголовок на ключ и значение. */

@@ -93,7 +93,7 @@
  */
 
 #include "hyscan-gtk-map.h"
-#include <hyscan-pseudo-mercator.h>
+#include <hyscan-proj.h>
 #include <math.h>
 
 enum
@@ -326,7 +326,7 @@ hyscan_gtk_map_object_constructed (GObject *object)
   g_signal_connect_swapped (gtk_map, "button-release-event", G_CALLBACK (hyscan_gtk_map_grab_focus), gtk_map);
 
   /* Устанавливаем проекцию и масштабы по умолчанию. */
-  priv->projection = hyscan_pseudo_mercator_new ();
+  priv->projection = hyscan_proj_new (HYSCAN_PROJ_WEBMERC);
   hyscan_gtk_map_set_scales_meter (gtk_map, scales, G_N_ELEMENTS (scales));
 }
 
