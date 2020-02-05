@@ -57,10 +57,11 @@
 #include <hyscan-object-model.h>
 #include <hyscan-projector.h>
 #include <hyscan-nmea-parser.h>
-#include <string.h>
 #include <hyscan-depthometer.h>
 #include <hyscan-factory-depth.h>
 #include <hyscan-factory-amplitude.h>
+#include <string.h>
+#include <math.h>
 
 // todo: вместо этих макросов брать номера каналов из каких-то пользовательских настроек
 #define NMEA_RMC_CHANNEL   1             /* Канал NMEA с навигационными данными. */
@@ -136,6 +137,11 @@ inline static HyScanNavData * hyscan_mark_loc_model_rmc_data_new             (Hy
                                                                               const gchar           *track_name,
                                                                               HyScanNMEAField        field);
 static inline gdouble         hyscan_mark_loc_model_weight                   (gint64                 mtime,
+                                                                              gint64                 ltime,
+                                                                              gint64                 rtime,
+                                                                              gdouble                lval,
+                                                                              gdouble                rval);
+static inline gdouble         hyscan_mark_loc_model_weight_circular          (gint64                 mtime,
                                                                               gint64                 ltime,
                                                                               gint64                 rtime,
                                                                               gdouble                lval,
@@ -352,6 +358,40 @@ hyscan_mark_loc_model_weight (gint64  mtime,
   return lweight * lval + rweight * rval;
 }
 
+/* Находит средневзвешенное значение для угловых значений между lval и rval. */
+static inline gdouble
+hyscan_mark_loc_model_weight_circular (gint64  mtime,
+                                       gint64  ltime,
+                                       gint64  rtime,
+                                       gdouble lval,
+                                       gdouble rval)
+{
+  gint64 dtime;
+  gdouble rweight, lweight;
+  gdouble sum_sin, sum_cos;
+  gdouble value;
+
+  dtime = rtime - ltime;
+
+  if (dtime == 0)
+    return lval;
+
+  rweight = 1.0 - (gdouble) (rtime - mtime) / dtime;
+  lweight = 1.0 - (gdouble) (mtime - ltime) / dtime;
+
+  rval *= G_PI / 180.0;
+  lval *= G_PI / 180.0;
+
+  sum_sin = rweight * sin (rval) + lweight * sin (lval);
+  sum_cos = rweight * cos (rval) + lweight * cos (lval);
+  value = atan2 (sum_sin, sum_cos) / G_PI * 180.0;
+
+  if (value < 0.)
+    value += 360.0;
+
+  return value;
+}
+
 /* Определяет положение и курс судна в момент фиксации метки. */
 static gboolean
 hyscan_mark_loc_model_load_nav (HyScanMarkLocModel *ml_model,
@@ -388,7 +428,7 @@ hyscan_mark_loc_model_load_nav (HyScanMarkLocModel *ml_model,
   /* Ищем средневзвешенное значение. */
   location->center_geo.lat = hyscan_mark_loc_model_weight (location->time, ltime, rtime, lgeo.lat, rgeo.lat);
   location->center_geo.lon = hyscan_mark_loc_model_weight (location->time, ltime, rtime, lgeo.lon, rgeo.lon);
-  location->center_geo.h   = hyscan_mark_loc_model_weight (location->time, ltime, rtime, lgeo.h, rgeo.h);
+  location->center_geo.h   = hyscan_mark_loc_model_weight_circular (location->time, ltime, rtime, lgeo.h, rgeo.h);
 
   /* Поправка на поворот датчика GPS. */
   offset = hyscan_nav_data_get_offset (lat_data);
