@@ -278,6 +278,10 @@ hyscan_gtk_map_tiled_fill_tile (HyScanGtkMapTiled *tiled_layer,
 
   g_return_if_fail (klass->fill_tile != NULL);
 
+#ifdef DEBUG_TILES
+  GTimer *timer = g_timer_new ();
+#endif
+
   klass->fill_tile (tiled_layer, tile);
 
 #ifdef DEBUG_TILES
@@ -288,6 +292,7 @@ hyscan_gtk_map_tiled_fill_tile (HyScanGtkMapTiled *tiled_layer,
     guint tile_size;
     cairo_t *cairo;
     cairo_surface_t *surface;
+    gdouble seconds = g_timer_elapsed (timer, NULL);
 
     surface = hyscan_map_tile_get_surface (tile);
     cairo = cairo_create (surface);
@@ -304,8 +309,18 @@ hyscan_gtk_map_tiled_fill_tile (HyScanGtkMapTiled *tiled_layer,
                            g_rand_double_range (rand, 0.0, 1.0),
                            0.1);
     cairo_paint (cairo);
-    cairo_set_source_rgb (cairo, 0.2, 0.2, 0);
+    cairo_set_source_rgb (cairo, 1, 0.0, 0);
 
+    g_snprintf (tile_num, sizeof (tile_num), "%d, %d", x, y);
+    cairo_move_to (cairo, .33 * tile_size, .33 * tile_size - 5);
+    cairo_show_text (cairo, tile_num);
+
+    g_snprintf (tile_num, sizeof (tile_num), "%.3f msec", seconds * 1e3);
+    cairo_move_to (cairo, .33 * tile_size, .33 * tile_size + 5);
+    cairo_show_text (cairo, tile_num);
+
+    g_rand_free (rand);
+    g_timer_destroy (timer);
     cairo_surface_destroy (surface);
     cairo_destroy (cairo);
   }

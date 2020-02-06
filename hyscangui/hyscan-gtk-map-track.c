@@ -1,6 +1,6 @@
 /* hyscan-gtk-map-track.c
  *
- * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
+ * Copyright 2019-2020 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *
  * This file is part of HyScanGui library.
  *
@@ -43,20 +43,18 @@
  *
  * Конкретный вид галса определяется используемым классом отрисовки галса. См.
  * интерфейс #HyScanGtkMapTrackDraw и его реализацию в классах
- * - #HyScanGtkMapTrackDrawBar - линии длины,
- * - #HyScanGtkMapTrackDrawFill - заливка области покрытия.
+ * - #HyScanGtkMapTrackDrawBar - траектория движения и линии дальности,
+ * - #HyScanGtkMapTrackDrawBeam - заливка области покрытия.
  *
  * Для создания и отображения слоя используются функции:
  * - hyscan_gtk_map_track_new() создает слой
- * - hyscan_gtk_map_track_track_enable() устанавливает видимость
- *   указанного галса
+ * - hyscan_gtk_map_track_set_tracks() устанавливает список видимых галсов
  *
  * По умолчанию слой самостоятельно выбирает одни из доступных каналов данных
  * для получения навигационной и акустической информации по галсу. Чтобы получить
- * или установить номера используемых каналов, следует обратиться к функциям:
- * - hyscan_gtk_map_track_track_get_channel()
- * - hyscan_gtk_map_track_track_max_channel()
- * - hyscan_gtk_map_track_track_set_channel().
+ * или установить номера используемых каналов, следует получить объект галса #HyScanGtkMapTrackItem
+ * и установить его параметры через HyScanParam:
+ * - hyscan_gtk_map_track_lookup() - получение объекта галса
  *
  * Также слой поддерживает загрузку стилей через #HyScanParam. Подробнее в
  * функции hyscan_gtk_layer_get_param().
@@ -64,13 +62,15 @@
  */
 
 #include "hyscan-gtk-map-track.h"
-#include "hyscan-gtk-map.h"
-#include "hyscan-gtk-map-track-draw.h"
 #include "hyscan-gtk-map-track-draw-bar.h"
+#include "hyscan-gtk-map-track-draw.h"
+#include "hyscan-gtk-map.h"
+#include "hyscan-gtk-map-track-draw-beam.h"
 #include <hyscan-cartesian.h>
 #include <hyscan-projector.h>
+#include <hyscan-param-proxy.h>
 
-#define REFRESH_INTERVAL              300000                        /* Период проверки каналов данных на новые данные, мкс. */
+#define REFRESH_INTERVAL              300000     /* Период обновления данных, мкс. */
 
 /* Раскомментируйте строку ниже для вывода отладочной информации о скорости отрисовки слоя. */
 // #define HYSCAN_GTK_MAP_DEBUG_FPS
@@ -96,11 +96,14 @@ struct _HyScanGtkMapTrackPrivate
 
   GMutex                          t_lock;           /* Доступ к модификации таблицы tracks. */
   GHashTable                     *tracks;           /* Таблица отображаемых галсов:
-                                                     * ключ - название галса, значение - HyScanGtkMapTrackTrack. */
+                                                     * ключ - название галса, значение - HyScanGtkMapTrackItem. */
   GRWLock                         a_lock;           /* Доступ к модификации массива active_tracks. */
   gchar                         **active_tracks;    /* NULL-терминированный массив названий видимых галсов. */
 
-  HyScanGtkMapTrackDraw          *track_draw;       /* Объект для рисования галса. */
+  HyScanGtkMapTrackDrawType       draw_type;        /* Активный тип объекта для рисования. */
+  HyScanGtkMapTrackDraw          *draw_bar;         /* Объект для рисования галса полосами. */
+  HyScanGtkMapTrackDraw          *draw_beam;        /* Объект для рисования галса лучами. */
+  HyScanParamProxy               *param;            /* Параметры слоя. */
 };
 
 static void     hyscan_gtk_map_track_interface_init               (HyScanGtkLayerInterface     *iface);
@@ -194,11 +197,28 @@ hyscan_gtk_map_track_object_constructed (GObject *object)
 {
   HyScanGtkMapTrack *track_layer = HYSCAN_GTK_MAP_TRACK (object);
   HyScanGtkMapTrackPrivate *priv = track_layer->priv;
+  HyScanParam *child_param;
 
   G_OBJECT_CLASS (hyscan_gtk_map_track_parent_class)->constructed (object);
 
-  priv->track_draw = hyscan_gtk_map_track_draw_bar_new ();
-  g_signal_connect_swapped (priv->track_draw, "param-changed", G_CALLBACK (hyscan_gtk_map_track_param_set), track_layer);
+  /* Параметры слоя включают в себя параметры каждого из классов отрисовки. */
+  priv->param = hyscan_param_proxy_new ();
+
+  /* Класс отрисовки полосами. */
+  priv->draw_bar = hyscan_gtk_map_track_draw_bar_new ();
+  g_signal_connect_swapped (priv->draw_bar, "param-changed", G_CALLBACK (hyscan_gtk_map_track_param_set), track_layer);
+  child_param = hyscan_gtk_map_track_draw_get_param (priv->draw_bar);
+  hyscan_param_proxy_add (priv->param, "/bar", child_param, "/");
+  g_object_unref (child_param);
+
+  /* Класс отрисовки лучами. */
+  priv->draw_beam = hyscan_gtk_map_track_draw_beam_new ();
+  g_signal_connect_swapped (priv->draw_beam, "param-changed", G_CALLBACK (hyscan_gtk_map_track_param_set), track_layer);
+  child_param = hyscan_gtk_map_track_draw_get_param (priv->draw_beam);
+  hyscan_param_proxy_add (priv->param, "/beam", child_param, "/");
+  g_object_unref (child_param);
+
+  hyscan_param_proxy_bind (priv->param);
 }
 
 static void
@@ -211,6 +231,9 @@ hyscan_gtk_map_track_object_finalize (GObject *object)
   g_rw_lock_clear (&priv->a_lock);
   g_clear_object (&priv->db);
   g_clear_object (&priv->cache);
+  g_clear_object (&priv->draw_bar);
+  g_clear_object (&priv->draw_beam);
+  g_clear_object (&priv->param);
   g_free (priv->project);
   g_hash_table_destroy (priv->tracks);
   g_clear_pointer (&priv->active_tracks, g_strfreev);
@@ -218,15 +241,20 @@ hyscan_gtk_map_track_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_map_track_parent_class)->finalize (object);
 }
 
+/* Функция рисует на тайле все активные галсы. */
 static void
 hyscan_gtk_map_track_fill_tile (HyScanGtkMapTiled *tiled_layer,
                                 HyScanMapTile     *tile)
 {
   HyScanGtkMapTrack *track_layer = HYSCAN_GTK_MAP_TRACK (tiled_layer);
   HyScanGtkMapTrackPrivate *priv = track_layer->priv;
+  HyScanGtkMapTrackDrawType draw_type;
+  HyScanGtkMapTrackDraw *track_draw;
+  gchar **active_tracks;
   gint i;
 
   HyScanGeoCartesian2D from, to;
+  HyScanGeoCartesian2D max, min;
   gdouble scale;
 
   cairo_t *cairo;
@@ -236,27 +264,41 @@ hyscan_gtk_map_track_fill_tile (HyScanGtkMapTiled *tiled_layer,
   tile_size = hyscan_map_tile_get_size (tile);
   hyscan_map_tile_get_bounds (tile, &from, &to);
   scale = hyscan_map_tile_get_scale (tile);
+  max.x = MAX (from.x, to.x);
+  max.y = MAX (from.y, to.y);
+  min.x = MIN (from.x, to.x);
+  min.y = MIN (from.y, to.y);
 
   surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, tile_size, tile_size);
   cairo = cairo_create (surface);
 
-  g_rw_lock_reader_lock (&priv->a_lock);
-  for (i = 0; priv->active_tracks[i] != NULL; ++i)
+  /* Определяем, кто будет рисовать галс. */
+  draw_type = g_atomic_int_get (&priv->draw_type);
+  if (draw_type == HYSCAN_GTK_MAP_TRACK_BEAM)
+    track_draw = priv->draw_beam;
+  else
+    track_draw = priv->draw_bar;
+
+  active_tracks = hyscan_gtk_map_track_get_tracks (track_layer);
+  for (i = 0; active_tracks[i] != NULL; ++i)
     {
-      GList *points = NULL;
+      HyScanGtkMapTrackDrawData data;
       HyScanGtkMapTrackItem *track;
 
-      track = hyscan_gtk_map_track_get_track (track_layer, priv->active_tracks[i], TRUE);
+      track = hyscan_gtk_map_track_get_track (track_layer, active_tracks[i], TRUE);
       if (track == NULL)
         continue;
 
-      if (!hyscan_gtk_map_track_item_points_lock (track, &points))
+      if (!hyscan_gtk_map_track_item_points_lock (track, &data))
         continue;
 
-      hyscan_gtk_map_track_draw_region (priv->track_draw, points, cairo, scale, &from, &to);
+      /* Рисуем галс только в том случае, если он лежит внутри тайла. */
+      if (!(data.to.x < min.x || data.from.x > max.x || data.to.y < min.y || data.from.y > max.y))
+        hyscan_gtk_map_track_draw_region (track_draw, &data, cairo, scale, &from, &to);
+
       hyscan_gtk_map_track_item_points_unlock (track);
     }
-  g_rw_lock_reader_unlock (&priv->a_lock);
+  g_strfreev (active_tracks);
 
   hyscan_map_tile_set_surface (tile, surface);
 
@@ -284,6 +326,7 @@ hyscan_gtk_map_track_draw (HyScanGtkMap      *map,
   if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (track_layer)))
     return;
 
+  /* Делегируем всё рисование тайловому слою. */
   hyscan_gtk_map_tiled_draw (HYSCAN_GTK_MAP_TILED (track_layer), cairo);
 
 
@@ -440,7 +483,7 @@ hyscan_gtk_map_track_get_visible (HyScanGtkLayer *layer)
 static void
 hyscan_gtk_map_track_param_set (HyScanGtkLayer *gtk_layer)
 {
- HyScanGtkMapTrack *track_layer = HYSCAN_GTK_MAP_TRACK (gtk_layer);
+  HyScanGtkMapTrack *track_layer = HYSCAN_GTK_MAP_TRACK (gtk_layer);
 
   hyscan_gtk_map_tiled_set_param_mod (HYSCAN_GTK_MAP_TILED (track_layer));
   hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (track_layer));
@@ -454,7 +497,7 @@ hyscan_gtk_map_track_get_param (HyScanGtkLayer *gtk_layer)
   HyScanGtkMapTrack *track_layer = HYSCAN_GTK_MAP_TRACK (gtk_layer);
   HyScanGtkMapTrackPrivate *priv = track_layer->priv;
 
-  return hyscan_gtk_map_track_draw_get_param (priv->track_draw);
+  return g_object_ref (priv->param);
 }
 
 static void
@@ -589,10 +632,10 @@ hyscan_gtk_map_track_new (HyScanDB        *db,
 
 /**
  * hyscan_gtk_map_track_set_project:
- * @track_layer:
- * @project:
+ * @track_layer: указатель на #HyScanGtkMapTrack
+ * @project: название проекта
  *
- * Меняет название проекта
+ * Меняет название проекта.
  */
 void
 hyscan_gtk_map_track_set_project (HyScanGtkMapTrack *track_layer,
@@ -653,7 +696,7 @@ hyscan_gtk_map_track_set_tracks (HyScanGtkMapTrack  *track_layer,
  *   для удаления g_strfreev()
  */
 gchar **
-hyscan_gtk_map_track_get_tracks (HyScanGtkMapTrack  *track_layer)
+hyscan_gtk_map_track_get_tracks (HyScanGtkMapTrack *track_layer)
 {
   HyScanGtkMapTrackPrivate *priv;
   gchar **tracks;
@@ -672,6 +715,8 @@ hyscan_gtk_map_track_get_tracks (HyScanGtkMapTrack  *track_layer)
  * hyscan_gtk_map_track_lookup:
  * @track_layer: указатель на #HyScanGtkMapTrack
  * @track_name: название галса
+ *
+ * Находит объект галса #HyScanGtkMapTrackItem по его названию.
  *
  * Returns: (transfer full): указатель на найденный галс #HyScanGtkMapTrackItem.
  *   Для удаления g_object_unref().
@@ -721,4 +766,26 @@ hyscan_gtk_map_track_view (HyScanGtkMapTrack *track_layer,
   g_task_set_task_data (task, g_strdup (track_name), g_free);
   g_task_run_in_thread (task, hyscan_gtk_map_track_view_load);
   g_object_unref (task);
+}
+
+/**
+ * hyscan_gtk_map_track_set_draw_type:
+ * @track_layer: указатель на #HyScanGtkMapTrack
+ * @type: тип отрисовки
+ *
+ * Функция устанавливает тип отрисовки галсов слоя.
+ */
+void
+hyscan_gtk_map_track_set_draw_type (HyScanGtkMapTrack         *track_layer,
+                                    HyScanGtkMapTrackDrawType  type)
+{
+  HyScanGtkMapTrackPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track_layer));
+
+  priv = track_layer->priv;
+  g_atomic_int_set (&priv->draw_type, type);
+
+  hyscan_gtk_map_tiled_set_param_mod (HYSCAN_GTK_MAP_TILED (track_layer));
+  hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (track_layer));
 }

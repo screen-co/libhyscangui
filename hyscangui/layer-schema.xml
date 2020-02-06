@@ -65,15 +65,21 @@
     </key>
   </schema>
 
-  <schema id="map-track" name="Tracks">
+  <schema id="map-track-beam" name="Fill beams">
+    <key id="beam-color" name="Fill color" type="string" view="rgba">
+      <default>rgba (0, 255, 0, 0.2)</default>
+    </key>
+  </schema>
+
+  <schema id="map-track" name="Distance bars">
     <key id="track-color" name="Trajectory" type="string" view="rgba">
       <default>#AC67C6</default>
     </key>
     <key id="port-color" name="Port" type="string" view="rgba">
-      <default>#DDC3BB</default>
+      <default>#37CD32</default>
     </key>
     <key id="starboard-color" name="Starboard" type="string" view="rgba">
-      <default>#C4DDBB</default>
+      <default>#CD3237</default>
     </key>
     <key id="bar-width" name="Bar width" type="double">
       <default>3</default>

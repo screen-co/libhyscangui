@@ -1,4 +1,4 @@
-/* hyscan-gtk-map-track-draw-fill.h
+/* hyscan-gtk-map-track-draw-beam.h
  *
  * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *
@@ -32,42 +32,42 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
-#ifndef __HYSCAN_GTK_MAP_TRACK_DRAW_FILL_H__
-#define __HYSCAN_GTK_MAP_TRACK_DRAW_FILL_H__
+#ifndef __HYSCAN_GTK_MAP_TRACK_DRAW_BEAM_H__
+#define __HYSCAN_GTK_MAP_TRACK_DRAW_BEAM_H__
 
 #include <hyscan-gtk-map-track-draw.h>
 
 G_BEGIN_DECLS
 
-#define HYSCAN_TYPE_GTK_MAP_TRACK_DRAW_FILL             (hyscan_gtk_map_track_draw_fill_get_type ())
-#define HYSCAN_GTK_MAP_TRACK_DRAW_FILL(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_MAP_TRACK_DRAW_FILL, HyScanGtkMapTrackDrawFill))
-#define HYSCAN_IS_GTK_MAP_TRACK_DRAW_FILL(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_MAP_TRACK_DRAW_FILL))
-#define HYSCAN_GTK_MAP_TRACK_DRAW_FILL_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_MAP_TRACK_DRAW_FILL, HyScanGtkMapTrackDrawFillClass))
-#define HYSCAN_IS_GTK_MAP_TRACK_DRAW_FILL_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_MAP_TRACK_DRAW_FILL))
-#define HYSCAN_GTK_MAP_TRACK_DRAW_FILL_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_MAP_TRACK_DRAW_FILL, HyScanGtkMapTrackDrawFillClass))
+#define HYSCAN_TYPE_GTK_MAP_TRACK_DRAW_BEAM             (hyscan_gtk_map_track_draw_beam_get_type ())
+#define HYSCAN_GTK_MAP_TRACK_DRAW_BEAM(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_MAP_TRACK_DRAW_BEAM, HyScanGtkMapTrackDrawBeam))
+#define HYSCAN_IS_GTK_MAP_TRACK_DRAW_BEAM(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_MAP_TRACK_DRAW_BEAM))
+#define HYSCAN_GTK_MAP_TRACK_DRAW_BEAM_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_MAP_TRACK_DRAW_BEAM, HyScanGtkMapTrackDrawBeamClass))
+#define HYSCAN_IS_GTK_MAP_TRACK_DRAW_BEAM_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_MAP_TRACK_DRAW_BEAM))
+#define HYSCAN_GTK_MAP_TRACK_DRAW_BEAM_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_MAP_TRACK_DRAW_BEAM, HyScanGtkMapTrackDrawBeamClass))
 
-typedef struct _HyScanGtkMapTrackDrawFill HyScanGtkMapTrackDrawFill;
-typedef struct _HyScanGtkMapTrackDrawFillPrivate HyScanGtkMapTrackDrawFillPrivate;
-typedef struct _HyScanGtkMapTrackDrawFillClass HyScanGtkMapTrackDrawFillClass;
+typedef struct _HyScanGtkMapTrackDrawBeam HyScanGtkMapTrackDrawBeam;
+typedef struct _HyScanGtkMapTrackDrawBeamPrivate HyScanGtkMapTrackDrawBeamPrivate;
+typedef struct _HyScanGtkMapTrackDrawBeamClass HyScanGtkMapTrackDrawBeamClass;
 
-struct _HyScanGtkMapTrackDrawFill
+struct _HyScanGtkMapTrackDrawBeam
 {
   GObject parent_instance;
 
-  HyScanGtkMapTrackDrawFillPrivate *priv;
+  HyScanGtkMapTrackDrawBeamPrivate *priv;
 };
 
-struct _HyScanGtkMapTrackDrawFillClass
+struct _HyScanGtkMapTrackDrawBeamClass
 {
   GObjectClass parent_class;
 };
 
 HYSCAN_API
-GType                        hyscan_gtk_map_track_draw_fill_get_type (void);
+GType                        hyscan_gtk_map_track_draw_beam_get_type (void);
 
 HYSCAN_API
-HyScanGtkMapTrackDraw *      hyscan_gtk_map_track_draw_fill_new      (void);
+HyScanGtkMapTrackDraw *      hyscan_gtk_map_track_draw_beam_new      (void);
 
 G_END_DECLS
 
-#endif /* __HYSCAN_GTK_MAP_TRACK_DRAW_FILL_H__ */
+#endif /* __HYSCAN_GTK_MAP_TRACK_DRAW_BEAM_H__ */

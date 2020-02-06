@@ -1132,6 +1132,41 @@ create_ruler_toolbox (HyScanGtkLayer *layer,
 }
 
 static void
+track_layer_draw_change (GtkToggleButton   *button,
+                         GParamSpec        *pspec,
+                         HyScanGtkMapTrack *track_layer)
+{
+  HyScanGtkMapTrackDrawType draw_type;
+
+  if (!gtk_toggle_button_get_active (button))
+    return;
+
+  draw_type = GPOINTER_TO_INT (g_object_get_data (G_OBJECT (button), "draw-type"));
+  hyscan_gtk_map_track_set_draw_type (track_layer, draw_type);
+}
+
+/* Создаёт панель инструментов для слоя булавок и линейки. */
+static GtkWidget *
+create_track_toolbox (HyScanGtkMapKit *kit)
+{
+  GtkWidget *bar, *beam, *box;
+
+  bar = gtk_radio_button_new_with_label_from_widget (NULL, _("Distance bars"));
+  g_object_set_data (G_OBJECT (bar), "draw-type", GINT_TO_POINTER (HYSCAN_GTK_MAP_TRACK_BAR));
+  g_signal_connect (bar, "notify::active", G_CALLBACK (track_layer_draw_change), kit->priv->track_layer);
+
+  beam = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON (bar), _("Fill beams"));
+  g_object_set_data (G_OBJECT (beam), "draw-type", GINT_TO_POINTER (HYSCAN_GTK_MAP_TRACK_BEAM));
+  g_signal_connect (beam, "notify::active", G_CALLBACK (track_layer_draw_change), kit->priv->track_layer);
+
+  box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+  gtk_box_pack_start (GTK_BOX (box), bar, FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), beam, FALSE, TRUE, 0);
+
+  return box;
+}
+
+static void
 hyscan_gtk_map_planner_mode_changed (GtkToggleButton *togglebutton,
                                      gpointer         user_data)
 {
@@ -1417,6 +1452,8 @@ create_control_box (HyScanGtkMapKit *kit)
                                      create_ruler_toolbox (priv->ruler, _("Remove ruler")));
     hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), "pin",
                                      create_ruler_toolbox (priv->pin_layer, _("Remove all pins")));
+    hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), "track",
+                                     create_track_toolbox (kit));
   }
 
   /* Стек с инструментами. */

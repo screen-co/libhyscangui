@@ -1,25 +1,22 @@
 #include <hyscan-data-writer.h>
 #include "hyscan-gtk-map-kit.h"
 
-#define N_CHANNELS 4
-static const gchar *channel_names[N_CHANNELS] = {"nmea", "nmea-2", "ss-port", "ss-starboard"};
-
 typedef struct
 {
-  guint             channel;
+  HyScanSourceType  source;           /* Источник данных. */
+  guint             channel;          /* Номер канала. */
   gint32            write_channel_id; /* Идентификатор канала. */
   gint32            read_channel_id;  /* Идентификатор канала. */
   guint32           index;            /* Текущий индекс чтения данных. */
   gint64            time;             /* Метка времени для текущего индекса. */
-
-  HyScanSourceType source;
-
+  guint32           last;             /* Последний индекс. */
 } Channel;
 
 typedef struct
 {
   HyScanDB         *db;                     /* База данных. */
   HyScanBuffer     *buffer;                 /* Буфер копирования данных. */
+  gint64            first_record_time;      /* Время первой записи в каналах данных. */
   gint64            time_offset;            /* Разница между g_get_monotonic_time() и времени записи данных. */
   guint             tag;                    /* Тэг функции, которая копирует. */
 
@@ -28,16 +25,8 @@ typedef struct
   gint32            write_project_id;       /* Ид проекта для записи. */
   gint32            write_track_id;         /* Ид галса для записи. */
 
-  Channel           channels[N_CHANNELS];   /* Копируемые каналы данных. */
-
+  GArray           *channels;               /* Копируемые каналы данных. */
 } DataTranslator;
-
-void
-destroy_callback (GtkWidget *widget,
-                  gpointer   user_data)
-{
-  gtk_main_quit ();
-}
 
 /* Копирует данные канала channel до момента времени current_time. */
 static void
@@ -45,24 +34,27 @@ copy_channel (DataTranslator *translator,
               gint64          current_time,
               Channel        *channel)
 {
-  while (channel->time < current_time)
+  if (channel->time > current_time || channel->index > channel->last)
+    return;
+
+  while (channel->time <= current_time)
     {
-      gint64 i_time;
       gboolean status;
 
       status = hyscan_db_channel_get_data (translator->db,
                                            channel->read_channel_id, channel->index,
-                                           translator->buffer, &i_time);
+                                           translator->buffer, NULL);
 
       if (!status)
         g_error ("Failed to get data");
 
-      if (!hyscan_db_channel_add_data (translator->db, channel->write_channel_id, i_time, translator->buffer, NULL))
+      if (!hyscan_db_channel_add_data (translator->db, channel->write_channel_id, channel->time, translator->buffer, NULL))
         g_error ("Failed to add data");
 
-       channel->time = hyscan_db_channel_get_data_time (translator->db, channel->read_channel_id, ++channel->index);
-       if (channel->time < 0)
-         g_error ("Failed to get next time");
+      if (++channel->index > channel->last)
+        break;
+
+      channel->time = hyscan_db_channel_get_data_time (translator->db, channel->read_channel_id, channel->index);
     }
 }
 
@@ -70,17 +62,18 @@ gboolean
 write_db (gpointer user_data)
 {
   DataTranslator *translator = user_data;
-  gint i;
+  GArray *channels = translator->channels;
+  guint i;
 
   gint64 current_time;
 
   /* Инициализируем начало отсчета. */
   if (translator->time_offset == 0)
-    translator->time_offset = g_get_monotonic_time () - translator->channels[0].time;
+    translator->time_offset = g_get_monotonic_time () - g_array_index (channels, Channel, 0).time;
 
   current_time = g_get_monotonic_time () - translator->time_offset;
-  for (i = 0; i < N_CHANNELS; ++i)
-    copy_channel (translator, current_time, &translator->channels[i]);
+  for (i = 0; i < channels->len; ++i)
+    copy_channel (translator, current_time, &g_array_index (channels, Channel, i));
 
   return G_SOURCE_CONTINUE;
 }
@@ -99,12 +92,9 @@ write_channel_params (DataTranslator  *translator,
                       HyScanParamList *param_list)
 {
   gint32 write_param_id;
-  gboolean status;
 
   write_param_id = hyscan_db_channel_param_open (translator->db, channel_id);
-  status = hyscan_db_param_set (translator->db, write_param_id, NULL, param_list);
-  if (!status)
-    g_error ("Failed to set params");
+  hyscan_db_param_set (translator->db, write_param_id, NULL, param_list);
   hyscan_db_close (translator->db, write_param_id);
 }
 
@@ -118,7 +108,6 @@ read_channel_params (DataTranslator   *translator,
   HyScanDataSchema *schema;
   gint i;
   const gchar * const * keys;
-  gboolean status;
 
   /* Считаываем параметры канала данных. */
   read_param_id = hyscan_db_channel_param_open (translator->db, channel_id);
@@ -136,38 +125,37 @@ read_channel_params (DataTranslator   *translator,
         hyscan_param_list_add (param_list, keys[i]);
     }
 
-  status = hyscan_db_param_get (translator->db, read_param_id, NULL, param_list);
-  if (!status)
-    g_error ("Failed to get params");
+  hyscan_db_param_get (translator->db, read_param_id, NULL, param_list);
 
   hyscan_db_close (translator->db, read_param_id);
 
   return param_list;
 }
 
-static void
+static Channel
 open_channel (DataTranslator *translator,
-              Channel        *channel,
               const gchar    *channel_name)
 {
   HyScanChannelType type;
   HyScanParamList *param_list;
   gchar *schema_id;
+  Channel channel;
 
-  hyscan_channel_get_types_by_id (channel_name, &channel->source, &type, &channel->channel);
-  channel->read_channel_id = hyscan_db_channel_open (translator->db, translator->read_track_id, channel_name);
+  hyscan_channel_get_types_by_id (channel_name, &channel.source, &type, &channel.channel);
+  channel.read_channel_id = hyscan_db_channel_open (translator->db, translator->read_track_id, channel_name);
+  hyscan_db_channel_get_data_range (translator->db, channel.read_channel_id, &channel.index, &channel.last);
+  channel.time = hyscan_db_channel_get_data_time (translator->db, channel.read_channel_id, channel.index);
 
-  hyscan_db_channel_get_data_range (translator->db, channel->read_channel_id, &channel->index, NULL);
-  channel->time = hyscan_db_channel_get_data_time (translator->db, channel->read_channel_id, channel->index);
-
-  /* Копируем параметры трека для этого канала данных. */
-  param_list = read_channel_params (translator, channel->read_channel_id, &schema_id);
-  channel->write_channel_id = hyscan_db_channel_create (translator->db, translator->write_track_id,
+  /* Копируем параметры этого канала данных. */
+  param_list = read_channel_params (translator, channel.read_channel_id, &schema_id);
+  channel.write_channel_id = hyscan_db_channel_create (translator->db, translator->write_track_id,
                                                         channel_name, schema_id);
-  write_channel_params (translator, channel->write_channel_id, param_list);
+  write_channel_params (translator, channel.write_channel_id, param_list);
 
   g_free (schema_id);
   g_object_unref (param_list);
+
+  return channel;
 }
 
 DataTranslator *
@@ -178,7 +166,7 @@ translator_new (HyScanDB    *db,
 {
   DataTranslator *translator;
   HyScanDataWriter *writer;
-  guint i;
+  gchar **channel_list, **channel_name;
 
   translator = g_new0 (DataTranslator, 1);
   translator->db = g_object_ref (db);
@@ -188,7 +176,7 @@ translator_new (HyScanDB    *db,
   writer = hyscan_data_writer_new ();
   hyscan_data_writer_set_db (writer, translator->db);
   if (!hyscan_data_writer_start (writer, write_project_name, track_name, HYSCAN_TRACK_SURVEY, NULL, -1))
-    g_error ("Can't start data writer");
+    g_error ("Can't start data writer. May be track with the name <%s> exists", track_name);
   hyscan_data_writer_stop (writer);
   g_object_unref (writer);
 
@@ -205,8 +193,14 @@ translator_new (HyScanDB    *db,
     g_error ("Failed to open track \"%s\", project \"%s\"", track_name, write_project_name);
 
   /* Открываем каналы данных. */
-  for (i = 0; i < G_N_ELEMENTS (translator->channels); ++i)
-    open_channel (translator, &translator->channels[i], channel_names[i]);
+  channel_list = hyscan_db_channel_list (db, translator->read_track_id);
+  translator->channels = g_array_new (FALSE, FALSE, sizeof (Channel));
+  for (channel_name = channel_list; *channel_name != NULL; channel_name++)
+    {
+      Channel channel = open_channel (translator, *channel_name);
+      g_array_append_val (translator->channels, channel);
+    }
+  g_strfreev (channel_list);
 
   /* Запускаем копирование данных в новый галс по таймеру. */
   translator->tag = g_timeout_add (100, write_db, translator);
@@ -221,8 +215,9 @@ translator_free (DataTranslator *translator)
 
   g_source_remove (translator->tag);
 
-  for (i = 0; i < G_N_ELEMENTS (translator->channels); ++i)
-    close_channel (translator, &translator->channels[i]);
+  for (i = 0; i < translator->channels->len; ++i)
+    close_channel (translator, &g_array_index (translator->channels, Channel, i));
+  g_array_free (translator->channels, TRUE);
 
   hyscan_db_close (translator->db, translator->read_project_id);
   hyscan_db_close (translator->db, translator->read_track_id);
@@ -271,9 +266,9 @@ main (int    argc,
       };
 
     context = g_option_context_new ("");
-    g_option_context_set_summary (context, "Test TrackLayer with modifying channel data.\n\n"
-                                           "Program reads data from the source project and write it to the \n"
-                                           "destination. TrackLayer reads data from the destination project, \n"
+    g_option_context_set_summary (context, "Test HyScanGtkMapTrack with modifying channel data.\n\n"
+                                           "Program reads data from the source project and writes it to the \n"
+                                           "destination. HyScanGtkMapTrack reads data from the destination project, \n"
                                            "thus simulating real-time write.");
     g_option_context_set_help_enabled (context, TRUE);
     g_option_context_add_main_entries (context, entries, NULL);
@@ -281,7 +276,7 @@ main (int    argc,
 
     if (!g_option_context_parse (context, &argc, &argv, &error))
       {
-        g_message (error->message);
+        g_message ("%s", error->message);
         return -1;
       }
 
@@ -308,7 +303,7 @@ main (int    argc,
   /* Окно программы. */
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   gtk_window_set_default_size (GTK_WINDOW (window), 800, 600);
-  g_signal_connect (window, "destroy", G_CALLBACK (destroy_callback), NULL);
+  g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
 
   /* Grid-виджет. */
   grid = gtk_grid_new ();

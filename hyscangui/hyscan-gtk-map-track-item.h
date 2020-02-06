@@ -40,6 +40,7 @@
 #include <hyscan-geo-projection.h>
 #include <hyscan-db.h>
 #include <hyscan-cache.h>
+#include <hyscan-gtk-map-track-draw.h>
 
 G_BEGIN_DECLS
 
@@ -82,21 +83,21 @@ gboolean                hyscan_gtk_map_track_item_has_nmea      (HyScanGtkMapTra
 
 HYSCAN_API
 gboolean                hyscan_gtk_map_track_item_points_lock   (HyScanGtkMapTrackItem      *track,
-                                                                 GList                     **points);
+                                                                 HyScanGtkMapTrackDrawData  *data);
 HYSCAN_API
 void                    hyscan_gtk_map_track_item_points_unlock (HyScanGtkMapTrackItem      *track);
 
 HYSCAN_API                                                      
-gboolean               hyscan_gtk_map_track_item_view           (HyScanGtkMapTrackItem      *track,
+gboolean                hyscan_gtk_map_track_item_view          (HyScanGtkMapTrackItem      *track,
                                                                  HyScanGeoCartesian2D       *from,
                                                                  HyScanGeoCartesian2D       *to);
-                                                                
+
 HYSCAN_API                                                      
-gboolean               hyscan_gtk_map_track_item_update         (HyScanGtkMapTrackItem      *track);
+gboolean                hyscan_gtk_map_track_item_update         (HyScanGtkMapTrackItem      *track);
 
 HYSCAN_API
-void                   hyscan_gtk_map_track_item_set_projection (HyScanGtkMapTrackItem      *track,
-                                                                 HyScanGeoProjection        *projection);
+void                    hyscan_gtk_map_track_item_set_projection (HyScanGtkMapTrackItem      *track,
+                                                                  HyScanGeoProjection        *projection);
 
 G_END_DECLS
 

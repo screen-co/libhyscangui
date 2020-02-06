@@ -65,13 +65,26 @@ hyscan_gtk_map_track_draw_default_init (HyScanGtkMapTrackDrawInterface *iface)
                 G_TYPE_NONE, 0);
 }
 
+/**
+ * hyscan_gtk_map_track_draw_region:
+ * @track_draw: указатель на #HyScanGtkMapTrackDraw
+ * @data: данные точек галса
+ * @cairo: контекст cairo
+ * @scale: масштаб
+ * @from: границы видимой области
+ * @to: границы видимой области
+ *
+ * Функция рисует на поверхности cairo изображение галса, ограниченное координатами
+ * видимой области @from - @to.
+ *
+ */
 void
-hyscan_gtk_map_track_draw_region (HyScanGtkMapTrackDraw *track_draw,
-                                  GList                 *points,
-                                  cairo_t               *cairo,
-                                  gdouble                scale,
-                                  HyScanGeoCartesian2D  *from,
-                                  HyScanGeoCartesian2D  *to)
+hyscan_gtk_map_track_draw_region (HyScanGtkMapTrackDraw     *track_draw,
+                                  HyScanGtkMapTrackDrawData *data,
+                                  cairo_t                   *cairo,
+                                  gdouble                    scale,
+                                  HyScanGeoCartesian2D      *from,
+                                  HyScanGeoCartesian2D      *to)
 {
   HyScanGtkMapTrackDrawInterface *iface;
 
@@ -79,9 +92,17 @@ hyscan_gtk_map_track_draw_region (HyScanGtkMapTrackDraw *track_draw,
 
   iface = HYSCAN_GTK_MAP_TRACK_DRAW_GET_IFACE (track_draw);
   if (iface->draw_region != NULL)
-    (* iface->draw_region) (track_draw, points, cairo, scale, from, to);
+    (* iface->draw_region) (track_draw, data, cairo, scale, from, to);
 }
 
+/**
+ * hyscan_gtk_map_track_draw_get_param:
+ * @track_draw: указатель на #HyScanGtkMapTrackDraw
+ *
+ * Функция считывает параметры отрисовщика.
+ *
+ * Returns: (transfer full): параметры отрисовщика или %NULL, если он не имеет настроек.
+ */
 HyScanParam *
 hyscan_gtk_map_track_draw_get_param (HyScanGtkMapTrackDraw *track_draw)
 {
@@ -94,4 +115,54 @@ hyscan_gtk_map_track_draw_get_param (HyScanGtkMapTrackDraw *track_draw)
     return (* iface->get_param) (track_draw);
 
   return NULL;
+}
+
+/**
+ * hyscan_gtk_map_track_draw_scale:
+ * @global: координаты точки в глобальной СК
+ * @from: граница локальной области
+ * @to: граница локальной области
+ * @scale: масштаб для перевода из глобальной СК в локальную
+ * @local: (out): коориданты точки в локальной СК
+ *
+ * Вспомогательная функция для перевода координат из глобальной системы координат
+ * в локальную с заданным масштабом. Подходит для перевода координат точек из
+ * картографической проекции на тайл.
+ */
+void
+hyscan_gtk_map_track_draw_scale (HyScanGeoCartesian2D *global,
+                                 HyScanGeoCartesian2D *from,
+                                 HyScanGeoCartesian2D *to,
+                                 gdouble               scale,
+                                 HyScanGeoCartesian2D *local)
+{
+  local->x = (global->x - from->x) / scale;
+  local->y = (from->y - to->y) / scale - (global->y - to->y) / scale;
+}
+
+/**
+ * hyscan_gtk_map_track_point_free:
+ * @point: указатель на #HyScanGtkMapTrackPoint
+ *
+ * Удаляет структуру #HyScanGtkMapTrackPoint.
+ */
+void
+hyscan_gtk_map_track_point_free (HyScanGtkMapTrackPoint *point)
+{
+  if (point != NULL)
+    g_slice_free (HyScanGtkMapTrackPoint, point);
+}
+
+/**
+ * hyscan_gtk_map_track_point_copy:
+ * @point: указатель на #HyScanGtkMapTrackPoint
+ *
+ * Создаёт копию структуры #HyScanGtkMapTrackPoint.
+ *
+ * Returns: копия структуры HyScanGtkMapTrackPoint, для удаления hyscan_gtk_map_track_point_free().
+ */
+HyScanGtkMapTrackPoint *
+hyscan_gtk_map_track_point_copy (const HyScanGtkMapTrackPoint *point)
+{
+  return point != NULL ? g_slice_dup (HyScanGtkMapTrackPoint, point) : NULL;
 }

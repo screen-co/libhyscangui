@@ -38,7 +38,8 @@
  * @Title: HyScanGtkMapTrackDrawBar
  * @See_also: #HyScanGtkMapTrack
  *
- * Класс для рисования галса на карте в виде линий дальности.
+ * Класс для рисования галса на карте в виде линий дальности и траектории движения
+ * судна.
  *
  */
 
@@ -47,7 +48,6 @@
 #include "hyscan-gtk-map-track-draw-bar.h"
 #include "hyscan-gtk-layer-param.h"
 
-#define DEFAULT_COLOR_STROKE          "#000000"                     /* Цвет обводки некоторых элементов. */
 #define DEFAULT_COLOR_SHADOW          "rgba(150, 150, 150, 0.5)"    /* Цвет затенения. */
 #define DEFAULT_LINE_WIDTH            1                             /* Толщина линии движения. */
 #define DEFAULT_STROKE_WIDTH          1.0                           /* Толщина обводки. */
@@ -57,7 +57,6 @@ typedef struct
   GdkRGBA                             color_left;                   /* Цвет левого борта. */
   GdkRGBA                             color_right;                  /* Цвет правого борта. */
   GdkRGBA                             color_track;                  /* Цвет линии движения. */
-  GdkRGBA                             color_stroke;                 /* Цвет обводки. */
   GdkRGBA                             color_shadow;                 /* Цвет затенения (полупрозрачный чёрный). */
   gdouble                             bar_width;                    /* Толщина линии дальности. */
   gdouble                             bar_margin;                   /* Расстояние между соседними линиями дальности. */
@@ -76,6 +75,24 @@ static void    hyscan_gtk_map_track_draw_bar_interface_init           (HyScanGtk
 static void    hyscan_gtk_map_track_draw_bar_object_constructed       (GObject                        *object);
 static void    hyscan_gtk_map_track_draw_bar_object_finalize          (GObject                        *object);
 static void    hyscan_gtk_map_track_draw_bar_emit                     (HyScanGtkMapTrackDrawBar       *draw_bar);
+static void    hyscan_gtk_map_track_draw_bar_path                     (HyScanGeoCartesian2D           *from,
+                                                                       HyScanGeoCartesian2D           *to,
+                                                                       gdouble                         scale,
+                                                                       GList                          *points,
+                                                                       cairo_t                        *cairo,
+                                                                       HyScanGtkMapTrackDrawBarStyle  *style);
+static void    hyscan_gtk_map_track_draw_bar_side                     (HyScanGeoCartesian2D           *from,
+                                                                       HyScanGeoCartesian2D           *to,
+                                                                       gdouble                         scale,
+                                                                       GList                          *points,
+                                                                       cairo_t                        *cairo,
+                                                                       HyScanGtkMapTrackDrawBarStyle  *style);
+static void    hyscan_gtk_map_track_draw_bar_start                    (HyScanGeoCartesian2D           *from,
+                                                                       HyScanGeoCartesian2D           *to,
+                                                                       gdouble                         scale,
+                                                                       GList                          *points,
+                                                                       cairo_t                        *cairo,
+                                                                       HyScanGtkMapTrackDrawBarStyle  *style);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapTrackDrawBar, hyscan_gtk_map_track_draw_bar, G_TYPE_OBJECT,
                          G_ADD_PRIVATE (HyScanGtkMapTrackDrawBar)
@@ -96,7 +113,6 @@ hyscan_gtk_map_track_draw_bar_init (HyScanGtkMapTrackDrawBar *gtk_map_track_draw
   gtk_map_track_draw_bar->priv = hyscan_gtk_map_track_draw_bar_get_instance_private (gtk_map_track_draw_bar);
 }
 
-
 static void
 hyscan_gtk_map_track_draw_bar_object_constructed (GObject *object)
 {
@@ -111,7 +127,6 @@ hyscan_gtk_map_track_draw_bar_object_constructed (GObject *object)
   /* Оформление трека по умолчанию. */
   style->line_width = DEFAULT_LINE_WIDTH;
   style->stroke_width = DEFAULT_STROKE_WIDTH;
-  gdk_rgba_parse (&style->color_stroke, DEFAULT_COLOR_STROKE);
   gdk_rgba_parse (&style->color_shadow, DEFAULT_COLOR_SHADOW);
 
   priv->param = hyscan_gtk_layer_param_new_with_lock (&priv->lock);
@@ -130,6 +145,7 @@ hyscan_gtk_map_track_draw_bar_object_finalize (GObject *object)
   HyScanGtkMapTrackDrawBar *gtk_map_track_draw_bar = HYSCAN_GTK_MAP_TRACK_DRAW_BAR (object);
   HyScanGtkMapTrackDrawBarPrivate *priv = gtk_map_track_draw_bar->priv;
 
+  g_object_unref (priv->param);
   g_mutex_clear (&priv->lock);
 
   G_OBJECT_CLASS (hyscan_gtk_map_track_draw_bar_parent_class)->finalize (object);
@@ -143,17 +159,45 @@ hyscan_gtk_map_track_draw_bar_emit (HyScanGtkMapTrackDrawBar *draw_bar)
 
 /* Рисует часть галса по точкам points. */
 static void
-hyscan_gtk_map_track_draw_chunk (HyScanGeoCartesian2D       *from,
-                                 HyScanGeoCartesian2D       *to,
-                                 gdouble                     scale,
-                                 GList                      *chunk_start,
-                                 GList                      *chunk_end,
-                                 cairo_t                    *cairo,
-                                 HyScanGtkMapTrackDrawBarStyle *style)
+hyscan_gtk_map_track_draw_bar_path (HyScanGeoCartesian2D          *from,
+                                    HyScanGeoCartesian2D          *to,
+                                    gdouble                        scale,
+                                    GList                         *points,
+                                    cairo_t                       *cairo,
+                                    HyScanGtkMapTrackDrawBarStyle *style)
+{
+  GList *point_l;
+  HyScanGtkMapTrackPoint *point;
+  HyScanGeoCartesian2D coord;
+
+  /* Рисуем линию движения. */
+  gdk_cairo_set_source_rgba (cairo, &style->color_track);
+  cairo_set_line_width (cairo, style->line_width);
+  cairo_new_path (cairo);
+  for (point_l = points; point_l != NULL; point_l = point_l->next)
+    {
+      point = point_l->data;
+
+      /* Координаты точки на поверхности cairo. */
+      hyscan_gtk_map_track_draw_scale (&point->ship_c2d, from, to, scale, &coord);
+
+      cairo_line_to (cairo, coord.x, coord.y);
+    }
+  cairo_stroke (cairo);
+}
+
+/* Рисует точки одного из бортов по точкам points. */
+static void
+hyscan_gtk_map_track_draw_bar_side (HyScanGeoCartesian2D          *from,
+                                    HyScanGeoCartesian2D          *to,
+                                    gdouble                        scale,
+                                    GList                         *points,
+                                    cairo_t                       *cairo,
+                                    HyScanGtkMapTrackDrawBarStyle *style)
 {
   GList *point_l;
   HyScanGtkMapTrackPoint *point, *next_point;
-  gdouble x, y;
+  GdkRGBA *fill_color;
 
   gdouble threshold;
 
@@ -163,183 +207,100 @@ hyscan_gtk_map_track_draw_chunk (HyScanGeoCartesian2D       *from,
   /* Рисуем полосы от бортов. */
   cairo_set_line_width (cairo, style->bar_width);
   cairo_new_path (cairo);
-  for (point_l = chunk_start; point_l != chunk_end; point_l = point_l->next)
+  for (point_l = points; point_l != NULL; point_l = point_l->next)
     {
-      gdouble x0, y0, xc, yc;
+      HyScanGeoCartesian2D ship, start, end;
 
       point = point_l->data;
       next_point = point_l->next ? point_l->next->data : NULL;
 
       /* Пропускаем полосы на криволинейных участках. */
-      if (!point->straight)
+      // if (!point->straight)
+      //   continue;
+
+      if (point->b_dist <= 0)
         continue;
 
       /* Рисуем полосу, только если следующая полоса лежит в другой зоне. */
-      if (next_point == NULL || round (next_point->dist / threshold) == round (point->dist / threshold))
+      if (next_point == NULL || round (next_point->dist_along / threshold) == round (point->dist_along / threshold))
         continue;
 
-      xc = (point->center_c2d.x - from->x) / scale;
-      yc = (from->y - to->y) / scale - (point->center_c2d.y - to->y) / scale;
+      hyscan_gtk_map_track_draw_scale (&point->ship_c2d, from, to, scale, &ship);
+      hyscan_gtk_map_track_draw_scale (&point->start_c2d, from, to, scale, &start);
+      hyscan_gtk_map_track_draw_scale (&point->fr_c2d, from, to, scale, &end);
 
-      /* Правый борт. */
-      if (point->r_dist > 0)
-        {
-          /* Координаты точки на поверхности cairo. */
-          x0 = (point->r_start_c2d.x - from->x) / scale;
-          y0 = (from->y - to->y) / scale - (point->r_start_c2d.y - to->y) / scale;
+      if (point->source == HYSCAN_GTK_MAP_TRACK_DRAW_SOURCE_LEFT)
+        fill_color = &style->color_left;
+      else
+        fill_color = &style->color_right;
 
-          cairo_save (cairo);
-          cairo_translate (cairo, x0, y0);
-          cairo_rotate (cairo, point->r_angle);
+      /* Линия дальности. */
+      cairo_move_to (cairo, start.x, start.y);
+      cairo_line_to (cairo, end.x, end.y);
+      gdk_cairo_set_source_rgba (cairo, fill_color);
+      cairo_set_line_width (cairo, style->bar_width);
+      cairo_stroke (cairo);
 
-          cairo_rectangle (cairo, 0, -style->bar_width / 2.0, point->r_dist / scale, style->bar_width);
-          cairo_set_line_width (cairo, style->stroke_width);
-          gdk_cairo_set_source_rgba (cairo, &style->color_stroke);
-          cairo_stroke_preserve (cairo);
-          gdk_cairo_set_source_rgba (cairo, &style->color_right);
-          cairo_fill (cairo);
-
-          cairo_restore (cairo);
-
-          cairo_move_to (cairo, x0, y0);
-          cairo_line_to (cairo, xc, yc);
-          gdk_cairo_set_source_rgba (cairo, &style->color_shadow);
-          cairo_set_line_width (cairo, style->bar_width);
-          cairo_stroke (cairo);
-        }
-
-      /* Левый борт. */
-      if (point->l_dist > 0)
-        {
-          /* Координаты точки на поверхности cairo. */
-          x0 = (point->l_start_c2d.x - from->x) / scale;
-          y0 = (from->y - to->y) / scale - (point->l_start_c2d.y - to->y) / scale;
-
-          cairo_save (cairo);
-          cairo_translate (cairo, x0, y0);
-          cairo_rotate (cairo, point->l_angle);
-
-          cairo_rectangle (cairo, 0, -style->bar_width / 2.0, -point->l_dist / scale, style->bar_width);
-          cairo_set_line_width (cairo, style->stroke_width);
-          gdk_cairo_set_source_rgba (cairo, &style->color_stroke);
-          cairo_stroke_preserve (cairo);
-          gdk_cairo_set_source_rgba (cairo, &style->color_left);
-          cairo_fill (cairo);
-
-          cairo_restore (cairo);
-
-          cairo_move_to (cairo, x0, y0);
-          cairo_line_to (cairo, xc, yc);
-          gdk_cairo_set_source_rgba (cairo, &style->color_shadow);
-          cairo_set_line_width (cairo, style->bar_width);
-          cairo_stroke (cairo);
-        }
+      /* Линия, соединяющая центр судна с антенной. */
+      cairo_move_to (cairo, start.x, start.y);
+      cairo_line_to (cairo, ship.x, ship.y);
+      gdk_cairo_set_source_rgba (cairo, &style->color_shadow);
+      cairo_set_line_width (cairo, style->bar_width);
+      cairo_stroke (cairo);
     }
+}
 
-  /* Рисуем линию движения. */
+/* Рисует точку начала. */
+static void
+hyscan_gtk_map_track_draw_bar_start (HyScanGeoCartesian2D          *from,
+                                     HyScanGeoCartesian2D          *to,
+                                     gdouble                        scale,
+                                     GList                         *points,
+                                     cairo_t                       *cairo,
+                                     HyScanGtkMapTrackDrawBarStyle *style)
+{
+  HyScanGtkMapTrackPoint *point;
+  HyScanGeoCartesian2D coord;
+
+  if (points == NULL)
+    return;
+
+  point = points->data;
+
+  if (!hyscan_cartesian_is_point_inside (&point->ship_c2d, from, to))
+    return;
+
+  /* Координаты точки на поверхности cairo. */
+  hyscan_gtk_map_track_draw_scale (&point->ship_c2d, from, to, scale, &coord);
+
+  cairo_arc (cairo, coord.x, coord.y, 2.0 * style->line_width, 0, 2.0 * G_PI);
   gdk_cairo_set_source_rgba (cairo, &style->color_track);
-  cairo_set_line_width (cairo, style->line_width);
-  cairo_new_path (cairo);
-  for (point_l = chunk_start; point_l != chunk_end; point_l = point_l->next)
-    {
-      point = point_l->data;
-
-      /* Координаты точки на поверхности cairo. */
-      x = (point->center_c2d.x - from->x) / scale;
-      y = (from->y - to->y) / scale - (point->center_c2d.y - to->y) / scale;
-
-      cairo_line_to (cairo, x, y);
-    }
-  cairo_stroke (cairo);
+  cairo_fill (cairo);
 }
 
 static void
 hyscan_gtk_map_track_draw_bar_draw_region (HyScanGtkMapTrackDraw      *track_draw,
-                                           GList                      *points,
+                                           HyScanGtkMapTrackDrawData  *data,
                                            cairo_t                    *cairo,
                                            gdouble                     scale,
                                            HyScanGeoCartesian2D       *from,
                                            HyScanGeoCartesian2D       *to)
 {
   HyScanGtkMapTrackDrawBar *draw_bar = HYSCAN_GTK_MAP_TRACK_DRAW_BAR (track_draw);
-  HyScanGtkMapTrackPoint *start_point = points->data;
   HyScanGtkMapTrackDrawBarPrivate *priv = draw_bar->priv;
   HyScanGtkMapTrackDrawBarStyle style;
-  GList *point_l, *prev_point_l = NULL, *next_point_l = NULL;
-  GList *chunk_start = NULL, *chunk_end = NULL;
 
   g_mutex_lock (&priv->lock);
   style = priv->style;
   g_mutex_unlock (&priv->lock);
 
-  /* Для каждого узла определяем, попадает ли он в указанную область. */
-  prev_point_l = point_l = points;
-  while (point_l != NULL)
-    {
-      HyScanGeoCartesian2D *prev_point, *cur_point, *next_point;
-      gboolean is_inside;
-
-      cur_point  = &((HyScanGtkMapTrackPoint *) point_l->data)->center_c2d;
-      prev_point = &((HyScanGtkMapTrackPoint *) prev_point_l->data)->center_c2d;
-
-      /* 1. Отрезок до предыдущего узла в указанной области. */
-      is_inside = hyscan_cartesian_is_inside (prev_point, cur_point, from, to);
-
-      /* 2. Отрезок до следующего узла в указанной области. */
-      if (!is_inside && next_point_l != NULL)
-        {
-          next_point = &((HyScanGtkMapTrackPoint *) next_point_l->data)->center_c2d;
-          is_inside = hyscan_cartesian_is_inside (next_point, cur_point, from, to);
-        }
-
-      /* 3. Полосы от бортов в указанной области. */
-      if (!is_inside)
-        {
-          HyScanGtkMapTrackPoint *cur_track_point = point_l->data;
-
-          is_inside = hyscan_cartesian_is_inside (&cur_track_point->l_start_c2d, &cur_track_point->l_end_c2d, from, to) ||
-                      hyscan_cartesian_is_inside (&cur_track_point->l_start_c2d, &cur_track_point->center_c2d, from, to) ||
-                      hyscan_cartesian_is_inside (&cur_track_point->r_start_c2d, &cur_track_point->center_c2d, from, to) ||
-                      hyscan_cartesian_is_inside (&cur_track_point->r_start_c2d, &cur_track_point->r_end_c2d, from, to);
-        }
-
-      if (is_inside)
-        {
-          chunk_start = (chunk_start == NULL) ? prev_point_l : chunk_start;
-          chunk_end = next_point_l;
-        }
-      else if (chunk_start != NULL)
-        {
-          hyscan_gtk_map_track_draw_chunk (from, to, scale, chunk_start, chunk_end, cairo, &style);
-          chunk_start = chunk_end = NULL;
-        }
-
-      prev_point_l = point_l;
-      point_l = point_l->next;
-      next_point_l = point_l != NULL ? point_l->next : NULL;
-    }
-
-  if (chunk_start != NULL)
-    hyscan_gtk_map_track_draw_chunk (from, to, scale, chunk_start, chunk_end, cairo, &style);
-
-  /* Точка начала трека. */
-  if (hyscan_cartesian_is_point_inside (&start_point->center_c2d, from, to))
-    {
-      gdouble x, y;
-
-      /* Координаты точки на поверхности cairo. */
-      x = (start_point->center_c2d.x - from->x) / scale;
-      y = (from->y - to->y) / scale - (start_point->center_c2d.y - to->y) / scale;
-
-      cairo_arc (cairo, x, y, 2.0 * style.line_width, 0, 2.0 * G_PI);
-
-      gdk_cairo_set_source_rgba (cairo, &style.color_track);
-      cairo_fill_preserve (cairo);
-
-      cairo_set_line_width (cairo, style.stroke_width);
-      gdk_cairo_set_source_rgba (cairo, &style.color_stroke);
-      cairo_stroke (cairo);
-    }
+  cairo_save (cairo);
+  cairo_set_antialias (cairo, CAIRO_ANTIALIAS_FAST);
+  hyscan_gtk_map_track_draw_bar_side (from, to, scale, data->port, cairo, &style);
+  hyscan_gtk_map_track_draw_bar_side (from, to, scale, data->starboard, cairo, &style);
+  hyscan_gtk_map_track_draw_bar_path (from, to, scale, data->nav, cairo, &style);
+  hyscan_gtk_map_track_draw_bar_start (from, to, scale, data->nav, cairo, &style);
+  cairo_restore (cairo);
 }
 
 static HyScanParam *
