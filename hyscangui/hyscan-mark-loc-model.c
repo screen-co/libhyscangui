@@ -468,9 +468,11 @@ hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
   HyScanDepthometer *dm;
   gdouble depth;
   HyScanAntennaOffset amp_offset;
+  HyScanSourceType source;
 
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
   const HyScanMarkWaterfall *mark = location->mark;
+
 
   /* Добавляем поворот антенны. */
   amp_offset = hyscan_amplitude_get_offset (amp);
@@ -512,10 +514,17 @@ hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
 
   /* Глубина относительно антенны. */
   depth = location->depth < 0 ? 0 : MAX (0, location->depth - amp_offset.vertical);
+  /* Определяем источник данных. */
+  source = hyscan_source_get_type_by_id (location->mark->source);
 
   /* Определяем дистанцию до точки. */
   projector = hyscan_projector_new (amp);
-  hyscan_projector_count_to_coord (projector, mark->count, &location->across, depth);
+
+  if (source == HYSCAN_SOURCE_ECHOSOUNDER)
+    hyscan_projector_count_to_coord (projector, mark->count, &location->across, 0.0);
+  else
+    hyscan_projector_count_to_coord (projector, mark->count, &location->across, depth);
+
   hyscan_projector_index_to_coord (projector, mark->index, &location->along);
   g_clear_object (&projector);
 
