@@ -61,7 +61,7 @@
 #include <hyscan-factory-depth.h>
 #include <hyscan-factory-amplitude.h>
 #include <string.h>
-#include <math.h>
+#include <hyscan-nav-smooth.h>
 
 // todo: вместо этих макросов брать номера каналов из каких-то пользовательских настроек
 #define NMEA_RMC_CHANNEL   1             /* Канал NMEA с навигационными данными. */
@@ -133,19 +133,10 @@ static gboolean               hyscan_mark_loc_model_load_offset              (Hy
                                                                               HyScanAmplitude       *amp);
 static gboolean               hyscan_mark_loc_model_load_geo                 (HyScanMarkLocModel    *ml_model,
                                                                               HyScanMarkLocation    *location);
-inline static HyScanNavData * hyscan_mark_loc_model_rmc_data_new             (HyScanMarkLocModel    *ml_model,
+inline static HyScanNavSmooth *
+                              hyscan_mark_loc_model_nav_smooth_create        (HyScanMarkLocModel    *ml_model,
                                                                               const gchar           *track_name,
                                                                               HyScanNMEAField        field);
-static inline gdouble         hyscan_mark_loc_model_weight                   (gint64                 mtime,
-                                                                              gint64                 ltime,
-                                                                              gint64                 rtime,
-                                                                              gdouble                lval,
-                                                                              gdouble                rval);
-static inline gdouble         hyscan_mark_loc_model_weight_circular          (gint64                 mtime,
-                                                                              gint64                 ltime,
-                                                                              gint64                 rtime,
-                                                                              gdouble                lval,
-                                                                              gdouble                rval);
 static inline HyScanMarkLocationDirection
                               hyscan_mark_loc_model_direction                (HyScanSourceType       source_type);
 
@@ -324,72 +315,27 @@ hyscan_mark_loc_model_load_geo (HyScanMarkLocModel *ml_model,
   return hyscan_geo_topoXY2geo (priv->geo, &location->mark_geo, position, 0);
 }
 
-inline static HyScanNavData *
-hyscan_mark_loc_model_rmc_data_new (HyScanMarkLocModel *ml_model,
-                                    const gchar        *track_name,
-                                    HyScanNMEAField     field)
+inline static HyScanNavSmooth *
+hyscan_mark_loc_model_nav_smooth_create (HyScanMarkLocModel *ml_model,
+                                         const gchar        *track_name,
+                                         HyScanNMEAField     field)
 {
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
+  HyScanNavData *data;
+  HyScanNavSmooth *smooth;
 
-  return HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache,
+  data = HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache,
                                                   priv->project, track_name, NMEA_RMC_CHANNEL,
                                                   HYSCAN_NMEA_DATA_RMC, field));
-}
 
-/* Находит средневзвешенное значение между lval и rval. */
-static inline gdouble
-hyscan_mark_loc_model_weight (gint64  mtime,
-                              gint64  ltime,
-                              gint64  rtime,
-                              gdouble lval,
-                              gdouble rval)
-{
-  gint64 dtime;
-  gdouble rweight, lweight;
+  if (field == HYSCAN_NMEA_FIELD_TRACK)
+    smooth = hyscan_nav_smooth_new_circular (data);
+  else
+    smooth = hyscan_nav_smooth_new (data);
 
-  dtime = rtime - ltime;
+  g_object_unref (data);
 
-  if (dtime == 0)
-    return lval;
-
-  rweight = 1.0 - (gdouble) (rtime - mtime) / dtime;
-  lweight = 1.0 - (gdouble) (mtime - ltime) / dtime;
-
-  return lweight * lval + rweight * rval;
-}
-
-/* Находит средневзвешенное значение для угловых значений между lval и rval. */
-static inline gdouble
-hyscan_mark_loc_model_weight_circular (gint64  mtime,
-                                       gint64  ltime,
-                                       gint64  rtime,
-                                       gdouble lval,
-                                       gdouble rval)
-{
-  gint64 dtime;
-  gdouble rweight, lweight;
-  gdouble sum_sin, sum_cos;
-  gdouble value;
-
-  dtime = rtime - ltime;
-
-  if (dtime == 0)
-    return lval;
-
-  rweight = 1.0 - (gdouble) (rtime - mtime) / dtime;
-  lweight = 1.0 - (gdouble) (mtime - ltime) / dtime;
-
-  rval *= G_PI / 180.0;
-  lval *= G_PI / 180.0;
-
-  sum_sin = rweight * sin (rval) + lweight * sin (lval);
-  sum_cos = rweight * cos (rval) + lweight * cos (lval);
-  value = atan2 (sum_sin, sum_cos) / G_PI * 180.0;
-
-  if (value < 0.)
-    value += 360.0;
-
-  return value;
+  return smooth;
 }
 
 /* Определяет положение и курс судна в момент фиксации метки. */
@@ -398,40 +344,27 @@ hyscan_mark_loc_model_load_nav (HyScanMarkLocModel *ml_model,
                                 HyScanMarkLocation *location)
 {
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
-  HyScanNavData *lat_data, *lon_data, *angle_data;
+  HyScanNavSmooth *lat_smooth, *lon_smooth, *angle_smooth;
 
-  HyScanGeoGeodetic lgeo, rgeo;
-  guint32 lindex, rindex;
-  gint64 ltime, rtime;
-
+  HyScanGeoGeodetic coord;
   HyScanAntennaOffset offset;
-  gboolean found = FALSE;
+  gboolean found;
 
-  lat_data   = hyscan_mark_loc_model_rmc_data_new (ml_model, location->track_name, HYSCAN_NMEA_FIELD_LAT);
-  lon_data   = hyscan_mark_loc_model_rmc_data_new (ml_model, location->track_name, HYSCAN_NMEA_FIELD_LON);
-  angle_data = hyscan_mark_loc_model_rmc_data_new (ml_model, location->track_name, HYSCAN_NMEA_FIELD_TRACK);
+  lat_smooth   = hyscan_mark_loc_model_nav_smooth_create (ml_model, location->track_name, HYSCAN_NMEA_FIELD_LAT);
+  lon_smooth   = hyscan_mark_loc_model_nav_smooth_create (ml_model, location->track_name, HYSCAN_NMEA_FIELD_LON);
+  angle_smooth = hyscan_mark_loc_model_nav_smooth_create (ml_model, location->track_name, HYSCAN_NMEA_FIELD_TRACK);
 
-  if (hyscan_nav_data_find_data (lat_data, location->time, &lindex, &rindex, &ltime, &rtime) != HYSCAN_DB_FIND_OK)
+  found = hyscan_nav_smooth_get (lat_smooth, NULL, location->time, &coord.lat) &&
+          hyscan_nav_smooth_get (lon_smooth, NULL, location->time, &coord.lon) &&
+          hyscan_nav_smooth_get (angle_smooth, NULL, location->time, &coord.h);
+
+  if (!found)
     goto exit;
 
-  /* Пробуем распарсить навигационные данные по найденным индексам. */
-  found =  hyscan_nav_data_get (lat_data, NULL, lindex, NULL, &lgeo.lat) &&
-           hyscan_nav_data_get (lon_data, NULL, lindex, NULL, &lgeo.lon) &&
-           hyscan_nav_data_get (angle_data, NULL, lindex, NULL, &lgeo.h) &&
-           hyscan_nav_data_get (lat_data, NULL, rindex, NULL, &rgeo.lat) &&
-           hyscan_nav_data_get (lon_data, NULL, rindex, NULL, &rgeo.lon) &&
-           hyscan_nav_data_get (angle_data, NULL, rindex, NULL, &rgeo.h);
-
-  if (!found) // todo: если в текущем индексе нет данных, то пробовать брать соседние
-    goto exit;
-
-  /* Ищем средневзвешенное значение. */
-  location->center_geo.lat = hyscan_mark_loc_model_weight (location->time, ltime, rtime, lgeo.lat, rgeo.lat);
-  location->center_geo.lon = hyscan_mark_loc_model_weight (location->time, ltime, rtime, lgeo.lon, rgeo.lon);
-  location->center_geo.h   = hyscan_mark_loc_model_weight_circular (location->time, ltime, rtime, lgeo.h, rgeo.h);
+  location->center_geo = coord;
 
   /* Поправка на поворот датчика GPS. */
-  offset = hyscan_nav_data_get_offset (lat_data);
+  offset = hyscan_nav_data_get_offset (hyscan_nav_smooth_get_data (lat_smooth));
   if (offset.yaw != 0)
     location->center_geo.h -= offset.yaw / G_PI * 180.0;
 
@@ -451,9 +384,9 @@ hyscan_mark_loc_model_load_nav (HyScanMarkLocModel *ml_model,
     }
 
 exit:
-  g_object_unref (angle_data);
-  g_object_unref (lat_data);
-  g_object_unref (lon_data);
+  g_object_unref (angle_smooth);
+  g_object_unref (lat_smooth);
+  g_object_unref (lon_smooth);
 
   return found;
 }
