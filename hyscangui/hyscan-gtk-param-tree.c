@@ -54,53 +54,52 @@ enum
 
 struct _HyScanGtkParamTreePrivate
 {
-  GtkStack    *stack;       /* Стек со страницами (правая половина). */
-  GHashTable  *param_lists; /* HyScanParamList'ы для страниц. */
+  GtkStack           *stack;        /* Стек со страницами (правая половина). */
+  GHashTable         *param_lists;  /* HyScanParamList'ы для страниц. */
 
-  GtkTreeModelFilter *model;
-  gchar              *filter;
+  GtkTreeView        *view;         /* Виджет со списком узлов. */
+  GtkTreeStore       *store;        /* Хранилище нефильтрованное. */
+  GtkTreeModelFilter *fstore;       /* Хранилище фильтрованное. */
+  GtkEntry           *_filter;      /* Поле ввода фильтра. */
 };
 
-static void        hyscan_gtk_param_tree_object_constructed   (GObject                    *object);
-static void        hyscan_gtk_param_tree_object_finalize      (GObject                    *object);
-static void        hyscan_gtk_param_tree_plist_adder          (gpointer                    data,
+static void         hyscan_gtk_param_tree_object_constructed  (GObject                    *object);
+static void         hyscan_gtk_param_tree_object_finalize     (GObject                    *object);
+static void         hyscan_gtk_param_tree_plist_adder         (gpointer                    data,
                                                                gpointer                    udata);
-static GtkWidget * hyscan_gtk_param_tree_make_tree            (HyScanGtkParamTree         *self,
-                                                               GtkTreeStore              **_store);
-static gboolean    hyscan_gtk_param_tree_populate             (const HyScanDataSchemaNode *node,
-                                                               GtkTreeView                *view,
+static void         hyscan_gtk_param_tree_update              (HyScanGtkParam             *gtk_param);
+static GtkTreeView * hyscan_gtk_param_tree_make_tree          (HyScanGtkParamTree         *self);
+static gboolean     hyscan_gtk_param_tree_populate            (HyScanGtkParamTree         *self,
+                                                               const HyScanDataSchemaNode *node,
                                                                GtkTreeIter                *parent,
-                                                               GtkStack                   *stack,
+                                                               // GtkStack                   *stack,
                                                                GHashTable                 *widgets,
                                                                GHashTable                 *plists,
                                                                gboolean                    show_hidden);
-static GtkWidget * hyscan_gtk_param_tree_make_page            (const HyScanDataSchemaNode *node,
+static GtkWidget *  hyscan_gtk_param_tree_make_page           (const HyScanDataSchemaNode *node,
                                                                GHashTable                 *widgets,
                                                                GHashTable                 *plists,
                                                                gboolean                    show_hidden);
-static GtkWidget * hyscan_gtk_param_tree_make_links           (const HyScanDataSchemaNode *node,
-                                                               GtkTreeView                *view,
+static GtkWidget *  hyscan_gtk_param_tree_make_links          (HyScanGtkParamTree         *self,
+                                                               const HyScanDataSchemaNode *node,
                                                                GtkTreeModel               *model,
                                                                GtkTreeIter                *parent);
-gboolean           hyscan_gtk_param_tree_activate_link        (GtkLabel                   *label,
+gboolean            hyscan_gtk_param_tree_activate_link       (GtkLabel                   *label,
                                                                gchar                      *uri,
                                                                gpointer                    user_data);
-const HyScanDataSchemaNode *
-                   hyscan_gtk_param_tree_find_node            (const HyScanDataSchemaNode *node,
-                                                               const gchar                *path);
 
-static gboolean    hyscan_gtk_param_tree_tree_visible_func    (GtkTreeModel               *model,
+static gboolean     hyscan_gtk_param_tree_tree_visible_func   (GtkTreeModel               *model,
                                                                GtkTreeIter                *iter,
                                                                gpointer                    data);
-static void        hyscan_gtk_param_search_changed            (GtkEntry                   *entry,
+static void         hyscan_gtk_param_tree_search_changed      (GtkEntry                   *entry,
                                                                gpointer                    udata);
-static void        hyscan_gtk_param_tree_row_activated        (GtkTreeView                *tree_view,
+static void         hyscan_gtk_param_tree_row_activated       (GtkTreeView                *tree_view,
                                                                GtkTreePath                *path,
                                                                GtkTreeViewColumn          *column,
                                                                gpointer                    user_data);
-static void        hyscan_gtk_param_tree_set_page             (HyScanGtkParamTree         *self,
+static void         hyscan_gtk_param_tree_set_page            (HyScanGtkParamTree         *self,
                                                                const gchar                *id);
-static void        hyscan_gtk_param_tree_selection_changed    (GtkTreeSelection           *select,
+static void         hyscan_gtk_param_tree_selection_changed   (GtkTreeSelection           *select,
                                                                HyScanGtkParamTree         *tree);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkParamTree, hyscan_gtk_param_tree, HYSCAN_TYPE_GTK_PARAM);
@@ -108,36 +107,23 @@ G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkParamTree, hyscan_gtk_param_tree, HYSCAN_TY
 static void
 hyscan_gtk_param_tree_class_init (HyScanGtkParamTreeClass *klass)
 {
-  GObjectClass *object_class = G_OBJECT_CLASS (klass);
+  GObjectClass *oclass = G_OBJECT_CLASS (klass);
+  HyScanGtkParamClass *wclass = HYSCAN_GTK_PARAM_CLASS (klass);
 
-  object_class->constructed = hyscan_gtk_param_tree_object_constructed;
-  object_class->finalize = hyscan_gtk_param_tree_object_finalize;
+  oclass->constructed = hyscan_gtk_param_tree_object_constructed;
+  oclass->finalize = hyscan_gtk_param_tree_object_finalize;
+  wclass->update = hyscan_gtk_param_tree_update;
 }
 
 static void
 hyscan_gtk_param_tree_init (HyScanGtkParamTree *self)
 {
-  self->priv = hyscan_gtk_param_tree_get_instance_private (self);
-}
-
-static void
-hyscan_gtk_param_tree_object_constructed (GObject *object)
-{
-  const HyScanDataSchemaNode *nodes;
-  GHashTable *widgets;
-  GtkTreeStore *tstore;
-  GtkTreeModel *filtered_model;
-  GtkWidget *filter_entry;
-  GtkWidget *tview, *tree_scroll;
-  gboolean show_hidden;
-
-  HyScanGtkParamTree *self = HYSCAN_GTK_PARAM_TREE (object);
-  HyScanGtkParamTreePrivate *priv = self->priv;
-
-  G_OBJECT_CLASS (hyscan_gtk_param_tree_parent_class)->constructed (object);
+  HyScanGtkParamTreePrivate *priv = hyscan_gtk_param_tree_get_instance_private (self);
+  self->priv = priv;
 
   priv->param_lists = g_hash_table_new_full (g_str_hash, g_str_equal,
                                              NULL, g_object_unref);
+
   /* Правая половина с виджетами. */
   priv->stack = GTK_STACK (gtk_stack_new ());
   g_object_set (priv->stack,
@@ -145,43 +131,46 @@ hyscan_gtk_param_tree_object_constructed (GObject *object)
                 "transition-type", GTK_STACK_TRANSITION_TYPE_SLIDE_UP_DOWN,
                 NULL);
 
-  /* Левая половина с древесиной. */
-  nodes = hyscan_gtk_param_get_nodes (HYSCAN_GTK_PARAM (self));
-  widgets = hyscan_gtk_param_get_widgets (HYSCAN_GTK_PARAM (self));
-  show_hidden = hyscan_gtk_param_get_show_hidden (HYSCAN_GTK_PARAM (self));
-
-  tview = hyscan_gtk_param_tree_make_tree (self, &tstore);
-  hyscan_gtk_param_tree_populate (nodes, GTK_TREE_VIEW (tview), NULL,
-                                  priv->stack, widgets,priv->param_lists,
-                                  show_hidden);
-  hyscan_gtk_param_tree_set_page (self, "/");
-
-  /* Создаем фильтрацию полей.
-   * TODO: сейчас нельзя создать вью без модели, т.к. функции наполнения
-   * выше берут модель из вьюхи и потом подключают сигналы.
-   * Это надо устранить, возможно, закинув вью и оригинальную модель в priv. */
-  filtered_model = gtk_tree_model_filter_new (GTK_TREE_MODEL (tstore), NULL);
-  gtk_tree_model_filter_set_visible_func (GTK_TREE_MODEL_FILTER (filtered_model),
-                                          hyscan_gtk_param_tree_tree_visible_func,
-                                          priv, NULL);
-  gtk_tree_view_set_model (GTK_TREE_VIEW (tview), filtered_model);
-  priv->model = GTK_TREE_MODEL_FILTER (filtered_model);
-
   /* Текстовое поле для поиска. */
-  filter_entry = gtk_search_entry_new ();
-  g_signal_connect (filter_entry, "search-changed",
-                    G_CALLBACK (hyscan_gtk_param_search_changed), priv);
+  priv->_filter = GTK_ENTRY (gtk_search_entry_new ());
+  g_signal_connect (priv->_filter, "search-changed",
+                    G_CALLBACK (hyscan_gtk_param_tree_search_changed), self);
+
+  /* Дерево. Состоит из модели, фильтрованной модели и вьюхи. */
+  priv->view = hyscan_gtk_param_tree_make_tree (self);
+
+  priv->store = gtk_tree_store_new (N_COLUMNS,
+                                    G_TYPE_STRING,
+                                    G_TYPE_STRING,
+                                    G_TYPE_STRING);
+
+  priv->fstore = GTK_TREE_MODEL_FILTER (gtk_tree_model_filter_new (GTK_TREE_MODEL (priv->store), NULL));
+  gtk_tree_model_filter_set_visible_func (priv->fstore,
+                                          hyscan_gtk_param_tree_tree_visible_func,
+                                          self, NULL);
+  gtk_tree_view_set_model (GTK_TREE_VIEW (priv->view), GTK_TREE_MODEL (priv->fstore));
+}
+
+static void
+hyscan_gtk_param_tree_object_constructed (GObject *object)
+{
+  GtkWidget *tree_scroll;
+
+  HyScanGtkParamTree *self = HYSCAN_GTK_PARAM_TREE (object);
+  HyScanGtkParamTreePrivate *priv = self->priv;
+
+  G_OBJECT_CLASS (hyscan_gtk_param_tree_parent_class)->constructed (object);
 
   tree_scroll = g_object_new (GTK_TYPE_SCROLLED_WINDOW,
                               "vadjustment", NULL,
                               "hadjustment", NULL,
                               "vscrollbar-policy", GTK_POLICY_AUTOMATIC,
                               "hscrollbar-policy", GTK_POLICY_NEVER,
-                              "child", tview,
+                              "child", priv->view,
                               NULL);
 
   /* Упаковываем всё в сетку. */
-  gtk_grid_attach (GTK_GRID (self), filter_entry,             0, 0, 1, 1);
+  gtk_grid_attach (GTK_GRID (self), GTK_WIDGET (priv->_filter), 0, 0, 1, 1);
   gtk_grid_attach (GTK_GRID (self), GTK_WIDGET (tree_scroll), 0, 1, 1, 1);
   gtk_grid_attach (GTK_GRID (self), GTK_WIDGET (priv->stack), 1, 0, 1, 2);
 }
@@ -207,20 +196,42 @@ hyscan_gtk_param_tree_plist_adder (gpointer data,
   hyscan_param_list_add (plist, pkey->id);
 }
 
+static void
+hyscan_gtk_param_tree_update (HyScanGtkParam *gtk_param)
+{
+  HyScanGtkParamTree *self = HYSCAN_GTK_PARAM_TREE (gtk_param);
+  HyScanGtkParamTreePrivate *priv = self->priv;
+  const HyScanDataSchemaNode *nodes;
+  GHashTable *widgets;
+  gboolean show_hidden;
+
+  /* Очистить модели и все виджеты. */
+  g_hash_table_remove_all (priv->param_lists);
+  gtk_tree_store_clear (priv->store);
+  hyscan_gtk_param_clear_container (GTK_CONTAINER (priv->stack));
+  gtk_entry_set_text (priv->_filter, "");
+
+  /* Перенаполнить модель. */
+  nodes = hyscan_gtk_param_get_nodes (HYSCAN_GTK_PARAM (self));
+  widgets = hyscan_gtk_param_get_widgets (HYSCAN_GTK_PARAM (self));
+  show_hidden = hyscan_gtk_param_get_show_hidden (HYSCAN_GTK_PARAM (self));
+
+  hyscan_gtk_param_tree_populate (self, nodes, NULL,
+                                  widgets, priv->param_lists,
+                                  show_hidden);
+  hyscan_gtk_param_tree_set_page (self, "/");
+}
+
 /* Функция создает и настраивает виджет дерева. */
-static GtkWidget *
-hyscan_gtk_param_tree_make_tree (HyScanGtkParamTree  *self,
-                                 GtkTreeStore       **_store)
+static GtkTreeView *
+hyscan_gtk_param_tree_make_tree (HyScanGtkParamTree *self)
 {
   GtkTreeView *tree = NULL;
-  GtkTreeStore *store = NULL;
   GtkCellRenderer *renderer = NULL;
   GtkTreeViewColumn *column = NULL;
   GtkTreeSelection *select = NULL;
 
-  store = gtk_tree_store_new (N_COLUMNS,
-                              G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
-  tree = GTK_TREE_VIEW (gtk_tree_view_new_with_model (GTK_TREE_MODEL (store)));
+  tree = GTK_TREE_VIEW (gtk_tree_view_new ());
 
   gtk_widget_set_vexpand (GTK_WIDGET (tree), TRUE);
   gtk_tree_view_set_enable_tree_lines (tree, TRUE);
@@ -252,9 +263,7 @@ hyscan_gtk_param_tree_make_tree (HyScanGtkParamTree  *self,
   g_signal_connect (select, "changed",
                     G_CALLBACK (hyscan_gtk_param_tree_selection_changed), self);
 
-  *_store = store;
-
-  return GTK_WIDGET (tree);
+  return tree;
 }
 
 /* Функция добавляет узел в дерево. */
@@ -287,18 +296,17 @@ hyscan_gtk_param_tree_append_node (GtkTreeStore               *store,
 }
 
 static gboolean
-hyscan_gtk_param_tree_populate (const HyScanDataSchemaNode *node,
-                                GtkTreeView                *view,
+hyscan_gtk_param_tree_populate (HyScanGtkParamTree         *self,
+                                const HyScanDataSchemaNode *node,
                                 GtkTreeIter                *parent,
-                                GtkStack                   *stack,
                                 GHashTable                 *widgets,
                                 GHashTable                 *plists,
                                 gboolean                    show_hidden)
 {
+  HyScanGtkParamTreePrivate *priv = self->priv;
   GList *link;
   GtkTreeIter iter;
   GtkWidget *page;
-  GtkTreeStore *store;
   gboolean have_subnodes = FALSE;
   gboolean have_keys = FALSE;
 
@@ -308,8 +316,6 @@ hyscan_gtk_param_tree_populate (const HyScanDataSchemaNode *node,
       return FALSE;
     }
 
-  store = GTK_TREE_STORE (gtk_tree_view_get_model (view));
-
   /* Для всех узлов... */
   for (link = node->nodes; link != NULL; link = link->next)
     {
@@ -317,9 +323,9 @@ hyscan_gtk_param_tree_populate (const HyScanDataSchemaNode *node,
       HyScanDataSchemaNode *child = link->data;
 
       /* Добавляем узел в дерево и углубляемся. */
-      hyscan_gtk_param_tree_append_node (store, &iter, parent, child);
-      populated = hyscan_gtk_param_tree_populate (child, view, &iter,
-                                                  stack, widgets, plists,
+      hyscan_gtk_param_tree_append_node (priv->store, &iter, parent, child);
+      populated = hyscan_gtk_param_tree_populate (self, child, &iter,
+                                                  widgets, plists,
                                                   show_hidden);
 
       /* Если ничего добавлено не было, то удаляем узел. Это, кстати, автоматически
@@ -327,7 +333,7 @@ hyscan_gtk_param_tree_populate (const HyScanDataSchemaNode *node,
        * снова сделает его валидным.
        * Иначе запоминаем, что на этом уровне или ниже что-то да есть. */
       if (!populated)
-        gtk_tree_store_remove (store, &iter);
+        gtk_tree_store_remove (priv->store, &iter);
       else
         have_subnodes = TRUE;
     }
@@ -340,11 +346,11 @@ hyscan_gtk_param_tree_populate (const HyScanDataSchemaNode *node,
     {
       if (have_subnodes)
         {
-          page = hyscan_gtk_param_tree_make_links (node, view,
-                                                   GTK_TREE_MODEL (store),
+          page = hyscan_gtk_param_tree_make_links (self, node,
+                                                   GTK_TREE_MODEL (priv->store),
                                                    parent);
 
-          gtk_stack_add_named (stack, page, node->path);
+          gtk_stack_add_named (priv->stack, page, node->path);
         }
 
       return have_subnodes;
@@ -352,10 +358,10 @@ hyscan_gtk_param_tree_populate (const HyScanDataSchemaNode *node,
 
   /* Добавляем страничку в стек и узел в дерево. */
   page = hyscan_gtk_param_tree_make_page (node, widgets, plists, show_hidden);
-  gtk_stack_add_named (stack, page, node->path);
+  gtk_stack_add_named (priv->stack, page, node->path);
 
   if (parent == NULL)
-    hyscan_gtk_param_tree_append_node (store, &iter, parent, node);
+    hyscan_gtk_param_tree_append_node (priv->store, &iter, parent, node);
 
   /* Возвращаем тру, так как элемент был добавлен. */
   return TRUE;
@@ -418,8 +424,8 @@ hyscan_gtk_param_tree_make_page (const HyScanDataSchemaNode *node,
 }
 
 static GtkWidget *
-hyscan_gtk_param_tree_make_links (const HyScanDataSchemaNode *node,
-                                  GtkTreeView                *view,
+hyscan_gtk_param_tree_make_links (HyScanGtkParamTree         *self,
+                                  const HyScanDataSchemaNode *node,
                                   GtkTreeModel               *model,
                                   GtkTreeIter                *parent)
 {
@@ -446,7 +452,7 @@ hyscan_gtk_param_tree_make_links (const HyScanDataSchemaNode *node,
       gtk_tree_model_get (model, &iter, ID_COL, &node_path, -1);
 
       /* Ищем соответствующий узел и определяем текст ссылки. */
-      node_link = hyscan_gtk_param_tree_find_node (node, node_path);
+      node_link = hyscan_gtk_param_find_node (node, node_path);
       text = hyscan_gtk_param_get_node_name (node_link);
 
       /* Составляем markup ссылки. */
@@ -456,7 +462,7 @@ hyscan_gtk_param_tree_make_links (const HyScanDataSchemaNode *node,
       label = gtk_label_new (NULL);
       gtk_label_set_markup (GTK_LABEL (label), markup);
       gtk_widget_set_halign (label, GTK_ALIGN_START);
-      g_signal_connect (label, "activate-link", G_CALLBACK (hyscan_gtk_param_tree_activate_link), view);
+      g_signal_connect (label, "activate-link", G_CALLBACK (hyscan_gtk_param_tree_activate_link), self);
 
       gtk_box_pack_start (GTK_BOX (box), label, FALSE, TRUE, 0);
 
@@ -489,14 +495,15 @@ hyscan_gtk_param_tree_activate_link (GtkLabel *label,
                                      gchar    *uri,
                                      gpointer  user_data)
 {
-  GtkTreeView *view = user_data;
+  HyScanGtkParamTree *self = user_data;
+  HyScanGtkParamTreePrivate *priv = self->priv;
   GtkTreeSelection *sel;
   GtkTreePath *path;
 
   path = gtk_tree_path_new_from_string (uri);
-  sel = gtk_tree_view_get_selection (view);
+  sel = gtk_tree_view_get_selection (priv->view);
 
-  gtk_tree_view_expand_to_path (view, path);
+  gtk_tree_view_expand_to_path (priv->view, path);
   gtk_tree_selection_select_path (sel, path);
 
   g_clear_pointer (&path, gtk_tree_path_free);
@@ -504,39 +511,20 @@ hyscan_gtk_param_tree_activate_link (GtkLabel *label,
   return TRUE;
 }
 
-const HyScanDataSchemaNode *
-hyscan_gtk_param_tree_find_node (const HyScanDataSchemaNode *node,
-                                 const gchar                *path)
-{
-  const HyScanDataSchemaNode * found;
-  GList *link = node->nodes;
-
-  if (0 == (g_strcmp0 (node->path, path)))
-    return node;
-
-  for (link = node->nodes; link != NULL; link = link->next)
-    {
-      found = hyscan_gtk_param_tree_find_node (link->data, path);
-
-      if (found != NULL)
-        return found;
-    }
-
-  return NULL;
-}
-
 /* Функция определяет видимость узлов TreeModel. */
 static gboolean
 hyscan_gtk_param_tree_tree_visible_func (GtkTreeModel *model,
                                          GtkTreeIter  *iter,
-                                         gpointer      data)
+                                         gpointer      udata)
 {
-  HyScanGtkParamTreePrivate *priv = data;
+  HyScanGtkParamTreePrivate *priv = ((HyScanGtkParamTree*)udata)->priv;
+  const gchar *filter;
   gchar *id, *name;
   gboolean visible = FALSE;
   GtkTreeIter child;
 
-  if (priv->filter == NULL || g_str_equal (priv->filter, ""))
+  filter = gtk_entry_get_text (priv->_filter);
+  if (filter == NULL || g_str_equal (filter, ""))
     return TRUE;
 
   /* Рекурсивно проходим по всем дочерним узлам. */
@@ -544,7 +532,7 @@ hyscan_gtk_param_tree_tree_visible_func (GtkTreeModel *model,
     {
       do
         {
-          if (hyscan_gtk_param_tree_tree_visible_func (model, &child, data))
+          if (hyscan_gtk_param_tree_tree_visible_func (model, &child, udata))
             return TRUE;
         }
       while (gtk_tree_model_iter_next (model, &child));
@@ -553,8 +541,8 @@ hyscan_gtk_param_tree_tree_visible_func (GtkTreeModel *model,
   /* Если подузлов нет, сравниваем имя и путь текущего узла с фильтром. */
   gtk_tree_model_get (model, iter, ID_COL, &id, NAME_COL, &name, -1);
 
-  if ((id != NULL && g_strstr_len (id, -1, priv->filter) != NULL) ||
-      (name != NULL && g_strstr_len (name, -1, priv->filter) != NULL))
+  if ((id != NULL && g_strstr_len (id, -1, filter) != NULL) ||
+      (name != NULL && g_strstr_len (name, -1, filter) != NULL))
     {
       visible = TRUE;
     }
@@ -567,18 +555,11 @@ hyscan_gtk_param_tree_tree_visible_func (GtkTreeModel *model,
 
 /* Функция вызывается при смене значения фильтра. */
 static void
-hyscan_gtk_param_search_changed (GtkEntry   *entry,
-                                 gpointer    udata)
+hyscan_gtk_param_tree_search_changed (GtkEntry *entry,
+                                      gpointer  udata)
 {
-  HyScanGtkParamTreePrivate *priv = udata;
-  const gchar * string = NULL;
-
-  string = gtk_entry_get_text (entry);
-  g_clear_pointer (&priv->filter, g_free);
-  priv->filter = g_strdup (string);
-
-  /* Инициируем перефильтрацию модели. */
-  gtk_tree_model_filter_refilter (priv->model);
+  HyScanGtkParamTree *self = udata;
+  gtk_tree_model_filter_refilter (self->priv->fstore);
 }
 
 /* Функция раскрывания дерева по двойному клику. */

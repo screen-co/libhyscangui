@@ -101,14 +101,9 @@ static void     hyscan_gtk_param_get_property            (GObject               
                                                           GParamSpec                  *pspec);
 static void     hyscan_gtk_param_object_constructed      (GObject                     *object);
 static void     hyscan_gtk_param_object_finalize         (GObject                     *object);
-static gboolean hyscan_gtk_param_update                  (gpointer                     data);
+static gchar *  hyscan_gtk_param_validate_root           (const gchar                *root);
 
-static const HyScanDataSchemaNode *
-                hyscan_gtk_param_find_root_node          (const HyScanDataSchemaNode *node,
-                                                          const gchar                *path);
-static void     hyscan_gtk_param_make_keys               (HyScanGtkParam              *self,
-                                                          const HyScanDataSchemaNode  *node,
-                                                          GHashTable                  *ht);
+static gboolean hyscan_gtk_param_updater                 (gpointer                     data);
 static void     hyscan_gtk_param_set_key                 (GVariant                    *value,
                                                           const gchar                 *path,
                                                           GHashTable                  *widgets);
@@ -118,8 +113,12 @@ static void     hyscan_gtk_param_key_changed             (HyScanGtkParamKey     
                                                           const gchar                 *path,
                                                           GVariant                    *val,
                                                           gpointer                    udata);
+static void     hyscan_gtk_param_make_keys               (HyScanGtkParam              *self,
+                                                          const HyScanDataSchemaNode  *node,
+                                                          GHashTable                  *ht);
+static void     hyscan_gtk_param_reinitialize            (HyScanGtkParam              *self);
 
-G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkParam, hyscan_gtk_param, GTK_TYPE_GRID);
+G_DEFINE_ABSTRACT_TYPE_WITH_PRIVATE (HyScanGtkParam, hyscan_gtk_param, GTK_TYPE_GRID);
 
 static void
 hyscan_gtk_param_class_init (HyScanGtkParamClass *klass)
@@ -150,6 +149,15 @@ static void
 hyscan_gtk_param_init (HyScanGtkParam *self)
 {
   self->priv = hyscan_gtk_param_get_instance_private (self);
+
+  self->priv->previous = hyscan_param_list_new ();
+  self->priv->watch = hyscan_param_list_new ();
+  self->priv->apply = hyscan_param_list_new ();
+  self->priv->discard = hyscan_param_list_new ();
+
+  /* Хэш-таблица для виджетов и путей к ним. */
+  self->priv->widgets = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                               g_free, g_object_unref);
 }
 
 static void
@@ -160,7 +168,6 @@ hyscan_gtk_param_set_property (GObject      *object,
 {
   HyScanGtkParam *self = HYSCAN_GTK_PARAM (object);
   HyScanGtkParamPrivate *priv = self->priv;
-  const gchar *string;
 
   switch (prop_id)
     {
@@ -169,12 +176,7 @@ hyscan_gtk_param_set_property (GObject      *object,
       break;
 
     case PROP_ROOT:
-      string = g_value_get_string (value);
-      /* Корень это "/", но я позволяю использовать NULL и пустую строку. */
-      if (string == NULL || g_str_equal (string, ""))
-        priv->root = g_strdup ("/");
-      else
-        priv->root = g_strdup (string);
+      priv->root = hyscan_gtk_param_validate_root (g_value_get_string (value));
       break;
 
     case PROP_HIDDEN:
@@ -214,27 +216,8 @@ static void
 hyscan_gtk_param_object_constructed (GObject *object)
 {
   HyScanGtkParam *self = HYSCAN_GTK_PARAM (object);
-  HyScanGtkParamPrivate *priv = self->priv;
-  const HyScanDataSchemaNode *nodes;
 
-  priv->previous = hyscan_param_list_new ();
-  priv->watch = hyscan_param_list_new ();
-  priv->apply = hyscan_param_list_new ();
-  priv->discard = hyscan_param_list_new ();
-
-  /* Получаем схему и создаем все виджеты ключей. */
-  priv->schema = hyscan_param_schema (priv->param);
-
-  /* Хэш-таблица для виджетов и путей к ним. */
-  priv->widgets = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                         g_free, g_object_unref);
-
-
-  nodes = hyscan_data_schema_list_nodes (priv->schema);
-  priv->root_node = hyscan_gtk_param_find_root_node (nodes, priv->root);
-
-  /* Создаем виджеты. */
-  hyscan_gtk_param_make_keys (self, priv->root_node, priv->widgets);
+  hyscan_gtk_param_reinitialize (self);
 }
 
 static void
@@ -261,9 +244,19 @@ hyscan_gtk_param_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_param_parent_class)->finalize (object);
 }
 
+static gchar *
+hyscan_gtk_param_validate_root (const gchar *root)
+{
+  /* Корень это "/", но я позволяю использовать NULL и пустую строку. */
+  if (root == NULL || g_str_equal (root, ""))
+    return g_strdup ("/");
+  else
+    return g_strdup (root);
+}
+
 /* Функция обновляет содержимое текущего списка параметров. */
 static gboolean
-hyscan_gtk_param_update (gpointer data)
+hyscan_gtk_param_updater (gpointer data)
 {
   HyScanGtkParam *self = data;
   HyScanGtkParamPrivate *priv = self->priv;
@@ -312,68 +305,6 @@ hyscan_gtk_param_update (gpointer data)
   }
 
   return G_SOURCE_CONTINUE;
-}
-
-static const HyScanDataSchemaNode *
-hyscan_gtk_param_find_root_node (const HyScanDataSchemaNode *node,
-                                 const gchar                *path)
-{
-  GList *link;
-  const HyScanDataSchemaNode *found, *subnode;
-
-  /* Либо это искомый узел... */
-  if (g_str_equal (node->path, path))
-    return node;
-
-  /* Если узлов ниже нет, то и искать нечего. */
-  if (node->nodes == NULL)
-    return NULL;
-
-  /* Либо рекурсивно идем по всем узлам. */
-  for (link = node->nodes; link != NULL; link = link->next)
-    {
-      subnode = link->data;
-      found = hyscan_gtk_param_find_root_node (subnode, path);
-      if (found != NULL)
-        return found;
-    }
-
-  return NULL;
-}
-
-/* Функция рекурсивно создает виджеты, кладет их в хэш-таблицу и
- * подключает сигналы. */
-static void
-hyscan_gtk_param_make_keys (HyScanGtkParam             *self,
-                            const HyScanDataSchemaNode *node,
-                            GHashTable                 *ht)
-{
-  GList *link;
-  GtkWidget *widget;
-  HyScanDataSchemaKey *key;
-
-  if (node == NULL)
-    return;
-
-  /* Рекурсивно идем по всем узлам. */
-  for (link = node->nodes; link != NULL; link = link->next)
-    {
-      HyScanDataSchemaNode *subnode = link->data;
-      hyscan_gtk_param_make_keys (self, subnode, ht);
-    }
-
-  /* А теперь по всем ключам. */
-  for (link = node->keys; link != NULL; link = link->next)
-    {
-      key = link->data;
-
-      widget = hyscan_gtk_param_key_new (self->priv->schema, key);
-
-      g_signal_connect (widget, "changed",
-                        G_CALLBACK (hyscan_gtk_param_key_changed), self);
-
-      g_hash_table_insert (ht, g_strdup (key->id), g_object_ref (widget));
-    }
 }
 
 /* Функция устанавливает значения виджетов. */
@@ -438,6 +369,93 @@ hyscan_gtk_param_key_changed (HyScanGtkParamKey *pkey,
     }
   hyscan_param_list_set (priv->discard, path, old);
   g_variant_unref (old);
+}
+
+/* Функция рекурсивно создает виджеты, кладет их в хэш-таблицу и
+ * подключает сигналы. */
+static void
+hyscan_gtk_param_make_keys (HyScanGtkParam             *self,
+                            const HyScanDataSchemaNode *node,
+                            GHashTable                 *ht)
+{
+  GList *link;
+  GtkWidget *widget;
+  HyScanDataSchemaKey *key;
+
+  if (node == NULL)
+    return;
+
+  /* Рекурсивно идем по всем узлам. */
+  for (link = node->nodes; link != NULL; link = link->next)
+    {
+      HyScanDataSchemaNode *subnode = link->data;
+      hyscan_gtk_param_make_keys (self, subnode, ht);
+    }
+
+  /* А теперь по всем ключам. */
+  for (link = node->keys; link != NULL; link = link->next)
+    {
+      key = link->data;
+
+      widget = hyscan_gtk_param_key_new (self->priv->schema, key);
+
+      g_signal_connect (widget, "changed",
+                        G_CALLBACK (hyscan_gtk_param_key_changed), self);
+
+      g_hash_table_insert (ht, g_strdup (key->id), g_object_ref (widget));
+    }
+}
+
+static void
+hyscan_gtk_param_reinitialize (HyScanGtkParam *self)
+{
+  HyScanGtkParamPrivate *priv = self->priv;
+  HyScanGtkParamClass *klass = HYSCAN_GTK_PARAM_GET_CLASS (self);
+  const HyScanDataSchemaNode *nodes;
+
+  /* Очищаем все структуры и списки. */
+  hyscan_param_list_clear (priv->previous);
+  hyscan_param_list_clear (priv->watch);
+  hyscan_param_list_clear (priv->apply);
+  hyscan_param_list_clear (priv->discard);
+  g_hash_table_remove_all (priv->widgets);
+  g_clear_object (&priv->schema);
+  priv->root_node = NULL;
+
+  /* Получаем схему и создаем все виджеты ключей. */
+  if (priv->param == NULL)
+    return;
+
+  priv->schema = hyscan_param_schema (priv->param);
+  nodes = hyscan_data_schema_list_nodes (priv->schema);
+  priv->root_node = hyscan_gtk_param_find_node (nodes, priv->root);
+
+  /* Создаем виджеты. */
+  hyscan_gtk_param_make_keys (self, priv->root_node, priv->widgets);
+  klass->update (self);
+}
+
+void
+hyscan_gtk_param_set_param (HyScanGtkParam  *self,
+                            HyScanParam     *param,
+                            const gchar     *root,
+                            gboolean         hidden)
+{
+  HyScanGtkParamPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_PARAM (self));
+  priv = self->priv;
+
+  g_clear_object (&priv->param);
+  g_clear_pointer (&priv->root, g_free);
+  priv->show_hidden = FALSE;
+
+  priv->param = g_object_ref (param);
+  priv->root = hyscan_gtk_param_validate_root (root);
+  priv->show_hidden = hidden;
+
+  /* Инициируем обновление виджета. */
+  hyscan_gtk_param_reinitialize (self);
 }
 
 /**
@@ -528,7 +546,7 @@ hyscan_gtk_param_set_watch_list (HyScanGtkParam  *self,
       hyscan_param_list_add (priv->previous, *params);
     }
 
-  hyscan_gtk_param_update (self);
+  hyscan_gtk_param_updater (self);
 }
 
 /**
@@ -549,7 +567,7 @@ hyscan_gtk_param_apply (HyScanGtkParam *self)
 
   /* Отправляем изменения в бэкэнд. */
   hyscan_param_set (priv->param, priv->apply);
-  hyscan_gtk_param_update (self);
+  hyscan_gtk_param_updater (self);
 
   /* Применять и отменять больше нечего. */
   hyscan_param_list_clear (priv->apply);
@@ -625,7 +643,7 @@ hyscan_gtk_param_set_watch_period (HyScanGtkParam *self,
   if (period == 0)
     return;
 
-  priv->updater = g_timeout_add (period, hyscan_gtk_param_update, self);
+  priv->updater = g_timeout_add (period, hyscan_gtk_param_updater, self);
 }
 
 /**
@@ -671,6 +689,33 @@ hyscan_gtk_param_get_node_name (const HyScanDataSchemaNode *node)
   return name;
 }
 
+const HyScanDataSchemaNode *
+hyscan_gtk_param_find_node (const HyScanDataSchemaNode *node,
+                            const gchar                *path)
+{
+  GList *link;
+  const HyScanDataSchemaNode *found, *subnode;
+
+  /* Либо это искомый узел... */
+  if (g_str_equal (node->path, path))
+    return node;
+
+  /* Если узлов ниже нет, то и искать нечего. */
+  if (node->nodes == NULL)
+    return NULL;
+
+  /* Либо рекурсивно идем по всем узлам. */
+  for (link = node->nodes; link != NULL; link = link->next)
+    {
+      subnode = link->data;
+      found = hyscan_gtk_param_find_node (subnode, path);
+      if (found != NULL)
+        return found;
+    }
+
+  return NULL;
+}
+
 /**
  * hyscan_gtk_param_get_node_name:
  * @node: интересующй #HyScanDataSchemaNode.
@@ -705,4 +750,17 @@ hyscan_gtk_param_node_has_visible_keys (const HyScanDataSchemaNode *node,
     }
 
   return FALSE;
+}
+
+void
+hyscan_gtk_param_clear_container (GtkContainer *container)
+{
+  GList *list, *link;
+
+  g_return_if_fail (GTK_IS_CONTAINER (container));
+  list = gtk_container_get_children (container);
+  for (link = list; link != NULL; link = g_list_next (link))
+    gtk_widget_destroy (GTK_WIDGET (link->data));
+
+  g_list_free (list);
 }

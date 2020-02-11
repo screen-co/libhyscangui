@@ -43,29 +43,42 @@
 
 #include "hyscan-gtk-param-list.h"
 
-static void       hyscan_gtk_param_list_object_constructed (GObject *object);
-static void       hyscan_gtk_param_list_object_finalize    (GObject *object);
+struct _HyScanGtkParamListPrivate
+{
+  GtkWidget *box;
+};
 
-G_DEFINE_TYPE (HyScanGtkParamList, hyscan_gtk_param_list, HYSCAN_TYPE_GTK_PARAM);
+static void       hyscan_gtk_param_list_object_constructed (GObject            *object);
+static void       hyscan_gtk_param_list_object_finalize    (GObject            *object);
+static void       hyscan_gtk_param_list_add_widgets        (HyScanGtkParamList *self,
+                                                            const HyScanDataSchemaNode *node,
+                                                            HyScanParamList    *plist,
+                                                            GtkSizeGroup       *size);
+static void       hyscan_gtk_param_list_update             (HyScanGtkParam     *gtk_param);
+
+G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkParamList, hyscan_gtk_param_list, HYSCAN_TYPE_GTK_PARAM);
 
 static void
 hyscan_gtk_param_list_class_init (HyScanGtkParamListClass *klass)
 {
-  GObjectClass *object_class = G_OBJECT_CLASS (klass);
+  GObjectClass *oclass = G_OBJECT_CLASS (klass);
+  HyScanGtkParamClass *wclass = HYSCAN_GTK_PARAM_CLASS (klass);
 
-  object_class->constructed = hyscan_gtk_param_list_object_constructed;
-  object_class->finalize = hyscan_gtk_param_list_object_finalize;
+  oclass->constructed = hyscan_gtk_param_list_object_constructed;
+  oclass->finalize = hyscan_gtk_param_list_object_finalize;
+  wclass->update = hyscan_gtk_param_list_update;
 }
 
 static void
 hyscan_gtk_param_list_init (HyScanGtkParamList *self)
 {
+  self->priv = hyscan_gtk_param_list_get_instance_private (self);
+  self->priv->box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 2);
 }
 
 static void
 hyscan_gtk_param_list_add_widgets (HyScanGtkParamList   *self,
                                    const HyScanDataSchemaNode *node,
-                                   GtkWidget            *container,
                                    HyScanParamList      *plist,
                                    GtkSizeGroup         *size)
 {
@@ -88,15 +101,11 @@ hyscan_gtk_param_list_add_widgets (HyScanGtkParamList   *self,
   show_hidden = hyscan_gtk_param_get_show_hidden (HYSCAN_GTK_PARAM (self));
   widgets = hyscan_gtk_param_get_widgets (HYSCAN_GTK_PARAM (self));
 
-  /* Для одинакового размера виджетов. */
-  if (size == NULL)
-    size = gtk_size_group_new (GTK_SIZE_GROUP_HORIZONTAL);
-
   /* Рекурсивно идем по всем узлам. */
   for (link = node->nodes; link != NULL; link = link->next)
     {
       HyScanDataSchemaNode *subnode = link->data;
-      hyscan_gtk_param_list_add_widgets (self, subnode, container, plist, size);
+      hyscan_gtk_param_list_add_widgets (self, subnode, plist, size);
     }
 
   /* А теперь по всем ключам. */
@@ -109,6 +118,7 @@ hyscan_gtk_param_list_add_widgets (HyScanGtkParamList   *self,
 
       /* Ищем виджет. */
       widget = g_hash_table_lookup (widgets, key->id);
+      // gtk_widget_show_all (widget);
 
       /* Путь - в список отслеживаемых. */
       hyscan_param_list_add (plist, key->id);
@@ -116,32 +126,18 @@ hyscan_gtk_param_list_add_widgets (HyScanGtkParamList   *self,
       /* Виджет (с твиками) в контейнер. */
       g_object_set (widget, "margin-start", 12, "margin-end", 12, "margin-bottom", 6, NULL);
       hyscan_gtk_param_key_add_to_size_group (HYSCAN_GTK_PARAM_KEY (widget), size);
-      gtk_box_pack_start (GTK_BOX (container), widget, FALSE, TRUE, 0);
+      gtk_box_pack_start (GTK_BOX (self->priv->box), widget, FALSE, TRUE, 0);
     }
 }
 
 static void
 hyscan_gtk_param_list_object_constructed (GObject *object)
 {
-  GtkWidget *scrolled;
-  GtkWidget *subbox;
-  HyScanParamList *plist;
-
   HyScanGtkParamList *self = HYSCAN_GTK_PARAM_LIST (object);
+  HyScanGtkParamListPrivate *priv = self->priv;
+  GtkWidget *scrolled;
 
   G_OBJECT_CLASS (hyscan_gtk_param_list_parent_class)->constructed (object);
-
-  /* Контейнер для виджетов. */
-  subbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 2);
-
-  /* Список параметров для слежения. */
-  plist = hyscan_param_list_new ();
-
-  hyscan_gtk_param_list_add_widgets (self, NULL, subbox, plist, NULL);
-
-  /* Устанавливаем список отслеживаемых (то есть все пути). */
-  hyscan_gtk_param_set_watch_list (HYSCAN_GTK_PARAM (self), plist);
-  g_object_unref (plist);
 
   /* Прокрутка области параметров. */
   scrolled = gtk_scrolled_window_new (NULL, NULL);
@@ -149,7 +145,7 @@ hyscan_gtk_param_list_object_constructed (GObject *object)
                                   GTK_POLICY_NEVER,
                                   GTK_POLICY_AUTOMATIC);
 
-  gtk_container_add (GTK_CONTAINER (scrolled), subbox);
+  gtk_container_add (GTK_CONTAINER (scrolled), priv->box);
   g_object_set (scrolled, "hexpand", TRUE, "vexpand", TRUE, NULL);
   gtk_grid_attach (GTK_GRID (self), scrolled, 0, 0, 1, 1);
 }
@@ -158,6 +154,31 @@ static void
 hyscan_gtk_param_list_object_finalize (GObject *object)
 {
   G_OBJECT_CLASS (hyscan_gtk_param_list_parent_class)->finalize (object);
+}
+
+/* Функция размещает виджеты где следует. */
+static void
+hyscan_gtk_param_list_update (HyScanGtkParam *gtk_param)
+{
+  HyScanGtkParamList *self = HYSCAN_GTK_PARAM_LIST (gtk_param);
+  HyScanParamList *plist;
+  GtkSizeGroup *size;
+
+  plist = hyscan_param_list_new ();
+
+  /* Очищаем старые виджеты. */
+  hyscan_gtk_param_clear_container (GTK_CONTAINER (self->priv->box));
+
+  /* Наполняем виджетами. */
+  size = gtk_size_group_new (GTK_SIZE_GROUP_HORIZONTAL);
+  hyscan_gtk_param_list_add_widgets (self, NULL, plist, size);
+  gtk_widget_show_all (GTK_WIDGET (self));
+
+  /* Устанавливаем список отслеживаемых (то есть все пути). */
+  hyscan_gtk_param_set_watch_list (HYSCAN_GTK_PARAM (self), plist);
+
+  g_object_unref (plist);
+  g_object_unref (size);
 }
 
 /**
