@@ -1,6 +1,5 @@
 #include <hyscan-map-tile-source-web.h>
-#include <math.h>
-#include <hyscan-pseudo-mercator.h>
+#include <hyscan-proj.h>
 
 struct
 {
@@ -23,7 +22,7 @@ main (int    argc,
   HyScanMapTile *tile;
   gsize i;
 
-  mercator = hyscan_pseudo_mercator_new ();
+  mercator = hyscan_proj_new (HYSCAN_PROJ_WEBMERC);
   for (i = 0; i < G_N_ELEMENTS (test_data); i++)
     {
       gboolean result;
