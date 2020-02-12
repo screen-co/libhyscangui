@@ -98,8 +98,6 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-map-tile-loader.c
 
              # [[ Модели ]]
-             hyscan-mark-location.c
-             hyscan-mark-loc-model.c
              hyscan-planner-selection.c
              
              # [[ Журнал меток ]]

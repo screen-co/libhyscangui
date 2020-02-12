@@ -41,11 +41,11 @@ struct _HyScanMarkManagerClass
 GType                    hyscan_mark_manager_get_type         (void);
 
 GtkWidget*               hyscan_mark_manager_new              (HyScanObjectModel  *geo_mark_model,
-	                                                             HyScanMarkLocModel *wf_mark_model,
-	                                                             HyScanDBInfo       *track_model,
-	                                                             gchar              *project_name,
-	                                                             HyScanCache        *cache,
-	                                                             HyScanDB           *db);
+                                                               HyScanMarkLocModel *wf_mark_model,
+                                                               HyScanDBInfo       *track_model,
+                                                               gchar              *project_name,
+                                                               HyScanCache        *cache,
+                                                               HyScanDB           *db);
 
 G_END_DECLS
 

@@ -80,7 +80,7 @@ struct _HyScanMarkManagerPrivate
 {
   HyScanObjectModel  *geo_mark_model,  /* Модель данных гео-меток. */
                      *label_model;     /* Модель данных групп. */
-  HyScanMarkLocModel *wf_mark_model;   /* Модель данных водопадных меток. */
+  HyScanMarkLocModel *wf_mark_model;   /* Модель данных "водопадных" меток. */
   HyScanDBInfo       *track_model;     /* Модель данных галсов. */
 
   GtkWidget          *view,            /* Виджет представления. */
@@ -294,16 +294,16 @@ hyscan_mark_manager_constructed (GObject *object)
 {
   HyScanMarkManager        *self    = HYSCAN_MARK_MANAGER (object);
   HyScanMarkManagerPrivate *priv    = self->priv;
-  GtkBox      *box                  = GTK_BOX (object); /* Контейнер для панели инструментов и представления.*/
+  GtkBox      *box                  = GTK_BOX (object);   /* Контейнер для панели инструментов и представления.*/
   GtkWidget   *toolbar              = gtk_toolbar_new (); /* Панель инструментов. */
-  GtkWidget   *visibility_menu      = gtk_menu_new ();  /* Меню управления видимостью. */
+  GtkWidget   *visibility_menu      = gtk_menu_new ();    /* Меню управления видимостью. */
   /* Пункты меню управления видимостью. */
   GtkWidget   *show_all_item        = gtk_menu_item_new_with_label (_(visibility_text[SHOW_ALL]));
   GtkWidget   *hide_all_item        = gtk_menu_item_new_with_label (_(visibility_text[HIDE_ALL]));
   GtkWidget   *show_selected_item   = gtk_menu_item_new_with_label (_(visibility_text[SHOW_SELECTED]));
   GtkWidget   *hide_selected_item   = gtk_menu_item_new_with_label (_(visibility_text[HIDE_SELECTED]));
   GtkWidget   *combo                = gtk_combo_box_text_new ();
-  GtkToolItem *new_group_item       = NULL;
+  GtkToolItem *new_label_item       = NULL;
   /* Кнопка для меню управления видимостью. */
   GtkToolItem *visibility_item      = NULL;
   GtkToolItem *separator            = gtk_separator_tool_item_new (); /* Разделитель. */
@@ -333,15 +333,15 @@ hyscan_mark_manager_constructed (GObject *object)
   g_signal_connect_swapped (G_OBJECT (priv->view), "selected",
                             G_CALLBACK (hyscan_mark_manager_item_selected), self);
   /* Кнопка "Создать новую группу". */
-  new_group_item  = gtk_tool_button_new (NULL, _(tooltips_text[CREATE_NEW_GROUP]));
-  gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (new_group_item), "insert-object");
+  new_label_item  = gtk_tool_button_new (NULL, _(tooltips_text[CREATE_NEW_GROUP]));
+  gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (new_label_item), "insert-object");
   /* Кнопка для меню управления видимостью. */
   visibility_item = gtk_menu_tool_button_new (NULL, _(tooltips_text[DELETE_SELECTED]));
   gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (visibility_item), "edit-delete");
   grouping = hyscan_mark_manager_view_get_grouping (HYSCAN_MARK_MANAGER_VIEW (priv->view));
-  gtk_widget_set_tooltip_text (GTK_WIDGET (new_group_item), _(tooltips_text[CREATE_NEW_GROUP]));
+  gtk_widget_set_tooltip_text (GTK_WIDGET (new_label_item), _(tooltips_text[CREATE_NEW_GROUP]));
   /* Обработчик нажатия кнопки "Новая группа". */
-  g_signal_connect (G_OBJECT (new_group_item), "clicked",
+  g_signal_connect (G_OBJECT (new_label_item), "clicked",
                     G_CALLBACK (hyscan_mark_manager_create_new_label), self);
   /* Иконка для кнопки "Удалить выделенное". */
   priv->delete_icon = gtk_image_new_from_icon_name ("edit-delete", priv->icon_size);
@@ -406,7 +406,7 @@ hyscan_mark_manager_constructed (GObject *object)
       gtk_widget_set_sensitive (GTK_WIDGET (priv->nodes_item), FALSE);
     }
   /* Заполняем панель инструментов. */
-  gtk_toolbar_insert (GTK_TOOLBAR (toolbar), new_group_item,   -1);
+  gtk_toolbar_insert (GTK_TOOLBAR (toolbar), new_label_item,   -1);
   gtk_toolbar_insert (GTK_TOOLBAR (toolbar), visibility_item,  -1);
   gtk_toolbar_insert (GTK_TOOLBAR (toolbar), container,        -1);
   gtk_toolbar_insert (GTK_TOOLBAR (toolbar), separator,        -1);
