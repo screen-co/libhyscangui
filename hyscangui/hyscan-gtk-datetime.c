@@ -58,6 +58,8 @@ struct _HyScanGtkDateTimePrivate
   HyScanGtkDateTimeMode mode;  /* Режим отображения. */
 
   /* Виджеты. */
+  GtkWidget       *popover;    /* Всплывающее окошко. */
+
   GtkAdjustment   *hour;       /* Часы. */
   GtkAdjustment   *minute;     /* Минуты. */
   GtkAdjustment   *second;     /* Секунды. */
@@ -75,8 +77,7 @@ static void        hyscan_gtk_datetime_object_get_property  (GObject           *
 static void        hyscan_gtk_datetime_object_constructed   (GObject           *object);
 static void        hyscan_gtk_datetime_object_finalize      (GObject           *object);
 
-static void        hyscan_gtk_datetime_start_edit           (HyScanGtkDateTime *self,
-                                                             GtkWidget         *popover);
+static void        hyscan_gtk_datetime_start_edit           (HyScanGtkDateTime *self);
 static void        hyscan_gtk_datetime_end_edit             (HyScanGtkDateTime *self,
                                                              GtkWidget         *popover);
 
@@ -178,29 +179,34 @@ hyscan_gtk_datetime_object_constructed (GObject *object)
 {
   HyScanGtkDateTime *self = HYSCAN_GTK_DATETIME (object);
   HyScanGtkDateTimePrivate *priv = self->priv;
-  GtkWidget *popover;
 
   G_OBJECT_CLASS (hyscan_gtk_datetime_parent_class)->constructed (object);
 
   if (priv->dt == NULL)
     hyscan_gtk_datetime_set_time (self, 0);
 
-  popover = hyscan_gtk_datetime_make_popover (self);
+  priv->popover = hyscan_gtk_datetime_make_popover (self);
 
-  g_signal_connect (self, "toggled", G_CALLBACK (hyscan_gtk_datetime_start_edit), popover);
-  g_signal_connect_swapped (popover, "closed", G_CALLBACK (hyscan_gtk_datetime_end_edit), self);
+  g_signal_connect (self, "toggled", G_CALLBACK (hyscan_gtk_datetime_start_edit), NULL);
+  g_signal_connect_swapped (priv->popover, "closed",
+                            G_CALLBACK (hyscan_gtk_datetime_end_edit), self);
 }
 
 static void
 hyscan_gtk_datetime_object_finalize (GObject *object)
 {
+  HyScanGtkDateTime *self = HYSCAN_GTK_DATETIME (object);
+  HyScanGtkDateTimePrivate *priv = self->priv;
+
+  g_clear_pointer (&priv->dt, g_date_time_unref);
+  gtk_widget_destroy (priv->popover);
+
   G_OBJECT_CLASS (hyscan_gtk_datetime_parent_class)->finalize (object);
 }
 
 /* Функция преднастраивает виджеты popover'а. */
 static void
-hyscan_gtk_datetime_start_edit (HyScanGtkDateTime *self,
-                                GtkWidget         *popover)
+hyscan_gtk_datetime_start_edit (HyScanGtkDateTime *self)
 {
   HyScanGtkDateTimePrivate *priv = self->priv;
 
@@ -226,7 +232,7 @@ hyscan_gtk_datetime_start_edit (HyScanGtkDateTime *self,
       gtk_adjustment_set_value (priv->second, s);
     }
 
-  gtk_widget_show_all (popover);
+  gtk_widget_show_all (priv->popover);
 
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (self), TRUE);
 }

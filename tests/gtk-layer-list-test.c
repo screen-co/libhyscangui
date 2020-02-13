@@ -39,56 +39,30 @@
 #include <hyscan-gtk-map-pin.h>
 #include <hyscan-gtk-layer-list.h>
 #include <hyscan-gtk-map-ruler.h>
-#include <hyscan-gtk-param-cc.h>
 #include <hyscan-gtk-map-base.h>
 #include <hyscan-cached.h>
 
-static GtkWidget *map;
-static HyScanProfileMap *profile;
-static gchar *file_name;
-
-static void
-map_config_apply (HyScanGtkParam *param_tree)
-{
-  hyscan_gtk_param_apply (param_tree);
-
-  if (file_name != NULL)
-    hyscan_profile_map_write (profile, HYSCAN_GTK_MAP (map), file_name);
-}
-
 static GtkWidget *
-map_config_new (void)
+create_tools (const gchar *label)
 {
-  GtkWidget *box, *gtk_param, *button, *abar, *window;
-  HyScanParam *param;
+  GtkWidget *widget;
 
-  box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+  widget = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+  gtk_box_pack_start (GTK_BOX (widget), gtk_label_new ("This is"), FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (widget), gtk_label_new ("a sample"), FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (widget), gtk_label_new (label), FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (widget), gtk_label_new ("widget"), FALSE, FALSE, 0);
 
-  param = hyscan_gtk_layer_container_get_param (HYSCAN_GTK_LAYER_CONTAINER (map));
-  gtk_param = hyscan_gtk_param_cc_new (param, "/", FALSE);
-  button = gtk_button_new_with_label ("Apply");
-
-  g_signal_connect_swapped (button, "clicked", map_config_apply, gtk_param);
-
-  abar = gtk_action_bar_new ();
-  gtk_action_bar_pack_end (GTK_ACTION_BAR (abar), button);
-
-  gtk_box_pack_start (GTK_BOX (box), gtk_param, TRUE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (box), abar, FALSE, TRUE, 0);
-
-  window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-  gtk_container_add (GTK_CONTAINER (window), box);
-
-  g_object_unref (param);
-
-  return window;
+  return widget;
 }
 
 int
 main (int    argc,
       char **argv)
 {
-  GtkWidget *layer_list, *window, *config_window;
+  static GtkWidget *map;
+  static HyScanProfileMap *profile;
+  GtkWidget *layer_list, *window;
   HyScanGeoGeodetic center = { 59.9934843, 29.7034145, 0 };
   GtkWidget *paned;
   HyScanGtkLayer *pin, *control, *ruler, *base;
@@ -107,9 +81,6 @@ main (int    argc,
     #else
       args = g_strdupv (argv);
     #endif
-
-    if (argc == 2)
-      file_name = g_strdup (args[1]);
 
     g_strfreev (args);
   }
@@ -135,15 +106,18 @@ main (int    argc,
   hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), pin,     "pin");
   hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), ruler,   "ruler");
 
+  /* Добавляем элементы в список инструментов. */
   hyscan_gtk_layer_list_add (HYSCAN_GTK_LAYER_LIST (layer_list), base,  "base",  "Base map");
+  hyscan_gtk_layer_list_add (HYSCAN_GTK_LAYER_LIST (layer_list), NULL,  "tools", "Some settings");
   hyscan_gtk_layer_list_add (HYSCAN_GTK_LAYER_LIST (layer_list), pin,   "pin",   "Pin");
   hyscan_gtk_layer_list_add (HYSCAN_GTK_LAYER_LIST (layer_list), ruler, "ruler", "Ruler");
+  hyscan_gtk_layer_list_add (HYSCAN_GTK_LAYER_LIST (layer_list), NULL,  "empty", "Useless button");
 
-  if (file_name != NULL)
-    profile = hyscan_profile_map_new (NULL, file_name);
-  else
-    profile = hyscan_profile_map_new_default (NULL);
+  /* Для отдельных элементов добавляем настройки. */
+  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (layer_list), "tools", create_tools ("settings"));
+  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (layer_list), "ruler", create_tools ("ruler"));
 
+  profile = hyscan_profile_map_new_default (NULL);
   hyscan_profile_read (HYSCAN_PROFILE (profile));
   hyscan_profile_map_apply (profile, HYSCAN_GTK_MAP (map), "base");
   hyscan_gtk_layer_set_visible (base, TRUE);
@@ -159,12 +133,6 @@ main (int    argc,
   gtk_container_add (GTK_CONTAINER (window), paned);
   g_signal_connect_swapped (window, "destroy", G_CALLBACK (gtk_main_quit), window);
 
-  /* Окно с настрйками стиля. */
-  config_window = map_config_new ();
-  gtk_window_set_default_size (GTK_WINDOW (config_window), 600, 500);
-  gtk_window_set_transient_for (GTK_WINDOW (config_window), GTK_WINDOW (window));
-
-  gtk_widget_show_all (config_window);
   gtk_widget_show_all (window);
 
   gtk_main ();

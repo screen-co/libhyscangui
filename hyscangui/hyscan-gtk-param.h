@@ -60,12 +60,19 @@ struct _HyScanGtkParam
 
 struct _HyScanGtkParamClass
 {
-  GtkGridClass parent_class;
+  GtkGridClass  parent_class;
+
+  void        (*update) (HyScanGtkParam *self);
 };
 
 HYSCAN_API
 GType                   hyscan_gtk_param_get_type         (void);
 
+HYSCAN_API
+void                    hyscan_gtk_param_set_param        (HyScanGtkParam  *gtk_param,
+                                                           HyScanParam     *param,
+                                                           const gchar     *root,
+                                                           gboolean         hidden);
 HYSCAN_API
 HyScanDataSchema *      hyscan_gtk_param_get_schema       (HyScanGtkParam  *gtk_param);
 
@@ -97,8 +104,16 @@ HYSCAN_API
 gchar *                 hyscan_gtk_param_get_node_name    (const HyScanDataSchemaNode *node);
 
 HYSCAN_API
+const HyScanDataSchemaNode * hyscan_gtk_param_find_node   (const HyScanDataSchemaNode *node,
+                                                           const gchar                *path);
+
+
+HYSCAN_API
 gboolean                hyscan_gtk_param_node_has_visible_keys (const HyScanDataSchemaNode *node,
                                                                 gboolean                    show_hidden);
+
+HYSCAN_API
+void                    hyscan_gtk_param_clear_container  (GtkContainer    *container);
 
 
 G_END_DECLS
