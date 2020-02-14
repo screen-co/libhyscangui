@@ -203,6 +203,7 @@ hyscan_gtk_map_track_object_constructed (GObject *object)
 
   /* Параметры слоя включают в себя параметры каждого из классов отрисовки. */
   priv->param = hyscan_param_proxy_new ();
+  hyscan_param_proxy_node_set_name (priv->param, "/", "Tracks", NULL);
 
   /* Класс отрисовки полосами. */
   priv->draw_bar = hyscan_gtk_map_track_draw_bar_new ();
