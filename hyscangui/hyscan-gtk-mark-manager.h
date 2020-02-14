@@ -9,9 +9,7 @@
 #define __HYSCAN_GTK_MARK_MANAGER_H__
 
 #include <gtk/gtk.h>
-#include <hyscan-object-model.h>
-#include <hyscan-mark-loc-model.h>
-#include <hyscan-db-info.h>
+#include <hyscan-model-manager.h>
 
 G_BEGIN_DECLS
 
@@ -40,12 +38,7 @@ struct _HyScanMarkManagerClass
 
 GType                    hyscan_mark_manager_get_type         (void);
 
-GtkWidget*               hyscan_mark_manager_new              (HyScanObjectModel  *geo_mark_model,
-                                                               HyScanMarkLocModel *wf_mark_model,
-                                                               HyScanDBInfo       *track_model,
-                                                               gchar              *project_name,
-                                                               HyScanCache        *cache,
-                                                               HyScanDB           *db);
+GtkWidget*               hyscan_mark_manager_new              (HyScanModelManager *model_manager);
 
 G_END_DECLS
 

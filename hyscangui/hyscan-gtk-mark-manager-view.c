@@ -606,9 +606,9 @@ HyScanMarkManagerGrouping hyscan_mark_manager_view_get_grouping (HyScanMarkManag
 }
 
 /**
- * hyscan_mark_manager_view_update_groups:
+ * hyscan_mark_manager_view_update_labels:
  * @self: указатель на структуру HyScanMarkManagerView
- * @groups: указатель на таблицу с данными о группах
+ * @labels: указатель на таблицу с данными о группах
  *
  * Обновляет данные о группах.
  */
@@ -617,7 +617,9 @@ hyscan_mark_manager_view_update_labels (HyScanMarkManagerView *self,
                                         GHashTable            *labels)
 {
   HyScanMarkManagerViewPrivate *priv = self->priv;
+
   priv->labels = labels;
+
   hyscan_mark_manager_view_update_store (self);
 }
 

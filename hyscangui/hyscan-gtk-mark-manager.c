@@ -38,12 +38,7 @@
 
 enum
 {
-  PROP_GEO_MARK_MODEL = 1,  /* Модель данных гео-меток. */
-  PROP_WF_MARK_MODEL,       /* Модель данных водопадных меток. */
-  PROP_TRACK_MODEL,         /* Модель данных галсов. */
-  PROP_PROJECT_NAME,        /* Название проекта. */
-  PROP_CACHE,               /* Кэш.*/
-  PROP_DB,                  /* База данных. */
+  PROP_MODEL_MANAGER = 1,   /* Менеджер Моделей. */
   N_PROPERTIES
 };
 
@@ -78,24 +73,25 @@ typedef enum
 
 struct _HyScanMarkManagerPrivate
 {
-  HyScanObjectModel  *geo_mark_model,  /* Модель данных гео-меток. */
-                     *label_model;     /* Модель данных групп. */
-  HyScanMarkLocModel *wf_mark_model;   /* Модель данных "водопадных" меток. */
-  HyScanDBInfo       *track_model;     /* Модель данных галсов. */
+  HyScanModelManager *model_manager;     /* Менеджер Моделей. */
+  /*HyScanObjectModel  *geo_mark_model,    *//* Модель данных гео-меток. */
+  /*                   *label_model;       *//* Модель данных групп. */
+  /*HyScanMarkLocModel *wf_mark_loc_model; *//* Модель данных "водопадных" меток. */
+  /*HyScanDBInfo       *track_model;       *//* Модель данных галсов. */
 
-  GtkWidget          *view,            /* Виджет представления. */
-                     *delete_icon;     /* Виджет для иконки для кнопки "Удалить выделенное". */
-  GtkToolItem        *nodes_item;      /* Развернуть/свернуть все узлы. */
-  GtkTreeSelection   *selection;       /* Выбранные строки. */
-  gchar              *project_name;    /* Название проекта. */
-  HyScanCache        *cache;           /* Кэш.*/
-  HyScanDB           *db;              /* База данных. */
-  GHashTable         *labels,          /* Группы. */
-                     *wf_marks,        /* "Водопадные" метки. */
-                     *geo_marks,       /* Гео-метки. */
-                     *tracks;          /* Галсы. */
+  GtkWidget          *view,              /* Виджет представления. */
+                     *delete_icon;       /* Виджет для иконки для кнопки "Удалить выделенное". */
+  GtkToolItem        *nodes_item;        /* Развернуть/свернуть все узлы. */
+  GtkTreeSelection   *selection;         /* Выбранные строки. */
+  /*gchar              *project_name;      *//* Название проекта. */
+  /*HyScanCache        *cache;             *//* Кэш.*/
+  /*HyScanDB           *db;                *//* База данных. */
+  /*GHashTable         *labels,*/            /* Группы. */
+                     /**wf_marks,*/          /* "Водопадные" метки. */
+                     /**geo_marks,*/         /* Гео-метки. */
+                     /**tracks;*/            /* Галсы. */
 
-  GtkIconSize         icon_size;       /* Размер иконок. */
+  GtkIconSize         icon_size;         /* Размер иконок. */
 };
 /* Текст пунктов выпадающего списка для выбора типа представления. */
 static gchar *view_type_text[]  = {N_("Ungrouped"),
@@ -175,36 +171,9 @@ hyscan_mark_manager_class_init (HyScanMarkManagerClass *klass)
   object_class->finalize     = hyscan_mark_manager_finalize;
 
   /* Модель данных гео-меток. */
-  g_object_class_install_property (object_class, PROP_GEO_MARK_MODEL,
-    g_param_spec_object ("geo_mark_model", "Geo", "Geo mark model",
-                         HYSCAN_TYPE_OBJECT_MODEL,
-                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-  /* Модель данных водопадных меток. */
-  g_object_class_install_property (object_class, PROP_WF_MARK_MODEL,
-    g_param_spec_object ("wf_mark_model", "Wf", "Waterfall mark model",
-                         HYSCAN_TYPE_MARK_LOC_MODEL,
-                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-  /* Модель данных галсов. */
-  g_object_class_install_property (object_class, PROP_TRACK_MODEL,
-    g_param_spec_object ("track_model", "Db_info", "Data base information",
-                       HYSCAN_TYPE_DB_INFO,
-                       G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-  /* Название проекта. */
-  g_object_class_install_property (object_class, PROP_PROJECT_NAME,
-    g_param_spec_string ("project_name", "Project_name", "Project name",
-                         "",
-                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-  /* Кэш.*/
-  g_object_class_install_property (object_class, PROP_CACHE,
-    g_param_spec_object ("cache", "Cache",
-                         "The link to main cache with frequency used stafs",
-                         HYSCAN_TYPE_CACHE,
-                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-  /* База данных. */
-  g_object_class_install_property (object_class, PROP_DB,
-    g_param_spec_object ("db", "Data base",
-                         "The link to data base",
-                         HYSCAN_TYPE_DB,
+  g_object_class_install_property (object_class, PROP_MODEL_MANAGER,
+    g_param_spec_object ("model_manager", "ModelManager", "Model Manager",
+                         HYSCAN_TYPE_MODEL_MANAGER,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -235,49 +204,13 @@ hyscan_mark_manager_set_property (GObject      *object,
   switch (prop_id)
     {
       /* Модель данных гео-меток. */
-      case PROP_GEO_MARK_MODEL:
+      case PROP_MODEL_MANAGER:
         {
-          priv->geo_mark_model = g_value_get_object (value);
+          priv->model_manager = g_value_get_object (value);
           /* Увеличиваем счётчик ссылок на модель данных. */
-          g_object_ref (priv->geo_mark_model);
-        }
-      break;
-      /* Модель данных водопадных меток. */
-      case PROP_WF_MARK_MODEL:
-        {
-          priv->wf_mark_model = g_value_get_object (value);
-          /* Увеличиваем счётчик ссылок на модель данных. */
-          g_object_ref (priv->wf_mark_model);
-        }
-      break;
-      /* Модель данных галсов. */
-      case PROP_TRACK_MODEL:
-        {
-          priv->track_model = g_value_get_object (value);
-          /* Увеличиваем счётчик ссылок на модель данных. */
-          g_object_ref (priv->track_model);
-        }
-      break;
-      /* Название проекта */
-      case PROP_PROJECT_NAME:
-        {
-          priv->project_name = g_value_dup_string (value);
-        }
-      break;
-      /* Кэш.*/
-      case PROP_CACHE:
-        {
-          priv->cache  = g_value_dup_object (value);
-          /* Увеличиваем счётчик ссылок на кэш. */
-          g_object_ref (priv->cache);
-        }
-      break;
-      /* База данных. */
-      case PROP_DB:
-        {
-          priv->db  = g_value_dup_object (value);
-          /* Увеличиваем счётчик ссылок на базу данных. */
-          g_object_ref (priv->db);
+          g_object_ref (priv->model_manager);
+          g_print ("--- SET PROPERTY ---\n");
+          g_print ("model_manager: %p\n", priv->model_manager);
         }
       break;
       /* Что-то ещё... */
@@ -312,21 +245,30 @@ hyscan_mark_manager_constructed (GObject *object)
   HyScanMarkManagerToolbarPosition toolbar_position = TOOLBAR_TOP;
   HyScanMarkManagerGrouping index,    /* Для обхода массива с пунктами меню выбора типа представления.*/
                             grouping; /* Для хранения текущего значения. */
-  /* Создаём модель с данными о группах. */
-  priv->label_model = hyscan_object_model_new (HYSCAN_TYPE_OBJECT_DATA_LABEL);
-  hyscan_object_model_set_project (priv->label_model, priv->db, priv->project_name);
-  /* Подключаем сигнал об изменении данных о группах в моделе. */
-  g_signal_connect_swapped (G_OBJECT (priv->label_model),    "changed",
-                            G_CALLBACK (hyscan_mark_manager_labels_changed),    self);
-  /* Подключаем сигнал об изменении данных о гео-метках в моделе. */
-  g_signal_connect_swapped (G_OBJECT (priv->geo_mark_model), "changed",
-                            G_CALLBACK (hyscan_mark_manager_geo_marks_changed), self);
-  /* Подключаем сигнал об изменении данных о "водопадных" метках в моделе. */
-  g_signal_connect_swapped (G_OBJECT (priv->wf_mark_model),  "changed",
-                            G_CALLBACK (hyscan_mark_manager_wf_marks_changed),  self);
-  /* Подключаем сигнал об изменении данных о галсах в моделе. */
-  g_signal_connect_swapped (G_OBJECT (priv->track_model),    "tracks-changed",
-                            G_CALLBACK (hyscan_mark_manager_tracks_changed),    self);
+  /* Подключаем сигнал об изменении данных о группах. */
+  g_signal_connect_swapped (priv->model_manager,
+                            hyscan_model_manager_get_signal_title (priv->model_manager,
+                                                                   SIGNAL_LABELS_CHANGED),
+                            G_CALLBACK (hyscan_mark_manager_labels_changed),
+                            self);
+  /* Подключаем сигнал об изменении данных о гео-метках. */
+  g_signal_connect_swapped (priv->model_manager,
+                            hyscan_model_manager_get_signal_title (priv->model_manager,
+                                                                   SIGNAL_GEO_MARKS_CHANGED),
+                            G_CALLBACK (hyscan_mark_manager_geo_marks_changed),
+                            self);
+  /* Подключаем сигнал об изменении данных о "водопадных" метках. */
+  g_signal_connect_swapped (priv->model_manager,
+                            hyscan_model_manager_get_signal_title (priv->model_manager,
+                                                                   SIGNAL_WF_MARKS_LOC_CHANGED),
+                            G_CALLBACK (hyscan_mark_manager_wf_marks_changed),
+                            self);
+  /* Подключаем сигнал об изменении данных о галсах. */
+  g_signal_connect_swapped (priv->model_manager,
+                            hyscan_model_manager_get_signal_title (priv->model_manager,
+                                                                   SIGNAL_TRACKS_CHANGED),
+                            G_CALLBACK (hyscan_mark_manager_tracks_changed),
+                            self);
   /* Виджет представления. */
   priv->view = hyscan_mark_manager_view_new ();
   /* Соединяем сигнал изменения выбранных элементов представления с функцией-обработчиком. */
@@ -462,31 +404,8 @@ hyscan_mark_manager_finalize (GObject *object)
   HyScanMarkManagerPrivate *priv = self->priv;
 
   /* Освобождаем ресурсы. */
-  /*  Группы. */
-  if (priv->labels != NULL)
-    {
-      g_hash_table_remove_all (priv->labels);
-      g_hash_table_unref (priv->labels);
-      priv->labels = NULL;
-    }
-  /* Модель групп. */
-  if (priv->label_model != NULL)
-    {
-      g_object_unref (priv->label_model);
-      priv->label_model = NULL;
-    }
-  g_object_unref (priv->geo_mark_model);
-  priv->geo_mark_model = NULL;
-  g_object_unref (priv->wf_mark_model);
-  priv->wf_mark_model = NULL;
-  g_object_unref (priv->track_model);
-  priv->track_model = NULL;
-  g_free (priv->project_name);
-  priv->project_name = NULL;
-  g_object_unref (priv->cache);
-  priv->cache = NULL;
-  g_object_unref (priv->db);
-  priv->db = NULL;
+  g_object_unref (priv->model_manager);
+  priv->model_manager = NULL;
 
   G_OBJECT_CLASS (hyscan_mark_manager_parent_class)->finalize (object);
 }
@@ -497,6 +416,7 @@ hyscan_mark_manager_create_new_label (GtkToolItem       *item,
 {
   /* Создаём объект в базе данных. */
   HyScanMarkManagerPrivate *priv  = self->priv;
+  HyScanObjectModel        *label_model = hyscan_model_manager_get_label_model (priv->model_manager);
   HyScanLabel              *label = hyscan_label_new ();
   gint64 time = g_date_time_to_unix (g_date_time_new_now_local ());
   /* gint64 time = g_get_real_time (); */
@@ -505,7 +425,9 @@ hyscan_mark_manager_create_new_label (GtkToolItem       *item,
   hyscan_label_set_label (label, 1);
   hyscan_label_set_ctime (label, time);
   hyscan_label_set_mtime (label, time);
-  hyscan_object_model_add_object (priv->label_model, (const HyScanObject*) label);
+  hyscan_object_model_add_object (label_model, (const HyScanObject*) label);
+
+  g_object_unref (label_model);
 
 }
 /* Обработчик выбора тип представления. */
@@ -557,6 +479,10 @@ hyscan_mark_manager_delete_selected (GtkToolButton     *button,
   gboolean sensivity = gtk_widget_get_sensitive (
                            GTK_WIDGET ( gtk_tool_button_get_icon_widget (button)));
   HyScanMarkManagerView *view = HYSCAN_MARK_MANAGER_VIEW (priv->view);
+
+  g_print ("--- DELETE SELECTED ---\n");
+  g_print ("model_manager: %p\n", priv->model_manager);
+
   if (sensivity && hyscan_mark_manager_view_has_selected (view))
     {
        GtkTreeSelection *selection = hyscan_mark_manager_view_get_selection (view);
@@ -610,22 +536,20 @@ void
 hyscan_mark_manager_labels_changed (HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
-  g_print ("Label model changed\n");
-  if (priv->labels != NULL)
-    g_hash_table_remove_all (priv->labels);
-  priv->labels = hyscan_object_model_get (priv->label_model);
-  if (priv->labels != NULL)
+  GHashTable *labels = hyscan_model_manager_get_all_labels (priv->model_manager);
+
+  if (labels != NULL)
     {
-      HyScanLabel *object;
+/*      HyScanLabel *object;
       GHashTableIter table_iter;
       gchar *id;
-      g_print ("labels %p\n", priv->labels);
-      g_hash_table_iter_init (&table_iter, priv->labels);
+      g_hash_table_iter_init (&table_iter, labels);
       while (g_hash_table_iter_next (&table_iter, (gpointer *) &id, (gpointer *) &object))
         {
           g_print ("%s\n", object->name);
-        }
-      hyscan_mark_manager_view_update_labels (HYSCAN_MARK_MANAGER_VIEW (priv->view), priv->labels);
+        }*/
+      hyscan_mark_manager_view_update_labels (HYSCAN_MARK_MANAGER_VIEW (priv->view), labels);
+      g_hash_table_unref (labels);
     }
 }
 
@@ -634,13 +558,14 @@ void
 hyscan_mark_manager_geo_marks_changed (HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
+  GHashTable *geo_marks = hyscan_model_manager_get_all_geo_marks (priv->model_manager);
+
   g_print ("Geo mark model changed\n");
-  if (priv->geo_marks != NULL)
-    g_hash_table_remove_all (priv->geo_marks);
-  priv->geo_marks = hyscan_object_model_get (priv->geo_mark_model);
-  if (priv->geo_marks != NULL)
+
+  if (geo_marks != NULL)
     {
-      hyscan_mark_manager_view_update_geo_marks (HYSCAN_MARK_MANAGER_VIEW (priv->view), priv->geo_marks);
+      hyscan_mark_manager_view_update_geo_marks (HYSCAN_MARK_MANAGER_VIEW (priv->view), geo_marks);
+      g_hash_table_unref (geo_marks);
     }
 }
 
@@ -649,13 +574,14 @@ void
 hyscan_mark_manager_wf_marks_changed (HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
+  GHashTable *wf_marks = hyscan_model_manager_get_all_wf_marks_loc (priv->model_manager);
+
   g_print ("Waterfall mark model changed\n");
-  if (priv->wf_marks != NULL)
-    g_hash_table_remove_all (priv->wf_marks);
-  priv->wf_marks = hyscan_mark_loc_model_get (priv->wf_mark_model);
-  if (priv->wf_marks != NULL)
+
+  if (wf_marks != NULL)
     {
-      hyscan_mark_manager_view_update_wf_marks (HYSCAN_MARK_MANAGER_VIEW (priv->view), priv->wf_marks);
+      hyscan_mark_manager_view_update_wf_marks (HYSCAN_MARK_MANAGER_VIEW (priv->view), wf_marks);
+      g_hash_table_unref (wf_marks);
     }
 }
 
@@ -664,13 +590,14 @@ void
 hyscan_mark_manager_tracks_changed (HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
+  GHashTable *tracks = hyscan_model_manager_get_all_tracks (priv->model_manager);
+
   g_print ("Track model changed\n");
-  if (priv->tracks != NULL)
-    g_hash_table_remove_all (priv->tracks);
-  priv->tracks = hyscan_db_info_get_tracks (priv->track_model);
-  if (priv->tracks != NULL)
+
+  if (tracks != NULL)
     {
-      hyscan_mark_manager_view_update_tracks (HYSCAN_MARK_MANAGER_VIEW (priv->view), priv->tracks);
+      hyscan_mark_manager_view_update_tracks (HYSCAN_MARK_MANAGER_VIEW (priv->view), tracks);
+      g_hash_table_unref (tracks);
     }
 }
 
@@ -693,15 +620,20 @@ void hyscan_mark_manager_delete_label (GtkTreeModel *model,
                                        gpointer      data)
 {
   HyScanMarkManagerPrivate *priv;
+  HyScanObjectModel *label_model;
   gchar *id;
   GtkTreePath *tmp;
 
   g_return_if_fail (HYSCAN_IS_MARK_MANAGER (data));
 
   priv = HYSCAN_MARK_MANAGER (data)->priv;
+  label_model = hyscan_model_manager_get_label_model (priv->model_manager);
   gtk_tree_model_get (model, iter, 0/*COLUMN_ID*/, &id, -1);
   g_print ("*** id: %s\n", id);
-  hyscan_object_model_remove_object (priv->label_model, id);
+  hyscan_object_model_remove_object (label_model, id);
+
+  g_object_unref (label_model);
+
   /*tmp = gtk_tree_path_copy (path);
   if (gtk_tree_path_up (tmp))
     {
@@ -712,24 +644,15 @@ void hyscan_mark_manager_delete_label (GtkTreeModel *model,
 
 /**
  * hyscan_mark_manager_new:
+ * @model_manager: Указатель на Менеджер Моделей
  *
  * Returns: cоздаёт новый объект #HyScanMarkManager
  */
 GtkWidget*
-hyscan_mark_manager_new (HyScanObjectModel  *geo_mark_model,
-                         HyScanMarkLocModel *wf_mark_model,
-                         HyScanDBInfo       *track_model,
-                         gchar              *project_name,
-                         HyScanCache        *cache,
-                         HyScanDB           *db)
+hyscan_mark_manager_new (HyScanModelManager *model_manager)
 {
   return GTK_WIDGET (g_object_new (HYSCAN_TYPE_MARK_MANAGER,
-                                   "geo_mark_model", geo_mark_model,
-                                   "wf_mark_model",  wf_mark_model,
-                                   "track_model",    track_model,
-                                   "project_name",   project_name,
-                                   "cache",          cache,
-                                   "db",             db,
+                                   "model_manager",  model_manager,
                                    NULL));
 }
 
