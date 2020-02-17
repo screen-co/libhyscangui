@@ -84,27 +84,38 @@ static GtkWidget * hyscan_gtk_param_cc_make_level2          (const HyScanDataSch
 static GtkWidget * hyscan_gtk_param_cc_add_row              (HyScanGtkParamCC            *self,
                                                              const HyScanDataSchemaNode  *node,
                                                              HyScanParamList             *plist);
+static void        hyscan_gtk_param_cc_update               (HyScanGtkParam              *gtk_param);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkParamCC, hyscan_gtk_param_cc, HYSCAN_TYPE_GTK_PARAM);
 
 static void
 hyscan_gtk_param_cc_class_init (HyScanGtkParamCCClass *klass)
 {
-  GObjectClass *object_class = G_OBJECT_CLASS (klass);
+  GObjectClass *oclass = G_OBJECT_CLASS (klass);
+  HyScanGtkParamClass *wclass = HYSCAN_GTK_PARAM_CLASS (klass);
 
-  object_class->constructed = hyscan_gtk_param_cc_object_constructed;
+  oclass->constructed = hyscan_gtk_param_cc_object_constructed;
+  wclass->update = hyscan_gtk_param_cc_update;
 }
 
 static void
 hyscan_gtk_param_cc_init (HyScanGtkParamCC *self)
 {
-  self->priv = hyscan_gtk_param_cc_get_instance_private (self);
+  HyScanGtkParamCCPrivate *priv = hyscan_gtk_param_cc_get_instance_private (self);
+  self->priv = priv;
+
+  priv->lbox = GTK_LIST_BOX (gtk_list_box_new ());
+  priv->stack = GTK_STACK (gtk_stack_new ());
+
+  g_object_set (priv->stack,
+                "hexpand", TRUE, "vexpand", TRUE,
+                "transition-type", GTK_STACK_TRANSITION_TYPE_SLIDE_UP_DOWN,
+                NULL);
 }
 
 static void
 hyscan_gtk_param_cc_object_constructed (GObject *object)
 {
-  GHashTable *widgets;
   GtkWidget *scroll;
   HyScanGtkParamCC *self = HYSCAN_GTK_PARAM_CC (object);
   HyScanGtkParamCCPrivate *priv = self->priv;
@@ -112,34 +123,37 @@ hyscan_gtk_param_cc_object_constructed (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_param_cc_parent_class)->constructed (object);
 
   /* Переключатели. */
-  priv->lbox = GTK_LIST_BOX (gtk_list_box_new ());
   g_signal_connect (priv->lbox, "row-activated",
                     G_CALLBACK (hyscan_gtk_param_cc_row_activated), self);
 
+  scroll = SCROLLABLE (priv->lbox);
+  gtk_grid_attach (GTK_GRID (self), GTK_WIDGET (scroll),      0, 0, 1, 1);
+  gtk_grid_attach (GTK_GRID (self), GTK_WIDGET (priv->stack), 1, 0, 1, 1);
+}
+
+static void
+hyscan_gtk_param_cc_update (HyScanGtkParam *gtk_param)
+{
+  HyScanGtkParamCC *self = HYSCAN_GTK_PARAM_CC (gtk_param);
+  HyScanGtkParamCCPrivate *priv = self->priv;
+  GHashTable *widgets;
+  GtkListBoxRow *row;
+
+  /* Очищаем старые виджеты. */
+  hyscan_gtk_param_clear_container (GTK_CONTAINER (priv->lbox));
+  hyscan_gtk_param_clear_container (GTK_CONTAINER (priv->stack));
+
   /* Правая половина с виджетами. */
-  priv->stack = GTK_STACK (gtk_stack_new ());
-  g_object_set (priv->stack,
-                "hexpand", TRUE, "vexpand", TRUE,
-                "transition-type", GTK_STACK_TRANSITION_TYPE_SLIDE_UP_DOWN,
-                NULL);
-
-
-  widgets = hyscan_gtk_param_get_widgets (HYSCAN_GTK_PARAM (self));
+  widgets = hyscan_gtk_param_get_widgets (gtk_param);
 
   if (!hyscan_gtk_param_cc_make_level0 (self, widgets))
     return;
 
-  {
-    GtkListBoxRow *row;
-    row = gtk_list_box_get_row_at_index (priv->lbox, 0);
-    gtk_list_box_select_row (priv->lbox, row);
-    hyscan_gtk_param_cc_row_activated (priv->lbox, row, self);
-  }
+  gtk_widget_show_all (GTK_WIDGET (self));
 
-  scroll = SCROLLABLE (priv->lbox);
-
-  gtk_grid_attach (GTK_GRID (self), GTK_WIDGET (scroll), 0, 0, 1, 1);
-  gtk_grid_attach (GTK_GRID (self), GTK_WIDGET (priv->stack), 1, 0, 1, 1);
+  row = gtk_list_box_get_row_at_index (priv->lbox, 0);
+  gtk_list_box_select_row (priv->lbox, row);
+  hyscan_gtk_param_cc_row_activated (priv->lbox, row, self);
 }
 
 /* Функция добавляет идентификаторы ключей в HyScanParamList. */
@@ -175,8 +189,8 @@ hyscan_gtk_param_cc_row_activated (GtkListBox    *box,
 
 /* Функция создает виджет нулевого уровня (ключи + все виджеты 1 уровня). */
 static gboolean
-hyscan_gtk_param_cc_make_level0 (HyScanGtkParamCC           *self,
-                                 GHashTable                 *widgets)
+hyscan_gtk_param_cc_make_level0 (HyScanGtkParamCC *self,
+                                 GHashTable       *widgets)
 {
   HyScanGtkParamCCPrivate *priv = self->priv;
   const HyScanDataSchemaNode *node;

@@ -94,6 +94,12 @@
     <key id="datetime" name="Дата и время" type="integer" view="datetime" access="r">
       <default>2504434115</default>
     </key>
+    <key id="rgb" name="Цвет" type="string" view="rgb" access="r">
+      <default>#FF00FF</default>
+    </key>
+    <key id="rgba" name="Полупрозрачный цвет" type="string" view="rgba" access="r">
+      <default>rgba(0, 255, 0, 0.4)</default>
+    </key>
   </schema>
 
   <schema id="hidden" name="Hidden schema"><description>All keys hidden</description>

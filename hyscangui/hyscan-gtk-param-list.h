@@ -47,12 +47,14 @@ G_BEGIN_DECLS
 #define HYSCAN_GTK_PARAM_LIST_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_PARAM_LIST, HyScanGtkParamListClass))
 
 typedef struct _HyScanGtkParamList HyScanGtkParamList;
+typedef struct _HyScanGtkParamListPrivate HyScanGtkParamListPrivate;
 typedef struct _HyScanGtkParamListClass HyScanGtkParamListClass;
 
 struct _HyScanGtkParamList
 {
   HyScanGtkParam parent_instance;
 
+  HyScanGtkParamListPrivate *priv;
 };
 
 struct _HyScanGtkParamListClass
