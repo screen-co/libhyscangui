@@ -1,4 +1,4 @@
-/* gtk-map-config-test.c
+/* gtk-layer-list-test.c
  *
  * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *

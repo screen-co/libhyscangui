@@ -1,3 +1,54 @@
+/* hyscan-gtk-layer-param.c
+ *
+ * Copyright 2019-2020 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
+ *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-layer-param
+ * @Short_description: Контроллер параметров слоя
+ * @Title: HyScanGtkLayerParam
+ *
+ * Класс расширяет возможности #HyScanParamController, включая в себя функции, которые
+ * используются для конфигурации слоёв #HyScanGtkLayer:
+ *
+ * - hyscan_gtk_layer_param_add_rgba() - связывает параметр с переменной типа #GdkRGBA
+ * - hyscan_gtk_layer_param_set_stock_schema() - устанавливает схему данных из схем, определённых в layer-schema.xml
+ * - hyscan_gtk_layer_param_set_default() - присваивает всем параметрам значения по умолчанию
+ * - hyscan_gtk_layer_param_file_to_list() - чтение значений параметров из файла
+ * - hyscan_gtk_layer_param_list_to_file() - запись значений параметров в файл
+ *
+ * После успешной установки параметров контроллер отправляет сигнал "set".
+ */
+
 #include "hyscan-gtk-layer-param.h"
 
 enum
@@ -6,15 +57,10 @@ enum
   SIGNAL_LAST
 };
 
-struct _HyScanGtkLayerParamPrivate
-{
-  gboolean                     detach;
-};
-
 static void             hyscan_gtk_layer_param_interface_init       (HyScanParamInterface   *iface);
 static gboolean         hyscan_gtk_layer_common_rgba_set            (const gchar            *name,
-                                                                      GVariant              *value,
-                                                                      GdkRGBA               *rgba);                                                                                           
+                                                                     GVariant               *value,
+                                                                     GdkRGBA                *rgba);
 static GVariant *       hyscan_gtk_layer_common_rgba_get            (const gchar            *name,
                                                                      GdkRGBA                *rgba);
 
@@ -22,7 +68,6 @@ static HyScanParamInterface *hyscan_param_parent_iface;
 static guint                 hyscan_gtk_layer_param_signals[SIGNAL_LAST];
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkLayerParam, hyscan_gtk_layer_param, HYSCAN_TYPE_PARAM_CONTROLLER,
-                         G_ADD_PRIVATE (HyScanGtkLayerParam)
                          G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_PARAM, hyscan_gtk_layer_param_interface_init))
 
 static void
@@ -44,19 +89,12 @@ hyscan_gtk_layer_param_class_init (HyScanGtkLayerParamClass *klass)
 static void
 hyscan_gtk_layer_param_init (HyScanGtkLayerParam *gtk_layer_param)
 {
-  gtk_layer_param->priv = hyscan_gtk_layer_param_get_instance_private (gtk_layer_param);
 }
 
 static gboolean
 hyscan_gtk_layer_param_set (HyScanParam     *param,
                             HyScanParamList *list)
 {
-  HyScanGtkLayerParam *layer_param = HYSCAN_GTK_LAYER_PARAM (param);
-  HyScanGtkLayerParamPrivate *priv = layer_param->priv;
-
-  if (priv->detach)
-    return FALSE;
-
   if (!hyscan_param_parent_iface->set (param, list))
     return FALSE;
   
@@ -68,12 +106,6 @@ static gboolean
 hyscan_gtk_layer_param_get (HyScanParam     *param,
                             HyScanParamList *list)
 {
-  HyScanGtkLayerParam *layer_param = HYSCAN_GTK_LAYER_PARAM (param);
-  HyScanGtkLayerParamPrivate *priv = layer_param->priv;
-
-  if (priv->detach)
-    return FALSE;
-
   return hyscan_param_parent_iface->get (param, list);
 }
 
@@ -158,6 +190,17 @@ hyscan_gtk_layer_param_set_stock_schema (HyScanGtkLayerParam *layer_param,
   g_object_unref (schema);
 }
 
+/**
+ * hyscan_gtk_layer_param_add_rgba:
+ * @controller: указатель на #HyScanGtkLayerParam
+ * @name: название параметра
+ * @value: указатель на переменную со значением параметра
+ *
+ * Функция связывает параметр типа #HYSCAN_DATA_SCHEMA_KEY_STRING с переменной GdkRGBA,
+ * в которой будет храниться значение параметра.
+ *
+ * Returns: %TRUE если связвание прошло успешно, иначе %FALSE.
+ */
 gboolean
 hyscan_gtk_layer_param_add_rgba (HyScanGtkLayerParam *layer_param,
                                  const gchar         *name,
@@ -171,6 +214,12 @@ hyscan_gtk_layer_param_add_rgba (HyScanGtkLayerParam *layer_param,
                                            rgba);
 }
 
+/**
+ * hyscan_gtk_layer_param_set_default:
+ * @param: указатель на #HyScanGtkLayerParam
+ *
+ * Устанавливает в обработчик значения параметров по умолчанию (как указано в схеме данных).
+ */
 void
 hyscan_gtk_layer_param_set_default (HyScanGtkLayerParam *param)
 {
@@ -195,14 +244,6 @@ hyscan_gtk_layer_param_set_default (HyScanGtkLayerParam *param)
 
   hyscan_param_set (HYSCAN_PARAM (param), list);
   g_object_unref (list);
-}
-
-void
-hyscan_gtk_layer_param_detach (HyScanGtkLayerParam *param)
-{
-  g_return_if_fail (HYSCAN_IS_GTK_LAYER_PARAM (param));
-
-  param->priv->detach = TRUE;
 }
 
 /**
