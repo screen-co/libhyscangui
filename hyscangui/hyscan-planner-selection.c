@@ -1,3 +1,54 @@
+/* hyscan-gtk-planner-selection.c
+ *
+ * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
+ *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-planner-selection
+ * @Short_description: Модель выбранных объектов планировщика
+ * @Title: HyScanGtkPlannerSelection
+ *
+ * Модель хранит в себе информацию о выбранных объектах планировщика:
+ * - выбранные планы галсов
+ * - активный план галс (по которому идёт навигация)
+ * - выбранная зона полигона и вершина на ней
+ *
+ * При изменении этих объектов модель отправляет соответственно один из сигналов:
+ * - HyScanGtkPlannerSelection::tracks-changed
+ * - HyScanGtkPlannerSelection::activated
+ * - HyScanGtkPlannerSelection::zone-changed
+ *
+ */
+
 #include "hyscan-planner-selection.h"
 
 enum
@@ -253,6 +304,13 @@ hyscan_planner_selection_get_model (HyScanPlannerSelection  *selection)
   return g_object_ref (selection->priv->model);
 }
 
+/**
+ * hyscan_planner_selection_get_zone:
+ * @selection: указатель на #HyScanPlannerSelection
+ * @vertex_index: (out) (nullable): индекс выбранной вершины
+ *
+ * Returns: идентификатор выбранной зоны, для удаления g_free().
+ */
 gchar *
 hyscan_planner_selection_get_zone (HyScanPlannerSelection *selection,
                                    gint                   *vertex_index)
@@ -269,6 +327,14 @@ hyscan_planner_selection_get_zone (HyScanPlannerSelection *selection,
   return g_strdup (priv->zone_id);
 }
 
+/**
+ * hyscan_planner_selection_set_zone:
+ * @selection: указатель на #HyScanPlannerSelection
+ * @zone_id: (nullable): идентификатор выбранной зоны
+ * @vertex_index: индекс выбранной вершины
+ *
+ * Устанавливает выбранную зону и её вершину.
+ */
 void
 hyscan_planner_selection_set_zone (HyScanPlannerSelection *selection,
                                    const gchar            *zone_id,
@@ -304,6 +370,13 @@ hyscan_planner_selection_set_zone (HyScanPlannerSelection *selection,
   g_signal_emit (selection, hyscan_planner_selection_signals[SIGNAL_ZONE_CHANGED], 0);
 }
 
+/**
+ * hyscan_planner_selection_activate:
+ * @selection: указатель на HyScanPlannerSelection
+ * @track_id: (nullable): идентификатор планового галса
+ *
+ * Активирует плановый галс @track_id.
+ */
 void
 hyscan_planner_selection_activate (HyScanPlannerSelection *selection,
                                    const gchar            *track_id)
@@ -319,6 +392,13 @@ hyscan_planner_selection_activate (HyScanPlannerSelection *selection,
   g_signal_emit (selection, hyscan_planner_selection_signals[SIGNAL_ACTIVATED], 0);
 }
 
+/**
+ * hyscan_planner_selection_set_tracks:
+ * @selection: указатель на #HyScanPlannerSelection
+ * @tracks: NULL-терминированный список плановых галсов
+ *
+ * Выбирает галсы с идентификаторами @tracks.
+ */
 void
 hyscan_planner_selection_set_tracks (HyScanPlannerSelection  *selection,
                                      gchar                  **tracks)
@@ -340,6 +420,13 @@ hyscan_planner_selection_set_tracks (HyScanPlannerSelection  *selection,
   g_signal_emit (selection, hyscan_planner_selection_signals[SIGNAL_TRACKS_CHANGED], 0, priv->tracks->data);
 }
 
+/**
+ * hyscan_planner_selection_append:
+ * @selection: указатель на #HyScanPlannerSelection
+ * @track_id: идентификатор планового галса
+ *
+ * Добавляет галс @track_id к выбору галсов.
+ */
 void
 hyscan_planner_selection_append (HyScanPlannerSelection  *selection,
                                  const gchar             *track_id)
@@ -362,6 +449,13 @@ hyscan_planner_selection_append (HyScanPlannerSelection  *selection,
   g_signal_emit (selection, hyscan_planner_selection_signals[SIGNAL_TRACKS_CHANGED], 0, priv->tracks->data);
 }
 
+/**
+ * hyscan_planner_selection_remove:
+ * @selection: указатель на #HyScanPlannerSelection
+ * @track_id: идентификатор планового галса
+ *
+ * Удаляет плановый галс @track_id из выбора галсов.
+ */
 void
 hyscan_planner_selection_remove (HyScanPlannerSelection  *selection,
                                  const gchar             *track_id)
@@ -383,6 +477,12 @@ hyscan_planner_selection_remove (HyScanPlannerSelection  *selection,
     }
 }
 
+/**
+ * hyscan_planner_selection_remove_all:
+ * @selection: указатель на #HyScanPlannerSelection
+ *
+ * Удаляет все галсы из выбора.
+ */
 void
 hyscan_planner_selection_remove_all (HyScanPlannerSelection  *selection)
 {
@@ -398,6 +498,15 @@ hyscan_planner_selection_remove_all (HyScanPlannerSelection  *selection)
   g_signal_emit (selection, hyscan_planner_selection_signals[SIGNAL_TRACKS_CHANGED], 0, priv->tracks->data);
 }
 
+/**
+ * hyscan_planner_selection_contains:
+ * @selection: указатель на #HyScanPlannerSelection
+ * @track_id: идентификатор планового галса
+ *
+ * Проверяет, находится ли плановый галс в выборе, или нет.
+ *
+ * Returns: %TRUE, если выбор содержит плановый галс @track_id, иначе %FALSE
+ */
 gboolean
 hyscan_planner_selection_contains (HyScanPlannerSelection  *selection,
                                    const gchar             *track_id)

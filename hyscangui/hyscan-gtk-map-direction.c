@@ -1,3 +1,56 @@
+/* hyscan-gtk-map-direction.c
+ *
+ * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
+ *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-map-direaction
+ * @Short_description: Виджет слежения за объектом на карте
+ * @Title: HyScanGtkMapDirection
+ *
+ * Виджет предназначен для установки положения карты при навигации. Пользователю
+ * доступны три радиокнопки, определяющие ориентацию карты, и один чекбокс для
+ * слежения за судном.
+ *
+ * Доступные режимы ориентации карты:
+ *
+ * - вручную,
+ * - по курсу движения судна,
+ * - по направлению активного плана галса.
+ *
+ * В режиме слежения за судном видимая область карты перемещается вслед за судном.
+ *
+ */
+
 #include <glib/gi18n-lib.h>
 #include "hyscan-gtk-map-direction.h"
 
@@ -18,22 +71,22 @@ typedef enum
 
 struct _HyScanGtkMapDirectionPrivate
 {
-  HyScanGtkMap                *map;
-  HyScanPlannerSelection      *selection;
-  HyScanObjectModel           *obj_model;
-  HyScanNavModel              *nav_model;
+  HyScanGtkMap                *map;           /* Виджет карты. */
+  HyScanPlannerSelection      *selection;     /* Выбранные плановые галсы. */
+  HyScanObjectModel           *obj_model;     /* Модель объектов планировщика. */
+  HyScanNavModel              *nav_model;     /* Модель навигационных данных. */
 
-  HyScanGtkMapDirectionMode    mode;
-  gboolean                     follow_ship;
+  HyScanGtkMapDirectionMode    mode;          /* Режим ориентации карты. */
+  gboolean                     follow_ship;   /* Следить за судном? */
 
-  gboolean                    nav_data_set;
-  HyScanNavModelData          nav_data;
-  gdouble                     track_angle;
+  gboolean                    nav_data_set;   /* Положение судна получено. */
+  HyScanNavModelData          nav_data;       /* Положение судна. */
+  gdouble                     track_angle;    /* Направление активного плана галса. */
 
-  GtkWidget                   *btn_follow;
-  GtkWidget                   *btn_manual;
-  GtkWidget                   *btn_track;
-  GtkWidget                   *btn_ship;
+  GtkWidget                   *btn_follow;    /* Чекбокс "Следить за судном". */
+  GtkWidget                   *btn_manual;    /* Радиокнопка ориентации вручную. */
+  GtkWidget                   *btn_track;     /* Радиокнопка ориентации по активному плану галса. */
+  GtkWidget                   *btn_ship;      /* Радиокнопка ориентации по курсу судна. */
 };
 
 static void    hyscan_gtk_map_direction_set_property         (GObject               *object,
@@ -273,6 +326,16 @@ hyscan_gtk_map_direction_follow_toggled (GtkToggleButton       *button,
     hyscan_gtk_map_direction_update_pos (direction);
 }
 
+/**
+ * hyscan_gtk_map_direction_new:
+ * @map: карта #HyScanGtkMap
+ * @selection: модель выбранных объектов планировщика
+ * @nav_model: модель навигационных данных
+ *
+ * Функция создаёт виджет для управления положением карты.
+ *
+ * Returns: новый виджет для управления положением карты
+ */
 GtkWidget *
 hyscan_gtk_map_direction_new (HyScanGtkMap           *map,
                               HyScanPlannerSelection *selection,

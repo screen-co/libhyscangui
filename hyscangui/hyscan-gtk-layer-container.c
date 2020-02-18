@@ -40,7 +40,7 @@
  * @See_also: #GtkCifroArea, #HyScanGtkLayer
  *
  * Класс представляет из себя контейнер слоёв #HyScanGtkLayer и служит для
- * управление пользовательским вводом в слои внутри контейнера.
+ * управления пользовательским вводом в эти слои.
  *
  * В основном слои интерактивны, то есть умеют обрабатывать пользовательский ввод.
  * Поскольку пользовательский опыт унифицирован, одному пользовательскому воздействию
@@ -57,12 +57,12 @@
  *
  * Чтобы слой мог оперировать хэндлами, он должен реализовать несколько функций
  * из интерфейса HyScanGtkLayerInterface:
- * - HyScanGtkLayerInterface.handle_create()
- * - HyScanGtkLayerInterface.handle_release()
- * - HyScanGtkLayerInterface.handle_find()
- * - HyScanGtkLayerInterface.handle_show()
- * - HyScanGtkLayerInterface.handle_click()
- * - HyScanGtkLayerInterface.handle_drag()
+ * - HyScanGtkLayerInterface.handle_create() - создание хэндла
+ * - HyScanGtkLayerInterface.handle_release() - отпускание хэндла
+ * - HyScanGtkLayerInterface.handle_find() - поиск хэндла под курсором мыши
+ * - HyScanGtkLayerInterface.handle_show() - отображение хэндла под курсором мыши
+ * - HyScanGtkLayerInterface.handle_click() - клик по хэндлу
+ * - HyScanGtkLayerInterface.handle_drag() - перетаскивание хэндла
  *
  * Функция HyScanGtkLayerInterface.handle_find() жизненно необходима всем желающим
  * реагировать на действия пользователя. Контейнер вызывает эту функцию, когда
@@ -79,7 +79,7 @@
  *   2.1 опеределяет, в каком из слоёв хэндл лежит ближе всего к курсору,
  *   2.2 предлагает выбранному слою обработать нажатие на хэндл, вызывая handle_click().
 
- * 3. Пользователь зажал кнопку мыши и начал перемешение курсора. В этом случай контейнер
+ * 3. Пользователь зажал кнопку мыши и начал перемещение курсора. В этом случай контейнер
  *   2.1 опеределяет, в каком из слоёв хэндл лежит ближе всего к курсору,
  *   2.2 предлагает выбранному слою схватиться за хэндл, вызывая handle_drag().
  *
@@ -110,19 +110,18 @@
  *              +-----+ +----------+                    v----------+ +----------v
  *              |                  |                 handle = NULL;       STOP EMISSION
  *              v                  |                 STOP EMISSION
- *       handle_click()            |
- *                                 |
- *                                 |
- *                                 |
- *                                 |
- *                                 v
- *                          handle_create()
- *                                + +
- *                        created | | not created
- *                        +-------+ +---------+
- *                        v                   V
- *                  handle = NULL;    [ HANDLER_RUN_LAST ]
- *                  STOP EMISSION
+ *         handle_click()          |
+ *              + +                |
+ *      clicked | | not clicked    |
+ *      +-------+ +-----------+    |
+ *      v                     |    |
+ *  STOP EMISSION             v    v
+ *                        handle_create()
+ *                              + +
+ *                      created | | not created
+ *                      +-------+ +---------+
+ *                      v                   V
+ *                 STOP EMISSION    [ HANDLER_RUN_LAST ]
  *
  *  - подключение к моменту HANDLER_RUN_FIRST через g_signal_connect(),
  *  - подключение к моменту HANDLER_RUN_LAST через g_signal_connect_after().
@@ -247,18 +246,18 @@ struct _HyScanGtkLayerContainerPrivate
   gdouble                move_from_y;      /* Координата y точки начала перетаскивания в СК виджета. */
   struct
   {
-    gdouble              from_x;
-    gdouble              to_x;
-    gdouble              from_y;
-    gdouble              to_y;
-  } selection;
+    gdouble              from_x;           /* Минимальная координата x выделенной области. */
+    gdouble              to_x;             /* Максимальная координата x выделенной области. */
+    gdouble              from_y;           /* Минимальная координата y выделенной области. */
+    gdouble              to_y;             /* Максимальная координата y выделенной области. */
+  } selection;                             /* Выделенная область. */
   gdouble                cursor_x;         /* Текущая координата x курсора в СК виджета. */
   gdouble                cursor_y;         /* Текущая координата y курсора в СК виджета. */
   gdouble                start_from_x;     /* Минимальная координата x видимой области в начале перетаскивания. */
   gdouble                start_to_x;       /* Максимальная координата y видимой области в начале перетаскивания. */
   gdouble                start_from_y;     /* Минимальная координата x видимой области в начале перетаскивания. */
   gdouble                start_to_y;       /* Максимальная координата y видимой области в начале перетаскивания. */
-  guint                  autoscroll_tag;   /* Тэг функции автоматического обновления границ видимой области. */
+  guint                  autoscroll_tag;   /* Тэг функции автоматического сдвига видимой области при перетаскивании. */
 };
 
 static void         hyscan_gtk_layer_container_object_constructed      (GObject                 *object);

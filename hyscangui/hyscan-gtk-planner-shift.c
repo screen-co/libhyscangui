@@ -1,8 +1,57 @@
+/* hyscan-gtk-planner-shift.c
+ *
+ * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
+ *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-planner-shift
+ * @Short_description: Виджет для создания параллельных плановых галсов
+ * @Title: HyScanGtkPlannerShift
+ *
+ * Виджет HyScanGtkPlannerOrigin содержит в себе текстовые поля для редактирования
+ * начала координат планировщика:
+ * - широты,
+ * - долготы,
+ * - направления оси OX.
+ *
+ * При измении значений в полях информация записывается в базу данных.
+ *
+ */
+
 #include <glib/gi18n-lib.h>
 #include <hyscan-cartesian.h>
 #include "hyscan-gtk-planner-shift.h"
 
-#define MAX_TRACKS 200
+#define MAX_TRACKS 200   /* Максимальное количество генерируемых галсов. */
 
 enum
 {
@@ -12,21 +61,21 @@ enum
 
 struct _HyScanGtkPlannerShiftPrivate
 {
-  HyScanPlannerTrack          *track;
-  HyScanGeo                   *geo;
-  HyScanGeoCartesian2D         track_start;
-  HyScanGeoCartesian2D         track_end;
-  HyScanGeoCartesian2D        *vertices;
-  gsize                        vertices_len;
-  HyScanGtkMapPlanner         *viewer;
-  GList                       *tracks;
+  HyScanPlannerTrack          *track;           /* Опорный план галса. */
+  HyScanGeo                   *geo;             /* Объект перевода геокоординат. */
+  HyScanGeoCartesian2D         track_start;     /* Координаты начала галса в прямоугольной СК. */
+  HyScanGeoCartesian2D         track_end;       /* Координаты конца галса в прямоугольной СК. */
+  HyScanGeoCartesian2D        *vertices;        /* Координаты вершин ограничивающего периметра. */
+  gsize                        vertices_len;    /* Число вершин. */
+  HyScanGtkMapPlanner         *viewer;          /* Слой карты для предпросмотра сгенерированных галсов. */
+  GList                       *tracks;          /* Сгенерированные галсы. */
 
-  GtkWidget                   *distance;
-  GtkWidget                   *alternate;
-  GtkWidget                   *adjust_len;
-  GtkWidget                   *num_left;
-  GtkWidget                   *num_right;
-  GtkWidget                   *fill_zone;
+  GtkWidget                   *distance;        /* Поле ввода расстояния меджу галсами. */
+  GtkWidget                   *alternate;       /* Чекбокс для включения чередования направления галсов. */
+  GtkWidget                   *adjust_len;      /* Чекбокс для подгонки длины галсов до пересечения с периметром. */
+  GtkWidget                   *num_left;        /* Поле ввода количества галсов слева от опорного. */
+  GtkWidget                   *num_right;       /* Поле ввода количества галсов справа от опорного. */
+  GtkWidget                   *fill_zone;       /* Чекбокс для заполнения периметра. */
 };
 
 static void                   hyscan_gtk_planner_shift_set_property             (GObject                  *object,
@@ -39,9 +88,6 @@ static GtkWidget *            hyscan_gtk_planner_shift_make_label               
                                                                                  GtkWidget                *target);
 static void                   hyscan_gtk_planner_shift_update                   (HyScanGtkPlannerShift    *shift);
 static void                   hyscan_gtk_planner_shift_fill_zone                (HyScanGtkPlannerShift    *shift);
-static gint                   hyscan_gtk_planner_shift_cmp                      (HyScanGeoCartesian2D     *a,
-                                                                                 HyScanGeoCartesian2D     *b,
-                                                                                 HyScanGeoCartesian2D     *vector);
 static gboolean               hyscan_gtk_planner_track_add                      (HyScanGtkPlannerShift    *shift,
                                                                                  const HyScanPlannerTrack *track_tpl,
                                                                                  gint                      index,
@@ -160,19 +206,7 @@ hyscan_gtk_planner_shift_object_finalize (GObject *object)
   G_OBJECT_CLASS (hyscan_gtk_planner_shift_parent_class)->finalize (object);
 }
 
-static gint
-hyscan_gtk_planner_shift_cmp (HyScanGeoCartesian2D *a,
-                              HyScanGeoCartesian2D *b,
-                              HyScanGeoCartesian2D *vector)
-{
-  if (vector->x != 0)
-    return (a->x - b->x) / vector->x > 0 ? 1 : -1;
-  else if (vector->y != 0)
-    return (a->y - b->y) / vector->y > 0 ? 1 : -1;
-  else
-    return 0;
-}
-
+/* Генерирует один план галса на указанном расстоянии от опорного. */
 static gboolean
 hyscan_gtk_planner_track_add (HyScanGtkPlannerShift    *shift,
                               const HyScanPlannerTrack *track_tpl,
@@ -233,6 +267,7 @@ hyscan_gtk_planner_track_add (HyScanGtkPlannerShift    *shift,
   return added;
 }
 
+/* Обработчик галочки "Заполнить зону". */
 static void
 hyscan_gtk_planner_shift_fill_zone (HyScanGtkPlannerShift *shift)
 {
@@ -245,6 +280,7 @@ hyscan_gtk_planner_shift_fill_zone (HyScanGtkPlannerShift *shift)
   gtk_widget_set_sensitive (priv->num_right, sensitive);
 }
 
+/* Генерирует галсы согласно установленным настройкам. */
 static void
 hyscan_gtk_planner_shift_update (HyScanGtkPlannerShift *shift)
 {
@@ -303,6 +339,7 @@ exit:
     hyscan_gtk_map_planner_set_preview (priv->viewer, priv->tracks);
 }
 
+/* Создаёт подпись для поля ввода target. */
 static GtkWidget *
 hyscan_gtk_planner_shift_make_label (const gchar *mnemonic,
                                      GtkWidget   *target)
@@ -358,6 +395,15 @@ hyscan_gtk_planner_shift_set_viewer (HyScanGtkPlannerShift    *shift,
   hyscan_gtk_map_planner_set_preview (priv->viewer, priv->tracks);
 }
 
+/**
+ * hyscan_gtk_planner_shift_set_track:
+ * @shift: указатель на #HyScanGtkPlannerShift
+ * @track: (nullable): опорный галс
+ * @zone: (nullable): зона #HyScanPlannerZone
+ *
+ * Устанавливает опорный план галса, для которого надо создавать параллельные,
+ * и зону, в периметре которой должны находиться сгенерированные галсы.
+ */
 void
 hyscan_gtk_planner_shift_set_track (HyScanGtkPlannerShift    *shift,
                                     const HyScanPlannerTrack *track,

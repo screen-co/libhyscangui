@@ -122,8 +122,8 @@ typedef struct
 
 typedef struct
 {
-  HyScanGtkMapPlannerTrack *original;
-  HyScanGtkMapPlannerTrack *current;
+  HyScanGtkMapPlannerTrack *original;   /* Исходные параметры планового галса. */
+  HyScanGtkMapPlannerTrack *current;    /* Текущие параметры планового галса. */
 } HyScanGtkMapPlannerTrackEdit;
 
 typedef struct
@@ -3343,6 +3343,13 @@ hyscan_gtk_map_planner_new (HyScanPlannerModel     *model,
                        NULL);
 }
 
+/**
+ * hyscan_gtk_map_planner_set_mode:
+ * @planner: указатель на HyScanGtkMapPlanner
+ * @mode: режим взаимодействия пользователя со слоем
+ *
+ * Устанавливает режим взаимодействия пользователя со слоем.
+ */
 void
 hyscan_gtk_map_planner_set_mode (HyScanGtkMapPlanner     *planner,
                                  HyScanGtkMapPlannerMode  mode)

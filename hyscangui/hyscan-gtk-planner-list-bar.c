@@ -34,7 +34,7 @@
 
 /**
  * SECTION: hyscan-gtk-planner-list-bar
- * @Short_description: Виджет панели управления для списка плановых галсов
+ * @Short_description: Панель управления списком плановых галсов
  * @Title: HyScanGtkPlannerListBar
  *
  * Данный виджет выводит панель управления списком схемы галсов #HyScanGtkPlannerList.
@@ -239,6 +239,14 @@ hyscan_gtk_planner_list_bar_clicked (HyScanGtkPlannerListBar *list_bar)
   gtk_menu_popup_at_widget (GTK_MENU (priv->menu), priv->button, GDK_GRAVITY_SOUTH_WEST, GDK_GRAVITY_NORTH_WEST, NULL);
 }
 
+/**
+ * hyscan_gtk_planner_list_bar_new:
+ * @planner_list: указатель на виджет списка плановых галсов #HyScanGtkPlannerList
+ *
+ * Функция создаёт виджет панели управления списком @planner_list.
+ *
+ * Returns: виджет панели управления списком @planner_list
+ */
 GtkWidget *
 hyscan_gtk_planner_list_bar_new (HyScanGtkPlannerList *planner_list)
 {

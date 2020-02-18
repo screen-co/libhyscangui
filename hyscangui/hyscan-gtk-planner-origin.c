@@ -1,4 +1,4 @@
-/* hyscan-gtk-planner-editor.c
+/* hyscan-gtk-planner-origin.c
  *
  * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *

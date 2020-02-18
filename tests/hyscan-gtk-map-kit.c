@@ -19,7 +19,6 @@
 
 #include <glib/gi18n-lib.h>
 #include <hyscan-gtk-map-planner.h>
-#include <hyscan-gtk-planner-editor.h>
 #include <hyscan-gtk-planner-status.h>
 #include <hyscan-gtk-planner-origin.h>
 #include <hyscan-gtk-layer-list.h>
@@ -31,7 +30,6 @@
 #define PRELOAD_STATE_DONE   1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
 
 #define PLANNER_TOOLS_MODE    "planner-mode"
-#define PLANNER_TAB_EDITOR    "editor"
 #define PLANNER_TAB_ZEDITOR   "zeditor"
 #define PLANNER_TAB_ORIGIN    "origin"
 #define PLANNER_TAB_STATUS    "status"
@@ -1181,9 +1179,7 @@ hyscan_gtk_map_planner_mode_changed (GtkToggleButton *togglebutton,
 
   mode = GPOINTER_TO_UINT (g_object_get_data (G_OBJECT (togglebutton), PLANNER_TOOLS_MODE));
 
-  if (mode == HYSCAN_GTK_MAP_PLANNER_MODE_SELECT)
-    child_name = PLANNER_TAB_EDITOR;
-  else if (mode == HYSCAN_GTK_MAP_PLANNER_MODE_ORIGIN)
+  if (mode == HYSCAN_GTK_MAP_PLANNER_MODE_ORIGIN)
     child_name = PLANNER_TAB_ORIGIN;
   else if (mode == HYSCAN_GTK_MAP_PLANNER_MODE_ZONE)
     child_name = PLANNER_TAB_ZEDITOR;
@@ -1206,7 +1202,8 @@ create_planner_mode_btn (HyScanGtkMapKit         *kit,
   button = gtk_radio_button_new_from_widget (GTK_RADIO_BUTTON (from));
   gtk_toggle_button_set_mode (GTK_TOGGLE_BUTTON (button), FALSE);
   gtk_button_set_image (GTK_BUTTON (button), gtk_image_new_from_icon_name (icon, GTK_ICON_SIZE_BUTTON));
-  gtk_widget_set_tooltip_text (button, tooltip);
+  gtk_button_set_image_position (GTK_BUTTON (button), GTK_POS_TOP);
+  gtk_button_set_label (GTK_BUTTON (button), tooltip);
 
   g_object_set_data (G_OBJECT (button), PLANNER_TOOLS_MODE, GUINT_TO_POINTER (mode));
   g_signal_connect (button, "toggled", G_CALLBACK (hyscan_gtk_map_planner_mode_changed), kit);
@@ -1218,21 +1215,20 @@ static GtkWidget *
 create_planner_zeditor (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
-  GtkWidget *grid, *zeditor, *label, *mode_switch;
+  GtkWidget *box, *zeditor, *topo_checkbox;
 
   zeditor = hyscan_gtk_planner_zeditor_new (priv->planner_model, priv->planner_selection);
-  mode_switch = gtk_switch_new ();
-  g_object_bind_property (mode_switch, "active", zeditor, "geodetic", G_BINDING_SYNC_CREATE);
-  label = gtk_label_new (_("Geodetic coordinates"));
+  gtk_tree_view_set_grid_lines (GTK_TREE_VIEW (zeditor), GTK_TREE_VIEW_GRID_LINES_BOTH);
 
-  grid = gtk_grid_new ();
-  gtk_grid_set_column_spacing (GTK_GRID (grid), 6);
-  gtk_grid_set_row_spacing (GTK_GRID (grid), 6);
-  gtk_grid_attach (GTK_GRID (grid), label,       0, 0, 1, 1);
-  gtk_grid_attach (GTK_GRID (grid), mode_switch, 1, 0, 1, 1);
-  gtk_grid_attach (GTK_GRID (grid), zeditor,     0, 1, 2, 1);
+  topo_checkbox = gtk_check_button_new_with_label(_("Topo coordinates (x, y)"));
+  g_object_bind_property (topo_checkbox, "active",
+                          zeditor, "geodetic", G_BINDING_SYNC_CREATE | G_BINDING_INVERT_BOOLEAN);
 
-  return grid;
+  box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+  gtk_box_pack_start (GTK_BOX (box), topo_checkbox, FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), zeditor, TRUE, TRUE, 0);
+
+  return box;
 }
 
 /* Создаёт панель инструментов для слоя планировщика. */
@@ -1242,8 +1238,9 @@ create_planner_toolbox (HyScanGtkMapKit *kit)
   HyScanGtkMapKitPrivate *priv = kit->priv;
   GtkWidget *box;
   GtkWidget *tab_switch;
-  GtkWidget *tab_editor, *tab_status, *tab_origin, *tab_zeditor;
-  GtkWidget *zone_mode, *track_mode, *origin_mode, *select_mode;
+  GtkWidget *origin_label;
+  GtkWidget *tab_status, *tab_origin, *tab_zeditor;
+  GtkWidget *zone_mode, *track_mode, *origin_mode;
 
   box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
 
@@ -1251,29 +1248,30 @@ create_planner_toolbox (HyScanGtkMapKit *kit)
   gtk_stack_set_vhomogeneous (GTK_STACK (priv->planner_stack), FALSE);
 
   tab_switch = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-  zone_mode = create_planner_mode_btn (kit, NULL, "folder-new-symbolic", _("Add zone"),
-                                       HYSCAN_GTK_MAP_PLANNER_MODE_ZONE);
-  track_mode = create_planner_mode_btn (kit, zone_mode, "document-new-symbolic", _("Add track"),
+  track_mode = create_planner_mode_btn (kit, NULL, "document-new-symbolic", _("Track"),
                                         HYSCAN_GTK_MAP_PLANNER_MODE_TRACK);
-  select_mode = create_planner_mode_btn (kit, zone_mode, "find-location-symbolic", _("Select tracks"),
-                                         HYSCAN_GTK_MAP_PLANNER_MODE_SELECT);
-  origin_mode = create_planner_mode_btn (kit, zone_mode, "go-home-symbolic", _("Set origin"),
+  zone_mode = create_planner_mode_btn (kit, track_mode, "folder-new-symbolic", _("Zone"),
+                                       HYSCAN_GTK_MAP_PLANNER_MODE_ZONE);
+  origin_mode = create_planner_mode_btn (kit, zone_mode, "go-home-symbolic", _("Origin"),
                                          HYSCAN_GTK_MAP_PLANNER_MODE_ORIGIN);
 
   gtk_style_context_add_class (gtk_widget_get_style_context (tab_switch), GTK_STYLE_CLASS_LINKED);
-  gtk_box_pack_start (GTK_BOX (tab_switch), zone_mode, TRUE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (tab_switch), track_mode, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (tab_switch), zone_mode, TRUE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (tab_switch), origin_mode, TRUE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (tab_switch), select_mode, TRUE, TRUE, 0);
 
   tab_zeditor = create_planner_zeditor (kit);
   tab_status = hyscan_gtk_planner_status_new (HYSCAN_GTK_MAP_PLANNER (priv->planner_layer));
-  tab_editor = hyscan_gtk_planner_editor_new (priv->planner_model, priv->planner_selection);
-  tab_origin = hyscan_gtk_planner_origin_new (priv->planner_model);
+  tab_origin = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+  origin_label = gtk_label_new (_("Enter parameters of coordinate system or pick it on the map"));
+  gtk_label_set_max_width_chars (GTK_LABEL (origin_label), 10);
+  gtk_label_set_line_wrap (GTK_LABEL (origin_label), TRUE);
+  gtk_label_set_xalign (GTK_LABEL (origin_label), 0.0);
+  gtk_box_pack_start (GTK_BOX (tab_origin), origin_label, FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (tab_origin), hyscan_gtk_planner_origin_new (priv->planner_model), FALSE, TRUE, 0);
 
-  gtk_stack_add_named (GTK_STACK (priv->planner_stack), tab_zeditor, PLANNER_TAB_ZEDITOR);
   gtk_stack_add_named (GTK_STACK (priv->planner_stack), tab_status, PLANNER_TAB_STATUS);
-  gtk_stack_add_named (GTK_STACK (priv->planner_stack), tab_editor, PLANNER_TAB_EDITOR);
+  gtk_stack_add_named (GTK_STACK (priv->planner_stack), tab_zeditor, PLANNER_TAB_ZEDITOR);
   gtk_stack_add_named (GTK_STACK (priv->planner_stack), tab_origin, PLANNER_TAB_ORIGIN);
 
   gtk_box_pack_start (GTK_BOX (box), tab_switch, TRUE, FALSE, 6);
@@ -1552,21 +1550,12 @@ hyscan_gtk_map_kit_view_create (HyScanGtkMapKit *kit)
 }
 
 static void
-hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
-                               HyScanGeoGeodetic *center)
+hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
   if (priv->db_info != NULL && priv->project_name != NULL)
     hyscan_db_info_set_project (priv->db_info, priv->project_name);
-
-  /* Устанавливаем центр карты. */
-  {
-    priv->center = *center;
-    hyscan_gtk_map_move_to (HYSCAN_GTK_MAP (kit->map), priv->center);
-    gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->lat_spin), priv->center.lat);
-    gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->lon_spin), priv->center.lon);
-  }
 
   /* Добавляем профиль по умолчанию. */
   {
@@ -1581,24 +1570,6 @@ hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
     g_object_unref (profile);
   }
 }
-
-#if !GLIB_CHECK_VERSION (2, 44, 0)
-static gboolean
-g_strv_contains (const gchar * const *strv,
-                 const gchar         *str)
-{
-  g_return_val_if_fail (strv != NULL, FALSE);
-  g_return_val_if_fail (str != NULL, FALSE);
-
-  for (; *strv != NULL; strv++)
-    {
-      if (g_str_equal (str, *strv))
-        return TRUE;
-    }
-
-  return FALSE;
-}
-#endif
 
 /* Устанавливает видимость галса track_name. */
 static void
@@ -1688,11 +1659,12 @@ hyscan_gtk_map_kit_new (HyScanGeoGeodetic *center,
   kit = g_new0 (HyScanGtkMapKit, 1);
   kit->priv = g_new0 (HyScanGtkMapKitPrivate, 1);
   kit->priv->tile_cache_dir = g_strdup (cache_dir);
+  kit->priv->center = *center;
   kit->priv->units = g_object_ref (units);
 
   hyscan_gtk_map_kit_model_create (kit, db);
   hyscan_gtk_map_kit_view_create (kit);
-  hyscan_gtk_map_kit_model_init (kit, center);
+  hyscan_gtk_map_kit_model_init (kit);
 
   return kit;
 }

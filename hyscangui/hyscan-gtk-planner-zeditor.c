@@ -55,7 +55,7 @@
 #include <glib/gi18n-lib.h>
 #include "hyscan-gtk-planner-zeditor.h"
 
-#define DATA_KEY_COLUMN "column"
+#define DATA_KEY_COLUMN "column"   /* Ключ для хранения в данных GObject-а номера столбца. */
 #define KEY_DUPLICATE GDK_KEY_d    /* Клавиша для дублирования вершины. */
 
 enum
