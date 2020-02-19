@@ -155,6 +155,9 @@ static void              hyscan_gtk_map_nav_removed                 (HyScanGtkLa
 static void              hyscan_gtk_map_nav_draw                    (HyScanGtkMap                  *map,
                                                                      cairo_t                       *cairo,
                                                                      HyScanGtkMapNav               *nav_layer);
+static void              hyscan_gtk_map_area_draw                   (HyScanGtkMap                  *map,
+                                                                     cairo_t                       *cairo,
+                                                                     HyScanGtkMapNav               *nav_layer);
 static void              hyscan_gtk_map_nav_proj_notify             (HyScanGtkMapNav               *nav_layer,
                                                                      GParamSpec                    *pspec);
 static void              hyscan_gtk_map_nav_added                   (HyScanGtkLayer                *layer,
@@ -779,10 +782,11 @@ hyscan_gtk_map_nav_draw (HyScanGtkMap    *map,
   HyScanGtkMapNavPrivate *priv = nav_layer->priv;
 
   gdouble x, y;
+  HyScanGtkMapNavPoint last_track_point;
   gdouble heading, cog, speed;
   gboolean true_heading;
   gdouble scale_proj, scale_px, cog_len;
-  HyScanGtkMapPoint last_point;
+  HyScanGtkMapPoint *last_point;
 
   HyScanGtkMapNavArrow *arrow;
 
@@ -802,8 +806,6 @@ hyscan_gtk_map_nav_draw (HyScanGtkMap    *map,
 
   /* Получаем координаты последней точки - маркера текущего местоположения. */
   {
-    HyScanGtkMapNavPoint *last_track_point;
-
     g_mutex_lock (&priv->track_lock);
 
     if (priv->track->head == NULL)
@@ -812,17 +814,17 @@ hyscan_gtk_map_nav_draw (HyScanGtkMap    *map,
         return;
       }
 
-    last_track_point = priv->track->head->data;
-    last_point = last_track_point->coord;
-
-    gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y, last_point.c2d.x, last_point.c2d.y);
-    heading = last_track_point->heading;
-    cog = last_track_point->cog;
-    speed = last_track_point->speed;
-    true_heading = last_track_point->true_heading;
+    last_track_point = * (HyScanGtkMapNavPoint *) priv->track->head->data;
 
     g_mutex_unlock (&priv->track_lock);
   }
+
+  last_point = &last_track_point.coord;
+  gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y, last_point->c2d.x, last_point->c2d.y);
+  heading = last_track_point.heading;
+  cog = last_track_point.cog;
+  speed = last_track_point.speed;
+  true_heading = last_track_point.true_heading;
 
   /* Рисуем трек тайлами по одной из стратегий: _draw_full() или _draw_tiles(). */
   if (priv->has_cache)
@@ -839,7 +841,7 @@ hyscan_gtk_map_nav_draw (HyScanGtkMap    *map,
   cairo_paint (cairo);
 
   /* Линия COG и HDG. */
-  scale_proj = hyscan_gtk_map_get_scale_value (priv->map, last_point.geo);
+  scale_proj = hyscan_gtk_map_get_scale_value (priv->map, last_track_point.coord.geo);
   gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->map), &scale_px, NULL);
   gdk_cairo_set_source_rgba (cairo, &priv->style.line_color);
 
@@ -885,13 +887,68 @@ hyscan_gtk_map_nav_draw (HyScanGtkMap    *map,
     }
   cairo_restore (cairo);
 
+#ifdef HYSCAN_GTK_MAP_DEBUG_FPS
+  {
+    guint dbg_i = 0;
+    gdouble dbg_time = 0;
+    guint dbg_frames;
+
+    dbg_frames = G_N_ELEMENTS (frame_time);
+
+    frame_idx = (frame_idx + 1) % dbg_frames;
+    frame_time[frame_idx] = g_timer_elapsed (debug_timer, NULL);
+    for (dbg_i = 0; dbg_i < dbg_frames; ++dbg_i)
+      dbg_time += frame_time[dbg_i];
+
+    dbg_time /= (gdouble) dbg_frames;
+    g_message ("hyscan_gtk_map_nav_draw: %.2f fps; length = %d",
+               1.0 / dbg_time,
+               g_queue_get_length (priv->track));
+  }
+#endif
+}
+
+/* Обработчик сигнала "visible-draw".
+ * Рисует на карте движение объекта. */
+static void
+hyscan_gtk_map_area_draw (HyScanGtkMap    *map,
+                          cairo_t         *cairo,
+                          HyScanGtkMapNav *nav_layer)
+{
+  HyScanGtkMapNavPrivate *priv = nav_layer->priv;
+  HyScanGtkMapNavPoint last_track_point;
+
+  gdouble angle, speed;
+  gboolean true_heading;
+
+  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (nav_layer)))
+    return;
+
+  /* Получаем координаты последней точки - маркера текущего местоположения. */
+  {
+    g_mutex_lock (&priv->track_lock);
+
+    if (priv->track->head == NULL)
+      {
+        g_mutex_unlock (&priv->track_lock);
+        return;
+      }
+
+    last_track_point = * (HyScanGtkMapNavPoint *) priv->track->head->data;
+    g_mutex_unlock (&priv->track_lock);
+  }
+
+  true_heading = last_track_point.true_heading;
+  angle = true_heading ? last_track_point.heading : last_track_point.cog;
+  speed = last_track_point.speed;
+
   /* Рисуем текущий курс, скорость и координаты. */
   {
     gchar *label;
     guint area_width;
     gint height, width;
 
-    gtk_cifro_area_get_visible_size (GTK_CIFRO_AREA (priv->map), &area_width, NULL);
+    gtk_cifro_area_get_size (GTK_CIFRO_AREA (priv->map), &area_width, NULL);
 
     if (priv->track_lost)
       {
@@ -900,7 +957,7 @@ hyscan_gtk_map_nav_draw (HyScanGtkMap    *map,
     else
       {
         label = g_strdup_printf ("<big>%06.2f° (%s)\n%03.2f %s</big>",
-                                 heading / G_PI * 180.0,
+                                 angle / G_PI * 180.0,
                                  true_heading ? C_("Heading", "HDG") : C_("Heading", "COG"),
                                  speed,
                                  _("m/s"));
@@ -928,26 +985,6 @@ hyscan_gtk_map_nav_draw (HyScanGtkMap    *map,
 
     g_free (label);
   }
-
-#ifdef HYSCAN_GTK_MAP_DEBUG_FPS
-  {
-    guint dbg_i = 0;
-    gdouble dbg_time = 0;
-    guint dbg_frames;
-
-    dbg_frames = G_N_ELEMENTS (frame_time);
-
-    frame_idx = (frame_idx + 1) % dbg_frames;
-    frame_time[frame_idx] = g_timer_elapsed (debug_timer, NULL);
-    for (dbg_i = 0; dbg_i < dbg_frames; ++dbg_i)
-      dbg_time += frame_time[dbg_i];
-
-    dbg_time /= (gdouble) dbg_frames;
-    g_message ("hyscan_gtk_map_nav_draw: %.2f fps; length = %d",
-               1.0 / dbg_time,
-               g_queue_get_length (priv->track));
-  }
-#endif
 }
 
 /* Переводит координаты путевых точек трека из географичекских в СК проекции карты. */
@@ -1019,6 +1056,7 @@ hyscan_gtk_map_nav_added (HyScanGtkLayer          *layer,
   priv->map = g_object_ref (HYSCAN_GTK_MAP (container));
   hyscan_gtk_map_nav_update_points (nav_layer->priv);
   g_signal_connect_after (priv->map, "visible-draw", G_CALLBACK (hyscan_gtk_map_nav_draw), nav_layer);
+  g_signal_connect_after (priv->map, "area-draw",    G_CALLBACK (hyscan_gtk_map_area_draw), nav_layer);
   g_signal_connect_swapped (priv->map, "notify::projection", G_CALLBACK (hyscan_gtk_map_nav_proj_notify), nav_layer);
   g_signal_connect_swapped (priv->map, "configure-event", G_CALLBACK (hyscan_gtk_map_nav_configure), nav_layer);
 

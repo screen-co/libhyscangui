@@ -110,7 +110,7 @@ static gboolean hyscan_gtk_waterfall_meter_handle_find             (HyScanGtkLay
                                                                     HyScanGtkLayerHandle    *handle);
 static void     hyscan_gtk_waterfall_meter_handle_show             (HyScanGtkLayer          *layer,
                                                                     HyScanGtkLayerHandle    *handle);
-static void     hyscan_gtk_waterfall_meter_handle_click            (HyScanGtkLayer          *layer,
+static void     hyscan_gtk_waterfall_meter_handle_drag             (HyScanGtkLayer          *layer,
                                                                     GdkEventButton          *event,
                                                                     HyScanGtkLayerHandle    *handle);
 
@@ -448,9 +448,9 @@ hyscan_gtk_waterfall_meter_handle_show (HyScanGtkLayer       *layer,
 
 /* Функция хватает хэндл. */
 static void
-hyscan_gtk_waterfall_meter_handle_click (HyScanGtkLayer       *layer,
-                                         GdkEventButton       *event,
-                                         HyScanGtkLayerHandle *handle)
+hyscan_gtk_waterfall_meter_handle_drag (HyScanGtkLayer       *layer,
+                                        GdkEventButton       *event,
+                                        HyScanGtkLayerHandle *handle)
 {
   HyScanGtkWaterfallMeter *self = HYSCAN_GTK_WATERFALL_METER (layer);
   HyScanGtkWaterfallMeterPrivate *priv = self->priv;
@@ -885,5 +885,5 @@ hyscan_gtk_waterfall_meter_interface_init (HyScanGtkLayerInterface *iface)
   iface->handle_release = hyscan_gtk_waterfall_meter_handle_release;
   iface->handle_find = hyscan_gtk_waterfall_meter_handle_find;
   iface->handle_show = hyscan_gtk_waterfall_meter_handle_show;
-  iface->handle_click = hyscan_gtk_waterfall_meter_handle_click;
+  iface->handle_drag = hyscan_gtk_waterfall_meter_handle_drag;
 }

@@ -39,7 +39,7 @@
  * @See_also: #HyScanGtkLayer, #HyScanGtkMap
  *
  * Данный слой позволяет управлять видимой областью карты:
- * - перемещение по карте с помощью мыши (drag and drop),
+ * - перемещение по карте с помощью клавиатуры,
  * - изменение масштаба колесом мыши.
  *
  * Также слой географические координаты курсора мыши в буфер обмена по нажатию
@@ -56,13 +56,6 @@
 #define MOVE_THRESHOLD        5   /* Сдвиг мыши, при котором активируется режим перемещения карты. */
 #define KEYBOARD_MOVE_STEP    10  /* Число пикселей, на которое сдвигается карта при однократном нажатии стрелки. */
 
-enum
-{
-  MODE_NONE,     /* Холостой режим. */
-  MODE_AWAIT,    /* Режим ожидания движения, когда кнопка мыши уже зажата, но курсор ещё не сдвинут. */
-  MODE_MOVE,     /* Режим перемещения, двигаем карту вслед за движением мыши. */
-};
-
 struct _HyScanGtkMapControlPrivate
 {
   HyScanGtkMap                   *map;           /* Gtk-виджет карты. */
@@ -71,25 +64,13 @@ struct _HyScanGtkMapControlPrivate
   gint                            mode;          /* Состояние слоя. */
   gdouble                         cursor_x;      /* Текущие координаты мыши. */
   gdouble                         cursor_y;      /* Текущие координаты мыши. */
-  gdouble                         start_from_x;  /* Начальная граница отображения по оси X. */
-  gdouble                         start_to_x;    /* Начальная граница отображения по оси X. */
-  gdouble                         start_from_y;  /* Начальная граница отображения по оси Y. */
-  gdouble                         start_to_y;    /* Начальная граница отображения по оси Y. */
-  gint                            move_from_x;   /* Начальная координата перемещения. */
-  gint                            move_from_y;   /* Начальная координата перемещения. */
 };
 
 static void     hyscan_gtk_map_control_interface_init       (HyScanGtkLayerInterface    *iface);
-static gboolean hyscan_gtk_map_control_button_press_release (HyScanGtkMapControl        *control,
-                                                             GdkEventButton             *event);
-static gboolean hyscan_gtk_map_control_motion_notify        (HyScanGtkMapControl        *control,
-                                                             GdkEventMotion             *event);
 static gboolean hyscan_gtk_map_control_key_press            (HyScanGtkMapControl        *control,
                                                              GdkEventKey                *event);
 static gboolean hyscan_gtk_map_control_scroll               (HyScanGtkMapControl        *control,
                                                              GdkEventScroll             *event);
-static void     hyscan_gtk_map_control_set_mode             (HyScanGtkMapControl        *control,
-                                                             gint                        mode);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapControl, hyscan_gtk_map_control, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapControl)
@@ -132,13 +113,6 @@ hyscan_gtk_map_control_added (HyScanGtkLayer          *gtk_layer,
 
   priv->map = g_object_ref (HYSCAN_GTK_MAP (container));
 
-  /* Обработчики взаимодействия мышки пользователя с картой. */
-  g_signal_connect_swapped (priv->map, "button-press-event",
-                            G_CALLBACK (hyscan_gtk_map_control_button_press_release), gtk_map_control);
-  g_signal_connect_swapped (priv->map, "button-release-event",
-                            G_CALLBACK (hyscan_gtk_map_control_button_press_release), gtk_map_control);
-  g_signal_connect_swapped (priv->map, "motion-notify-event",
-                            G_CALLBACK (hyscan_gtk_map_control_motion_notify), gtk_map_control);
   g_signal_connect_swapped (priv->map, "scroll-event",
                             G_CALLBACK (hyscan_gtk_map_control_scroll), gtk_map_control);
   g_signal_connect_swapped (priv->map, "key-press-event",
@@ -272,6 +246,16 @@ hyscan_gtk_map_control_scroll (HyScanGtkMapControl *control,
   GtkCifroAreaZoomType direction;
   gdouble x, y;
 
+  /* Поворот. */
+  if (event->state & GDK_SHIFT_MASK)
+    {
+      if (event->direction == GDK_SCROLL_UP)
+        gtk_cifro_area_rotate (GTK_CIFRO_AREA (priv->map), G_PI / 180);
+      else if (event->direction == GDK_SCROLL_DOWN)
+        gtk_cifro_area_rotate (GTK_CIFRO_AREA (priv->map), -G_PI / 180);
+
+      return GDK_EVENT_STOP;
+    }
 
   if (event->direction == GDK_SCROLL_UP)
     direction = GTK_CIFRO_AREA_ZOOM_IN;
@@ -284,144 +268,6 @@ hyscan_gtk_map_control_scroll (HyScanGtkMapControl *control,
   gtk_cifro_area_zoom (GTK_CIFRO_AREA (priv->map), direction, direction, x, y);
 
   return GDK_EVENT_STOP;
-}
-
-/* Установка нового режима работы слоя управления. */
-static void
-hyscan_gtk_map_control_set_mode (HyScanGtkMapControl *control,
-                                 gint                 mode)
-{
-  HyScanGtkMapControlPrivate *priv = control->priv;
-  GdkWindow *window;
-  GdkCursor *cursor = NULL;
-
-  priv->mode = mode;
-
-  window = gtk_widget_get_window (GTK_WIDGET (priv->map));
-  if (priv->mode == MODE_MOVE)
-    {
-      GdkDisplay *display;
-      gconstpointer howner;
-
-      display = gdk_window_get_display (window);
-      cursor = gdk_cursor_new_from_name (display, "grabbing");
-
-      /* Если другие слои ещё не взяли хэндл, то сами его берём, а вернём на отжатие мыши. */
-      howner = hyscan_gtk_layer_container_get_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map));
-      if (howner == NULL)
-        hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), control);
-    }
-
-  gdk_window_set_cursor (window, cursor);
-  g_clear_object (&cursor);
-}
-
-/* Обработчик перемещений курсора мыши. */
-static gboolean
-hyscan_gtk_map_control_motion_notify (HyScanGtkMapControl *control,
-                                      GdkEventMotion      *event)
-{
-  HyScanGtkMapControlPrivate *priv = control->priv;
-  HyScanGtkMap *map = HYSCAN_GTK_MAP (priv->map);
-  GtkCifroArea *carea = GTK_CIFRO_AREA (map);
-
-  priv->cursor_x = event->x;
-  priv->cursor_y = event->y;
-
-  /* Если после нажатия кнопки сдвинулись больше MOVE_THRESHOLD пикселей - начинаем сдвиг. */
-  if (priv->mode == MODE_AWAIT)
-    {
-      if (fabs (priv->move_from_x - event->x) + fabs (priv->move_from_y - event->y) > MOVE_THRESHOLD)
-        {
-          hyscan_gtk_map_control_set_mode (control, MODE_MOVE);
-
-          gtk_cifro_area_get_view (carea, &priv->start_from_x, &priv->start_to_x,
-                                          &priv->start_from_y, &priv->start_to_y);
-        }
-    }
-
-  /* Режим перемещения - сдвигаем область. */
-  if (priv->mode == MODE_MOVE)
-    {
-      gdouble x0, y0;
-      gdouble xd, yd;
-      gdouble dx, dy;
-
-      gtk_cifro_area_point_to_value (carea, priv->move_from_x, priv->move_from_y, &x0, &y0);
-      gtk_cifro_area_point_to_value (carea, event->x, event->y, &xd, &yd);
-      dx = x0 - xd;
-      dy = y0 - yd;
-
-      gtk_cifro_area_set_view (carea, priv->start_from_x + dx, priv->start_to_x + dx,
-                                      priv->start_from_y + dy, priv->start_to_y + dy);
-
-      gdk_event_request_motions (event);
-    }
-
-  return GDK_EVENT_PROPAGATE;
-}
-
-/* Обработчик нажатия кнопок мышки: "button-release-event", "button-press-event". */
-static gboolean
-hyscan_gtk_map_control_button_press_release (HyScanGtkMapControl *control,
-                                             GdkEventButton      *event)
-{
-  HyScanGtkMapControlPrivate *priv = control->priv;
-  HyScanGtkMap *map = HYSCAN_GTK_MAP (priv->map);
-  GtkCifroArea *carea = GTK_CIFRO_AREA (map);
-
-  /* Обрабатываем только нажатия левой клавишей мыши. */
-  if (event->button != GDK_BUTTON_PRIMARY)
-    return GDK_EVENT_PROPAGATE;
-
-  /* Нажата левая клавиша мышки в видимой области - переходим в режим ожидания. */
-  if (event->type == GDK_BUTTON_PRESS)
-    {
-      guint widget_width, widget_height;
-      guint border_top, border_bottom;
-      guint border_left, border_right;
-      gint clip_width, clip_height;
-
-      gtk_cifro_area_get_size (carea, &widget_width, &widget_height);
-      gtk_cifro_area_get_border (carea, &border_top, &border_bottom, &border_left, &border_right);
-
-      clip_width = widget_width - border_left - border_right;
-      clip_height = widget_height - border_top - border_bottom;
-      if ((clip_width <= 0) || (clip_height <= 0))
-        return GDK_EVENT_PROPAGATE;
-
-      if ((event->x > border_left) && (event->x < (border_left + clip_width)) &&
-          (event->y > border_top) && (event->y < (border_top + clip_height)))
-        {
-          hyscan_gtk_map_control_set_mode (control, MODE_AWAIT);
-          priv->move_from_x = (gint) event->x;
-          priv->move_from_y = (gint) event->y;
-        }
-    }
-
-  /* Клавиша мышки отжата - завершаем перемещение. */
-  if (event->type == GDK_BUTTON_RELEASE)
-    {
-      gboolean stop_propagation = GDK_EVENT_PROPAGATE;
-
-      if (priv->mode == MODE_MOVE)
-        {
-          gconstpointer howner;
-
-          /* Отпускаем хэндл, если он был захвачен нами. */
-          howner = hyscan_gtk_layer_container_get_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map));
-          if (howner == control)
-            hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);
-
-          stop_propagation = GDK_EVENT_STOP;
-        }
-
-      hyscan_gtk_map_control_set_mode (control, MODE_NONE);
-
-      return stop_propagation;
-    }
-
-  return GDK_EVENT_PROPAGATE;
 }
 
 /**

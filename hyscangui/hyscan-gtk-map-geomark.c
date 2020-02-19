@@ -591,12 +591,14 @@ hyscan_gtk_map_geomark_handle_show (HyScanGtkLayer       *layer,
   HyScanGtkMapGeomark *gm_layer = HYSCAN_GTK_MAP_GEOMARK (layer);
   HyScanGtkMapGeomarkPrivate *priv = gm_layer->priv;
   gchar *handle_id;
+  gboolean handle_changed;
 
   g_return_if_fail (handle == NULL || g_strcmp0 (handle->type_name, HANDLE_TYPE_NAME) == 0);
 
   handle_id = handle == NULL ? NULL : priv->found_handle_id;
 
-  if (g_strcmp0 (priv->hover_handle_id, handle_id) != 0)
+  handle_changed = (g_strcmp0 (priv->hover_handle_id, handle_id) != 0);
+  if (handle_changed)
     {
       g_free (priv->hover_handle_id);
       priv->hover_handle_id = g_strdup (handle_id);
@@ -608,7 +610,7 @@ hyscan_gtk_map_geomark_handle_show (HyScanGtkLayer       *layer,
       priv->hover_handle.y = handle->val_y;
     }
 
-  if (handle_id != NULL || priv->hover_handle_id != handle_id)
+  if (handle_id != NULL || handle_changed)
     gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 }
 
@@ -841,9 +843,9 @@ hyscan_gtk_map_geomark_start_mode (HyScanGtkMapGeomark *gm_layer,
 
 /* Захватывает хэндл под указателем мыши. */
 static void
-hyscan_gtk_map_geomark_handle_click (HyScanGtkLayer       *layer,
-                                     GdkEventButton       *event,
-                                     HyScanGtkLayerHandle *handle)
+hyscan_gtk_map_geomark_handle_drag (HyScanGtkLayer       *layer,
+                                    GdkEventButton       *event,
+                                    HyScanGtkLayerHandle *handle)
 {
   HyScanGtkMapGeomark *gm_layer = HYSCAN_GTK_MAP_GEOMARK (layer);
   HyScanGtkMapGeomarkPrivate *priv = gm_layer->priv;
@@ -1127,7 +1129,7 @@ hyscan_gtk_map_geomark_interface_init (HyScanGtkLayerInterface *iface)
   iface->hint_find = hyscan_gtk_map_geomark_hint_find;
   iface->hint_shown = hyscan_gtk_map_geomark_hint_shown;
   iface->get_param = hyscan_gtk_map_geomark_get_param;
-  iface->handle_click = hyscan_gtk_map_geomark_handle_click;
+  iface->handle_drag = hyscan_gtk_map_geomark_handle_drag;
   iface->handle_find = hyscan_gtk_map_geomark_handle_find;
   iface->handle_release = hyscan_gtk_map_geomark_handle_release;
   iface->handle_create = hyscan_gtk_map_geomark_handle_create;
