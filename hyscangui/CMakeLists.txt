@@ -75,6 +75,9 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-map-scale.c
              hyscan-gtk-map-pin.c
              hyscan-gtk-map-nav.c
+             hyscan-gtk-map-track-draw-fill.c
+             hyscan-gtk-map-track-draw-bar.c
+             hyscan-gtk-map-track-draw.c
              hyscan-gtk-map-track-item.c
              hyscan-gtk-map-track.c
              hyscan-gtk-map-wfmark.c
@@ -158,6 +161,9 @@ install (FILES hyscan-gtk-area.h
                hyscan-gtk-map-planner.h
                hyscan-gtk-map-steer.h
                hyscan-gtk-map-nav.h
+               hyscan-gtk-map-track-draw-fill.h
+               hyscan-gtk-map-track-draw-bar.h
+               hyscan-gtk-map-track-draw.h
                hyscan-gtk-map-track-item.h
                hyscan-gtk-map-track.h
                hyscan-gtk-map-wfmark.h

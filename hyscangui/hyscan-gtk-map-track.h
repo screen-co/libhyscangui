@@ -94,26 +94,6 @@ void                      hyscan_gtk_map_track_view                (HyScanGtkMap
                                                                     gboolean            zoom_in,
                                                                     HyScanCancellable  *cancellable);
 
-HYSCAN_API
-void                      hyscan_gtk_map_track_set_color_track     (HyScanGtkMapTrack  *track_layer,
-                                                                    GdkRGBA             color);
-
-HYSCAN_API
-void                      hyscan_gtk_map_track_set_color_port      (HyScanGtkMapTrack  *track_layer,
-                                                                    GdkRGBA             color);
-
-HYSCAN_API
-void                      hyscan_gtk_map_track_set_color_starboard (HyScanGtkMapTrack  *track_layer,
-                                                                    GdkRGBA             color);
-
-HYSCAN_API
-void                      hyscan_gtk_map_track_set_bar_width       (HyScanGtkMapTrack  *track_layer,
-                                                                    gboolean            bar_width);
-
-HYSCAN_API
-void                      hyscan_gtk_map_track_set_bar_margin      (HyScanGtkMapTrack  *track_layer,
-                                                                    gdouble             bar_margin);
-
 G_END_DECLS
 
 #endif /* __HYSCAN_GTK_MAP_TRACK_H__ */

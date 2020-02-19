@@ -41,6 +41,11 @@
  * Слой отображает галсы выбранного проекта. Каждый галс изображется линией
  * движения, которая строится по GPS-отметкам, и линиями ширины трека.
  *
+ * Конкретный вид галса определяется используемым классом отрисовки галса. См.
+ * интерфейс #HyScanGtkMapTrackDraw и его реализацию в классах
+ * - #HyScanGtkMapTrackDrawBar - линии длины,
+ * - #HyScanGtkMapTrackDrawFill - заливка области покрытия.
+ *
  * Для создания и отображения слоя используются функции:
  * - hyscan_gtk_map_track_new() создает слой
  * - hyscan_gtk_map_track_track_enable() устанавливает видимость
@@ -53,13 +58,6 @@
  * - hyscan_gtk_map_track_track_max_channel()
  * - hyscan_gtk_map_track_track_set_channel().
  *
- * Стиль оформления галсов можно определить с помощью следующих сеттеров:
- * - hyscan_gtk_map_track_set_color_track()
- * - hyscan_gtk_map_track_set_color_port()
- * - hyscan_gtk_map_track_set_color_starboard()
- * - hyscan_gtk_map_track_set_bar_width()
- * - hyscan_gtk_map_track_set_bar_margin()
- *
  * Также слой поддерживает загрузку стилей через #HyScanParam. Подробнее в
  * функции hyscan_gtk_layer_get_param().
  *
@@ -67,15 +65,10 @@
 
 #include "hyscan-gtk-map-track.h"
 #include "hyscan-gtk-map.h"
-#include "hyscan-gtk-layer-param.h"
+#include "hyscan-gtk-map-track-draw.h"
+#include "hyscan-gtk-map-track-draw-bar.h"
 #include <hyscan-cartesian.h>
 #include <hyscan-projector.h>
-
-/* Стиль оформления по умолчанию. */
-#define DEFAULT_COLOR_STROKE          "#000000"                     /* Цвет обводки некоторых элементов. */
-#define DEFAULT_COLOR_SHADOW          "rgba(150, 150, 150, 0.5)"    /* Цвет затенения. */
-#define DEFAULT_LINE_WIDTH            1                             /* Толщина линии движения. */
-#define DEFAULT_STROKE_WIDTH          1.0                           /* Толщина обводки. */
 
 #define REFRESH_INTERVAL              300000                        /* Период проверки каналов данных на новые данные, мкс. */
 
@@ -92,23 +85,22 @@ enum
 
 struct _HyScanGtkMapTrackPrivate
 {
-  HyScanGtkMap              *map;              /* Карта. */
-  gboolean                   visible;          /* Признак видимости слоя. */
-  GThread                   *watcher;          /* Тег функции перерисовки слоя. */
-  gboolean                   shutdown;         /* Признак удаления слоя. */
+  HyScanGtkMap                   *map;              /* Карта. */
+  gboolean                        visible;          /* Признак видимости слоя. */
+  GThread                        *watcher;          /* Тег функции перерисовки слоя. */
+  gboolean                        shutdown;         /* Признак удаления слоя. */
 
-  HyScanDB                  *db;               /* База данных. */
-  gchar                     *project;          /* Название проекта. */
-  HyScanCache               *cache;            /* Кэш для навигационных данных. */
+  HyScanDB                       *db;               /* База данных. */
+  gchar                          *project;          /* Название проекта. */
+  HyScanCache                    *cache;            /* Кэш для навигационных данных. */
 
-  GMutex                     t_lock;           /* Доступ к модификации таблицы tracks. */
-  GHashTable                *tracks;           /* Таблица отображаемых галсов:
-                                                * ключ - название галса, значение - HyScanGtkMapTrackTrack. */
-  GRWLock                    a_lock;           /* Доступ к модификации массива active_tracks. */
-  gchar                    **active_tracks;    /* NULL-терминированный массив названий видимых галсов. */
+  GMutex                          t_lock;           /* Доступ к модификации таблицы tracks. */
+  GHashTable                     *tracks;           /* Таблица отображаемых галсов:
+                                                     * ключ - название галса, значение - HyScanGtkMapTrackTrack. */
+  GRWLock                         a_lock;           /* Доступ к модификации массива active_tracks. */
+  gchar                         **active_tracks;    /* NULL-терминированный массив названий видимых галсов. */
 
-  HyScanGtkLayerParam       *param;            /* Параметры оформления. */
-  HyScanGtkMapTrackItemStyle style;            /* Стиль оформления. */
+  HyScanGtkMapTrackDraw          *track_draw;       /* Объект для рисования галса. */
 };
 
 static void     hyscan_gtk_map_track_interface_init               (HyScanGtkLayerInterface     *iface);
@@ -120,6 +112,7 @@ static void     hyscan_gtk_map_track_object_constructed           (GObject      
 static void     hyscan_gtk_map_track_object_finalize              (GObject                     *object);
 static void     hyscan_gtk_map_track_fill_tile                    (HyScanGtkMapTiled           *tiled_layer,
                                                                    HyScanMapTile               *tile);
+static void     hyscan_gtk_map_track_param_set                    (HyScanGtkLayer              *gtk_layer);
 static HyScanGtkMapTrackItem * hyscan_gtk_map_track_get_track     (HyScanGtkMapTrack           *track_layer,
                                                                    const gchar                 *track_name,
                                                                    gboolean                     create_if_not_exists);
@@ -201,24 +194,11 @@ hyscan_gtk_map_track_object_constructed (GObject *object)
 {
   HyScanGtkMapTrack *track_layer = HYSCAN_GTK_MAP_TRACK (object);
   HyScanGtkMapTrackPrivate *priv = track_layer->priv;
-  HyScanGtkMapTrackItemStyle *style = &priv->style;
 
   G_OBJECT_CLASS (hyscan_gtk_map_track_parent_class)->constructed (object);
 
-  /* Оформление трека. */
-  priv->param = hyscan_gtk_layer_param_new ();
-  hyscan_gtk_layer_param_set_stock_schema (priv->param, "map-track");
-  hyscan_gtk_layer_param_add_rgba (priv->param, "/track-color", &style->color_track);
-  hyscan_gtk_layer_param_add_rgba (priv->param, "/port-color", &style->color_left);
-  hyscan_gtk_layer_param_add_rgba (priv->param, "/starboard-color", &style->color_right);
-  hyscan_param_controller_add_double (HYSCAN_PARAM_CONTROLLER (priv->param), "/bar-width", &style->bar_width);
-  hyscan_param_controller_add_double (HYSCAN_PARAM_CONTROLLER (priv->param), "/bar-margin", &style->bar_margin);
-  hyscan_gtk_layer_param_set_default (priv->param);
-
-  style->line_width = DEFAULT_LINE_WIDTH;
-  style->stroke_width = DEFAULT_STROKE_WIDTH;
-  gdk_rgba_parse (&style->color_stroke, DEFAULT_COLOR_STROKE);
-  gdk_rgba_parse (&style->color_shadow, DEFAULT_COLOR_SHADOW);
+  priv->track_draw = hyscan_gtk_map_track_draw_bar_new ();
+  g_signal_connect_swapped (priv->track_draw, "param-changed", G_CALLBACK (hyscan_gtk_map_track_param_set), track_layer);
 }
 
 static void
@@ -234,7 +214,6 @@ hyscan_gtk_map_track_object_finalize (GObject *object)
   g_free (priv->project);
   g_hash_table_destroy (priv->tracks);
   g_clear_pointer (&priv->active_tracks, g_strfreev);
-  g_object_unref (priv->param);
 
   G_OBJECT_CLASS (hyscan_gtk_map_track_parent_class)->finalize (object);
 }
@@ -264,13 +243,18 @@ hyscan_gtk_map_track_fill_tile (HyScanGtkMapTiled *tiled_layer,
   g_rw_lock_reader_lock (&priv->a_lock);
   for (i = 0; priv->active_tracks[i] != NULL; ++i)
     {
+      GList *points = NULL;
       HyScanGtkMapTrackItem *track;
 
       track = hyscan_gtk_map_track_get_track (track_layer, priv->active_tracks[i], TRUE);
       if (track == NULL)
         continue;
 
-      hyscan_gtk_map_track_item_draw (track, cairo, scale, &from, &to, &priv->style);
+      if (!hyscan_gtk_map_track_item_points_lock (track, &points))
+        continue;
+
+      hyscan_gtk_map_track_draw_region (priv->track_draw, points, cairo, scale, &from, &to);
+      hyscan_gtk_map_track_item_points_unlock (track);
     }
   g_rw_lock_reader_unlock (&priv->a_lock);
 
@@ -453,6 +437,15 @@ hyscan_gtk_map_track_get_visible (HyScanGtkLayer *layer)
   return priv->visible;
 }
 
+static void
+hyscan_gtk_map_track_param_set (HyScanGtkLayer *gtk_layer)
+{
+ HyScanGtkMapTrack *track_layer = HYSCAN_GTK_MAP_TRACK (gtk_layer);
+
+  hyscan_gtk_map_tiled_set_param_mod (HYSCAN_GTK_MAP_TILED (track_layer));
+  hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (track_layer));
+}
+
 /* Реализация HyScanGtkLayerInterface.get_param.
  * Получает параметры стиля оформления слоя. */
 static HyScanParam *
@@ -461,7 +454,7 @@ hyscan_gtk_map_track_get_param (HyScanGtkLayer *gtk_layer)
   HyScanGtkMapTrack *track_layer = HYSCAN_GTK_MAP_TRACK (gtk_layer);
   HyScanGtkMapTrackPrivate *priv = track_layer->priv;
 
-  return g_object_ref (priv->param);
+  return hyscan_gtk_map_track_draw_get_param (priv->track_draw);
 }
 
 static void
@@ -728,95 +721,4 @@ hyscan_gtk_map_track_view (HyScanGtkMapTrack *track_layer,
   g_task_set_task_data (task, g_strdup (track_name), g_free);
   g_task_run_in_thread (task, hyscan_gtk_map_track_view_load);
   g_object_unref (task);
-}
-
-/**
- * hyscan_gtk_map_track_set_color_track:
- * @track_layer: указатель на #HyScanGtkMapTrack
- * @color: цвет линии движения
- *
- * Устанавливает цвет линии движения судна.
- */
-void
-hyscan_gtk_map_track_set_color_track (HyScanGtkMapTrack *track_layer,
-                                      GdkRGBA            color)
-{
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track_layer));
-
-  track_layer->priv->style.color_track = color;
-  hyscan_gtk_map_tiled_set_param_mod (HYSCAN_GTK_MAP_TILED (track_layer));
-  hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (track_layer));
-}
-
-/**
- * hyscan_gtk_map_track_set_color_port:
- * @track_layer: указатель на #HyScanGtkMapTrack
- * @color: цвет полос дальности для левого борта
- *
- * Устанавливает цвет полос дальности для левого борта.
- */
-void
-hyscan_gtk_map_track_set_color_port (HyScanGtkMapTrack *track_layer,
-                                     GdkRGBA            color)
-{
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track_layer));
-
-  track_layer->priv->style.color_left = color;
-  hyscan_gtk_map_tiled_set_param_mod (HYSCAN_GTK_MAP_TILED (track_layer));
-  hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (track_layer));
-}
-
-/**
- * hyscan_gtk_map_track_set_color_starboard:
- * @track_layer: указатель на #HyScanGtkMapTrack
- * @color: цвет полос дальности для правого борта
- *
- * Устанавливает цвет полос дальности для правого борта.
- */
-void
-hyscan_gtk_map_track_set_color_starboard (HyScanGtkMapTrack *track_layer,
-                                          GdkRGBA            color)
-{
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track_layer));
-
-  track_layer->priv->style.color_right = color;
-  hyscan_gtk_map_tiled_set_param_mod (HYSCAN_GTK_MAP_TILED (track_layer));
-  hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (track_layer));
-}
-
-/**
- * hyscan_gtk_map_track_set_bar_width:
- * @track_layer: указатель на #HyScanGtkMapTrack
- * @bar_width: ширина полосы в пикселях
- *
- * Устанавливает ширину линии дальности.
- */
-void
-hyscan_gtk_map_track_set_bar_width (HyScanGtkMapTrack *track_layer,
-                                    gboolean           bar_width)
-{
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track_layer));
-
-  track_layer->priv->style.bar_width = bar_width;
-  hyscan_gtk_map_tiled_set_param_mod (HYSCAN_GTK_MAP_TILED (track_layer));
-  hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (track_layer));
-}
-
-/**
- * hyscan_gtk_map_track_set_bar_margin:
- * @track_layer: указатель на #HyScanGtkMapTrack
- * @bar_margin: отступ в пикселях вдоль линии трека
- *
- * Устанавливает расстояние между двумя соседними линиями дальности.
- */
-void
-hyscan_gtk_map_track_set_bar_margin (HyScanGtkMapTrack *track_layer,
-                                     gdouble            bar_margin)
-{
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track_layer));
-
-  track_layer->priv->style.bar_margin = bar_margin;
-
-  hyscan_gtk_map_tiled_set_param_mod (HYSCAN_GTK_MAP_TILED (track_layer));
-  hyscan_gtk_map_tiled_request_draw (HYSCAN_GTK_MAP_TILED (track_layer));
 }

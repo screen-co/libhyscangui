@@ -40,7 +40,6 @@
 #include <hyscan-geo-projection.h>
 #include <hyscan-db.h>
 #include <hyscan-cache.h>
-#include <gdk/gdk.h>
 
 G_BEGIN_DECLS
 
@@ -55,33 +54,6 @@ typedef struct _HyScanGtkMapTrackItem HyScanGtkMapTrackItem;
 typedef struct _HyScanGtkMapTrackItemPrivate HyScanGtkMapTrackItemPrivate;
 typedef struct _HyScanGtkMapTrackItemClass HyScanGtkMapTrackItemClass;
 
-/**
- * HyScanGtkMapTrackItemStyle:
- *
- * @color_left: Цвет левого борта.
- * @color_right: Цвет правого борта.
- * @color_track: Цвет линии движения.
- * @color_stroke: Цвет обводки.
- * @color_shadow: Цвет затенения (рекомендуется полупрозрачный чёрный).
- * @bar_width: Толщина линии дальности.
- * @bar_margin: Расстояние между соседними линиями дальности.
- * @line_width: Толщина линии движения.
- * @stroke_width: Толщина линии обводки.
- *
- * Стиль оформления галса.
- *
- */
-typedef struct {
-  GdkRGBA color_left;
-  GdkRGBA color_right;
-  GdkRGBA color_track;
-  GdkRGBA color_stroke;
-  GdkRGBA color_shadow;
-  gdouble bar_width;
-  gdouble bar_margin;
-  gdouble line_width;
-  gdouble stroke_width;
-} HyScanGtkMapTrackItemStyle;
 
 struct _HyScanGtkMapTrackItem
 {
@@ -108,14 +80,12 @@ HyScanGtkMapTrackItem * hyscan_gtk_map_track_item_new           (HyScanDB       
 HYSCAN_API
 gboolean                hyscan_gtk_map_track_item_has_nmea      (HyScanGtkMapTrackItem      *track);
 
-HYSCAN_API                                                      
-void                    hyscan_gtk_map_track_item_draw          (HyScanGtkMapTrackItem      *track,
-                                                                 cairo_t                    *cairo,
-                                                                 gdouble                     scale,
-                                                                 HyScanGeoCartesian2D       *from,
-                                                                 HyScanGeoCartesian2D       *to,
-                                                                 HyScanGtkMapTrackItemStyle *style);
-                                                                
+HYSCAN_API
+gboolean                hyscan_gtk_map_track_item_points_lock   (HyScanGtkMapTrackItem      *track,
+                                                                 GList                     **points);
+HYSCAN_API
+void                    hyscan_gtk_map_track_item_points_unlock (HyScanGtkMapTrackItem      *track);
+
 HYSCAN_API                                                      
 gboolean               hyscan_gtk_map_track_item_view           (HyScanGtkMapTrackItem      *track,
                                                                  HyScanGeoCartesian2D       *from,

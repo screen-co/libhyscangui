@@ -174,6 +174,14 @@ hyscan_gtk_layer_param_new (void)
   return g_object_new (HYSCAN_TYPE_GTK_LAYER_PARAM, NULL);
 }
 
+HyScanGtkLayerParam *
+hyscan_gtk_layer_param_new_with_lock (GMutex *lock)
+{
+  return g_object_new (HYSCAN_TYPE_GTK_LAYER_PARAM,
+                       "lock", lock,
+                       NULL);
+}
+
 void
 hyscan_gtk_layer_param_set_stock_schema (HyScanGtkLayerParam *layer_param,
                                          const gchar         *schema_id)

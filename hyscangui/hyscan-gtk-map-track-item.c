@@ -56,6 +56,7 @@
  */
 
 #include "hyscan-gtk-map-track-item.h"
+#include "hyscan-gtk-map-track-draw.h"
 #include <hyscan-acoustic-data.h>
 #include <hyscan-amplitude.h>
 #include <hyscan-cartesian.h>
@@ -65,7 +66,6 @@
 #include <hyscan-projector.h>
 #include <hyscan-data-schema-builder.h>
 #include <glib/gi18n-lib.h>
-#include <cairo.h>
 #include <math.h>
 
 /* Ключи схемы данных настроек галса. */
@@ -104,32 +104,8 @@ enum
   CHANNEL_STARBOARD,
 };
 
-typedef struct {
-  HyScanGeoGeodetic               geo;              /* Географические координаты точки и курс движения. */
-  guint32                         index;            /* Индекс записи в канале данных. */
-  gint64                          time;             /* Время фиксации. */
-  HyScanDBFindStatus              l_find_status;    /* Статус поиска дальности по левому борту. */
-  HyScanDBFindStatus              r_find_status;    /* Статус поиска дальности по правому борту. */
-  gdouble                         l_width;          /* Дальность по левому борту, метры. */
-  gdouble                         r_width;          /* Дальность по правому борту, метры. */
-
-  /* Координаты на картографической проекции (зависят от текущей проекции). */
-  gdouble                         angle;            /* Курс судна, рад (с поправкой на смещение приёмника). */
-  gdouble                         l_angle;          /* Направление антенны левого борта по курсу. */
-  gdouble                         r_angle;          /* Направление антенны правого борта по курсу. */
-  HyScanGeoCartesian2D            center_c2d;       /* Координаты центра судна на проекции. */
-  HyScanGeoCartesian2D            l_start_c2d;      /* Координаты начала дальности по левому борту. */
-  HyScanGeoCartesian2D            l_end_c2d;        /* Координаты конца дальности по левому борту. */
-  HyScanGeoCartesian2D            r_start_c2d;      /* Координаты начала дальности по правому борту. */
-  HyScanGeoCartesian2D            r_end_c2d;        /* Координаты конца дальности по правому борту. */
-  gdouble                         dist;             /* Расстояние от начала галса. */
-  gdouble                         l_dist;           /* Дальность по левому борту, единицы проекции. */
-  gdouble                         r_dist;           /* Дальность по правому борту, единицы проекции. */
-  gdouble                         scale;            /* Масштаб перевода из метров в логические координаты. */
-  gboolean                        straight;         /* Признак того, что точка находится на прямолинейном участке. */
-} HyScanGtkMapTrackPoint;
-
-typedef struct {
+typedef struct
+{
   HyScanAmplitude                *amplitude;         /* Амплитудные данные трека. */
   HyScanProjector                *projector;         /* Сопоставления индексов и отсчётов реальным координатам. */
   HyScanAntennaOffset             offset;            /* Смещение антенны. */
@@ -862,9 +838,9 @@ hyscan_gtk_map_track_points_view (GList                *points,
   GList *point_l;
 
   gdouble from_x = G_MAXDOUBLE;
-  gdouble to_x = G_MINDOUBLE;
+  gdouble to_x = -G_MAXDOUBLE;
   gdouble from_y = G_MAXDOUBLE;
-  gdouble to_y = G_MINDOUBLE;
+  gdouble to_y = -G_MAXDOUBLE;
 
   /* Смотрим область, внутри которой размещены концы дальности. */
   for (point_l = points; point_l != end; point_l = point_l->next)
@@ -917,6 +893,7 @@ hyscan_gtk_map_track_item_load_range (HyScanGtkMapTrackItem *track,
       gint64 time;
       HyScanGeoGeodetic coords;
       HyScanGtkMapTrackPoint *point;
+      HyScanDBFindStatus r_find_status, l_find_status;
 
       if (!hyscan_nav_data_get (priv->lat_data, NULL, index, &time, &coords.lat))
         continue;
@@ -932,10 +909,11 @@ hyscan_gtk_map_track_item_load_range (HyScanGtkMapTrackItem *track,
       point->geo = coords;
 
       /* Определяем ширину отснятых данных в этот момент. */
-      point->r_width = hyscan_gtk_map_track_item_width (track, &priv->starboard, time,
-                                                        &point->r_find_status);
-      point->l_width = hyscan_gtk_map_track_item_width (track, &priv->port, time,
-                                                        &point->l_find_status);
+      point->r_width = hyscan_gtk_map_track_item_width (track, &priv->starboard, time, &r_find_status);
+      point->l_width = hyscan_gtk_map_track_item_width (track, &priv->port, time, &l_find_status);
+
+      /* Помечаем точки у которых был статус HYSCAN_DB_FIND_GREATER, т.к. надеемся получить по ним данные в будущем. */
+      point->wait_amp = (r_find_status == HYSCAN_DB_FIND_GREATER || l_find_status == HYSCAN_DB_FIND_GREATER);
 
       points = g_list_append (points, point);
     }
@@ -1010,8 +988,8 @@ hyscan_gtk_map_track_item_remove_expired (HyScanGtkMapTrackItem *track,
       if (point->index > last_index)
         break;
 
-      /* Не сохраняем точки у которых был статус HYSCAN_DB_FIND_GREATER, т.к. теперь надеемся получить по ним данные. */
-      if (point->l_find_status == HYSCAN_DB_FIND_GREATER || point->r_find_status == HYSCAN_DB_FIND_GREATER)
+      /* Не сохраняем точки у которых wait_amp, т.к. теперь надеемся получить по ним акустические данные. */
+      if (point->wait_amp)
         break;
 
       point_l = next;
@@ -1219,183 +1197,6 @@ hyscan_gtk_map_track_item_load (HyScanGtkMapTrackItem *track)
   return TRUE;
 }
 
-/* Рисует часть галса по точкам points. */
-static void
-hyscan_gtk_map_track_draw_chunk (HyScanGeoCartesian2D       *from,
-                                 HyScanGeoCartesian2D       *to,
-                                 gdouble                     scale,
-                                 GList                      *chunk_start,
-                                 GList                      *chunk_end,
-                                 cairo_t                    *cairo,
-                                 HyScanGtkMapTrackItemStyle *style)
-{
-  GList *point_l;
-  HyScanGtkMapTrackPoint *point, *next_point;
-  gdouble x, y;
-
-  gdouble threshold;
-
-  /* Делим весь отрезок на зоны длины threshold. В каждой зоне одна полоса. */
-  threshold = scale * (style->bar_margin + style->bar_width);
-
-  /* Рисуем полосы от бортов. */
-  cairo_set_line_width (cairo, style->bar_width);
-  cairo_new_path (cairo);
-  for (point_l = chunk_start; point_l != chunk_end; point_l = point_l->next)
-    {
-      gdouble x0, y0, xc, yc;
-
-      point = point_l->data;
-      next_point = point_l->next ? point_l->next->data : NULL;
-
-      /* Пропускаем полосы на криволинейных участках. */
-      if (!point->straight)
-        continue;
-
-      /* Рисуем полосу, только если следующая полоса лежит в другой зоне. */
-      if (next_point == NULL || round (next_point->dist / threshold) == round (point->dist / threshold))
-        continue;
-
-      xc = (point->center_c2d.x - from->x) / scale;
-      yc = (from->y - to->y) / scale - (point->center_c2d.y - to->y) / scale;
-
-      /* Правый борт. */
-      if (point->r_dist > 0)
-        {
-          /* Координаты точки на поверхности cairo. */
-          x0 = (point->r_start_c2d.x - from->x) / scale;
-          y0 = (from->y - to->y) / scale - (point->r_start_c2d.y - to->y) / scale;
-
-          cairo_save (cairo);
-          cairo_translate (cairo, x0, y0);
-          cairo_rotate (cairo, point->r_angle);
-
-          cairo_rectangle (cairo, 0, -style->bar_width / 2.0, point->r_dist / scale, style->bar_width);
-          cairo_set_line_width (cairo, style->stroke_width);
-          gdk_cairo_set_source_rgba (cairo, &style->color_stroke);
-          cairo_stroke_preserve (cairo);
-          gdk_cairo_set_source_rgba (cairo, &style->color_right);
-          cairo_fill (cairo);
-
-          cairo_restore (cairo);
-
-          cairo_move_to (cairo, x0, y0);
-          cairo_line_to (cairo, xc, yc);
-          gdk_cairo_set_source_rgba (cairo, &style->color_shadow);
-          cairo_set_line_width (cairo, style->bar_width);
-          cairo_stroke (cairo);
-        }
-
-      /* Левый борт. */
-      if (point->l_dist > 0)
-        {
-          /* Координаты точки на поверхности cairo. */
-          x0 = (point->l_start_c2d.x - from->x) / scale;
-          y0 = (from->y - to->y) / scale - (point->l_start_c2d.y - to->y) / scale;
-
-          cairo_save (cairo);
-          cairo_translate (cairo, x0, y0);
-          cairo_rotate (cairo, point->l_angle);
-
-          cairo_rectangle (cairo, 0, -style->bar_width / 2.0, -point->l_dist / scale, style->bar_width);
-          cairo_set_line_width (cairo, style->stroke_width);
-          gdk_cairo_set_source_rgba (cairo, &style->color_stroke);
-          cairo_stroke_preserve (cairo);
-          gdk_cairo_set_source_rgba (cairo, &style->color_left);
-          cairo_fill (cairo);
-
-          cairo_restore (cairo);
-
-          cairo_move_to (cairo, x0, y0);
-          cairo_line_to (cairo, xc, yc);
-          gdk_cairo_set_source_rgba (cairo, &style->color_shadow);
-          cairo_set_line_width (cairo, style->bar_width);
-          cairo_stroke (cairo);
-        }
-    }
-
-  /* Рисуем линию движения. */
-  gdk_cairo_set_source_rgba (cairo, &style->color_track);
-  cairo_set_line_width (cairo, style->line_width);
-  cairo_new_path (cairo);
-  for (point_l = chunk_start; point_l != chunk_end; point_l = point_l->next)
-    {
-      point = point_l->data;
-
-      /* Координаты точки на поверхности cairo. */
-      x = (point->center_c2d.x - from->x) / scale;
-      y = (from->y - to->y) / scale - (point->center_c2d.y - to->y) / scale;
-
-      cairo_line_to (cairo, x, y);
-    }
-  cairo_stroke (cairo);
-}
-
-/* Рисует галс внутри указанной области from - to. */
-static void
-hyscan_gtk_map_track_draw_region (HyScanGtkMapTrackItem      *track,
-                                  cairo_t                    *cairo,
-                                  gdouble                     scale,
-                                  HyScanGeoCartesian2D       *from,
-                                  HyScanGeoCartesian2D       *to,
-                                  HyScanGtkMapTrackItemStyle *style)
-{
-  HyScanGtkMapTrackItemPrivate *priv = track->priv;
-  GList *point_l, *prev_point_l = NULL, *next_point_l = NULL;
-  GList *chunk_start = NULL, *chunk_end = NULL;
-
-  /* Для каждого узла определяем, попадает ли он в указанную область. */
-  prev_point_l = point_l = priv->points;
-  while (point_l != NULL)
-    {
-      HyScanGeoCartesian2D *prev_point, *cur_point, *next_point;
-      gboolean is_inside;
-
-      cur_point  = &((HyScanGtkMapTrackPoint *) point_l->data)->center_c2d;
-      prev_point = &((HyScanGtkMapTrackPoint *) prev_point_l->data)->center_c2d;
-
-      /* 1. Отрезок до предыдущего узла в указанной области. */
-      is_inside = hyscan_cartesian_is_inside (prev_point, cur_point, from, to);
-
-      /* 2. Отрезок до следующего узла в указанной области. */
-      if (!is_inside && next_point_l != NULL)
-        {
-          next_point = &((HyScanGtkMapTrackPoint *) next_point_l->data)->center_c2d;
-          is_inside = hyscan_cartesian_is_inside (next_point, cur_point, from, to);
-        }
-
-      /* 3. Полосы от бортов в указанной области. */
-      if (!is_inside)
-        {
-          HyScanGtkMapTrackPoint *cur_track_point = point_l->data;
-
-          is_inside = hyscan_cartesian_is_inside (&cur_track_point->l_start_c2d, &cur_track_point->l_end_c2d, from, to) ||
-                      hyscan_cartesian_is_inside (&cur_track_point->l_start_c2d, &cur_track_point->center_c2d, from, to) ||
-                      hyscan_cartesian_is_inside (&cur_track_point->r_start_c2d, &cur_track_point->center_c2d, from, to) ||
-                      hyscan_cartesian_is_inside (&cur_track_point->r_start_c2d, &cur_track_point->r_end_c2d, from, to);
-        }
-
-      if (is_inside)
-        {
-          chunk_start = (chunk_start == NULL) ? prev_point_l : chunk_start;
-          chunk_end = next_point_l;
-        }
-      else if (chunk_start != NULL)
-        {
-          hyscan_gtk_map_track_draw_chunk (from, to, scale, chunk_start, chunk_end, cairo, style);
-          chunk_start = chunk_end = NULL;
-        }
-
-      prev_point_l = point_l;
-      point_l = point_l->next;
-      next_point_l = point_l != NULL ? point_l->next : NULL;
-    }
-
-  if (chunk_start != NULL)
-    hyscan_gtk_map_track_draw_chunk (from, to, scale, chunk_start, chunk_end, cairo, style);
-}
-
-
 /**
  * hyscan_gtk_map_track_item_new:
  * @db: указатель на базу данных #HyScanDB
@@ -1452,18 +1253,14 @@ hyscan_gtk_map_track_item_has_nmea (HyScanGtkMapTrackItem *track)
  * Рисует на поверхности @cairo часть галса, которая находится внутри прямоугольной
  * области от @from до @to. Галс рисуется в масштабе @scale и оформлением в стиле @style.
  */
-void
-hyscan_gtk_map_track_item_draw (HyScanGtkMapTrackItem      *track,
-                                cairo_t                    *cairo,
-                                gdouble                     scale,
-                                HyScanGeoCartesian2D       *from,
-                                HyScanGeoCartesian2D       *to,
-                                HyScanGtkMapTrackItemStyle *style)
+gboolean
+hyscan_gtk_map_track_item_points_lock (HyScanGtkMapTrackItem  *track,
+                                       GList                 **points)
 {
   HyScanGtkMapTrackItemPrivate *priv;
-  HyScanGtkMapTrackPoint *start_point;
 
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_TRACK_ITEM (track));
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_TRACK_ITEM (track), FALSE);
+  g_return_val_if_fail (points != NULL, FALSE);
 
   priv = track->priv;
 
@@ -1476,32 +1273,22 @@ hyscan_gtk_map_track_item_draw (HyScanGtkMapTrackItem      *track,
   if (priv->points == NULL)
     {
       g_rw_lock_reader_unlock (&priv->lock);
-      return;
+      return FALSE;
     }
 
-  /* Линия галса. */
-  hyscan_gtk_map_track_draw_region (track, cairo, scale, from, to, style);
+  *points = priv->points;
 
-  /* Точка начала трека. */
-  start_point = priv->points->data;
-  if (hyscan_cartesian_is_point_inside (&start_point->center_c2d, from, to))
-  {
-    gdouble x, y;
+  return TRUE;
+}
 
-    /* Координаты точки на поверхности cairo. */
-    x = (start_point->center_c2d.x - from->x) / scale;
-    y = (from->y - to->y) / scale - (start_point->center_c2d.y - to->y) / scale;
+void
+hyscan_gtk_map_track_item_points_unlock (HyScanGtkMapTrackItem *track)
+{
+  HyScanGtkMapTrackItemPrivate *priv;
 
-    cairo_arc (cairo, x, y, 2.0 * style->line_width, 0, 2.0 * G_PI);
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_TRACK_ITEM (track));
 
-    gdk_cairo_set_source_rgba (cairo, &style->color_track);
-    cairo_fill_preserve (cairo);
-
-    cairo_set_line_width (cairo, style->stroke_width);
-    gdk_cairo_set_source_rgba (cairo, &style->color_stroke);
-    cairo_stroke (cairo);
-  }
-
+  priv = track->priv;
   g_rw_lock_reader_unlock (&priv->lock);
 }
 

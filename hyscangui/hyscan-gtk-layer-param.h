@@ -67,6 +67,9 @@ HYSCAN_API
 HyScanGtkLayerParam * hyscan_gtk_layer_param_new              (void);
 
 HYSCAN_API
+HyScanGtkLayerParam * hyscan_gtk_layer_param_new_with_lock    (GMutex              *lock);
+
+HYSCAN_API
 void                  hyscan_gtk_layer_param_set_stock_schema (HyScanGtkLayerParam *layer_param,
                                                                const gchar         *schema_id);
 
