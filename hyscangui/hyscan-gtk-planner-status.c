@@ -120,7 +120,7 @@ hyscan_gtk_planner_status_track_changed (HyScanGtkPlannerStatus   *p_status,
       return;
     }
 
-  if (!hyscan_geo_geo2topoXY (geo, &start, track->start) || !hyscan_geo_geo2topoXY (geo, &end, track->end))
+  if (!hyscan_geo_geo2topoXY (geo, &start, track->plan.start) || !hyscan_geo_geo2topoXY (geo, &end, track->plan.end))
     {
       gtk_label_set_text (label, _("Wrong value"));
     }

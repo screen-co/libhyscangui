@@ -44,17 +44,21 @@ HYSCAN_API
 HyScanPlannerModel *        hyscan_planner_selection_get_model        (HyScanPlannerSelection  *selection);
 
 HYSCAN_API
-gchar *                     hyscan_planner_selection_get_zone         (HyScanPlannerSelection *selection,
-                                                                       gint                   *vertex_index);
+gchar *                     hyscan_planner_selection_get_zone         (HyScanPlannerSelection  *selection,
+                                                                       gint                    *vertex_index);
 
 HYSCAN_API
-void                        hyscan_planner_selection_set_zone         (HyScanPlannerSelection *selection,
-                                                                       const gchar            *zone_id,
-                                                                       gint                    vertex_index);
+void                        hyscan_planner_selection_set_zone         (HyScanPlannerSelection  *selection,
+                                                                       const gchar             *zone_id,
+                                                                       gint                     vertex_index);
 
 HYSCAN_API
-void                        hyscan_planner_selection_activate         (HyScanPlannerSelection *selection,
-                                                                       const gchar            *track_id);
+void                        hyscan_planner_selection_activate         (HyScanPlannerSelection  *selection,
+                                                                       const gchar             *track_id);
+
+HYSCAN_API
+void                        hyscan_planner_selection_set_tracks       (HyScanPlannerSelection  *selection,
+                                                                       gchar                  **tracks);
 
 HYSCAN_API
 void                        hyscan_planner_selection_append           (HyScanPlannerSelection  *selection,

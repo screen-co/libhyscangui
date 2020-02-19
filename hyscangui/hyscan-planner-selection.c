@@ -141,6 +141,7 @@ hyscan_planner_selection_object_finalize (GObject *object)
   g_clear_pointer (&priv->objects, g_hash_table_destroy);
   g_clear_object (&priv->model);
   g_array_free (priv->tracks, TRUE);
+  g_free (priv->active_track);
 
   G_OBJECT_CLASS (hyscan_planner_selection_parent_class)->finalize (object);
 }
@@ -225,6 +226,12 @@ hyscan_planner_selection_get_tracks (HyScanPlannerSelection *selection)
   return g_strdupv ((gchar **) selection->priv->tracks->data);
 }
 
+/**
+ * hyscan_planner_selection_get_active_track:
+ * @selection: указатель на #HyScanPlannerSelection
+ *
+ * Returns: идентификатор активного галса, для удаления g_free().
+ */
 gchar *
 hyscan_planner_selection_get_active_track (HyScanPlannerSelection  *selection)
 {
@@ -233,6 +240,12 @@ hyscan_planner_selection_get_active_track (HyScanPlannerSelection  *selection)
   return g_strdup (selection->priv->active_track);
 }
 
+/**
+ * hyscan_planner_selection_get_model:
+ * @selection: указатель на #HyScanPlannerSelection
+ *
+ * Returns: (transfer full): модель объектов планировщика, для удаления g_object_unref().
+ */
 HyScanPlannerModel *
 hyscan_planner_selection_get_model (HyScanPlannerSelection  *selection)
 {
@@ -304,6 +317,27 @@ hyscan_planner_selection_activate (HyScanPlannerSelection *selection,
   priv->active_track = g_strdup (track_id);
 
   g_signal_emit (selection, hyscan_planner_selection_signals[SIGNAL_ACTIVATED], 0);
+}
+
+void
+hyscan_planner_selection_set_tracks (HyScanPlannerSelection  *selection,
+                                     gchar                  **tracks)
+{
+  HyScanPlannerSelectionPrivate *priv;
+  gchar *track_id;
+  gint i;
+
+  g_return_if_fail (HYSCAN_IS_PLANNER_SELECTION (selection));
+  priv = selection->priv;
+
+  g_array_remove_range (priv->tracks, 0, priv->tracks->len);
+  for (i = 0; tracks[i] != NULL; ++i)
+    {
+      track_id = g_strdup (tracks[i]);
+      g_array_append_val (priv->tracks, track_id);
+    }
+
+  g_signal_emit (selection, hyscan_planner_selection_signals[SIGNAL_TRACKS_CHANGED], 0, priv->tracks->data);
 }
 
 void

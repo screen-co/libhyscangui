@@ -68,7 +68,6 @@ enum _HyScanGtkMapPlannerMode
   HYSCAN_GTK_MAP_PLANNER_MODE_ZONE,
   HYSCAN_GTK_MAP_PLANNER_MODE_TRACK,
   HYSCAN_GTK_MAP_PLANNER_MODE_ORIGIN,
-  HYSCAN_GTK_MAP_PLANNER_MODE_TRACK_PARALLEL,
   HYSCAN_GTK_MAP_PLANNER_MODE_SELECT,
 };
 
@@ -96,7 +95,16 @@ void                 hyscan_gtk_map_planner_set_mode         (HyScanGtkMapPlanne
                                                               HyScanGtkMapPlannerMode  mode);
 
 HYSCAN_API
+void                 hyscan_gtk_map_planner_set_preview      (HyScanGtkMapPlanner     *planner,
+                                                              GList                   *tracks);
+
+HYSCAN_API
 HyScanPlannerModel * hyscan_gtk_map_planner_get_model        (HyScanGtkMapPlanner     *planner);
+
+HYSCAN_API
+void                 hyscan_gtk_map_planner_track_view       (HyScanGtkMapPlanner     *planner,
+                                                              const gchar             *track_id,
+                                                              gboolean                 zoom_in);
 
 G_END_DECLS
 

@@ -56,6 +56,8 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-planner-zeditor.c
              hyscan-gtk-planner-origin.c
              hyscan-gtk-planner-status.c
+             hyscan-gtk-planner-shift.c
+             hyscan-gtk-planner-list.c
              hyscan-cairo.c
              hyscan-gtk-export.c
 
@@ -84,6 +86,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-map-geomark.c
              hyscan-gtk-map-planner.c
              hyscan-gtk-map-steer.c
+             hyscan-gtk-map-direction.c
 
              #[[ Загрузка тайлов ]]
              hyscan-map-tile.c
@@ -145,6 +148,8 @@ install (FILES hyscan-gtk-area.h
                hyscan-gtk-planner-zeditor.h
                hyscan-gtk-planner-origin.h
                hyscan-gtk-planner-status.h
+               hyscan-gtk-planner-shift.h
+               hyscan-gtk-planner-list.h
                hyscan-gtk-layer-common.h
                hyscan-gtk-layer-param.h
                hyscan-gtk-layer-container.h

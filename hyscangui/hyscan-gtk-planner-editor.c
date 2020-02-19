@@ -276,6 +276,7 @@ hyscan_gtk_planner_editor_object_finalize (GObject *object)
   g_signal_handlers_disconnect_by_data (priv->selection, editor);
   g_signal_handlers_disconnect_by_data (priv->model, editor);
   g_clear_pointer (&priv->objects, g_hash_table_destroy);
+  g_clear_pointer (&priv->selected_tracks, g_strfreev);
   g_clear_object (&priv->model);
   g_clear_object (&priv->selection);
   g_clear_object (&priv->geo);
@@ -328,14 +329,14 @@ hyscan_gtk_planner_editor_get_value (HyScanGtkPlannerEditor      *editor,
       HyScanGeoCartesian2D end;
       gdouble length, angle, speed;
 
-      if (!hyscan_geo_geo2topoXY (priv->geo, &start, track->start) ||
-          !hyscan_geo_geo2topoXY (priv->geo, &end, track->end))
+      if (!hyscan_geo_geo2topoXY (priv->geo, &start, track->plan.start) ||
+          !hyscan_geo_geo2topoXY (priv->geo, &end, track->plan.end))
         {
           g_warning ("HyScanGtkPlannerEditor: failed to convert geo coordinates to (x, y)");
           continue;
         }
 
-      speed = track->speed;
+      speed = track->plan.velocity;
       length = hypot (end.x - start.x, end.y - start.y);
       angle = atan2 (end.x - start.x, end.y - start.y) / G_PI * 180.0;
       if (angle < 0)
@@ -527,7 +528,7 @@ hyscan_gtk_planner_editor_start_changed (HyScanGtkPlannerEditor *editor)
   hyscan_gtk_planner_editor_iter_init (editor, &iter);
   while (hyscan_gtk_planner_editor_iter_next (&iter))
     {
-      hyscan_gtk_planner_editor_convert_point (editor, priv->start_x, priv->start_y, &iter.track->start);
+      hyscan_gtk_planner_editor_convert_point (editor, priv->start_x, priv->start_y, &iter.track->plan.start);
       hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), iter.id, (HyScanObject *) iter.track);
     }
 }
@@ -544,7 +545,7 @@ hyscan_gtk_planner_editor_end_changed (HyScanGtkPlannerEditor *editor)
   hyscan_gtk_planner_editor_iter_init (editor, &iter);
   while (hyscan_gtk_planner_editor_iter_next (&iter))
     {
-      hyscan_gtk_planner_editor_convert_point (editor, priv->end_x, priv->end_y, &iter.track->end);
+      hyscan_gtk_planner_editor_convert_point (editor, priv->end_x, priv->end_y, &iter.track->plan.end);
       hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), iter.id, (HyScanObject *) iter.track);
     }
 }
@@ -571,15 +572,15 @@ hyscan_gtk_planner_editor_length_changed (HyScanGtkPlannerEditor *editor)
       gdouble scale;
       gdouble dx, dy;
 
-      hyscan_geo_geo2topoXY (priv->geo, &start_2d, track->start);
-      hyscan_geo_geo2topoXY (priv->geo, &end_2d, track->end);
+      hyscan_geo_geo2topoXY (priv->geo, &start_2d, track->plan.start);
+      hyscan_geo_geo2topoXY (priv->geo, &end_2d, track->plan.end);
       dx = end_2d.x - start_2d.x;
       dy = end_2d.y - start_2d.y;
       scale = length / hypot (dx, dy);
       end_2d.x = start_2d.x + scale * dx;
       end_2d.y = start_2d.y + scale * dy;
 
-      hyscan_geo_topoXY2geo (priv->geo, &track->end, end_2d, 0);
+      hyscan_geo_topoXY2geo (priv->geo, &track->plan.end, end_2d, 0);
       hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), id, (HyScanObject *) track);
     }
 }
@@ -608,15 +609,15 @@ hyscan_gtk_planner_editor_angle_changed (HyScanGtkPlannerEditor *editor)
       gdouble length;
       gdouble dx, dy;
 
-      hyscan_geo_geo2topoXY (priv->geo, &start_2d, track->start);
-      hyscan_geo_geo2topoXY (priv->geo, &end_2d, track->end);
+      hyscan_geo_geo2topoXY (priv->geo, &start_2d, track->plan.start);
+      hyscan_geo_geo2topoXY (priv->geo, &end_2d, track->plan.end);
       dx = end_2d.x - start_2d.x;
       dy = end_2d.y - start_2d.y;
       length = hypot (dx, dy);
       end_2d.x = start_2d.x + length * cos (angle);
       end_2d.y = start_2d.y + length * sin (angle);
 
-      hyscan_geo_topoXY2geo (priv->geo, &track->end, end_2d, 0);
+      hyscan_geo_topoXY2geo (priv->geo, &track->plan.end, end_2d, 0);
       hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), id, (HyScanObject *) track);
     }
 }
@@ -640,7 +641,7 @@ hyscan_gtk_planner_editor_speed_changed (HyScanGtkPlannerEditor *editor)
       HyScanPlannerTrack *track = iter.track;
       const gchar *id = iter.id;
 
-      track->speed = speed;
+      track->plan.velocity = speed;
       hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), id, (const HyScanObject *) track);
     }
 }

@@ -265,6 +265,7 @@ hyscan_gtk_planner_zeditor_object_constructed (GObject *object)
   gtk_tree_view_append_column (tree_view, priv->column_y);
 
   priv->context_menu = gtk_menu_new ();
+  gtk_menu_attach_to_widget (GTK_MENU (priv->context_menu), GTK_WIDGET (zeditor), NULL);
   priv->menu_duplicate = hyscan_gtk_planner_zeditor_menu_add (zeditor, _("Duplicate"));
   priv->menu_delete = hyscan_gtk_planner_zeditor_menu_add (zeditor, _("Delete"));
 
@@ -402,7 +403,7 @@ hyscan_gtk_planner_zeditor_vertex_delete (HyScanGtkPlannerZeditor *zeditor)
   HyScanGtkPlannerZeditorPrivate *priv = zeditor->priv;
   HyScanPlannerZone *zone;
 
-  if (priv->vertex < 0)
+  if (priv->vertex < 0 || priv->zone_id == NULL)
     return;
 
   zone = g_hash_table_lookup (priv->objects, priv->zone_id);
