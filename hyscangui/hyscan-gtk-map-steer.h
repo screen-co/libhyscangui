@@ -76,6 +76,10 @@ HYSCAN_API
 void                   hyscan_gtk_map_steer_sensor_set_offset (HyScanGtkMapSteer         *steer,
                                                                const HyScanAntennaOffset *offset);
 
+HYSCAN_API
+void                   hyscan_gtk_map_steer_set_recording     (HyScanGtkMapSteer         *steer,
+                                                               gboolean                   recording);
+
 G_END_DECLS
 
 #endif /* __HYSCAN_GTK_MAP_STEER_H__ */

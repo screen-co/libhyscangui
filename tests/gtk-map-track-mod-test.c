@@ -187,7 +187,7 @@ translator_new (HyScanDB    *db,
   /* Создаём проект и галс через HyScanDataWriter. */
   writer = hyscan_data_writer_new ();
   hyscan_data_writer_set_db (writer, translator->db);
-  if (!hyscan_data_writer_start (writer, write_project_name, track_name, HYSCAN_TRACK_SURVEY, -1))
+  if (!hyscan_data_writer_start (writer, write_project_name, track_name, HYSCAN_TRACK_SURVEY, NULL, -1))
     g_error ("Can't start data writer");
   hyscan_data_writer_stop (writer);
   g_object_unref (writer);
