@@ -113,7 +113,7 @@ static guint      hyscan_mark_manager_view_signals[SIGNAL_LAST] = { 0 };
 static gchar *date_time_stamp = "%d.%m.%Y %H:%M:%S";
 
 /* Оператор создавший типы объектов в древовидном списке. */
-static gchar *author = "Author";
+static gchar *author = "Default";
 
 /* Стандартные картинки для типов объектов. */
 static gchar *icon_name[] = {"emblem-documents",            /* Группы. */
@@ -224,6 +224,20 @@ hyscan_mark_manager_view_finalize (GObject *object)
   /* Галсы. */
   if (priv->tracks != NULL)
     g_hash_table_unref (priv->tracks);
+
+  /* Очищаем модель. */
+  /*if (GTK_IS_LIST_STORE (priv->store))
+    {
+      gtk_list_store_clear (GTK_LIST_STORE (priv->store));
+    }
+  else if (GTK_IS_TREE_STORE (priv->store))
+    {
+      gtk_tree_store_clear (GTK_TREE_STORE (priv->store));
+    }
+  else
+   {
+     g_warning ("Unknown type of store in HyScanMarkManagerView.\n");
+   }*/
 
   G_OBJECT_CLASS (hyscan_mark_manager_view_parent_class)->finalize (object);
 }
