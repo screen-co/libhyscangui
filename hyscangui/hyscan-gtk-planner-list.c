@@ -38,7 +38,7 @@
  * @Title: HyScanGtkPlannerList
  *
  * Данный виджет выводит схему плановых галсов в виде списка из зон полигона и
- * плановых галсов внутри них.
+ * плановых галсов внутри них, а также записей этих галсов.
  *
  * Виджет имеет контекстное меню для манипуляции галсами:
  * - переход к галсу на карте,
@@ -46,6 +46,12 @@
  * - выделение нескольких галсов,
  * - изменение размеров и направления,
  * - удаление.
+ *
+ * Для каждого из планов галса отображаются галсы, которые были по этому плану
+ * записаны. Пользователь также может самостоятельно связать запись галса с планом.
+ * Если связанный с галсом план не соотвествует исходному плану, то в строке этого
+ * галса выводится предупреждение, а в его контекстном меню появляется
+ * возможность восстановить исходный план.
  *
  */
 
@@ -66,33 +72,29 @@ enum
 
 enum
 {
-  TYPE_PLANNER_TRACK,
-  TYPE_PLANNER_ZONE,
-  TYPE_DB_TRACK,
+  TYPE_PLANNER_TRACK,   /* Запланированный галс. */
+  TYPE_PLANNER_ZONE,    /* Зона полигона. */
+  TYPE_DB_TRACK,        /* Галс записанный. */
 };
-
-typedef struct
-{
-  HyScanTrackStatsInfo *info;
-} HyScanGtkPlannerListItem;
 
 enum
 {
-  NUMBER_COLUMN,
-  KEY_COLUMN,
-  ID_COLUMN,
-  NAME_COLUMN,
-  TIME_COLUMN,
-  LENGTH_COLUMN,
-  Y_VAR_COLUMN,
-  ANGLE_COLUMN,
-  ANGLE_VAR_COLUMN,
-  SPEED_COLUMN,
-  SPEED_VAR_COLUMN,
-  PROGRESS_COLUMN,
-  QUALITY_COLUMN,
-  TYPE_COLUMN,
-  WEIGHT_COLUMN,
+  NUMBER_COLUMN,             /* Номер. */
+  KEY_COLUMN,                /* Ключ объекта в хэш-таблице. */
+  ID_COLUMN,                 /* Идентификатор объекта. */
+  NAME_COLUMN,               /* Название объекта. */
+  TIME_COLUMN,               /* Время. */
+  LENGTH_COLUMN,             /* Длина. */
+  Y_VAR_COLUMN,              /* Вариация отклонения поперёк галса. */
+  ANGLE_COLUMN,              /* Курс. */
+  ANGLE_VAR_COLUMN,          /* Вариация курса. */
+  SPEED_COLUMN,              /* Скорость. */
+  SPEED_VAR_COLUMN,          /* Вариация скорости. */
+  PROGRESS_COLUMN,           /* Прогресс. */
+  QUALITY_COLUMN,            /* Качество. */
+  TYPE_COLUMN,               /* Тип объекта. */
+  WEIGHT_COLUMN,             /* Толщина шрифта. */
+  INCONSISTENT_COLUMN,       /* Признак того, что текущий план галса не соответствует тому, по которому он записан. */
   N_COLUMNS,
 };
 
@@ -138,7 +140,8 @@ struct _HyScanGtkPlannerListPrivate
   GtkTreeStore                 *store;              /* Модель данных дерева. */
   GtkTreeSelection             *tree_selection;     /* Объект выбранных элементов дерева. */
   gchar                        *zone_id;            /* Идентификатор выбранной зоны. */
-  gchar                       **tracks;             /* Идентификаторы выбранных галсов. */
+  gchar                       **tracks;             /* Идентификаторы выбранных плановых галсов. */
+  gchar                       **records;            /* Идентификаторы выбранных записей галсов. */
   gchar                        *active;             /* Идентификатор активного галса. */
   gulong                        hndl_tree_chgd;     /* Обработчик сигнала "changed" объекта tree_selection. */
   gulong                        hndl_tk_chgd;       /* Обработчик сигнала "tracks-changed" объекта selection. */
@@ -157,7 +160,13 @@ struct _HyScanGtkPlannerListPrivate
     GtkWidget                  *extend;               /* Виджет пункта меню "Расятнуть до границ". */
     GtkWidget                  *bind;                 /* Виджет пункта меню "Галсы" */
     GtkWidget                  *bind_submenu;         /* Виджет подменю "Галсы" */
-  }                             menu;                 /* Контекстное меню галса. */
+  }                             menu;                 /* Контекстное меню плана галса. */
+
+  struct
+  {
+    GtkMenu                    *menu;                 /* Виджет меню. */
+    GtkWidget                  *restore_plan;         /* Виджет пункта меню "Восстановить план". */
+  }                             rec_menu;             /* Контекстное меню галса. */
 
   GtkTreeViewColumn            *title_col;            /* Столбец "Название". */
   GtkTreeViewColumn            *y_sd_col;             /* Столбец "Отклонение по Y". */
@@ -177,6 +186,11 @@ static void                       hyscan_gtk_planner_list_set_property       (GO
                                                                               GParamSpec                *pspec);
 static void                       hyscan_gtk_planner_list_object_constructed (GObject                   *object);
 static void                       hyscan_gtk_planner_list_object_finalize    (GObject                   *object);
+static gboolean                   hyscan_gtk_planner_list_query_tooltip      (GtkWidget                 *widget,
+                                                                              gint                       x,
+                                                                              gint                       y,
+                                                                              gboolean                   keyboard_tooltip,
+                                                                              GtkTooltip                *tooltip);
 static void                       hyscan_gtk_planner_list_restore_selection  (HyScanGtkPlannerList      *list);
 static void                       hyscan_gtk_planner_list_changed            (HyScanGtkPlannerList      *list);
 static void                       hyscan_gtk_planner_list_stats_changed      (HyScanGtkPlannerList      *list);
@@ -185,7 +199,12 @@ static void                       hyscan_gtk_planner_list_tracks_changed     (Hy
                                                                               gchar                    **tracks);
 static void                       hyscan_gtk_planner_list_zone_changed       (HyScanGtkPlannerList      *list);
 static void                       hyscan_gtk_planner_list_set_active         (HyScanGtkPlannerList      *list);
-static void                       hyscan_gtk_planner_list_cell_data          (GtkTreeViewColumn         *tree_column,
+static void                       hyscan_gtk_planner_list_text_data          (GtkTreeViewColumn         *tree_column,
+                                                                              GtkCellRenderer           *cell,
+                                                                              GtkTreeModel              *tree_model,
+                                                                              GtkTreeIter               *iter,
+                                                                              gpointer                   data);
+static void                       hyscan_gtk_planner_list_icon_data          (GtkTreeViewColumn         *tree_column,
                                                                               GtkCellRenderer           *cell,
                                                                               GtkTreeModel              *tree_model,
                                                                               GtkTreeIter               *iter,
@@ -196,6 +215,7 @@ static void                       hyscan_gtk_planner_list_row_expanded       (Hy
 static gboolean                   hyscan_gtk_planner_list_button_press       (HyScanGtkPlannerList      *list,
                                                                               GdkEventButton            *event_button);
 static inline void                hyscan_gtk_planner_list_add_menu           (HyScanGtkPlannerList      *list,
+                                                                              GtkMenu                   *menu,
                                                                               const gchar               *mnemonic,
                                                                               GtkWidget                **widget);
 static void                       hyscan_gtk_planner_list_update_zones       (HyScanGtkPlannerList      *list,
@@ -236,11 +256,14 @@ static void
 hyscan_gtk_planner_list_class_init (HyScanGtkPlannerListClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
+  GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
   object_class->set_property = hyscan_gtk_planner_list_set_property;
 
   object_class->constructed = hyscan_gtk_planner_list_object_constructed;
   object_class->finalize = hyscan_gtk_planner_list_object_finalize;
+
+  widget_class->query_tooltip = hyscan_gtk_planner_list_query_tooltip;
 
   g_object_class_install_property (object_class, PROP_MODEL,
     g_param_spec_object ("model", "Planner Model", "Planner model", HYSCAN_TYPE_PLANNER_MODEL,
@@ -331,18 +354,24 @@ hyscan_gtk_planner_list_object_constructed (GObject *object)
   priv->velocity_sd_col = hyscan_gtk_planner_list_add (list, _("SD(Vel)"), _("Std Dev of Velocity, m/s"), SPEED_VAR_COLUMN, NULL);
   priv->track_sd_col = hyscan_gtk_planner_list_add (list, _("SD(Trk)"), _("Std Dev of Track, °"), ANGLE_VAR_COLUMN, NULL);
 
-  /* Контекстное меню. */
+  /* Контекстное меню плана. */
   priv->menu.menu = GTK_MENU (gtk_menu_new ());
   gtk_menu_attach_to_widget (priv->menu.menu, GTK_WIDGET (list), NULL);
   if (priv->viewer != NULL)
-     hyscan_gtk_planner_list_add_menu (list, _("_Find track on the map"), &priv->menu.find);
-  hyscan_gtk_planner_list_add_menu (list, _("Start _navigation"), &priv->menu.nav);
+     hyscan_gtk_planner_list_add_menu (list, priv->menu.menu, _("_Find track on the map"), &priv->menu.find);
+  hyscan_gtk_planner_list_add_menu (list, priv->menu.menu, _("Start _navigation"), &priv->menu.nav);
 
-  hyscan_gtk_planner_list_add_menu (list, NULL, NULL);
-  hyscan_gtk_planner_list_add_menu (list, _("_Invert"), &priv->menu.inv);
-  hyscan_gtk_planner_list_add_menu (list, _("Adjust length to _zone boundary"), &priv->menu.extend);
-  hyscan_gtk_planner_list_add_menu (list, _("_Delete"), &priv->menu.del);
   priv->menu.user_position = 3;
+
+  hyscan_gtk_planner_list_add_menu (list, priv->menu.menu, NULL, NULL);
+  hyscan_gtk_planner_list_add_menu (list, priv->menu.menu, _("_Invert"), &priv->menu.inv);
+  hyscan_gtk_planner_list_add_menu (list, priv->menu.menu, _("Adjust length to _zone boundary"), &priv->menu.extend);
+  hyscan_gtk_planner_list_add_menu (list, priv->menu.menu, _("_Delete"), &priv->menu.del);
+
+  /* Контекстное меню галса. */
+  priv->rec_menu.menu = GTK_MENU (gtk_menu_new ());
+  gtk_menu_attach_to_widget (priv->rec_menu.menu, GTK_WIDGET (list), NULL);
+  hyscan_gtk_planner_list_add_menu (list, priv->rec_menu.menu, _("_Restore original plan"), &priv->rec_menu.restore_plan);
 
   priv->hndl_tree_chgd = g_signal_connect_swapped (priv->tree_selection, "changed",
                                                    G_CALLBACK (hyscan_gtk_planner_list_selection_changed), list);
@@ -350,6 +379,9 @@ hyscan_gtk_planner_list_object_constructed (GObject *object)
                                                  G_CALLBACK (hyscan_gtk_planner_list_tracks_changed), list);
   priv->hndl_zn_chgd = g_signal_connect_swapped (priv->selection, "zone-changed",
                                                  G_CALLBACK (hyscan_gtk_planner_list_zone_changed), list);
+
+  /* Всплываюшая подсказка. */
+  gtk_widget_set_has_tooltip (GTK_WIDGET (list), TRUE);
 
   g_signal_connect_swapped (priv->stats, "changed", G_CALLBACK (hyscan_gtk_planner_list_stats_changed), list);
   g_signal_connect_swapped (priv->selection, "activated", G_CALLBACK (hyscan_gtk_planner_list_set_active), list);
@@ -379,32 +411,72 @@ hyscan_gtk_planner_list_object_finalize (GObject *object)
   g_clear_object (&priv->db_info);
   g_clear_pointer (&priv->objects, g_hash_table_unref);
   g_clear_pointer (&priv->tracks, g_strfreev);
+  g_clear_pointer (&priv->records, g_strfreev);
   g_free (priv->zone_id);
   g_free (priv->active);
 
   G_OBJECT_CLASS (hyscan_gtk_planner_list_parent_class)->finalize (object);
 }
 
+static gboolean
+hyscan_gtk_planner_list_query_tooltip (GtkWidget  *widget,
+                                       gint        x,
+                                       gint        y,
+                                       gboolean    keyboard_tooltip,
+                                       GtkTooltip *tooltip)
+{
+  HyScanGtkPlannerList *list = HYSCAN_GTK_PLANNER_LIST (widget);
+  HyScanGtkPlannerListPrivate *priv = list->priv;
+  GtkTreeIter iter;
+  GtkTreeModel *model;
+  gint type;
+  gboolean inconsistent;
+
+  if (!gtk_tree_view_get_tooltip_context (GTK_TREE_VIEW (widget), &x, &y, keyboard_tooltip, &model, NULL, &iter))
+    return FALSE;
+
+  gtk_tree_model_get (model, &iter, TYPE_COLUMN, &type, INCONSISTENT_COLUMN, &inconsistent, -1);
+
+  if (type != TYPE_DB_TRACK || !inconsistent)
+    return FALSE;
+
+  gtk_tooltip_set_text (tooltip, _("Track has been recorded with another plan. The original plan can be restored from the context menu."));
+
+  return TRUE;
+}
+
 static GtkTreeViewColumn *
 hyscan_gtk_planner_list_add_title (HyScanGtkPlannerList *list)
 {
   GtkTreeViewColumn *column;
-  GtkCellRenderer *renderer;
+  GtkCellRenderer *text_cell, *icon_cell;
 
-  renderer = gtk_cell_renderer_text_new ();
-  g_object_set (renderer,
+  column = gtk_tree_view_column_new ();
+  gtk_tree_view_column_set_title (column, _("Title"));
+
+  /* Иконка. */
+  icon_cell = gtk_cell_renderer_pixbuf_new ();
+  g_object_set (icon_cell,
+                "stock-size", GTK_ICON_SIZE_SMALL_TOOLBAR,
+                "icon-name", "dialog-warning-symbolic",
+                NULL);
+  gtk_tree_view_column_pack_start (column, icon_cell, FALSE);
+  gtk_tree_view_column_set_cell_data_func (column, icon_cell, hyscan_gtk_planner_list_icon_data, list, NULL);
+
+  /* Текст. */
+  text_cell = gtk_cell_renderer_text_new ();
+  g_object_set (text_cell,
                 "width-chars", 16,
                 "ellipsize", PANGO_ELLIPSIZE_END,
                 NULL);
+  gtk_tree_view_column_pack_start (column, text_cell, TRUE);
+  gtk_tree_view_column_set_attributes (column, text_cell, "text", NAME_COLUMN, NULL);
+  gtk_tree_view_column_set_cell_data_func (column, text_cell, hyscan_gtk_planner_list_text_data, list, NULL);
 
-  column = gtk_tree_view_column_new_with_attributes (_("Title"), renderer,
-                                                        "text", NAME_COLUMN,
-                                                        NULL);
   gtk_tree_view_column_set_expand (column, TRUE);
-  gtk_tree_view_column_set_cell_data_func (column, renderer, hyscan_gtk_planner_list_cell_data, list, NULL);
   gtk_tree_view_column_set_sort_column_id (column, NUMBER_COLUMN);
 
-  g_signal_connect (renderer, "edited", G_CALLBACK (hyscan_gtk_planner_list_title_edited), list);
+  g_signal_connect (text_cell, "edited", G_CALLBACK (hyscan_gtk_planner_list_title_edited), list);
 
   gtk_tree_view_append_column (GTK_TREE_VIEW (list), column);
   gtk_tree_view_column_set_reorderable (column, TRUE);
@@ -431,7 +503,7 @@ hyscan_gtk_planner_list_add (HyScanGtkPlannerList *list,
   gtk_tree_view_column_set_title (column, title);
   gtk_tree_view_column_pack_start (column, renderer, TRUE);
 
-  gtk_tree_view_column_set_cell_data_func (column, renderer, hyscan_gtk_planner_list_cell_data, list, NULL);
+  gtk_tree_view_column_set_cell_data_func (column, renderer, hyscan_gtk_planner_list_text_data, list, NULL);
   gtk_tree_view_column_set_sort_column_id (column, sort_column_id);
   if (edited != NULL)
     g_signal_connect (renderer, "edited", edited, list);
@@ -446,33 +518,6 @@ hyscan_gtk_planner_list_add (HyScanGtkPlannerList *list,
 
   return column;
 }
-
-static HyScanGtkPlannerListItem *
-hyscan_gtk_planner_list_item_copy (const HyScanGtkPlannerListItem *item)
-{
-  HyScanGtkPlannerListItem *copy;
-
-  if (item == NULL)
-    return NULL;
-
-  copy = g_slice_new0 (HyScanGtkPlannerListItem);
-  copy->info = hyscan_track_stats_info_copy (item->info);
-
-  return copy;
-}
-
-static void
-hyscan_gtk_planner_list_item_free (HyScanGtkPlannerListItem *item)
-{
-  if (item == NULL)
-    return;
-
-  hyscan_track_stats_info_free (item->info);
-  g_slice_free (HyScanGtkPlannerListItem, item);
-}
-
-G_DEFINE_BOXED_TYPE (HyScanGtkPlannerListItem, hyscan_gtk_planner_list_item,
-                     hyscan_gtk_planner_list_item_copy, hyscan_gtk_planner_list_item_free)
 
 /* Создаёт наследника GtkTreeStore с особенностями в реализации Drag'n'drop (DND). */
 static GtkTreeStore *
@@ -493,7 +538,8 @@ hyscan_gtk_planner_tree_store_new (HyScanGtkPlannerList *list)
                     G_TYPE_DOUBLE,     /* PROGRESS_COLUMN */
                     G_TYPE_DOUBLE,     /* QUALITY_COLUMN */
                     G_TYPE_INT,        /* TYPE_COLUMN */
-                    G_TYPE_INT };      /* WEIGHT_COLUMN */
+                    G_TYPE_INT,        /* WEIGHT_COLUMN */
+                    G_TYPE_BOOLEAN };  /* INCONSISTENT_COLUMN */
 
   store = g_object_new (HYSCAN_TYPE_GTK_PLANNER_TREE_STORE, NULL);
   gtk_tree_store_set_column_types (GTK_TREE_STORE (store), G_N_ELEMENTS (types), types);
@@ -572,11 +618,50 @@ hyscan_gtk_planner_list_menu_activate (GtkMenuItem          *button,
           hyscan_planner_track_free (modified_track);
         }
     }
+
+  else if (button == GTK_MENU_ITEM (priv->rec_menu.restore_plan))
+    {
+      GHashTable *tracks;
+      GHashTableIter zn_iter, tk_iter;
+      HyScanPlannerStatsZone *zone;
+      HyScanPlannerStatsTrack *track;
+      HyScanTrackStatsInfo *record;
+
+      tracks = hyscan_db_info_get_tracks (priv->db_info);
+      if (tracks == NULL)
+        return;
+
+      g_hash_table_iter_init (&zn_iter, priv->zone_stats);
+      while (g_hash_table_iter_next (&zn_iter, NULL, (gpointer *) &zone))
+        {
+          g_hash_table_iter_init (&tk_iter, zone->tracks);
+          while (g_hash_table_iter_next (&tk_iter, NULL, (gpointer *) &track))
+            {
+              record = g_hash_table_lookup (track->records, priv->records[0]);
+              if (record != NULL && record->info->plan != NULL)
+                {
+                  HyScanPlannerTrack *track_object;
+
+                  track_object = hyscan_planner_track_copy (track->object);
+                  track_object->plan = *record->info->plan;
+                  hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model),
+                                                     track->id, (const HyScanObject *) track_object);
+                  hyscan_planner_track_free (track_object);
+
+                  goto exit;
+                }
+            }
+        }
+
+    exit:
+      g_hash_table_unref (tracks);
+    }
 }
 
 /* Добавляет пункт контекстного меню. */
 static inline void
 hyscan_gtk_planner_list_add_menu (HyScanGtkPlannerList  *list,
+                                  GtkMenu               *menu,
                                   const gchar           *mnemonic,
                                   GtkWidget            **widget)
 {
@@ -593,9 +678,57 @@ hyscan_gtk_planner_list_add_menu (HyScanGtkPlannerList  *list,
     }
 
   gtk_widget_show (item);
-  gtk_menu_shell_append (GTK_MENU_SHELL (list->priv->menu.menu), item);
+  gtk_menu_shell_append (GTK_MENU_SHELL (menu), item);
 
   widget != NULL ? (*widget = item) : 0;
+}
+
+/* Отключает отдельные пункты меню в зависимости от выбранных объектов. */
+static GtkMenu *
+hyscan_gtk_planner_list_menu_prepare (HyScanGtkPlannerList *list)
+{
+  HyScanGtkPlannerListPrivate *priv = list->priv;
+  gboolean single_selected;
+
+  /* Некоторые пункты меню актуальны при выборе только одного галса. */
+  single_selected = (priv->tracks != NULL && g_strv_length (priv->tracks) == 1);
+  gtk_widget_set_sensitive (priv->menu.nav, single_selected);
+
+  if (priv->menu.find != NULL)
+    gtk_widget_set_sensitive (priv->menu.find, single_selected);
+
+  if (priv->menu.bind != NULL)
+    {
+      hyscan_gtk_planner_list_bind_menu_update (list, priv->tracks[0]);
+      gtk_widget_set_sensitive (priv->menu.bind, single_selected);
+    }
+
+  return priv->menu.menu;
+}
+
+/* Отключает отдельные пункты меню в зависимости от выбранных объектов. */
+static GtkMenu *
+hyscan_gtk_planner_list_rec_menu_prepare (HyScanGtkPlannerList *list,
+                                          GtkTreeIter          *iter)
+{
+  HyScanGtkPlannerListPrivate *priv = list->priv;
+  gboolean single_selected;
+  gboolean inconsistent;
+
+  if (priv->db_info == NULL)
+    return NULL;
+
+  gtk_tree_model_get (GTK_TREE_MODEL (priv->store), iter, INCONSISTENT_COLUMN, &inconsistent, -1);
+  if (!inconsistent)
+    return NULL;
+
+  /* Некоторые пункты меню актуальны при выборе только одного галса. */
+  single_selected = (priv->records != NULL && g_strv_length (priv->records) == 1);
+
+  if (!single_selected)
+    return NULL;
+
+  return priv->rec_menu.menu;
 }
 
 /* Открывет контекстное меню по правой кнопке. */
@@ -604,12 +737,11 @@ hyscan_gtk_planner_list_button_press (HyScanGtkPlannerList *list,
                                       GdkEventButton       *event_button)
 {
   HyScanGtkPlannerListPrivate *priv = list->priv;
+  GtkMenu *menu = NULL;
   GtkTreePath *path = NULL;
   GtkTreeIter iter;
   gint type;
   gboolean selected;
-  gboolean single_selected;
-  gboolean result = GDK_EVENT_PROPAGATE;
 
   /* Нажатие правой кнопкой. */
   if (event_button->type != GDK_BUTTON_PRESS || event_button->button != GDK_BUTTON_SECONDARY)
@@ -625,8 +757,6 @@ hyscan_gtk_planner_list_button_press (HyScanGtkPlannerList *list,
 
   gtk_tree_model_get_iter (GTK_TREE_MODEL (priv->store), &iter, path);
   gtk_tree_model_get (GTK_TREE_MODEL (priv->store), &iter, TYPE_COLUMN, &type, -1);
-  if (type != TYPE_PLANNER_TRACK)
-    goto exit;
 
   /* Если строка под курсором не выбрана, то снимаем выделение с остальных и выбираем только ее. */
   selected = gtk_tree_selection_path_is_selected (priv->tree_selection, path);
@@ -636,26 +766,18 @@ hyscan_gtk_planner_list_button_press (HyScanGtkPlannerList *list,
       gtk_tree_selection_select_path (priv->tree_selection, path);
     }
 
-  /* Некоторые пункты меню актуальны при выборе только одного галса. */
-  single_selected = (priv->tracks != NULL && g_strv_length (priv->tracks) == 1);
-  gtk_widget_set_sensitive (priv->menu.nav, single_selected);
-  if (priv->menu.find != NULL)
-    {
-      gtk_widget_set_sensitive (priv->menu.find, single_selected);
-    }
-  if (priv->menu.bind != NULL)
-    {
-      hyscan_gtk_planner_list_bind_menu_update (list, priv->tracks[0]);
-      gtk_widget_set_sensitive (priv->menu.bind, single_selected);
-    }
+  if (type == TYPE_PLANNER_TRACK)
+    menu = hyscan_gtk_planner_list_menu_prepare (list);
+  else if (type == TYPE_DB_TRACK)
+    menu = hyscan_gtk_planner_list_rec_menu_prepare (list, &iter);
 
-  gtk_menu_popup_at_pointer (priv->menu.menu, (GdkEvent *) event_button);
-  result = GDK_EVENT_STOP;
+  if (menu != NULL)
+    gtk_menu_popup_at_pointer (menu, (GdkEvent *) event_button);
 
 exit:
   g_clear_pointer (&path, gtk_tree_path_free);
 
-  return result;
+  return menu != NULL ? GDK_EVENT_STOP : GDK_EVENT_PROPAGATE;
 }
 
 /* Обработчик сигнала "row-expanded".
@@ -749,9 +871,26 @@ exit:
   g_value_unset (&value);
 }
 
-/* Устанавливает свойства рендерера в зависимости от текущих данных. */
+/* Устанавливает свойства рендерера иконки в зависимости от текущих данных. */
 static void
-hyscan_gtk_planner_list_cell_data (GtkTreeViewColumn *tree_column,
+hyscan_gtk_planner_list_icon_data (GtkTreeViewColumn *tree_column,
+                                   GtkCellRenderer   *cell,
+                                   GtkTreeModel      *tree_model,
+                                   GtkTreeIter       *iter,
+                                   gpointer           data)
+{
+  HyScanGtkPlannerList *list = HYSCAN_GTK_PLANNER_LIST (data);
+  HyScanGtkPlannerListPrivate *priv = list->priv;
+  gboolean inconsistent;
+
+  gtk_tree_model_get (GTK_TREE_MODEL (priv->store), iter, INCONSISTENT_COLUMN, &inconsistent, -1);
+  g_object_set (cell, "visible", inconsistent, NULL);
+}
+
+
+/* Устанавливает свойства рендерера текста в зависимости от текущих данных. */
+static void
+hyscan_gtk_planner_list_text_data (GtkTreeViewColumn *tree_column,
                                    GtkCellRenderer   *cell,
                                    GtkTreeModel      *tree_model,
                                    GtkTreeIter       *iter,
@@ -1141,12 +1280,17 @@ hyscan_gtk_planner_list_update_zones (HyScanGtkPlannerList *list,
           while (g_hash_table_iter_next (&record_iter, (gpointer *) &record_key, (gpointer *) &record))
             {
               GtkTreeIter rec_t_iter;
+              gboolean inconsistent;
 
               iter = g_hash_table_lookup (tree_iter_ht, record_key);
               if (iter != NULL)
                 rec_t_iter = *iter;
               else
                 gtk_tree_store_append (priv->store, &rec_t_iter, &track_t_iter);
+
+              /* Определяем, совпадает ли план, использованный при записи, с текущим планом. */
+              inconsistent = record->info->plan != NULL &&
+                             !hyscan_planner_plan_equal (record->info->plan, &track->object->plan);
 
               gtk_tree_store_set (priv->store, &rec_t_iter,
                                   TYPE_COLUMN, TYPE_DB_TRACK,
@@ -1161,6 +1305,7 @@ hyscan_gtk_planner_list_update_zones (HyScanGtkPlannerList *list,
                                   Y_VAR_COLUMN, record->y_var,
                                   PROGRESS_COLUMN, record->progress,
                                   QUALITY_COLUMN, record->quality,
+                                  INCONSISTENT_COLUMN, inconsistent,
                                   TIME_COLUMN, 1e-6 * (gdouble) (record->end_time - record->start_time),
                                   WEIGHT_COLUMN, 400,
                                   -1);
@@ -1341,7 +1486,7 @@ hyscan_gtk_planner_list_selection_changed (HyScanGtkPlannerList *list)
 {
   HyScanGtkPlannerListPrivate *priv = list->priv;
   GList *selected_list, *link;
-  gint i = 0;
+  gint n_tracks = 0, n_recs = 0;
 
   g_signal_handler_block (priv->selection, priv->hndl_tk_chgd);
   g_signal_handler_block (priv->selection, priv->hndl_zn_chgd);
@@ -1350,7 +1495,9 @@ hyscan_gtk_planner_list_selection_changed (HyScanGtkPlannerList *list)
   selected_list = gtk_tree_selection_get_selected_rows (priv->tree_selection, NULL);
   g_clear_pointer (&priv->zone_id, g_free);
   g_clear_pointer (&priv->tracks, g_strfreev);
+  g_clear_pointer (&priv->records, g_strfreev);
   priv->tracks = g_new (gchar *, g_list_length (selected_list) + 1);
+  priv->records = g_new (gchar *, g_list_length (selected_list) + 1);
   for (link = selected_list; link != NULL; link = link->next)
     {
       GtkTreePath *path = link->data;
@@ -1361,7 +1508,11 @@ hyscan_gtk_planner_list_selection_changed (HyScanGtkPlannerList *list)
       gtk_tree_model_get (GTK_TREE_MODEL (priv->store), &iter, TYPE_COLUMN, &type, -1);
       if (type == TYPE_PLANNER_TRACK)
         {
-          gtk_tree_model_get (GTK_TREE_MODEL (priv->store), &iter, ID_COLUMN, &priv->tracks[i++], -1);
+          gtk_tree_model_get (GTK_TREE_MODEL (priv->store), &iter, ID_COLUMN, &priv->tracks[n_tracks++], -1);
+        }
+      else if (type == TYPE_DB_TRACK)
+        {
+          gtk_tree_model_get (GTK_TREE_MODEL (priv->store), &iter, ID_COLUMN, &priv->records[n_recs++], -1);
         }
       else if (type == TYPE_PLANNER_ZONE)
         {
@@ -1369,7 +1520,8 @@ hyscan_gtk_planner_list_selection_changed (HyScanGtkPlannerList *list)
           gtk_tree_model_get (GTK_TREE_MODEL (priv->store), &iter, ID_COLUMN, &priv->zone_id, -1);
         }
     }
-  priv->tracks[i] = NULL;
+  priv->tracks[n_tracks] = NULL;
+  priv->records[n_recs] = NULL;
 
   hyscan_planner_selection_set_tracks (priv->selection, priv->tracks);
   hyscan_planner_selection_set_zone (priv->selection, priv->zone_id, 0);
@@ -1551,7 +1703,7 @@ hyscan_gtk_planner_tree_store_dest_iface_init (GtkTreeDragDestIface *iface)
  * hyscan_gtk_planner_list_new:
  * @stats: модель объектов планировщика #HyScanPlannerModel
  * @selection: модель выбранных объектов планировщика
- * @stats: (nullabel): модель статистики по галсам #HyScanTrackStats
+ * @stats: (nullable): модель статистики по галсам #HyScanTrackStats
  * @viewer: (nullable): слой планировщика на карте
  *
  * Создаёт виджет списка плановых галсов. Параметр @viewer является необязательным
