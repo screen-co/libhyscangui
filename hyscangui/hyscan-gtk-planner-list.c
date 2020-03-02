@@ -927,7 +927,7 @@ hyscan_gtk_planner_list_text_data (GtkTreeViewColumn *tree_column,
       guint number;
 
       gtk_tree_model_get (tree_model, iter, NUMBER_COLUMN, &number, -1);
-      text = number > 0 ? g_strdup_printf (_("%s %d"), _("Plan"), number) : g_strdup (_("Plan"));
+      text = number > 0 ? g_strdup_printf ("%s %d", _("Plan"), number) : g_strdup (_("Plan"));
     }
 
   else if (tree_column == priv->velocity_col)

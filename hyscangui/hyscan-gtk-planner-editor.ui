@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Generated with glade 3.20.0 -->
-<interface>
+<interface domain="hyscangui">
   <requires lib="gtk+" version="3.20"/>
   <template class="HyScanGtkPlannerEditor" parent="GtkBox">
     <property name="visible">True</property>
@@ -11,7 +11,7 @@
       <object class="GtkLabel" id="label">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
-        <property name="label" translatable="yes">label</property>
+        <property name="label">label</property>
       </object>
       <packing>
         <property name="expand">False</property>
@@ -382,7 +382,7 @@
           </object>
           <packing>
             <property name="name">geo</property>
-            <property name="title">Geo</property>
+            <property name="title" translatable="yes">Geo</property>
           </packing>
         </child>
         <child>

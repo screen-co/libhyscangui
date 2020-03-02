@@ -15,6 +15,8 @@ MO_FILE=${MO_DIR}/${LANG_DIR}/LC_MESSAGES/${TEXTDOMAIN}.mo
 
 case "$1" in
   pot)
+    echo "Extracting lines from glade files..."
+    find . -name "*.ui" | xargs -L 1 intltool-extract --local --type=gettext/glade
     echo "Extracting lines from hyscan data schema..."
     mkdir tmp
     find . -name layer-schema.xml -exec \

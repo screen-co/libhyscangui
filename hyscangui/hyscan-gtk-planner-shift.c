@@ -162,7 +162,7 @@ hyscan_gtk_planner_shift_object_constructed (GObject *object)
   priv->fill_zone = gtk_check_button_new_with_mnemonic (_("_Fill full zone"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->fill_zone), FALSE);
 
-  priv->adjust_len = gtk_check_button_new_with_mnemonic (_("Adjust length to _zone size"));
+  priv->adjust_len = gtk_check_button_new_with_mnemonic (_("Adjust length to _zone boundary"));
   gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (priv->adjust_len), TRUE);
 
   priv->num_left = gtk_spin_button_new_with_range (0, MAX_TRACKS, 1);
