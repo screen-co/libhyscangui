@@ -99,6 +99,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
 
              # [[ Модели ]]
              hyscan-planner-selection.c
+             hyscan-gtk-model-manager.c
              
              # [[ Журнал меток ]]
              hyscan-gtk-mark-manager.c
@@ -181,6 +182,7 @@ install (FILES hyscan-gtk-area.h
                hyscan-cairo.h
                hyscan-gtk-export.h
                hyscan-gui-style.h
+               hyscan-gtk-model-manager.h
                hyscan-gtk-mark-manager.h
                hyscan-gtk-mark-manager-view.h
          COMPONENT development

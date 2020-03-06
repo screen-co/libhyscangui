@@ -15,7 +15,7 @@
 
 #include <gtk/gtk.h>
 #include <hyscan-object-data-label.h>
-#include <hyscan-model-manager.h>
+#include <hyscan-gtk-model-manager.h>
 
 G_BEGIN_DECLS
 
@@ -44,24 +44,10 @@ struct _HyScanMarkManagerViewClass
 
 GType                hyscan_mark_manager_view_get_type               (void);
 
-GtkWidget*           hyscan_mark_manager_view_new                    (void);
+GtkWidget*           hyscan_mark_manager_view_new                    (GtkTreeModel              *store);
 
-void                 hyscan_mark_manager_view_set_grouping           (HyScanMarkManagerView     *self,
-                                                                      ModelManagerGrouping       grouping);
-
-ModelManagerGrouping hyscan_mark_manager_view_get_grouping           (HyScanMarkManagerView     *self);
-
-void                 hyscan_mark_manager_view_update_labels          (HyScanMarkManagerView     *self,
-                                                                      GHashTable                *labels);
-
-void                 hyscan_mark_manager_view_update_geo_marks       (HyScanMarkManagerView     *self,
-                                                                      GHashTable                *geo_marks);
-
-void                 hyscan_mark_manager_view_update_acoustic_marks  (HyScanMarkManagerView     *self,
-                                                                      GHashTable                *wf_marks);
-
-void                 hyscan_mark_manager_view_update_tracks          (HyScanMarkManagerView     *self,
-                                                                      GHashTable                *tracks);
+void                 hyscan_mark_manager_view_set_store              (HyScanMarkManagerView     *self,
+                                                                      GtkTreeModel              *store);
 
 GtkTreeSelection*    hyscan_mark_manager_view_get_selection          (HyScanMarkManagerView     *self);
 
@@ -71,13 +57,21 @@ void                 hyscan_mark_manager_view_expand_all             (HyScanMark
 
 void                 hyscan_mark_manager_view_collapse_all           (HyScanMarkManagerView     *self);
 
-void                 hyscan_mark_manager_view_select_all             (HyScanMarkManagerView      *self);
+void                 hyscan_mark_manager_view_select_all             (HyScanMarkManagerView     *self,
+                                                                      gboolean                   active);
 
-void                 hyscan_mark_manager_view_unselect_all           (HyScanMarkManagerView      *self);
+void                 hyscan_mark_manager_view_toggle_all             (HyScanMarkManagerView     *self,
+                                                                      gboolean                   active);
+
 
 void                 hyscan_mark_manager_view_expand_to_path         (HyScanMarkManagerView      *self,
                                                                       GtkTreePath                *path);
 
+gchar**              hyscan_mark_manager_view_get_toggled            (HyScanMarkManagerView      *self,
+                                                                      ModelManagerObjectType      type);
+
+void                 hyscan_mark_manager_view_set_selection          (HyScanMarkManagerView      *self,
+                                                                      GtkTreeSelection           *selection);
 G_END_DECLS
 
 #endif /* __HYSCAN_GTK_MARK_MANAGER_VIEW_H__ */
