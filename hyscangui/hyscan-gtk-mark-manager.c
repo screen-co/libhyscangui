@@ -94,10 +94,10 @@ static gchar *view_type_text[]  = {N_("Ungrouped"),
                                    N_("By labels"),
                                    N_("By types")};
 /* Текст пунктов меню управления видимостью. */
-static gchar *visibility_text[] = {N_("Show all"),
-                                   N_("Hide all"),
-                                   N_("Show selected"),
-                                   N_("Hide selected")};
+static gchar *visibility_text[] = {N_(/*"Show all"*/"Select all"),
+                                   N_(/*"Hide all"*/"Unselect all"),
+                                   N_(/*"Show selected"*/"Toggle all"),
+                                   N_(/*"Hide selected"*/"Untoggle all")};
 /* Текст меток и подсказок для элементов панели инструментов. */
 static gchar *tooltips_text[]   = {N_("Create new group"),
                                    N_("Delete selected"),
@@ -145,7 +145,10 @@ static void       hyscan_mark_manager_item_selected             (HyScanMarkManag
 static void       hyscan_mark_manager_select_item               (HyScanMarkManager     *self);
 
 static void       hyscan_mark_manager_item_toggled              (HyScanMarkManager     *self,
-                                                                 GtkTreeSelection      *selection);
+                                                                 gchar                 *id,
+                                                                 gboolean               active);
+
+static void       hyscan_mark_manager_toggle_item               (HyScanMarkManager     *self);
 
 static void       hyscan_mark_manager_view_scrolled_horizontal  (HyScanMarkManager     *self);
 
@@ -243,13 +246,13 @@ hyscan_mark_manager_set_property (GObject      *object,
           /* Увеличиваем счётчик ссылок на модель данных. */
           g_object_ref (priv->model_manager);
         }
-      break;
+        break;
       /* Что-то ещё... */
       default:
         {
           G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
         }
-      break;
+        break;
     }
 }
 /* Конструктор. */
@@ -258,19 +261,19 @@ hyscan_mark_manager_constructed (GObject *object)
 {
   HyScanMarkManager        *self    = HYSCAN_MARK_MANAGER (object);
   HyScanMarkManagerPrivate *priv    = self->priv;
-  GtkBox      *box                  = GTK_BOX (object);   /* Контейнер для панели инструментов и представления.*/
-  GtkWidget   *toolbar              = gtk_toolbar_new (); /* Панель инструментов. */
-  GtkWidget   *visibility_menu      = gtk_menu_new ();    /* Меню управления видимостью. */
+  GtkBox       *box                 = GTK_BOX (object);   /* Контейнер для панели инструментов и представления.*/
+  GtkWidget    *toolbar             = gtk_toolbar_new (); /* Панель инструментов. */
+  GtkWidget    *visibility_menu     = gtk_menu_new ();    /* Меню управления видимостью. */
   /* Пункты меню управления видимостью. */
-  GtkWidget   *show_all_item        = gtk_menu_item_new_with_label (_(visibility_text[SHOW_ALL]));
-  GtkWidget   *hide_all_item        = gtk_menu_item_new_with_label (_(visibility_text[HIDE_ALL]));
-  GtkWidget   *show_selected_item   = gtk_menu_item_new_with_label (_(visibility_text[SHOW_SELECTED]));
-  GtkWidget   *hide_selected_item   = gtk_menu_item_new_with_label (_(visibility_text[HIDE_SELECTED]));
-  GtkToolItem *new_label_item       = NULL;
+  GtkWidget    *show_all_item       = gtk_menu_item_new_with_label (_(visibility_text[SHOW_ALL]));
+  GtkWidget    *hide_all_item       = gtk_menu_item_new_with_label (_(visibility_text[HIDE_ALL]));
+  GtkWidget    *show_selected_item  = gtk_menu_item_new_with_label (_(visibility_text[SHOW_SELECTED]));
+  GtkWidget    *hide_selected_item  = gtk_menu_item_new_with_label (_(visibility_text[HIDE_SELECTED]));
+  GtkToolItem  *new_label_item      = NULL;
   /* Кнопка для меню управления видимостью. */
-  GtkToolItem *visibility_item      = NULL;
-  GtkToolItem *separator            = gtk_separator_tool_item_new (); /* Разделитель. */
-  GtkToolItem *container            = gtk_tool_item_new (); /* Контейнер для выпадающего списка. */
+  GtkToolItem  *visibility_item     = NULL;
+  GtkToolItem  *separator           = gtk_separator_tool_item_new (); /* Разделитель. */
+  GtkToolItem  *container           = gtk_tool_item_new (); /* Контейнер для выпадающего списка. */
   GtkTreeModel *model               = hyscan_model_manager_get_view_model (priv->model_manager);
   /* Размещаем панель инструментов сверху. */
   HyScanMarkManagerToolbarPosition toolbar_position = TOOLBAR_TOP;
@@ -299,6 +302,12 @@ hyscan_mark_manager_constructed (GObject *object)
                             hyscan_model_manager_get_signal_title (priv->model_manager,
                                                                    SIGNAL_ITEM_SELECTED),
                             G_CALLBACK (hyscan_mark_manager_select_item),
+                            self);
+  /* Подключаем сигнал об изменении состояния чек-бокса. */
+  g_signal_connect_swapped (priv->model_manager,
+                            hyscan_model_manager_get_signal_title (priv->model_manager,
+                                                                   SIGNAL_ITEM_TOGGLED),
+                            G_CALLBACK (hyscan_mark_manager_toggle_item),
                             self);
   /* Подключаем сигнал о горизонтальной прокрутке представления.*/
   g_signal_connect_swapped (priv->model_manager,
@@ -701,25 +710,63 @@ hyscan_mark_manager_select_item (HyScanMarkManager *self)
 /* Функция-обработчик изменения состояния чек-боксов в MarkManagerView. */
 void
 hyscan_mark_manager_item_toggled (HyScanMarkManager *self,
-                                  GtkTreeSelection  *selection)
+                                  gchar             *id,
+                                  gboolean           active)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
-  gchar **toggled_track_list = hyscan_mark_manager_view_get_toggled (
-                                      HYSCAN_MARK_MANAGER_VIEW (priv->view),
-                                      TRACK);
 
-  if (toggled_track_list != NULL)
+  hyscan_model_manager_toggle_items (priv->model_manager, id, active);
+}
+
+/* Функция-обработчик сигнала об изменении состояния чек-бокса.
+ * Приходит из Model Manager-а. */
+void
+hyscan_mark_manager_toggle_item (HyScanMarkManager *self)
+{
+  HyScanMarkManagerPrivate *priv = self->priv;
+  ModelManagerObjectType type;
+
+  g_print ("***\n");
+  for (type = LABEL; type < TYPES; type++)
     {
-      gint i;
-      for (i = 0; toggled_track_list[i] != NULL; i++)
+      gchar **list = hyscan_model_manager_get_toggled_items (priv->model_manager, type);
+
+      if (list != NULL)
         {
-          g_print ("TRACK #%i: %s\n", i + 1, toggled_track_list[i]);
+          gint i;
+
+          switch (type)
+            {
+            case LABEL:
+              g_print ("Labels:\n");
+              break;
+            case GEO_MARK:
+              g_print ("Geo-marks:\n");
+              break;
+            case ACOUSTIC_MARK:
+              g_print ("Acoustic marks:\n");
+              break;
+            case TRACK:
+              g_print ("Tracks:\n");
+              break;
+            default:
+              g_print ("Unknown objects:\n");
+              break;
+            }
+
+          for (i = 0; list[i] != NULL; i++)
+            {
+              g_print ("Item #%i: %s\n", i + 1, list[i]);
+            }
+
+          g_strfreev (list);
         }
     }
+  g_print ("***\n");
 }
 
 /* Функция-обработчик сигнал горизонтальной полосы прокрутки представления.
- * Сигнал приходит из #HyScanModelManager-а.*/
+ * Сигнал приходит из #HyScanModelManager-а. */
 void
 hyscan_mark_manager_view_scrolled_horizontal (HyScanMarkManager *self)
 {

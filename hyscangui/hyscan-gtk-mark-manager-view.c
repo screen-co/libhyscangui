@@ -8,6 +8,7 @@
 #include <hyscan-mark.h>
 #include <hyscan-mark-location.h>
 #include <hyscan-db-info.h>
+#include <hyscan-gui-marshallers.h>
 
 #define GETTEXT_PACKAGE "hyscanfnn-evoui"
 #include <glib/gi18n-lib.h>
@@ -56,9 +57,14 @@ static void       on_toggle_renderer_clicked                      (GtkCellRender
                                                                    gchar                 *path,
                                                                    gpointer               user_data);
 
-static void       hyscan_gtk_mark_manager_view_toggle_children    (GtkTreeModel          *model,
+static void       hyscan_gtk_mark_manager_view_toggle             (HyScanMarkManagerView *self,
+                                                                   GtkTreeModel          *model,
                                                                    GtkTreeIter           *iter,
                                                                    gboolean               active);
+
+static void       hyscan_gtk_mark_manager_view_toggle_parent      (HyScanMarkManagerView *self,
+                                                                   GtkTreeModel          *model,
+                                                                   GtkTreeIter           *iter);
 
 static void       set_list_model                                  (HyScanMarkManagerView *self);
 
@@ -123,8 +129,9 @@ hyscan_mark_manager_view_class_init (HyScanMarkManagerViewClass *klass)
    */
   hyscan_mark_manager_view_signals[SIGNAL_TOGGLED] =
     g_signal_new ("toggled", HYSCAN_TYPE_MARK_MANAGER_VIEW, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
-                  g_cclosure_marshal_VOID__OBJECT,
-                  G_TYPE_NONE, 1, GTK_TYPE_TREE_SELECTION);
+                  /*g_cclosure_marshal_VOID__OBJECT,*/
+                  hyscan_gui_marshal_VOID__STRING_BOOLEAN,
+                  G_TYPE_NONE, 2, G_TYPE_STRING, G_TYPE_BOOLEAN);
 }
 
 void
@@ -146,17 +153,17 @@ hyscan_mark_manager_view_set_property (GObject      *object,
       /* Модель представления данных. */
       case PROP_STORE:
         {
-        	priv->store = g_value_dup_object (value);
+          priv->store = g_value_dup_object (value);
           /* Увеличиваем счётчик ссылок на базу данных. */
           g_object_ref (priv->store);
         }
-      break;
+        break;
       /* Что-то ещё... */
       default:
         {
           G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
         }
-      break;
+        break;
     }
 }
 /* Конструктор. */
@@ -311,66 +318,113 @@ on_toggle_renderer_clicked (GtkCellRendererToggle *cell_renderer,
 
   if (gtk_tree_model_get_iter_from_string (model, &iter, path))
     {
-      GtkTreeSelection *selection = gtk_tree_view_get_selection (priv->tree_view);
-      GtkTreeIter       child_iter;
-      gboolean          active;
+      gboolean    active;
 
-      gtk_tree_model_get (model, &iter, COLUMN_ACTIVE, &active, -1);
+      gtk_tree_model_get (model,         &iter,
+                          COLUMN_ACTIVE, &active,
+                          -1);
 
-      /* Отключаем сигнал об изменении выбранных объектов. */
-/*      if (priv->signal_selected != 0 && selection != NULL)
-        {
-          g_signal_handler_block (G_OBJECT (selection), priv->signal_selected);
-        }*/
+      hyscan_gtk_mark_manager_view_toggle (self, model, &iter, !active);
 
       if (GTK_IS_TREE_STORE (model))
-        gtk_tree_store_set(GTK_TREE_STORE(model), &iter, COLUMN_ACTIVE, !active, -1);
-      else if (GTK_IS_LIST_STORE (model))
-        gtk_list_store_set(GTK_LIST_STORE(model), &iter, COLUMN_ACTIVE, !active, -1);
-      else
-        return;
-
-      /* Если есть дочерние объекты. */
-      if (gtk_tree_model_iter_children (model, &child_iter, &iter))
         {
-          do
-            {
-              hyscan_gtk_mark_manager_view_toggle_children (model, &child_iter, !active);
-            }
-          while (gtk_tree_model_iter_next (model, &child_iter));
+          hyscan_gtk_mark_manager_view_toggle_parent (self, model, &iter);
         }
-
-      /* Отправляем сигнал об изменении состояния чек-бокса. */
-      g_signal_emit (self, hyscan_mark_manager_view_signals[SIGNAL_TOGGLED], 0, selection);
-
-      /* Включаем сигнал об изменении выбранных объектов. */
-/*      if (priv->signal_selected != 0 && selection != NULL)
-        {
-          g_signal_handler_unblock (G_OBJECT (selection), priv->signal_selected);
-        }*/
     }
 }
 
+/* Устанавливает состояние чек-бокса, в том числе и дочерним объектам. */
 void
-hyscan_gtk_mark_manager_view_toggle_children (GtkTreeModel *model,
-                                              GtkTreeIter  *iter,
-                                              gboolean      active)
+hyscan_gtk_mark_manager_view_toggle (HyScanMarkManagerView *self,
+                                     GtkTreeModel          *model,
+                                     GtkTreeIter           *iter,
+                                     gboolean               active)
 {
   GtkTreeIter child_iter;
+  gchar *id;
+
+  gtk_tree_model_get (model,      iter,
+                      COLUMN_ID, &id,
+                      -1);
+
+  g_print ("->id: %s\n", id);
+
   if (GTK_IS_TREE_STORE (model))
     gtk_tree_store_set(GTK_TREE_STORE(model), iter, COLUMN_ACTIVE, active, -1);
   else if (GTK_IS_LIST_STORE (model))
     gtk_list_store_set(GTK_LIST_STORE(model), iter, COLUMN_ACTIVE, active, -1);
   else
     return;
+
+  if (id != NULL)
+    {
+      /* Отправляем сигнал об изменении состояния чек-бокса. */
+      g_signal_emit (self, hyscan_mark_manager_view_signals[SIGNAL_TOGGLED], 0, id, active);
+
+      g_free (id);
+    }
   /* Если есть дочерние объекты. */
   if (gtk_tree_model_iter_children (model, &child_iter, iter))
     {
       do
         {
-          hyscan_gtk_mark_manager_view_toggle_children (model, &child_iter, active);
+          hyscan_gtk_mark_manager_view_toggle (self, model, &child_iter, active);
         }
       while (gtk_tree_model_iter_next (model, &child_iter));
+    }
+}
+
+/* Устанавливает состояние чек-бокса родительских элементов
+ * рекурсивно до самого верхнего. Если отмечены все дочерние,
+ * то и родительский отмечается.
+ * */
+void
+hyscan_gtk_mark_manager_view_toggle_parent (HyScanMarkManagerView *self,
+                                            GtkTreeModel          *model,
+                                            GtkTreeIter           *iter)
+{
+  GtkTreeIter parent_iter;
+
+  if (gtk_tree_model_iter_parent (model, &parent_iter, iter))
+    {
+      GtkTreeIter child_iter;
+
+      if (gtk_tree_model_iter_children (model, &child_iter, &parent_iter))
+        {
+          gint total    = gtk_tree_model_iter_n_children  (model, &parent_iter),
+               counter = 0;
+          gchar *id;
+          gboolean flag;
+
+          do
+            {
+              gtk_tree_model_get (model,         &child_iter,
+                                  COLUMN_ACTIVE, &flag,
+                                  -1);
+              if (flag)
+                counter++; /* Считаем отмеченые. */
+            }
+          while (gtk_tree_model_iter_next (model, &child_iter));
+
+          if (counter == total)
+            flag = TRUE; /* Все дочерние отмечены. */
+          else
+            flag = FALSE;
+
+          gtk_tree_model_get (model,         &parent_iter,
+                              COLUMN_ID,     &id,
+                              -1);
+          gtk_tree_store_set(GTK_TREE_STORE(model), &parent_iter, COLUMN_ACTIVE, flag, -1);
+
+          if (id != NULL)
+            {
+              /* Отправляем сигнал об изменении состояния чек-бокса. */
+              g_signal_emit (self, hyscan_mark_manager_view_signals[SIGNAL_TOGGLED], 0, id, flag);
+              g_free (id);
+            }
+
+          hyscan_gtk_mark_manager_view_toggle_parent (self, model, &parent_iter);
+        }
     }
 }
 /* Функция устанавливает модель для табличного представления. */
@@ -558,6 +612,7 @@ macro_set_func_toggle (GtkTreeViewColumn *tree_column,
   gboolean active;
   gtk_tree_model_get (model, iter, COLUMN_ACTIVE, &active, -1);
   g_object_set (GTK_CELL_RENDERER (cell), "active", active, NULL);
+
 }
 /* Отображение названия. */
 void
@@ -676,33 +731,12 @@ hyscan_mark_manager_view_toggle_all (HyScanMarkManagerView *self,
 
   if (gtk_tree_model_get_iter_first (model, &iter))
     {
-      GtkTreeSelection *selection = gtk_tree_view_get_selection (priv->tree_view);
-
       do
         {
-          GtkTreeIter child_iter;
-
-          if (GTK_IS_TREE_STORE (model))
-            gtk_tree_store_set(GTK_TREE_STORE(model), &iter, COLUMN_ACTIVE, active, -1);
-          else if (GTK_IS_LIST_STORE (model))
-            gtk_list_store_set(GTK_LIST_STORE(model), &iter, COLUMN_ACTIVE, active, -1);
-          else
-            return;
-
-          /* Если есть дочерние объекты. */
-          if (gtk_tree_model_iter_children (model, &child_iter, &iter))
-            {
-              do
-                {
-                  hyscan_gtk_mark_manager_view_toggle_children (model, &child_iter, active);
-                }
-              while (gtk_tree_model_iter_next (model, &child_iter));
-            }
+          hyscan_gtk_mark_manager_view_toggle (self, model, &iter, active);
         }
       while (gtk_tree_model_iter_next (model, &iter));
 
-      /* Отправляем сигнал об изменении состояния чек-бокса. */
-      g_signal_emit (self, hyscan_mark_manager_view_signals[SIGNAL_TOGGLED], 0, selection);
     }
 }
 

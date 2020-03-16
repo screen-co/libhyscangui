@@ -41,6 +41,7 @@ typedef enum
   SIGNAL_EXPAND_NODES_MODE_CHANGED,   /* Изменение режима ототбражения всех узлов. */
   SIGNAL_VIEW_MODEL_UPDATED,          /* Обновление модели представления данных. */
   SIGNAL_ITEM_SELECTED,               /* Выделена строка. */
+  SIGNAL_ITEM_TOGGLED,                /* Изменено состояние чек-бокса. */
   SIGNAL_VIEW_SCROLLED_HORIZONTAL,    /* Изменение положения горизонтальной прокрутки представления. */
   SIGNAL_VIEW_SCROLLED_VERTICAL,      /* Изменение положения вертикальной прокрутки представления. */
   SIGNAL_MODEL_MANAGER_LAST           /* Количество сигналов. */
@@ -49,10 +50,10 @@ typedef enum
 /* Тип представления. */
 typedef enum
 {
-  UNGROUPED,       /* Табличное. */
-  BY_LABELS,       /* Древовидный с группировкой по группам. */
-  BY_TYPES,        /* Древовидный с группировкой по типам. */
-  N_VIEW_TYPES     /* Количество типов представления. */
+  UNGROUPED,      /* Табличное. */
+  BY_LABELS,      /* Древовидный с группировкой по группам. */
+  BY_TYPES,       /* Древовидный с группировкой по типам. */
+  N_VIEW_TYPES    /* Количество типов представления. */
 }ModelManagerGrouping;
 
 /* Типы объектов. */
@@ -120,9 +121,6 @@ HyScanDB*            hyscan_model_manager_get_db                      (HyScanMod
 
 HyScanCache*         hyscan_model_manager_get_cache                   (HyScanModelManager     *self);
 
-GHashTable*          hyscan_model_manager_get_items                   (HyScanModelManager     *self,
-                                                                       ModelManagerObjectType  type);
-
 gchar**              hyscan_model_manager_get_all_tracks_id           (HyScanModelManager     *self);
 
 gchar**              hyscan_model_manager_get_selected_tracks_id      (HyScanModelManager     *self);
@@ -151,6 +149,13 @@ void                 hyscan_model_manager_set_vertical_adjustment     (HyScanMod
 GtkAdjustment*       hyscan_model_manager_get_horizontal_adjustment   (HyScanModelManager     *self);
 
 GtkAdjustment*       hyscan_model_manager_get_vertical_adjustment     (HyScanModelManager     *self);
+
+void                 hyscan_model_manager_toggle_items                (HyScanModelManager     *self,
+                                                                       gchar                  *id,
+                                                                       gboolean                active);
+
+gchar**              hyscan_model_manager_get_toggled_items           (HyScanModelManager     *self,
+                                                                       ModelManagerObjectType  type);
 
 G_END_DECLS
 

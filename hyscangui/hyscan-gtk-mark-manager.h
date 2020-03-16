@@ -9,7 +9,7 @@
 #define __HYSCAN_GTK_MARK_MANAGER_H__
 
 #include <gtk/gtk.h>
-#include "hyscan-gtk-mark-manager-view.h"
+#include <hyscan-gtk-mark-manager-view.h>
 
 G_BEGIN_DECLS
 
