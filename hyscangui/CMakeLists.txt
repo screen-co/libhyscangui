@@ -103,7 +103,6 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              # [[ Модели ]]
              hyscan-mark-location.c
              hyscan-mark-loc-model.c
-             hyscan-planner-selection.c
 
              hyscan-gui-style.c
              ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c
@@ -185,7 +184,6 @@ install (FILES hyscan-gtk-area.h
                hyscan-map-tile-source-file.h
                hyscan-map-tile-source-blend.h
                hyscan-map-tile-loader.h
-               hyscan-planner-selection.h
                hyscan-cairo.h
                hyscan-gtk-export.h
                hyscan-gui-style.h

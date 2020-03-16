@@ -35,10 +35,9 @@
 #ifndef __HYSCAN_GTK_MAP_STEER_H__
 #define __HYSCAN_GTK_MAP_STEER_H__
 
-#include <hyscan-nav-model.h>
 #include <gtk/gtk.h>
-#include <hyscan-planner-selection.h>
 #include <gtk-cifro-area.h>
+#include <hyscan-steer.h>
 
 G_BEGIN_DECLS
 
@@ -55,30 +54,21 @@ typedef struct _HyScanGtkMapSteerClass HyScanGtkMapSteerClass;
 
 struct _HyScanGtkMapSteer
 {
-  GtkGrid parent_instance;
+  GtkBox parent_instance;
 
   HyScanGtkMapSteerPrivate *priv;
 };
 
 struct _HyScanGtkMapSteerClass
 {
-  GtkGridClass parent_class;
+  GtkBoxClass parent_class;
 };
 
 HYSCAN_API
 GType                  hyscan_gtk_map_steer_get_type          (void);
 
 HYSCAN_API
-GtkWidget *            hyscan_gtk_map_steer_new               (HyScanNavModel            *model,
-                                                               HyScanPlannerSelection    *selection);
-
-HYSCAN_API
-void                   hyscan_gtk_map_steer_sensor_set_offset (HyScanGtkMapSteer         *steer,
-                                                               const HyScanAntennaOffset *offset);
-
-HYSCAN_API
-void                   hyscan_gtk_map_steer_set_recording     (HyScanGtkMapSteer         *steer,
-                                                               gboolean                   recording);
+GtkWidget *            hyscan_gtk_map_steer_new               (HyScanSteer     *steer);
 
 G_END_DECLS
 
