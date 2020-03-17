@@ -91,8 +91,8 @@ struct _HyScanMarkManagerPrivate
 };
 /* Текст пунктов выпадающего списка для выбора типа представления. */
 static gchar *view_type_text[]  = {N_("Ungrouped"),
-                                   N_("By labels"),
-                                   N_("By types")};
+                                   N_("By types"),
+                                   N_("By labels")};
 /* Текст пунктов меню управления видимостью. */
 static gchar *visibility_text[] = {N_(/*"Show all"*/"Select all"),
                                    N_(/*"Hide all"*/"Unselect all"),
@@ -715,7 +715,7 @@ hyscan_mark_manager_item_toggled (HyScanMarkManager *self,
 {
   HyScanMarkManagerPrivate *priv = self->priv;
 
-  hyscan_model_manager_toggle_items (priv->model_manager, id, active);
+  hyscan_model_manager_toggle_item (priv->model_manager, id, active);
 }
 
 /* Функция-обработчик сигнала об изменении состояния чек-бокса.

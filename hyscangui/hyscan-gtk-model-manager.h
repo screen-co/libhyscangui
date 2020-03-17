@@ -51,8 +51,8 @@ typedef enum
 typedef enum
 {
   UNGROUPED,      /* Табличное. */
-  BY_LABELS,      /* Древовидный с группировкой по группам. */
   BY_TYPES,       /* Древовидный с группировкой по типам. */
+  BY_LABELS,      /* Древовидный с группировкой по группам. */
   N_VIEW_TYPES    /* Количество типов представления. */
 }ModelManagerGrouping;
 
@@ -76,9 +76,17 @@ enum
   COLUMN_TYPE,        /* Тип объекта: группа, гео-метка, "водопадная" метка или галс. */
   COLUMN_ICON,        /* Название картинки. */
   COLUMN_ACTIVE,      /* Статус чек-бокса. */
+  COLUMN_VISIBLE,     /* Видимость чек-бокса. У атрибутов чек-бокс скрыт.*/
   COLUMN_LABEL,       /* Метки групп к которым принадлежит объект. */
   COLUMN_CTIME,       /* Время создания объекта. */
   COLUMN_MTIME,       /* Врем модификации объекта. */
+  /* Атрибуты для гео-меток и акустических меток. */
+  COLUMN_LOCATION,    /* Координаты. */
+  COLUMN_TRACK_NAME,  /* Название галса. */
+  COLUMN_BOARD,       /* Борт. */
+  COLUMN_DEPTH,       /* Глубина. */
+  COLUMN_WIDTH,       /* Ширина. */
+  COLUMN_SLANT_RANGE, /* Наклонная дальность. */
   MAX_COLUMNS         /* Общее количество колонок для представления данных. */
 };
 
@@ -150,7 +158,7 @@ GtkAdjustment*       hyscan_model_manager_get_horizontal_adjustment   (HyScanMod
 
 GtkAdjustment*       hyscan_model_manager_get_vertical_adjustment     (HyScanModelManager     *self);
 
-void                 hyscan_model_manager_toggle_items                (HyScanModelManager     *self,
+void                 hyscan_model_manager_toggle_item                 (HyScanModelManager     *self,
                                                                        gchar                  *id,
                                                                        gboolean                active);
 

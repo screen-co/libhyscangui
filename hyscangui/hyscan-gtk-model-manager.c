@@ -82,6 +82,8 @@ static gchar *date_time_stamp = "%d.%m.%Y %H:%M:%S";
 /* Оператор создавший типы объектов в древовидном списке. */
 static gchar *author = "Default";
 
+static gchar *unknown = "Unknown";
+
 /* Стандартные картинки для типов объектов. */
 static gchar *icon_name[] = {"emblem-documents",            /* Группы. */
                              "mark-location",               /* Гео-метки. */
@@ -97,6 +99,9 @@ static gchar *type_desc[] = {"All labels",                   /* Группы. */
                              "All geo-marks",                /* Гео-метки. */
                              "All acoustic marks",           /* Акустические метки. */
                              "All tracks"};                  /* Галсы. */
+/* Cкорость движения при которой генерируются тайлы в Echosounder-е, но метка
+ * сохраняется в базе данных без учёта этого коэфициента масштабирования. */
+static gdouble ship_speed = 10.0;
 
 static void          hyscan_model_manager_set_property                     (GObject                 *object,
                                                                             guint                    prop_id,
@@ -416,9 +421,16 @@ hyscan_model_manager_update_view_model (HyScanModelManager *self)
                                     G_TYPE_UINT,     /* Тип объекта: группа, гео-метка, "водопадная" метка или галс. */
                                     G_TYPE_STRING,   /* Название картинки. */
                                     G_TYPE_BOOLEAN,  /* Статус чек-бокса. */
+                                    G_TYPE_BOOLEAN,  /* Видимость чек-бокса. */
                                     G_TYPE_UINT64,   /* Метки групп к которым принадлежит объект. */
                                     G_TYPE_STRING,   /* Время создания объекта. */
-                                    G_TYPE_STRING)); /* Время модификации объекта. */
+                                    G_TYPE_STRING,   /* Время модификации объекта. */
+                                    G_TYPE_STRING,   /* Координаты. */
+                                    G_TYPE_STRING,   /* Название галса. */
+                                    G_TYPE_STRING,   /* Борт. */
+                                    G_TYPE_STRING,   /* Глубина. */
+                                    G_TYPE_STRING,   /* Ширина.*/
+                                    G_TYPE_STRING)); /* Наклонная дальность. */
         }
       else
         {
@@ -431,9 +443,16 @@ hyscan_model_manager_update_view_model (HyScanModelManager *self)
                                     G_TYPE_UINT,     /* Тип объекта: группа, гео-метка, "водопадная" метка или галс. */
                                     G_TYPE_STRING,   /* Название картинки. */
                                     G_TYPE_BOOLEAN,  /* Статус чек-бокса. */
+                                    G_TYPE_BOOLEAN,  /* Видимость чек-бокса. */
                                     G_TYPE_UINT64,   /* Метки групп к которым принадлежит объект. */
                                     G_TYPE_STRING,   /* Время создания объекта. */
-                                    G_TYPE_STRING)); /* Время модификации объекта. */
+                                    G_TYPE_STRING,   /* Время модификации объекта. */
+                                    G_TYPE_STRING,   /* Координаты. */
+                                    G_TYPE_STRING,   /* Название галса. */
+                                    G_TYPE_STRING,   /* Борт. */
+                                    G_TYPE_STRING,   /* Глубина. */
+                                    G_TYPE_STRING,   /* Ширина.*/
+                                    G_TYPE_STRING)); /* Наклонная дальность. */
         }
     }
 
@@ -475,16 +494,23 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
                                           G_TYPE_UINT,     /* Тип объекта: группа, гео-метка, акустическая метка или галс. */
                                           G_TYPE_STRING,   /* Название картинки. */
                                           G_TYPE_BOOLEAN,  /* Статус чек-бокса. */
+                                          G_TYPE_BOOLEAN,  /* Видимость чек-бокса. */
                                           G_TYPE_UINT64,   /* Метки групп к которым принадлежит объект. */
                                           G_TYPE_STRING,   /* Время создания объекта. */
-                                          G_TYPE_STRING)); /* Время модификации объекта. */
+                                          G_TYPE_STRING,   /* Время модификации объекта. */
+                                          G_TYPE_STRING,   /* Координаты. */
+                                          G_TYPE_STRING,   /* Название галса. */
+                                          G_TYPE_STRING,   /* Борт. */
+                                          G_TYPE_STRING,   /* Глубина. */
+                                          G_TYPE_STRING,   /* Ширина.*/
+                                          G_TYPE_STRING)); /* Наклонная дальность. */
                 /* Разрешаем множественный выбор. */
-                g_print ("*Selection: %p\n", priv->selection);
+                /*g_print ("*Selection: %p\n", priv->selection);
                 if (priv->selection)
                   {
                     gtk_tree_selection_set_mode (priv->selection, GTK_SELECTION_MULTIPLE);
                     g_print ("*GTK_SELECTION_MULTIPLE");
-                  }
+                  }*/
               }
             else
               {
@@ -520,16 +546,23 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
                                             G_TYPE_UINT,     /* Тип объекта: группа, гео-метка, акустическая метка или галс. */
                                             G_TYPE_STRING,   /* Название картинки. */
                                             G_TYPE_BOOLEAN,  /* Статус чек-бокса. */
+                                            G_TYPE_BOOLEAN,  /* Видимость чек-бокса. */
                                             G_TYPE_UINT64,   /* Метки групп к которым принадлежит объект. */
                                             G_TYPE_STRING,   /* Время создания объекта. */
-                                            G_TYPE_STRING);  /* Время модификации объекта. */
+                                            G_TYPE_STRING,   /* Время модификации объекта. */
+                                            G_TYPE_STRING,   /* Координаты. */
+                                            G_TYPE_STRING,   /* Название галса. */
+                                            G_TYPE_STRING,   /* Борт. */
+                                            G_TYPE_STRING,   /* Глубина. */
+                                            G_TYPE_STRING,   /* Ширина.*/
+                                            G_TYPE_STRING);  /* Наклонная дальность. */
                 /* Разрешаем множественный выбор. */
-                g_print ("*Selection: %p\n", priv->selection);
+                /*g_print ("*Selection: %p\n", priv->selection);
                 if (priv->selection)
                   {
                     gtk_tree_selection_set_mode (priv->selection, GTK_SELECTION_MULTIPLE);
                     g_print ("*GTK_SELECTION_MULTIPLE");
-                  }
+                  }*/
               }
             else
               {
@@ -594,7 +627,10 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
                       {
                         if (object != NULL)
                           {
-                            Extension *ext = g_hash_table_lookup (priv->extensions[GEO_MARK], id);
+                            Extension *ext  = g_hash_table_lookup (priv->extensions[GEO_MARK], id);
+                            gchar *position = g_strdup_printf ("%.6f° %.6f°",
+                                                               object->center.lat,
+                                                               object->center.lon);
 
                             gtk_list_store_append (store, &store_iter);
                             gtk_list_store_set (store,              &store_iter,
@@ -605,6 +641,7 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
                                                 COLUMN_TYPE,         GEO_MARK,
                                                 COLUMN_ICON,         icon_name[GEO_MARK],
                                                 COLUMN_ACTIVE,       (ext != NULL) ? ext->active : FALSE,
+                                                COLUMN_VISIBLE,      TRUE,
                                                 COLUMN_LABEL,        object->labels,
                                                 COLUMN_CTIME,        g_date_time_format (
                                                                        g_date_time_new_from_unix_local (
@@ -614,7 +651,10 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
                                                                        g_date_time_new_from_unix_local (
                                                                          object->mtime / G_TIME_SPAN_SECOND),
                                                                        date_time_stamp),
+                                                COLUMN_LOCATION,     position,
                                                 -1);
+
+                            g_free (position);
                           }
                       }
 
@@ -640,6 +680,58 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
                         if (object != NULL)
                           {
                             Extension *ext = g_hash_table_lookup (priv->extensions[ACOUSTIC_MARK], id);
+                            gchar *position = g_strdup_printf ("%.6f° %.6f°",
+                                                               location->mark_geo.lat,
+                                                               location->mark_geo.lon),
+                                  *board = g_strdup (unknown),
+                                  *depth = g_strdup_printf ("%.2f m", location->depth),
+                                  *width = g_strdup_printf ("%.2f m", 2.0 * location->mark->width),
+                                  *slant_range = NULL;
+
+                            switch (location->direction)
+                              {
+                              case HYSCAN_MARK_LOCATION_PORT:
+                                {
+                                  gdouble across_start = -location->mark->width - location->across ;
+                                  gdouble across_end   =  location->mark->width - location->across;
+
+                                  if (across_start < 0 && across_end > 0)
+                                    {
+                                      width = g_strdup_printf ("%.2f m", -across_start);
+                                    }
+
+                                  board = g_strdup ("Port");
+
+                                  slant_range = g_strdup_printf ("%.2f m", location->across);
+                                }
+                                break;
+                              case HYSCAN_MARK_LOCATION_STARBOARD:
+                                {
+                                  gdouble across_start = location->across - location->mark->width;
+                                  gdouble across_end   = location->across + location->mark->width;
+
+                                  if (across_start < 0 && across_end > 0)
+                                    {
+                                      width = g_strdup_printf ("%.2f m", across_end);
+                                    }
+
+                                  board = g_strdup ("Starboard");
+
+                                  slant_range = g_strdup_printf ("%.2f m", location->across);
+                                }
+                                break;
+                              case HYSCAN_MARK_LOCATION_BOTTOM:
+                                {
+                                  gdouble ship_speed = 10.0;
+
+                                  width =  g_strdup_printf ("%.2f m", ship_speed * 2.0 * location->mark->height);
+
+                                  board = g_strdup ("Bottom");
+                                }
+                                break;
+                              default: break;
+                              }
+
                             gtk_list_store_append (store, &store_iter);
                             gtk_list_store_set (store,              &store_iter,
                                                 COLUMN_ID,           id,
@@ -649,6 +741,7 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
                                                 COLUMN_TYPE,         ACOUSTIC_MARK,
                                                 COLUMN_ICON,         icon_name[ACOUSTIC_MARK],
                                                 COLUMN_ACTIVE,       (ext != NULL) ? ext->active : FALSE,
+                                                COLUMN_VISIBLE,      TRUE,
                                                 COLUMN_LABEL,        object->labels,
                                                 COLUMN_CTIME,        g_date_time_format (
                                                                        g_date_time_new_from_unix_local (
@@ -658,7 +751,17 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
                                                                        g_date_time_new_from_unix_local (
                                                                          object->mtime / G_TIME_SPAN_SECOND),
                                                                        date_time_stamp),
+                                                COLUMN_LOCATION,     position,
+                                                COLUMN_TRACK_NAME,   location->track_name,
+                                                COLUMN_BOARD,        board,
+                                                COLUMN_DEPTH,        depth,
+                                                COLUMN_WIDTH,        width,
+                                                COLUMN_SLANT_RANGE,  slant_range,
                                                 -1);
+                            g_free (position);
+                            g_free (board);
+                            g_free (depth);
+                            g_free (width);
                           }
                       }
 
@@ -698,6 +801,7 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
                                                 COLUMN_TYPE,        TRACK,
                                                 COLUMN_ICON,        icon_name[TRACK],
                                                 COLUMN_ACTIVE,      (ext != NULL) ? ext->active : FALSE,
+                                                COLUMN_VISIBLE,      TRUE,
                                                 /* В структуре HyScanTrackInfo нет поля labels. */
                                                 COLUMN_LABEL,       labels,
                                                 COLUMN_CTIME,       ctime,
@@ -707,11 +811,11 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
                             if (priv->selection != NULL)
                               {
                                 /* Разрешаем множественный выбор. */
-                                if (gtk_tree_selection_get_mode (priv->selection) != GTK_SELECTION_MULTIPLE)
+                                /*if (gtk_tree_selection_get_mode (priv->selection) != GTK_SELECTION_MULTIPLE)
                                   {
                                     gtk_tree_selection_set_mode (priv->selection, GTK_SELECTION_MULTIPLE);
                                     g_print ("-> GTK_SELECTION_MULTIPLE");
-                                  }
+                                  }*/
                                 /**/
                                 while (ptr != NULL)
                                   {
@@ -769,9 +873,10 @@ hyscan_model_manager_refresh_labels_by_types (GtkTreeStore *store,
                           COLUMN_TYPE,         LABEL,
                           COLUMN_ICON,         icon_name[LABEL],
                           COLUMN_ACTIVE,       active,
+                          COLUMN_VISIBLE,      TRUE,
                           COLUMN_LABEL,        0,
-                          COLUMN_CTIME,        NULL,
-                          COLUMN_MTIME,        NULL,
+                          /*COLUMN_CTIME,        NULL,
+                          COLUMN_MTIME,        NULL,*/
                           -1);
 
       g_hash_table_iter_init (&table_iter, labels);
@@ -798,13 +903,14 @@ hyscan_model_manager_refresh_labels_by_types (GtkTreeStore *store,
                                   COLUMN_TYPE,         LABEL,
                                   COLUMN_ICON,         object->icon_name,
                                   COLUMN_ACTIVE,       toggled,
+                                  COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->label,
-                                  COLUMN_CTIME,        g_date_time_format (
+                                  /*COLUMN_CTIME,        g_date_time_format (
                                                          g_date_time_new_from_unix_local (object->ctime),
                                                          date_time_stamp),
                                   COLUMN_MTIME,        g_date_time_format (
                                                          g_date_time_new_from_unix_local (object->mtime),
-                                                         date_time_stamp),
+                                                         date_time_stamp),*/
                                   -1);
               /* Атрибуты группы. */
               /* Описание. */
@@ -813,13 +919,15 @@ hyscan_model_manager_refresh_labels_by_types (GtkTreeStore *store,
               /* Отображается. */ COLUMN_NAME,    object->description,
                                   COLUMN_ICON,    "accessories-text-editor",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
               /* Оператор. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->operator_name,
-                                  COLUMN_ICON,    "user-info",
+                                  COLUMN_ICON,    "avatar-default",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
               /* Время создания. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
@@ -829,6 +937,7 @@ hyscan_model_manager_refresh_labels_by_types (GtkTreeStore *store,
                                                     date_time_stamp),
                                   COLUMN_ICON,    "appointment-new",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
               /* Время модификации. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
@@ -838,6 +947,7 @@ hyscan_model_manager_refresh_labels_by_types (GtkTreeStore *store,
                                                     date_time_stamp),
                                   COLUMN_ICON,    "document-open-recent",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
             }
         }
@@ -869,9 +979,10 @@ hyscan_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
                           COLUMN_TYPE,         GEO_MARK,
                           COLUMN_ICON,         icon_name[GEO_MARK],
                           COLUMN_ACTIVE,       active,
+                          COLUMN_VISIBLE,      TRUE,
                           COLUMN_LABEL,        0,
-                          COLUMN_CTIME,        NULL,
-                          COLUMN_MTIME,        NULL,
+                          /*COLUMN_CTIME,        NULL,
+                          COLUMN_MTIME,        NULL,*/
                           -1);
 
       g_hash_table_iter_init (&table_iter, geo_marks);
@@ -884,7 +995,10 @@ hyscan_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
                           item_iter;
               GHashTableIter iter;
               gchar *key,
-                    *icon = icon_name[GEO_MARK];
+                    *icon = icon_name[GEO_MARK],
+                    *position = g_strdup_printf ("%.6f° %.6f° (WGS 84)",
+                                                 object->center.lat,
+                                                 object->center.lon);
               gboolean toggled = active;
 
               if (!active)
@@ -913,15 +1027,16 @@ hyscan_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
                                   COLUMN_TYPE,         GEO_MARK,
                                   COLUMN_ICON,         icon,
                                   COLUMN_ACTIVE,       toggled,
+                                  COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->labels,
-                                  COLUMN_CTIME,        g_date_time_format (
+                                  /*COLUMN_CTIME,        g_date_time_format (
                                                          g_date_time_new_from_unix_local (
                                                            object->ctime / G_TIME_SPAN_SECOND),
                                                          date_time_stamp),
                                   COLUMN_MTIME,        g_date_time_format (
                                                          g_date_time_new_from_unix_local (
                                                            object->mtime / G_TIME_SPAN_SECOND),
-                                                         date_time_stamp),
+                                                         date_time_stamp),*/
                                   -1);
               /* Атрибуты гео-метки. */
               /* Описание. */
@@ -930,13 +1045,15 @@ hyscan_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
               /* Отображается. */ COLUMN_NAME,    object->description,
                                   COLUMN_ICON,    "accessories-text-editor",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
               /* Оператор. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->operator_name,
-                                  COLUMN_ICON,    "user-info",
+                                  COLUMN_ICON,    "avatar-default",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
               /* Время создания. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
@@ -947,6 +1064,7 @@ hyscan_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
                                                     date_time_stamp),
                                   COLUMN_ICON,    "appointment-new",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
               /* Время модификации. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
@@ -957,7 +1075,17 @@ hyscan_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
                                                     date_time_stamp),
                                   COLUMN_ICON,    "document-open-recent",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
+              /* Координаты. */
+              gtk_tree_store_append (store, &item_iter, &child_iter);
+              gtk_tree_store_set (store,         &item_iter,
+              /* Отображается. */ COLUMN_NAME,    position,
+                                  COLUMN_ICON,    "preferences-desktop-locale",
+                                  COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
+                                  -1);
+              g_free (position);
             }
         }
     }
@@ -986,7 +1114,10 @@ hyscan_model_manager_refresh_geo_marks_by_labels (GtkTreeStore *store,
                           item_iter;
               Extension *ext = g_hash_table_lookup (extensions, id);
               gchar *str = NULL,
-                    *tmp = g_strdup (type_name[GEO_MARK]);
+                    *tmp = g_strdup (type_name[GEO_MARK]),
+                    *position = g_strdup_printf ("%.6f° %.6f° (WGS 84)",
+                                                 object->center.lat,
+                                                 object->center.lon);
               gboolean toggled = FALSE;
 
               /*str = g_strdup_printf ("%s (%s)", object->name, type_name[GEO_MARK]);*/
@@ -1007,15 +1138,16 @@ hyscan_model_manager_refresh_geo_marks_by_labels (GtkTreeStore *store,
                                   COLUMN_TYPE,         GEO_MARK,
                                   COLUMN_ICON,         icon_name[GEO_MARK],
                                   COLUMN_ACTIVE,       toggled,
+                                  COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->labels,
-                                  COLUMN_CTIME,        g_date_time_format (
+                                  /*COLUMN_CTIME,        g_date_time_format (
                                                          g_date_time_new_from_unix_local (
                                                            object->ctime / G_TIME_SPAN_SECOND),
                                                          date_time_stamp),
                                   COLUMN_MTIME,        g_date_time_format (
                                                          g_date_time_new_from_unix_local (
                                                            object->mtime / G_TIME_SPAN_SECOND),
-                                                         date_time_stamp),
+                                                         date_time_stamp),*/
                                   -1);
 
               g_free (str);
@@ -1027,13 +1159,15 @@ hyscan_model_manager_refresh_geo_marks_by_labels (GtkTreeStore *store,
               /* Отображается. */ COLUMN_NAME,    object->description,
                                   COLUMN_ICON,    "accessories-text-editor",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
               /* Оператор. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->operator_name,
-                                  COLUMN_ICON,    "user-info",
+                                  COLUMN_ICON,    "avatar-default",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
               /* Время создания. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
@@ -1044,6 +1178,7 @@ hyscan_model_manager_refresh_geo_marks_by_labels (GtkTreeStore *store,
                                                     date_time_stamp),
                                   COLUMN_ICON,    "appointment-new",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                    -1);
               /* Время модификации. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
@@ -1054,7 +1189,17 @@ hyscan_model_manager_refresh_geo_marks_by_labels (GtkTreeStore *store,
                                                     date_time_stamp),
                                   COLUMN_ICON,    "document-open-recent",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
+              /* Координаты . */
+              gtk_tree_store_append (store, &item_iter, &child_iter);
+              gtk_tree_store_set (store,         &item_iter,
+              /* Отображается. */ COLUMN_NAME,    position,
+                                  COLUMN_ICON,    "preferences-desktop-locale",
+                                  COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
+                                  -1);
+              g_free (position);
             }
         }
     }
@@ -1085,9 +1230,10 @@ hyscan_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
                           COLUMN_TYPE,         ACOUSTIC_MARK,
                           COLUMN_ICON,         icon_name[ACOUSTIC_MARK],
                           COLUMN_ACTIVE,       active,
+                          COLUMN_VISIBLE,      TRUE,
                           COLUMN_LABEL,        0,
-                          COLUMN_CTIME,        NULL,
-                          COLUMN_MTIME,        NULL,
+                          /*COLUMN_CTIME,        NULL,
+                          COLUMN_MTIME,        NULL,*/
                           -1);
 
       g_hash_table_iter_init (&table_iter, acoustic_marks);
@@ -1102,7 +1248,13 @@ hyscan_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
                           item_iter;
               GHashTableIter iter;
               gchar *key,
-                    *icon = icon_name[ACOUSTIC_MARK];
+                    *icon = icon_name[ACOUSTIC_MARK],
+                    *position = g_strdup_printf ("%.6f° %.6f° (WGS 84)",
+                                                 location->mark_geo.lat,
+                                                 location->mark_geo.lon),
+                    *board,
+                    *board_icon = g_strdup ("network-wireless-no-route-symbolic"),
+                    *depth = g_strdup_printf ("%.2f m", location->depth);
               gboolean toggled = active;
 
               if (!active)
@@ -1131,15 +1283,16 @@ hyscan_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
                                   COLUMN_TYPE,         ACOUSTIC_MARK,
                                   COLUMN_ICON,         icon,
                                   COLUMN_ACTIVE,       toggled,
+                                  COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->labels,
-                                  COLUMN_CTIME,        g_date_time_format (
+                                  /*COLUMN_CTIME,        g_date_time_format (
                                                          g_date_time_new_from_unix_local (
                                                            object->ctime / G_TIME_SPAN_SECOND),
                                                          date_time_stamp),
                                   COLUMN_MTIME,        g_date_time_format (
                                                          g_date_time_new_from_unix_local (
                                                            object->mtime / G_TIME_SPAN_SECOND),
-                                                         date_time_stamp),
+                                                         date_time_stamp),*/
                                   -1);
               /* Атрибуты акустической метки. */
               /* Описание. */
@@ -1148,13 +1301,15 @@ hyscan_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
               /* Отображается. */ COLUMN_NAME,    object->description,
                                   COLUMN_ICON,    "accessories-text-editor",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
               /* Оператор. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->operator_name,
-                                  COLUMN_ICON,    "user-info",
+                                  COLUMN_ICON,    "avatar-default",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
               /* Время создания. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
@@ -1165,6 +1320,7 @@ hyscan_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
                                                     date_time_stamp),
                                   COLUMN_ICON,    "appointment-new",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                    -1);
               /* Время модификации. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
@@ -1175,7 +1331,114 @@ hyscan_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
                                                     date_time_stamp),
                                   COLUMN_ICON,    "document-open-recent",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
+              /* Координаты. */
+              gtk_tree_store_append (store, &item_iter, &child_iter);
+              gtk_tree_store_set (store,         &item_iter,
+              /* Отображается. */ COLUMN_NAME,    position,
+                                  COLUMN_ICON,    "preferences-desktop-locale",
+                                  COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
+                                  -1);
+              g_free (position);
+              /* Название галса. */
+              gtk_tree_store_append (store, &item_iter, &child_iter);
+              gtk_tree_store_set (store,         &item_iter,
+              /* Отображается. */ COLUMN_NAME,    location->track_name,
+                                  COLUMN_ICON,    icon_name[TRACK],
+                                  COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
+                                  -1);
+              /* Борт. */
+              switch (location->direction)
+                {
+                case HYSCAN_MARK_LOCATION_PORT:
+                  {
+                    board = g_strdup ("Port");
+                    board_icon = g_strdup ("go-previous");
+                  }
+                  break;
+                  case HYSCAN_MARK_LOCATION_STARBOARD:
+                    {
+                      board = g_strdup ("Starboard");
+                      board_icon = g_strdup ("go-next");
+                    }
+                  break;
+                  case HYSCAN_MARK_LOCATION_BOTTOM:
+                    {
+                      board = g_strdup ("Bottom");
+                      board_icon = g_strdup ("go-down");
+                    }
+                  break;
+                  default:
+                    board = g_strdup (unknown);
+                  break;
+                }
+
+              gtk_tree_store_append (store, &item_iter, &child_iter);
+              gtk_tree_store_set (store,         &item_iter,
+              /* Отображается. */ COLUMN_NAME,    board,
+                                  COLUMN_ICON,    board_icon,
+                                  COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
+                                  -1);
+              g_free (board);
+              g_free (board_icon);
+              /* Глубина. */
+              gtk_tree_store_append (store, &item_iter, &child_iter);
+              gtk_tree_store_set (store,         &item_iter,
+              /* Отображается. */ COLUMN_NAME,    depth,
+                                  COLUMN_ICON,    "object-flip-vertical",
+                                  COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
+                                  -1);
+              g_free (depth);
+              /* Атрибуты акустических меток для левого и правого бортов. */
+              if (location->direction != HYSCAN_MARK_LOCATION_BOTTOM)
+                {
+                  gchar *width = g_strdup_printf ("%.2f m", 2.0 * location->mark->width),
+                        *slant_range = g_strdup_printf ("%.2f m", location->across);
+                  /* Левоый борт. */
+                  if (location->direction == HYSCAN_MARK_LOCATION_PORT)
+                    {
+                      /* Поэтому значения отрицательные, и start и end меняются местами. */
+                      gdouble across_start = -location->mark->width - location->across;
+                      gdouble across_end   =  location->mark->width - location->across;
+                      if (across_start < 0 && across_end > 0)
+                        {
+                          width = g_strdup_printf ("%.2f m", -across_start);
+                        }
+                    }
+                  /* Правый борт. */
+                  else
+                    {
+                      gdouble across_start = location->across - location->mark->width;
+                      gdouble across_end   = location->across + location->mark->width;
+                      if (across_start < 0 && across_end > 0)
+                        {
+                          width = g_strdup_printf ("%.2f m", across_end);
+                        }
+                    }
+                  /* Ширина. */
+                  gtk_tree_store_append (store, &item_iter, &child_iter);
+                  gtk_tree_store_set (store,         &item_iter,
+                  /* Отображается. */ COLUMN_NAME,    width,
+                                      COLUMN_ICON,    "object-flip-horizontal",
+                                      COLUMN_ACTIVE,  toggled,
+                                      COLUMN_VISIBLE, FALSE,
+                                      -1);
+                  g_free (width);
+                  /* Наклонная дальность. */
+                  gtk_tree_store_append (store, &item_iter, &child_iter);
+                  gtk_tree_store_set (store,         &item_iter,
+                  /* Отображается. */ COLUMN_NAME,    slant_range,
+                                      COLUMN_ICON,    "content-loading-symbolic",
+                                      COLUMN_ACTIVE,  toggled,
+                                      COLUMN_VISIBLE, FALSE,
+                                      -1);
+                  g_free (slant_range);
+                }
             }
         }
     }
@@ -1206,7 +1469,13 @@ hyscan_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore *store,
                           item_iter;
               Extension *ext = g_hash_table_lookup (extensions, id);
               gchar *str = NULL,
-                    *tmp = g_strdup (type_name[ACOUSTIC_MARK]);
+                    *tmp = g_strdup (type_name[ACOUSTIC_MARK]),
+                    *position = g_strdup_printf ("%.6f° %.6f° (WGS 84)",
+                                                 location->mark_geo.lat,
+                                                 location->mark_geo.lon),
+                    *board,
+                    *board_icon = g_strdup ("network-wireless-no-route-symbolic"),
+                    *depth = g_strdup_printf ("%.2f m", location->depth);
               gboolean toggled = FALSE;
 
               /*str = g_strdup_printf ("%s (%s)", object->name, type_name[ACOUSTIC_MARK]);*/
@@ -1227,15 +1496,16 @@ hyscan_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore *store,
                                   COLUMN_TYPE,         ACOUSTIC_MARK,
                                   COLUMN_ICON,         icon_name[ACOUSTIC_MARK],
                                   COLUMN_ACTIVE,       toggled,
+                                  COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->labels,
-                                  COLUMN_CTIME,        g_date_time_format (
+                                  /*COLUMN_CTIME,        g_date_time_format (
                                                          g_date_time_new_from_unix_local (
                                                            object->ctime / G_TIME_SPAN_SECOND),
                                                          date_time_stamp),
                                   COLUMN_MTIME,        g_date_time_format (
                                                          g_date_time_new_from_unix_local (
                                                            object->mtime / G_TIME_SPAN_SECOND),
-                                                         date_time_stamp),
+                                                         date_time_stamp),*/
                                   -1);
 
               g_free (str);
@@ -1247,13 +1517,15 @@ hyscan_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore *store,
               /* Отображается. */ COLUMN_NAME,    object->description,
                                   COLUMN_ICON,    "accessories-text-editor",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
               /* Оператор. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->operator_name,
-                                  COLUMN_ICON,    "user-info",
+                                  COLUMN_ICON,    "avatar-default",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
               /* Время создания. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
@@ -1264,6 +1536,7 @@ hyscan_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore *store,
                                                     date_time_stamp),
                                   COLUMN_ICON,    "appointment-new",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                    -1);
               /* Время модификации. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
@@ -1274,7 +1547,114 @@ hyscan_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore *store,
                                                     date_time_stamp),
                                   COLUMN_ICON,    "document-open-recent",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
+              /* Координаты. */
+              gtk_tree_store_append (store, &item_iter, &child_iter);
+              gtk_tree_store_set (store,         &item_iter,
+              /* Отображается. */ COLUMN_NAME,    position,
+                                  COLUMN_ICON,    "preferences-desktop-locale",
+                                  COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
+                                  -1);
+              g_free (position);
+              /* Название галса. */
+              gtk_tree_store_append (store, &item_iter, &child_iter);
+              gtk_tree_store_set (store,         &item_iter,
+              /* Отображается. */ COLUMN_NAME,    location->track_name,
+                                  COLUMN_ICON,    icon_name[TRACK],
+                                  COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
+                                  -1);
+              /* Борт. */
+              switch (location->direction)
+                {
+                case HYSCAN_MARK_LOCATION_PORT:
+                  {
+                    board = g_strdup ("Port");
+                    board_icon = g_strdup ("go-previous");
+                  }
+                  break;
+                case HYSCAN_MARK_LOCATION_STARBOARD:
+                  {
+                    board = g_strdup ("Starboard");
+                    board_icon = g_strdup ("go-next");
+                  }
+                  break;
+                case HYSCAN_MARK_LOCATION_BOTTOM:
+                  {
+                    board = g_strdup ("Bottom");
+                    board_icon = g_strdup ("go-down");
+                  }
+                  break;
+                default:
+                  board = g_strdup (unknown);
+                  break;
+                }
+
+              gtk_tree_store_append (store, &item_iter, &child_iter);
+              gtk_tree_store_set (store,         &item_iter,
+              /* Отображается. */ COLUMN_NAME,    board,
+                                  COLUMN_ICON,    board_icon,
+                                  COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
+                                  -1);
+              g_free (board);
+              g_free (board_icon);
+              /* Глубина. */
+              gtk_tree_store_append (store, &item_iter, &child_iter);
+              gtk_tree_store_set (store,         &item_iter,
+              /* Отображается. */ COLUMN_NAME,    depth,
+                                  COLUMN_ICON,    "object-flip-vertical",
+                                  COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
+                                  -1);
+              g_free (depth);
+              /* Атрибуты акустических меток для левого и правого бортов. */
+              if (location->direction != HYSCAN_MARK_LOCATION_BOTTOM)
+                {
+                  gchar *width = g_strdup_printf ("%.2f m", 2.0 * location->mark->width),
+                        *slant_range = g_strdup_printf ("%.2f m", location->across);
+                  /* Левоый борт. */
+                  if (location->direction == HYSCAN_MARK_LOCATION_PORT)
+                    {
+                      /* Поэтому значения отрицательные, и start и end меняются местами. */
+                      gdouble across_start = -location->mark->width - location->across;
+                      gdouble across_end   =  location->mark->width - location->across;
+                      if (across_start < 0 && across_end > 0)
+                        {
+                          width = g_strdup_printf ("%.2f m", -across_start);
+                        }
+                    }
+                  /* Правый борт. */
+                  else
+                    {
+                      gdouble across_start = location->across - location->mark->width;
+                      gdouble across_end   = location->across + location->mark->width;
+                      if (across_start < 0 && across_end > 0)
+                        {
+                          width = g_strdup_printf ("%.2f m", across_end);
+                        }
+                    }
+                  /* Ширина. */
+                  gtk_tree_store_append (store, &item_iter, &child_iter);
+                  gtk_tree_store_set (store,         &item_iter,
+                  /* Отображается. */ COLUMN_NAME,    width,
+                                      COLUMN_ICON,    "object-flip-horizontal",
+                                      COLUMN_ACTIVE,  toggled,
+                                      COLUMN_VISIBLE, FALSE,
+                                      -1);
+                  g_free (width);
+                  /* Наклонная дальность. */
+                  gtk_tree_store_append (store, &item_iter, &child_iter);
+                  gtk_tree_store_set (store,         &item_iter,
+                  /* Отображается. */ COLUMN_NAME,    slant_range,
+                                      COLUMN_ICON,    "content-loading-symbolic",
+                                      COLUMN_ACTIVE,  toggled,
+                                      COLUMN_VISIBLE, FALSE,
+                                      -1);
+                  g_free (slant_range);
+                }
             }
         }
     }
@@ -1295,7 +1675,7 @@ hyscan_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
       gchar *id;                       /* Идентификатор для обхода хэш-таблиц (ключ). */
       gboolean active = hyscan_model_manager_is_all_toggled (extensions);
 
-      /* Добавляем новый узел "Акустические метки" в модель. */
+      /* Добавляем новый узел "Галсы" в модель. */
       gtk_tree_store_append (store, &parent_iter, NULL);
       gtk_tree_store_set (store,              &parent_iter,
                           COLUMN_ID,           NULL,
@@ -1305,9 +1685,10 @@ hyscan_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
                           COLUMN_TYPE,         TRACK,
                           COLUMN_ICON,         icon_name[TRACK],
                           COLUMN_ACTIVE,       active,
+                          COLUMN_VISIBLE,      TRUE,
                           COLUMN_LABEL,        0,
-                          COLUMN_CTIME,        NULL,
-                          COLUMN_CTIME,        NULL,
+                          /*COLUMN_CTIME,        NULL,
+                          COLUMN_CTIME,        NULL,*/
                           -1);
 
       g_hash_table_iter_init (&table_iter, tracks);
@@ -1343,7 +1724,7 @@ hyscan_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
                     }
                 }
 
-              /* Добавляем новый узел c названием группы в модель */
+              /* Добавляем новый узел c названием галса в модель */
               gtk_tree_store_append (store, &child_iter, &parent_iter);
               gtk_tree_store_set (store,              &child_iter,
                                   COLUMN_ID,           id,
@@ -1353,10 +1734,11 @@ hyscan_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
                                   COLUMN_TYPE,         TRACK,
                                   COLUMN_ICON,         icon,
                                   COLUMN_ACTIVE,       toggled,
+                                  COLUMN_VISIBLE,      TRUE,
                                   /* В структуре HyScanTrackInfo нет поля labels. */
                                   COLUMN_LABEL,        tmp,
-                                  COLUMN_CTIME,        ctime,
-                                  COLUMN_MTIME,        mtime,
+                                  /*COLUMN_CTIME,        ctime,
+                                  COLUMN_MTIME,        mtime,*/
                                   -1);
               /* Атрибуты группы. */
               /* Описание. */
@@ -1365,13 +1747,15 @@ hyscan_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
               /* Отображается. */ COLUMN_NAME,    object->description,
                                   COLUMN_ICON,    "accessories-text-editor",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
               /* Оператор. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->operator_name,
-                                  COLUMN_ICON,    "user-info",
+                                  COLUMN_ICON,    "avatar-default",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
               /* Время создания. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
@@ -1379,6 +1763,7 @@ hyscan_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
               /* Отображается. */ COLUMN_NAME,    ctime,
                                   COLUMN_ICON,    "appointment-new",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                    -1);
               /* Время модификации. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
@@ -1386,6 +1771,7 @@ hyscan_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
               /* Отображается. */ COLUMN_NAME,    mtime,
                                   COLUMN_ICON,    "document-open-recent",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
             }
         }
@@ -1440,9 +1826,10 @@ hyscan_model_manager_refresh_tracks_by_labels (GtkTreeStore *store,
                                   COLUMN_TYPE,         TRACK,
                                   COLUMN_ICON,         icon_name[TRACK],
                                   COLUMN_ACTIVE,       toggled,
+                                  COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        labels,
-                                  COLUMN_CTIME,        ctime,
-                                  COLUMN_MTIME,        mtime,
+                                  /*COLUMN_CTIME,        ctime,
+                                  COLUMN_MTIME,        mtime,*/
                                   -1);
 
               g_free (str);
@@ -1454,13 +1841,15 @@ hyscan_model_manager_refresh_tracks_by_labels (GtkTreeStore *store,
               /* Отображается. */ COLUMN_NAME,    object->description,
                                   COLUMN_ICON,    "accessories-text-editor",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
               /* Оператор. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->operator_name,
-                                  COLUMN_ICON,    "user-info",
+                                  COLUMN_ICON,    "avatar-default",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
               /* Время создания. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
@@ -1468,6 +1857,7 @@ hyscan_model_manager_refresh_tracks_by_labels (GtkTreeStore *store,
               /* Отображается. */ COLUMN_NAME,    ctime,
                                   COLUMN_ICON,    "appointment-new",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                    -1);
               /* Время модификации. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
@@ -1475,6 +1865,7 @@ hyscan_model_manager_refresh_tracks_by_labels (GtkTreeStore *store,
               /* Отображается. */ COLUMN_NAME,    mtime,
                                   COLUMN_ICON,    "document-open-recent",
                                   COLUMN_ACTIVE,  toggled,
+                                  COLUMN_VISIBLE, FALSE,
                                   -1);
             }
         }
@@ -1595,13 +1986,14 @@ hyscan_model_manager_refresh_all_items_by_labels (HyScanModelManager *self)
                               COLUMN_TYPE,         LABEL,
                               COLUMN_ICON,         label->icon_name,
                               COLUMN_ACTIVE,       toggled,
+                              COLUMN_VISIBLE,      TRUE,
                               COLUMN_LABEL,        label->label,
-                              COLUMN_CTIME,        g_date_time_format (
+                              /*COLUMN_CTIME,        g_date_time_format (
                                                      g_date_time_new_from_unix_local (label->ctime),
                                                      date_time_stamp),
                               COLUMN_MTIME,        g_date_time_format (
                                                      g_date_time_new_from_unix_local (label->mtime),
-                                                     date_time_stamp),
+                                                     date_time_stamp),*/
                               -1);
 
 
@@ -2276,16 +2668,16 @@ hyscan_model_manager_get_vertical_adjustment (HyScanModelManager *self)
 }
 
 /**
- * hyscan_model_manager_toggle_items:
+ * hyscan_model_manager_toggle_item:
  * @self: указатель на Менеджер Моделей
  * @id: идентификатор объекта в базе данных
  *
  * Переключает состояние чек-бокса.
  */
 void
-hyscan_model_manager_toggle_items (HyScanModelManager *self,
-                                   gchar              *id,
-                                   gboolean            active)
+hyscan_model_manager_toggle_item (HyScanModelManager *self,
+                                  gchar              *id,
+                                  gboolean            active)
 {
   HyScanModelManagerPrivate *priv = self->priv;
   ModelManagerObjectType type;
