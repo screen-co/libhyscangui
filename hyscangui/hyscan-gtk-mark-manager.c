@@ -327,6 +327,7 @@ hyscan_mark_manager_constructed (GObject *object)
   /* Соединяем сигнал изменения выбранных элементов представления с функцией-обработчиком. */
   g_signal_connect_swapped (G_OBJECT (priv->view), "selected",
                             G_CALLBACK (hyscan_mark_manager_item_selected), self);
+  /* Соединяем сигнал изменения состояния чек-боксов с функцией-обработчиком. */
   g_signal_connect_swapped (G_OBJECT (priv->view), "toggled",
                             G_CALLBACK (hyscan_mark_manager_item_toggled), self);
   /* Кнопка "Создать новую группу". */

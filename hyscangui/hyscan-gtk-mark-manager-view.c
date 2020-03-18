@@ -75,6 +75,13 @@ static void       hyscan_gtk_mark_manager_view_toggle_parent      (HyScanMarkMan
                                                                    GtkTreeModel          *model,
                                                                    GtkTreeIter           *iter);
 
+static gboolean   hyscan_mark_manager_view_show_tooltip           (GtkWidget             *widget,
+                                                                   gint                   x,
+                                                                   gint                   y,
+                                                                   gboolean               keyboard_mode,
+                                                                   GtkTooltip            *tooltip,
+                                                                   gpointer               user_data);
+
 static void       set_list_model                                  (HyScanMarkManagerView *self);
 
 static void       set_tree_model                                  (HyScanMarkManagerView *self);
@@ -191,6 +198,12 @@ hyscan_mark_manager_view_constructed (GObject *object)
   hyscan_mark_manager_view_update (self);
 
   gtk_container_add (GTK_CONTAINER (widget), GTK_WIDGET (priv->tree_view));
+
+  /* Включаем отображение подсказок. */
+  gtk_widget_set_has_tooltip (GTK_WIDGET (priv->tree_view), TRUE);
+  /* Соединяем сигнал для показа подсказки с функцией-обработчиком */
+  g_signal_connect (G_OBJECT (priv->tree_view), "query-tooltip",
+                    G_CALLBACK (hyscan_mark_manager_view_show_tooltip), NULL);
 }
 /* Деструктор. */
 void
@@ -476,6 +489,108 @@ hyscan_gtk_mark_manager_view_toggle_parent (HyScanMarkManagerView *self,
           hyscan_gtk_mark_manager_view_toggle_parent (self, model, &parent_iter);
         }
     }
+}
+
+/* Функция-обработчик для вывода подсказки. */
+gboolean
+hyscan_mark_manager_view_show_tooltip (GtkWidget  *widget,
+                                       gint        x,
+                                       gint        y,
+                                       gboolean    keyboard_mode,
+                                       GtkTooltip *tooltip,
+                                       gpointer    user_data)
+{
+  GtkTreeView       *view   = GTK_TREE_VIEW (widget);
+  GtkTreePath       *path   = NULL;
+  GtkTreeViewColumn *column = NULL;
+  /* Получаем модель. */
+  GtkTreeModel      *model = gtk_tree_view_get_model (view);
+
+  g_return_val_if_fail (GTK_IS_TREE_MODEL (model), FALSE);
+
+  if (keyboard_mode)
+    {
+      gtk_tree_view_get_cursor (view, &path, &column);
+      if (path == NULL)
+        return FALSE;
+    }
+  else
+    {
+      gint bin_x, bin_y;
+      gboolean is_path;
+      /* Координаты курсора в пространстве виджета. */
+      gtk_tree_view_convert_widget_to_bin_window_coords (view, x, y, &bin_x, &bin_y);
+      /* Определяем положение курсора.*/
+      is_path = gtk_tree_view_get_path_at_pos (view, bin_x, bin_y, &path, &column, NULL, NULL);
+      /* Курсор на GtkTreeView. */
+      if (!is_path)
+        return FALSE;
+    }
+
+  if (GTK_IS_LIST_STORE (model))
+    {
+      /* Определяем положение ветви, чтобы рядом показать подсказку. */
+      gtk_tree_view_set_tooltip_cell (view, tooltip, path, column, NULL);
+      /* Выводим подсказку. */
+      gtk_tooltip_set_text (tooltip, "TESTING");
+    }
+  else if (GTK_IS_TREE_STORE (model))
+    {
+      /* Получаем ветвь в виде индексов. */
+      gint depth;
+      gint *indeces = gtk_tree_path_get_indices_with_depth (path, &depth);
+      if (indeces)
+        {
+          /* Строка с подсказкой. */
+          gchar *str = "";
+          /* Определяем положение ветви, чтобы рядом показать подсказку. */
+          gtk_tree_view_set_tooltip_cell (view, tooltip, path, column, NULL);
+          /* Получаем итератор ветви. */
+          GtkTreeIter iter;
+          gtk_tree_model_get_iter (model, &iter, path);
+          /* Освобождаем путь. (Вызывает ошибку)*/
+          /*gtk_tree_path_free (path);*/
+          switch (depth - 1)
+          {
+          /* Курсор на категории. */
+          case 0:
+            {
+              str = g_strdup ("First");
+            }
+            break;
+          /* Курсор на метке. */
+          case 1:
+            {
+              /* Удостоверьтесь что вы закончили вызов gtk_tree_model_get() значением '-1' */
+              /*gtk_tree_model_get (model, &iter, COLUMN_MARK, &str, -1);*/
+              str = g_strdup ("Second");
+            }
+            break;
+          /* Курсор на атрибуте метки. */
+          case 2:
+            {
+              /* Удостоверьтесь что вы закончили вызов gtk_tree_model_get() значением '-1' */
+              /*gtk_tree_model_get (model, &iter, COLUMN_VALUE, &str, -1);*/
+              str = g_strdup ("Third");
+            }
+            break;
+          /* Курсор где-то ещё, выводить подсказку не нужно. */
+          default:
+            {
+              /* Освобождаем путь и выходим. */
+              gtk_tree_path_free (path);
+              return FALSE;
+            }
+          }
+          /* Выводим подсказку. */
+          gtk_tooltip_set_text (tooltip, str);
+          g_free (str);
+       }
+      /* Освобождаем путь. */
+      gtk_tree_path_free (path);
+    }
+
+  return TRUE;
 }
 /* Функция устанавливает модель для табличного представления. */
 void
