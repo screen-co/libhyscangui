@@ -42,6 +42,7 @@ typedef enum
   SIGNAL_VIEW_MODEL_UPDATED,          /* Обновление модели представления данных. */
   SIGNAL_ITEM_SELECTED,               /* Выделена строка. */
   SIGNAL_ITEM_TOGGLED,                /* Изменено состояние чек-бокса. */
+  SIGNAL_ITEM_EXPANDED,               /* Разворачивание узла древовидного представления. */
   SIGNAL_VIEW_SCROLLED_HORIZONTAL,    /* Изменение положения горизонтальной прокрутки представления. */
   SIGNAL_VIEW_SCROLLED_VERTICAL,      /* Изменение положения вертикальной прокрутки представления. */
   SIGNAL_MODEL_MANAGER_LAST           /* Количество сигналов. */
@@ -81,10 +82,10 @@ enum
   COLUMN_CTIME,       /* Время создания объекта. */
   COLUMN_MTIME,       /* Врем модификации объекта. */
   /* Атрибуты для гео-меток и акустических меток. */
-  COLUMN_LOCATION,    /* Координаты. */
-  COLUMN_TRACK_NAME,  /* Название галса. */
-  COLUMN_BOARD,       /* Борт. */
-  COLUMN_DEPTH,       /* Глубина. */
+  COLUMN_LOCATION,    /* Координаты.     |E| */
+  COLUMN_TRACK_NAME,  /* Название галса. |C| */
+  COLUMN_BOARD,       /* Борт.           |H| */
+  COLUMN_DEPTH,       /* Глубина.        |O| */
   COLUMN_WIDTH,       /* Ширина. */
   COLUMN_SLANT_RANGE, /* Наклонная дальность. */
   MAX_COLUMNS         /* Общее количество колонок для представления данных. */
@@ -163,6 +164,13 @@ void                 hyscan_model_manager_toggle_item                 (HyScanMod
                                                                        gboolean                active);
 
 gchar**              hyscan_model_manager_get_toggled_items           (HyScanModelManager     *self,
+                                                                       ModelManagerObjectType  type);
+
+void                 hyscan_model_manager_expand_item                 (HyScanModelManager     *self,
+                                                                       gchar                  *id,
+                                                                       gboolean                expanded);
+
+gchar**              hyscan_model_manager_get_expanded_items          (HyScanModelManager     *self,
                                                                        ModelManagerObjectType  type);
 
 G_END_DECLS

@@ -28,7 +28,7 @@ typedef struct
 {
   ExtensionType  type;     /* Тип записи. */
   gboolean       active,   /* Состояние чек-бокса. */
-                 selected; /* Выделен ли объект. */
+                 expanded; /* Развёрнут ли объект (для древовидного представления). */
 }Extension;
 
 struct _HyScanModelManagerPrivate
@@ -47,9 +47,9 @@ struct _HyScanModelManagerPrivate
   GtkAdjustment        *horizontal,           /* Положение горизонтальной полосы прокрутки. */
                        *vertical;             /* Положение вертикальной полосы прокрутки. */
 
-  GList                *selected[TYPES],      /* Выделенные объекты. */
-                       *toggled[TYPES];       /* Отмеченные чек-боксами. */
-
+  GList                *selected[TYPES];      /* Выделенные объекты. */
+  Extension            *node[TYPES];          /* Информация для описания узлов для древовидного
+                                               * представления с группировкой по типам. */
   GHashTable           *extensions[TYPES];
 
   ModelManagerGrouping  grouping;             /* Тип группировки. */
@@ -62,8 +62,7 @@ struct _HyScanModelManagerPrivate
  * */
 static const gchar *signals[] = {"wf-marks-changed",     /* Изменение данных в модели "водопадных" меток. */
                                  "geo-marks-changed",    /* Изменение данных в модели гео-меток. */
-                                 "wf-marks-loc-changed", /* Изменение данных в модели "водопадных" меток
-                                                          * с координатами. */
+                                 "wf-marks-loc-changed", /* Изменение данных в модели "водопадных" меток с координатами. */
                                  "labels-changed",       /* Изменение данных в модели групп. */
                                  "tracks-changed",       /* Изменение данных в модели галсов. */
                                  "grouping-changed",     /* Изменение типа группировки. */
@@ -71,10 +70,9 @@ static const gchar *signals[] = {"wf-marks-changed",     /* Изменение �
                                  "view-model-updated",   /* Обновление модели представления данных. */
                                  "item-selected",        /* Выделена строка. */
                                  "item-toggled",         /* Изменено состояние чек-бокса. */
-                                 "scrolled-horizontal",  /* Изменение положения горизонтальной прокрутки
-                                                          * представления. */
-                                 "scrolled-vertical"};   /* Изменение положения вертикальной прокрутки
-                                                          * представления. */
+                                 "item-expanded",        /* Разворачивание узла древовидного представления. */
+                                 "scrolled-horizontal",  /* Изменение положения горизонтальной прокрутки представления. */
+                                 "scrolled-vertical"};   /* Изменение положения вертикальной прокрутки представления. */
 
 /* Форматированная строка для вывода времени и даты. */
 static gchar *date_time_stamp = "%d.%m.%Y %H:%M:%S";
@@ -99,6 +97,11 @@ static gchar *type_desc[] = {"All labels",                   /* Группы. */
                              "All geo-marks",                /* Гео-метки. */
                              "All acoustic marks",           /* Акустические метки. */
                              "All tracks"};                  /* Галсы. */
+/* Идентификаторы для узлов для древовидного представления с группировкой по типам. */
+static gchar *type_id[TYPES] = {"ID_NODE_LABEL",         /* Группы. */
+                                "ID_NODE_GEO_MARK",      /* Гео-метки.*/
+                                "ID_NODE_ACOUSTIC_MARK", /* Акустические метки. */
+                                "ID_NODE_TRACK"};        /* Галсы. */
 /* Cкорость движения при которой генерируются тайлы в Echosounder-е, но метка
  * сохраняется в базе данных без учёта этого коэфициента масштабирования. */
 static gdouble ship_speed = 10.0;
@@ -722,8 +725,6 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
                                 break;
                               case HYSCAN_MARK_LOCATION_BOTTOM:
                                 {
-                                  gdouble ship_speed = 10.0;
-
                                   width =  g_strdup_printf ("%.2f m", ship_speed * 2.0 * location->mark->height);
 
                                   board = g_strdup ("Bottom");
@@ -966,13 +967,14 @@ hyscan_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
       GtkTreeIter parent_iter;
       GHashTableIter table_iter;       /* Итератор для обхода хэш-таблиц. */
       HyScanMarkGeo *object;
+      Extension *node = NULL;          /* Информация об узле. */
       gchar *id;                       /* Идентификатор для обхода хэш-таблиц (ключ). */
       gboolean active = hyscan_model_manager_is_all_toggled (extensions);
 
       /* Добавляем новый узел "Гео-метки" в модель */
       gtk_tree_store_append (store, &parent_iter, NULL);
       gtk_tree_store_set (store,              &parent_iter,
-                          COLUMN_ID,           NULL,
+                          COLUMN_ID,           type_id[GEO_MARK],
                           COLUMN_NAME,         type_name[GEO_MARK],
                           COLUMN_DESCRIPTION,  type_desc[GEO_MARK],
                           COLUMN_OPERATOR,     author,
@@ -984,6 +986,11 @@ hyscan_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
                           /*COLUMN_CTIME,        NULL,
                           COLUMN_MTIME,        NULL,*/
                           -1);
+      /* Если нужно, разворачиваем узел. */
+      /*node = g_hash_table_lookup (extensions, type_id[GEO_MARK]);
+      gtk_tree_view_expand_row        (GtkTreeView *tree_view,
+                                                   GtkTreePath *path,
+                                                   gboolean open_all);*/
 
       g_hash_table_iter_init (&table_iter, geo_marks);
       while (g_hash_table_iter_next (&table_iter, (gpointer*)&id, (gpointer*)&object))
@@ -1915,7 +1922,7 @@ hyscan_model_manager_init_extensions (HyScanModelManager  *self)
       if (priv->extensions[type] == NULL)
         {
           priv->extensions[type] = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
-                                                     (GDestroyNotify)hyscan_model_manager_extension_free);
+                                          (GDestroyNotify)hyscan_model_manager_extension_free);
         }
       /* Сохраняем указатель на таблицу со старыми данными. */
       tmp = priv->extensions[type];
@@ -1925,6 +1932,18 @@ hyscan_model_manager_init_extensions (HyScanModelManager  *self)
       if (tmp != NULL)
         g_hash_table_destroy (tmp);
 
+      if (priv->extensions[type] != NULL)
+        {
+          /* Начальная инициализация узла узлов для древовидного представления с группировкой по типам.*/
+          if (priv->node[type] == NULL)
+            priv->node[type] = hyscan_model_manager_extension_new (PARENT, FALSE, FALSE);
+          else
+            priv->node[type] = hyscan_model_manager_extension_copy (priv->node[type]);
+
+          /* Добавляем в общую таблицу с соответствующим идентификатором. */
+          if (g_hash_table_insert (priv->extensions[type], g_strdup (type_id[type]), priv->node[type]))
+            g_print ("%s\n", type_id[type]);
+        }
       counter++;
     }
 
@@ -2197,12 +2216,12 @@ hyscan_model_manager_is_all_toggled (GHashTable *table)
 Extension*
 hyscan_model_manager_extension_new (ExtensionType  type,
                                     gboolean       active,
-                                    gboolean       selected)
+                                    gboolean       expanded)
 {
   Extension *ext = g_new (Extension, 1);
   ext->type      = type;
   ext->active    = active;
-  ext->selected  = selected;
+  ext->expanded  = expanded;
   return ext;
 }
 
@@ -2213,7 +2232,7 @@ hyscan_model_manager_extension_copy (Extension *ext)
   Extension *copy = g_new (Extension, 1);
   copy->type      = ext->type;
   copy->active    = ext->active;
-  copy->selected  = ext->selected;
+  copy->expanded  = ext->expanded;
   return copy;
 }
 
@@ -2226,7 +2245,7 @@ hyscan_model_manager_extension_free (gpointer data)
       Extension *ext = (Extension*)data;
       ext->type      = PARENT;
       ext->active    =
-      ext->selected  = FALSE;
+      ext->expanded  = FALSE;
     }
 }
 
@@ -2691,7 +2710,7 @@ hyscan_model_manager_toggle_item (HyScanModelManager *self,
           if (ext != NULL)
             {
               ext->active = active;
-              g_print ("id: %s\n %s\n", id, ext->active ? "TRUE" : "FALSE");
+              g_print ("id->active: %s\n %s\n", id, ext->active ? "TRUE" : "FALSE");
               break;
             }
         }
@@ -2703,6 +2722,7 @@ hyscan_model_manager_toggle_item (HyScanModelManager *self,
 /**
  * hyscan_model_manager_get_toggled_items:
  * @self: указатель на Менеджер Моделей
+ * @type: тип запрашиваемых объектов
  *
  * Returns: возвращает список идентификаторов объектов
  * с активированным чек-боксом. Тип объекта определяется
@@ -2731,5 +2751,86 @@ hyscan_model_manager_get_toggled_items (HyScanModelManager     *self,
         }
     }
 
+  return list;
+}
+
+/**
+ * hyscan_model_manager_expand_item:
+ * @self: указатель на Менеджер Моделей
+ * @id: идентификатор объекта в базе данных
+ * @expanded: состояние узла TRUE - развёрнут, FALSE - свёрнут.
+ *
+ * Сохраняет состояние узла.
+ */
+void
+hyscan_model_manager_expand_item (HyScanModelManager *self,
+                                  gchar              *id,
+                                  gboolean            expanded)
+{
+  HyScanModelManagerPrivate *priv = self->priv;
+  ModelManagerObjectType type;
+
+  for (type = LABEL; type < TYPES; type++)
+    {
+      GHashTableIter  iter;
+      gpointer *object;
+      gchar *key;
+
+      if (priv->extensions[type] != NULL)
+        {
+          g_hash_table_iter_init (&iter, priv->extensions[type]);
+          while (g_hash_table_iter_next (&iter, (gpointer*)&key, (gpointer*)&object))
+            {
+              g_print ("key: %s\n", key);
+            }
+        }
+
+      if (priv->extensions[type] != NULL && id != NULL)
+        {
+          Extension *ext = g_hash_table_lookup (priv->extensions[type], id);
+
+          if (ext != NULL)
+            {
+              ext->expanded = expanded;
+              g_print ("id->expanded: %s\n %s\n", id, ext->expanded ? "TRUE" : "FALSE");
+              break;
+            }
+        }
+    }
+
+  g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_ITEM_EXPANDED], 0);
+}
+
+/**
+ * hyscan_model_manager_get_expanded_items:
+ * @self: указатель на Менеджер Моделей
+ * @type: тип запрашиваемых объектов
+ *
+ * Returns: возвращает список идентификаторов объектов
+ * которые нужно развёрнуть. Тип объекта определяется
+ * #ModelManagerObjectType. Когда список больше не нужен,
+ * необходимо использовать #g_strfreev ().
+ */
+gchar**
+hyscan_model_manager_get_expanded_items (HyScanModelManager     *self,
+                                         ModelManagerObjectType  type)
+{
+  HyScanModelManagerPrivate *priv = self->priv;
+  Extension *ext;
+  GHashTableIter iter;
+  gchar **list = NULL,
+         *id   = NULL;
+
+  g_hash_table_iter_init (&iter, priv->extensions[type]);
+  while (g_hash_table_iter_next (&iter, (gpointer*)&id, (gpointer*)&ext))
+    {
+      if (ext->expanded)
+        {
+          guint i = (list != NULL) ? g_strv_length (list) : 0;
+          list = (gchar**)g_realloc ( (gpointer)list, (i + 2) * sizeof (gchar*));
+          list[i++] = g_strdup (id);
+          list[i++] = NULL;
+        }
+    }
   return list;
 }

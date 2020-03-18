@@ -24,6 +24,7 @@ enum
 {
   SIGNAL_SELECTED,   /* Выделение строки. */
   SIGNAL_TOGGLED,    /* Изменение состояня чек-бокса. */
+  SIGNAL_EXPANDED,   /* Разворачивание узла древовидного представления. */
   SIGNAL_LAST
 };
 
@@ -82,6 +83,11 @@ static gboolean   hyscan_mark_manager_view_show_tooltip           (GtkWidget    
                                                                    GtkTooltip            *tooltip,
                                                                    gpointer               user_data);
 
+static void       hyscan_mark_manager_view_item_expanded          (GtkTreeView           *tree_view,
+                                                                   GtkTreeIter           *iter,
+                                                                   GtkTreePath           *path,
+                                                                   gpointer               user_data);
+
 static void       set_list_model                                  (HyScanMarkManagerView *self);
 
 static void       set_tree_model                                  (HyScanMarkManagerView *self);
@@ -133,7 +139,8 @@ hyscan_mark_manager_view_class_init (HyScanMarkManagerViewClass *klass)
    * Сигнал посылается при выделении строки.
    */
   hyscan_mark_manager_view_signals[SIGNAL_SELECTED] =
-    g_signal_new ("selected", HYSCAN_TYPE_MARK_MANAGER_VIEW, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+    g_signal_new ("selected", HYSCAN_TYPE_MARK_MANAGER_VIEW,
+                  G_SIGNAL_RUN_LAST, 0, NULL, NULL,
                   g_cclosure_marshal_VOID__OBJECT,
                   G_TYPE_NONE, 1, GTK_TYPE_TREE_SELECTION);
 
@@ -144,10 +151,22 @@ hyscan_mark_manager_view_class_init (HyScanMarkManagerViewClass *klass)
    * Сигнал посылается при изменении состояния чек-бокса.
    */
   hyscan_mark_manager_view_signals[SIGNAL_TOGGLED] =
-    g_signal_new ("toggled", HYSCAN_TYPE_MARK_MANAGER_VIEW, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
-                  /*g_cclosure_marshal_VOID__OBJECT,*/
+    g_signal_new ("toggled", HYSCAN_TYPE_MARK_MANAGER_VIEW,
+                  G_SIGNAL_RUN_LAST, 0, NULL, NULL,
                   hyscan_gui_marshal_VOID__STRING_BOOLEAN,
                   G_TYPE_NONE, 2, G_TYPE_STRING, G_TYPE_BOOLEAN);
+
+  /**
+     * HyScanMarkManagerView::expanded:
+     * @self: указатель на #HyScanMarkManagerView
+     *
+     * Сигнал посылается при разворачивании узла древовидного представления.
+     */
+    hyscan_mark_manager_view_signals[SIGNAL_EXPANDED] =
+      g_signal_new ("expanded", HYSCAN_TYPE_MARK_MANAGER_VIEW,
+                    G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+                    hyscan_gui_marshal_VOID__STRING_BOOLEAN,
+                    G_TYPE_NONE, 2, G_TYPE_STRING, G_TYPE_BOOLEAN);
 }
 
 void
@@ -204,6 +223,9 @@ hyscan_mark_manager_view_constructed (GObject *object)
   /* Соединяем сигнал для показа подсказки с функцией-обработчиком */
   g_signal_connect (G_OBJECT (priv->tree_view), "query-tooltip",
                     G_CALLBACK (hyscan_mark_manager_view_show_tooltip), NULL);
+  /* Соединяем сигнал разворачивания строки с функцией-обработчиком. */
+  g_signal_connect (G_OBJECT (priv->tree_view), "row-expanded",
+                    G_CALLBACK (hyscan_mark_manager_view_item_expanded), self);
 }
 /* Деструктор. */
 void
@@ -352,8 +374,8 @@ hyscan_gtk_mark_manager_view_toggle_activate (GtkCellRenderer* cell,
 void
 hyscan_gtk_mark_manager_view_toggle_crutch (void)
 {
-  GtkCellRendererClass *cell_class;
   GtkCellRendererToggle *toggle_renderer;
+  GtkCellRendererClass  *cell_class;
 
   toggle_renderer = GTK_CELL_RENDERER_TOGGLE (gtk_cell_renderer_toggle_new());
   cell_class = GTK_CELL_RENDERER_CLASS (GTK_WIDGET_GET_CLASS (toggle_renderer));
@@ -592,6 +614,36 @@ hyscan_mark_manager_view_show_tooltip (GtkWidget  *widget,
 
   return TRUE;
 }
+
+/* Функция-обработчик сигнала о разворачивании узла древовидного представления. */
+void
+hyscan_mark_manager_view_item_expanded (GtkTreeView *tree_view,
+                                        GtkTreeIter *iter,
+                                        GtkTreePath *path,
+                                        gpointer     user_data)
+{
+  HyScanMarkManagerView *self = HYSCAN_MARK_MANAGER_VIEW (user_data);
+  GtkTreeModel *model = gtk_tree_view_get_model (tree_view);
+  GtkTreeIter child_iter;
+  gchar *id = NULL;
+
+  g_return_if_fail (HYSCAN_IS_MARK_MANAGER_VIEW (self));
+
+  gtk_tree_model_get (model,      iter,
+                      COLUMN_ID, &id,
+                      -1);
+
+  g_print ("->id: %s\n", id);
+
+  if (id != NULL)
+    {
+      /* Отправляем сигнал о разворачивании узла древовидного представления. */
+      g_signal_emit (self, hyscan_mark_manager_view_signals[SIGNAL_EXPANDED], 0, id, TRUE);
+
+      g_free (id);
+    }
+}
+
 /* Функция устанавливает модель для табличного представления. */
 void
 set_list_model (HyScanMarkManagerView *self)

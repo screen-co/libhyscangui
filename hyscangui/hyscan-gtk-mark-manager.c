@@ -45,7 +45,7 @@ enum
 enum
 {
   SIGNAL_SCROLLED_HORIZONTAL, /* Прокрутка представления по горизонтали. */
-  SIGNAL_SCROLLED_VERTICAL, /* Прокрутка представления по вертикали. */
+  SIGNAL_SCROLLED_VERTICAL,   /* Прокрутка представления по вертикали. */
   SIGNAL_LAST
 };
 /* Идентификаторы текста меток и подсказок для элементов панели инструментов. */
@@ -171,6 +171,12 @@ static void       hyscan_mark_manager_scrolled_horizontal       (GtkAdjustment  
 static void       hyscan_mark_manager_scrolled_vertical         (GtkAdjustment         *adjustment,
                                                                  gpointer               user_data);
 
+static void       hyscan_mark_manager_item_expanded             (HyScanMarkManager     *self,
+                                                                 gchar                 *id,
+                                                                 gboolean               expanded);
+
+static void       hyscan_mark_manager_expand_item               (HyScanMarkManager     *self);
+
 static guint      hyscan_mark_manager_signals[SIGNAL_LAST] = { 0 };
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanMarkManager, hyscan_mark_manager, GTK_TYPE_BOX)
@@ -197,7 +203,8 @@ hyscan_mark_manager_class_init (HyScanMarkManagerClass *klass)
    * Сигнал посылается при горизонтальной прокрутке виджета.
    */
   hyscan_mark_manager_signals[SIGNAL_SCROLLED_HORIZONTAL] =
-    g_signal_new ("h-scrolled", HYSCAN_TYPE_MARK_MANAGER, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+    g_signal_new ("h-scrolled", HYSCAN_TYPE_MARK_MANAGER,
+                  G_SIGNAL_RUN_LAST, 0, NULL, NULL,
                   g_cclosure_marshal_VOID__OBJECT,
                   G_TYPE_NONE, 1, GTK_TYPE_ADJUSTMENT);
 
@@ -208,7 +215,8 @@ hyscan_mark_manager_class_init (HyScanMarkManagerClass *klass)
    * Сигнал посылается при вертикальной прокрутке виджета.
    */
   hyscan_mark_manager_signals[SIGNAL_SCROLLED_VERTICAL] =
-    g_signal_new ("v-scrolled", HYSCAN_TYPE_MARK_MANAGER, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+    g_signal_new ("v-scrolled", HYSCAN_TYPE_MARK_MANAGER,
+                  G_SIGNAL_RUN_LAST, 0, NULL, NULL,
                   g_cclosure_marshal_VOID__OBJECT,
                   G_TYPE_NONE, 1, GTK_TYPE_ADJUSTMENT);
 }
@@ -309,6 +317,12 @@ hyscan_mark_manager_constructed (GObject *object)
                                                                    SIGNAL_ITEM_TOGGLED),
                             G_CALLBACK (hyscan_mark_manager_toggle_item),
                             self);
+  /* Подключаем сигнал о разворачивании узла древовидного представления. */
+  g_signal_connect_swapped (priv->model_manager,
+                            hyscan_model_manager_get_signal_title (priv->model_manager,
+                                                                   SIGNAL_ITEM_EXPANDED),
+                            G_CALLBACK (hyscan_mark_manager_expand_item),
+                            self);
   /* Подключаем сигнал о горизонтальной прокрутке представления.*/
   g_signal_connect_swapped (priv->model_manager,
                             hyscan_model_manager_get_signal_title (priv->model_manager,
@@ -330,6 +344,9 @@ hyscan_mark_manager_constructed (GObject *object)
   /* Соединяем сигнал изменения состояния чек-боксов с функцией-обработчиком. */
   g_signal_connect_swapped (G_OBJECT (priv->view), "toggled",
                             G_CALLBACK (hyscan_mark_manager_item_toggled), self);
+  /* Соединяем сигнал разворачивания узла древовидного представления с функцией-обработчиком. */
+  g_signal_connect_swapped (G_OBJECT (priv->view), "expanded",
+                            G_CALLBACK (hyscan_mark_manager_item_expanded), self);
   /* Кнопка "Создать новую группу". */
   new_label_item  = gtk_tool_button_new (NULL, _(tooltips_text[CREATE_NEW_GROUP]));
   gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (new_label_item), "insert-object");
@@ -609,7 +626,7 @@ hyscan_mark_manager_scrolled_horizontal (GtkAdjustment *adjustment,
  * Сигнал приходит из #HyScanModelManagerView.*/
 void
 hyscan_mark_manager_scrolled_vertical (GtkAdjustment *adjustment,
-                                         gpointer       user_data)
+                                       gpointer       user_data)
 {
   HyScanMarkManager *self;
   HyScanMarkManagerPrivate *priv;
@@ -815,6 +832,67 @@ void hyscan_mark_manager_delete_label (GtkTreeModel *model,
       hyscan_mark_manager_view_expand_to_path (HYSCAN_MARK_MANAGER_VIEW (priv->view), tmp);
     }*/
   hyscan_mark_manager_view_expand_to_path (HYSCAN_MARK_MANAGER_VIEW (priv->view), path);
+}
+
+/* Функция-обработчик сигнала о разворачивании узла древовидного представления.
+ * Сигнал приходит из #HyScanModelManagerView. */
+void
+hyscan_mark_manager_item_expanded (HyScanMarkManager *self,
+                                   gchar             *id,
+                                   gboolean           expanded)
+{
+  HyScanMarkManagerPrivate *priv = self->priv;
+
+  hyscan_model_manager_expand_item (priv->model_manager, id, expanded);
+}
+
+/*Функция-обработчик сигнала о разворачивании узла древовидного представления.
+ * Сигнал приходит из #HyScanModelManager-а.*/
+void
+hyscan_mark_manager_expand_item (HyScanMarkManager *self)
+{
+  HyScanMarkManagerPrivate *priv = self->priv;
+  ModelManagerObjectType type;
+
+  g_print ("EXPANDING SIGNAL FROM MODEL MANAGER CATHCED\n");
+
+  g_print ("***\n");
+  for (type = LABEL; type < TYPES; type++)
+    {
+      gchar **list = hyscan_model_manager_get_expanded_items (priv->model_manager, type);
+
+      if (list != NULL)
+        {
+          gint i;
+
+          switch (type)
+            {
+            case LABEL:
+              g_print ("Labels:\n");
+              break;
+            case GEO_MARK:
+              g_print ("Geo-marks:\n");
+              break;
+            case ACOUSTIC_MARK:
+              g_print ("Acoustic marks:\n");
+              break;
+            case TRACK:
+              g_print ("Tracks:\n");
+              break;
+            default:
+              g_print ("Unknown objects:\n");
+              break;
+            }
+
+          for (i = 0; list[i] != NULL; i++)
+            {
+              g_print ("Item #%i: %s\n", i + 1, list[i]);
+            }
+
+          g_strfreev (list);
+        }
+    }
+  g_print ("***\n");
 }
 
 /**
