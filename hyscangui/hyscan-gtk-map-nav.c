@@ -55,7 +55,7 @@
  * - "text-color" - цвет текста,
  * - "bg-color" - цвет фона текста.
  *
- * Выводимые данные получаются из модели #HyScanNavModel, которая указывается
+ * Выводимые данные получаются из модели #HyScanNavState, которая указывается
  * при создании слоя в hyscan_gtk_map_nav_new().
  *
  */
@@ -117,7 +117,7 @@ struct _HyScanGtkMapNavPrivate
 {
   HyScanGtkMap                 *map;                        /* Виджет карты, на котором размещен слой. */
   gboolean                      has_cache;                  /* Флаг, используется ли кэш? */
-  HyScanNavModel               *nav_model;                  /* Модель навигационных данных, которые отображаются. */
+  HyScanNavState               *nav_model;                  /* Модель навигационных данных, которые отображаются. */
   guint64                       life_time;                  /* Время жизни точки трека, секунды. */
   gdouble                       cog_line_time;              /* Время предсказания движения по COG, сек. */
   gdouble                       hdg_line_length;            /* Длина линии истинного курса HDG, м. */
@@ -169,7 +169,7 @@ static void              hyscan_gtk_map_nav_create_arrow            (HyScanGtkMa
                                                                      GdkRGBA                       *color_fill,
                                                                      GdkRGBA                       *color_stroke);
 static void              hyscan_gtk_map_nav_model_changed           (HyScanGtkMapNav               *nav_layer,
-                                                                    HyScanNavModelData             *data);
+                                                                    HyScanNavStateData             *data);
 static void              hyscan_gtk_map_nav_point_free              (HyScanGtkMapNavPoint          *point);
 static void              hyscan_gtk_map_nav_fill_tile               (HyScanGtkMapTiled             *tiled_layer,
                                                                      HyScanMapTile                 *tile);
@@ -193,7 +193,7 @@ hyscan_gtk_map_nav_class_init (HyScanGtkMapNavClass *klass)
   tiled_class->fill_tile = hyscan_gtk_map_nav_fill_tile;
 
   g_object_class_install_property (object_class, PROP_NAV_MODEL,
-    g_param_spec_object ("nav-model", "Navigation model", "HyScanNavModel",
+    g_param_spec_object ("nav-state", "Navigation model", "HyScanNavState",
                          HYSCAN_TYPE_NAV_MODEL,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_USE_CACHE,
@@ -264,7 +264,7 @@ hyscan_gtk_map_nav_object_constructed (GObject *object)
   priv->hdg_line_length = 1000.0;
   hyscan_gtk_map_nav_set_lifetime (nav_layer, LIFETIME);
 
-  g_signal_connect_swapped (priv->nav_model, "changed", G_CALLBACK (hyscan_gtk_map_nav_model_changed), nav_layer);
+  g_signal_connect_swapped (priv->nav_model, "nav-changed", G_CALLBACK (hyscan_gtk_map_nav_model_changed), nav_layer);
 }
 
 static void
@@ -438,7 +438,7 @@ hyscan_gtk_map_nav_point_copy (HyScanGtkMapNavPoint *point)
 /* Обработчик сигнала "changed" модели. */
 static void
 hyscan_gtk_map_nav_model_changed (HyScanGtkMapNav    *nav_layer,
-                                  HyScanNavModelData *data)
+                                  HyScanNavStateData *data)
 {
   HyScanGtkMapNavPrivate *priv = nav_layer->priv;
 
@@ -1065,17 +1065,17 @@ hyscan_gtk_map_nav_added (HyScanGtkLayer          *layer,
 
 /**
  * hyscan_gtk_map_nav_new:
- * @nav_model: указатель на модель навигационных данных #HyScanNavModel
+ * @nav_model: указатель на модель навигационных данных #HyScanNavState
  *
  * Создает новый слой с треком движения объекта.
  *
  * Returns: указатель на #HyScanGtkMapNav
  */
 HyScanGtkLayer *
-hyscan_gtk_map_nav_new (HyScanNavModel *nav_model)
+hyscan_gtk_map_nav_new (HyScanNavState *nav_state)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_NAV,
-                       "nav-model", nav_model,
+                       "nav-state", nav_state,
                        NULL);
 }
 

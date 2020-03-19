@@ -74,13 +74,13 @@ struct _HyScanGtkMapDirectionPrivate
   HyScanGtkMap                *map;           /* Виджет карты. */
   HyScanPlannerSelection      *selection;     /* Выбранные плановые галсы. */
   HyScanObjectModel           *obj_model;     /* Модель объектов планировщика. */
-  HyScanNavModel              *nav_model;     /* Модель навигационных данных. */
+  HyScanNavState              *nav_model;     /* Модель навигационных данных. */
 
   HyScanGtkMapDirectionMode    mode;          /* Режим ориентации карты. */
   gboolean                     follow_ship;   /* Следить за судном? */
 
   gboolean                    nav_data_set;   /* Положение судна получено. */
-  HyScanNavModelData          nav_data;       /* Положение судна. */
+  HyScanNavStateData          nav_data;       /* Положение судна. */
   gdouble                     track_angle;    /* Направление активного плана галса. */
 
   GtkWidget                   *btn_follow;    /* Чекбокс "Следить за судном". */
@@ -101,7 +101,7 @@ static void    hyscan_gtk_map_direction_follow_toggled       (GtkToggleButton   
                                                               HyScanGtkMapDirection *direction);
 static void    hyscan_gtk_map_direction_update_angle         (HyScanGtkMapDirection *direction);
 static void    hyscan_gtk_map_direction_nav_chgd             (HyScanGtkMapDirection *direction,
-                                                              HyScanNavModelData    *nav_data);
+                                                              HyScanNavStateData    *nav_data);
 static void    hyscan_gtk_map_direction_trk_chgd             (HyScanGtkMapDirection *direction);
 static void    hyscan_gtk_map_direction_update_pos           (HyScanGtkMapDirection *direction);
 
@@ -124,7 +124,7 @@ hyscan_gtk_map_direction_class_init (HyScanGtkMapDirectionClass *klass)
     g_param_spec_object ("selection", "Planner selection", "Planner selection", HYSCAN_TYPE_PLANNER_SELECTION,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_NAV_MODEL,
-    g_param_spec_object ("nav-model", "Navigation model", "Navigation model", HYSCAN_TYPE_NAV_MODEL,
+    g_param_spec_object ("nav-state", "Navigation model", "Navigation model", HYSCAN_TYPE_NAV_STATE,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -199,7 +199,7 @@ hyscan_gtk_map_direction_object_constructed (GObject *object)
 
   priv->obj_model = HYSCAN_OBJECT_MODEL (hyscan_planner_selection_get_model (priv->selection));
 
-  g_signal_connect_swapped (priv->nav_model, "changed", G_CALLBACK (hyscan_gtk_map_direction_nav_chgd), object);
+  g_signal_connect_swapped (priv->nav_model, "nav-changed", G_CALLBACK (hyscan_gtk_map_direction_nav_chgd), object);
   g_signal_connect_swapped (priv->selection, "activated", G_CALLBACK (hyscan_gtk_map_direction_trk_chgd), object);
   g_signal_connect_swapped (priv->obj_model, "changed", G_CALLBACK (hyscan_gtk_map_direction_trk_chgd), object);
 }
@@ -220,7 +220,7 @@ hyscan_gtk_map_direction_object_finalize (GObject *object)
 
 static void
 hyscan_gtk_map_direction_nav_chgd (HyScanGtkMapDirection *direction,
-                                   HyScanNavModelData    *nav_data)
+                                   HyScanNavStateData    *nav_data)
 {
   HyScanGtkMapDirectionPrivate *priv = direction->priv;
 
@@ -339,11 +339,11 @@ hyscan_gtk_map_direction_follow_toggled (GtkToggleButton       *button,
 GtkWidget *
 hyscan_gtk_map_direction_new (HyScanGtkMap           *map,
                               HyScanPlannerSelection *selection,
-                              HyScanNavModel         *nav_model)
+                              HyScanNavState         *nav_model)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_DIRECTION,
                        "map", map,
                        "selection", selection,
-                       "nav-model", nav_model,
+                       "nav-state", nav_model,
                        NULL);
 }

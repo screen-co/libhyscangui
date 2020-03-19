@@ -37,7 +37,7 @@
 
 #include <hyscan-planner-selection.h>
 #include <hyscan-gtk-map.h>
-#include <hyscan-nav-model.h>
+#include <hyscan-nav-state.h>
 
 G_BEGIN_DECLS
 
@@ -70,7 +70,7 @@ GType        hyscan_gtk_map_direction_get_type         (void);
 HYSCAN_API
 GtkWidget *  hyscan_gtk_map_direction_new              (HyScanGtkMap           *map,
                                                         HyScanPlannerSelection *selection,
-                                                        HyScanNavModel         *model);
+                                                        HyScanNavState         *model);
 
 
 G_END_DECLS

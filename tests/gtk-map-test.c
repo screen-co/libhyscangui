@@ -5,6 +5,8 @@
 #include <glib/gi18n.h>
 #include <locale.h>
 #include <hyscan-gtk-area.h>
+#include <hyscan-control.h>
+#include <hyscan-sonar-model.h>
 
 #define GPS_SENSOR_NAME "my-nmea-sensor"
 
@@ -93,10 +95,11 @@ load_nmea_udp_device (const gchar *nmea_udp_host,
   return device;
 }
 
-/* Слой с треком движения. */
-HyScanSensor *
-create_sensor ()
+/* Объект управления датчиками. */
+HyScanControl *
+create_control (HyScanDB *db)
 {
+  HyScanControl *control;
   HyScanDevice *device = NULL;
 
   if (track_file != NULL)
@@ -107,8 +110,14 @@ create_sensor ()
   if (device == NULL)
     return NULL;
 
-  hyscan_sensor_set_enable (HYSCAN_SENSOR (device), GPS_SENSOR_NAME, TRUE);
-  return HYSCAN_SENSOR (device);
+  control = hyscan_control_new ();
+  hyscan_control_device_add (control, device);
+  hyscan_control_device_bind (control);
+  hyscan_control_writer_set_db (control, db);
+
+  hyscan_sensor_set_enable (HYSCAN_SENSOR (control), GPS_SENSOR_NAME, TRUE);
+
+  return control;
 }
 
 int main (int     argc,
@@ -117,8 +126,10 @@ int main (int     argc,
   GtkWidget *window;
 
   HyScanDB *db = NULL;
+  HyScanSonarModel *sonar;
+  HyScanSonarRecorder *recorder;
+  HyScanControl *control;
   HyScanUnits *units;
-  HyScanSensor *sensor;
   HyScanGeoGeodetic center = {.lat = 55.571, .lon = 38.103};
 
   HyScanGtkMapKit *kit;
@@ -188,7 +199,7 @@ int main (int     argc,
   if (db_uri != NULL)
     db = hyscan_db_new (db_uri);
 
-  sensor = create_sensor ();
+  control = create_control (db);
   units = hyscan_units_new ();
 
   kit = hyscan_gtk_map_kit_new (&center, db, units, "/tmp/tile-cache");
@@ -196,8 +207,11 @@ int main (int     argc,
   if (profile_dir != NULL)
     hyscan_gtk_map_kit_load_profiles (kit, profile_dir);
 
-  if (sensor != NULL)
-    hyscan_gtk_map_kit_add_nav (kit, sensor, GPS_SENSOR_NAME, delay_time);
+  sonar = hyscan_sonar_model_new (control);
+  recorder = hyscan_sonar_recorder_new (HYSCAN_SONAR (sonar), db);
+
+  if (control != NULL)
+    hyscan_gtk_map_kit_add_nav (kit, HYSCAN_SENSOR (control), GPS_SENSOR_NAME, recorder, NULL, delay_time);
 
   if (db != NULL)
     {

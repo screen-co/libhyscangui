@@ -25,6 +25,7 @@
 #include <hyscan-gtk-planner-zeditor.h>
 #include <hyscan-planner-selection.h>
 #include <hyscan-gtk-map-steer.h>
+#include <hyscan-nav-model.h>
 
 #define DEFAULT_PROFILE_NAME "default"    /* Имя профиля карты по умолчанию. */
 #define PRELOAD_STATE_DONE   1000         /* Статус кэширования тайлов 0 "Загрузка завершена". */
@@ -102,6 +103,7 @@ struct _HyScanGtkMapKitPrivate
   GtkButton               *preload_button;   /* Кнопка загрузки тайлов. */
   GtkProgressBar          *preload_progress; /* Индикатор загрузки тайлов. */
   GtkWidget               *steer_box;        /* Контейнер для виджета навигации по отклонениям от плана. */
+  HyScanSonarRecorder     *recorder;         /* Управление записью галса. */
 
   HyScanMapTileLoader     *loader;
   guint                    preload_tag;      /* Timeout-функция обновления виджета preload_progress. */
@@ -331,7 +333,7 @@ track_tree_view_visible_changed (HyScanGtkMapKit     *kit,
 
      gtk_tree_model_get (GTK_TREE_MODEL (priv->track_store), &iter, TRACK_COLUMN, &track_name, -1);
 
-     active = g_strv_contains (visible_tracks, track_name);
+     active = visible_tracks != NULL && g_strv_contains (visible_tracks, track_name);
      gtk_list_store_set (priv->track_store, &iter, VISIBLE_COLUMN, active, -1);
 
      g_free (track_name);
@@ -968,9 +970,9 @@ static void
 on_locate_click (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
-  HyScanNavModelData data;
+  HyScanNavStateData data;
 
-  if (hyscan_nav_model_get (priv->nav_model, &data, NULL))
+  if (hyscan_nav_state_get (HYSCAN_NAV_STATE (priv->nav_model), &data, NULL))
     hyscan_gtk_map_move_to (HYSCAN_GTK_MAP (kit->map), data.coord);
 }
 
@@ -1785,14 +1787,18 @@ void
 add_steer (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
-  GtkWidget *steer;
+  GtkWidget *gtk_steer;
+  HyScanSteer *steer;
 
   /* Отклонение от курса. */
   if (priv->nav_model == NULL || priv->planner_selection == NULL)
     return;
 
-  steer = hyscan_gtk_map_steer_new (priv->nav_model, priv->planner_selection);
-  gtk_box_pack_start (GTK_BOX (priv->steer_box), steer, TRUE, TRUE, 0);
+  steer = hyscan_steer_new (HYSCAN_NAV_STATE (priv->nav_model), priv->planner_selection, priv->recorder);
+  gtk_steer = hyscan_gtk_map_steer_new (steer);
+  gtk_box_pack_start (GTK_BOX (priv->steer_box), gtk_steer, TRUE, TRUE, 0);
+
+  g_object_unref (priv->recorder);
 }
 
 /**
@@ -1803,10 +1809,12 @@ add_steer (HyScanGtkMapKit *kit)
  * @delay_time: время задержки навигационных данных
  */
 void
-hyscan_gtk_map_kit_add_nav (HyScanGtkMapKit *kit,
-                            HyScanSensor    *sensor,
-                            const gchar     *sensor_name,
-                            gdouble          delay_time)
+hyscan_gtk_map_kit_add_nav (HyScanGtkMapKit           *kit,
+                            HyScanSensor              *sensor,
+                            const gchar               *sensor_name,
+                            HyScanSonarRecorder       *recorder,
+                            const HyScanAntennaOffset *offset,
+                            gdouble                    delay_time)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
   GtkWidget *box;
@@ -1817,6 +1825,7 @@ hyscan_gtk_map_kit_add_nav (HyScanGtkMapKit *kit,
   priv->nav_model = hyscan_nav_model_new ();
   hyscan_nav_model_set_sensor (priv->nav_model, sensor);
   hyscan_nav_model_set_sensor_name (priv->nav_model, sensor_name);
+  hyscan_nav_model_set_offset (priv->nav_model, offset);
   hyscan_nav_model_set_delay (priv->nav_model, delay_time);
 
   /* Определение местоположения. */
@@ -1825,8 +1834,10 @@ hyscan_gtk_map_kit_add_nav (HyScanGtkMapKit *kit,
   g_signal_connect_swapped (priv->locate_button, "clicked", G_CALLBACK (on_locate_click), kit);
 
   /* Слой с траекторией движения судна. */
-  priv->way_layer = hyscan_gtk_map_nav_new (priv->nav_model);
+  priv->way_layer = hyscan_gtk_map_nav_new (HYSCAN_NAV_STATE (priv->nav_model));
   add_layer_row (kit, priv->way_layer, FALSE, "nav", _("Navigation"));
+
+  priv->recorder = g_object_ref (recorder);
 
   /* Контейнер для виджета навигации по галсу (сам виджет может быть, а может не быть). */
   priv->steer_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
@@ -1977,6 +1988,7 @@ hyscan_gtk_map_kit_free (HyScanGtkMapKit *kit)
   g_clear_object (&priv->mark_store);
   g_clear_object (&priv->planner_model);
   g_clear_object (&priv->planner_selection);
+  g_clear_object (&priv->recorder);
   g_clear_object (&priv->units);
   g_free (priv);
 
