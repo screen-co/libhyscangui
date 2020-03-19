@@ -106,76 +106,85 @@ static gchar *tooltips_text[]   = {N_("Create new group"),
                                    N_("Expand"),
                                    N_("Collapse")};
 
-static void       hyscan_mark_manager_set_property              (GObject               *object,
-                                                                 guint                  prop_id,
-                                                                 const GValue          *value,
-                                                                 GParamSpec            *pspec);
+static void         hyscan_mark_manager_set_property              (GObject               *object,
+                                                                   guint                  prop_id,
+                                                                   const GValue          *value,
+                                                                   GParamSpec            *pspec);
 
-static void       hyscan_mark_manager_constructed               (GObject               *object);
+static void         hyscan_mark_manager_constructed               (GObject               *object);
 
-static void       hyscan_mark_manager_finalize                  (GObject               *object);
+static void         hyscan_mark_manager_finalize                  (GObject               *object);
 
-static void       hyscan_mark_manager_create_new_label          (GtkToolItem           *item,
-                                                                 HyScanMarkManager     *self);
+static void         hyscan_mark_manager_create_new_label          (GtkToolItem           *item,
+                                                                   HyScanMarkManager     *self);
 
-static void       hyscan_mark_manager_set_grouping              (GtkComboBox           *combo,
-                                                                 HyScanMarkManager     *self);
+static void         hyscan_mark_manager_set_grouping              (GtkComboBox           *combo,
+                                                                   HyScanMarkManager     *self);
 
-static void       hyscan_mark_manager_show_nodes                (HyScanMarkManager     *self,
-                                                                 GtkToolItem           *item);
+static void         hyscan_mark_manager_show_nodes                (HyScanMarkManager     *self,
+                                                                   GtkToolItem           *item);
 
-static void       hyscan_mark_manager_delete_selected           (GtkToolButton         *button,
-                                                                 HyScanMarkManager     *self);
+static void         hyscan_mark_manager_delete_selected           (GtkToolButton         *button,
+                                                                   HyScanMarkManager     *self);
 
-static void       hyscan_mark_manager_show_all                  (GtkMenuItem           *item,
-                                                                 HyScanMarkManager     *self);
+static void         hyscan_mark_manager_show_all                  (GtkMenuItem           *item,
+                                                                   HyScanMarkManager     *self);
 
-static void       hyscan_mark_manager_hide_all                  (GtkMenuItem           *item,
-                                                                 HyScanMarkManager     *self);
+static void         hyscan_mark_manager_hide_all                  (GtkMenuItem           *item,
+                                                                   HyScanMarkManager     *self);
 
-static void       hyscan_mark_manager_show_selected             (GtkMenuItem           *item,
-                                                                 HyScanMarkManager     *self);
+static void         hyscan_mark_manager_show_selected             (GtkMenuItem           *item,
+                                                                   HyScanMarkManager     *self);
 
-static void       hyscan_mark_manager_hide_selected             (GtkMenuItem           *item,
-                                                                 HyScanMarkManager     *self);
+static void         hyscan_mark_manager_hide_selected             (GtkMenuItem           *item,
+                                                                   HyScanMarkManager     *self);
 
-static void       hyscan_mark_manager_item_selected             (HyScanMarkManager     *self,
-                                                                 GtkTreeSelection      *selection);
+static void         hyscan_mark_manager_item_selected             (HyScanMarkManager     *self,
+                                                                   GtkTreeSelection      *selection);
 
-static void       hyscan_mark_manager_select_item               (HyScanMarkManager     *self);
+static void         hyscan_mark_manager_select_item               (HyScanMarkManager     *self);
 
-static void       hyscan_mark_manager_item_toggled              (HyScanMarkManager     *self,
-                                                                 gchar                 *id,
-                                                                 gboolean               active);
+static void         hyscan_mark_manager_item_toggled              (HyScanMarkManager     *self,
+                                                                   gchar                 *id,
+                                                                   gboolean               active);
 
-static void       hyscan_mark_manager_toggle_item               (HyScanMarkManager     *self);
+static void         hyscan_mark_manager_toggle_item               (HyScanMarkManager     *self);
 
-static void       hyscan_mark_manager_view_scrolled_horizontal  (HyScanMarkManager     *self);
+static void         hyscan_mark_manager_view_scrolled_horizontal  (HyScanMarkManager     *self);
 
-static void       hyscan_mark_manager_view_scrolled_vertical    (HyScanMarkManager     *self);
+static void         hyscan_mark_manager_view_scrolled_vertical    (HyScanMarkManager     *self);
 
-static void       hyscan_mark_manager_delete_label              (GtkTreeModel          *model,
-                                                                 GtkTreePath           *path,
-                                                                 GtkTreeIter           *iter,
-                                                                 gpointer               data);
+static void         hyscan_mark_manager_delete_label              (GtkTreeModel          *model,
+                                                                   GtkTreePath           *path,
+                                                                   GtkTreeIter           *iter,
+                                                                   gpointer               data);
 
-static void       hyscan_mark_manager_grouping_changed          (HyScanMarkManager     *self);
+static void         hyscan_mark_manager_grouping_changed          (HyScanMarkManager     *self);
 
-static void       hyscan_mark_manager_expand_nodes_mode_changed (HyScanMarkManager     *self);
+static void         hyscan_mark_manager_expand_nodes_mode_changed (HyScanMarkManager     *self);
 
-static void       hyscan_mark_manager_view_model_updated        (HyScanMarkManager     *self);
+static void         hyscan_mark_manager_view_model_updated        (HyScanMarkManager     *self);
 
-static void       hyscan_mark_manager_scrolled_horizontal       (GtkAdjustment         *adjustment,
-                                                                 gpointer               user_data);
+static void         hyscan_mark_manager_scrolled_horizontal       (GtkAdjustment         *adjustment,
+                                                                   gpointer               user_data);
 
-static void       hyscan_mark_manager_scrolled_vertical         (GtkAdjustment         *adjustment,
-                                                                 gpointer               user_data);
+static void         hyscan_mark_manager_scrolled_vertical         (GtkAdjustment         *adjustment,
+                                                                   gpointer               user_data);
 
-static void       hyscan_mark_manager_item_expanded             (HyScanMarkManager     *self,
-                                                                 gchar                 *id,
-                                                                 gboolean               expanded);
+static void         hyscan_mark_manager_item_expanded             (HyScanMarkManager     *self,
+                                                                   gchar                 *id,
+                                                                   gboolean               expanded);
 
-static void       hyscan_mark_manager_expand_item               (HyScanMarkManager     *self);
+static void         hyscan_mark_manager_expand_item               (HyScanMarkManager     *self);
+
+static void         hyscan_mark_manager_collapse_item             (HyScanMarkManager     *self);
+
+static GtkTreeIter* hyscan_mark_manager_find_item                 (GtkTreeModel          *model,
+                                                                   const gchar           *id);
+
+static gboolean     hyscan_mark_manager_find_item_by_id           (GtkTreeModel          *model,
+                                                                   GtkTreeIter           *iter,
+                                                                   const gchar           *id);
 
 static guint      hyscan_mark_manager_signals[SIGNAL_LAST] = { 0 };
 
@@ -322,6 +331,12 @@ hyscan_mark_manager_constructed (GObject *object)
                             hyscan_model_manager_get_signal_title (priv->model_manager,
                                                                    SIGNAL_ITEM_EXPANDED),
                             G_CALLBACK (hyscan_mark_manager_expand_item),
+                            self);
+  /* Подключаем сигнал о сворачивании узла древовидного представления. */
+  g_signal_connect_swapped (priv->model_manager,
+                            hyscan_model_manager_get_signal_title (priv->model_manager,
+                                                                   SIGNAL_ITEM_COLLAPSED),
+                            G_CALLBACK (hyscan_mark_manager_collapse_item),
                             self);
   /* Подключаем сигнал о горизонтальной прокрутке представления.*/
   g_signal_connect_swapped (priv->model_manager,
@@ -646,15 +661,15 @@ hyscan_mark_manager_delete_selected (GtkToolButton     *button,
 {
   HyScanMarkManagerPrivate *priv = self->priv;
   gboolean sensivity = gtk_widget_get_sensitive (
-                           GTK_WIDGET ( gtk_tool_button_get_icon_widget (button)));
+                           GTK_WIDGET (gtk_tool_button_get_icon_widget (button)));
   HyScanMarkManagerView *view = HYSCAN_MARK_MANAGER_VIEW (priv->view);
 
   if (sensivity && hyscan_mark_manager_view_has_selected (view))
     {
        GtkTreeSelection *selection = hyscan_mark_manager_view_get_selection (view);
        /* Удаляем объект из базы данных. */
-       gtk_tree_selection_selected_foreach(selection, hyscan_mark_manager_delete_label, self);
-       gtk_widget_set_sensitive(priv->delete_icon, FALSE);
+       gtk_tree_selection_selected_foreach (selection, hyscan_mark_manager_delete_label, self);
+       gtk_widget_set_sensitive (priv->delete_icon, FALSE);
     }
 }
 
@@ -814,7 +829,7 @@ void hyscan_mark_manager_delete_label (GtkTreeModel *model,
   HyScanMarkManagerPrivate *priv;
   HyScanObjectModel *label_model;
   gchar *id;
-  GtkTreePath *tmp;
+  /*GtkTreePath *tmp;*/
 
   g_return_if_fail (HYSCAN_IS_MARK_MANAGER (data));
 
@@ -829,9 +844,10 @@ void hyscan_mark_manager_delete_label (GtkTreeModel *model,
   /*tmp = gtk_tree_path_copy (path);
   if (gtk_tree_path_up (tmp))
     {
-      hyscan_mark_manager_view_expand_to_path (HYSCAN_MARK_MANAGER_VIEW (priv->view), tmp);
-    }*/
-  hyscan_mark_manager_view_expand_to_path (HYSCAN_MARK_MANAGER_VIEW (priv->view), path);
+      hyscan_mark_manager_view_expand_path (HYSCAN_MARK_MANAGER_VIEW (priv->view), tmp);
+    }
+  gtk_tree_path_free (tmp);*/
+  hyscan_mark_manager_view_expand_path (HYSCAN_MARK_MANAGER_VIEW (priv->view), path, TRUE);
 }
 
 /* Функция-обработчик сигнала о разворачивании узла древовидного представления.
@@ -846,7 +862,7 @@ hyscan_mark_manager_item_expanded (HyScanMarkManager *self,
   hyscan_model_manager_expand_item (priv->model_manager, id, expanded);
 }
 
-/*Функция-обработчик сигнала о разворачивании узла древовидного представления.
+/* Функция-обработчик сигнала о разворачивании узла древовидного представления.
  * Сигнал приходит из #HyScanModelManager-а.*/
 void
 hyscan_mark_manager_expand_item (HyScanMarkManager *self)
@@ -859,7 +875,7 @@ hyscan_mark_manager_expand_item (HyScanMarkManager *self)
   g_print ("***\n");
   for (type = LABEL; type < TYPES; type++)
     {
-      gchar **list = hyscan_model_manager_get_expanded_items (priv->model_manager, type);
+      gchar **list = hyscan_model_manager_get_expanded_items (priv->model_manager, type, TRUE);
 
       if (list != NULL)
         {
@@ -886,13 +902,151 @@ hyscan_mark_manager_expand_item (HyScanMarkManager *self)
 
           for (i = 0; list[i] != NULL; i++)
             {
-              g_print ("Item #%i: %s\n", i + 1, list[i]);
+              GtkTreeModel *model = hyscan_model_manager_get_view_model (priv->model_manager);
+              GtkTreeIter  *iter  = hyscan_mark_manager_find_item (model, list[i]);
+
+              if (iter != NULL)
+                {
+                  GtkTreePath *path = gtk_tree_model_get_path (model, iter);
+
+                  g_print ("Item #%i: %s\nPath: %s\n", i + 1, list[i], gtk_tree_path_to_string (path));
+
+                  hyscan_mark_manager_view_expand_path (HYSCAN_MARK_MANAGER_VIEW (priv->view), path, TRUE);
+
+                  gtk_tree_path_free (path);
+                }
+
+              g_object_unref (model);
+              if (iter != NULL)
+                gtk_tree_iter_free (iter);
             }
 
           g_strfreev (list);
         }
     }
   g_print ("***\n");
+}
+
+/* Функция-обработчик сигнала о cворачивании узла древовидного представления.
+ * Сигнал приходит из #HyScanModelManager-а.*/
+void
+hyscan_mark_manager_collapse_item (HyScanMarkManager *self)
+{
+  HyScanMarkManagerPrivate *priv = self->priv;
+  ModelManagerObjectType type;
+
+  g_print ("COLLAPSING SIGNAL FROM MODEL MANAGER CATHCED\n");
+
+  g_print ("***\n");
+  for (type = LABEL; type < TYPES; type++)
+    {
+      gchar **list = hyscan_model_manager_get_expanded_items (priv->model_manager, type, FALSE);
+
+      if (list != NULL)
+        {
+          gint i;
+
+          switch (type)
+            {
+            case LABEL:
+              g_print ("Labels:\n");
+              break;
+            case GEO_MARK:
+              g_print ("Geo-marks:\n");
+              break;
+            case ACOUSTIC_MARK:
+              g_print ("Acoustic marks:\n");
+              break;
+            case TRACK:
+              g_print ("Tracks:\n");
+              break;
+            default:
+              g_print ("Unknown objects:\n");
+              break;
+            }
+
+          for (i = 0; list[i] != NULL; i++)
+            {
+              GtkTreeModel *model = hyscan_model_manager_get_view_model (priv->model_manager);
+              GtkTreeIter  *iter  = hyscan_mark_manager_find_item (model, list[i]);
+
+              if (iter != NULL)
+                {
+                  GtkTreePath *path = gtk_tree_model_get_path (model, iter);
+
+                  g_print ("Item #%i: %s\nPath: %s\n", i + 1, list[i], gtk_tree_path_to_string (path));
+
+                  hyscan_mark_manager_view_expand_path (HYSCAN_MARK_MANAGER_VIEW (priv->view), path, FALSE);
+
+                  gtk_tree_path_free (path);
+                }
+
+              g_object_unref (model);
+              gtk_tree_iter_free (iter);
+            }
+
+          g_strfreev (list);
+        }
+    }
+  g_print ("***\n");
+}
+
+/* Функция ищет в модели запись по заданному идентификатору и
+ * возвращает итератор для этой записи. Когда итератор больше не нужен,
+ * необходимо использовать #gtk_tree_iter_free ().
+ * */
+GtkTreeIter*
+hyscan_mark_manager_find_item (GtkTreeModel *model,
+                               const gchar  *id)
+{
+  GtkTreeIter iter;
+
+  if (gtk_tree_model_get_iter_first (model, &iter))
+    {
+      do
+        {
+          if (hyscan_mark_manager_find_item_by_id (model, &iter, id))
+            {
+              return gtk_tree_iter_copy (&iter);
+            }
+        }
+      while (gtk_tree_model_iter_next (model, &iter));
+    }
+  return NULL;
+}
+
+/* Функция для рекурсивного обхода модели и поиска записи по заданному идентификтору.
+ * Если запись найдена, то копирует итератор в iter и возвращает TRUE.
+ * */
+gboolean
+hyscan_mark_manager_find_item_by_id (GtkTreeModel *model,
+                                     GtkTreeIter  *iter,
+                                     const gchar  *id)
+{
+  GtkTreeIter child_iter;
+  gchar *str;
+
+  gtk_tree_model_get (model,     iter,
+                      COLUMN_ID, &str,
+                      -1);
+  if (str == NULL)
+    return FALSE;
+  if (0 == g_strcmp0 (id, str))
+    return TRUE;
+
+  if (gtk_tree_model_iter_children (model, &child_iter, iter))
+    {
+      do
+        {
+          if (hyscan_mark_manager_find_item_by_id (model, &child_iter, id))
+            {
+              *iter = child_iter;
+              return TRUE;
+            }
+        }
+      while (gtk_tree_model_iter_next (model, &child_iter));
+    }
+  return FALSE;
 }
 
 /**

@@ -43,6 +43,7 @@ typedef enum
   SIGNAL_ITEM_SELECTED,               /* Выделена строка. */
   SIGNAL_ITEM_TOGGLED,                /* Изменено состояние чек-бокса. */
   SIGNAL_ITEM_EXPANDED,               /* Разворачивание узла древовидного представления. */
+  SIGNAL_ITEM_COLLAPSED,              /* Сворачивание узла древовидного представления. */
   SIGNAL_VIEW_SCROLLED_HORIZONTAL,    /* Изменение положения горизонтальной прокрутки представления. */
   SIGNAL_VIEW_SCROLLED_VERTICAL,      /* Изменение положения вертикальной прокрутки представления. */
   SIGNAL_MODEL_MANAGER_LAST           /* Количество сигналов. */
@@ -171,7 +172,8 @@ void                 hyscan_model_manager_expand_item                 (HyScanMod
                                                                        gboolean                expanded);
 
 gchar**              hyscan_model_manager_get_expanded_items          (HyScanModelManager     *self,
-                                                                       ModelManagerObjectType  type);
+                                                                       ModelManagerObjectType  type,
+                                                                       gboolean                expanded);
 
 G_END_DECLS
 

@@ -64,8 +64,9 @@ void                 hyscan_mark_manager_view_toggle_all             (HyScanMark
                                                                       gboolean                   active);
 
 
-void                 hyscan_mark_manager_view_expand_to_path         (HyScanMarkManagerView      *self,
-                                                                      GtkTreePath                *path);
+void                 hyscan_mark_manager_view_expand_path            (HyScanMarkManagerView      *self,
+                                                                      GtkTreePath                *path,
+                                                                      gboolean                    expanded);
 
 gchar**              hyscan_mark_manager_view_get_toggled            (HyScanMarkManagerView      *self,
                                                                       ModelManagerObjectType      type);

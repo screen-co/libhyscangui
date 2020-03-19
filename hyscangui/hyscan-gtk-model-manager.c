@@ -71,6 +71,7 @@ static const gchar *signals[] = {"wf-marks-changed",     /* Изменение �
                                  "item-selected",        /* Выделена строка. */
                                  "item-toggled",         /* Изменено состояние чек-бокса. */
                                  "item-expanded",        /* Разворачивание узла древовидного представления. */
+                                 "item-collapsed",       /* Сворачивание узла древовидного представления. */
                                  "scrolled-horizontal",  /* Изменение положения горизонтальной прокрутки представления. */
                                  "scrolled-vertical"};   /* Изменение положения вертикальной прокрутки представления. */
 
@@ -986,11 +987,6 @@ hyscan_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
                           /*COLUMN_CTIME,        NULL,
                           COLUMN_MTIME,        NULL,*/
                           -1);
-      /* Если нужно, разворачиваем узел. */
-      /*node = g_hash_table_lookup (extensions, type_id[GEO_MARK]);
-      gtk_tree_view_expand_row        (GtkTreeView *tree_view,
-                                                   GtkTreePath *path,
-                                                   gboolean open_all);*/
 
       g_hash_table_iter_init (&table_iter, geo_marks);
       while (g_hash_table_iter_next (&table_iter, (gpointer*)&id, (gpointer*)&object))
@@ -1230,7 +1226,7 @@ hyscan_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
       /* Добавляем новый узел "Акустические метки" в модель. */
       gtk_tree_store_append (store, &parent_iter, NULL);
       gtk_tree_store_set (store,              &parent_iter,
-                          COLUMN_ID,           NULL,
+                          COLUMN_ID,           type_id[ACOUSTIC_MARK],
                           COLUMN_NAME,         type_name[ACOUSTIC_MARK],
                           COLUMN_DESCRIPTION,  type_desc[ACOUSTIC_MARK],
                           COLUMN_OPERATOR,     author,
@@ -1685,7 +1681,7 @@ hyscan_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
       /* Добавляем новый узел "Галсы" в модель. */
       gtk_tree_store_append (store, &parent_iter, NULL);
       gtk_tree_store_set (store,              &parent_iter,
-                          COLUMN_ID,           NULL,
+                          COLUMN_ID,           type_id[TRACK],
                           COLUMN_NAME,         type_name[TRACK],
                           COLUMN_DESCRIPTION,  type_desc[TRACK],
                           COLUMN_OPERATOR,     author,
@@ -2772,19 +2768,6 @@ hyscan_model_manager_expand_item (HyScanModelManager *self,
 
   for (type = LABEL; type < TYPES; type++)
     {
-      GHashTableIter  iter;
-      gpointer *object;
-      gchar *key;
-
-      if (priv->extensions[type] != NULL)
-        {
-          g_hash_table_iter_init (&iter, priv->extensions[type]);
-          while (g_hash_table_iter_next (&iter, (gpointer*)&key, (gpointer*)&object))
-            {
-              g_print ("key: %s\n", key);
-            }
-        }
-
       if (priv->extensions[type] != NULL && id != NULL)
         {
           Extension *ext = g_hash_table_lookup (priv->extensions[type], id);
@@ -2798,22 +2781,28 @@ hyscan_model_manager_expand_item (HyScanModelManager *self,
         }
     }
 
-  g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_ITEM_EXPANDED], 0);
+  if (expanded)
+    g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_ITEM_EXPANDED], 0);
+  else
+    g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_ITEM_COLLAPSED], 0);
 }
 
 /**
  * hyscan_model_manager_get_expanded_items:
  * @self: указатель на Менеджер Моделей
  * @type: тип запрашиваемых объектов
+ * @expanded: TRUE  - развёрнутые,
+ *            FALSE - свёрнутые
  *
  * Returns: возвращает список идентификаторов объектов
- * которые нужно развёрнуть. Тип объекта определяется
- * #ModelManagerObjectType. Когда список больше не нужен,
- * необходимо использовать #g_strfreev ().
+ * которые нужно развёрнуть или свернуть. Тип объекта
+ * определяется #ModelManagerObjectType. Когда список
+ * больше не нужен, необходимо использовать #g_strfreev ().
  */
 gchar**
 hyscan_model_manager_get_expanded_items (HyScanModelManager     *self,
-                                         ModelManagerObjectType  type)
+                                         ModelManagerObjectType  type,
+                                         gboolean                expanded)
 {
   HyScanModelManagerPrivate *priv = self->priv;
   Extension *ext;
@@ -2824,7 +2813,7 @@ hyscan_model_manager_get_expanded_items (HyScanModelManager     *self,
   g_hash_table_iter_init (&iter, priv->extensions[type]);
   while (g_hash_table_iter_next (&iter, (gpointer*)&id, (gpointer*)&ext))
     {
-      if (ext->expanded)
+      if (ext->expanded == expanded)
         {
           guint i = (list != NULL) ? g_strv_length (list) : 0;
           list = (gchar**)g_realloc ( (gpointer)list, (i + 2) * sizeof (gchar*));
