@@ -178,9 +178,9 @@ struct _HyScanGtkMapTrackItemPrivate
 
   HyScanGeoCartesian2D            extent_from;       /* Минимальные координаты точек галса. */
   HyScanGeoCartesian2D            extent_to;         /* Максимальные координаты точек галса. */
-  gint                            n_sections;
-  guint32 *buff_counts;
-  gdouble *buff_values;
+  guint                           n_sections;        /* Число отрезков, на которые делится строка. */
+  guint32                        *buff_counts;       /* Массив из индексов точек на границах отрезков. */
+  gdouble                        *buff_values;       /* Массив из уровней качества на отрезках. */
 };
 
 static void     hyscan_gtk_map_track_item_interface_init      (HyScanParamInterface      *iface);
@@ -336,7 +336,7 @@ hyscan_gtk_map_track_item_object_constructed (GObject *object)
   g_rw_lock_init (&priv->lock);
   g_mutex_init (&priv->mutex);
 
-  priv->n_sections = 200;
+  priv->n_sections = 100;
   priv->buff_counts = g_malloc0 (sizeof (*priv->buff_counts) * priv->n_sections);
   priv->buff_values = g_malloc0 (sizeof (*priv->buff_values) * priv->n_sections);
 
@@ -506,7 +506,7 @@ hyscan_gtk_map_track_item_param_set (HyScanParam     *param,
     }
   g_rw_lock_writer_unlock (&priv->lock);
 
-  /* Сообщаем об изменнении параметров и необходимости перерисовки. */
+  /* Сообщаем об изменении параметров и необходимости перерисовки. */
   hyscan_gtk_map_tiled_set_param_mod (priv->tiled_layer);
   hyscan_gtk_map_tiled_request_draw (priv->tiled_layer);
 
@@ -855,8 +855,6 @@ hyscan_gtk_map_track_item_load_length_by_idx (HyScanGtkMapTrackItem     *track,
   point->nr_length_m = side->near_field > depth ? sqrt (side->near_field * side->near_field - depth * depth) : 0.0;
   point->nr_length_m = MIN (point->nr_length_m, point->b_length_m);
 
-
-
   HyScanGtkMapTrackQuality section;
   GArray *sections;
   if (priv->n_sections == 0)
@@ -889,8 +887,7 @@ hyscan_gtk_map_track_item_load_length_by_idx (HyScanGtkMapTrackItem     *track,
   else
     {
       guint i;
-      guint max_quality = 255;
-      guint cur_value = max_quality + 1;
+      gboolean cur_value = FALSE;
 
       if (side->quality == NULL)
         return;
@@ -904,7 +901,7 @@ hyscan_gtk_map_track_item_load_length_by_idx (HyScanGtkMapTrackItem     *track,
       sections = g_array_new (FALSE, FALSE, sizeof (HyScanGtkMapTrackQuality));
       for (i = 0; i < priv->n_sections; i++)
         {
-          guint ivalue = priv->buff_values[i] * max_quality;
+          gboolean ivalue = (priv->buff_values[i] > priv->quality);
           if (cur_value == ivalue)
             continue;
 
@@ -912,7 +909,7 @@ hyscan_gtk_map_track_item_load_length_by_idx (HyScanGtkMapTrackItem     *track,
             continue;
 
           cur_value = ivalue;
-          section.quality = (gdouble) cur_value / max_quality;
+          section.quality = cur_value;
           section.start = length / point->b_length_m;
           g_array_append_val (sections, section);
         }

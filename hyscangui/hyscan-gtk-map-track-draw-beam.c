@@ -140,7 +140,7 @@ hyscan_gtk_map_track_draw_beam_side (HyScanGtkMapTrackDrawBeam *beam,
   cairo_save (cairo);
 
   /* Делаем не наложение цвета, а замену (это сохранит полупрозрачность цвета при наложении изображений). */
-  cairo_set_operator (cairo, CAIRO_OPERATOR_LIGHTEN);
+  cairo_set_operator (cairo, CAIRO_OPERATOR_SOURCE);
   gdk_cairo_set_source_rgba (cairo, &priv->color);
 
   /* Чтобы соседние полосы точно совпадали, убираем сглаживание. */
@@ -177,6 +177,9 @@ hyscan_gtk_map_track_draw_beam_side (HyScanGtkMapTrackDrawBeam *beam,
           gdouble s0 = section->start;
           gdouble s1 = point->quality[i + 1].start;
 
+          if (section->quality == 0.0)
+            continue;
+
           /* Ближняя зона. */
           if (s0 < nr_part)
             {
@@ -191,7 +194,6 @@ hyscan_gtk_map_track_draw_beam_side (HyScanGtkMapTrackDrawBeam *beam,
               cairo_move_to (cairo, pt_nr[0].x, pt_nr[0].y);
               cairo_line_to (cairo, pt_nr[1].x, pt_nr[1].y);
               cairo_set_line_width (cairo, point->aperture / scale);
-              cairo_set_source_rgb (cairo, section->quality, 0.0, 0.0);
               cairo_stroke (cairo);
             }
 
@@ -215,7 +217,6 @@ hyscan_gtk_map_track_draw_beam_side (HyScanGtkMapTrackDrawBeam *beam,
               cairo_line_to (cairo, pt_fr[2].x, pt_fr[2].y);
               cairo_line_to (cairo, pt_fr[3].x, pt_fr[3].y);
               cairo_close_path (cairo);
-              cairo_set_source_rgb (cairo, section->quality, 0.0, 0.0);
               cairo_fill (cairo);
             }
         }
