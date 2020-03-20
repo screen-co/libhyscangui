@@ -140,7 +140,7 @@ hyscan_gtk_map_track_draw_beam_side (HyScanGtkMapTrackDrawBeam *beam,
   cairo_save (cairo);
 
   /* Делаем не наложение цвета, а замену (это сохранит полупрозрачность цвета при наложении изображений). */
-  cairo_set_operator (cairo, CAIRO_OPERATOR_SOURCE);
+  cairo_set_operator (cairo, CAIRO_OPERATOR_LIGHTEN);
   gdk_cairo_set_source_rgba (cairo, &priv->color);
 
   /* Чтобы соседние полосы точно совпадали, убираем сглаживание. */
@@ -148,9 +148,11 @@ hyscan_gtk_map_track_draw_beam_side (HyScanGtkMapTrackDrawBeam *beam,
 
   for (point_l = points; point_l != NULL; point_l = point_l->next)
     {
+      gdouble nr_part, dx1, dy1, dx2, dy2, dx_nf, dy_nf;
+
       point = point_l->data;
 
-      if (point->b_dist <= 0)
+      if (point->b_dist <= 0 || point->quality_len == 0)
         continue;
 
       if (g_cancellable_is_cancelled (cancellable))
@@ -162,18 +164,61 @@ hyscan_gtk_map_track_draw_beam_side (HyScanGtkMapTrackDrawBeam *beam,
       hyscan_gtk_map_track_draw_scale (&point->fr2_c2d, from, to, scale, &ff2);
       hyscan_gtk_map_track_draw_scale (&point->nr_c2d, from, to, scale, &nf);
 
-      /* Дальняя зона. */
-      cairo_move_to (cairo, start.x, start.y);
-      cairo_line_to (cairo, ff1.x, ff1.y);
-      cairo_line_to (cairo, ff2.x, ff2.y);
-      cairo_close_path (cairo);
-      cairo_fill (cairo);
+      nr_part = point->nr_length_m / point->b_length_m;
+      dx1 = ff1.x - start.x;
+      dy1 = ff1.y - start.y;
+      dx2 = ff2.x - start.x;
+      dy2 = ff2.y - start.y;
+      dx_nf = (nf.x - start.x) / nr_part;
+      dy_nf = (nf.y - start.y) / nr_part;
+      for (guint i = 0; i < point->quality_len - 1; i++)
+        {
+          HyScanGtkMapTrackQuality *section = &point->quality[i];
+          gdouble s0 = section->start;
+          gdouble s1 = point->quality[i + 1].start;
 
-      /* Ближняя зона. */
-      cairo_move_to (cairo, start.x, start.y);
-      cairo_line_to (cairo, nf.x, nf.y);
-      cairo_set_line_width (cairo, point->aperture / scale);
-      cairo_stroke (cairo);
+          /* Ближняя зона. */
+          if (s0 < nr_part)
+            {
+              HyScanGeoCartesian2D pt_nr[2];
+              gdouble nr0 = s0, nr1 = MIN (nr_part, s1);
+
+              pt_nr[0].x = start.x + nr0 * dx_nf;
+              pt_nr[0].y = start.y + nr0 * dy_nf;
+              pt_nr[1].x = start.x + nr1 * dx_nf;
+              pt_nr[1].y = start.y + nr1 * dy_nf;
+
+              cairo_move_to (cairo, pt_nr[0].x, pt_nr[0].y);
+              cairo_line_to (cairo, pt_nr[1].x, pt_nr[1].y);
+              cairo_set_line_width (cairo, point->aperture / scale);
+              cairo_set_source_rgb (cairo, section->quality, 0.0, 0.0);
+              cairo_stroke (cairo);
+            }
+
+          /* Дальняя зона. */
+          if (s1 > nr_part)
+            {
+              HyScanGeoCartesian2D pt_fr[4];
+              gdouble fr0 = MAX (s0, nr_part), fr1 = s1;
+
+              pt_fr[0].x = start.x + fr0 * dx1;
+              pt_fr[0].y = start.y + fr0 * dy1;
+              pt_fr[1].x = start.x + fr1 * dx1;
+              pt_fr[1].y = start.y + fr1 * dy1;
+              pt_fr[2].x = start.x + fr1 * dx2;
+              pt_fr[2].y = start.y + fr1 * dy2;
+              pt_fr[3].x = start.x + fr0 * dx2;
+              pt_fr[3].y = start.y + fr0 * dy2;
+
+              cairo_move_to (cairo, pt_fr[0].x, pt_fr[0].y);
+              cairo_line_to (cairo, pt_fr[1].x, pt_fr[1].y);
+              cairo_line_to (cairo, pt_fr[2].x, pt_fr[2].y);
+              cairo_line_to (cairo, pt_fr[3].x, pt_fr[3].y);
+              cairo_close_path (cairo);
+              cairo_set_source_rgb (cairo, section->quality, 0.0, 0.0);
+              cairo_fill (cairo);
+            }
+        }
     }
 
   cairo_restore (cairo);
@@ -185,12 +230,13 @@ hyscan_gtk_map_track_draw_beam_draw_region (HyScanGtkMapTrackDraw     *track_dra
                                             cairo_t                   *cairo,
                                             gdouble                    scale,
                                             HyScanGeoCartesian2D      *from,
-                                            HyScanGeoCartesian2D      *to)
+                                            HyScanGeoCartesian2D      *to,
+                                            GCancellable              *cancellable)
 {
   HyScanGtkMapTrackDrawBeam *beam = HYSCAN_GTK_MAP_TRACK_DRAW_BEAM (track_draw);
 
-  hyscan_gtk_map_track_draw_beam_side (beam, from, to, scale, data->port, cairo);
-  hyscan_gtk_map_track_draw_beam_side (beam, from, to, scale, data->starboard, cairo);
+  hyscan_gtk_map_track_draw_beam_side (beam, from, to, scale, data->port, cairo, cancellable);
+  hyscan_gtk_map_track_draw_beam_side (beam, from, to, scale, data->starboard, cairo, cancellable);
 }
 
 static HyScanParam *

@@ -150,8 +150,11 @@ hyscan_gtk_map_track_draw_scale (HyScanGeoCartesian2D *global,
 void
 hyscan_gtk_map_track_point_free (HyScanGtkMapTrackPoint *point)
 {
-  if (point != NULL)
-    g_slice_free (HyScanGtkMapTrackPoint, point);
+  if (point == NULL)
+    return;
+
+  g_free (point->quality);
+  g_slice_free (HyScanGtkMapTrackPoint, point);
 }
 
 /**

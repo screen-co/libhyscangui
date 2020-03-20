@@ -121,6 +121,7 @@ typedef struct
   HyScanAmplitude                *amplitude;         /* Амплитудные данные трека. */
   HyScanQuality                  *quality;           /* Объект для определения качества данных. */
   HyScanProjector                *projector;         /* Сопоставления индексов и отсчётов реальным координатам. */
+  HyScanDataEstimator            *estimator;         /* Оценка качества данных по отношению сигнал / шум. */
 
   gdouble                         antenna_length;    /* Длина антенны. */
   gdouble                         beam_width;        /* Ширина луча, радианы. */
@@ -177,6 +178,9 @@ struct _HyScanGtkMapTrackItemPrivate
 
   HyScanGeoCartesian2D            extent_from;       /* Минимальные координаты точек галса. */
   HyScanGeoCartesian2D            extent_to;         /* Максимальные координаты точек галса. */
+  gint                            n_sections;
+  guint32 *buff_counts;
+  gdouble *buff_values;
 };
 
 static void     hyscan_gtk_map_track_item_interface_init      (HyScanParamInterface      *iface);
@@ -186,6 +190,7 @@ static void     hyscan_gtk_map_track_item_set_property        (GObject          
                                                                GParamSpec                *pspec);
 static void     hyscan_gtk_map_track_item_object_constructed  (GObject                   *object);
 static void     hyscan_gtk_map_track_item_object_finalize     (GObject                   *object);
+static void     hyscan_gtk_map_track_side_clear               (HyScanGtkMapTrackItemSide *side);
 static void     hyscan_gtk_map_track_item_schema_build        (HyScanGtkMapTrackItem     *track);
 static void     hyscan_gtk_map_track_item_set_channel         (HyScanGtkMapTrackItem     *track,
                                                                guint                      channel,
@@ -331,6 +336,10 @@ hyscan_gtk_map_track_item_object_constructed (GObject *object)
   g_rw_lock_init (&priv->lock);
   g_mutex_init (&priv->mutex);
 
+  priv->n_sections = 200;
+  priv->buff_counts = g_malloc0 (sizeof (*priv->buff_counts) * priv->n_sections);
+  priv->buff_values = g_malloc0 (sizeof (*priv->buff_values) * priv->n_sections);
+
   /* Область, в которой находится галс. */
   hyscan_gtk_map_track_item_reset_extent (priv);
 
@@ -359,13 +368,11 @@ hyscan_gtk_map_track_item_object_finalize (GObject *object)
 
   g_free (priv->project);
   g_free (priv->name);
+  g_free (priv->buff_counts);
+  g_free (priv->buff_values);
 
-  g_clear_object (&priv->port.amplitude);
-  g_clear_object (&priv->port.quality);
-  g_clear_object (&priv->port.projector);
-  g_clear_object (&priv->starboard.amplitude);
-  g_clear_object (&priv->starboard.quality);
-  g_clear_object (&priv->starboard.projector);
+  hyscan_gtk_map_track_side_clear (&priv->port);
+  hyscan_gtk_map_track_side_clear (&priv->starboard);
 
   g_clear_object (&priv->depth.meter);
   g_clear_object (&priv->nav.lat_data);
@@ -383,6 +390,15 @@ hyscan_gtk_map_track_item_object_finalize (GObject *object)
   g_list_free_full (priv->starboard.points, (GDestroyNotify) hyscan_gtk_map_track_point_free);
 
   G_OBJECT_CLASS (hyscan_gtk_map_track_item_parent_class)->finalize (object);
+}
+
+static void
+hyscan_gtk_map_track_side_clear (HyScanGtkMapTrackItemSide *side)
+{
+  g_clear_object (&side->estimator);
+  g_clear_object (&side->amplitude);
+  g_clear_object (&side->quality);
+  g_clear_object (&side->projector);
 }
 
 /* Реализация HyScanParamInterface.get.
@@ -826,11 +842,11 @@ hyscan_gtk_map_track_item_load_length_by_idx (HyScanGtkMapTrackItem     *track,
     }
   depth -= amp_offset->vertical;
 
-  /* Используем дальность, в пределах которой достигнуто необходимое качество. */
-   count = hyscan_gtk_map_track_item_get_counts (side, priv->quality, point->index, n_points);
+  // /* Используем дальность, в пределах которой достигнуто необходимое качество. */
+  //  count = hyscan_gtk_map_track_item_get_counts (side, priv->quality, point->index, n_points);
 
   /* Проекция дальности. */
-  if (hyscan_projector_count_to_coord (side->projector, count, &length, depth))
+  if (hyscan_projector_count_to_coord (side->projector, n_points, &length, depth))
     point->b_length_m = length;
   else
     point->b_length_m = 0;
@@ -838,6 +854,78 @@ hyscan_gtk_map_track_item_load_length_by_idx (HyScanGtkMapTrackItem     *track,
   /* Проекция ближней зоны. */
   point->nr_length_m = side->near_field > depth ? sqrt (side->near_field * side->near_field - depth * depth) : 0.0;
   point->nr_length_m = MIN (point->nr_length_m, point->b_length_m);
+
+
+
+  HyScanGtkMapTrackQuality section;
+  GArray *sections;
+  if (priv->n_sections == 0)
+    {
+      guint i;
+      guint max_quality = 10;
+      guint cur_value = max_quality + 1;
+
+      const guint32 *quality;
+      hyscan_data_estimator_set_max_quality (side->estimator, max_quality);
+      quality = hyscan_data_estimator_get_acust_quality (side->estimator, point->index, &n_points);
+      if (quality == NULL)
+        return;
+
+      sections = g_array_new (FALSE, FALSE, sizeof (HyScanGtkMapTrackQuality));
+      for (i = 0; i < n_points; i++)
+        {
+          if (cur_value == quality[i])
+            continue;
+
+          if (!hyscan_projector_count_to_coord (side->projector, i, &length, depth))
+            continue;
+
+          cur_value = quality[i];
+          section.quality = (gdouble) quality[i] / max_quality;
+          section.start = length / point->b_length_m;
+          g_array_append_val (sections, section);
+        }
+    }
+  else
+    {
+      guint i;
+      guint max_quality = 255;
+      guint cur_value = max_quality + 1;
+
+      if (side->quality == NULL)
+        return;
+
+      for (i = 0; i < priv->n_sections; i++)
+        priv->buff_counts[i] = (i + 1) * n_points / (priv->n_sections + 1);
+
+      if (!hyscan_quality_get_values (side->quality, point->index, priv->buff_counts, priv->buff_values, priv->n_sections))
+        return;
+
+      sections = g_array_new (FALSE, FALSE, sizeof (HyScanGtkMapTrackQuality));
+      for (i = 0; i < priv->n_sections; i++)
+        {
+          guint ivalue = priv->buff_values[i] * max_quality;
+          if (cur_value == ivalue)
+            continue;
+
+          if (!hyscan_projector_count_to_coord (side->projector, priv->buff_counts[i], &length, depth))
+            continue;
+
+          cur_value = ivalue;
+          section.quality = (gdouble) cur_value / max_quality;
+          section.start = length / point->b_length_m;
+          g_array_append_val (sections, section);
+        }
+    }
+
+  /* Последний отрезок. */
+  section.quality = 0.0;
+  section.start = 1.0;
+  g_array_append_val (sections, section);
+
+  point->quality_len = sections->len;
+  point->quality = (HyScanGtkMapTrackQuality *) g_array_free (sections, FALSE);
+
 }
 
 /* Определяет, находится ли точка на прямолинейном отрезке. */
@@ -1258,29 +1346,33 @@ hyscan_gtk_map_track_item_open_side (HyScanGtkMapTrackItemPrivate *priv,
                                      HyScanGtkMapTrackItemSide    *side,
                                      HyScanSourceType              source)
 {
+  HyScanAcousticData *signal, *noise;
   HyScanAcousticDataInfo info;
   gdouble lambda;
   guint channel = side->channel;
 
   /* Удаляем текущие объекты. */
-  g_clear_object (&side->amplitude);
-  g_clear_object (&side->quality);
-  g_clear_object (&side->projector);
+  hyscan_gtk_map_track_side_clear (side);
   side->writeable = FALSE;
 
   if (channel == 0)
     return;
 
-  side->amplitude = HYSCAN_AMPLITUDE (hyscan_acoustic_data_new (priv->db, priv->cache, priv->project,
-                                                                          priv->name, source, channel, FALSE));
-  if (side->amplitude == NULL)
+  signal = hyscan_acoustic_data_new (priv->db, priv->cache, priv->project, priv->name, source, channel, FALSE);
+  noise = hyscan_acoustic_data_new (priv->db, priv->cache, priv->project, priv->name, source, channel, TRUE);
+
+  if (signal == NULL || noise == NULL)
     {
+      g_clear_object (&signal);
+      g_clear_object (&noise);
       g_warning ("HyScanGtkMapTrackItem: failed to open acoustic data");
       return;
     }
 
+  side->amplitude = HYSCAN_AMPLITUDE (g_object_ref (signal));
+  side->estimator = hyscan_data_estimator_new (signal, noise, priv->nav.trk_data);
   side->writeable = hyscan_amplitude_is_writable (side->amplitude);
-  side->quality = hyscan_quality_new (side->amplitude, priv->nav.trk_data);
+  side->quality = hyscan_quality_new_estimator (side->estimator);
   side->projector = hyscan_projector_new (side->amplitude);
   side->offset = hyscan_amplitude_get_offset (side->amplitude);
 
@@ -1290,6 +1382,9 @@ hyscan_gtk_map_track_item_open_side (HyScanGtkMapTrackItemPrivate *priv,
   side->antenna_length = info.antenna_haperture > 0 ? info.antenna_haperture : DEFAULT_HAPERTURE;
   side->beam_width = asin (lambda / side->antenna_length);
   side->near_field = (side->antenna_length * side->antenna_length) / lambda;
+
+  g_object_unref (signal);
+  g_object_unref (noise);
 }
 
 static void

@@ -407,6 +407,7 @@ hyscan_gtk_map_track_watcher (gpointer data)
       /* Загружаем новые данные из каждого галса и запоминаем, есть ли изменения.. */
       any_changes = FALSE;
       g_hash_table_iter_init (&iter, priv->tracks);
+      // todo: тут какая-то ошибка - видимо, кто-то параллельно меняет хэш таблицу
       while (!any_changes && g_hash_table_iter_next (&iter, (gpointer *) &key, (gpointer *) &track))
         any_changes = hyscan_gtk_map_track_item_update (track);
 

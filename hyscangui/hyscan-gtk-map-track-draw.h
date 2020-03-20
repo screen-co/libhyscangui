@@ -51,6 +51,7 @@ typedef struct _HyScanGtkMapTrackDraw HyScanGtkMapTrackDraw;
 typedef struct _HyScanGtkMapTrackDrawInterface HyScanGtkMapTrackDrawInterface;
 typedef struct _HyScanGtkMapTrackDrawData HyScanGtkMapTrackDrawData;
 typedef struct _HyScanGtkMapTrackPoint HyScanGtkMapTrackPoint;
+typedef struct _HyScanGtkMapTrackQuality HyScanGtkMapTrackQuality;
 typedef enum _HyScanGtkMapTrackDrawSource HyScanGtkMapTrackDrawSource;
 
 /**
@@ -87,6 +88,12 @@ struct _HyScanGtkMapTrackDrawData
   HyScanGeoCartesian2D    to;
 };
 
+struct _HyScanGtkMapTrackQuality
+{
+  gdouble start;
+  gdouble quality;
+};
+
 /**
  * HyScanGtkMapTrackPoint:
  * @source: источник данных
@@ -107,6 +114,7 @@ struct _HyScanGtkMapTrackDrawData
  * @dist_along: расстояние от начала галса до текущей точки вдоль линии галса, ед. проекции
  * @b_dist: длина луча, ед. проекции
  * @straight: признак того, что точка находится на относительно прямолинейном участке
+ * @quality: (element-type: HyScanGtkMapTrackQuality) (array-length=quality_len): отрезки луча, разбитые по качеству
  *
  * Информация о точке на галсе, соответствующая данным по индексу @index из источника @source.
  * Положение судна, антенна гидролокатора, характерные точки диаграммы направленности указаны
@@ -135,6 +143,8 @@ struct _HyScanGtkMapTrackPoint
   gdouble                         dist_along;
   gdouble                         b_dist;
   gboolean                        straight;
+  HyScanGtkMapTrackQuality       *quality;
+  guint                           quality_len;
 };
 
 /**
