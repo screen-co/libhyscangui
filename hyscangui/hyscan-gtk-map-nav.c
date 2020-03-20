@@ -172,7 +172,8 @@ static void              hyscan_gtk_map_nav_model_changed           (HyScanGtkMa
                                                                     HyScanNavStateData             *data);
 static void              hyscan_gtk_map_nav_point_free              (HyScanGtkMapNavPoint          *point);
 static void              hyscan_gtk_map_nav_fill_tile               (HyScanGtkMapTiled             *tiled_layer,
-                                                                     HyScanMapTile                 *tile);
+                                                                     HyScanMapTile                 *tile,
+                                                                     GCancellable                  *cancellable);
 
 static HyScanGtkLayerInterface *hyscan_gtk_layer_parent_interface = NULL;
 
@@ -712,7 +713,8 @@ hyscan_gtk_map_nav_draw_region (HyScanGtkMapNav *nav_layer,
 /* Заполняет поверхность тайла. Возвращает номер состояния трека на момент рисования */
 static void
 hyscan_gtk_map_nav_fill_tile (HyScanGtkMapTiled *tiled_layer,
-                              HyScanMapTile     *tile)
+                              HyScanMapTile     *tile,
+                              GCancellable      *cancellable)
 {
   HyScanGtkMapNav *nav_layer = HYSCAN_GTK_MAP_NAV (tiled_layer);
   cairo_t *tile_cairo;

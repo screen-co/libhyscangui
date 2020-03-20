@@ -84,7 +84,8 @@ hyscan_gtk_map_track_draw_region (HyScanGtkMapTrackDraw     *track_draw,
                                   cairo_t                   *cairo,
                                   gdouble                    scale,
                                   HyScanGeoCartesian2D      *from,
-                                  HyScanGeoCartesian2D      *to)
+                                  HyScanGeoCartesian2D      *to,
+                                  GCancellable              *cancellable)
 {
   HyScanGtkMapTrackDrawInterface *iface;
 
@@ -92,7 +93,7 @@ hyscan_gtk_map_track_draw_region (HyScanGtkMapTrackDraw     *track_draw,
 
   iface = HYSCAN_GTK_MAP_TRACK_DRAW_GET_IFACE (track_draw);
   if (iface->draw_region != NULL)
-    (* iface->draw_region) (track_draw, data, cairo, scale, from, to);
+    (* iface->draw_region) (track_draw, data, cairo, scale, from, to, cancellable);
 }
 
 /**

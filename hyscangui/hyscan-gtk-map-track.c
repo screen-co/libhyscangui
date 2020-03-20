@@ -114,7 +114,8 @@ static void     hyscan_gtk_map_track_set_property                 (GObject      
 static void     hyscan_gtk_map_track_object_constructed           (GObject                     *object);
 static void     hyscan_gtk_map_track_object_finalize              (GObject                     *object);
 static void     hyscan_gtk_map_track_fill_tile                    (HyScanGtkMapTiled           *tiled_layer,
-                                                                   HyScanMapTile               *tile);
+                                                                   HyScanMapTile               *tile,
+                                                                   GCancellable                *cancellable);
 static void     hyscan_gtk_map_track_param_set                    (HyScanGtkLayer              *gtk_layer);
 static HyScanGtkMapTrackItem * hyscan_gtk_map_track_get_track     (HyScanGtkMapTrack           *track_layer,
                                                                    const gchar                 *track_name,
@@ -245,7 +246,8 @@ hyscan_gtk_map_track_object_finalize (GObject *object)
 /* Функция рисует на тайле все активные галсы. */
 static void
 hyscan_gtk_map_track_fill_tile (HyScanGtkMapTiled *tiled_layer,
-                                HyScanMapTile     *tile)
+                                HyScanMapTile     *tile,
+                                GCancellable      *cancellable)
 {
   HyScanGtkMapTrack *track_layer = HYSCAN_GTK_MAP_TRACK (tiled_layer);
   HyScanGtkMapTrackPrivate *priv = track_layer->priv;
@@ -295,9 +297,12 @@ hyscan_gtk_map_track_fill_tile (HyScanGtkMapTiled *tiled_layer,
 
       /* Рисуем галс только в том случае, если он лежит внутри тайла. */
       if (!(data.to.x < min.x || data.from.x > max.x || data.to.y < min.y || data.from.y > max.y))
-        hyscan_gtk_map_track_draw_region (track_draw, &data, cairo, scale, &from, &to);
+        hyscan_gtk_map_track_draw_region (track_draw, &data, cairo, scale, &from, &to, cancellable);
 
       hyscan_gtk_map_track_item_points_unlock (track);
+
+      if (g_cancellable_is_cancelled (cancellable))
+        break;
     }
   g_strfreev (active_tracks);
 

@@ -284,7 +284,8 @@ hyscan_gtk_map_track_draw_bar_draw_region (HyScanGtkMapTrackDraw      *track_dra
                                            cairo_t                    *cairo,
                                            gdouble                     scale,
                                            HyScanGeoCartesian2D       *from,
-                                           HyScanGeoCartesian2D       *to)
+                                           HyScanGeoCartesian2D       *to,
+                                           GCancellable               *cancellable)
 {
   HyScanGtkMapTrackDrawBar *draw_bar = HYSCAN_GTK_MAP_TRACK_DRAW_BAR (track_draw);
   HyScanGtkMapTrackDrawBarPrivate *priv = draw_bar->priv;

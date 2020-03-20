@@ -64,7 +64,8 @@ static void    hyscan_gtk_map_track_draw_beam_side                     (HyScanGt
                                                                         HyScanGeoCartesian2D           *to,
                                                                         gdouble                         scale,
                                                                         GList                          *points,
-                                                                        cairo_t                        *cairo);
+                                                                        cairo_t                        *cairo,
+                                                                        GCancellable                   *cancellable);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapTrackDrawBeam, hyscan_gtk_map_track_draw_beam, G_TYPE_OBJECT,
                          G_ADD_PRIVATE (HyScanGtkMapTrackDrawBeam)
@@ -125,7 +126,8 @@ hyscan_gtk_map_track_draw_beam_side (HyScanGtkMapTrackDrawBeam *beam,
                                      HyScanGeoCartesian2D      *to,
                                      gdouble                    scale,
                                      GList                     *points,
-                                     cairo_t                   *cairo)
+                                     cairo_t                   *cairo,
+                                     GCancellable              *cancellable)
 {
   HyScanGtkMapTrackDrawBeamPrivate *priv = beam->priv;
   GList *point_l;
@@ -150,6 +152,9 @@ hyscan_gtk_map_track_draw_beam_side (HyScanGtkMapTrackDrawBeam *beam,
 
       if (point->b_dist <= 0)
         continue;
+
+      if (g_cancellable_is_cancelled (cancellable))
+        break;
 
       /* Координаты точки на поверхности cairo. */
       hyscan_gtk_map_track_draw_scale (&point->start_c2d, from, to, scale, &start);

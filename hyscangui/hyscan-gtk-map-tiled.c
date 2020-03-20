@@ -272,7 +272,8 @@ hyscan_gtk_map_tiled_proj_notify (HyScanGtkMapTiled *tiled_layer,
 
 static void
 hyscan_gtk_map_tiled_fill_tile (HyScanGtkMapTiled *tiled_layer,
-                                HyScanMapTile     *tile)
+                                HyScanMapTile     *tile,
+                                GCancellable      *cancellable)
 {
   HyScanGtkMapTiledClass *klass = HYSCAN_GTK_MAP_TILED_GET_CLASS (tiled_layer);
 
@@ -282,7 +283,7 @@ hyscan_gtk_map_tiled_fill_tile (HyScanGtkMapTiled *tiled_layer,
   GTimer *timer = g_timer_new ();
 #endif
 
-  klass->fill_tile (tiled_layer, tile);
+  klass->fill_tile (tiled_layer, tile, cancellable);
 
 #ifdef DEBUG_TILES
   {
@@ -432,7 +433,12 @@ hyscan_gtk_map_tiled_process (GObject      *task,
   /* Заполняет тайл и помещаем его в кэш. */
   param_mod_count = g_atomic_int_get (&priv->param_mod_count);
   mod_count = g_atomic_int_get (&priv->mod_count);
-  hyscan_gtk_map_tiled_fill_tile (tiled_layer, tile);
+  hyscan_gtk_map_tiled_fill_tile (tiled_layer, tile, cancellable);
+
+  /* Задача отменена, в кэш не кладём. */
+  if (g_cancellable_is_cancelled (cancellable))
+    return;
+
   hyscan_gtk_map_tiled_cache_set (tiled_layer, tile, mod_count, param_mod_count);
 
   /* Просим перерисовать. */

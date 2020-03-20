@@ -38,6 +38,7 @@
 #include <hyscan-geo.h>
 #include <cairo.h>
 #include <hyscan-param.h>
+#include <gio/gio.h>
 
 G_BEGIN_DECLS
 
@@ -107,7 +108,7 @@ struct _HyScanGtkMapTrackDrawData
  * @b_dist: длина луча, ед. проекции
  * @straight: признак того, что точка находится на относительно прямолинейном участке
  *
- * Информация о точке на галсе, соотвествующая данным по индексу @index из источника @source.
+ * Информация о точке на галсе, соответствующая данным по индексу @index из источника @source.
  * Положение судна, антенна гидролокатора, характерные точки диаграммы направленности указаны
  * в координатах картографической проекции.
  *
@@ -153,7 +154,8 @@ struct _HyScanGtkMapTrackDrawInterface
                                                       cairo_t                    *cairo,
                                                       gdouble                     scale,
                                                       HyScanGeoCartesian2D       *from,
-                                                      HyScanGeoCartesian2D       *to);
+                                                      HyScanGeoCartesian2D       *to,
+                                                      GCancellable               *cancellable);
 };
 
 HYSCAN_API
@@ -165,7 +167,8 @@ void                     hyscan_gtk_map_track_draw_region                    (Hy
                                                                               cairo_t                      *cairo,
                                                                               gdouble                       scale,
                                                                               HyScanGeoCartesian2D         *from,
-                                                                              HyScanGeoCartesian2D         *to);
+                                                                              HyScanGeoCartesian2D         *to,
+                                                                              GCancellable                 *cancellable);
 
 HYSCAN_API
 HyScanParam *            hyscan_gtk_map_track_draw_get_param                 (HyScanGtkMapTrackDraw        *track_draw);
