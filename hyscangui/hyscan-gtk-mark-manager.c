@@ -179,6 +179,9 @@ static void         hyscan_mark_manager_expand_item               (HyScanMarkMan
 
 static void         hyscan_mark_manager_collapse_item             (HyScanMarkManager     *self);
 
+static void         hyscan_mark_manager_expand_collapse_item      (HyScanMarkManager     *self,
+                                                                   gboolean               expanded);
+
 static GtkTreeIter* hyscan_mark_manager_find_item                 (GtkTreeModel          *model,
                                                                    const gchar           *id);
 
@@ -867,64 +870,8 @@ hyscan_mark_manager_item_expanded (HyScanMarkManager *self,
 void
 hyscan_mark_manager_expand_item (HyScanMarkManager *self)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;
-  ModelManagerObjectType type;
-
   g_print ("EXPANDING SIGNAL FROM MODEL MANAGER CATHCED\n");
-
-  g_print ("***\n");
-  for (type = LABEL; type < TYPES; type++)
-    {
-      gchar **list = hyscan_model_manager_get_expanded_items (priv->model_manager, type, TRUE);
-
-      if (list != NULL)
-        {
-          gint i;
-
-          switch (type)
-            {
-            case LABEL:
-              g_print ("Labels:\n");
-              break;
-            case GEO_MARK:
-              g_print ("Geo-marks:\n");
-              break;
-            case ACOUSTIC_MARK:
-              g_print ("Acoustic marks:\n");
-              break;
-            case TRACK:
-              g_print ("Tracks:\n");
-              break;
-            default:
-              g_print ("Unknown objects:\n");
-              break;
-            }
-
-          for (i = 0; list[i] != NULL; i++)
-            {
-              GtkTreeModel *model = hyscan_model_manager_get_view_model (priv->model_manager);
-              GtkTreeIter  *iter  = hyscan_mark_manager_find_item (model, list[i]);
-
-              if (iter != NULL)
-                {
-                  GtkTreePath *path = gtk_tree_model_get_path (model, iter);
-
-                  g_print ("Item #%i: %s\nPath: %s\n", i + 1, list[i], gtk_tree_path_to_string (path));
-
-                  hyscan_mark_manager_view_expand_path (HYSCAN_MARK_MANAGER_VIEW (priv->view), path, TRUE);
-
-                  gtk_tree_path_free (path);
-                }
-
-              g_object_unref (model);
-              if (iter != NULL)
-                gtk_tree_iter_free (iter);
-            }
-
-          g_strfreev (list);
-        }
-    }
-  g_print ("***\n");
+  hyscan_mark_manager_expand_collapse_item (self, TRUE);
 }
 
 /* Функция-обработчик сигнала о cворачивании узла древовидного представления.
@@ -932,15 +879,27 @@ hyscan_mark_manager_expand_item (HyScanMarkManager *self)
 void
 hyscan_mark_manager_collapse_item (HyScanMarkManager *self)
 {
+  g_print ("COLLAPSING SIGNAL FROM MODEL MANAGER CATHCED\n");
+  hyscan_mark_manager_expand_collapse_item (self, FALSE);
+}
+
+/* Разворачивает или сворачивает узлы древовидного
+ * представления в зависимости от заданного
+ * аргумента expanded:
+ * TRUE - разворачивает;
+ * FALSE - сворачивает.
+ * */
+void
+hyscan_mark_manager_expand_collapse_item (HyScanMarkManager *self,
+                                          gboolean           expanded)
+{
   HyScanMarkManagerPrivate *priv = self->priv;
   ModelManagerObjectType type;
-
-  g_print ("COLLAPSING SIGNAL FROM MODEL MANAGER CATHCED\n");
 
   g_print ("***\n");
   for (type = LABEL; type < TYPES; type++)
     {
-      gchar **list = hyscan_model_manager_get_expanded_items (priv->model_manager, type, FALSE);
+      gchar **list = hyscan_model_manager_get_expanded_items (priv->model_manager, type, expanded);
 
       if (list != NULL)
         {
@@ -976,13 +935,14 @@ hyscan_mark_manager_collapse_item (HyScanMarkManager *self)
 
                   g_print ("Item #%i: %s\nPath: %s\n", i + 1, list[i], gtk_tree_path_to_string (path));
 
-                  hyscan_mark_manager_view_expand_path (HYSCAN_MARK_MANAGER_VIEW (priv->view), path, FALSE);
+                  hyscan_mark_manager_view_expand_path (HYSCAN_MARK_MANAGER_VIEW (priv->view), path, expanded);
 
                   gtk_tree_path_free (path);
                 }
 
               g_object_unref (model);
-              gtk_tree_iter_free (iter);
+              if (iter != NULL)
+                gtk_tree_iter_free (iter);
             }
 
           g_strfreev (list);

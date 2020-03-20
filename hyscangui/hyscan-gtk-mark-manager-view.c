@@ -230,13 +230,13 @@ hyscan_mark_manager_view_constructed (GObject *object)
   /* Соединяем сигнал для показа подсказки с функцией-обработчиком */
   g_signal_connect (G_OBJECT (priv->tree_view), "query-tooltip",
                     G_CALLBACK (hyscan_mark_manager_view_show_tooltip), NULL);
-  /* Соединяем сигнал разворачивания строки с функцией-обработчиком. */
+  /* Соединяем сигнал разворачивания узла с функцией-обработчиком. */
   priv->signal_expanded  = g_signal_connect (G_OBJECT (priv->tree_view),
                                              "row-expanded",
                                              G_CALLBACK (hyscan_mark_manager_view_item_expanded),
                                              self);
-  /* Соединяем сигнал разворачивания строки с функцией-обработчиком. */
-  priv->signal_expanded  = g_signal_connect (G_OBJECT (priv->tree_view),
+  /* Соединяем сигнал cворачивания узла с функцией-обработчиком. */
+  priv->signal_collapsed = g_signal_connect (G_OBJECT (priv->tree_view),
                                              "row-collapsed",
                                              G_CALLBACK (hyscan_mark_manager_view_item_collapsed),
                                              self);
@@ -1048,24 +1048,31 @@ hyscan_mark_manager_view_expand_path (HyScanMarkManagerView *self,
 
   if (GTK_IS_TREE_STORE (priv->store))
     {
-      if (priv->signal_expanded != 0)
+      g_print ("Path: %s\n", gtk_tree_path_to_string (path));
+      if (expanded)
         {
-          /* Отключаем сигнал разворачивания узла древовидного представления. */
-          g_signal_handler_block (G_OBJECT (priv->tree_view), priv->signal_expanded);
-          g_print ("Path: %s\n", gtk_tree_path_to_string (path));
-          if (expanded)
+          if (priv->signal_expanded != 0)
             {
+              /* Отключаем сигнал разворачивания узла древовидного представления. */
+              g_signal_handler_block (G_OBJECT (priv->tree_view), priv->signal_expanded);
               /* Разворачиваем, если узел свёрнут. */
               if (!gtk_tree_view_row_expanded (priv->tree_view, path))
-              {
-                if (gtk_tree_view_expand_row (priv->tree_view, path, FALSE))
-                  g_print ("Has children (TRUE)\n");
-                else
-                  g_print ("Hasn't children (FALSE)\n");
-              }
+                {
+                  if (gtk_tree_view_expand_row (priv->tree_view, path, FALSE))
+                    g_print ("Has children (TRUE)\n");
+                  else
+                    g_print ("Hasn't children (FALSE)\n");
+                }
+              /* Включаем сигнал разворачивания узла древовидного представления. */
+              g_signal_handler_unblock (G_OBJECT (priv->tree_view), priv->signal_expanded);
             }
-          else
+        }
+      else
+        {
+          if (priv->signal_collapsed != 0)
             {
+              /* Отключаем сигнал сворачивания узла древовидного представления. */
+              g_signal_handler_block (G_OBJECT (priv->tree_view), priv->signal_collapsed);
               /* Сворачиваем, если узел развёрнут. */
               if (gtk_tree_view_row_expanded (priv->tree_view, path))
                 {
@@ -1074,9 +1081,9 @@ hyscan_mark_manager_view_expand_path (HyScanMarkManagerView *self,
                   else
                     g_print ("Not collapsed (FALSE)\n");
                 }
+              /* Включаем сигнал сворачивания узла древовидного представления. */
+              g_signal_handler_unblock (G_OBJECT (priv->tree_view), priv->signal_collapsed);
             }
-          /* Включаем сигнал разворачивания узла древовидного представления. */
-          g_signal_handler_unblock (G_OBJECT (priv->tree_view), priv->signal_expanded);
         }
     }
 }
