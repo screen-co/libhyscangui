@@ -95,9 +95,9 @@ static void         hyscan_mark_manager_view_item_collapsed       (GtkTreeView  
                                                                    GtkTreePath           *path,
                                                                    gpointer               user_data);
 
-static void         set_list_model                                (HyScanMarkManagerView *self);
+static void         hyscan_mark_manager_view_set_list_model       (HyScanMarkManagerView *self);
 
-static void         set_tree_model                                (HyScanMarkManagerView *self);
+static void         hyscan_mark_manager_view_set_tree_model       (HyScanMarkManagerView *self);
 
 static void         remove_column                                 (gpointer               data,
                                                                    gpointer               user_data);
@@ -268,7 +268,7 @@ hyscan_mark_manager_view_update (HyScanMarkManagerView *self)
 
           priv->tree_view = GTK_TREE_VIEW (gtk_tree_view_new_with_model (GTK_TREE_MODEL (priv->store)));
 
-          set_list_model (self);
+          hyscan_mark_manager_view_set_list_model (self);
 
           selection = gtk_tree_view_get_selection (priv->tree_view);
           /* Разрешаем множественный выбор. */
@@ -291,7 +291,7 @@ hyscan_mark_manager_view_update (HyScanMarkManagerView *self)
 
           priv->tree_view = GTK_TREE_VIEW (gtk_tree_view_new_with_model (GTK_TREE_MODEL (priv->store)));
 
-          set_tree_model (self);
+          hyscan_mark_manager_view_set_tree_model (self);
 
           selection = gtk_tree_view_get_selection (priv->tree_view);
           /* Разрешаем множественный выбор. */
@@ -687,7 +687,7 @@ hyscan_mark_manager_view_item_collapsed (GtkTreeView *tree_view,
 
 /* Функция устанавливает модель для табличного представления. */
 void
-set_list_model (HyScanMarkManagerView *self)
+hyscan_mark_manager_view_set_list_model (HyScanMarkManagerView *self)
 {
   HyScanMarkManagerViewPrivate *priv = self->priv;
   GtkTreeViewColumn *column          = gtk_tree_view_column_new();                  /* Колонка для ViewItem-а. */
@@ -801,7 +801,7 @@ set_list_model (HyScanMarkManagerView *self)
 
 /* Функция устанавливает модель для древовидного представления. */
 void
-set_tree_model (HyScanMarkManagerView *self)
+hyscan_mark_manager_view_set_tree_model (HyScanMarkManagerView *self)
 {
   HyScanMarkManagerViewPrivate *priv = self->priv;
   GtkTreeViewColumn *column          = gtk_tree_view_column_new();                  /* Колонка для ViewItem-а. */
@@ -1058,10 +1058,11 @@ hyscan_mark_manager_view_expand_path (HyScanMarkManagerView *self,
               /* Разворачиваем, если узел свёрнут. */
               if (!gtk_tree_view_row_expanded (priv->tree_view, path))
                 {
-                  if (gtk_tree_view_expand_row (priv->tree_view, path, FALSE))
+                  gtk_tree_view_expand_to_path (priv->tree_view, path);
+                  /*if (gtk_tree_view_expand_row (priv->tree_view, path, FALSE))
                     g_print ("Has children (TRUE)\n");
                   else
-                    g_print ("Hasn't children (FALSE)\n");
+                    g_print ("Hasn't children (FALSE)\n");*/
                 }
               /* Включаем сигнал разворачивания узла древовидного представления. */
               g_signal_handler_unblock (G_OBJECT (priv->tree_view), priv->signal_expanded);
@@ -1196,9 +1197,9 @@ hyscan_mark_manager_view_set_store (HyScanMarkManagerView *self,
 
   priv->store = store;
   if (GTK_IS_TREE_STORE (priv->store))
-    set_tree_model (self);
+    hyscan_mark_manager_view_set_tree_model (self);
   else if (GTK_IS_LIST_STORE (priv->store))
-    set_list_model (self);
+    hyscan_mark_manager_view_set_list_model (self);
   hyscan_mark_manager_view_update (self);
 }
 

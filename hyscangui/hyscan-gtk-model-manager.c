@@ -52,9 +52,10 @@ struct _HyScanModelManagerPrivate
                                                * представления с группировкой по типам. */
   GHashTable           *extensions[TYPES];
 
+  gchar                *current_id;           /* Идентифифкатор объекта, используется для разворачивания
+                                               * и сворачивания узлов. */
   ModelManagerGrouping  grouping;             /* Тип группировки. */
-  gboolean              expand_nodes_mode,    /* Развернуть/свернуть все узлы. */
-                        clear_model_flag;     /* Флаг очистки модели. */
+  gboolean              clear_model_flag;     /* Флаг очистки модели. */
 };
 
 /* Названия сигналов.
@@ -66,7 +67,6 @@ static const gchar *signals[] = {"wf-marks-changed",     /* Изменение �
                                  "labels-changed",       /* Изменение данных в модели групп. */
                                  "tracks-changed",       /* Изменение данных в модели галсов. */
                                  "grouping-changed",     /* Изменение типа группировки. */
-                                 "expand-mode-changed",  /* Изменение режима отображения узлов. */
                                  "view-model-updated",   /* Обновление модели представления данных. */
                                  "item-selected",        /* Выделена строка. */
                                  "item-toggled",         /* Изменено состояние чек-бокса. */
@@ -293,7 +293,6 @@ hyscan_model_manager_constructed (GObject *object)
 {
   HyScanModelManager *self = HYSCAN_MODEL_MANAGER (object);
   HyScanModelManagerPrivate *priv = self->priv;
-  /*priv->grouping = BY_LABELS;*/
   /* Модель галсов. */
   priv->track_model = hyscan_db_info_new (priv->db);
   hyscan_db_info_set_project (priv->track_model, priv->project_name);
@@ -877,8 +876,6 @@ hyscan_model_manager_refresh_labels_by_types (GtkTreeStore *store,
                           COLUMN_ACTIVE,       active,
                           COLUMN_VISIBLE,      TRUE,
                           COLUMN_LABEL,        0,
-                          /*COLUMN_CTIME,        NULL,
-                          COLUMN_MTIME,        NULL,*/
                           -1);
 
       g_hash_table_iter_init (&table_iter, labels);
@@ -907,12 +904,6 @@ hyscan_model_manager_refresh_labels_by_types (GtkTreeStore *store,
                                   COLUMN_ACTIVE,       toggled,
                                   COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->label,
-                                  /*COLUMN_CTIME,        g_date_time_format (
-                                                         g_date_time_new_from_unix_local (object->ctime),
-                                                         date_time_stamp),
-                                  COLUMN_MTIME,        g_date_time_format (
-                                                         g_date_time_new_from_unix_local (object->mtime),
-                                                         date_time_stamp),*/
                                   -1);
               /* Атрибуты группы. */
               /* Описание. */
@@ -968,7 +959,6 @@ hyscan_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
       GtkTreeIter parent_iter;
       GHashTableIter table_iter;       /* Итератор для обхода хэш-таблиц. */
       HyScanMarkGeo *object;
-      Extension *node = NULL;          /* Информация об узле. */
       gchar *id;                       /* Идентификатор для обхода хэш-таблиц (ключ). */
       gboolean active = hyscan_model_manager_is_all_toggled (extensions);
 
@@ -984,8 +974,6 @@ hyscan_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
                           COLUMN_ACTIVE,       active,
                           COLUMN_VISIBLE,      TRUE,
                           COLUMN_LABEL,        0,
-                          /*COLUMN_CTIME,        NULL,
-                          COLUMN_MTIME,        NULL,*/
                           -1);
 
       g_hash_table_iter_init (&table_iter, geo_marks);
@@ -1032,14 +1020,6 @@ hyscan_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
                                   COLUMN_ACTIVE,       toggled,
                                   COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->labels,
-                                  /*COLUMN_CTIME,        g_date_time_format (
-                                                         g_date_time_new_from_unix_local (
-                                                           object->ctime / G_TIME_SPAN_SECOND),
-                                                         date_time_stamp),
-                                  COLUMN_MTIME,        g_date_time_format (
-                                                         g_date_time_new_from_unix_local (
-                                                           object->mtime / G_TIME_SPAN_SECOND),
-                                                         date_time_stamp),*/
                                   -1);
               /* Атрибуты гео-метки. */
               /* Описание. */
@@ -1143,14 +1123,6 @@ hyscan_model_manager_refresh_geo_marks_by_labels (GtkTreeStore *store,
                                   COLUMN_ACTIVE,       toggled,
                                   COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->labels,
-                                  /*COLUMN_CTIME,        g_date_time_format (
-                                                         g_date_time_new_from_unix_local (
-                                                           object->ctime / G_TIME_SPAN_SECOND),
-                                                         date_time_stamp),
-                                  COLUMN_MTIME,        g_date_time_format (
-                                                         g_date_time_new_from_unix_local (
-                                                           object->mtime / G_TIME_SPAN_SECOND),
-                                                         date_time_stamp),*/
                                   -1);
 
               g_free (str);
@@ -1235,8 +1207,6 @@ hyscan_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
                           COLUMN_ACTIVE,       active,
                           COLUMN_VISIBLE,      TRUE,
                           COLUMN_LABEL,        0,
-                          /*COLUMN_CTIME,        NULL,
-                          COLUMN_MTIME,        NULL,*/
                           -1);
 
       g_hash_table_iter_init (&table_iter, acoustic_marks);
@@ -1288,14 +1258,6 @@ hyscan_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
                                   COLUMN_ACTIVE,       toggled,
                                   COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->labels,
-                                  /*COLUMN_CTIME,        g_date_time_format (
-                                                         g_date_time_new_from_unix_local (
-                                                           object->ctime / G_TIME_SPAN_SECOND),
-                                                         date_time_stamp),
-                                  COLUMN_MTIME,        g_date_time_format (
-                                                         g_date_time_new_from_unix_local (
-                                                           object->mtime / G_TIME_SPAN_SECOND),
-                                                         date_time_stamp),*/
                                   -1);
               /* Атрибуты акустической метки. */
               /* Описание. */
@@ -1501,14 +1463,6 @@ hyscan_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore *store,
                                   COLUMN_ACTIVE,       toggled,
                                   COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->labels,
-                                  /*COLUMN_CTIME,        g_date_time_format (
-                                                         g_date_time_new_from_unix_local (
-                                                           object->ctime / G_TIME_SPAN_SECOND),
-                                                         date_time_stamp),
-                                  COLUMN_MTIME,        g_date_time_format (
-                                                         g_date_time_new_from_unix_local (
-                                                           object->mtime / G_TIME_SPAN_SECOND),
-                                                         date_time_stamp),*/
                                   -1);
 
               g_free (str);
@@ -1690,8 +1644,6 @@ hyscan_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
                           COLUMN_ACTIVE,       active,
                           COLUMN_VISIBLE,      TRUE,
                           COLUMN_LABEL,        0,
-                          /*COLUMN_CTIME,        NULL,
-                          COLUMN_CTIME,        NULL,*/
                           -1);
 
       g_hash_table_iter_init (&table_iter, tracks);
@@ -1740,8 +1692,6 @@ hyscan_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
                                   COLUMN_VISIBLE,      TRUE,
                                   /* В структуре HyScanTrackInfo нет поля labels. */
                                   COLUMN_LABEL,        tmp,
-                                  /*COLUMN_CTIME,        ctime,
-                                  COLUMN_MTIME,        mtime,*/
                                   -1);
               /* Атрибуты группы. */
               /* Описание. */
@@ -1831,8 +1781,6 @@ hyscan_model_manager_refresh_tracks_by_labels (GtkTreeStore *store,
                                   COLUMN_ACTIVE,       toggled,
                                   COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        labels,
-                                  /*COLUMN_CTIME,        ctime,
-                                  COLUMN_MTIME,        mtime,*/
                                   -1);
 
               g_free (str);
@@ -2003,12 +1951,6 @@ hyscan_model_manager_refresh_all_items_by_labels (HyScanModelManager *self)
                               COLUMN_ACTIVE,       toggled,
                               COLUMN_VISIBLE,      TRUE,
                               COLUMN_LABEL,        label->label,
-                              /*COLUMN_CTIME,        g_date_time_format (
-                                                     g_date_time_new_from_unix_local (label->ctime),
-                                                     date_time_stamp),
-                              COLUMN_MTIME,        g_date_time_format (
-                                                     g_date_time_new_from_unix_local (label->mtime),
-                                                     date_time_stamp),*/
                               -1);
 
 
@@ -2473,7 +2415,7 @@ hyscan_model_manager_set_grouping (HyScanModelManager   *self,
       priv->grouping = grouping;
       hyscan_model_manager_update_view_model (self);
 
-      g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_GROUPING_CHANGED], 0);
+      g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_GROUPING_CHANGED ], 0);
     }
 }
 
@@ -2488,41 +2430,6 @@ hyscan_model_manager_get_grouping (HyScanModelManager   *self)
 {
   HyScanModelManagerPrivate *priv = self->priv;
   return priv->grouping;
-}
-
-/**
- * hyscan_model_manager_set_expand_nodes_mode:
- * @self: указатель на Менеджер Моделей
- * @expand_nodes_mode: отображения всех узлов.
- *                     TRUE  - развернуть все узлы,
- *                     FALSE - свернуть все узлы
- *
- * Устанавливает режим отображения всех узлов.
- */
-void
-hyscan_model_manager_set_expand_nodes_mode (HyScanModelManager *self,
-                                            gboolean            expand_nodes_mode)
-{
-  HyScanModelManagerPrivate *priv = self->priv;
-
-  priv->expand_nodes_mode = expand_nodes_mode;
-
-  g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_EXPAND_NODES_MODE_CHANGED], 0);
-}
-
-/**
- * hyscan_model_manager_get_expand_nodes_mode:
- * @self: указатель на Менеджер Моделей
- *
- * Returns: действительный режим отображения всех узлов.
- *          TRUE  - все узлы развернуты,
- *          FALSE - все узлы свернуты
- */
-gboolean
-hyscan_model_manager_get_expand_nodes_mode   (HyScanModelManager *self)
-{
-  HyScanModelManagerPrivate *priv = self->priv;
-  return priv->expand_nodes_mode;
 }
 
 /**
@@ -2781,6 +2688,10 @@ hyscan_model_manager_expand_item (HyScanModelManager *self,
         }
     }
 
+  if (priv->current_id != NULL)
+    g_free (priv->current_id);
+  priv->current_id = g_strdup (id);
+
   if (expanded)
     g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_ITEM_EXPANDED], 0);
   else
@@ -2822,4 +2733,16 @@ hyscan_model_manager_get_expanded_items (HyScanModelManager     *self,
         }
     }
   return list;
+}
+/**
+ * hyscan_model_manager_get_current_id:
+ * @self: указатель на Менеджер Моделей
+ *
+ * Returns: возвращает идентификатор текущего объекта в виде строки.
+ */
+gchar*
+hyscan_model_manager_get_current_id (HyScanModelManager *self)
+{
+  HyScanModelManagerPrivate *priv = self->priv;
+  return priv->current_id;
 }

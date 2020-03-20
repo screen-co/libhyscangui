@@ -55,8 +55,6 @@ enum
   DELETE_SELECTED,  /* Метка и подсказка для кноки "Удалить выделенное". */
   SHOW_OR_HIDE,     /* Метка для меню управления видимостью . */
   GROUPING,         /* Подсказка для выпадающего списка выбора типа представления . */
-  EXPAND_NODES,     /* Подсказка для кноки "Развернуть все узлы". */
-  COLLAPSE_NODES    /* Подсказка для кноки "Свернуть все узлы". */
 };
 
 /* Положение панели инструментов относительно виджета представления. */
@@ -71,10 +69,10 @@ typedef enum
 /* Флаги управления видимостью. */
 typedef enum
 {
-  SHOW_ALL,      /* Показать все. */
-  HIDE_ALL,      /* Скрыть все. */
-  SHOW_SELECTED, /* Показать выделенные. */
-  HIDE_SELECTED  /* Скрыть выделенные. */
+  EXPAND_ALL,    /* Развернуть все. */
+  COLLAPSE_ALL,  /* Свернуть все. */
+  TOGGLE_ALL,    /* Отметить все. */
+  UNTOGGLE_ALL   /* Снять все отметки. */
 }HyScanMarkManagerViewVisibility;
 
 struct _HyScanMarkManagerPrivate
@@ -83,28 +81,27 @@ struct _HyScanMarkManagerPrivate
 
   GtkWidget          *view,              /* Виджет представления. */
                      *delete_icon,       /* Виджет для иконки для кнопки "Удалить выделенное". */
-                     *combo;             /* Выпадающий список для выбора типа группировки. */
-  GtkToolItem        *nodes_item;        /* Развернуть/свернуть все узлы. */
+                     *combo,             /* Выпадающий список для выбора типа группировки. */
+                     *expand_all_item,   /* Пункт выпадающего меню, "Развернуть все". */
+                     *collapse_all_item; /* Пункт выпадающего меню, "Свернуть все". */
 
   GtkIconSize         icon_size;         /* Размер иконок. */
-  gulong              signal;            /* Идентификатор сигнала об изменении режима отображения всех узлов.*/
+  gulong              signal;            /* Идентификатор сигнала изменения типа группировки.*/
 };
 /* Текст пунктов выпадающего списка для выбора типа представления. */
 static gchar *view_type_text[]  = {N_("Ungrouped"),
                                    N_("By types"),
                                    N_("By labels")};
-/* Текст пунктов меню управления видимостью. */
-static gchar *visibility_text[] = {N_(/*"Show all"*/"Select all"),
-                                   N_(/*"Hide all"*/"Unselect all"),
-                                   N_(/*"Show selected"*/"Toggle all"),
-                                   N_(/*"Hide selected"*/"Untoggle all")};
+/* Текст пунктов меню. */
+static gchar *visibility_text[] = {N_("Expand all"),
+                                   N_("Collapse all"),
+                                   N_("Toggle all"),
+                                   N_("Untoggle all")};
 /* Текст меток и подсказок для элементов панели инструментов. */
 static gchar *tooltips_text[]   = {N_("Create new group"),
                                    N_("Delete selected"),
-                                   N_("Show/hide"),
-                                   N_("Grouping"),
-                                   N_("Expand"),
-                                   N_("Collapse")};
+                                   N_("Actions"),
+                                   N_("Grouping")};
 
 static void         hyscan_mark_manager_set_property              (GObject               *object,
                                                                    guint                  prop_id,
@@ -121,22 +118,19 @@ static void         hyscan_mark_manager_create_new_label          (GtkToolItem  
 static void         hyscan_mark_manager_set_grouping              (GtkComboBox           *combo,
                                                                    HyScanMarkManager     *self);
 
-static void         hyscan_mark_manager_show_nodes                (HyScanMarkManager     *self,
-                                                                   GtkToolItem           *item);
-
 static void         hyscan_mark_manager_delete_selected           (GtkToolButton         *button,
                                                                    HyScanMarkManager     *self);
 
-static void         hyscan_mark_manager_show_all                  (GtkMenuItem           *item,
+static void         hyscan_mark_manager_expand_all                (GtkMenuItem           *item,
                                                                    HyScanMarkManager     *self);
 
-static void         hyscan_mark_manager_hide_all                  (GtkMenuItem           *item,
+static void         hyscan_mark_manager_collapse_all              (GtkMenuItem           *item,
                                                                    HyScanMarkManager     *self);
 
-static void         hyscan_mark_manager_show_selected             (GtkMenuItem           *item,
+static void         hyscan_mark_manager_toggle_all                (GtkMenuItem           *item,
                                                                    HyScanMarkManager     *self);
 
-static void         hyscan_mark_manager_hide_selected             (GtkMenuItem           *item,
+static void         hyscan_mark_manager_untoggle_all              (GtkMenuItem           *item,
                                                                    HyScanMarkManager     *self);
 
 static void         hyscan_mark_manager_item_selected             (HyScanMarkManager     *self,
@@ -161,8 +155,6 @@ static void         hyscan_mark_manager_delete_label              (GtkTreeModel 
 
 static void         hyscan_mark_manager_grouping_changed          (HyScanMarkManager     *self);
 
-static void         hyscan_mark_manager_expand_nodes_mode_changed (HyScanMarkManager     *self);
-
 static void         hyscan_mark_manager_view_model_updated        (HyScanMarkManager     *self);
 
 static void         hyscan_mark_manager_scrolled_horizontal       (GtkAdjustment         *adjustment,
@@ -179,7 +171,10 @@ static void         hyscan_mark_manager_expand_item               (HyScanMarkMan
 
 static void         hyscan_mark_manager_collapse_item             (HyScanMarkManager     *self);
 
-static void         hyscan_mark_manager_expand_collapse_item      (HyScanMarkManager     *self,
+static void         hyscan_mark_manager_expand_current_item       (HyScanMarkManager     *self,
+                                                                   gboolean               expanded);
+
+static void         hyscan_mark_manager_expand_items              (HyScanMarkManager     *self,
                                                                    gboolean               expanded);
 
 static GtkTreeIter* hyscan_mark_manager_find_item                 (GtkTreeModel          *model,
@@ -188,6 +183,7 @@ static GtkTreeIter* hyscan_mark_manager_find_item                 (GtkTreeModel 
 static gboolean     hyscan_mark_manager_find_item_by_id           (GtkTreeModel          *model,
                                                                    GtkTreeIter           *iter,
                                                                    const gchar           *id);
+;
 
 static guint      hyscan_mark_manager_signals[SIGNAL_LAST] = { 0 };
 
@@ -283,15 +279,13 @@ hyscan_mark_manager_constructed (GObject *object)
   HyScanMarkManagerPrivate *priv    = self->priv;
   GtkBox       *box                 = GTK_BOX (object);   /* Контейнер для панели инструментов и представления.*/
   GtkWidget    *toolbar             = gtk_toolbar_new (); /* Панель инструментов. */
-  GtkWidget    *visibility_menu     = gtk_menu_new ();    /* Меню управления видимостью. */
+  GtkWidget    *action_menu         = gtk_menu_new ();        /* Меню действий. */
   /* Пункты меню управления видимостью. */
-  GtkWidget    *show_all_item       = gtk_menu_item_new_with_label (_(visibility_text[SHOW_ALL]));
-  GtkWidget    *hide_all_item       = gtk_menu_item_new_with_label (_(visibility_text[HIDE_ALL]));
-  GtkWidget    *show_selected_item  = gtk_menu_item_new_with_label (_(visibility_text[SHOW_SELECTED]));
-  GtkWidget    *hide_selected_item  = gtk_menu_item_new_with_label (_(visibility_text[HIDE_SELECTED]));
+  GtkWidget    *toggle_all_item     = gtk_menu_item_new_with_label (_(visibility_text[TOGGLE_ALL]));
+  GtkWidget    *untoggle_all_item   = gtk_menu_item_new_with_label (_(visibility_text[UNTOGGLE_ALL]));
   GtkToolItem  *new_label_item      = NULL;
   /* Кнопка для меню управления видимостью. */
-  GtkToolItem  *visibility_item     = NULL;
+  GtkToolItem  *action_item     = NULL;
   GtkToolItem  *separator           = gtk_separator_tool_item_new (); /* Разделитель. */
   GtkToolItem  *container           = gtk_tool_item_new (); /* Контейнер для выпадающего списка. */
   GtkTreeModel *model               = hyscan_model_manager_get_view_model (priv->model_manager);
@@ -304,12 +298,6 @@ hyscan_mark_manager_constructed (GObject *object)
                             hyscan_model_manager_get_signal_title (priv->model_manager,
                                                                    SIGNAL_GROUPING_CHANGED),
                             G_CALLBACK (hyscan_mark_manager_grouping_changed),
-                            self);
-  /* Подключаем сигнал об изменении режима отображения всех узлов.*/
-  g_signal_connect_swapped (priv->model_manager,
-                            hyscan_model_manager_get_signal_title (priv->model_manager,
-                                                                   SIGNAL_EXPAND_NODES_MODE_CHANGED),
-                            G_CALLBACK (hyscan_mark_manager_expand_nodes_mode_changed),
                             self);
   /* Подключаем сигнал об обновлении модели представления данных.*/
   g_signal_connect_swapped (priv->model_manager,
@@ -369,8 +357,8 @@ hyscan_mark_manager_constructed (GObject *object)
   new_label_item  = gtk_tool_button_new (NULL, _(tooltips_text[CREATE_NEW_GROUP]));
   gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (new_label_item), "insert-object");
   /* Кнопка для меню управления видимостью. */
-  visibility_item = gtk_menu_tool_button_new (NULL, _(tooltips_text[DELETE_SELECTED]));
-  gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (visibility_item), "edit-delete");
+  action_item = gtk_menu_tool_button_new (NULL, _(tooltips_text[DELETE_SELECTED]));
+  gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (action_item), "edit-delete");
   gtk_widget_set_tooltip_text (GTK_WIDGET (new_label_item), _(tooltips_text[CREATE_NEW_GROUP]));
   /* Обработчик нажатия кнопки "Новая группа". */
   g_signal_connect (G_OBJECT (new_label_item), "clicked",
@@ -379,37 +367,49 @@ hyscan_mark_manager_constructed (GObject *object)
   priv->delete_icon = gtk_image_new_from_icon_name ("edit-delete", priv->icon_size);
   /* Делаем неактивной кнопку "Удалить выделенное". */
   gtk_widget_set_sensitive (priv->delete_icon, FALSE);
-  gtk_tool_button_set_icon_widget (GTK_TOOL_BUTTON (visibility_item), priv->delete_icon);
+  gtk_tool_button_set_icon_widget (GTK_TOOL_BUTTON (action_item), priv->delete_icon);
   gtk_widget_set_tooltip_text (priv->delete_icon, _(tooltips_text[DELETE_SELECTED]));
+  /* Создаём пункты выпадающего меню "Развернуть все" и "Свернуть все".  */
+  priv->expand_all_item   = gtk_menu_item_new_with_label (_(visibility_text[EXPAND_ALL]));
+  priv->collapse_all_item = gtk_menu_item_new_with_label (_(visibility_text[COLLAPSE_ALL]));
+  /* Активируем текущий тип группировки. */
+  grouping = hyscan_model_manager_get_grouping (priv->model_manager);
+  /* Если представление табличное, то делаем их неактивными.*/
+  if (grouping == UNGROUPED)
+    {
+      gtk_widget_set_sensitive (priv->expand_all_item,   FALSE);
+      gtk_widget_set_sensitive (priv->collapse_all_item, FALSE);
+    }
   /* Меню управления видимостью. */
-  gtk_menu_shell_append (GTK_MENU_SHELL (visibility_menu), show_all_item);
-  gtk_menu_shell_append (GTK_MENU_SHELL (visibility_menu), hide_all_item);
-  gtk_menu_shell_append (GTK_MENU_SHELL (visibility_menu), show_selected_item);
-  gtk_menu_shell_append (GTK_MENU_SHELL (visibility_menu), hide_selected_item);
+  gtk_menu_shell_append (GTK_MENU_SHELL (action_menu), priv->expand_all_item);
+  gtk_menu_shell_append (GTK_MENU_SHELL (action_menu), priv->collapse_all_item);
+  gtk_menu_shell_append (GTK_MENU_SHELL (action_menu), toggle_all_item);
+  gtk_menu_shell_append (GTK_MENU_SHELL (action_menu), untoggle_all_item);
   /* Отображаем пункты меню управления видимостью. */
-  gtk_widget_show (show_all_item);
-  gtk_widget_show (hide_all_item);
-  gtk_widget_show (show_selected_item);
-  gtk_widget_show (hide_selected_item);
+  gtk_widget_show (priv->expand_all_item);
+  gtk_widget_show (priv->collapse_all_item);
+  gtk_widget_show (toggle_all_item);
+  gtk_widget_show (untoggle_all_item);
+
   /* Устанавливаем меню на кнопку в панели инструментов. */
-  gtk_menu_tool_button_set_menu (GTK_MENU_TOOL_BUTTON (visibility_item), visibility_menu);
-  gtk_menu_tool_button_set_arrow_tooltip_text (GTK_MENU_TOOL_BUTTON (visibility_item),
+  gtk_menu_tool_button_set_menu (GTK_MENU_TOOL_BUTTON (action_item), action_menu);
+  gtk_menu_tool_button_set_arrow_tooltip_text (GTK_MENU_TOOL_BUTTON (action_item),
                                               _(tooltips_text[SHOW_OR_HIDE]));
   /* Обработчик нажатия кнопки "Удалить выделенное" */
-  g_signal_connect (G_OBJECT (visibility_item),    "clicked",
+  g_signal_connect (G_OBJECT (action_item),             "clicked",
                     G_CALLBACK (hyscan_mark_manager_delete_selected), self);
-  /* Обработчик выбора пункта меню "Показать всё". */
-  g_signal_connect (G_OBJECT (show_all_item),      "activate",
-                    G_CALLBACK (hyscan_mark_manager_show_all),        self);
-  /* Обработчик выбора пункта меню "Скрыть всё". */
-  g_signal_connect (G_OBJECT (hide_all_item),      "activate",
-                    G_CALLBACK (hyscan_mark_manager_hide_all),        self);
-  /* Обработчик выбора пункта меню "Показать выделенное". */
-  g_signal_connect (G_OBJECT (show_selected_item), "activate",
-                    G_CALLBACK (hyscan_mark_manager_show_selected),   self);
-  /* Обработчик выбора пункта меню "Скрыть выделенное". */
-  g_signal_connect (G_OBJECT (hide_selected_item), "activate",
-                    G_CALLBACK (hyscan_mark_manager_hide_selected),   self);
+  /* Обработчик выбора пункта меню "Развернуть все". */
+  g_signal_connect (G_OBJECT (priv->expand_all_item),   "activate",
+                    G_CALLBACK (hyscan_mark_manager_expand_all),      self);
+  /* Обработчик выбора пункта меню "Свернуть все". */
+  g_signal_connect (G_OBJECT (priv->collapse_all_item), "activate",
+                    G_CALLBACK (hyscan_mark_manager_collapse_all),    self);
+  /* Обработчик выбора пункта меню "Отметить все". */
+  g_signal_connect (G_OBJECT (toggle_all_item),         "activate",
+                    G_CALLBACK (hyscan_mark_manager_toggle_all),      self);
+  /* Обработчик выбора пункта меню "Снять все отметки". */
+  g_signal_connect (G_OBJECT (untoggle_all_item),       "activate",
+                    G_CALLBACK (hyscan_mark_manager_untoggle_all),    self);
   /* Отступ. */
   /*gtk_container_set_border_width (GTK_CONTAINER (toolbar), 20);*/
   /*gtk_toolbar_set_show_arrow (GTK_TOOLBAR (toolbar), TRUE);*/
@@ -420,32 +420,17 @@ hyscan_mark_manager_constructed (GObject *object)
       gtk_combo_box_text_append (GTK_COMBO_BOX_TEXT (priv->combo), NULL, _(view_type_text[index]));
     }
   /* Обработчик выбора типа представления. */
-  g_signal_connect (G_OBJECT (priv->combo), "changed",
+  priv->signal = g_signal_connect (G_OBJECT (priv->combo), "changed",
                     G_CALLBACK (hyscan_mark_manager_set_grouping), self);
   gtk_widget_set_tooltip_text (priv->combo, _(tooltips_text[GROUPING]));
-  /* Активируем текущий тип. */
-  grouping = hyscan_model_manager_get_grouping (priv->model_manager);
   gtk_combo_box_set_active (GTK_COMBO_BOX (priv->combo), grouping);
   /* Выпадающий список в контейнер. */
   gtk_container_add (GTK_CONTAINER (container), priv->combo);
-  /* Кнопка "Развернуть / свернуть все узлы". */
-  priv->nodes_item = gtk_toggle_tool_button_new ();
-  gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (priv->nodes_item), "view-fullscreen");
-  gtk_widget_set_tooltip_text (GTK_WIDGET (priv->nodes_item), _(tooltips_text[EXPAND_NODES]));
-  priv->signal = g_signal_connect_swapped (G_OBJECT (priv->nodes_item), "clicked",
-                                           G_CALLBACK (hyscan_mark_manager_show_nodes), self);
-  /* Открыть / закрыть все узлы активно только для древовидного отображения. */
-  if (grouping == UNGROUPED)
-    {
-      gtk_widget_set_sensitive (GTK_WIDGET (priv->nodes_item), FALSE);
-    }
   /* Заполняем панель инструментов. */
   gtk_toolbar_insert (GTK_TOOLBAR (toolbar), new_label_item,   -1);
-  gtk_toolbar_insert (GTK_TOOLBAR (toolbar), visibility_item,  -1);
+  gtk_toolbar_insert (GTK_TOOLBAR (toolbar), action_item,      -1);
   gtk_toolbar_insert (GTK_TOOLBAR (toolbar), container,        -1);
   gtk_toolbar_insert (GTK_TOOLBAR (toolbar), separator,        -1);
-  /* Добавляем кнопку "Развернуть/свернуть все узлы.". */
-  gtk_toolbar_insert (GTK_TOOLBAR (toolbar), priv->nodes_item, -1);
   /* Добавляем панель инструментов и представление с учётом взаимного расположения. */
   switch (toolbar_position)
   {
@@ -547,23 +532,33 @@ void
 hyscan_mark_manager_grouping_changed (HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate  *priv = self->priv;
-  ModelManagerGrouping       grouping = hyscan_model_manager_get_grouping (priv->model_manager);
+  ModelManagerGrouping   grouping = hyscan_model_manager_get_grouping (priv->model_manager);
 
-  gtk_combo_box_set_active (GTK_COMBO_BOX(priv->combo), grouping);
-  gtk_widget_set_sensitive (priv->delete_icon, FALSE);
-
-  if (priv->nodes_item != NULL)
-    gtk_widget_set_sensitive (GTK_WIDGET(priv->nodes_item), grouping);
-
-  /* Проверяем нужно ли развернуть узлы. */
-  if (hyscan_model_manager_get_expand_nodes_mode (priv->model_manager))
+  if (priv->signal != 0)
     {
-      hyscan_mark_manager_view_expand_all (HYSCAN_MARK_MANAGER_VIEW (priv->view));
+      /* Отключаем сигнал. */
+      g_signal_handler_block (G_OBJECT (priv->combo), priv->signal);
+      /* Устанавливаем тип группировки. */
+      gtk_combo_box_set_active (GTK_COMBO_BOX (priv->combo), grouping);
+      /* Включаем сигнал. */
+      g_signal_handler_unblock (G_OBJECT (priv->combo), priv->signal);
+    }
+
+  /* Если представление табличное, то делаем их неактивными.*/
+  if (grouping == UNGROUPED)
+    {
+      gtk_widget_set_sensitive (priv->expand_all_item,   FALSE);
+      gtk_widget_set_sensitive (priv->collapse_all_item, FALSE);
+    }
+  else
+    {
+      gtk_widget_set_sensitive (priv->expand_all_item,   TRUE);
+      gtk_widget_set_sensitive (priv->collapse_all_item, TRUE);
     }
 }
 
 /* Обработчик изменения состояния кнопки "Развернуть/свернуть все узлы." */
-void
+/*void
 hyscan_mark_manager_show_nodes (HyScanMarkManager *self,
                                 GtkToolItem       *item)
 {
@@ -571,39 +566,7 @@ hyscan_mark_manager_show_nodes (HyScanMarkManager *self,
   gboolean toggle = !hyscan_model_manager_get_expand_nodes_mode (priv->model_manager);
 
   hyscan_model_manager_set_expand_nodes_mode (priv->model_manager, toggle);
-}
-
-/* Обработчик изменения режима отображения всех узлов. */
-void
-hyscan_mark_manager_expand_nodes_mode_changed (HyScanMarkManager *self)
-{
-  HyScanMarkManagerPrivate *priv = self->priv;
-  gboolean toggle = hyscan_model_manager_get_expand_nodes_mode (priv->model_manager);
-
-  /* Отключаем обработчик изменения состояния кнопки "Развернуть/свернуть все узлы.",
-   * чтобы не было повторного вызова после gtk_toggle_tool_button_set_active.
-   * */
-  g_signal_handler_block (G_OBJECT (priv->nodes_item), priv->signal);
-  /* Устанавливаем режим отображения всех узлов. */
-  gtk_toggle_tool_button_set_active (GTK_TOGGLE_TOOL_BUTTON (priv->nodes_item), toggle);
-  /* Включаем обработчик изменения состояния кнопки "Развернуть/свернуть все узлы.",
-   * чтобы снова его обрабатывать.
-   * */
-  g_signal_handler_unblock (G_OBJECT (priv->nodes_item), priv->signal);
-
-  if (toggle)
-    {
-      gtk_tool_button_set_icon_name   (GTK_TOOL_BUTTON (priv->nodes_item), "view-restore");
-      gtk_widget_set_tooltip_text (GTK_WIDGET (priv->nodes_item), _(tooltips_text[COLLAPSE_NODES]));
-      hyscan_mark_manager_view_expand_all (HYSCAN_MARK_MANAGER_VIEW (priv->view));
-    }
-  else
-    {
-      gtk_tool_button_set_icon_name   (GTK_TOOL_BUTTON (priv->nodes_item), "view-fullscreen");
-      gtk_widget_set_tooltip_text (GTK_WIDGET (priv->nodes_item), _(tooltips_text[EXPAND_NODES]));
-      hyscan_mark_manager_view_collapse_all (HYSCAN_MARK_MANAGER_VIEW (priv->view));
-    }
-}
+}*/
 
 /* Обработчик сигнала обновления модели представления данных. */
 void
@@ -619,6 +582,10 @@ hyscan_mark_manager_view_model_updated (HyScanMarkManager *self)
       hyscan_mark_manager_view_set_store (view, model);
       g_object_unref (model);
     }
+
+  hyscan_mark_manager_expand_items (self, FALSE);
+  hyscan_mark_manager_expand_items (self, TRUE);
+
   if (selected_items)
     hyscan_mark_manager_view_set_selection (view, selected_items);
 }
@@ -676,31 +643,35 @@ hyscan_mark_manager_delete_selected (GtkToolButton     *button,
     }
 }
 
-/* Обработчик выбора пункта меню "Показать всё". */
+/* Обработчик выбора пункта меню "Развернуть всё". */
 void
-hyscan_mark_manager_show_all (GtkMenuItem       *item,
-                              HyScanMarkManager *self)
+hyscan_mark_manager_expand_all (GtkMenuItem       *item,
+                                HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
-
+/*
   hyscan_mark_manager_view_select_all (HYSCAN_MARK_MANAGER_VIEW (priv->view), TRUE);
   gtk_widget_set_sensitive(priv->delete_icon, TRUE);
+*/
+  hyscan_mark_manager_view_expand_all (HYSCAN_MARK_MANAGER_VIEW (priv->view));
 }
 
-/* Обработчик выбора пункта меню "Скрыть всё". */
+/* Обработчик выбора пункта меню "Свернуть всё". */
 void
-hyscan_mark_manager_hide_all (GtkMenuItem       *item,
-                              HyScanMarkManager *self)
+hyscan_mark_manager_collapse_all (GtkMenuItem       *item,
+                                  HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
-
+/*
   hyscan_mark_manager_view_select_all (HYSCAN_MARK_MANAGER_VIEW (priv->view), FALSE);
   gtk_widget_set_sensitive(priv->delete_icon, FALSE);
+*/
+  hyscan_mark_manager_view_collapse_all (HYSCAN_MARK_MANAGER_VIEW (priv->view));
 }
 
-/* Обработчик выбора пункта меню "Показать выделенное". */
+/* Обработчик выбора пункта меню "Отметить все". */
 void
-hyscan_mark_manager_show_selected (GtkMenuItem       *item,
+hyscan_mark_manager_toggle_all (GtkMenuItem       *item,
                                    HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
@@ -708,10 +679,10 @@ hyscan_mark_manager_show_selected (GtkMenuItem       *item,
   hyscan_mark_manager_view_toggle_all (HYSCAN_MARK_MANAGER_VIEW (priv->view), TRUE);
 }
 
-/* Обработчик выбора пункта меню "Скрыть выделенное". */
+/* Обработчик выбора пункта меню "Снять все отметки". */
 void
-hyscan_mark_manager_hide_selected (GtkMenuItem       *item,
-                                   HyScanMarkManager *self)
+hyscan_mark_manager_untoggle_all (GtkMenuItem       *item,
+                                HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
   g_print ("Hide selected\n");
@@ -840,7 +811,8 @@ void hyscan_mark_manager_delete_label (GtkTreeModel *model,
   label_model = hyscan_model_manager_get_label_model (priv->model_manager);
   /* Получаем идентификатор удаляемого объекта из нулевой колонки модели (COLUMN_ID) . */
   gtk_tree_model_get (model, iter, COLUMN_ID, &id, -1);
-  hyscan_object_model_remove_object (label_model, id);
+  /* Пока что ничего не удаляем. */
+  /*hyscan_object_model_remove_object (label_model, id);*/
 
   g_object_unref (label_model);
 
@@ -870,8 +842,8 @@ hyscan_mark_manager_item_expanded (HyScanMarkManager *self,
 void
 hyscan_mark_manager_expand_item (HyScanMarkManager *self)
 {
-  g_print ("EXPANDING SIGNAL FROM MODEL MANAGER CATHCED\n");
-  hyscan_mark_manager_expand_collapse_item (self, TRUE);
+  g_print ("EXPANDING SIGNAL FROM MODEL MANAGER CATCHED\n");
+  hyscan_mark_manager_expand_current_item (self, TRUE);
 }
 
 /* Функция-обработчик сигнала о cворачивании узла древовидного представления.
@@ -879,19 +851,44 @@ hyscan_mark_manager_expand_item (HyScanMarkManager *self)
 void
 hyscan_mark_manager_collapse_item (HyScanMarkManager *self)
 {
-  g_print ("COLLAPSING SIGNAL FROM MODEL MANAGER CATHCED\n");
-  hyscan_mark_manager_expand_collapse_item (self, FALSE);
+  g_print ("COLLAPSING SIGNAL FROM MODEL MANAGER CATCHED\n");
+  hyscan_mark_manager_expand_current_item (self, FALSE);
+}
+
+void
+hyscan_mark_manager_expand_current_item (HyScanMarkManager *self,
+                                         gboolean           expanded)
+{
+  HyScanMarkManagerPrivate *priv = self->priv;
+  GtkTreeModel *model = hyscan_model_manager_get_view_model (priv->model_manager);
+  gchar        *id    = hyscan_model_manager_get_current_id (priv->model_manager);
+  GtkTreeIter  *iter  = hyscan_mark_manager_find_item (model, id);
+
+  if (iter != NULL)
+    {
+      GtkTreePath *path = gtk_tree_model_get_path (model, iter);
+
+      g_print ("ID: %s\nPath: %s\n", id, gtk_tree_path_to_string (path));
+
+      hyscan_mark_manager_view_expand_path (HYSCAN_MARK_MANAGER_VIEW (priv->view), path, expanded);
+
+      gtk_tree_path_free (path);
+    }
+
+  g_object_unref (model);
+  if (iter != NULL)
+    gtk_tree_iter_free (iter);
 }
 
 /* Разворачивает или сворачивает узлы древовидного
  * представления в зависимости от заданного
  * аргумента expanded:
- * TRUE - разворачивает;
+ * TRUE  - разворачивает;
  * FALSE - сворачивает.
  * */
 void
-hyscan_mark_manager_expand_collapse_item (HyScanMarkManager *self,
-                                          gboolean           expanded)
+hyscan_mark_manager_expand_items (HyScanMarkManager *self,
+                                 gboolean           expanded)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
   ModelManagerObjectType type;

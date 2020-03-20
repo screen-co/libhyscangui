@@ -38,7 +38,6 @@ typedef enum
   SIGNAL_LABELS_CHANGED,              /* Изменение данных в модели групп. */
   SIGNAL_TRACKS_CHANGED,              /* Изменение данных в модели галсов. */
   SIGNAL_GROUPING_CHANGED,            /* Изменение типа группировки. */
-  SIGNAL_EXPAND_NODES_MODE_CHANGED,   /* Изменение режима ототбражения всех узлов. */
   SIGNAL_VIEW_MODEL_UPDATED,          /* Обновление модели представления данных. */
   SIGNAL_ITEM_SELECTED,               /* Выделена строка. */
   SIGNAL_ITEM_TOGGLED,                /* Изменено состояние чек-бокса. */
@@ -140,11 +139,6 @@ void                 hyscan_model_manager_set_grouping                (HyScanMod
 
 ModelManagerGrouping hyscan_model_manager_get_grouping                (HyScanModelManager     *self);
 
-void                 hyscan_model_manager_set_expand_nodes_mode       (HyScanModelManager     *self,
-                                                                       gboolean                expand_nodes_mode);
-
-gboolean             hyscan_model_manager_get_expand_nodes_mode       (HyScanModelManager     *self);
-
 void                 hyscan_model_manager_set_selection               (HyScanModelManager     *self,
                                                                        GtkTreeSelection       *selection);
 
@@ -174,6 +168,8 @@ void                 hyscan_model_manager_expand_item                 (HyScanMod
 gchar**              hyscan_model_manager_get_expanded_items          (HyScanModelManager     *self,
                                                                        ModelManagerObjectType  type,
                                                                        gboolean                expanded);
+
+gchar*               hyscan_model_manager_get_current_id              (HyScanModelManager     *self);
 
 G_END_DECLS
 
