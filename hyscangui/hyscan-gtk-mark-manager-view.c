@@ -320,7 +320,8 @@ hyscan_mark_manager_view_emit_selected (GtkTreeSelection      *selection,
 
   if (gtk_tree_selection_count_selected_rows (selection))
     {
-      g_signal_emit (self, hyscan_mark_manager_view_signals[SIGNAL_SELECTED], 0, selection);
+      g_print ("EMIT SELECTED\n");
+      /*g_signal_emit (self, hyscan_mark_manager_view_signals[SIGNAL_SELECTED], 0, selection);*/
       return G_SOURCE_REMOVE;
     }
   return G_SOURCE_CONTINUE;

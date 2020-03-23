@@ -124,7 +124,10 @@ GtkTreeModel*        hyscan_model_manager_get_view_model              (HyScanMod
 const gchar*         hyscan_model_manager_get_signal_title            (HyScanModelManager     *self,
                                                                        ModelManagerSignal      signal_title);
 
-gchar*               hyscan_model_manager_get_project_name            (HyScanModelManager     *self);
+void                 hyscan_model_manager_set_project_name            (HyScanModelManager     *self,
+                                                                       const gchar            *project_name);
+
+const gchar*         hyscan_model_manager_get_project_name            (HyScanModelManager     *self);
 
 HyScanDB*            hyscan_model_manager_get_db                      (HyScanModelManager     *self);
 

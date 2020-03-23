@@ -177,6 +177,8 @@ static void         hyscan_mark_manager_expand_current_item       (HyScanMarkMan
 static void         hyscan_mark_manager_expand_items              (HyScanMarkManager     *self,
                                                                    gboolean               expanded);
 
+static void         hyscan_mark_manager_expand_all_items          (HyScanMarkManager     *self);
+
 static GtkTreeIter* hyscan_mark_manager_find_item                 (GtkTreeModel          *model,
                                                                    const gchar           *id);
 
@@ -583,8 +585,7 @@ hyscan_mark_manager_view_model_updated (HyScanMarkManager *self)
       g_object_unref (model);
     }
 
-  hyscan_mark_manager_expand_items (self, FALSE);
-  hyscan_mark_manager_expand_items (self, TRUE);
+  hyscan_mark_manager_expand_all_items (self);
 
   if (selected_items)
     hyscan_mark_manager_view_set_selection (view, selected_items);
@@ -880,11 +881,22 @@ hyscan_mark_manager_expand_current_item (HyScanMarkManager *self,
     gtk_tree_iter_free (iter);
 }
 
+/* Обновляет состояние всех узлов древовидного представления.
+ * Разворачивает те узлы, которые нужно развернуть и
+ * сворачивает те узлы, которые нужно свернуть.
+ * */
+void
+hyscan_mark_manager_expand_all_items (HyScanMarkManager *self)
+{
+  hyscan_mark_manager_expand_items (self, FALSE);
+  hyscan_mark_manager_expand_items (self, TRUE);
+}
+
 /* Разворачивает или сворачивает узлы древовидного
  * представления в зависимости от заданного
  * аргумента expanded:
- * TRUE  - разворачивает;
- * FALSE - сворачивает.
+ * TRUE  - разворачивает, те что нужно развернуть;
+ * FALSE - сворачивает, те что нужно свернуть.
  * */
 void
 hyscan_mark_manager_expand_items (HyScanMarkManager *self,

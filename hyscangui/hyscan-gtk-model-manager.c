@@ -300,19 +300,19 @@ hyscan_model_manager_constructed (GObject *object)
                     "tracks-changed",
                     G_CALLBACK (hyscan_model_manager_track_model_changed),
                     self);
-  /* Модель акустических меток. */
-  priv->acoustic_marks_model = hyscan_object_model_new (HYSCAN_TYPE_OBJECT_DATA_WFMARK);
-  hyscan_object_model_set_project (priv->acoustic_marks_model, priv->db, priv->project_name);
-  g_signal_connect (priv->acoustic_marks_model,
-                    "changed",
-                    G_CALLBACK (hyscan_model_manager_acoustic_marks_model_changed),
-                    self);
   /* Модель данных акустических меток с координатами. */
   priv->acoustic_loc_model = hyscan_mark_loc_model_new (priv->db, priv->cache);
   hyscan_mark_loc_model_set_project (priv->acoustic_loc_model, priv->project_name);
   g_signal_connect (priv->acoustic_loc_model,
                     "changed",
                     G_CALLBACK (hyscan_model_manager_acoustic_marks_loc_model_changed),
+                    self);
+  /* Модель акустических меток. */
+  priv->acoustic_marks_model = hyscan_object_model_new (HYSCAN_TYPE_OBJECT_DATA_WFMARK);
+  hyscan_object_model_set_project (priv->acoustic_marks_model, priv->db, priv->project_name);
+  g_signal_connect (priv->acoustic_marks_model,
+                    "changed",
+                    G_CALLBACK (hyscan_model_manager_acoustic_marks_model_changed),
                     self);
   /* Модель геометок. */
   priv->geo_mark_model = hyscan_object_model_new (HYSCAN_TYPE_OBJECT_DATA_GEOMARK);
@@ -2304,13 +2304,35 @@ hyscan_model_manager_get_db (HyScanModelManager *self)
   HyScanModelManagerPrivate *priv = self->priv;
   return g_object_ref (priv->db);
 }
+
+void
+hyscan_model_manager_set_project_name (HyScanModelManager *self,
+                                       const gchar        *project_name)
+{
+  HyScanModelManagerPrivate *priv = self->priv;
+
+  if (priv->project_name != NULL && 0 != g_strcmp0 (priv->project_name, project_name))
+    {
+      g_free (priv->project_name);
+
+      priv->project_name = g_strdup (project_name);
+
+      /* Обновляем имя проекта для всех моделей. */
+      hyscan_db_info_set_project        (priv->track_model,          priv->project_name);
+      hyscan_mark_loc_model_set_project (priv->acoustic_loc_model,   priv->project_name);
+      hyscan_object_model_set_project   (priv->acoustic_marks_model, priv->db, priv->project_name);
+      hyscan_object_model_set_project   (priv->geo_mark_model,       priv->db, priv->project_name);
+      hyscan_object_model_set_project   (priv->label_model,          priv->db, priv->project_name);
+    }
+}
+
 /**
  * hyscan_model_manager_get_project_name:
  * @self: указатель на Менеджер Моделей
  *
  * Returns: название проекта
  */
-gchar*
+const gchar*
 hyscan_model_manager_get_project_name (HyScanModelManager *self)
 {
   HyScanModelManagerPrivate *priv = self->priv;
@@ -2639,21 +2661,22 @@ hyscan_model_manager_get_toggled_items (HyScanModelManager     *self,
   HyScanModelManagerPrivate *priv = self->priv;
   Extension *ext;
   GHashTableIter iter;
+  guint i = 0;
   gchar **list = NULL,
          *id   = NULL;
+
+  list = g_new0 (gchar*, 1);
 
   g_hash_table_iter_init (&iter, priv->extensions[type]);
   while (g_hash_table_iter_next (&iter, (gpointer*)&id, (gpointer*)&ext))
     {
       if (ext->active)
         {
-          guint i = (list != NULL) ? g_strv_length (list) : 0;
           list = (gchar**)g_realloc ( (gpointer)list, (i + 2) * sizeof (gchar*));
           list[i++] = g_strdup (id);
-          list[i++] = NULL;
         }
     }
-
+  list[i] = NULL;
   return list;
 }
 
@@ -2718,20 +2741,22 @@ hyscan_model_manager_get_expanded_items (HyScanModelManager     *self,
   HyScanModelManagerPrivate *priv = self->priv;
   Extension *ext;
   GHashTableIter iter;
+  guint i = 0;
   gchar **list = NULL,
          *id   = NULL;
+
+  list = g_new0 (gchar*, 1);
 
   g_hash_table_iter_init (&iter, priv->extensions[type]);
   while (g_hash_table_iter_next (&iter, (gpointer*)&id, (gpointer*)&ext))
     {
       if (ext->expanded == expanded)
         {
-          guint i = (list != NULL) ? g_strv_length (list) : 0;
           list = (gchar**)g_realloc ( (gpointer)list, (i + 2) * sizeof (gchar*));
           list[i++] = g_strdup (id);
-          list[i++] = NULL;
         }
     }
+  list[i] = NULL;
   return list;
 }
 /**
