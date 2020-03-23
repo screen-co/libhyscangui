@@ -55,7 +55,8 @@ struct _HyScanModelManagerPrivate
   gchar                *current_id;           /* Идентифифкатор объекта, используется для разворачивания
                                                * и сворачивания узлов. */
   ModelManagerGrouping  grouping;             /* Тип группировки. */
-  gboolean              clear_model_flag;     /* Флаг очистки модели. */
+  gboolean              clear_model_flag,     /* Флаг очистки модели. */
+                        constructed_flag;     /* Флаг инициализации всех моделей. */
 };
 
 /* Названия сигналов.
@@ -106,10 +107,17 @@ static gchar *type_id[TYPES] = {"ID_NODE_LABEL",         /* Группы. */
 /* Cкорость движения при которой генерируются тайлы в Echosounder-е, но метка
  * сохраняется в базе данных без учёта этого коэфициента масштабирования. */
 static gdouble ship_speed = 10.0;
+/* Идентификатор для отслеживания изменения названия проекта. */
+static GParamSpec   *notify = NULL;
 
 static void          hyscan_model_manager_set_property                     (GObject                 *object,
                                                                             guint                    prop_id,
                                                                             const GValue            *value,
+                                                                            GParamSpec              *pspec);
+
+static void          hyscan_model_manager_get_property                     (GObject                 *object,
+                                                                            guint                    prop_id,
+                                                                            GValue                  *value,
                                                                             GParamSpec              *pspec);
 
 static void          hyscan_model_manager_constructed                      (GObject                 *object);
@@ -208,14 +216,15 @@ hyscan_model_manager_class_init (HyScanModelManagerClass *klass)
   guint index;
 
   object_class->set_property = hyscan_model_manager_set_property;
+  object_class->get_property = hyscan_model_manager_get_property;
   object_class->constructed  = hyscan_model_manager_constructed;
   object_class->finalize     = hyscan_model_manager_finalize;
 
   /* Название проекта. */
-  g_object_class_install_property (object_class, PROP_PROJECT_NAME,
-    g_param_spec_string ("project_name", "Project_name", "Project name",
-                         "",
-                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+  notify = g_param_spec_string ("project_name", "Project_name", "Project name",
+                                "",
+                                G_PARAM_READWRITE | G_PARAM_CONSTRUCT);
+  g_object_class_install_property (object_class, PROP_PROJECT_NAME, notify);
   /* База данных. */
   g_object_class_install_property (object_class, PROP_DB,
     g_param_spec_object ("db", "Data base",
@@ -246,6 +255,7 @@ hyscan_model_manager_init (HyScanModelManager *self)
 {
   self->priv = hyscan_model_manager_get_instance_private (self);
 }
+
 void
 hyscan_model_manager_set_property (GObject      *object,
                                    guint         prop_id,
@@ -260,7 +270,10 @@ hyscan_model_manager_set_property (GObject      *object,
       /* Название проекта */
       case PROP_PROJECT_NAME:
         {
-          priv->project_name = g_value_dup_string (value);
+          if (priv->constructed_flag)
+            hyscan_model_manager_set_project_name (self, g_value_get_string (value));
+          else
+            priv->project_name = g_value_dup_string (value);
         }
         break;
       /* База данных. */
@@ -287,6 +300,33 @@ hyscan_model_manager_set_property (GObject      *object,
         break;
     }
 }
+
+void
+hyscan_model_manager_get_property (GObject      *object,
+                                   guint         prop_id,
+                                   GValue       *value,
+                                   GParamSpec   *pspec)
+{
+  HyScanModelManager *self = HYSCAN_MODEL_MANAGER (object);
+  HyScanModelManagerPrivate *priv = self->priv;
+
+  switch (prop_id)
+    {
+      /* Название проекта */
+      case PROP_PROJECT_NAME:
+        {
+          g_value_set_string (value, priv->project_name);
+        }
+        break;
+      /* Что-то ещё... */
+      default:
+        {
+          G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+        }
+        break;
+    }
+}
+
 /* Конструктор. */
 void
 hyscan_model_manager_constructed (GObject *object)
@@ -330,6 +370,8 @@ hyscan_model_manager_constructed (GObject *object)
                     self);
   /* Создаём модель представления данных. */
   priv->view_model = hyscan_model_manager_update_view_model (self);
+  /* Устанавливаем флаг инициализации всех моделей. */
+  priv->constructed_flag = TRUE;
 }
 /* Деструктор. */
 void
@@ -2316,13 +2358,14 @@ hyscan_model_manager_set_project_name (HyScanModelManager *self,
       g_free (priv->project_name);
 
       priv->project_name = g_strdup (project_name);
-
       /* Обновляем имя проекта для всех моделей. */
       hyscan_db_info_set_project        (priv->track_model,          priv->project_name);
       hyscan_mark_loc_model_set_project (priv->acoustic_loc_model,   priv->project_name);
       hyscan_object_model_set_project   (priv->acoustic_marks_model, priv->db, priv->project_name);
       hyscan_object_model_set_project   (priv->geo_mark_model,       priv->db, priv->project_name);
       hyscan_object_model_set_project   (priv->label_model,          priv->db, priv->project_name);
+      /* Отправляем сигнал об изменении названия проекта. */
+      g_object_notify_by_pspec (G_OBJECT (self), notify);
     }
 }
 
