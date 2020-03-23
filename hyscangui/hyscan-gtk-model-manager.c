@@ -2353,7 +2353,7 @@ hyscan_model_manager_set_project_name (HyScanModelManager *self,
 {
   HyScanModelManagerPrivate *priv = self->priv;
 
-  if (priv->project_name != NULL && 0 != g_strcmp0 (priv->project_name, project_name))
+  if (0 != g_strcmp0 (priv->project_name, project_name))
     {
       g_free (priv->project_name);
 
