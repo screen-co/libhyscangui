@@ -72,7 +72,14 @@ gchar**              hyscan_mark_manager_view_get_toggled            (HyScanMark
                                                                       ModelManagerObjectType      type);
 
 void                 hyscan_mark_manager_view_set_selection          (HyScanMarkManagerView      *self,
-                                                                      GtkTreeSelection           *selection);
+                                                                      gchar                      *id);
+
+void                 hyscan_mark_manager_view_set_focus              (HyScanMarkManagerView      *self);
+
+gboolean             hyscan_mark_manager_view_find_item_by_id        (GtkTreeModel               *model,
+                                                                      GtkTreeIter                *iter,
+                                                                      const gchar                *id);
+
 G_END_DECLS
 
 #endif /* __HYSCAN_GTK_MARK_MANAGER_VIEW_H__ */

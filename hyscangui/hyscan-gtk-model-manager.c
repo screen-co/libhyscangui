@@ -47,7 +47,7 @@ struct _HyScanModelManagerPrivate
   GtkAdjustment        *horizontal,           /* Положение горизонтальной полосы прокрутки. */
                        *vertical;             /* Положение вертикальной полосы прокрутки. */
 
-  GList                *selected[TYPES];      /* Выделенные объекты. */
+  gchar                *selected_item_id;     /* Выделенные объекты. */
   Extension            *node[TYPES];          /* Информация для описания узлов для древовидного
                                                * представления с группировкой по типам. */
   GHashTable           *extensions[TYPES];
@@ -833,7 +833,6 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
                                   *mtime = (object->mtime == NULL)? "" : g_date_time_format (object->mtime, date_time_stamp);
                             /* В структуре HyScanTrackInfo нет поля labels. */
                             guint64 labels = 0;
-                            GList *ptr = g_list_first (priv->selected[TRACK]);
 
                             gtk_list_store_append (store, &store_iter);
                             gtk_list_store_set (store, &store_iter,
@@ -850,31 +849,6 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
                                                 COLUMN_CTIME,       ctime,
                                                 COLUMN_MTIME,       mtime,
                                                 -1);
-
-                            if (priv->selection != NULL)
-                              {
-                                /* Разрешаем множественный выбор. */
-                                /*if (gtk_tree_selection_get_mode (priv->selection) != GTK_SELECTION_MULTIPLE)
-                                  {
-                                    gtk_tree_selection_set_mode (priv->selection, GTK_SELECTION_MULTIPLE);
-                                    g_print ("-> GTK_SELECTION_MULTIPLE");
-                                  }*/
-                                /**/
-                                while (ptr != NULL)
-                                  {
-                                    g_print ("ID: %s\nData: %s\n", id, (gchar*)ptr->data);
-                                    if (0 == g_strcmp0 (id, (gchar*)ptr->data))
-                                      {
-                                        g_print ("MATCH!!!\n");
-                                        priv->clear_model_flag = TRUE;
-                                        gtk_tree_selection_select_iter (priv->selection, &store_iter);
-                                        priv->clear_model_flag = FALSE;
-                                        break;
-                                      }
-                                    ptr = g_list_next (ptr);
-                                    g_print ("ptr: %p\n", ptr);
-                                  }
-                              }
                           }
                       }
 
@@ -2445,20 +2419,8 @@ gchar**
 hyscan_model_manager_get_selected_tracks_id (HyScanModelManager *self)
 {
   HyScanModelManagerPrivate *priv = self->priv;
-
-  guint count = g_list_length (priv->selected[TRACK]);
   gchar **list = NULL;
-  if (count > 0)
-    {
-      GList *ptr = g_list_first (priv->selected[TRACK]);
-      gint i = 0;
-      list = g_new0 (gchar*, count + 1);
-      while (ptr != NULL)
-        {
-          list[i++] = (gchar*)ptr->data;
-          ptr = g_list_next (ptr);
-        }
-    }
+
   return list;
 }
 
@@ -2520,80 +2482,37 @@ hyscan_model_manager_get_view_model (HyScanModelManager   *self)
  */
 void
 hyscan_model_manager_set_selection (HyScanModelManager *self,
-                                    GtkTreeSelection   *selection)
+                                    gchar              *id)
 {
   HyScanModelManagerPrivate *priv = self->priv;
-  GHashTable *tracks          = hyscan_model_manager_get_extensions (self, TRACK);
-  GList      *list            = NULL;
 
   if (priv->clear_model_flag)  /* Защита против срабатывания сигнала "changed" */
     return;                    /* у GtkTreeSelection при очистке GtkTreeModel.   */
 
-  g_return_if_fail (GTK_IS_TREE_SELECTION (selection));
+  g_print ("Selected id: %s\n", id);
+  g_print ("selected_id: %s\n", priv->selected_item_id);
 
-  priv->selection = selection;
-
-  if (priv->selected[TRACK] != NULL)
+  if (priv->selected_item_id != NULL)
     {
-      g_list_free_full (priv->selected[TRACK], (GDestroyNotify)g_free);
-      priv->selected[TRACK] = NULL;
+      g_free (priv->selected_item_id);
     }
-
-  /* Сохраняем идентификаторы */
-  list = gtk_tree_selection_get_selected_rows (priv->selection, &priv->view_model);
-
-  if (tracks != NULL && list != NULL)
-    {
-      GList *ptr = g_list_first (list);
-      g_print ("*** Selected tracks ***\n");
-      while (ptr != NULL)
-        {
-          GtkTreeIter  iter;
-          GtkTreePath *path = (GtkTreePath*)ptr->data;
-
-          if (gtk_tree_model_get_iter (priv->view_model, &iter, path))
-            {
-              GHashTableIter table_iter;       /* Итератор для обхода хэш-таблиц. */
-              HyScanTrackInfo *object;
-              gchar *id,                       /* Идентификатор для обхода хэш-таблиц (ключ). */
-                    *str = NULL;               /* Идентификатор объекта из модели. */
-
-              gtk_tree_model_get (priv->view_model, &iter,
-                                  COLUMN_ID,        &str,
-                                  -1);
-
-              g_hash_table_iter_init (&table_iter, tracks);
-              while (g_hash_table_iter_next (&table_iter, (gpointer *) &id, (gpointer *) &object))
-                {
-                  if (0 == g_strcmp0 (str, id))
-                    {
-                      g_print ("%s\n", str);
-                      priv->selected[TRACK] = g_list_append (priv->selected[TRACK], str);
-                      break;
-                    }
-                }
-            }
-          ptr = g_list_next (ptr);
-        }
-      g_print ("*** Selected tracks ***\n");
-    }
-
-  g_list_free_full (list, (GDestroyNotify) gtk_tree_path_free);
+  priv->selected_item_id = g_strdup (id);
 
   g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_ITEM_SELECTED], 0);
+
 }
 
 /**
- * hyscan_model_manager_get_selected_items:
+ * hyscan_model_manager_get_selected_item:
  * @self: указатель на Менеджер Моделей
  *
  * Returns: указатель на список выделенных объектов.
  */
-GtkTreeSelection*
-hyscan_model_manager_get_selected_items (HyScanModelManager *self)
+gchar*
+hyscan_model_manager_get_selected_item (HyScanModelManager *self)
 {
   HyScanModelManagerPrivate *priv = self->priv;
-  return priv->selection;
+  return priv->selected_item_id;
 }
 
 /**

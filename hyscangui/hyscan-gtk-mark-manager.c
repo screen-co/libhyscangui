@@ -134,7 +134,7 @@ static void         hyscan_mark_manager_untoggle_all              (GtkMenuItem  
                                                                    HyScanMarkManager     *self);
 
 static void         hyscan_mark_manager_item_selected             (HyScanMarkManager     *self,
-                                                                   GtkTreeSelection      *selection);
+                                                                   gchar                 *id);
 
 static void         hyscan_mark_manager_select_item               (HyScanMarkManager     *self);
 
@@ -181,11 +181,6 @@ static void         hyscan_mark_manager_expand_all_items          (HyScanMarkMan
 
 static GtkTreeIter* hyscan_mark_manager_find_item                 (GtkTreeModel          *model,
                                                                    const gchar           *id);
-
-static gboolean     hyscan_mark_manager_find_item_by_id           (GtkTreeModel          *model,
-                                                                   GtkTreeIter           *iter,
-                                                                   const gchar           *id);
-;
 
 static guint      hyscan_mark_manager_signals[SIGNAL_LAST] = { 0 };
 
@@ -557,6 +552,10 @@ hyscan_mark_manager_grouping_changed (HyScanMarkManager *self)
       gtk_widget_set_sensitive (priv->expand_all_item,   TRUE);
       gtk_widget_set_sensitive (priv->collapse_all_item, TRUE);
     }
+  /* Выделяем выбранное */
+  hyscan_mark_manager_select_item (self);
+  /* Чтобы правильно отобразить выделенное нужно установить фокус на GtkTreeView. */
+  /*hyscan_mark_manager_view_set_focus (HYSCAN_MARK_MANAGER_VIEW (priv->view));*/
 }
 
 /* Обработчик изменения состояния кнопки "Развернуть/свернуть все узлы." */
@@ -574,10 +573,10 @@ hyscan_mark_manager_show_nodes (HyScanMarkManager *self,
 void
 hyscan_mark_manager_view_model_updated (HyScanMarkManager *self)
 {
-  HyScanMarkManagerPrivate *priv           = self->priv;
-  HyScanMarkManagerView    *view           = HYSCAN_MARK_MANAGER_VIEW (priv->view);
-  GtkTreeModel             *model          = hyscan_model_manager_get_view_model (priv->model_manager);
-  GtkTreeSelection         *selected_items = hyscan_model_manager_get_selected_items (priv->model_manager);
+  HyScanMarkManagerPrivate *priv  = self->priv;
+  HyScanMarkManagerView    *view  = HYSCAN_MARK_MANAGER_VIEW (priv->view);
+  GtkTreeModel             *model = hyscan_model_manager_get_view_model (priv->model_manager);
+  gchar                    *id    = hyscan_model_manager_get_selected_item (priv->model_manager);
 
   if (model != NULL)
     {
@@ -587,8 +586,8 @@ hyscan_mark_manager_view_model_updated (HyScanMarkManager *self)
 
   hyscan_mark_manager_expand_all_items (self);
 
-  if (selected_items)
-    hyscan_mark_manager_view_set_selection (view, selected_items);
+  if (id != NULL)
+    hyscan_mark_manager_view_set_selection (view, id);
 }
 
 /* Обработчик сигнала горизонтальной прокрутки представления.
@@ -693,11 +692,11 @@ hyscan_mark_manager_untoggle_all (GtkMenuItem       *item,
 /* Функция-обработчик выделения объектов MarkManagerView. */
 void
 hyscan_mark_manager_item_selected (HyScanMarkManager *self,
-                                   GtkTreeSelection  *selection)
+                                   gchar             *id)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
 
-  hyscan_model_manager_set_selection (priv->model_manager, selection);
+  hyscan_model_manager_set_selection (priv->model_manager, id);
 }
 
 /* Функция-обработчик выделения cтроки. Сигнал отправляет ModelManager. */
@@ -705,13 +704,13 @@ void
 hyscan_mark_manager_select_item (HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
-  GtkTreeSelection *selection = hyscan_model_manager_get_selected_items (priv->model_manager);
+  gchar *id = hyscan_model_manager_get_selected_item (priv->model_manager);
 
-  if (selection != NULL)
+  if (id != NULL)
     {
-      gtk_widget_set_sensitive (priv->delete_icon, gtk_tree_selection_count_selected_rows (selection));
+      gtk_widget_set_sensitive (priv->delete_icon, id);
 
-      hyscan_mark_manager_view_set_selection (HYSCAN_MARK_MANAGER_VIEW (priv->view), selection);
+      hyscan_mark_manager_view_set_selection (HYSCAN_MARK_MANAGER_VIEW (priv->view), id);
     }
 }
 
@@ -742,25 +741,6 @@ hyscan_mark_manager_toggle_item (HyScanMarkManager *self)
       if (list != NULL)
         {
           gint i;
-
-          switch (type)
-            {
-            case LABEL:
-              g_print ("Labels:\n");
-              break;
-            case GEO_MARK:
-              g_print ("Geo-marks:\n");
-              break;
-            case ACOUSTIC_MARK:
-              g_print ("Acoustic marks:\n");
-              break;
-            case TRACK:
-              g_print ("Tracks:\n");
-              break;
-            default:
-              g_print ("Unknown objects:\n");
-              break;
-            }
 
           for (i = 0; list[i] != NULL; i++)
             {
@@ -905,7 +885,6 @@ hyscan_mark_manager_expand_items (HyScanMarkManager *self,
   HyScanMarkManagerPrivate *priv = self->priv;
   ModelManagerObjectType type;
 
-  g_print ("***\n");
   for (type = LABEL; type < TYPES; type++)
     {
       gchar **list = hyscan_model_manager_get_expanded_items (priv->model_manager, type, expanded);
@@ -913,25 +892,6 @@ hyscan_mark_manager_expand_items (HyScanMarkManager *self,
       if (list != NULL)
         {
           gint i;
-
-          switch (type)
-            {
-            case LABEL:
-              g_print ("Labels:\n");
-              break;
-            case GEO_MARK:
-              g_print ("Geo-marks:\n");
-              break;
-            case ACOUSTIC_MARK:
-              g_print ("Acoustic marks:\n");
-              break;
-            case TRACK:
-              g_print ("Tracks:\n");
-              break;
-            default:
-              g_print ("Unknown objects:\n");
-              break;
-            }
 
           for (i = 0; list[i] != NULL; i++)
             {
@@ -941,8 +901,6 @@ hyscan_mark_manager_expand_items (HyScanMarkManager *self,
               if (iter != NULL)
                 {
                   GtkTreePath *path = gtk_tree_model_get_path (model, iter);
-
-                  g_print ("Item #%i: %s\nPath: %s\n", i + 1, list[i], gtk_tree_path_to_string (path));
 
                   hyscan_mark_manager_view_expand_path (HYSCAN_MARK_MANAGER_VIEW (priv->view), path, expanded);
 
@@ -957,7 +915,6 @@ hyscan_mark_manager_expand_items (HyScanMarkManager *self,
           g_strfreev (list);
         }
     }
-  g_print ("***\n");
 }
 
 /* Функция ищет в модели запись по заданному идентификатору и
@@ -974,7 +931,7 @@ hyscan_mark_manager_find_item (GtkTreeModel *model,
     {
       do
         {
-          if (hyscan_mark_manager_find_item_by_id (model, &iter, id))
+          if (hyscan_mark_manager_view_find_item_by_id (model, &iter, id))
             {
               return gtk_tree_iter_copy (&iter);
             }
@@ -982,40 +939,6 @@ hyscan_mark_manager_find_item (GtkTreeModel *model,
       while (gtk_tree_model_iter_next (model, &iter));
     }
   return NULL;
-}
-
-/* Функция для рекурсивного обхода модели и поиска записи по заданному идентификтору.
- * Если запись найдена, то копирует итератор в iter и возвращает TRUE.
- * */
-gboolean
-hyscan_mark_manager_find_item_by_id (GtkTreeModel *model,
-                                     GtkTreeIter  *iter,
-                                     const gchar  *id)
-{
-  GtkTreeIter child_iter;
-  gchar *str;
-
-  gtk_tree_model_get (model,     iter,
-                      COLUMN_ID, &str,
-                      -1);
-  if (str == NULL)
-    return FALSE;
-  if (0 == g_strcmp0 (id, str))
-    return TRUE;
-
-  if (gtk_tree_model_iter_children (model, &child_iter, iter))
-    {
-      do
-        {
-          if (hyscan_mark_manager_find_item_by_id (model, &child_iter, id))
-            {
-              *iter = child_iter;
-              return TRUE;
-            }
-        }
-      while (gtk_tree_model_iter_next (model, &child_iter));
-    }
-  return FALSE;
 }
 
 /**

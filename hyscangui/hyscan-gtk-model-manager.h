@@ -143,9 +143,9 @@ void                 hyscan_model_manager_set_grouping                (HyScanMod
 ModelManagerGrouping hyscan_model_manager_get_grouping                (HyScanModelManager     *self);
 
 void                 hyscan_model_manager_set_selection               (HyScanModelManager     *self,
-                                                                       GtkTreeSelection       *selection);
+                                                                       gchar                  *id);
 
-GtkTreeSelection*    hyscan_model_manager_get_selected_items          (HyScanModelManager     *self);
+gchar*               hyscan_model_manager_get_selected_item           (HyScanModelManager     *self);
 
 void                 hyscan_model_manager_set_horizontal_adjustment   (HyScanModelManager     *self,
                                                                        GtkAdjustment          *adjustment);
