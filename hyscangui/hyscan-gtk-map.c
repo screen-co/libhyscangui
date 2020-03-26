@@ -232,14 +232,6 @@ hyscan_gtk_map_configure (GtkWidget         *widget,
   return GTK_WIDGET_CLASS (hyscan_gtk_map_parent_class)->configure_event (widget, event);
 }
 
-/* Устанавливает координаты центра карты при ее загрузке. */
-static void
-hyscan_gtk_map_set_init_center (HyScanGtkMapPrivate *priv,
-                                HyScanGeoGeodetic    center)
-{
-  priv->init_center = center;
-}
-
 static void
 hyscan_gtk_map_set_property (GObject      *object,
                              guint         prop_id,
@@ -256,7 +248,7 @@ hyscan_gtk_map_set_property (GObject      *object,
       break;
 
     case PROP_INIT_CENTER:
-      hyscan_gtk_map_set_init_center (priv, *((HyScanGeoGeodetic *) g_value_get_pointer (value)));
+      priv->init_center = *((HyScanGeoGeodetic *) g_value_get_pointer (value));
       break;
 
     default:
@@ -544,29 +536,20 @@ hyscan_gtk_map_move_to (HyScanGtkMap      *map,
   HyScanGtkMapPrivate *priv;
   GtkCifroArea *carea;
   HyScanGeoCartesian2D center_2d;
-  gdouble width, height;
-
-  gdouble from_x, to_x, from_y, to_y;
 
   g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
 
   priv = map->priv;
   carea = GTK_CIFRO_AREA (map);
 
-  /* Определяем текущие размеры показываемой области. */
-  gtk_cifro_area_get_view (carea, &from_x, &to_x, &from_y, &to_y);
-  width = to_x - from_x;
-  height = to_y - from_y;
-
-  /* Получаем координаты геоточки в проекции карты. */
+  /* Получаем координаты центра в проекции карты. */
   hyscan_geo_projection_geo_to_value (priv->projection, center, &center_2d);
 
-  /* Перемещаем показываемую область в новый центр. */
-  gtk_cifro_area_set_view (carea,
-                           center_2d.x - width / 2.0, center_2d.x + width / 2.0,
-                           center_2d.y - height / 2.0, center_2d.y + height / 2.0);
+  /* Перемещаем видимую область в новый центр. */
+  gtk_cifro_area_set_view_center (carea, center_2d.x, center_2d.y);
 
-  hyscan_gtk_map_set_init_center (priv, center);
+  /* Если функция была вызвана до момента инициализации, то надо обновить init_center. */
+  priv->init_center = center;
 }
 
 /**
