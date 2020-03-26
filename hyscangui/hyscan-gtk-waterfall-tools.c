@@ -1,7 +1,55 @@
+/* hyscan-gtk-waterfall.h
+ *
+ * Copyright 2017-2019 Screen LLC, Alexander Dmitriev <m1n7@yandex.ru>
+ *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-waterfall-tools
+ * @Title: HyScanGtkWaterfall Tools
+ * @Short_description: вспомогательные функции для водопада
+ *
+ */
 #include "hyscan-gtk-waterfall-tools.h"
 #include <math.h>
 
-/* Функция определяет расстояние между точками. */
+/**
+ * hyscan_gtk_waterfall_tools_distance:
+ * Функция определяет расстояние между точками.
+ *
+ * @start: начало
+ * @end: конец
+ *
+ * Returns: расстояние.
+ */
 gdouble
 hyscan_gtk_waterfall_tools_distance(HyScanCoordinates *start,
                                     HyScanCoordinates *end)
@@ -9,7 +57,15 @@ hyscan_gtk_waterfall_tools_distance(HyScanCoordinates *start,
   return sqrt (pow (ABS(end->x - start->x), 2) + pow (ABS(end->y - start->y), 2));
 }
 
-/* Функция определяет угол наклона отрезка. */
+/**
+ * hyscan_gtk_waterfall_tools_angle:
+ * @start: начало отрезка
+ * @end: конец отрезка
+ *
+ * Функция определяет угол наклона отрезка.
+ *
+ * Returns: угол.
+ */
 gdouble
 hyscan_gtk_waterfall_tools_angle (HyScanCoordinates *start,
                                   HyScanCoordinates *end)
@@ -20,7 +76,15 @@ hyscan_gtk_waterfall_tools_angle (HyScanCoordinates *start,
   return -atan ((end->y - start->y) / (end->x - start->x));
 }
 
-/* Функция возвращает середину отрезка. */
+/**
+ * hyscan_gtk_waterfall_tools_middle:
+ * @start: начало отрезка
+ * @end: конец отрезка
+ *
+ * Функция возвращает середину отрезка.
+ *
+ * Returns: середина отрезка.
+ */
 HyScanCoordinates
 hyscan_gtk_waterfall_tools_middle (HyScanCoordinates *start,
                                    HyScanCoordinates *end)
@@ -33,7 +97,17 @@ hyscan_gtk_waterfall_tools_middle (HyScanCoordinates *start,
   return ret;
 }
 
-/* Функция проверяет, попадает ли отрезок хоть одной точкой внутрь прямоугольника. */
+/**
+ * hyscan_gtk_waterfall_tools_line_in_square:
+ * @line_start: начало отрезка
+ * @line_end: конец отрезка
+ * @square_start: начальная координата прямоугольника
+ * @square_end: конечная координата прямоугольника
+ *
+ * Функция проверяет, попадает ли отрезок хоть одной точкой внутрь прямоугольника.
+ *
+ * Returns: TRUE, если попадает.
+ */
 gboolean
 hyscan_gtk_waterfall_tools_line_in_square (HyScanCoordinates *line_start,
                                            HyScanCoordinates *line_end,
@@ -76,7 +150,20 @@ hyscan_gtk_waterfall_tools_line_in_square (HyScanCoordinates *line_start,
   return FALSE;
 }
 
-/* Функция подсчитывает коэффициеты k и b прямой, на которой лежит отрезок. */
+/**
+ * hyscan_gtk_waterfall_tools_line_k_b_calc:
+ * @line_start: начало отрезка
+ * @line_end: конец отрезка
+ * @k: коэффициент k
+ * @b: коэффициент b
+ *
+ * Функция подсчитывает коэффициеты k и b прямой, на которой лежит отрезок.
+ * Прямые описываются уравнением y = k * x + b. Эта функция
+ * решает это уравнение, зная начало и конец отрезка. Единственный
+ * случай, когда уравнение решить невозможно, это когда прямая вертикальна.
+ *
+ * Returns: TRUE, если коэффициенты удалось определить.
+ */
 gboolean
 hyscan_gtk_waterfall_tools_line_k_b_calc (HyScanCoordinates *start,
                                           HyScanCoordinates *end,
@@ -92,7 +179,16 @@ hyscan_gtk_waterfall_tools_line_k_b_calc (HyScanCoordinates *start,
    return TRUE;
 }
 
-/* Функция определяет, лежит ли точка внутри прямоугольника. */
+/**
+ * hyscan_gtk_waterfall_tools_point_in_square:
+ * @point: координаты точки
+ * @square_start: начальная координата прямоугольника
+ * @square_end: конечная координата прямоугольника
+ *
+ * Функция определяет, лежит ли точка внутри прямоугольника.
+ *
+ * Returns: TRUE, если лежит внутри прямоугольника.
+ */
 gboolean
 hyscan_gtk_waterfall_tools_point_in_square (HyScanCoordinates *point,
                                             HyScanCoordinates *square_start,
@@ -110,8 +206,17 @@ hyscan_gtk_waterfall_tools_point_in_square (HyScanCoordinates *point,
   return inside;
 }
 
-/* Функция создает паттерн для хэндлов. */
-cairo_pattern_t*
+/**
+ * hyscan_gtk_waterfall_tools_make_handle_pattern:
+ * @radius: радиус
+ * @inner: внутренний цвет
+ * @outer: внешний цвет
+ *
+ * Функция создает паттерн для хэндлов.
+ *
+ * Returns: (transfer full): паттерн.
+ */
+cairo_pattern_t *
 hyscan_gtk_waterfall_tools_make_handle_pattern (gdouble radius,
                                                 GdkRGBA inner,
                                                 GdkRGBA outer)
@@ -133,7 +238,13 @@ hyscan_gtk_waterfall_tools_make_handle_pattern (gdouble radius,
   return pattern;
 }
 
-/* Вспомогательная функция установки цвета. */
+/**
+ * hyscan_cairo_set_source_gdk_rgba:
+ * Вспомогательная функция установки цвета.
+ *
+ * @cr: контекст cairo
+ * @rgba: цвет, который требуется установить
+ */
 void
 hyscan_cairo_set_source_gdk_rgba (cairo_t *cr,
                                   GdkRGBA *rgba)

@@ -55,6 +55,7 @@
 #include "hyscan-gtk-layer-param.h"
 #include <glib/gi18n-lib.h>
 #include <math.h>
+#include <hyscan-cartesian.h>
 
 #define MAX_LAT             90.0      /* Максимальное по модулю значение широты. */
 #define MAX_LON             180.0     /* Максимальное по модулю значение долготы. */
@@ -65,11 +66,13 @@
 enum
 {
   PROP_O,
+  PROP_UNITS,
 };
 
 struct _HyScanGtkMapGridPrivate
 {
   HyScanGtkMap                     *map;                /* Виджет карты, на котором показывается сетка. */
+  HyScanUnits                      *units;              /* Форматирование единиц измерения. */
 
   PangoLayout                      *pango_layout;       /* Раскладка шрифта. */
 
@@ -78,7 +81,7 @@ struct _HyScanGtkMapGridPrivate
   gdouble                           line_width;         /* Ширина линии координатной сетки. */
   GdkRGBA                           label_color;        /* Цвет подписей. */
   GdkRGBA                           bg_color;           /* Фоновый цвет подписей. */
-  guint                             label_padding;      /* Отступы подписей от края видимой области. */
+  GdkRGBA                           stroke_color;       /* Цвет обводки подписей. */
 
   guint                             step_width;         /* Шаг сетки в пикселях. */
 
@@ -86,14 +89,28 @@ struct _HyScanGtkMapGridPrivate
 
 };
 
+static void     hyscan_gtk_map_grid_set_property            (GObject                 *object,
+                                                             guint                    prop_id,
+                                                             const GValue            *value,
+                                                             GParamSpec              *pspec);
 static void     hyscan_gtk_map_grid_object_constructed      (GObject                 *object);
 static void     hyscan_gtk_map_grid_object_finalize         (GObject                 *object);
 static void     hyscan_gtk_map_grid_interface_init          (HyScanGtkLayerInterface *iface);
+static void     hyscan_gtk_map_grid_queue_draw              (HyScanGtkMapGrid        *grid);
 static void     hyscan_gtk_map_grid_draw                    (HyScanGtkMap            *map,
                                                              cairo_t                 *cairo,
                                                              HyScanGtkMapGrid        *grid);
 static gboolean hyscan_gtk_map_grid_configure               (HyScanGtkMapGrid        *grid,
                                                              GdkEvent                *screen);
+static void     hyscan_gtk_map_grid_draw_north              (HyScanGtkMapGrid        *grid,
+                                                             cairo_t                 *cairo,
+                                                             gint                     x,
+                                                             gint                     y);
+static void     hyscan_gtk_map_grid_label                   (HyScanGtkMapGrid        *grid,
+                                                             cairo_t                 *cairo,
+                                                             const gchar             *label,
+                                                             gboolean                 rotate,
+                                                             HyScanGeoCartesian2D    *point);
 
 G_DEFINE_TYPE_WITH_CODE (HyScanGtkMapGrid, hyscan_gtk_map_grid, G_TYPE_INITIALLY_UNOWNED,
                          G_ADD_PRIVATE (HyScanGtkMapGrid)
@@ -104,14 +121,41 @@ hyscan_gtk_map_grid_class_init (HyScanGtkMapGridClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
+  object_class->set_property = hyscan_gtk_map_grid_set_property;
   object_class->constructed = hyscan_gtk_map_grid_object_constructed;
   object_class->finalize = hyscan_gtk_map_grid_object_finalize;
+
+  g_object_class_install_property (object_class, PROP_UNITS,
+                                   g_param_spec_object ("units", "Units", "Measure units",
+                                                        HYSCAN_TYPE_UNITS,
+                                                        G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
 hyscan_gtk_map_grid_init (HyScanGtkMapGrid *gtk_map_grid)
 {
   gtk_map_grid->priv = hyscan_gtk_map_grid_get_instance_private (gtk_map_grid);
+}
+
+static void
+hyscan_gtk_map_grid_set_property (GObject      *object,
+                                  guint         prop_id,
+                                  const GValue *value,
+                                  GParamSpec   *pspec)
+{
+  HyScanGtkMapGrid *grid = HYSCAN_GTK_MAP_GRID (object);
+  HyScanGtkMapGridPrivate *priv = grid->priv;
+
+  switch (prop_id)
+    {
+    case PROP_UNITS:
+      priv->units = g_value_dup_object (value);
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+    }
 }
 
 static void
@@ -130,8 +174,9 @@ hyscan_gtk_map_grid_object_constructed (GObject *object)
   hyscan_param_controller_add_double (HYSCAN_PARAM_CONTROLLER (priv->param), "/line-width", &priv->line_width);
   hyscan_gtk_layer_param_set_default (priv->param);
 
-  priv->label_padding = 2;
   hyscan_gtk_map_grid_set_step_width (gtk_map_grid, GRID_STEP);
+
+  g_signal_connect_swapped (priv->units, "notify::geo", hyscan_gtk_map_grid_queue_draw, gtk_map_grid);
 }
 
 static void
@@ -141,6 +186,7 @@ hyscan_gtk_map_grid_object_finalize (GObject *object)
   HyScanGtkMapGridPrivate *priv = gtk_map_grid->priv;
 
   g_clear_object (&priv->pango_layout);
+  g_clear_object (&priv->units);
   g_object_unref (priv->map);
   g_object_unref (priv->param);
 
@@ -151,7 +197,8 @@ static void
 hyscan_gtk_map_grid_set_visible (HyScanGtkLayer *layer,
                                  gboolean        visible)
 {
-  HyScanGtkMapGridPrivate *priv = HYSCAN_GTK_MAP_GRID (layer)->priv;
+  HyScanGtkMapGrid *grid = HYSCAN_GTK_MAP_GRID (layer);
+  HyScanGtkMapGridPrivate *priv = grid->priv;
   priv->visible = visible;
 
   if (priv->map != NULL)
@@ -214,158 +261,108 @@ hyscan_gtk_map_grid_configure (HyScanGtkMapGrid *grid,
     width = 0;
 
   width /= PANGO_SCALE;
-  priv->label_padding = width / 20;
 
   return GDK_EVENT_PROPAGATE;
 }
 
-/* Форматирует значение value, округляя его до 10^value_power знака. */
+/* Рисует подпись линии широты/долготы в указанной точке. */
 static void
-hyscan_gtk_map_grid_format_label (gdouble  value,
-                                  gint     value_power,
-                                  gchar   *string,
-                                  gsize    length)
-{
-  gchar text_format[128];
-
-  if (value_power > 0)
-    value_power = 0;
-  g_snprintf (text_format, sizeof (text_format), "%%.%df°", -value_power);
-  g_snprintf (string, length, text_format, value);
-}
-
-/* Рисуем параллель на широте latitude. */
-static void
-hyscan_gtk_map_grid_draw_lat (HyScanGtkMapGrid *grid,
-                              cairo_t          *cairo,
-                              gdouble           latitude,
-                              gdouble           from_lon,
-                              gdouble           to_lon,
-                              gint              value_power)
+hyscan_gtk_map_grid_label (HyScanGtkMapGrid     *grid,
+                           cairo_t              *cairo,
+                           const gchar          *label,
+                           gboolean              rotate,
+                           HyScanGeoCartesian2D *point)
 {
   HyScanGtkMapGridPrivate *priv = grid->priv;
-  GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
-
-  HyScanGeoCartesian2D point;
-  gdouble grid_x;
-  gdouble grid_y;
-
-  gchar label[255];
-
-  guint i;
-  gdouble step;
-
-  gint text_height;
-  gint text_width;
-
-  HyScanGeoGeodetic geo;
-
-  geo.lat = latitude;
-  geo.lon = from_lon;
-
-  /* Рисуем подпись. */
-  hyscan_gtk_map_grid_format_label (geo.lat, value_power, label, sizeof (label));
-  hyscan_gtk_map_geo_to_value (priv->map, geo, &point);
-  gtk_cifro_area_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
-  pango_layout_set_text (priv->pango_layout, label, -1);
-  pango_layout_get_size (priv->pango_layout, &text_width, &text_height);
-  text_height /= PANGO_SCALE;
-  text_width /= PANGO_SCALE;
-  cairo_save (cairo);
-  cairo_translate (cairo, priv->label_padding, grid_y - priv->label_padding);
-  cairo_rotate (cairo, -G_PI / 2.0);
-
-  cairo_rectangle (cairo,
-                   -priv->label_padding, -priv->label_padding,
-                   text_width + 2.0 * priv->label_padding, text_height + 2.0 * priv->label_padding);
-  gdk_cairo_set_source_rgba (cairo, &priv->bg_color);
-  cairo_fill (cairo);
-
-  gdk_cairo_set_source_rgba (cairo, &priv->label_color);
-  pango_cairo_show_layout (cairo, priv->pango_layout);
-  cairo_restore (cairo);
-
-  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (grid)))
-    return;
-
-  /* Рисуем линию. */
-  cairo_new_path (cairo);
-  step = (to_lon - from_lon) / (LINE_POINTS_NUM - 1);
-  for (i = 0; i < LINE_POINTS_NUM; ++i)
-    {
-      geo.lon = from_lon + step * i;
-      hyscan_gtk_map_geo_to_value (priv->map, geo, &point);
-      gtk_cifro_area_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
-      cairo_line_to (cairo, grid_x, grid_y);
-    }
-  cairo_set_line_width (cairo, priv->line_width);
-  gdk_cairo_set_source_rgba (cairo, &priv->line_color);
-  cairo_stroke (cairo);
-}
-
-/* Рисует линию меридиана на долготе longitude. */
-static void
-hyscan_gtk_map_grid_draw_lon (HyScanGtkMapGrid *grid,
-                              cairo_t          *cairo,
-                              gdouble           longitude,
-                              gdouble           from_lat,
-                              gdouble           to_lat,
-                              gint              value_power)
-{
-  HyScanGtkMapGridPrivate *priv = grid->priv;
-  GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
-
-  gdouble grid_x, grid_y;
-  gchar label[255];
-  guint i;
-  gdouble step;
-
-  gint text_width;
-  gint text_height;
-
-  HyScanGeoCartesian2D point;
-  HyScanGeoGeodetic geo;
-
-  geo.lon = longitude;
-  geo.lat = to_lat;
+  gint text_width, text_height;
 
   /* Рисуем подпись. */
   cairo_save (cairo);
-  hyscan_gtk_map_geo_to_value (priv->map, geo, &point);
-  gtk_cifro_area_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
-  hyscan_gtk_map_grid_format_label (longitude, value_power, label, sizeof (label));
+
   pango_layout_set_text (priv->pango_layout, label, -1);
+
   pango_layout_get_size (priv->pango_layout, &text_width, &text_height);
   text_height /= PANGO_SCALE;
   text_width /= PANGO_SCALE;
 
-  cairo_translate (cairo, grid_x + priv->label_padding, priv->label_padding);
-  cairo_rectangle (cairo,
-                   -priv->label_padding, -priv->label_padding,
-                   text_width + 2.0 * priv->label_padding, text_height + 2.0 * priv->label_padding);
+  cairo_translate (cairo, point->x, point->y);
+  if (rotate)
+    cairo_rotate (cairo, -G_PI_2);
+
+  cairo_translate (cairo, -text_width / 2.0, 0);
+
+  cairo_rectangle (cairo, 0, 0, text_width, text_height);
   gdk_cairo_set_source_rgba (cairo, &priv->bg_color);
-  cairo_fill (cairo);
+  cairo_fill_preserve (cairo);
+
+  gdk_cairo_set_source_rgba (cairo, &priv->stroke_color);
+  cairo_set_line_width (cairo, 0.5);
+  cairo_stroke (cairo);
 
   gdk_cairo_set_source_rgba (cairo, &priv->label_color);
   pango_cairo_show_layout (cairo, priv->pango_layout);
   cairo_restore (cairo);
+}
 
-  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (grid)))
-    return;
+/* Рисуем линию по точкам points. */
+static void
+hyscan_gtk_map_grid_draw_line (HyScanGtkMapGrid  *grid,
+                               cairo_t           *cairo,
+                               HyScanGeoGeodetic *points,
+                               gsize              points_len,
+                               gboolean           prefer_y,
+                               const gchar       *label)
+{
+  HyScanGtkMapGridPrivate *priv = grid->priv;
+  GtkCifroArea *carea = GTK_CIFRO_AREA (priv->map);
+  guint i;
 
-  /* Рисуем линию. */
+  guint width, height;
+  HyScanGeoCartesian2D pt1, pt0;
+  HyScanGeoCartesian2D left_top = {0, 0},
+                       right_top = {0, 0},
+                       left_bottom = {0, 0},
+                       cross = {0, 0};
+  gboolean cross_x = FALSE,  /* Признак пересечения с верхней границей (left_top - right_top). */
+           cross_y = FALSE;  /* Признак пересечения с левой границей (left_top - left_bottom). */
+
+  /* Определяем координаты углов. */
+  gtk_cifro_area_get_size (GTK_CIFRO_AREA (priv->map), &width, &height);
+  right_top.x = width;
+  left_bottom.y = height;
+
+  /* Рисуем линию покусочно через указанные точки. */
   cairo_new_path (cairo);
-  step = (to_lat - from_lat) / (LINE_POINTS_NUM - 1);
-  for (i = 0; i < LINE_POINTS_NUM; ++i)
+  for (i = 0; i < points_len; ++i, pt1 = pt0)
     {
-      geo.lat = from_lat + step * i;
-      hyscan_gtk_map_geo_to_value (priv->map, geo, &point);
-      gtk_cifro_area_value_to_point (carea, &grid_x, &grid_y, point.x, point.y);
-      cairo_line_to (cairo, grid_x, grid_y);
+      HyScanGeoCartesian2D value;
+
+      hyscan_gtk_map_geo_to_value (priv->map, points[i], &value);
+      gtk_cifro_area_value_to_point (carea, &pt0.x, &pt0.y, value.x, value.y);
+      cairo_line_to (cairo, pt0.x, pt0.y);
+
+      /* Ищем пересечение линии с границей видимой области.
+       * Если пересечение с предпочтительной линией уже найдено, то пропускаем этот шаг. */
+      if (i == 0 || (cross_y && prefer_y) || (cross_x && !prefer_y))
+        continue;
+
+      cross_y = hyscan_cartesian_intersection (&pt1, &pt0, &left_top, &left_bottom, &cross) &&
+                0 < cross.y && cross.y < height;
+      if (cross_y && prefer_y)
+        continue;
+
+      cross_x = hyscan_cartesian_intersection (&pt1, &pt0, &left_top, &right_top, &cross) &&
+                0 < cross.x && cross.x < width;
     }
+
   cairo_set_line_width (cairo, priv->line_width);
   gdk_cairo_set_source_rgba (cairo, &priv->line_color);
   cairo_stroke (cairo);
+
+  if (!cross_x && !cross_y)
+    return;
+
+  hyscan_gtk_map_grid_label (grid, cairo, label, prefer_y ? cross_y : !cross_x, &cross);
 }
 
 /* Выравнивает шаги координатной сетки при больших значениях шага. */
@@ -476,6 +473,36 @@ hyscan_gtk_map_grid_adjust_step (gdouble  step_length,
   *power = power_ret;
 }
 
+/* Рисует стрелку с направлением на север. */
+static void
+hyscan_gtk_map_grid_draw_north (HyScanGtkMapGrid *grid,
+                                cairo_t          *cairo,
+                                gint              x,
+                                gint              y)
+{
+  HyScanGtkMapGridPrivate *priv = grid->priv;
+  gint width, height;
+
+  cairo_save (cairo);
+  cairo_translate (cairo, x, y);
+  cairo_rotate (cairo, gtk_cifro_area_get_angle (GTK_CIFRO_AREA (priv->map)));
+  cairo_new_path (cairo);
+  cairo_move_to (cairo,  0,  -20);
+  cairo_line_to (cairo,  10,  12);
+  cairo_line_to (cairo,  0,   8);
+  cairo_line_to (cairo, -10,  12);
+  cairo_close_path (cairo);
+  gdk_cairo_set_source_rgba (cairo, &priv->bg_color);
+  cairo_fill (cairo);
+  cairo_restore (cairo);
+
+  gdk_cairo_set_source_rgba (cairo, &priv->label_color);
+  pango_layout_set_text (priv->pango_layout, "N", 1);
+  pango_layout_get_pixel_size (priv->pango_layout, &width, &height);
+  cairo_move_to (cairo, x - width / 2.0, y - height / 2.0);
+  pango_cairo_show_layout (cairo, priv->pango_layout);
+}
+
 /* Рисует координатную сетку по сигналу "area-draw". */
 static void
 hyscan_gtk_map_grid_draw (HyScanGtkMap     *map,
@@ -501,8 +528,11 @@ hyscan_gtk_map_grid_draw (HyScanGtkMap     *map,
   HyScanGeoGeodetic from_geo, to_geo;
   HyScanGeoCartesian2D from, to;
 
+  if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (grid)))
+    return;
+
   /* Определяем размеры видимой области. */
-  gtk_cifro_area_get_visible_size (carea, &width, &height);
+  gtk_cifro_area_get_size (carea, &width, &height);
   gtk_cifro_area_get_view (carea, &from_x, &to_x, &from_y, &to_y);
   gtk_cifro_area_get_limits (carea, &min_x, &max_x, &min_y, &max_y);
   from.x = CLAMP (from_x, min_x, max_x);
@@ -536,7 +566,18 @@ hyscan_gtk_map_grid_draw (HyScanGtkMap     *map,
     lat = from_lat;
     while (lat <= to_lat)
       {
-        hyscan_gtk_map_grid_draw_lat (grid, cairo, lat, from_geo.lon, to_geo.lon, value_power);
+        gchar *label;
+        gsize i;
+        HyScanGeoGeodetic points[LINE_POINTS_NUM];
+
+        for (i = 0; i < LINE_POINTS_NUM; i++)
+          {
+            points[i].lat = lat;
+            points[i].lon = (to_geo.lon - from_geo.lon) * i / (LINE_POINTS_NUM - 1) + from_geo.lon;
+          }
+
+        label = hyscan_units_format (priv->units, HYSCAN_UNIT_TYPE_LAT, lat, -value_power);
+        hyscan_gtk_map_grid_draw_line (grid, cairo, points, LINE_POINTS_NUM, TRUE, label);
         lat += lat_step;
       }
   }
@@ -564,10 +605,23 @@ hyscan_gtk_map_grid_draw (HyScanGtkMap     *map,
     lon = from_lon;
     while (lon <= to_lon)
       {
-        hyscan_gtk_map_grid_draw_lon (grid, cairo, lon, from_geo.lat, to_geo.lat, value_power);
+        gchar *label;
+        gsize i;
+        HyScanGeoGeodetic points[LINE_POINTS_NUM];
+
+        for (i = 0; i < LINE_POINTS_NUM; i++)
+          {
+            points[i].lat = (to_geo.lat - from_geo.lat) * i / (LINE_POINTS_NUM - 1) + from_geo.lat;
+            points[i].lon = lon;
+          }
+
+        label = hyscan_units_format (priv->units, HYSCAN_UNIT_TYPE_LON, lon, -value_power);
+        hyscan_gtk_map_grid_draw_line (grid, cairo, points, LINE_POINTS_NUM, FALSE, label);
         lon += lon_step;
       }
   }
+
+  hyscan_gtk_map_grid_draw_north (grid, cairo, width - 30, height - 50);
 }
 
 static void
@@ -579,15 +633,18 @@ hyscan_gtk_map_grid_queue_draw (HyScanGtkMapGrid *grid)
 
 /**
  * hyscan_gtk_map_grid_new:
+ * @units: форматирование единиц измерения
  *
  * Создаёт слой координатной сетки.
  *
  * Returns: указатель на созданный слой
  */
 HyScanGtkLayer *
-hyscan_gtk_map_grid_new (void)
+hyscan_gtk_map_grid_new (HyScanUnits *units)
 {
-  return g_object_new (HYSCAN_TYPE_GTK_MAP_GRID, NULL);
+  return g_object_new (HYSCAN_TYPE_GTK_MAP_GRID,
+                       "units", units,
+                       NULL);
 }
 
 /**
@@ -604,6 +661,13 @@ hyscan_gtk_map_grid_set_bg_color (HyScanGtkMapGrid *grid,
   g_return_if_fail (HYSCAN_IS_GTK_MAP_GRID (grid));
 
   grid->priv->bg_color = color;
+
+  /* Цвет обводки делаем чуть темнее или светлее. */
+  color.red += color.red > 0.5 ? -0.15 : 0.15;
+  color.green += color.green > 0.5 ? -0.15 : 0.15;
+  color.blue += color.blue > 0.5 ? -0.15 : 0.15;
+  grid->priv->stroke_color = color;
+
   hyscan_gtk_map_grid_queue_draw (grid);
 }
 

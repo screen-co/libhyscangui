@@ -51,13 +51,6 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-waterfall-player.c
              hyscan-gtk-waterfall-magnifier.c
              # hyscan-gtk-waterfall-depth.c
-             hyscan-gtk-spin-button.c
-             hyscan-gtk-datetime.c
-             hyscan-gtk-param-key.c
-             hyscan-gtk-param.c
-             hyscan-gtk-param-list.c
-             hyscan-gtk-param-cc.c
-             hyscan-gtk-param-tree.c
              hyscan-gtk-layer-list.c
              hyscan-gtk-planner-editor.c
              hyscan-gtk-planner-zeditor.c

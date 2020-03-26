@@ -1,30 +1,36 @@
-/**
- * \file hyscan-gtk-area.h
+/* hyscan-gtk-area.h
  *
- * \brief Заголовочный файл виджета рабочей области
- * \author Andrei Fadeev (andrei@webcontrol.ru)
- * \date 2015
- * \license Проприетарная лицензия ООО "Экран"
+ * Copyright 2015 Screen LLC, Andrei Fadeev <andrei@webcontrol.ru>
  *
- * \defgroup HyScanGtkArea HyScanGtkArea - виджет рабочей области
+ * This file is part of HyScanGui.
  *
- * Виджет представляет собой контейнер с пятью рабочими областями: центральной, левой,
- * правой, верхней и нижней. В каждую рабочую область можно разместить один дочерний виджет.
- * Для размещения нескольких виджетов необходимо использовать Gtk контейнер, например GtkBox или GtkGrid.
- * Размещение дочерних виджетов осуществляется с помощью функций: #hyscan_gtk_area_set_central,
- * #hyscan_gtk_area_set_left, #hyscan_gtk_area_set_right, #hyscan_gtk_area_set_top и #hyscan_gtk_area_set_bottom.
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Рабочие области вокруг центральной могут быть скрыты пользователем через графический интерфейс,
- * нажатием на соответствующие элементы управления (стрелки) или программно, с помощью функций:
- * #hyscan_gtk_area_set_left_visible, #hyscan_gtk_area_set_right_visible, #hyscan_gtk_area_set_top_visible,
- * #hyscan_gtk_area_set_bottom_visible и #hyscan_gtk_area_set_all_visible.
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * Определить отображаются рабочие области или нет можно с помощью функций: #hyscan_gtk_area_is_left_visible,
- * #hyscan_gtk_area_is_right_visible, #hyscan_gtk_area_is_top_visible и #hyscan_gtk_area_is_bottom_visible.
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
  *
- * Виджет создаётся функцией: #hyscan_gtk_area_new.
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
  *
-*/
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
 
 #ifndef __HYSCAN_GTK_AREA_H__
 #define __HYSCAN_GTK_AREA_H__
@@ -52,200 +58,57 @@ struct _HyScanGtkAreaClass
 HYSCAN_API
 GType hyscan_gtk_area_get_type (void);
 
-/**
- *
- * Функция создаёт новый виджет \link HyScanGtkArea \endlink.
- *
- * \return Указатель на новый виджет \link HyScanGtkArea \endlink.
- *
-*/
 HYSCAN_API
-GtkWidget     *hyscan_gtk_area_new                     (void);
+GtkWidget *    hyscan_gtk_area_new                     (void);
 
-/**
- *
- * Функция задаёт дочерний виджет центральной рабочей области.
- *
- * \param area указатель на виджет \link HyScanGtkArea \endlink;
- * \param child дочерний виджет.
- *
- * \return Нет.
- *
-*/
 HYSCAN_API
 void           hyscan_gtk_area_set_central             (HyScanGtkArea         *area,
                                                         GtkWidget             *child);
 
-/**
- *
- * Функция задаёт дочерний виджет рабочей области слева.
- *
- * \param area указатель на виджет \link HyScanGtkArea \endlink;
- * \param child дочерний виджет.
- *
- * \return Нет.
- *
-*/
 HYSCAN_API
 void           hyscan_gtk_area_set_left                (HyScanGtkArea         *area,
                                                         GtkWidget             *child);
 
-/**
- *
- * Функция задаёт дочерний виджет рабочей области справа.
- *
- * \param area указатель на виджет \link HyScanGtkArea \endlink;
- * \param child дочерний виджет.
- *
- * \return Нет.
- *
-*/
 HYSCAN_API
 void           hyscan_gtk_area_set_right               (HyScanGtkArea         *area,
                                                         GtkWidget             *child);
 
-/**
- *
- * Функция задаёт дочерний виджет рабочей области сверху.
- *
- * \param area указатель на виджет \link HyScanGtkArea \endlink;
- * \param child дочерний виджет.
- *
- * \return Нет.
- *
-*/
 HYSCAN_API
 void           hyscan_gtk_area_set_top                 (HyScanGtkArea         *area,
                                                         GtkWidget             *child);
 
-/**
- *
- * Функция задаёт дочерний виджет рабочей области снизу.
- *
- * \param area указатель на виджет \link HyScanGtkArea \endlink;
- * \param child дочерний виджет.
- *
- * \return Нет.
- *
-*/
 HYSCAN_API
 void           hyscan_gtk_area_set_bottom              (HyScanGtkArea         *area,
                                                         GtkWidget             *child);
 
-/**
- *
- * Функция устанавливает видимость рабочей области слева.
- *
- * \param area указатель на виджет \link HyScanGtkArea \endlink;
- * \param visible показывать или нет рабочую область слева.
- *
- * \return Нет.
- *
-*/
 HYSCAN_API
 void           hyscan_gtk_area_set_left_visible        (HyScanGtkArea         *area,
                                                         gboolean               visible);
 
-/**
- *
- * Функция возвращает состояние видимости рабочей области слева.
- *
- * \param area указатель на виджет \link HyScanGtkArea \endlink.
- *
- * \return Состояние видимости рабочей области слева.
- *
-*/
 HYSCAN_API
 gboolean       hyscan_gtk_area_is_left_visible         (HyScanGtkArea         *area);
 
-/**
- *
- * Функция устанавливает видимость рабочей области справа.
- *
- * \param area указатель на виджет \link HyScanGtkArea \endlink;
- * \param visible показывать или нет рабочую область справа.
- *
- * \return Нет.
- *
-*/
 HYSCAN_API
 void           hyscan_gtk_area_set_right_visible       (HyScanGtkArea         *area,
                                                         gboolean               visible);
 
-/**
- *
- * Функция возвращает состояние видимости рабочей области справа.
- *
- * \param area указатель на виджет \link HyScanGtkArea \endlink.
- *
- * \return Состояние видимости рабочей области справа.
- *
-*/
 HYSCAN_API
 gboolean       hyscan_gtk_area_is_right_visible        (HyScanGtkArea         *area);
 
-/**
- *
- * Функция устанавливает видимость рабочей области сверху.
- *
- * \param area указатель на виджет \link HyScanGtkArea \endlink;
- * \param visible показывать или нет рабочую область сверху.
- *
- * \return Нет.
- *
-*/
 HYSCAN_API
 void           hyscan_gtk_area_set_top_visible         (HyScanGtkArea         *area,
                                                         gboolean               visible);
 
-/**
- *
- * Функция возвращает состояние видимости рабочей области сверху.
- *
- * \param area указатель на виджет \link HyScanGtkArea \endlink.
- *
- * \return Состояние видимости рабочей области сверху.
- *
-*/
 HYSCAN_API
 gboolean       hyscan_gtk_area_is_top_visible          (HyScanGtkArea         *area);
 
-/**
- *
- * Функция устанавливает видимость рабочей области снизу.
- *
- * \param area указатель на виджет \link HyScanGtkArea \endlink;
- * \param visible показывать или нет рабочую область снизу.
- *
- * \return Нет.
- *
-*/
 HYSCAN_API
 void           hyscan_gtk_area_set_bottom_visible      (HyScanGtkArea         *area,
                                                         gboolean               visible);
 
-/**
- *
- * Функция возвращает состояние видимости рабочей области снизу.
- *
- * \param area указатель на виджет \link HyScanGtkArea \endlink.
- *
- * \return Состояние видимости рабочей области снизу.
- *
-*/
 HYSCAN_API
 gboolean       hyscan_gtk_area_is_bottom_visible       (HyScanGtkArea         *area);
 
-/**
- *
- * Функция устанавливает видимость всех рабочих областей, кроме центральной.
- *
- * \param area указатель на виджет \link HyScanGtkArea \endlink;
- * \param visible показывать или нет рабочие области.
- *
- * \return Нет.
- *
-*/
 HYSCAN_API
 void           hyscan_gtk_area_set_all_visible         (HyScanGtkArea         *area,
                                                         gboolean               visible);

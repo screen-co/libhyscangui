@@ -247,6 +247,7 @@ main (int    argc,
   gchar *origin = NULL;        /* Координаты центра карты. */
 
   HyScanDB *db;
+  HyScanUnits *units;
   DataTranslator *translator;
   HyScanGeoGeodetic center = {.lat = 55.571, .lon = 38.103};
 
@@ -316,8 +317,9 @@ main (int    argc,
   gtk_container_set_border_width (GTK_CONTAINER (grid), 20);
 
   db = hyscan_db_new (db_uri);
+  units = hyscan_units_new ();
   translator = translator_new (db, project_read, project_write, track_name);
-  kit = hyscan_gtk_map_kit_new (&center, db, "/tmp/tile-cache");
+  kit = hyscan_gtk_map_kit_new (&center, db, units, "/tmp/tile-cache");
   hyscan_gtk_map_kit_set_project (kit, project_write);
   hyscan_gtk_map_kit_load_profiles (kit, profile_dir);
 
@@ -333,6 +335,7 @@ main (int    argc,
   gtk_main ();
 
   /* Cleanup. */
+  g_clear_object (&units);
   g_clear_object (&db);
   hyscan_gtk_map_kit_free (kit);
   translator_free (translator);
