@@ -2415,22 +2415,6 @@ hyscan_model_manager_get_all_tracks_id (HyScanModelManager *self)
 }
 
 /**
- * hyscan_model_manager_get_selected_tracks_id:
- * @self: указатель на Менеджер Моделей
- *
- * Returns: NULL-терминированный список идентификаторов выбранных галсов.
- * Когда список больше не нужен, необходимо использовать #g_strfreev ().
- */
-gchar**
-hyscan_model_manager_get_selected_tracks_id (HyScanModelManager *self)
-{
-  HyScanModelManagerPrivate *priv = self->priv;
-  gchar **list = NULL;
-
-  return list;
-}
-
-/**
  * hyscan_model_manager_set_grouping:
  * @self: указатель на Менеджер Моделей
  * @grouping: тип группировки
@@ -2480,14 +2464,14 @@ hyscan_model_manager_get_view_model (HyScanModelManager   *self)
 }
 
 /**
- * hyscan_model_manager_set_selection:
+ * hyscan_model_manager_set_selected_item:
  * @self: указатель на Менеджер Моделей
  * @selection: указатель на выделенные объекты
  *
  * Устанавливает выделенную строку.
  */
 void
-hyscan_model_manager_set_selection (HyScanModelManager *self,
+hyscan_model_manager_set_selected_item (HyScanModelManager *self,
                                     gchar              *id)
 {
   HyScanModelManagerPrivate *priv = self->priv;

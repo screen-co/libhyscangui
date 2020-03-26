@@ -135,14 +135,12 @@ HyScanCache*         hyscan_model_manager_get_cache                   (HyScanMod
 
 gchar**              hyscan_model_manager_get_all_tracks_id           (HyScanModelManager     *self);
 
-gchar**              hyscan_model_manager_get_selected_tracks_id      (HyScanModelManager     *self);
-
 void                 hyscan_model_manager_set_grouping                (HyScanModelManager     *self,
                                                                        ModelManagerGrouping    grouping);
 
 ModelManagerGrouping hyscan_model_manager_get_grouping                (HyScanModelManager     *self);
 
-void                 hyscan_model_manager_set_selection               (HyScanModelManager     *self,
+void                 hyscan_model_manager_set_selected_item           (HyScanModelManager     *self,
                                                                        gchar                  *id);
 
 gchar*               hyscan_model_manager_get_selected_item           (HyScanModelManager     *self);

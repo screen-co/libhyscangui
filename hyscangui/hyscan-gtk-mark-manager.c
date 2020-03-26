@@ -585,7 +585,7 @@ hyscan_mark_manager_view_model_updated (HyScanMarkManager *self)
   hyscan_mark_manager_expand_all_items (self);
 
   if (id != NULL)
-    hyscan_mark_manager_view_set_selection (view, id);
+    hyscan_mark_manager_view_select_item (view, id);
 }
 
 /* Обработчик сигнала горизонтальной прокрутки представления.
@@ -694,7 +694,7 @@ hyscan_mark_manager_item_selected (HyScanMarkManager *self,
 {
   HyScanMarkManagerPrivate *priv = self->priv;
 
-  hyscan_model_manager_set_selection (priv->model_manager, id);
+  hyscan_model_manager_set_selected_item (priv->model_manager, id);
 }
 
 /* Функция-обработчик выделения cтроки. Сигнал отправляет ModelManager. */
@@ -708,7 +708,7 @@ hyscan_mark_manager_select_item (HyScanMarkManager *self)
     {
       gtk_widget_set_sensitive (priv->delete_icon, id);
 
-      hyscan_mark_manager_view_set_selection (HYSCAN_MARK_MANAGER_VIEW (priv->view), id);
+      hyscan_mark_manager_view_select_item (HYSCAN_MARK_MANAGER_VIEW (priv->view), id);
     }
 }
 

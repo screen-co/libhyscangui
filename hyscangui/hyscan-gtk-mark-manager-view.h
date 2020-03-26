@@ -71,7 +71,7 @@ void                 hyscan_mark_manager_view_expand_path            (HyScanMark
 gchar**              hyscan_mark_manager_view_get_toggled            (HyScanMarkManagerView      *self,
                                                                       ModelManagerObjectType      type);
 
-void                 hyscan_mark_manager_view_set_selection          (HyScanMarkManagerView      *self,
+void                 hyscan_mark_manager_view_select_item            (HyScanMarkManagerView      *self,
                                                                       gchar                      *id);
 
 gboolean             hyscan_mark_manager_view_find_item_by_id        (GtkTreeModel               *model,

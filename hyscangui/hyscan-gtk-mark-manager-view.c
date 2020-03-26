@@ -1283,15 +1283,15 @@ hyscan_mark_manager_view_set_store (HyScanMarkManagerView *self,
 }
 
 /**
- * hyscan_mark_manager_view_set_selection:
+ * hyscan_mark_manager_view_select_item:
  * @self: указатель на структуру #HyScanMarkManagerView
  * @selection: указатель на список выделенных объектов.
  *
  * Устанавливает выделенные объекты.
  */
 void
-hyscan_mark_manager_view_set_selection (HyScanMarkManagerView *self,
-                                        gchar                 *id)
+hyscan_mark_manager_view_select_item (HyScanMarkManagerView *self,
+                                      gchar                 *id)
 {
   HyScanMarkManagerViewPrivate *priv = self->priv;
   GtkTreeSelection *selection = gtk_tree_view_get_selection (priv->tree_view);
