@@ -488,6 +488,9 @@ hyscan_gtk_layer_container_handle_click (HyScanGtkLayerContainer *container,
   HyScanGtkLayerHandle closest_handle;
   HyScanGtkLayer *layer = NULL;
 
+  if (!hyscan_gtk_layer_container_get_changes_allowed (container))
+    return FALSE;
+
   layer = hyscan_gtk_layer_container_handle_closest (container, event->x, event->y, &closest_handle);
   if (layer == NULL)
     return FALSE;
@@ -607,7 +610,10 @@ hyscan_gtk_layer_container_handle_show (HyScanGtkLayerContainer *container,
   HyScanGtkLayerHandle closest_handle;
   HyScanGtkLayer *layer;
 
-  layer = hyscan_gtk_layer_container_handle_closest (container, point_x, point_y, &closest_handle);
+  if (hyscan_gtk_layer_container_get_changes_allowed (container))
+    layer = hyscan_gtk_layer_container_handle_closest (container, point_x, point_y, &closest_handle);
+  else
+    layer = NULL;
 
   /* Если слой, на котором размещен видимый хэндл, изменился, то сообщим ему об этом. */
   if (layer != priv->hshow_layer && priv->hshow_layer != NULL)
@@ -833,6 +839,10 @@ hyscan_gtk_layer_container_button_press (GtkWidget      *widget,
 {
   HyScanGtkLayerContainer *container = HYSCAN_GTK_LAYER_CONTAINER (widget);
 
+  /* Обрабатываем только нажатия левой и правой клавишами мыши. */
+  if (event->button != GDK_BUTTON_PRIMARY && event->button != GDK_BUTTON_SECONDARY)
+    return GDK_EVENT_PROPAGATE;
+
   /* Захватываем фокус по клику. */
   gtk_widget_is_focus (widget) ? 0 : gtk_widget_grab_focus (widget);
 
@@ -854,16 +864,16 @@ hyscan_gtk_layer_container_button_release (GtkWidget       *widget,
   gconstpointer handle_owner;
   gboolean drag_ended;
 
+  /* Обрабатываем только нажатия левой и правой клавишами мыши. */
+  if (event->button != GDK_BUTTON_PRIMARY && event->button != GDK_BUTTON_SECONDARY)
+    return GDK_EVENT_PROPAGATE;
+
   drag_ended = (container->priv->drag_state != DRAG_NO && container->priv->drag_state != DRAG_WAIT);
   if (container->priv->drag_state == DRAG_SELECT)
     gtk_widget_queue_draw (widget);
   container->priv->drag_state = DRAG_NO;
 
   hyscan_gtk_layer_container_tooltip_move (container, event->x, event->y);
-
-  /* Обрабатываем только нажатия левой и правой клавишами мыши. */
-  if (event->button != GDK_BUTTON_PRIMARY && event->button != GDK_BUTTON_SECONDARY)
-    return GDK_EVENT_PROPAGATE;
 
   if (!hyscan_gtk_layer_container_get_changes_allowed (container))
     return GDK_EVENT_PROPAGATE;
