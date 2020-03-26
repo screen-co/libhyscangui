@@ -75,6 +75,7 @@ struct _HyScanGtkMapKitPrivate
   HyScanPlannerSelection  *planner_selection;/* Модель выбранных объектов планировщика. */
   HyScanObjectModel       *mark_geo_model;   /* Модель геометок. */
   HyScanMarkLocModel      *ml_model;         /* Модель местоположения меток водопада. */
+  HyScanUnits             *units;
   HyScanDB                *db;
   HyScanCache             *cache;
   HyScanNavModel          *nav_model;
@@ -1504,7 +1505,7 @@ create_layers (HyScanGtkMapKit *kit)
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
   priv->base_layer = hyscan_gtk_map_base_new (priv->cache);
-  priv->map_grid = hyscan_gtk_map_grid_new ();
+  priv->map_grid = hyscan_gtk_map_grid_new (priv->units);
   priv->ruler = hyscan_gtk_map_ruler_new ();
   priv->pin_layer = hyscan_gtk_map_pin_new ();
 
@@ -1571,6 +1572,7 @@ hyscan_gtk_map_kit_model_init (HyScanGtkMapKit   *kit,
     HyScanProfileMap *profile;
 
     profile = hyscan_profile_map_new_default (priv->tile_cache_dir);
+    priv->units = hyscan_units_new ();
 
     add_profile (kit, DEFAULT_PROFILE_NAME, profile);
     hyscan_gtk_map_kit_set_profile_name (kit, DEFAULT_PROFILE_NAME);
@@ -1677,6 +1679,7 @@ hyscan_gtk_map_kit_get_tracks (HyScanGtkMapKit  *kit)
 HyScanGtkMapKit *
 hyscan_gtk_map_kit_new (HyScanGeoGeodetic *center,
                         HyScanDB          *db,
+                        HyScanUnits       *units,
                         const gchar       *cache_dir)
 {
   HyScanGtkMapKit *kit;
@@ -1684,6 +1687,7 @@ hyscan_gtk_map_kit_new (HyScanGeoGeodetic *center,
   kit = g_new0 (HyScanGtkMapKit, 1);
   kit->priv = g_new0 (HyScanGtkMapKitPrivate, 1);
   kit->priv->tile_cache_dir = g_strdup (cache_dir);
+  kit->priv->units = g_object_ref (units);
 
   hyscan_gtk_map_kit_model_create (kit, db);
   hyscan_gtk_map_kit_view_create (kit);
@@ -1879,7 +1883,7 @@ hyscan_gtk_map_kit_add_marks_wf (HyScanGtkMapKit *kit)
 
   /* Слой с метками. */
 
-  priv->wfmark_layer = hyscan_gtk_map_wfmark_new (priv->ml_model, priv->db, priv->cache);
+  priv->wfmark_layer = hyscan_gtk_map_wfmark_new (priv->ml_model, priv->db, priv->cache, priv->units);
   add_layer_row (kit, priv->wfmark_layer, FALSE, "wfmark", _("Waterfall Marks"));
 
   /* Виджет навигации по меткам. */
@@ -2000,6 +2004,7 @@ hyscan_gtk_map_kit_free (HyScanGtkMapKit *kit)
   g_clear_object (&priv->mark_store);
   g_clear_object (&priv->planner_model);
   g_clear_object (&priv->planner_selection);
+  g_clear_object (&priv->units);
   g_free (priv);
 
   g_free (kit);

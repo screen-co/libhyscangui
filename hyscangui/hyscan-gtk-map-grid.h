@@ -36,6 +36,7 @@
 #define __HYSCAN_GTK_MAP_GRID_H__
 
 #include <hyscan-gtk-map.h>
+#include <hyscan-units.h>
 
 G_BEGIN_DECLS
 
@@ -66,7 +67,7 @@ HYSCAN_API
 GType                  hyscan_gtk_map_grid_get_type           (void);
 
 HYSCAN_API
-HyScanGtkLayer *       hyscan_gtk_map_grid_new                (void);
+HyScanGtkLayer *       hyscan_gtk_map_grid_new                (HyScanUnits      *units);
 
 HYSCAN_API
 void                   hyscan_gtk_map_grid_set_line_color     (HyScanGtkMapGrid *grid,

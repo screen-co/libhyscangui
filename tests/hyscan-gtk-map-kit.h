@@ -2,6 +2,7 @@
 #define __HYSCAN_GTK_MAP_KIT_H__
 
 #include <hyscan-gtk-map.h>
+#include <hyscan-units.h>
 #include <hyscan-db.h>
 #include <hyscan-sensor.h>
 
@@ -21,6 +22,7 @@ typedef struct
 
 HyScanGtkMapKit * hyscan_gtk_map_kit_new              (HyScanGeoGeodetic *center,
                                                        HyScanDB          *db,
+                                                       HyScanUnits       *units,
                                                        const gchar       *cache_dir);
 
 void              hyscan_gtk_map_kit_set_project      (HyScanGtkMapKit   *kit,

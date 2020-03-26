@@ -38,6 +38,7 @@
 
 #include <hyscan-gtk-layer.h>
 #include <hyscan-mark-loc-model.h>
+#include <hyscan-units.h>
 
 G_BEGIN_DECLS
 
@@ -70,7 +71,8 @@ GType            hyscan_gtk_map_wfmark_get_type       (void);
 HYSCAN_API
 HyScanGtkLayer * hyscan_gtk_map_wfmark_new            (HyScanMarkLocModel    *model,
                                                        HyScanDB              *db,
-                                                       HyScanCache           *cache);
+                                                       HyScanCache           *cache,
+                                                       HyScanUnits           *units);
                                                                              
 HYSCAN_API                                                                   
 void             hyscan_gtk_map_wfmark_mark_highlight (HyScanGtkMapWfmark    *wfm_layer,

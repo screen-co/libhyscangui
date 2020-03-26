@@ -117,6 +117,7 @@ int main (int     argc,
   GtkWidget *window;
 
   HyScanDB *db = NULL;
+  HyScanUnits *units;
   HyScanSensor *sensor;
   HyScanGeoGeodetic center = {.lat = 55.571, .lon = 38.103};
 
@@ -188,8 +189,9 @@ int main (int     argc,
     db = hyscan_db_new (db_uri);
 
   sensor = create_sensor ();
+  units = hyscan_units_new ();
 
-  kit = hyscan_gtk_map_kit_new (&center, db, "/tmp/tile-cache");
+  kit = hyscan_gtk_map_kit_new (&center, db, units, "/tmp/tile-cache");
   hyscan_gtk_map_kit_set_project (kit, project_name);
   if (profile_dir != NULL)
     hyscan_gtk_map_kit_load_profiles (kit, profile_dir);
@@ -233,6 +235,7 @@ int main (int     argc,
 
   /* Cleanup. */
   g_clear_object (&db);
+  g_clear_object (&units);
   hyscan_gtk_map_kit_free (kit);
 
   return 0;

@@ -80,6 +80,7 @@ enum
   PROP_MODEL,
   PROP_CACHE,
   PROP_DB,
+  PROP_UNITS,
 };
 /* Режим отображения меток. */
 enum
@@ -127,6 +128,7 @@ struct _HyScanGtkMapWfmarkPrivate
   HyScanMarkLocModel                    *model;           /* Модель данных. */
   HyScanDB                              *db;              /* Модель данных. */
   HyScanCache                           *cache;           /* Модель данных. */
+  HyScanUnits                           *units;           /* Единицы измерения. */
   gchar                                 *project;         /* Название проекта. */
 
   HyScanFactoryAmplitude                *factory_amp;     /* Фабрика объектов акустических данных. */
@@ -199,6 +201,11 @@ hyscan_gtk_map_wfmark_class_init (HyScanGtkMapWfmarkClass *klass)
                          "The link to data base",
                          HYSCAN_TYPE_DB,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+  g_object_class_install_property (object_class, PROP_UNITS,
+    g_param_spec_object ("units", "Measurement units",
+                         "Measurement units",
+                         HYSCAN_TYPE_UNITS,
+                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
@@ -228,6 +235,10 @@ hyscan_gtk_map_wfmark_set_property (GObject      *object,
 
     case PROP_CACHE:
       priv->cache  = g_value_dup_object (value);
+      break;
+
+    case PROP_UNITS:
+      priv->units  = g_value_dup_object (value);
       break;
 
     default:
@@ -1213,82 +1224,81 @@ hyscan_gtk_map_wfmark_hint_find (HyScanGtkLayer *layer,
 {
   HyScanGtkMapWfmark *wfm_layer = HYSCAN_GTK_MAP_WFMARK (layer);
   HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
+  HyScanMarkLocation *mloc;
   HyScanGeoCartesian2D cursor;
-  gchar *hint = NULL;
+  gchar *text;
+  gchar *lat_text, *lon_text;
+  gdouble depth;
+  GDateTime *date_time;
+  GString *hint_string;
 
   gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), x, y, &cursor.x, &cursor.y);
 
   priv->hover_candidate = hyscan_gtk_map_wfmark_find_hover (wfm_layer, &cursor, distance);
 
-  if (priv->hover_candidate != NULL)
+  if (priv->hover_candidate == NULL)
+    return NULL;
+
+  mloc = priv->hover_candidate->mloc;
+
+  hint_string = g_string_new (NULL);
+  g_string_append_printf (hint_string, "%s.\n", mloc->mark->name);
+
+  date_time = g_date_time_new_from_unix_local (mloc->mark->ctime / G_TIME_SPAN_SECOND);
+  text = g_date_time_format (date_time, "%d.%m.%Y %H:%M:%S");
+  g_string_append_printf (hint_string, "%s: %s.\n", _("Created"), text);
+  g_free (text);
+  g_date_time_unref (date_time);
+
+  date_time = g_date_time_new_from_unix_local (mloc->mark->mtime / G_TIME_SPAN_SECOND);
+  text = g_date_time_format (date_time, "%d.%m.%Y %H:%M:%S");
+  g_string_append_printf (hint_string, "%s: %s.\n", _("Edited"), text);
+  g_free (text);
+  g_date_time_unref (date_time);
+
+  lat_text = hyscan_units_format (priv->units, HYSCAN_UNIT_TYPE_LAT, mloc->mark_geo.lat, 6);
+  lon_text = hyscan_units_format (priv->units, HYSCAN_UNIT_TYPE_LON, mloc->mark_geo.lon, 6);
+  g_string_append_printf (hint_string, "%s: %s, %s.\n", _("Location"), lat_text, lon_text);
+  g_free (lat_text);
+  g_free (lon_text);
+
+  depth = mloc->depth;
+
+  if (depth != -1.0)
+    g_string_append_printf (hint_string, "%s: %.f %s.\n", _("Depth"), depth, _("m"));
+  else
+    g_string_append_printf (hint_string, "%s: %s.\n", _("Depth"), _("Empty"));
+
+  g_string_append_printf (hint_string, "%s: %s.", _("Track"), mloc->track_name);
+
+  if (mloc->mark->description != NULL && 0 != g_strcmp0 (mloc->mark->description, ""))
     {
-      gboolean empty_string;
-      gchar str[64] = {0};
-      gdouble depth;
+      gchar *tmp = NULL;
+      gchar **list = NULL;
+      guint array_size, index = 0;
 
-      hint = g_strdup (priv->hover_candidate->mloc->mark->name);
-      hint = g_strconcat (hint, ".", (gchar*) NULL);
+      tmp = g_strconcat (_("Note: "), mloc->mark->description, (gchar*) NULL);
+      list = g_strsplit (tmp, " ", -1);
+      array_size = g_strv_length (list);
 
-      strcpy (str, g_date_time_format (
-                        g_date_time_new_from_unix_local (
-                          priv->hover_candidate->mloc->mark->ctime / G_TIME_SPAN_SECOND),
-                          "%d.%m.%Y %H:%M:%S."));
-      hint = g_strconcat (hint,"\n", _("Created: "), str, (gchar*) NULL);
-
-      strcpy (str, g_date_time_format (
-                        g_date_time_new_from_unix_local (
-                          priv->hover_candidate->mloc->mark->mtime / G_TIME_SPAN_SECOND),
-                          "%d.%m.%Y %H:%M:%S."));
-      hint = g_strconcat (hint, "\n", _("Edited: "), str, (gchar*) NULL);
-
-      g_snprintf (str, sizeof (str), "%.6f°, %.6f°.",
-                  priv->hover_candidate->mloc->mark_geo.lat,
-                  priv->hover_candidate->mloc->mark_geo.lon);
-      hint = g_strconcat (hint, "\n", _("Location: "), str, (gchar*) NULL);
-
-      depth = priv->hover_candidate->mloc->depth;
-
-      if (depth != -1.0)
+      while (index < array_size)
         {
-          g_snprintf (str, sizeof (str), _("%.2f m."), depth);
-        }
-      else
-        {
-          strcpy (str, _("Empty."));
-        }
-
-      hint = g_strconcat (hint, "\n", _("Depth: "), str, (gchar*) NULL);
-      hint = g_strconcat (hint, "\n", _("Track: "), priv->hover_candidate->mloc->track_name, ".", (gchar*) NULL);
-
-      empty_string = (0 == g_strcmp0 (priv->hover_candidate->mloc->mark->description, ""))? TRUE : FALSE;
-
-      if (!empty_string)
-        {
-          gchar *tmp = NULL;
-          gchar **list = NULL;
-          guint array_size, index = 0;
-
-          tmp = g_strconcat (_("Note: "), priv->hover_candidate->mloc->mark->description, (gchar*) NULL);
-          list = g_strsplit (tmp, " ", -1);
-          array_size = g_strv_length (list);
-
-          while (index < array_size)
+          guint size = 0;
+          g_string_append_c (hint_string, '\n');
+          while (size < 48 && index < array_size)
             {
-              guint size = 0;
-              hint = g_strconcat (hint, "\n", (gchar*) NULL);
-              while (size < 48 && index < array_size)
-                {
-                  hint = g_strconcat (hint, list[index], " ", (gchar*) NULL);
-                  size += g_utf8_strlen (list[index], -1) - 1;
-                  index++;
-                }
+              g_string_append (hint_string, list[index]);
+              g_string_append_c (hint_string, ' ');
+              size += g_utf8_strlen (list[index], -1) - 1;
+              index++;
             }
-          g_strfreev (list);
-          g_free (tmp);
         }
+      g_strfreev (list);
+      g_free (tmp);
     }
 
-  return hint;
+
+  return g_string_free (hint_string, FALSE);
 }
 
 static void
@@ -1340,12 +1350,14 @@ hyscan_gtk_map_wfmark_tile_loaded (HyScanGtkMapWfmark *wfm_layer,
 HyScanGtkLayer *
 hyscan_gtk_map_wfmark_new (HyScanMarkLocModel *model,
                            HyScanDB           *db,
-                           HyScanCache        *cache)
+                           HyScanCache        *cache,
+                           HyScanUnits        *units)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_WFMARK,
                        "mark-loc-model", model,
                        "db", db,
                        "cache", cache,
+                       "units", units,
                        NULL);
 }
 
