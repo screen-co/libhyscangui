@@ -554,8 +554,6 @@ hyscan_mark_manager_grouping_changed (HyScanMarkManager *self)
     }
   /* Выделяем выбранное */
   hyscan_mark_manager_select_item (self);
-  /* Чтобы правильно отобразить выделенное нужно установить фокус на GtkTreeView. */
-  /*hyscan_mark_manager_view_set_focus (HYSCAN_MARK_MANAGER_VIEW (priv->view));*/
 }
 
 /* Обработчик изменения состояния кнопки "Развернуть/свернуть все узлы." */

@@ -203,7 +203,8 @@ static void          hyscan_model_manager_extension_free                   (gpoi
 static GHashTable*   hyscan_model_manager_get_extensions                   (HyScanModelManager      *self,
                                                                             ModelManagerObjectType   type);
 
-static gboolean      hyscan_model_manager_is_all_toggled                   (GHashTable              *table);
+static gboolean      hyscan_model_manager_is_all_toggled                   (GHashTable              *table,
+                                                                            const gchar             *node_id);
 
 static guint         hyscan_model_manager_signals[SIGNAL_MODEL_MANAGER_LAST] = { 0 };
 
@@ -878,7 +879,7 @@ hyscan_model_manager_refresh_labels_by_types (GtkTreeStore *store,
       GHashTableIter table_iter;       /* Итератор для обхода хэш-таблиц. */
       HyScanLabel *object;
       gchar *id;                       /* Идентификатор для обхода хэш-таблиц (ключ). */
-      gboolean active = hyscan_model_manager_is_all_toggled (extensions);
+      gboolean active = hyscan_model_manager_is_all_toggled (extensions, type_id[LABEL]);
 
       /* Добавляем новый узел "Группы" в модель */
       gtk_tree_store_append (store, &parent_iter, NULL);
@@ -976,7 +977,7 @@ hyscan_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
       GHashTableIter table_iter;       /* Итератор для обхода хэш-таблиц. */
       HyScanMarkGeo *object;
       gchar *id;                       /* Идентификатор для обхода хэш-таблиц (ключ). */
-      gboolean active = hyscan_model_manager_is_all_toggled (extensions);
+      gboolean active = hyscan_model_manager_is_all_toggled (extensions, type_id[GEO_MARK]);
 
       /* Добавляем новый узел "Гео-метки" в модель */
       gtk_tree_store_append (store, &parent_iter, NULL);
@@ -1209,7 +1210,7 @@ hyscan_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
       GHashTableIter table_iter;       /* Итератор для обхода хэш-таблиц. */
       HyScanMarkLocation *location;
       gchar *id;                       /* Идентификатор для обхода хэш-таблиц (ключ). */
-      gboolean active = hyscan_model_manager_is_all_toggled (extensions);
+      gboolean active = hyscan_model_manager_is_all_toggled (extensions, type_id[ACOUSTIC_MARK]);
 
       /* Добавляем новый узел "Акустические метки" в модель. */
       gtk_tree_store_append (store, &parent_iter, NULL);
@@ -1646,7 +1647,7 @@ hyscan_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
       GHashTableIter table_iter;       /* Итератор для обхода хэш-таблиц. */
       HyScanTrackInfo *object;
       gchar *id;                       /* Идентификатор для обхода хэш-таблиц (ключ). */
-      gboolean active = hyscan_model_manager_is_all_toggled (extensions);
+      gboolean active = hyscan_model_manager_is_all_toggled (extensions, type_id[TRACK]);
 
       /* Добавляем новый узел "Галсы" в модель. */
       gtk_tree_store_append (store, &parent_iter, NULL);
@@ -2145,7 +2146,8 @@ hyscan_model_manager_get_extensions (HyScanModelManager     *self,
  * В противном случае, возвращает FALSE.
  * */
 gboolean
-hyscan_model_manager_is_all_toggled (GHashTable *table)
+hyscan_model_manager_is_all_toggled (GHashTable  *table,
+                                     const gchar *node_id)
 {
   GHashTableIter iter;
   Extension *ext;
@@ -2156,6 +2158,10 @@ hyscan_model_manager_is_all_toggled (GHashTable *table)
   g_hash_table_iter_init (&iter, table);
   while (g_hash_table_iter_next (&iter, (gpointer*)&id, (gpointer*)&ext))
     {
+      if (0 == g_strcmp0 (id, node_id))
+        {
+          ext->active = TRUE;
+        }
       if (ext->active)
         counter++;
     }

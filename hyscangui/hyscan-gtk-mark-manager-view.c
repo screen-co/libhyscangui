@@ -38,7 +38,8 @@ struct _HyScanMarkManagerViewPrivate
                     signal_expanded,  /* Идентификатор сигнала разворачивания узла древовидного представления.*/
                     signal_collapsed; /* Идентификатор сигнала cворачивания узла древовидного представления.*/
   gboolean          has_selected,
-                    toggle_flag;
+                    toggle_flag,
+                    focus_start;
 };
 
 static void         hyscan_mark_manager_view_set_property         (GObject               *object,
@@ -122,6 +123,9 @@ static gboolean     select_func (GtkTreeSelection *selection,
                                  gboolean path_currently_selected,
                                  gpointer data);
 
+static void         on_show (GtkWidget *widget,
+                             gpointer   user_data);
+
 static guint      hyscan_mark_manager_view_signals[SIGNAL_LAST] = { 0 };
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanMarkManagerView, hyscan_mark_manager_view, GTK_TYPE_SCROLLED_WINDOW)
@@ -182,6 +186,8 @@ void
 hyscan_mark_manager_view_init (HyScanMarkManagerView *self)
 {
   self->priv = hyscan_mark_manager_view_get_instance_private (self);
+  /* Костыль для снятия выделния по умолчанию. */
+  self->priv->focus_start = TRUE;
 }
 void
 hyscan_mark_manager_view_set_property (GObject      *object,
@@ -243,6 +249,10 @@ hyscan_mark_manager_view_constructed (GObject *object)
   /* * * * * * * * * * * * * * * * * * * * * * * */
   /* Костыль для правильного выделения объектов. */
   /* * * * * * * * * * * * * * * * * * * * * * * */
+  /* Обработчик показа виджета.
+   * Устанваливает фокус первый раз для правильной работы при последующих вызовах. */
+  g_signal_connect_after (G_OBJECT (priv->tree_view), "show",
+                          G_CALLBACK (on_show), self);
   /* В обработчике получения фокуса сохраняется итератор выделенного объекта. */
   g_signal_connect (G_OBJECT (priv->tree_view), "grab-focus",
                     G_CALLBACK (grab_focus), self);
@@ -902,6 +912,12 @@ grab_focus (GtkWidget *widget,
   self = HYSCAN_MARK_MANAGER_VIEW (user_data);
   priv = self->priv;
   selection = gtk_tree_view_get_selection (priv->tree_view);
+  /* Если фокус получаем в первый раз, то нужно снять выделение по умолчанию. */
+  if (priv->focus_start)
+    {
+      gtk_tree_selection_unselect_all (selection);
+      return;
+    }
   /*model = gtk_tree_view_get_model (priv->tree_view);*/
   if (gtk_tree_selection_get_selected (selection, &model, &priv->selected_iter))
     priv->has_selected = TRUE;
@@ -926,6 +942,13 @@ grab_focus_after (GtkWidget *widget,
   priv = self->priv;
   selection = gtk_tree_view_get_selection (priv->tree_view);
 
+  /* Если фокус получаем в первый раз, то выходим. */
+  if (priv->focus_start)
+    {
+      priv->focus_start = FALSE;
+      return;
+    }
+
   if (priv->has_selected)
     {
       gtk_tree_selection_select_iter (selection, &priv->selected_iter);
@@ -937,6 +960,7 @@ grab_focus_after (GtkWidget *widget,
     }
 }
 
+/**/
 gboolean
 select_func (GtkTreeSelection *selection,
              GtkTreeModel *model,
@@ -960,8 +984,19 @@ select_func (GtkTreeSelection *selection,
     }
   else
     {
-      return TRUE;
+      return !priv->focus_start;
     }
+}
+
+/* Установка фокуса для снятия выделения по умолчанию. */
+void
+on_show (GtkWidget *widget,
+         gpointer   user_data)
+{
+  g_print ("ON SHOW\n");
+  /* Возможно, чтобы не обрабатывать сигналы о фокусе,
+   * нужно проверить получение фокуса первый раз и здесь. */
+  gtk_widget_grab_focus (widget);
 }
 
 /**
@@ -1299,19 +1334,6 @@ hyscan_mark_manager_view_set_selection (HyScanMarkManagerView *self,
           g_signal_handler_unblock (G_OBJECT (selection), priv->signal_selected);
         }
     }
-}
-
-/**
- * hyscan_mark_manager_view_set_focus:
- * @self: указатель на структуру #HyScanMarkManagerView
- *
- * Устанавливает фокус на виджет представления.
- */
-void
-hyscan_mark_manager_view_set_focus (HyScanMarkManagerView *self)
-{
-  HyScanMarkManagerViewPrivate *priv = self->priv;
-  gtk_widget_grab_focus (GTK_WIDGET (priv->tree_view));
 }
 
 /**
