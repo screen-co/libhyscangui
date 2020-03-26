@@ -9,8 +9,11 @@ add_executable (waterfall-plus waterfall-plus.c)
 target_link_libraries (gtk-area-test ${TEST_LIBRARIES})
 target_link_libraries (waterfall-plus ${TEST_LIBRARIES})
 
-add_executable (gtk-param-test gtk-param-test.c)
-add_executable (gtk-spin-button-test gtk-spin-button-test.c)
+# ***
+#add_executable (gtk-param-test gtk-param-test.c)
+#add_executable (gtk-spin-button-test gtk-spin-button-test.c)
+# ***
+
 add_executable (gtk-datetime-test gtk-datetime-test.c)
 add_executable (gtk-map-test gtk-map-test.c hyscan-gtk-map-kit.c)
 add_executable (gtk-map-track-mod-test gtk-map-track-mod-test.c hyscan-gtk-map-kit.c)
@@ -23,8 +26,8 @@ add_executable (gtk-map-param-test gtk-map-param-test.c)
 add_executable (gtk-layer-list-test gtk-layer-list-test.c)
 
 target_link_libraries (gtk-area-test ${TEST_LIBRARIES})
-target_link_libraries (gtk-param-test ${TEST_LIBRARIES})
-target_link_libraries (gtk-spin-button-test ${TEST_LIBRARIES})
+#target_link_libraries (gtk-param-test ${TEST_LIBRARIES})
+#target_link_libraries (gtk-spin-button-test ${TEST_LIBRARIES})
 target_link_libraries (gtk-datetime-test ${TEST_LIBRARIES})
 target_link_libraries (gtk-map-test ${TEST_LIBRARIES})
 target_link_libraries (gtk-map-track-mod-test ${TEST_LIBRARIES})
