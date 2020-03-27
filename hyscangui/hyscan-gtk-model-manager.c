@@ -2342,11 +2342,16 @@ hyscan_model_manager_set_project_name (HyScanModelManager *self,
 
       priv->project_name = g_strdup (project_name);
       /* Обновляем имя проекта для всех моделей. */
-      hyscan_db_info_set_project        (priv->track_model,          priv->project_name);
-      hyscan_mark_loc_model_set_project (priv->acoustic_loc_model,   priv->project_name);
-      hyscan_object_model_set_project   (priv->acoustic_marks_model, priv->db, priv->project_name);
-      hyscan_object_model_set_project   (priv->geo_mark_model,       priv->db, priv->project_name);
-      hyscan_object_model_set_project   (priv->label_model,          priv->db, priv->project_name);
+      if (priv->track_model != NULL)
+        hyscan_db_info_set_project (priv->track_model, priv->project_name);
+      if (priv->acoustic_loc_model != NULL)
+        hyscan_mark_loc_model_set_project (priv->acoustic_loc_model, priv->project_name);
+      if (priv->acoustic_marks_model != NULL)
+        hyscan_object_model_set_project (priv->acoustic_marks_model, priv->db, priv->project_name);
+      if (priv->geo_mark_model)
+        hyscan_object_model_set_project (priv->geo_mark_model, priv->db, priv->project_name);
+      if (priv->label_model != NULL)
+        hyscan_object_model_set_project (priv->label_model, priv->db, priv->project_name);
       /* Отправляем сигнал об изменении названия проекта. */
       g_object_notify_by_pspec (G_OBJECT (self), notify);
     }
