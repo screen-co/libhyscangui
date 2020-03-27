@@ -2155,19 +2155,22 @@ hyscan_model_manager_is_all_toggled (GHashTable  *table,
   guint total   = g_hash_table_size (table),
         counter = 0;
 
-  g_hash_table_iter_init (&iter, table);
-  while (g_hash_table_iter_next (&iter, (gpointer*)&id, (gpointer*)&ext))
+  if (total > 1)
     {
-      if (0 == g_strcmp0 (id, node_id))
+      g_hash_table_iter_init (&iter, table);
+      while (g_hash_table_iter_next (&iter, (gpointer*)&id, (gpointer*)&ext))
         {
-          ext->active = TRUE;
+          if (0 == g_strcmp0 (id, node_id))
+            {
+              ext->active = TRUE;
+            }
+          if (ext->active)
+            counter++;
         }
-      if (ext->active)
-        counter++;
-    }
 
-  if (counter == total)
-    return TRUE;
+      if (counter == total)
+        return TRUE;
+    }
 
   return FALSE;
 }
