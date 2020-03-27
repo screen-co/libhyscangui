@@ -181,6 +181,9 @@ list_profiles (const gchar *profiles_path)
   GError *error = NULL;
   GDir *dir;
 
+  if (profiles_path == NULL)
+    goto exit;
+
   dir = g_dir_open (profiles_path, 0, &error);
   if (error == NULL)
     {
@@ -207,6 +210,7 @@ list_profiles (const gchar *profiles_path)
       g_error_free (error);
     }
 
+exit:
   profiles = g_realloc (profiles, ++nprofiles * sizeof (gchar **));
   profiles[nprofiles - 1] = NULL;
 

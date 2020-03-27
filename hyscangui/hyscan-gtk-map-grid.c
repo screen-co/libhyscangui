@@ -176,7 +176,7 @@ hyscan_gtk_map_grid_object_constructed (GObject *object)
 
   hyscan_gtk_map_grid_set_step_width (gtk_map_grid, GRID_STEP);
 
-  g_signal_connect_swapped (priv->units, "notify::geo", hyscan_gtk_map_grid_queue_draw, gtk_map_grid);
+  g_signal_connect_swapped (priv->units, "notify::geo", G_CALLBACK (hyscan_gtk_map_grid_queue_draw), gtk_map_grid);
 }
 
 static void
@@ -578,6 +578,7 @@ hyscan_gtk_map_grid_draw (HyScanGtkMap     *map,
 
         label = hyscan_units_format (priv->units, HYSCAN_UNIT_TYPE_LAT, lat, -value_power);
         hyscan_gtk_map_grid_draw_line (grid, cairo, points, LINE_POINTS_NUM, TRUE, label);
+        g_free (label);
         lat += lat_step;
       }
   }
@@ -617,6 +618,7 @@ hyscan_gtk_map_grid_draw (HyScanGtkMap     *map,
 
         label = hyscan_units_format (priv->units, HYSCAN_UNIT_TYPE_LON, lon, -value_power);
         hyscan_gtk_map_grid_draw_line (grid, cairo, points, LINE_POINTS_NUM, FALSE, label);
+        g_free (label);
         lon += lon_step;
       }
   }

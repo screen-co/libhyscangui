@@ -1409,6 +1409,10 @@ hyscan_gtk_map_track_item_open_nav (HyScanGtkMapTrackItemPrivate *priv)
   nav->trk_data = HYSCAN_NAV_DATA (hyscan_nmea_parser_new (priv->db, priv->cache, priv->project,
                                                            priv->name, nav->channel,
                                                            HYSCAN_NMEA_DATA_RMC, HYSCAN_NMEA_FIELD_TRACK));
+
+  if (nav->lat_data == NULL)
+    return;
+
   nav->lat_smooth = hyscan_nav_smooth_new (nav->lat_data);
   nav->lon_smooth = hyscan_nav_smooth_new (nav->lon_data);
   nav->trk_smooth = hyscan_nav_smooth_new_circular (nav->trk_data);

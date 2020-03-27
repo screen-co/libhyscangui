@@ -210,6 +210,10 @@ hyscan_gtk_map_direction_object_finalize (GObject *object)
   HyScanGtkMapDirection *gtk_map_direction = HYSCAN_GTK_MAP_DIRECTION (object);
   HyScanGtkMapDirectionPrivate *priv = gtk_map_direction->priv;
 
+  g_signal_handlers_disconnect_by_data (priv->nav_model, object);
+  g_signal_handlers_disconnect_by_data (priv->selection, object);
+  g_signal_handlers_disconnect_by_data (priv->obj_model, object);
+
   g_object_unref (priv->selection);
   g_object_unref (priv->obj_model);
   g_object_unref (priv->map);
