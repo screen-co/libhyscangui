@@ -216,7 +216,7 @@ static gboolean     hyscan_gtk_layer_container_handle_click            (HyScanGt
 static gboolean     hyscan_gtk_layer_container_handle_release          (HyScanGtkLayerContainer *container,
                                                                         gconstpointer            handle_owner,
                                                                         GdkEventButton          *event);
-static void         hyscan_gtk_layer_container_unrealize               (GtkWidget               *widget);
+static void         hyscan_gtk_layer_container_destroy                 (GtkWidget               *widget);
 static gboolean     hyscan_gtk_layer_container_motion_notify           (GtkWidget               *widget,
                                                                         GdkEventMotion          *event);
 static gboolean     hyscan_gtk_layer_container_button_release          (GtkWidget               *widget,
@@ -253,7 +253,7 @@ hyscan_gtk_layer_container_class_init (HyScanGtkLayerContainerClass *klass)
 
   widget_class->motion_notify_event = hyscan_gtk_layer_container_motion_notify;
   widget_class->button_release_event = hyscan_gtk_layer_container_button_release;
-  widget_class->unrealize = hyscan_gtk_layer_container_unrealize;
+  widget_class->destroy = hyscan_gtk_layer_container_destroy;
   widget_class->leave_notify_event = hyscan_gtk_layer_container_leave_notify_event;
   widget_class->enter_notify_event = hyscan_gtk_layer_container_leave_notify_event;
 }
@@ -414,10 +414,9 @@ hyscan_gtk_layer_container_handle_release (HyScanGtkLayerContainer *container,
   return TRUE;
 }
 
-/* Обработчик "unrealize-event".
- * Удаляет все слои. */
+/* Обработчик "destroy". Удаляет все слои. */
 static void
-hyscan_gtk_layer_container_unrealize (GtkWidget *widget)
+hyscan_gtk_layer_container_destroy (GtkWidget *widget)
 {
   HyScanGtkLayerContainer *container = HYSCAN_GTK_LAYER_CONTAINER (widget);
 
