@@ -55,7 +55,7 @@
 #include <glib/gi18n-lib.h>
 #include "hyscan-gtk-planner-zeditor.h"
 
-#define DATA_KEY_COLUMN "column"
+#define DATA_KEY_COLUMN "column"   /* Ключ для хранения в данных GObject-а номера столбца. */
 #define KEY_DUPLICATE GDK_KEY_d    /* Клавиша для дублирования вершины. */
 
 enum
@@ -265,6 +265,7 @@ hyscan_gtk_planner_zeditor_object_constructed (GObject *object)
   gtk_tree_view_append_column (tree_view, priv->column_y);
 
   priv->context_menu = gtk_menu_new ();
+  gtk_menu_attach_to_widget (GTK_MENU (priv->context_menu), GTK_WIDGET (zeditor), NULL);
   priv->menu_duplicate = hyscan_gtk_planner_zeditor_menu_add (zeditor, _("Duplicate"));
   priv->menu_delete = hyscan_gtk_planner_zeditor_menu_add (zeditor, _("Delete"));
 
@@ -385,11 +386,11 @@ hyscan_gtk_planner_zeditor_vertex_duplicate (HyScanGtkPlannerZeditor *zeditor)
   HyScanGtkPlannerZeditorPrivate *priv = zeditor->priv;
   HyScanPlannerZone *zone;
 
-  if (priv->vertex < 0)
+  if (priv->vertex < 0 || priv->zone_id == NULL)
     return;
 
   zone = g_hash_table_lookup (priv->objects, priv->zone_id);
-  g_return_if_fail (zone != NULL && zone->type == HYSCAN_PLANNER_ZONE);
+  g_return_if_fail (HYSCAN_IS_PLANNER_ZONE (zone));
 
   hyscan_planner_zone_vertex_dup (zone, priv->vertex);
   hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, (const HyScanObject *) zone);
@@ -402,11 +403,11 @@ hyscan_gtk_planner_zeditor_vertex_delete (HyScanGtkPlannerZeditor *zeditor)
   HyScanGtkPlannerZeditorPrivate *priv = zeditor->priv;
   HyScanPlannerZone *zone;
 
-  if (priv->vertex < 0)
+  if (priv->vertex < 0 || priv->zone_id == NULL)
     return;
 
   zone = g_hash_table_lookup (priv->objects, priv->zone_id);
-  g_return_if_fail (zone != NULL && zone->type == HYSCAN_PLANNER_ZONE);
+  g_return_if_fail (HYSCAN_IS_PLANNER_ZONE (zone));
 
   if (zone->points_len > 3)
     {
@@ -512,7 +513,7 @@ hyscan_gtk_planner_zeditor_set_zone (HyScanGtkPlannerZeditor *zeditor)
     goto exit;
 
   zone = g_hash_table_lookup (priv->objects, priv->zone_id);
-  if (zone == NULL || zone->type != HYSCAN_PLANNER_ZONE)
+  if (!HYSCAN_IS_PLANNER_ZONE (zone))
     {
       g_clear_pointer (&priv->zone_id, g_free);
       goto exit;
@@ -622,7 +623,7 @@ hyscan_gtk_planner_zeditor_edited (GtkCellRendererText *cell,
     return;
 
   zone = g_hash_table_lookup (priv->objects, priv->zone_id);
-  if (zone == NULL || zone->type != HYSCAN_PLANNER_ZONE)
+  if (!HYSCAN_IS_PLANNER_ZONE (zone))
     return;
 
   gtk_tree_model_get_iter_from_string (GTK_TREE_MODEL (priv->store), &iter, path_string);

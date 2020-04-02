@@ -5,6 +5,7 @@
 #include <hyscan-units.h>
 #include <hyscan-db.h>
 #include <hyscan-sensor.h>
+#include <hyscan-sonar-recorder.h>
 
 typedef struct _HyScanGtkMapKitPrivate HyScanGtkMapKitPrivate;
 
@@ -36,10 +37,12 @@ gchar *           hyscan_gtk_map_kit_get_profile_name (HyScanGtkMapKit   *kit);
 void              hyscan_gtk_map_kit_load_profiles    (HyScanGtkMapKit   *kit,
                                                        const gchar       *profile_dir);
 
-void              hyscan_gtk_map_kit_add_nav          (HyScanGtkMapKit   *kit,
-                                                       HyScanSensor      *sensor,
-                                                       const gchar       *sensor_name,
-                                                       gdouble            delay_time);
+void              hyscan_gtk_map_kit_add_nav          (HyScanGtkMapKit           *kit,
+                                                       HyScanSensor              *sensor,
+                                                       const gchar               *sensor_name,
+                                                       HyScanSonarRecorder       *recorder,
+                                                       const HyScanAntennaOffset *offset,
+                                                       gdouble                    delay_time);
 
 void              hyscan_gtk_map_kit_add_marks_wf     (HyScanGtkMapKit   *kit);
 

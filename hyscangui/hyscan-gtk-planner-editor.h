@@ -20,14 +20,14 @@ typedef struct _HyScanGtkPlannerEditorClass HyScanGtkPlannerEditorClass;
 
 struct _HyScanGtkPlannerEditor
 {
-  GtkGrid parent_instance;
+  GtkBox parent_instance;
 
   HyScanGtkPlannerEditorPrivate *priv;
 };
 
 struct _HyScanGtkPlannerEditorClass
 {
-  GtkGridClass parent_class;
+  GtkBoxClass parent_class;
 };
 
 HYSCAN_API

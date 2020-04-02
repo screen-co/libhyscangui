@@ -52,6 +52,7 @@ G_BEGIN_DECLS
 typedef struct _HyScanGtkMapTrack HyScanGtkMapTrack;
 typedef struct _HyScanGtkMapTrackPrivate HyScanGtkMapTrackPrivate;
 typedef struct _HyScanGtkMapTrackClass HyScanGtkMapTrackClass;
+typedef enum _HyScanGtkMapTrackDrawType HyScanGtkMapTrackDrawType;
 
 struct _HyScanGtkMapTrack
 {
@@ -65,54 +66,51 @@ struct _HyScanGtkMapTrackClass
   HyScanGtkMapTiledClass parent_class;
 };
 
+/**
+ * HyScanGtkMapTrackDrawType:
+ * @HYSCAN_GTK_MAP_TRACK_BAR: путь движения судна и прореженные лучи в виде полос
+ * @HYSCAN_GTK_MAP_TRACK_BEAM: область покрытия галса
+ *
+ * Варианты отрисовки галса.
+ */
+enum _HyScanGtkMapTrackDrawType
+{
+  HYSCAN_GTK_MAP_TRACK_BAR,
+  HYSCAN_GTK_MAP_TRACK_BEAM,
+};
+
 
 HYSCAN_API
 GType                     hyscan_gtk_map_track_get_type            (void);
 
 HYSCAN_API
-HyScanGtkLayer *          hyscan_gtk_map_track_new                 (HyScanDB           *db,
-                                                                    HyScanCache        *cache);
+HyScanGtkLayer *          hyscan_gtk_map_track_new                 (HyScanDB                  *db,
+                                                                    HyScanCache               *cache);
 
 HYSCAN_API
-void                      hyscan_gtk_map_track_set_project         (HyScanGtkMapTrack  *track_layer,
-                                                                    const gchar        *project);
+void                      hyscan_gtk_map_track_set_project         (HyScanGtkMapTrack         *track_layer,
+                                                                    const gchar               *project);
 
 HYSCAN_API
-void                      hyscan_gtk_map_track_set_tracks          (HyScanGtkMapTrack  *track_layer,
-                                                                    gchar             **tracks);
+void                      hyscan_gtk_map_track_set_tracks          (HyScanGtkMapTrack         *track_layer,
+                                                                    gchar                    **tracks);
 
 HYSCAN_API
-gchar **                  hyscan_gtk_map_track_get_tracks          (HyScanGtkMapTrack  *track_layer);
+gchar **                  hyscan_gtk_map_track_get_tracks          (HyScanGtkMapTrack         *track_layer);
 
 HYSCAN_API
-HyScanGtkMapTrackItem *   hyscan_gtk_map_track_lookup              (HyScanGtkMapTrack  *track_layer,
-                                                                    const gchar        *track_name);
+HyScanGtkMapTrackItem *   hyscan_gtk_map_track_lookup              (HyScanGtkMapTrack         *track_layer,
+                                                                    const gchar               *track_name);
 
 HYSCAN_API
-void                      hyscan_gtk_map_track_view                (HyScanGtkMapTrack  *track_layer,
-                                                                    const gchar        *track_name,
-                                                                    gboolean            zoom_in,
-                                                                    HyScanCancellable  *cancellable);
+void                      hyscan_gtk_map_track_view                (HyScanGtkMapTrack         *track_layer,
+                                                                    const gchar               *track_name,
+                                                                    gboolean                   zoom_in,
+                                                                    HyScanCancellable         *cancellable);
 
 HYSCAN_API
-void                      hyscan_gtk_map_track_set_color_track     (HyScanGtkMapTrack  *track_layer,
-                                                                    GdkRGBA             color);
-
-HYSCAN_API
-void                      hyscan_gtk_map_track_set_color_port      (HyScanGtkMapTrack  *track_layer,
-                                                                    GdkRGBA             color);
-
-HYSCAN_API
-void                      hyscan_gtk_map_track_set_color_starboard (HyScanGtkMapTrack  *track_layer,
-                                                                    GdkRGBA             color);
-
-HYSCAN_API
-void                      hyscan_gtk_map_track_set_bar_width       (HyScanGtkMapTrack  *track_layer,
-                                                                    gboolean            bar_width);
-
-HYSCAN_API
-void                      hyscan_gtk_map_track_set_bar_margin      (HyScanGtkMapTrack  *track_layer,
-                                                                    gdouble             bar_margin);
+void                      hyscan_gtk_map_track_set_draw_type       (HyScanGtkMapTrack         *track_layer,
+                                                                    HyScanGtkMapTrackDrawType  type);
 
 G_END_DECLS
 

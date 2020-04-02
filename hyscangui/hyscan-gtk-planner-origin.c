@@ -1,4 +1,4 @@
-/* hyscan-gtk-planner-editor.c
+/* hyscan-gtk-planner-origin.c
  *
  * Copyright 2019 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *
@@ -75,17 +75,23 @@ static void    hyscan_gtk_planner_origin_model_changed            (HyScanGtkPlan
 static void    hyscan_gtk_planner_origin_val_changed              (GtkSpinButton              *spin_btn,
                                                                    HyScanGtkPlannerOrigin     *gtk_origin);
 
-G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkPlannerOrigin, hyscan_gtk_planner_origin, GTK_TYPE_GRID)
+G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkPlannerOrigin, hyscan_gtk_planner_origin, GTK_TYPE_BOX)
 
 static void
 hyscan_gtk_planner_origin_class_init (HyScanGtkPlannerOriginClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
+  GtkWidgetClass *widget_class = GTK_WIDGET_CLASS (klass);
 
   object_class->set_property = hyscan_gtk_planner_origin_set_property;
 
   object_class->constructed = hyscan_gtk_planner_origin_object_constructed;
   object_class->finalize = hyscan_gtk_planner_origin_object_finalize;
+
+  gtk_widget_class_set_template_from_resource (widget_class, "/org/hyscan/gtk/hyscan-gtk-planner-origin.ui");
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerOrigin, lat);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerOrigin, lon);
+  gtk_widget_class_bind_template_child_private (widget_class, HyScanGtkPlannerOrigin, azimuth);
 
   g_object_class_install_property (object_class, PROP_MODEL,
     g_param_spec_object ("model", "HyScanPlannerModel", "HyScanPlannerModel with planner data",
@@ -97,13 +103,14 @@ static void
 hyscan_gtk_planner_origin_init (HyScanGtkPlannerOrigin *gtk_planner_origin)
 {
   gtk_planner_origin->priv = hyscan_gtk_planner_origin_get_instance_private (gtk_planner_origin);
+  gtk_widget_init_template (GTK_WIDGET (gtk_planner_origin));
 }
 
 static void
 hyscan_gtk_planner_origin_set_property (GObject      *object,
-                             guint         prop_id,
-                             const GValue *value,
-                             GParamSpec   *pspec)
+                                        guint         prop_id,
+                                        const GValue *value,
+                                        GParamSpec   *pspec)
 {
   HyScanGtkPlannerOrigin *gtk_planner_origin = HYSCAN_GTK_PLANNER_ORIGIN (object);
   HyScanGtkPlannerOriginPrivate *priv = gtk_planner_origin->priv;
@@ -124,32 +131,17 @@ static void
 hyscan_gtk_planner_origin_object_constructed (GObject *object)
 {
   HyScanGtkPlannerOrigin *gtk_origin = HYSCAN_GTK_PLANNER_ORIGIN (object);
-  GtkGrid *grid = GTK_GRID (object);
-  GtkWidget *label_lat, *label_lon, *label_azimuth;
   HyScanGtkPlannerOriginPrivate *priv = gtk_origin->priv;
 
   G_OBJECT_CLASS (hyscan_gtk_planner_origin_parent_class)->constructed (object);
 
-  priv->lat = gtk_spin_button_new_with_range (-90, 90.0, 1e-8);
-  priv->lon = gtk_spin_button_new_with_range (-180.0, 180.0, 1e-8);
-  priv->azimuth = gtk_spin_button_new_with_range (0.0, 360.0, 1e-2);
+  gtk_spin_button_set_adjustment (GTK_SPIN_BUTTON (priv->lat),     gtk_adjustment_new (0, -90,   90, 1e-8, 0, 0));
+  gtk_spin_button_set_adjustment (GTK_SPIN_BUTTON (priv->lon),     gtk_adjustment_new (0, -180, 180, 1e-8, 0, 0));
+  gtk_spin_button_set_adjustment (GTK_SPIN_BUTTON (priv->azimuth), gtk_adjustment_new (0,   0,  360, 1e-2, 0, 0));
 
-  gtk_grid_set_row_spacing (grid, 3);
-  gtk_grid_set_column_spacing (grid, 6);
-
-  label_lat = gtk_label_new (_("Latitude"));
-  gtk_widget_set_halign (label_lat, GTK_ALIGN_END);
-  label_lon = gtk_label_new (_("Longitude"));
-  gtk_widget_set_halign (label_lon, GTK_ALIGN_END);
-  label_azimuth = gtk_label_new (_("OX Direction"));
-  gtk_widget_set_halign (label_azimuth, GTK_ALIGN_END);
-
-  gtk_grid_attach (grid, label_lat,     0, 0, 1, 1);
-  gtk_grid_attach (grid, priv->lat,     1, 0, 1, 1);
-  gtk_grid_attach (grid, label_lon,     0, 1, 1, 1);
-  gtk_grid_attach (grid, priv->lon,     1, 1, 1, 1);
-  gtk_grid_attach (grid, label_azimuth, 0, 2, 1, 1);
-  gtk_grid_attach (grid, priv->azimuth, 1, 2, 1, 1);
+  gtk_spin_button_set_digits (GTK_SPIN_BUTTON (priv->lat), 8);
+  gtk_spin_button_set_digits (GTK_SPIN_BUTTON (priv->lon), 8);
+  gtk_spin_button_set_digits (GTK_SPIN_BUTTON (priv->azimuth), 2);
 
   g_signal_connect (priv->lat, "value-changed", G_CALLBACK (hyscan_gtk_planner_origin_val_changed), gtk_origin);
   g_signal_connect (priv->lon, "value-changed", G_CALLBACK (hyscan_gtk_planner_origin_val_changed), gtk_origin);

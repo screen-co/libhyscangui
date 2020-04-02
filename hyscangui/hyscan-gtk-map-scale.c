@@ -235,7 +235,7 @@ hyscan_gtk_map_scale_draw (HyScanGtkMap      *map,
     return;
 
   /* Координаты размещения линейки. */
-  gtk_cifro_area_get_visible_size (carea, &width, &height);
+  gtk_cifro_area_get_size (carea, &width, &height);
   x0 = width - priv->label_padding;
   y0 = height - priv->label_padding;
 

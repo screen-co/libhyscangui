@@ -50,6 +50,22 @@ G_BEGIN_DECLS
 
 typedef struct _HyScanGtkLayerInterface HyScanGtkLayerInterface;
 typedef struct _HyScanGtkLayerHandle HyScanGtkLayerHandle;
+typedef enum _HyScanGtkLayerSelMode HyScanGtkLayerSelMode;
+
+/**
+ * HyScanGtkLayerSelMode:
+ * @HYSCAN_GTK_LAYER_SEL_MODE_NOTHING: снять выделение
+ * @HYSCAN_GTK_LAYER_SEL_MODE_REPLACE: заменить предыдущее выделение
+ * @HYSCAN_GTK_LAYER_SEL_MODE_ADD: добавить к предыдущему выделению
+ *
+ * Режим выделения элементов слоя
+ */
+enum _HyScanGtkLayerSelMode
+{
+  HYSCAN_GTK_LAYER_SEL_MODE_NOTHING,
+  HYSCAN_GTK_LAYER_SEL_MODE_REPLACE,
+  HYSCAN_GTK_LAYER_SEL_MODE_ADD,
+};
 
 /**
  * HyScanGtkLayerHandle:
@@ -91,6 +107,8 @@ struct _HyScanGtkLayerHandle
  * @handle_find: Находит, есть ли на слое хэндл в окрестностях указанной точки.
  * @handle_show: Показывает хэндл, который был ранее найден слоем.
  * @handle_grab: Захватывает хэндл, который был ранее найден слоем.
+ * @select_mode: Устанавливает режим выделения.
+ * @select_area: Устанавливает область выделения.
  */
 struct _HyScanGtkLayerInterface
 {
@@ -138,6 +156,19 @@ struct _HyScanGtkLayerInterface
   void                 (*handle_click)     (HyScanGtkLayer          *layer,
                                             GdkEventButton          *event,
                                             HyScanGtkLayerHandle    *handle);
+
+  void                 (*handle_drag)      (HyScanGtkLayer          *layer,
+                                            GdkEventButton          *event,
+                                            HyScanGtkLayerHandle    *handle);
+
+  gint                 (*select_mode)      (HyScanGtkLayer          *layer,
+                                            HyScanGtkLayerSelMode    select);
+
+  gint                 (*select_area)      (HyScanGtkLayer          *layer,
+                                            gdouble                  from_x,
+                                            gdouble                  to_x,
+                                            gdouble                  from_y,
+                                            gdouble                  to_y);
 };
 
 HYSCAN_API
@@ -195,9 +226,25 @@ void          hyscan_gtk_layer_handle_show            (HyScanGtkLayer          *
                                                        HyScanGtkLayerHandle    *handle);
 
 HYSCAN_API
-void          hyscan_gtk_layer_handle_click            (HyScanGtkLayer          *layer,
-                                                        GdkEventButton          *event,
-                                                        HyScanGtkLayerHandle    *handle);
+void          hyscan_gtk_layer_handle_click           (HyScanGtkLayer          *layer,
+                                                       GdkEventButton          *event,
+                                                       HyScanGtkLayerHandle    *handle);
+
+HYSCAN_API
+void          hyscan_gtk_layer_handle_drag            (HyScanGtkLayer          *layer,
+                                                       GdkEventButton          *event,
+                                                       HyScanGtkLayerHandle    *handle);
+
+HYSCAN_API
+gint          hyscan_gtk_layer_select_mode            (HyScanGtkLayer          *layer,
+                                                       HyScanGtkLayerSelMode    mode);
+
+HYSCAN_API
+gint          hyscan_gtk_layer_select_area            (HyScanGtkLayer          *layer,
+                                                       gdouble                  from_x,
+                                                       gdouble                  to_x,
+                                                       gdouble                  from_y,
+                                                       gdouble                  to_y);
 
 G_END_DECLS
 

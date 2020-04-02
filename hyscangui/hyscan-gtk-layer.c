@@ -433,3 +433,89 @@ hyscan_gtk_layer_handle_release (HyScanGtkLayer *layer,
 
   return FALSE;
 }
+
+/**
+ * hyscan_gtk_layer_handle_drag:
+ * @layer: указатель на слой #HyScanGtkLayer
+ * @event: событие #GdkEventButton, которое привело к захвату хэндла
+ * @handle: указатель на хэндл #HyScanGtkLayerHandle
+ *
+ * Обрабатывает захват хэндла для перемещения. В качестве параметра @handle
+ * передаётся значение, полученное при последнем  вызове функции hyscan_gtk_layer_handle_find().
+ *
+ * В результате вызова функции слой может захватить хэндл или не захватывать его.
+ *
+ * Для того, чтобы отпустить хэндл, необходимо вызывать функцию
+ * hyscan_gtk_layer_handle_release().
+ */
+void
+hyscan_gtk_layer_handle_drag (HyScanGtkLayer       *layer,
+                               GdkEventButton       *event,
+                               HyScanGtkLayerHandle *handle)
+{
+  HyScanGtkLayerInterface *iface;
+
+  g_return_if_fail (HYSCAN_IS_GTK_LAYER (layer));
+
+  iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
+  if (iface->handle_drag != NULL)
+    iface->handle_drag (layer, event, handle);
+}
+
+/**
+ * hyscan_gtk_layer_select_items:
+ * @layer: указатель на слой #HyScanGtkLayer
+ * @from_x: минимальное значение по X области выделения
+ * @to_x: максимальное значение по X области выделения
+ * @from_y: минимальное значение по Y области выделения
+ * @to_y: максимальное значение по Y области выделения
+ *
+ * Изменяет область текущего выделения на слое. Если элементы слоя хотя бы частично
+ * располагаются внутри области выделения, они считаются выбранными.
+ *
+ * Выбранные элементы определяются областью выделения и текущим режимом, установленным
+ * функцией hyscan_gtk_layer_select_mode().
+ *
+ * Returns: общее количество выделенных элементов на слое
+ */
+gint
+hyscan_gtk_layer_select_area (HyScanGtkLayer       *layer,
+                              gdouble               from_x,
+                              gdouble               to_x,
+                              gdouble               from_y,
+                              gdouble               to_y)
+{
+  HyScanGtkLayerInterface *iface;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_LAYER (layer), 0);
+
+  iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
+  if (iface->select_area != NULL)
+    iface->select_area (layer, from_x, to_x, from_y, to_y);
+
+  return 0;
+}
+
+/**
+ * hyscan_gtk_layer_select_mode:
+ * @layer: указатель на слой #HyScanGtkLayer
+ * @mode: режим выделения
+
+ * Устанавливает режим выделения элементов на слое.
+ *
+ * Returns: общее количество выделенных элементов на слое
+ */
+gint
+hyscan_gtk_layer_select_mode (HyScanGtkLayer          *layer,
+                              HyScanGtkLayerSelMode    mode)
+{
+  HyScanGtkLayerInterface *iface;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_LAYER (layer), 0);
+
+  iface = HYSCAN_GTK_LAYER_GET_IFACE (layer);
+  if (iface->select_mode != NULL)
+    iface->select_mode (layer, mode);
+
+  return 0;
+}

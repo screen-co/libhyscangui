@@ -226,7 +226,7 @@ static gboolean hyscan_gtk_waterfall_mark_handle_find             (HyScanGtkLaye
                                                                    HyScanGtkLayerHandle    *handle);
 static void     hyscan_gtk_waterfall_mark_handle_show             (HyScanGtkLayer          *layer,
                                                                    HyScanGtkLayerHandle    *handle);
-static void     hyscan_gtk_waterfall_mark_handle_click            (HyScanGtkLayer          *layer,
+static void     hyscan_gtk_waterfall_mark_handle_drag             (HyScanGtkLayer          *layer,
                                                                    GdkEventButton          *event,
                                                                    HyScanGtkLayerHandle    *handle);
 
@@ -1256,9 +1256,9 @@ hyscan_gtk_waterfall_mark_handle_show (HyScanGtkLayer       *layer,
 }
 
 static void
-hyscan_gtk_waterfall_mark_handle_click (HyScanGtkLayer       *layer,
-                                        GdkEventButton       *event,
-                                        HyScanGtkLayerHandle *handle)
+hyscan_gtk_waterfall_mark_handle_drag (HyScanGtkLayer       *layer,
+                                       GdkEventButton       *event,
+                                       HyScanGtkLayerHandle *handle)
 {
   HyScanGtkWaterfallMark *self = HYSCAN_GTK_WATERFALL_MARK (layer);
   HyScanGtkWaterfallMarkPrivate *priv = self->priv;
@@ -1973,5 +1973,5 @@ hyscan_gtk_waterfall_mark_interface_init (HyScanGtkLayerInterface *iface)
   iface->handle_release = hyscan_gtk_waterfall_mark_handle_release;
   iface->handle_find = hyscan_gtk_waterfall_mark_handle_find;
   iface->handle_show = hyscan_gtk_waterfall_mark_handle_show;
-  iface->handle_click = hyscan_gtk_waterfall_mark_handle_click;
+  iface->handle_drag = hyscan_gtk_waterfall_mark_handle_drag;
 }

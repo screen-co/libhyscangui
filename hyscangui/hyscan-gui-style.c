@@ -1,4 +1,4 @@
-/* hyscan-gui-css.c
+/* hyscan-gui-style.c
  *
  * Copyright 2020 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
  *

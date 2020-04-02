@@ -166,9 +166,9 @@ hyscan_gtk_waterfall_control_added (HyScanGtkLayer          *layer,
 
   /* Сигналы Gtk. */
   g_signal_connect_after (wfall, "configure-event", G_CALLBACK (hyscan_gtk_waterfall_control_configure), self);
-  g_signal_connect (wfall, "button-press-event",    G_CALLBACK (hyscan_gtk_waterfall_control_mouse_button), self);
-  g_signal_connect (wfall, "button-release-event",  G_CALLBACK (hyscan_gtk_waterfall_control_mouse_button), self);
-  g_signal_connect (wfall, "motion-notify-event",   G_CALLBACK (hyscan_gtk_waterfall_control_mouse_motion), self);
+  // g_signal_connect (wfall, "button-press-event",    G_CALLBACK (hyscan_gtk_waterfall_control_mouse_button), self);
+  // g_signal_connect (wfall, "button-release-event",  G_CALLBACK (hyscan_gtk_waterfall_control_mouse_button), self);
+  // g_signal_connect (wfall, "motion-notify-event",   G_CALLBACK (hyscan_gtk_waterfall_control_mouse_motion), self);
   g_signal_connect (wfall, "scroll-event",          G_CALLBACK (hyscan_gtk_waterfall_control_mouse_wheel), self);
   g_signal_connect (wfall, "key-press-event",       G_CALLBACK (hyscan_gtk_waterfall_control_keyboard), self);
 

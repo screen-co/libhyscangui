@@ -448,9 +448,9 @@ hyscan_gtk_map_pin_handle_find (HyScanGtkLayer       *layer,
 
 /* Захватывает ранее найденный хэндл handle. */
 static void
-hyscan_gtk_map_pin_handle_click (HyScanGtkLayer       *layer,
-                                 GdkEventButton       *event,
-                                 HyScanGtkLayerHandle *handle)
+hyscan_gtk_map_pin_handle_drag (HyScanGtkLayer       *layer,
+                                GdkEventButton       *event,
+                                HyScanGtkLayerHandle *handle)
 {
   HyScanGtkMapPin *pin = HYSCAN_GTK_MAP_PIN (layer);
   HyScanGtkMapPinPrivate *priv = pin->priv;
@@ -881,7 +881,7 @@ hyscan_gtk_map_pin_interface_init (HyScanGtkLayerInterface *iface)
   iface->set_visible = hyscan_gtk_map_pin_set_visible;
   iface->get_visible = hyscan_gtk_map_pin_get_visible;
   iface->handle_find = hyscan_gtk_map_pin_handle_find;
-  iface->handle_click = hyscan_gtk_map_pin_handle_click;
+  iface->handle_drag = hyscan_gtk_map_pin_handle_drag;
   iface->handle_release = hyscan_gtk_map_pin_handle_release;
   iface->handle_create = hyscan_gtk_map_pin_handle_create;
   iface->handle_show = hyscan_gtk_map_pin_handle_show;

@@ -19,6 +19,8 @@ add_custom_command (OUTPUT "${CMAKE_BINARY_DIR}/resources/hyscan-gui-resources.c
                     DEPENDS layer-schema.xml
                     DEPENDS hyscan-gui.css
                     DEPENDS icons
+                            hyscan-gtk-planner-origin.ui
+                            hyscan-gtk-planner-editor.ui
                     VERBATIM)
 
 file (MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/marshallers")
@@ -56,6 +58,10 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-planner-zeditor.c
              hyscan-gtk-planner-origin.c
              hyscan-gtk-planner-status.c
+             hyscan-gtk-planner-shift.c
+             hyscan-gtk-planner-list.c
+             hyscan-gtk-planner-list-bar.c
+             hyscan-gtk-planner-import.c
              hyscan-cairo.c
              hyscan-gtk-export.c
 
@@ -75,12 +81,16 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-map-scale.c
              hyscan-gtk-map-pin.c
              hyscan-gtk-map-nav.c
+             hyscan-gtk-map-track-draw-bar.c
+             hyscan-gtk-map-track-draw-beam.c
+             hyscan-gtk-map-track-draw.c
              hyscan-gtk-map-track-item.c
              hyscan-gtk-map-track.c
              hyscan-gtk-map-wfmark.c
              hyscan-gtk-map-geomark.c
              hyscan-gtk-map-planner.c
              hyscan-gtk-map-steer.c
+             hyscan-gtk-map-direction.c
 
              #[[ Загрузка тайлов ]]
              hyscan-map-tile.c
@@ -91,9 +101,8 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-map-tile-loader.c
 
              # [[ Модели ]]
-             hyscan-planner-selection.c
              hyscan-gtk-model-manager.c
-             
+
              # [[ Журнал меток ]]
              hyscan-gtk-mark-manager.c
              hyscan-gtk-mark-manager-view.c
@@ -145,6 +154,10 @@ install (FILES hyscan-gtk-area.h
                hyscan-gtk-planner-zeditor.h
                hyscan-gtk-planner-origin.h
                hyscan-gtk-planner-status.h
+               hyscan-gtk-planner-shift.h
+               hyscan-gtk-planner-list.h
+               hyscan-gtk-planner-list-bar.h
+               hyscan-gtk-planner-import.h
                hyscan-gtk-layer-common.h
                hyscan-gtk-layer-param.h
                hyscan-gtk-layer-container.h
@@ -161,6 +174,9 @@ install (FILES hyscan-gtk-area.h
                hyscan-gtk-map-planner.h
                hyscan-gtk-map-steer.h
                hyscan-gtk-map-nav.h
+               hyscan-gtk-map-track-draw-bar.h
+               hyscan-gtk-map-track-draw-beam.h
+               hyscan-gtk-map-track-draw.h
                hyscan-gtk-map-track-item.h
                hyscan-gtk-map-track.h
                hyscan-gtk-map-wfmark.h
@@ -171,7 +187,6 @@ install (FILES hyscan-gtk-area.h
                hyscan-map-tile-source-file.h
                hyscan-map-tile-source-blend.h
                hyscan-map-tile-loader.h
-               hyscan-planner-selection.h
                hyscan-cairo.h
                hyscan-gtk-export.h
                hyscan-gui-style.h

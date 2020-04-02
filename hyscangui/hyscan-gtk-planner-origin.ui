@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Generated with glade 3.20.0 -->
+<interface domain="hyscangui">
+  <requires lib="gtk+" version="3.20"/>
+  <template class="HyScanGtkPlannerOrigin" parent="GtkBox">
+    <property name="can_focus">False</property>
+    <property name="orientation">vertical</property>
+    <property name="spacing">3</property>
+    <child>
+      <object class="GtkBox">
+        <property name="can_focus">False</property>
+        <property name="tooltip_text" translatable="yes">Latitude</property>
+        <property name="spacing">6</property>
+        <child>
+          <object class="GtkLabel" id="lat_label">
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Lat</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkSpinButton" id="lat">
+            <property name="can_focus">True</property>
+            <property name="climb_rate">0.050000000000000003</property>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">0</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkBox">
+        <property name="can_focus">False</property>
+        <property name="tooltip_text" translatable="yes">Longitude</property>
+        <property name="spacing">6</property>
+        <child>
+          <object class="GtkLabel" id="lon_label">
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">Lon</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkSpinButton" id="lon">
+            <property name="can_focus">True</property>
+            <property name="climb_rate">0.050000000000000003</property>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">1</property>
+      </packing>
+    </child>
+    <child>
+      <object class="GtkBox">
+        <property name="can_focus">False</property>
+        <property name="tooltip_text" translatable="yes">OX axis direction</property>
+        <property name="spacing">6</property>
+        <child>
+          <object class="GtkLabel" id="ox_label">
+            <property name="can_focus">False</property>
+            <property name="label" translatable="yes">OX</property>
+          </object>
+          <packing>
+            <property name="expand">False</property>
+            <property name="fill">True</property>
+            <property name="position">0</property>
+          </packing>
+        </child>
+        <child>
+          <object class="GtkSpinButton" id="azimuth">
+            <property name="can_focus">True</property>
+            <property name="climb_rate">0.050000000000000003</property>
+          </object>
+          <packing>
+            <property name="expand">True</property>
+            <property name="fill">True</property>
+            <property name="position">1</property>
+          </packing>
+        </child>
+      </object>
+      <packing>
+        <property name="expand">False</property>
+        <property name="fill">True</property>
+        <property name="position">2</property>
+      </packing>
+    </child>
+  </template>
+  <object class="GtkSizeGroup">
+    <widgets>
+      <widget name="lat_label"/>
+      <widget name="ox_label"/>
+      <widget name="lon_label"/>
+    </widgets>
+  </object>
+</interface>

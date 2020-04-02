@@ -48,14 +48,11 @@ G_BEGIN_DECLS
 #define HYSCAN_GTK_LAYER_PARAM_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_LAYER_PARAM, HyScanGtkLayerParamClass))
 
 typedef struct _HyScanGtkLayerParam HyScanGtkLayerParam;
-typedef struct _HyScanGtkLayerParamPrivate HyScanGtkLayerParamPrivate;
 typedef struct _HyScanGtkLayerParamClass HyScanGtkLayerParamClass;
 
 struct _HyScanGtkLayerParam
 {
   HyScanParamController parent_instance;
-
-  HyScanGtkLayerParamPrivate *priv;
 };
 
 struct _HyScanGtkLayerParamClass
@@ -70,6 +67,9 @@ HYSCAN_API
 HyScanGtkLayerParam * hyscan_gtk_layer_param_new              (void);
 
 HYSCAN_API
+HyScanGtkLayerParam * hyscan_gtk_layer_param_new_with_lock    (GMutex              *lock);
+
+HYSCAN_API
 void                  hyscan_gtk_layer_param_set_stock_schema (HyScanGtkLayerParam *layer_param,
                                                                const gchar         *schema_id);
 
@@ -80,9 +80,6 @@ gboolean              hyscan_gtk_layer_param_add_rgba         (HyScanGtkLayerPar
 
 HYSCAN_API
 void                  hyscan_gtk_layer_param_set_default      (HyScanGtkLayerParam *param);
-
-HYSCAN_API
-void                  hyscan_gtk_layer_param_detach           (HyScanGtkLayerParam *param);
 
 HYSCAN_API
 void                  hyscan_gtk_layer_param_file_to_list     (GKeyFile            *key_file,

@@ -5,6 +5,8 @@
   </gresource>
   <gresource prefix="/org/hyscan/gtk">
     <file compressed="true">hyscan-gui.css</file>
+    <file compressed="true">hyscan-gtk-planner-origin.ui</file>
+    <file compressed="true">hyscan-gtk-planner-editor.ui</file>
   </gresource>
   <gresource prefix="/org/hyscan">
     <file compressed="true">icons/16x16/actions/eye.symbolic.png</file>

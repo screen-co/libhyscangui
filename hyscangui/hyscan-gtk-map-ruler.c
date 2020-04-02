@@ -189,9 +189,9 @@ hyscan_gtk_map_ruler_object_finalize (GObject *object)
  * Если указатель мыши над одним из отрезков, то помещает новую точку в это место и
  * начинает ее перетаскивать. */
 static void
-hyscan_gtk_map_ruler_handle_click (HyScanGtkLayer       *layer,
-                                   GdkEventButton       *event,
-                                   HyScanGtkLayerHandle *handle)
+hyscan_gtk_map_ruler_handle_drag (HyScanGtkLayer       *layer,
+                                  GdkEventButton       *event,
+                                  HyScanGtkLayerHandle *handle)
 {
   if (g_strcmp0 (handle->type_name, HANDLE_TYPE_NAME) == 0)
     {
@@ -207,7 +207,7 @@ hyscan_gtk_map_ruler_handle_click (HyScanGtkLayer       *layer,
       hyscan_gtk_map_pin_start_drag (pin_layer, new_item, TRUE);
     }
 
-  hyscan_gtk_layer_parent_interface->handle_click (layer, event, handle);
+  hyscan_gtk_layer_parent_interface->handle_drag (layer, event, handle);
 }
 
 /* Показывает/прячет хэндл.
@@ -326,7 +326,7 @@ hyscan_gtk_map_ruler_interface_init (HyScanGtkLayerInterface *iface)
   iface->removed = hyscan_gtk_map_ruler_removed;
   iface->handle_find = hyscan_gtk_map_ruler_handle_find;
   iface->handle_show = hyscan_gtk_map_ruler_handle_show;
-  iface->handle_click = hyscan_gtk_map_ruler_handle_click;
+  iface->handle_drag = hyscan_gtk_map_ruler_handle_drag;
   iface->get_param = hyscan_gtk_map_ruler_get_param;
 }
 

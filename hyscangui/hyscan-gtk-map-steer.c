@@ -38,26 +38,22 @@
  * @Title: HyScanGtkMapSteer
  *
  * Виджет #HyScanGtkMapSteer служит для помощи судоводителю при навигации по плановому
- * галсу. В виджете отображаются:
- * - плановые курс и скорсть для текущего галса,
+ * галсу. В виджете отображается:
+ * - плановые курс и скорость для текущего галса,
  * - отклонения по положению и скорости,
- * - миникарта с положением антенны гидролокатора относительно планового галса.
+ * - мини-карта с положением антенны гидролокатора относительно планового галса.
  *
- * При записи галса важно именно положение гидролокатора, а не судна как такового,
- * поэтому в виджете есть возможность вносить поправку на смещение антенны с
- * помощью функции hyscan_gtk_map_steer_sensor_set_offset().
- *
- * На миникарте отображается стрелка, соответствующая положению антенны и курсу судна.
+ * На мини-карте отображается стрелка, соответствующая положению антенны и курсу судна.
  *
  */
 
 #include "hyscan-gtk-map-steer.h"
-#include <math.h>
 #include <hyscan-cartesian.h>
 #include <glib/gi18n-lib.h>
+#include <hyscan-steer.h>
 
-#define DEG2RAD(deg) (deg / 180. * G_PI)
-#define RAD2DEG(rad) (rad / G_PI * 180.)
+#define PATH_LIFETIME 100   /* Время жизни точек траектории, секунды. */
+#define ARROW_SIZE    30
 
 #define HYSCAN_TYPE_GTK_MAP_STEER_CAREA             (hyscan_gtk_map_steer_carea_get_type ())
 #define HYSCAN_GTK_MAP_STEER_CAREA(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_MAP_STEER_CAREA, HyScanGtkMapSteerCarea))
@@ -69,8 +65,7 @@
 enum
 {
   PROP_O,
-  PROP_MODEL,
-  PROP_SELECTION,
+  PROP_STEER,
 };
 
 enum
@@ -79,65 +74,34 @@ enum
   STATE_GRAB
 };
 
-enum
-{
-  MODE_ORIGIN,
-  MODE_VESSEL
-};
-
 typedef struct
 {
-  HyScanNavModelData   nav_data;     /* Исходные навигационные данные о положении и скорости судна. */
-  HyScanGeoCartesian2D position;     /* Положение судна. */
-  HyScanGeoCartesian2D track;        /* Проекция положения судна на галс. */
-  gdouble              d_x;          /* Отклонение положения антенны по расстоянию, м. */
-  gdouble              d_angle;      /* Отклонение курса судна по углу, рад. */
-  gdouble              time_left;    /* Отклонение судна по скорости, м/с. */
-} HyScanGtkMapSteerPoint;
-
-typedef struct
-{
-  GtkCifroArea       parent_instance;
-
-  HyScanGtkMapSteer *steer;          /* Указатель на основной виджет. */
-  PangoLayout       *pango_layout;   /* Шрифт. */
-  gint               border_size;    /* Размер окантовки. */
+  GtkCifroArea                parent_instance;    /* Родительский объект. */
+  HyScanGtkMapSteer          *gtk_steer;          /* Указатель на основной виджет. */
+  PangoLayout                *pango_layout;       /* Шрифт. */
+  gint                        border_size;        /* Размер окантовки. */
 } HyScanGtkMapSteerCarea;
 
 typedef struct
 {
-  GtkCifroAreaClass parent_instance;
+  GtkCifroAreaClass           parent_instance;    /* Родительский класс. */
 } HyScanGtkMapSteerCareaClass;
 
 struct _HyScanGtkMapSteerPrivate
 {
-  HyScanNavModel             *nav_model;         /* Модель навигационных данных. */
-  HyScanPlannerSelection     *selection;         /* Модель выбранных объектов планировщика. */
-  HyScanObjectModel          *planner_model;     /* Модель объектов планировщика. */
-  HyScanGeo                  *geo;               /* Объект перевода географических координат. */
-  HyScanAntennaOffset        *offset;            /* Смещение антенны гидролокатора. */
+  HyScanSteer                *steer;              /* Модель управления судном. */
+  guint                       state;              /* Статус перетаскивания линии допустимого отклонения. */
+  GQueue                     *points;             /* Список точек HyScanSteerPoint. */
 
-  guint                       state;             /* Статус перетаскивания границы допустимого отклонения. */
-  guint                       mode;              /* Режим отображения: судно в центре или галс в центре. */
+  HyScanTrackPlan            *plan;               /* Активный план галса. */
+  gchar                      *track_id;           /* Ид активного галса. */
 
-  gdouble                     threshold_x;       /* Допустимое отклонение. */
+  GtkWidget                  *track_info;         /* Виджет с информацией о текущем галсе, GtkLabel. */
+  GtkWidget                  *carea;              /* Виджет мини-карты с траекторией судна, HyScanGtkMapSteerCarea. */
 
-  GQueue                     *points;            /* Список точек HyScanGtkMapSteerPoint. */
-  gdouble                     time_span;         /* Промежуток времени, в течение которого показываются точки, секунды. */
-  gdouble                     end_time;          /* Время последней точки. */
-
-  HyScanPlannerTrack         *track;             /* Активный галс. */
-  gchar                      *track_id;          /* Ид активного галса. */
-  HyScanGeoCartesian2D        start;             /* Точка начала. */
-  HyScanGeoCartesian2D        end;               /* Точка окончания. */
-  gdouble                     angle;             /* Целевой азимут. */
-
-  GtkWidget                  *track_info;        /* Виджет с информацией о текущем галсе. */
-  GtkWidget                  *carea;             /* Виджет миникарты с траекторией. */
-
-  GdkRGBA                     color_bg;          /* Цвет фона области рисования. */
-  GdkRGBA                     color_bg_good;     /* Цвет фона "в пределах нормы". */
-  gdouble                     arrow_size;        /* Размер стрелки судна. */
+  GdkRGBA                     color_bg;           /* Цвет фона области рисования. */
+  GdkRGBA                     color_bg_good;      /* Цвет фона "в пределах нормы". */
+  gdouble                     arrow_size;         /* Размер стрелки судна. */
 };
 
 static void           hyscan_gtk_map_steer_set_property                   (GObject                  *object,
@@ -170,30 +134,28 @@ static gboolean       hyscan_gtk_map_steer_carea_motion_notify            (GtkWi
                                                                            GdkEventMotion           *event);
 static gboolean       hyscan_gtk_map_steer_carea_button                   (GtkWidget                *widget,
                                                                            GdkEventButton           *event);
-static void           hyscan_gtk_map_steer_carea_draw_path                (HyScanGtkMapSteer        *steer,
+static void           hyscan_gtk_map_steer_carea_draw_path                (HyScanGtkMapSteer        *gtk_steer,
                                                                            cairo_t                  *cairo);
-static void           hyscan_gtk_map_steer_carea_draw_current             (HyScanGtkMapSteer        *steer,
+static void           hyscan_gtk_map_steer_carea_draw_current             (HyScanGtkMapSteer        *gtk_steer,
                                                                            cairo_t                  *cairo);
 static void           hyscan_gtk_map_steer_carea_draw_axis                (GtkCifroArea             *carea,
                                                                            cairo_t                  *cairo,
                                                                            gpointer                  user_data);
-static void           hyscan_gtk_map_steer_carea_draw_center              (HyScanGtkMapSteer        *steer,
+static void           hyscan_gtk_map_steer_carea_draw_center              (HyScanGtkMapSteer        *gtk_steer,
                                                                            cairo_t                  *cairo);
-static void           hyscan_gtk_map_steer_carea_draw_err_line            (HyScanGtkMapSteer        *steer,
+static void           hyscan_gtk_map_steer_carea_draw_err_line            (HyScanGtkMapSteer        *gtk_steer,
                                                                            cairo_t                  *cairo);
-static gboolean       hyscan_gtk_map_steer_is_err_line                    (HyScanGtkMapSteer        *steer,
+static gboolean       hyscan_gtk_map_steer_is_err_line                    (HyScanGtkMapSteer        *gtk_steer,
                                                                            gdouble                   x,
                                                                            gdouble                   y);
 
-static GtkWidget *    hyscan_gtk_map_steer_create_carea                   (HyScanGtkMapSteer        *steer);
+static GtkWidget *    hyscan_gtk_map_steer_create_carea                   (HyScanGtkMapSteer        *gtk_steer);
 
-static void           hyscan_gtk_map_steer_nav_changed                    (HyScanGtkMapSteer        *steer);
-static void           hyscan_gtk_map_steer_set_track                      (HyScanGtkMapSteer        *steer);
-static HyScanGtkMapSteerPoint *  hyscan_gtk_map_steer_point_new           (void);
-static void           hyscan_gtk_map_steer_point_free                     (gpointer                  point);
+static void           hyscan_gtk_map_steer_nav_changed                    (HyScanGtkMapSteer        *gtk_steer,
+                                                                           HyScanSteerPoint         *point);
+static void           hyscan_gtk_map_steer_set_track                      (HyScanGtkMapSteer        *gtk_steer);
 
-
-G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMapSteer, hyscan_gtk_map_steer, GTK_TYPE_GRID)
+G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMapSteer, hyscan_gtk_map_steer, GTK_TYPE_BOX)
 G_DEFINE_TYPE (HyScanGtkMapSteerCarea, hyscan_gtk_map_steer_carea, GTK_TYPE_CIFRO_AREA)
 
 static void
@@ -219,7 +181,7 @@ static void
 hyscan_gtk_map_steer_carea_init (HyScanGtkMapSteerCarea *steer_carea)
 {
   gtk_widget_set_size_request (GTK_WIDGET (steer_carea), -1, 200);
-  gtk_widget_set_margin_top (GTK_WIDGET (steer_carea), 10);
+  gtk_widget_set_margin_top (GTK_WIDGET (steer_carea), 6);
 
   g_signal_connect_after (steer_carea, "configure-event", G_CALLBACK (hyscan_gtk_map_steer_carea_configure), NULL);
   g_signal_connect (steer_carea, "visible-draw", G_CALLBACK (hyscan_gtk_map_steer_carea_draw), NULL);
@@ -235,30 +197,6 @@ hyscan_gtk_map_steer_carea_object_finalize (GObject *object)
 }
 
 static void
-hyscan_gtk_map_steer_carea_get_border (GtkCifroArea *carea,
-                                       guint        *border_top,
-                                       guint        *border_bottom,
-                                       guint        *border_left,
-                                       guint        *border_right)
-{
-  HyScanGtkMapSteerCarea *steer_carea = HYSCAN_GTK_MAP_STEER_CAREA (carea);
-
-  border_top != NULL ? (*border_top = steer_carea->border_size) : 0;
-  border_bottom != NULL ? (*border_bottom = steer_carea->border_size) : 0;
-  border_left != NULL ? (*border_left = steer_carea->border_size) : 0;
-  border_right != NULL ? (*border_right = steer_carea->border_size) : 0;
-}
-
-static void
-hyscan_gtk_map_steer_carea_check_scale (GtkCifroArea *carea,
-                                        gdouble      *scale_x,
-                                        gdouble      *scale_y)
-{
-  *scale_x = CLAMP (*scale_x, 0.02, 1.0);
-  *scale_y = *scale_x;
-}
-
-static void
 hyscan_gtk_map_steer_class_init (HyScanGtkMapSteerClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
@@ -267,22 +205,18 @@ hyscan_gtk_map_steer_class_init (HyScanGtkMapSteerClass *klass)
   object_class->constructed = hyscan_gtk_map_steer_object_constructed;
   object_class->finalize = hyscan_gtk_map_steer_object_finalize;
 
-  g_object_class_install_property (object_class, PROP_MODEL,
-    g_param_spec_object ("model", "HyScanNavModel", "Navigation model",
-                         HYSCAN_TYPE_NAV_MODEL,
-                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-  g_object_class_install_property (object_class, PROP_SELECTION,
-    g_param_spec_object ("selection", "HyScanPlannerSelection", "Model of selected planner objects",
-                         HYSCAN_TYPE_PLANNER_SELECTION,
+  g_object_class_install_property (object_class, PROP_STEER,
+    g_param_spec_object ("steer", "HyScanSteer", "Steer model",
+                         HYSCAN_TYPE_STEER,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
-hyscan_gtk_map_steer_init (HyScanGtkMapSteer *steer)
+hyscan_gtk_map_steer_init (HyScanGtkMapSteer *gtk_steer)
 {
-  steer->priv = hyscan_gtk_map_steer_get_instance_private (steer);
+  gtk_steer->priv = hyscan_gtk_map_steer_get_instance_private (gtk_steer);
 
-  gtk_widget_add_events (GTK_WIDGET (steer), GDK_SCROLL_MASK);
+  gtk_widget_add_events (GTK_WIDGET (gtk_steer), GDK_SCROLL_MASK);
 }
 
 static void
@@ -291,17 +225,13 @@ hyscan_gtk_map_steer_set_property (GObject      *object,
                                    const GValue *value,
                                    GParamSpec   *pspec)
 {
-  HyScanGtkMapSteer *gtk_map_steer = HYSCAN_GTK_MAP_STEER (object);
-  HyScanGtkMapSteerPrivate *priv = gtk_map_steer->priv;
+  HyScanGtkMapSteer *gtk_steer = HYSCAN_GTK_MAP_STEER (object);
+  HyScanGtkMapSteerPrivate *priv = gtk_steer->priv;
 
   switch (prop_id)
     {
-    case PROP_MODEL:
-      priv->nav_model = g_value_dup_object (value);
-      break;
-
-    case PROP_SELECTION:
-      priv->selection = g_value_dup_object (value);
+    case PROP_STEER:
+      priv->steer = g_value_dup_object (value);
       break;
 
     default:
@@ -313,161 +243,82 @@ hyscan_gtk_map_steer_set_property (GObject      *object,
 static void
 hyscan_gtk_map_steer_object_constructed (GObject *object)
 {
-  HyScanGtkMapSteer *steer = HYSCAN_GTK_MAP_STEER (object);
-  HyScanGtkMapSteerPrivate *priv = steer->priv;
-  GtkGrid *grid = GTK_GRID (object);
-  gint i = 0;
+  HyScanGtkMapSteer *gtk_steer = HYSCAN_GTK_MAP_STEER (object);
+  HyScanGtkMapSteerPrivate *priv = gtk_steer->priv;
+  GtkBox *box = GTK_BOX (object);
 
   G_OBJECT_CLASS (hyscan_gtk_map_steer_parent_class)->constructed (object);
 
-  priv->planner_model = HYSCAN_OBJECT_MODEL (hyscan_planner_selection_get_model (priv->selection));
-
   priv->points = g_queue_new ();
-  priv->time_span = 100.0;
-  priv->threshold_x = 2.0;
-  priv->arrow_size = 30.0;
 
   gdk_rgba_parse (&priv->color_bg, "#888888");
   gdk_rgba_parse (&priv->color_bg_good, "#FFFFFF");
 
-  priv->carea = hyscan_gtk_map_steer_create_carea (steer);
+  priv->carea = hyscan_gtk_map_steer_create_carea (gtk_steer);
 
   priv->track_info = gtk_label_new (NULL);
   gtk_widget_set_margin_bottom (priv->track_info, 6);
 
-  i = -1;
-  gtk_grid_attach (grid, priv->carea,         0, ++i, 1, 1);
-  gtk_grid_attach (grid, priv->track_info,    0, ++i, 1, 1);
+  gtk_orientable_set_orientation (GTK_ORIENTABLE (gtk_steer), GTK_ORIENTATION_VERTICAL);
+  gtk_box_set_spacing (box, 6);
+  gtk_box_pack_start (box, priv->carea, TRUE, TRUE, 0);
+  gtk_box_pack_start (box, priv->track_info, FALSE, TRUE, 0);
 
-  g_signal_connect_swapped (priv->nav_model, "changed", G_CALLBACK (hyscan_gtk_map_steer_nav_changed), steer);
-  g_signal_connect_swapped (priv->planner_model, "changed", G_CALLBACK (hyscan_gtk_map_steer_set_track), steer);
-  g_signal_connect_swapped (priv->selection, "activated", G_CALLBACK (hyscan_gtk_map_steer_set_track), steer);
+  g_signal_connect_swapped (priv->steer, "point", G_CALLBACK (hyscan_gtk_map_steer_nav_changed), gtk_steer);
+  g_signal_connect_swapped (priv->steer, "plan-changed", G_CALLBACK (hyscan_gtk_map_steer_set_track), gtk_steer);
 
-  hyscan_gtk_map_steer_set_track (steer);
-  gtk_grid_set_column_homogeneous (grid, TRUE);
-  gtk_grid_set_row_spacing (grid, 3);
+  hyscan_gtk_map_steer_set_track (gtk_steer);
 }
 
 static void
 hyscan_gtk_map_steer_object_finalize (GObject *object)
 {
-  HyScanGtkMapSteer *gtk_map_steer = HYSCAN_GTK_MAP_STEER (object);
-  HyScanGtkMapSteerPrivate *priv = gtk_map_steer->priv;
+  HyScanGtkMapSteer *gtk_steer = HYSCAN_GTK_MAP_STEER (object);
+  HyScanGtkMapSteerPrivate *priv = gtk_steer->priv;
 
   g_free (priv->track_id);
-  hyscan_planner_track_free (priv->track);
-  g_clear_object (&priv->nav_model);
-  g_clear_object (&priv->selection);
-  g_queue_free_full (priv->points, hyscan_gtk_map_steer_point_free);
+  hyscan_track_plan_free (priv->plan);
+  g_clear_object (&priv->steer);
+  g_queue_free_full (priv->points, (GDestroyNotify) hyscan_steer_point_free);
 
   G_OBJECT_CLASS (hyscan_gtk_map_steer_parent_class)->finalize (object);
 }
 
 static GtkWidget *
-hyscan_gtk_map_steer_create_carea (HyScanGtkMapSteer *steer)
+hyscan_gtk_map_steer_create_carea (HyScanGtkMapSteer *gtk_steer)
 {
   HyScanGtkMapSteerCarea *steer_carea;
 
   steer_carea = g_object_new (HYSCAN_TYPE_GTK_MAP_STEER_CAREA, NULL);
-  steer_carea->steer = steer;
+  steer_carea->gtk_steer = gtk_steer;
 
   return GTK_WIDGET (steer_carea);
 }
 
-/* Определяет координаты судна в системе координат планового галса. */
 static void
-hyscan_gtk_map_steer_calc_point (HyScanGtkMapSteerPoint *point,
-                                 HyScanGtkMapSteer      *steer)
+hyscan_gtk_map_steer_nav_changed (HyScanGtkMapSteer *gtk_steer,
+                                  HyScanSteerPoint  *point)
 {
-  HyScanGtkMapSteerPrivate *priv = steer->priv;
-  gdouble distance;
-  gint side;
-  gdouble distance_to_end;
-  HyScanGeoCartesian2D track_end;
-  HyScanGeoCartesian2D ship_pos;
+  HyScanGtkMapSteerPrivate *priv = gtk_steer->priv;
+  HyScanSteerPoint *last_point;
 
-  point->d_angle = point->nav_data.heading - priv->angle / 180 * G_PI;
+  g_queue_push_head (priv->points, hyscan_steer_point_copy (point));
 
-  if (!hyscan_geo_geo2topoXY (priv->geo, &ship_pos, point->nav_data.coord))
-    return;
-
-  /* Смещение антенны учитваем только для рассчёта её местоположения.
-   * В качестве курса оставляем курс судна, т.к. иначе показания виджета становятся неочевидными. */
-  if (priv->offset != NULL)
-    {
-      gdouble cosa, sina;
-
-      cosa = cos (DEG2RAD (point->d_angle));
-      sina = sin (DEG2RAD (point->d_angle));
-      point->position.x = ship_pos.x + priv->offset->starboard * cosa + priv->offset->forward * sina;
-      point->position.y = ship_pos.y - priv->offset->starboard * sina + priv->offset->forward * cosa;
-    }
-  else
-    {
-      point->position = ship_pos;
-    }
-
-  distance = hyscan_cartesian_distance_to_line (&priv->start, &priv->end, &point->position, &point->track);
-  side = hyscan_cartesian_side (&priv->start, &priv->end, &point->position);
-  point->d_x = side * distance;
-
-  hyscan_geo_geo2topoXY (priv->geo, &track_end, priv->track->end);
-  distance_to_end = hyscan_cartesian_distance (&track_end, &point->track);
-  point->time_left = distance_to_end / priv->track->speed;
-}
-
-static void
-hyscan_gtk_map_steer_nav_changed (HyScanGtkMapSteer *steer)
-{
-  HyScanGtkMapSteerPrivate *priv = steer->priv;
-  HyScanNavModelData data;
-  HyScanGtkMapSteerPoint *point;
-
-  if (!hyscan_nav_model_get (priv->nav_model, &data, NULL))
-    return;
-
-  if (priv->geo == NULL)
-    return;
-
-  point = hyscan_gtk_map_steer_point_new ();
-  point->nav_data = data;
-  hyscan_gtk_map_steer_calc_point (point, steer);
-
-  g_queue_push_head (priv->points, point);
-  priv->end_time = data.time;
-
-  if (priv->mode == MODE_VESSEL)
-    {
-      gtk_cifro_area_set_view_center (GTK_CIFRO_AREA (priv->carea), point->d_x, 0);
-      gtk_cifro_area_set_angle (GTK_CIFRO_AREA (priv->carea), -point->d_angle);
-    }
-
-  HyScanGtkMapSteerPoint *last_point;
+  /* Удаляем устаревшие точки. */
   while ((last_point = g_queue_peek_tail (priv->points)) != NULL)
     {
-      if (priv->end_time - last_point->nav_data.time < priv->time_span)
+      if (point->nav_data.time - last_point->nav_data.time < PATH_LIFETIME)
         break;
 
       last_point = g_queue_pop_tail (priv->points);
-      hyscan_gtk_map_steer_point_free (last_point);
+      hyscan_steer_point_free (last_point);
     }
 
-  gtk_cifro_area_set_view_center (GTK_CIFRO_AREA (priv->carea), point->track.x, point->track.y);
-  gtk_widget_queue_draw (GTK_WIDGET (steer));
+  gtk_cifro_area_set_view_center (GTK_CIFRO_AREA (priv->carea), -point->track.y, point->track.x);
+  gtk_widget_queue_draw (GTK_WIDGET (gtk_steer));
 }
 
-static HyScanGtkMapSteerPoint *
-hyscan_gtk_map_steer_point_new (void)
-{
-  return g_slice_new0 (HyScanGtkMapSteerPoint);
-}
-
-static void
-hyscan_gtk_map_steer_point_free (gpointer point)
-{
-  g_slice_free (HyScanGtkMapSteerPoint, point);
-}
-
+/* Переводит время в минуты и секунды. */
 static void
 hyscan_gtk_map_steer_time_to_mmss (gint  time,
                                    gint *min,
@@ -477,15 +328,17 @@ hyscan_gtk_map_steer_time_to_mmss (gint  time,
   *sec = (time - *min * 60);
 }
 
+/* Рисует линию допустимых отклонений поперёк галса. */
 static void
-hyscan_gtk_map_steer_carea_draw_err_line (HyScanGtkMapSteer *steer,
+hyscan_gtk_map_steer_carea_draw_err_line (HyScanGtkMapSteer *gtk_steer,
                                           cairo_t           *cairo)
 {
-  HyScanGtkMapSteerPrivate *priv = steer->priv;
+  HyScanGtkMapSteerPrivate *priv = gtk_steer->priv;
   GtkCifroArea *carea = GTK_CIFRO_AREA (priv->carea);
   gdouble x0, y0, x1, y1, x2, y2, x3, y3;
   gdouble from_x, to_x, from_y, to_y;
   gdouble scale_x, scale_y;
+  gdouble threshold;
 
   cairo_save (cairo);
 
@@ -493,34 +346,37 @@ hyscan_gtk_map_steer_carea_draw_err_line (HyScanGtkMapSteer *steer,
   gtk_cifro_area_get_scale (carea, &scale_x, &scale_y);
 
   /* Линии допустимых отклонений. */
-  gtk_cifro_area_visible_value_to_point (carea, &x0, &y0, -priv->threshold_x, from_y);
-  gtk_cifro_area_visible_value_to_point (carea, &x1, &y1, -priv->threshold_x, to_y);
-  gtk_cifro_area_visible_value_to_point (carea, &x2, &y2, priv->threshold_x, from_y);
-  gtk_cifro_area_visible_value_to_point (carea, &x3, &y3, priv->threshold_x, to_y);
+  threshold = hyscan_steer_get_threshold (priv->steer);
+  gtk_cifro_area_visible_value_to_point (carea, &x0, &y0, -threshold, from_y);
+  gtk_cifro_area_visible_value_to_point (carea, &x1, &y1, -threshold, to_y);
+  gtk_cifro_area_visible_value_to_point (carea, &x2, &y2, threshold, from_y);
+  gtk_cifro_area_visible_value_to_point (carea, &x3, &y3, threshold, to_y);
 
   gdk_cairo_set_source_rgba (cairo, &priv->color_bg);
   cairo_paint (cairo);
 
   gdk_cairo_set_source_rgba (cairo, &priv->color_bg_good);
-  cairo_rectangle (cairo, x0, y0, priv->threshold_x / scale_x * 2.0, - (to_y - from_y) / scale_y);
+  cairo_rectangle (cairo, x0, y0, threshold / scale_x * 2.0, - (to_y - from_y) / scale_y);
   cairo_fill (cairo);
 
   cairo_restore (cairo);
 }
 
+/* Рисует план галса. */
 static void
-hyscan_gtk_map_steer_carea_draw_track (HyScanGtkMapSteer *steer,
+hyscan_gtk_map_steer_carea_draw_track (HyScanGtkMapSteer *gtk_steer,
                                        cairo_t           *cairo)
 {
-  HyScanGtkMapSteerPrivate *priv = steer->priv;
+  HyScanGtkMapSteerPrivate *priv = gtk_steer->priv;
   GtkCifroArea *carea = GTK_CIFRO_AREA (priv->carea);
   gdouble start_x, start_y, end_x, end_y;
+  HyScanGeoCartesian2D start, end;
 
-  if (priv->track == NULL)
+  if (!hyscan_steer_get_track_topo (priv->steer, &start, &end))
     return;
 
-  gtk_cifro_area_visible_value_to_point (carea, &start_x, &start_y, priv->start.x, priv->start.y);
-  gtk_cifro_area_visible_value_to_point (carea, &end_x, &end_y, priv->end.x, priv->end.y);
+  gtk_cifro_area_visible_value_to_point (carea, &start_x, &start_y, -start.y,start.x);
+  gtk_cifro_area_visible_value_to_point (carea, &end_x, &end_y, -end.y, end.x);
 
   cairo_move_to (cairo, start_x, start_y);
   cairo_line_to (cairo, end_x, end_y);
@@ -586,13 +442,14 @@ hyscan_gtk_map_steer_value2color (gdouble value,
   return color;
 }
 
-/* Координата Y - скорость. */
+/* Ось координат OX - отклонение поперёк галса. */
 static void
 hyscan_gtk_map_steer_carea_draw_xaxis (HyScanGtkMapSteerCarea *steer_carea,
                                        cairo_t                *cairo)
 {
   GtkCifroArea *carea = GTK_CIFRO_AREA (steer_carea);
-  HyScanGtkMapSteerPrivate *priv = steer_carea->steer->priv;
+  HyScanGtkMapSteerPrivate *priv = steer_carea->gtk_steer->priv;
+  HyScanSteerPoint *point;
   gdouble x, y;
   gdouble from_x, to_x, from_y, to_y;
   gdouble scale_x, scale_y;
@@ -614,9 +471,7 @@ hyscan_gtk_map_steer_carea_draw_xaxis (HyScanGtkMapSteerCarea *steer_carea,
   cairo_stroke (cairo);
   cairo_restore (cairo);
 
-  /* Линия отклонения. */
-  HyScanGtkMapSteerPoint *point;
-
+  /* Горизонтальная линия сверху. Показывает отклонение последней точки поперёк галса. */
   point = g_queue_peek_head (priv->points);
   if (point != NULL)
     {
@@ -624,24 +479,27 @@ hyscan_gtk_map_steer_carea_draw_xaxis (HyScanGtkMapSteerCarea *steer_carea,
       gdouble line_width, line_length;
       guint width;
       gdouble width2;
+      gdouble max_y;
 
       cairo_save (cairo);
 
       gtk_cifro_area_get_visible_size (carea, &width, NULL);
       width2 = (gdouble) width / 2.0;
-      line_width = steer_carea->border_size / 4.0;
-      line_length = CLAMP (point->d_x / scale_x, -width2, width2);
+      line_width = steer_carea->border_size / 2.0;
+      line_length = CLAMP (point->d_y / scale_x, -width2, width2);
+      max_y = 2.0 * hyscan_steer_get_threshold (priv->steer);
 
       gtk_cifro_area_value_to_point (carea, &x, &y, 0, to_y);
       cairo_move_to (cairo, x, y - line_width / 2.0);
       cairo_line_to (cairo, x + line_length, y - line_width / 2.0);
-      track_color = hyscan_gtk_map_steer_value2color (point->d_x, -1.5 * priv->threshold_x, 1.5 * priv->threshold_x);
+      track_color = hyscan_gtk_map_steer_value2color (ABS (point->d_y), -max_y, max_y);
       gdk_cairo_set_source_rgba (cairo, &track_color);
       cairo_set_line_width (cairo, line_width);
       cairo_stroke (cairo);
       cairo_restore (cairo);
     }
 
+  /* Шкала оси OX, показывает отклонение поперёк галса. */
   start_val = from_x;
   gtk_cifro_area_get_axis_step (scale_x, 50, &start_val, &step, NULL, &power);
   mini_step = step / 5.0;
@@ -653,6 +511,7 @@ hyscan_gtk_map_steer_carea_draw_xaxis (HyScanGtkMapSteerCarea *steer_carea,
   else
     format = "%.0f";
 
+  /* Основные деления с подписью. */
   axis_val = start_val;
   while (axis_val < to_x)
     {
@@ -674,6 +533,7 @@ hyscan_gtk_map_steer_carea_draw_xaxis (HyScanGtkMapSteerCarea *steer_carea,
       axis_val += step;
     }
 
+  /* Промежуточные деления без подписи. */
   axis_val = start_val - step;
   while (axis_val < to_x)
     {
@@ -690,7 +550,7 @@ hyscan_gtk_map_steer_carea_draw_xaxis (HyScanGtkMapSteerCarea *steer_carea,
   cairo_stroke (cairo);
 }
 
-/* Координата Y - скорость. */
+/* Левая ось координат OY - положение вдоль галса. */
 static void
 hyscan_gtk_map_steer_carea_draw_yaxis (HyScanGtkMapSteerCarea *steer_carea,
                                        cairo_t                *cairo)
@@ -707,6 +567,7 @@ hyscan_gtk_map_steer_carea_draw_yaxis (HyScanGtkMapSteerCarea *steer_carea,
   start_val = from_y;
   gtk_cifro_area_get_axis_step (scale_y, 40, &start_val, &step, NULL, NULL);
 
+  /* Основые деления с подписью. */
   axis_val = start_val;
   while (axis_val < to_y)
     {
@@ -731,6 +592,7 @@ hyscan_gtk_map_steer_carea_draw_yaxis (HyScanGtkMapSteerCarea *steer_carea,
       axis_val += step;
     }
 
+  /* Промежуточные деления без подписи. */
   mini_step = step / 5.0;
   axis_val = start_val - step;
   while (axis_val < to_y)
@@ -745,7 +607,7 @@ hyscan_gtk_map_steer_carea_draw_yaxis (HyScanGtkMapSteerCarea *steer_carea,
       axis_val += mini_step;
     }
 
-  /* Отметка центральной точки. */
+  /* Отметка точки начала галса. */
   gtk_cifro_area_value_to_point (carea, &x, &y, from_x, (from_y + to_y) / 2.0);
   cairo_move_to (cairo, x, y);
   cairo_line_to (cairo, x - steer_carea->border_size, y);
@@ -753,21 +615,20 @@ hyscan_gtk_map_steer_carea_draw_yaxis (HyScanGtkMapSteerCarea *steer_carea,
   cairo_stroke (cairo);
 }
 
-/* Координата Y - скорость. */
+/* Рисует время до конца галса на нижней части рамки. */
 static void
 hyscan_gtk_map_steer_carea_draw_ttg (HyScanGtkMapSteerCarea *steer_carea,
                                      cairo_t                *cairo)
 {
   GtkCifroArea *carea = GTK_CIFRO_AREA (steer_carea);
-  HyScanGtkMapSteerPrivate *priv = steer_carea->steer->priv;
-  HyScanGtkMapSteerPoint *point;
+  HyScanGtkMapSteerPrivate *priv = steer_carea->gtk_steer->priv;
+  HyScanSteerPoint *point;
   gchar *text;
   gint ttg, min, sec;
   gint text_width, text_height;
   guint width, height;
 
-  
-  if (priv->track == NULL)
+  if (priv->plan == NULL)
     return;
   
   point = g_queue_peek_head (priv->points);
@@ -776,7 +637,7 @@ hyscan_gtk_map_steer_carea_draw_ttg (HyScanGtkMapSteerCarea *steer_carea,
 
   gtk_cifro_area_get_size (carea, &width, &height);
   
-  ttg = hyscan_cartesian_distance (&priv->end, &point->position) / priv->track->speed;
+  ttg = point->time_left;
   hyscan_gtk_map_steer_time_to_mmss (ttg, &min, &sec);
   text = g_strdup_printf ("TTG %02d:%02d", min, sec);
   pango_layout_set_text (steer_carea->pango_layout, text, -1);
@@ -786,36 +647,45 @@ hyscan_gtk_map_steer_carea_draw_ttg (HyScanGtkMapSteerCarea *steer_carea,
   g_free (text);
 }
 
-/* Координата Y - скорость. */
+/* Правая ось координат OY - скорость. */
 static void
 hyscan_gtk_map_steer_carea_draw_speed (HyScanGtkMapSteerCarea *steer_carea,
                                        cairo_t                *cairo)
 {
   GtkCifroArea *carea = GTK_CIFRO_AREA (steer_carea);
-  HyScanGtkMapSteerPrivate *priv = steer_carea->steer->priv;
+  HyScanGtkMapSteerPrivate *priv = steer_carea->gtk_steer->priv;
+  gdouble plan_speed;
   gdouble from_speed, to_speed;
   gdouble scale;
   gdouble x, y;
   gdouble step, axis_val, mini_step, start_val;
   guint width, height;
 
-  HyScanGtkMapSteerPoint *point;
+  HyScanSteerPoint *point;
 
-  if (priv->track == NULL)
+  if (priv->plan == NULL)
     return;
 
-  point = g_queue_peek_head (priv->points);
+  plan_speed = priv->plan->velocity;
 
+  /* Границы координат скорости. */
+  from_speed = 0.0;
+  to_speed = 2.0 * plan_speed;
+
+  /* Масштаб. */
   gtk_cifro_area_get_size (carea, &width, &height);
   height -= 2.0 * steer_carea->border_size;
-
-  from_speed = 0.0;
-  to_speed = 2.0 * priv->track->speed;
   scale = (to_speed - from_speed) / height;
 
+  /* Координата x для рисования оси OY. */
   x = width - steer_carea->border_size;
+
+  /* Макрос для перевода скорости в координату Y. */
 #define SPEED_TO_Y(speed) (steer_carea->border_size + height - speed / scale)
 
+  /* Рисуем столбец, соответствующий текущей скорости.
+   * Цвет столбца определяется отклонением скорости от плана. */
+  point = g_queue_peek_head (priv->points);
   if (point != NULL)
     {
       gdouble current_speed;
@@ -824,13 +694,13 @@ hyscan_gtk_map_steer_carea_draw_speed (HyScanGtkMapSteerCarea *steer_carea,
 
       current_speed = point->nav_data.speed;
       cairo_save (cairo);
-      bar_width = steer_carea->border_size / 4.0;
+      bar_width = steer_carea->border_size / 2.0;
       bar_height = MIN (current_speed / scale, height);
       cairo_rectangle (cairo, x, SPEED_TO_Y (0), bar_width, -bar_height);
 
-      active_color = hyscan_gtk_map_steer_value2color (current_speed,
-                                                       priv->track->speed * 0.3,
-                                                       priv->track->speed * 1.7);
+      active_color = hyscan_gtk_map_steer_value2color (ABS (current_speed - plan_speed),
+                                                       -0.5 * plan_speed,
+                                                       0.5 * plan_speed);
       gdk_cairo_set_source_rgba (cairo, &active_color);
       cairo_fill (cairo);
       cairo_restore (cairo);
@@ -880,13 +750,15 @@ hyscan_gtk_map_steer_carea_draw_speed (HyScanGtkMapSteerCarea *steer_carea,
     }
 
   /* Отметка плановой скорости. */
-  y = SPEED_TO_Y (priv->track->speed);
+  y = SPEED_TO_Y (plan_speed);
   cairo_move_to (cairo, x, y);
   cairo_line_to (cairo, x + steer_carea->border_size, y);
 
   cairo_stroke (cairo);
 }
 
+/* Функция рисует на рамке мини-карты шкалы с отклонениями по скорости, положению,
+ * и статус прохождения галса. */
 static void
 hyscan_gtk_map_steer_carea_draw_axis (GtkCifroArea *carea,
                                       cairo_t      *cairo,
@@ -909,11 +781,12 @@ hyscan_gtk_map_steer_carea_draw_axis (GtkCifroArea *carea,
   hyscan_gtk_map_steer_carea_draw_ttg (steer_carea, cairo);
 }
 
+/* Функция рисует центральную линию вдоль направления плана галса. */
 static void
-hyscan_gtk_map_steer_carea_draw_center (HyScanGtkMapSteer *steer,
+hyscan_gtk_map_steer_carea_draw_center (HyScanGtkMapSteer *gtk_steer,
                                         cairo_t           *cairo)
 {
-  HyScanGtkMapSteerPrivate *priv = steer->priv;
+  HyScanGtkMapSteerPrivate *priv = gtk_steer->priv;
   GtkCifroArea *carea = GTK_CIFRO_AREA (priv->carea);
   gdouble x, y;
   gdouble from_y, to_y;
@@ -931,28 +804,29 @@ hyscan_gtk_map_steer_carea_draw_center (HyScanGtkMapSteer *steer,
   cairo_stroke (cairo);
 }
 
+/* Рисует на мини-карте текущее положение судна. */
 static void
-hyscan_gtk_map_steer_carea_draw_current (HyScanGtkMapSteer *steer,
+hyscan_gtk_map_steer_carea_draw_current (HyScanGtkMapSteer *gtk_steer,
                                          cairo_t           *cairo)
 {
-  HyScanGtkMapSteerPrivate *priv = steer->priv;
+  HyScanGtkMapSteerPrivate *priv = gtk_steer->priv;
   GtkCifroArea *carea = GTK_CIFRO_AREA (priv->carea);
   gdouble x, y;
   gdouble from_x, to_x, from_y, to_y;
-  HyScanGtkMapSteerPoint *point = priv->points->head->data;
+  HyScanSteerPoint *point = priv->points->head->data;
 
   gtk_cifro_area_get_view (carea, &from_x, &to_x, &from_y, &to_y);
 
   /* Маленькая стрелка. */
   cairo_save (cairo);
 
-  gtk_cifro_area_visible_value_to_point (carea, &x, &y, point->position.x, point->position.y);
+  gtk_cifro_area_visible_value_to_point (carea, &x, &y, -point->position.y, point->position.x);
   cairo_translate (cairo, x, y);
   cairo_rotate (cairo, point->d_angle);
 
   cairo_move_to (cairo, 0, 0);
   cairo_line_to (cairo, -9.0, 5.0);
-  cairo_line_to (cairo, 0, -priv->arrow_size);
+  cairo_line_to (cairo, 0, -ARROW_SIZE);
   cairo_line_to (cairo, 9.0, 5.0);
   cairo_close_path (cairo);
   cairo_set_source_rgba (cairo, 1.0, 1.0, 1.0, 0.5);
@@ -962,18 +836,19 @@ hyscan_gtk_map_steer_carea_draw_current (HyScanGtkMapSteer *steer,
   cairo_set_source_rgb (cairo, 0.0, 0.0, 0.6);
   cairo_stroke (cairo);
 
-  cairo_move_to (cairo, 0, -priv->arrow_size);
-  cairo_line_to (cairo, 0, -3.0 * priv->arrow_size);
+  cairo_move_to (cairo, 0, -ARROW_SIZE);
+  cairo_line_to (cairo, 0, -3.0 * ARROW_SIZE);
   cairo_stroke (cairo);
 
   cairo_restore (cairo);
 }
 
+/* Рисует на мини-карте траекторию судна. */
 static void
-hyscan_gtk_map_steer_carea_draw_path (HyScanGtkMapSteer *steer,
+hyscan_gtk_map_steer_carea_draw_path (HyScanGtkMapSteer *gtk_steer,
                                       cairo_t           *cairo)
 {
-  HyScanGtkMapSteerPrivate *priv = steer->priv;
+  HyScanGtkMapSteerPrivate *priv = gtk_steer->priv;
   GtkCifroArea *carea = GTK_CIFRO_AREA (priv->carea);
   gdouble x, y;
   GList *link;
@@ -981,9 +856,9 @@ hyscan_gtk_map_steer_carea_draw_path (HyScanGtkMapSteer *steer,
   cairo_set_line_width (cairo, 2.0);
   for (link = priv->points->head; link != NULL; link = link->next)
     {
-      HyScanGtkMapSteerPoint *point = link->data;
+      HyScanSteerPoint *point = link->data;
 
-      gtk_cifro_area_visible_value_to_point (carea, &x, &y, point->position.x, point->position.y);
+      gtk_cifro_area_visible_value_to_point (carea, &x, &y, -point->position.y, point->position.x);
       cairo_line_to (cairo, x, y);
     }
 
@@ -991,14 +866,15 @@ hyscan_gtk_map_steer_carea_draw_path (HyScanGtkMapSteer *steer,
   cairo_stroke (cairo);
 }
 
+/* Обработчик "visible-draw". */
 static void
 hyscan_gtk_map_steer_carea_draw (GtkCifroArea *carea,
                                  cairo_t      *cairo,
                                  gpointer      user_data)
 {
   HyScanGtkMapSteerCarea *steer_carea = HYSCAN_GTK_MAP_STEER_CAREA (carea);
-  HyScanGtkMapSteer *steer = steer_carea->steer;
-  HyScanGtkMapSteerPrivate *priv = steer->priv;
+  HyScanGtkMapSteer *gtk_steer = steer_carea->gtk_steer;
+  HyScanGtkMapSteerPrivate *priv = gtk_steer->priv;
   guint width, height;
   GtkStyleContext *context;
 
@@ -1010,20 +886,21 @@ hyscan_gtk_map_steer_carea_draw (GtkCifroArea *carea,
 
   cairo_save (cairo);
 
-  hyscan_gtk_map_steer_carea_draw_err_line (steer, cairo);
-  hyscan_gtk_map_steer_carea_draw_center (steer, cairo);
-  hyscan_gtk_map_steer_carea_draw_track (steer, cairo);
+  hyscan_gtk_map_steer_carea_draw_err_line (gtk_steer, cairo);
+  hyscan_gtk_map_steer_carea_draw_center (gtk_steer, cairo);
+  hyscan_gtk_map_steer_carea_draw_track (gtk_steer, cairo);
 
   if (g_queue_get_length (priv->points) == 0)
     goto exit;
 
-  hyscan_gtk_map_steer_carea_draw_path (steer, cairo);
-  hyscan_gtk_map_steer_carea_draw_current (steer, cairo);
+  hyscan_gtk_map_steer_carea_draw_path (gtk_steer, cairo);
+  hyscan_gtk_map_steer_carea_draw_current (gtk_steer, cairo);
 
 exit:
   cairo_restore (cairo);
 }
 
+/* Реализация функции GtkWidgetClass.screen_changed. */
 static void
 hyscan_gtk_map_steer_carea_screen_changed (GtkWidget *widget,
                                            GdkScreen *previous_screen)
@@ -1038,34 +915,37 @@ hyscan_gtk_map_steer_carea_screen_changed (GtkWidget *widget,
   steer_carea->border_size = height * 1.5;
 }
 
+/* Обработчик "configure-event". */
 static gboolean
 hyscan_gtk_map_steer_carea_configure (GtkWidget *widget,
                                       GdkEvent  *event,
                                       gpointer   user_data)
 {
   HyScanGtkMapSteerCarea *steer_carea = HYSCAN_GTK_MAP_STEER_CAREA (widget);
-  HyScanGtkMapSteerPrivate *priv = steer_carea->steer->priv;
+  HyScanGtkMapSteerPrivate *priv = steer_carea->gtk_steer->priv;
   guint width, height;
+  gdouble size;
 
   gtk_cifro_area_get_visible_size (GTK_CIFRO_AREA (widget), &width, &height);
   if (width == 0 || height == 0)
     return FALSE;
+  
+  size = 2.0 * hyscan_steer_get_threshold (priv->steer);
 
-  gtk_cifro_area_set_view (GTK_CIFRO_AREA (widget),
-                           -priv->threshold_x * 2.0, priv->threshold_x * 2.0,
-                           -priv->threshold_x * 2.0, priv->threshold_x * 2.0);
+  gtk_cifro_area_set_view (GTK_CIFRO_AREA (widget), -size, size, -size, size);
   g_signal_handlers_disconnect_by_func (widget, hyscan_gtk_map_steer_carea_configure, user_data);
 
   return FALSE;
 }
 
+/* Реализация GtkWidgetClass.scroll_event. */
 static gboolean
 hyscan_gtk_map_steer_carea_scroll (GtkWidget      *widget,
                                    GdkEventScroll *event)
 {
   HyScanGtkMapSteerCarea *steer_carea = HYSCAN_GTK_MAP_STEER_CAREA (widget);
-  HyScanGtkMapSteer *steer = steer_carea->steer;
-  HyScanGtkMapSteerPrivate *priv = steer->priv;
+  HyScanGtkMapSteer *gtk_steer = steer_carea->gtk_steer;
+  HyScanGtkMapSteerPrivate *priv = gtk_steer->priv;
   GtkCifroArea *carea = GTK_CIFRO_AREA (priv->carea);
   GtkCifroAreaZoomType zoom;
   gdouble from_x, to_x, from_y, to_y;
@@ -1083,57 +963,46 @@ hyscan_gtk_map_steer_carea_scroll (GtkWidget      *widget,
   return FALSE;
 }
 
+/* Определяет, находится ли точка (x, y) на линии допустимого отклонения, чтобы захватить её мышкой. */
 static gboolean
-hyscan_gtk_map_steer_is_err_line (HyScanGtkMapSteer *steer,
+hyscan_gtk_map_steer_is_err_line (HyScanGtkMapSteer *gtk_steer,
                                   gdouble            x,
                                   gdouble            y)
 {
-  HyScanGtkMapSteerPrivate *priv = steer->priv;
+  HyScanGtkMapSteerPrivate *priv = gtk_steer->priv;
   gdouble val_x, val_y;
   gdouble scale_x;
+  gdouble threshold;
 
   gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->carea), x, y, &val_x, &val_y);
   gtk_cifro_area_get_scale (GTK_CIFRO_AREA (priv->carea), &scale_x, NULL);
+  threshold = hyscan_steer_get_threshold (priv->steer);
 
-  return (ABS (ABS (val_x) - priv->threshold_x) < scale_x * 5.0);
+  return (ABS (ABS (val_x) - threshold) < scale_x * 5.0);
 }
 
+/* Реализация GtkWidgetClass.button_press_event.
+ * Обрабатывает захват и перемещение линии допустимых значений. */
 static gboolean
 hyscan_gtk_map_steer_carea_button (GtkWidget      *widget,
                                    GdkEventButton *event)
 {
-  HyScanGtkMapSteer *steer = HYSCAN_GTK_MAP_STEER_CAREA (widget)->steer;
-  HyScanGtkMapSteerPrivate *priv = steer->priv;
-  GtkCifroArea *carea = GTK_CIFRO_AREA (priv->carea);
-
-  if (event->type == GDK_2BUTTON_PRESS)
-    {
-      if (priv->mode == MODE_VESSEL)
-        {
-          gtk_cifro_area_set_view_center (carea, 0, 0);
-          gtk_cifro_area_set_angle (carea, 0);
-          priv->mode = MODE_ORIGIN;
-        }
-      else
-        {
-          priv->mode = MODE_VESSEL;
-        }
-      gtk_widget_queue_draw (GTK_WIDGET (steer));
-    }
+  HyScanGtkMapSteer *gtk_steer = HYSCAN_GTK_MAP_STEER_CAREA (widget)->gtk_steer;
+  HyScanGtkMapSteerPrivate *priv = gtk_steer->priv;
 
   if (event->type == GDK_BUTTON_PRESS)
     {
-      if (!hyscan_gtk_map_steer_is_err_line (steer, event->x, event->y))
+      if (!hyscan_gtk_map_steer_is_err_line (gtk_steer, event->x, event->y))
         return GDK_EVENT_PROPAGATE;
 
       priv->state = STATE_GRAB;
     }
   else if (event->type == GDK_BUTTON_RELEASE)
     {
-      if (priv->state == STATE_GRAB)
-        {
-          priv->state = STATE_NONE;
-        }
+      if (priv->state != STATE_GRAB)
+        return GDK_EVENT_PROPAGATE;
+
+      priv->state = STATE_NONE;
     }
 
   return GDK_EVENT_STOP;
@@ -1143,55 +1012,72 @@ static gboolean
 hyscan_gtk_map_steer_carea_motion_notify (GtkWidget      *widget,
                                           GdkEventMotion *event)
 {
-  HyScanGtkMapSteer *steer = HYSCAN_GTK_MAP_STEER_CAREA (widget)->steer;
+  HyScanGtkMapSteer *gtk_steer = HYSCAN_GTK_MAP_STEER_CAREA (widget)->gtk_steer;
   GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
-  HyScanGtkMapSteerPrivate *priv = steer->priv;
-
-  const gchar *cursor_name = NULL;
-
-  if (priv->state == STATE_NONE)
-    {
-      if (hyscan_gtk_map_steer_is_err_line (steer, event->x, event->y))
-        {
-          cursor_name = "col-resize";
-        }
-    }
-  else if (priv->state == STATE_GRAB)
-    {
-      gdouble x, y;
-
-      gtk_cifro_area_point_to_value (carea, event->x, event->y, &x, &y);
-      priv->threshold_x = ABS (x);
-
-      gtk_widget_queue_draw (GTK_WIDGET (steer));
-    }
-
-
+  HyScanGtkMapSteerPrivate *priv = gtk_steer->priv;
   GdkWindow *window;
   GdkCursor *cursor;
-  window = gtk_widget_get_window (GTK_WIDGET (steer));
-  if (cursor_name != NULL)
-    cursor = gdk_cursor_new_from_name (gtk_widget_get_display (GTK_WIDGET (steer)), cursor_name);
-  else
-    cursor = NULL;
+
+  /* Меняем значение threshold, если пользователь перетаскивает линию допустимого отклонения. */
+  if (priv->state == STATE_GRAB)
+    {
+      gdouble x;
+
+      gtk_cifro_area_point_to_value (carea, event->x, event->y, &x, NULL);
+      hyscan_steer_set_threshold (priv->steer, ABS (x));
+
+      gtk_widget_queue_draw (GTK_WIDGET (gtk_steer));
+    }
+
+  /* Устанавливаем курсор мыши. */
+  cursor = hyscan_gtk_map_steer_is_err_line (gtk_steer, event->x, event->y) ?
+           gdk_cursor_new_from_name (gtk_widget_get_display (GTK_WIDGET (gtk_steer)), "col-resize") :
+           NULL;
+  window = gtk_widget_get_window (GTK_WIDGET (gtk_steer));
   gdk_window_set_cursor (window, cursor);
   g_clear_object (&cursor);
 
   return GDK_EVENT_PROPAGATE;
 }
 
+/* Функция возвращает размер рамки мини-карты. */
 static void
-hyscan_gtk_map_steer_set_track (HyScanGtkMapSteer *steer)
+hyscan_gtk_map_steer_carea_get_border (GtkCifroArea *carea,
+                                       guint        *border_top,
+                                       guint        *border_bottom,
+                                       guint        *border_left,
+                                       guint        *border_right)
 {
-  HyScanGtkMapSteerPrivate *priv = steer->priv;
+  HyScanGtkMapSteerCarea *steer_carea = HYSCAN_GTK_MAP_STEER_CAREA (carea);
+
+  border_top != NULL ? (*border_top = steer_carea->border_size) : 0;
+  border_bottom != NULL ? (*border_bottom = steer_carea->border_size) : 0;
+  border_left != NULL ? (*border_left = steer_carea->border_size) : 0;
+  border_right != NULL ? (*border_right = steer_carea->border_size) : 0;
+}
+
+/* Функция проверяет масштаб мини-карты. */
+static void
+hyscan_gtk_map_steer_carea_check_scale (GtkCifroArea *carea,
+                                        gdouble      *scale_x,
+                                        gdouble      *scale_y)
+{
+  *scale_x = CLAMP (*scale_x, 0.01, 1.0);
+  *scale_y = *scale_x;
+}
+
+/* Функция обновляет активный план галса. */
+static void
+hyscan_gtk_map_steer_set_track (HyScanGtkMapSteer *gtk_steer)
+{
+  HyScanGtkMapSteerPrivate *priv = gtk_steer->priv;
   GtkCifroArea *carea = GTK_CIFRO_AREA (priv->carea);
-  HyScanPlannerTrack *track = NULL;
+  const HyScanPlannerTrack *track = NULL;
   gchar *active_id;
 
-  active_id = hyscan_planner_selection_get_active_track (priv->selection);
-  if (active_id != NULL)
-    track = (HyScanPlannerTrack *) hyscan_object_model_get_id (priv->planner_model, active_id);
+  track = hyscan_steer_get_track (priv->steer, &active_id);
 
+  /* Если план галса поменялся, то очищаем траекторию и перемещаемся в начало плана. */
   if (g_strcmp0 (active_id, priv->track_id) != 0)
     {
       g_queue_clear (priv->points);
@@ -1200,35 +1086,30 @@ hyscan_gtk_map_steer_set_track (HyScanGtkMapSteer *steer)
 
   g_free (priv->track_id);
   priv->track_id = active_id;
-  hyscan_planner_track_free (priv->track);
-  priv->track = track;
-  g_clear_object (&priv->geo);
+  hyscan_track_plan_free (priv->plan);
+  priv->plan = track != NULL ? hyscan_track_plan_copy (&track->plan) : NULL;
 
-  if (priv->track == NULL)
+  if (priv->plan == NULL)
     {
       gtk_label_set_text (GTK_LABEL (priv->track_info), _("No active track"));
       goto exit;
     }
 
-  priv->geo = hyscan_planner_track_geo (priv->track, &priv->angle);
-  hyscan_geo_geo2topoXY (priv->geo, &priv->start, priv->track->start);
-  hyscan_geo_geo2topoXY (priv->geo, &priv->end, priv->track->end);
-  g_queue_foreach (priv->points, (GFunc) hyscan_gtk_map_steer_calc_point, steer);
+  /* Т.к. план поменялся, то и координаты траектории относительно плана галса тоже поменялись. Пересчитываем их. */
+  g_queue_foreach (priv->points, (GFunc) hyscan_steer_calc_point, priv->steer);
 
-  /* Выводим информацию о галсе. */
+  /* Выводим информацию о плане галса. */
   {
     gchar *text;
-    gdouble length;
-    gdouble azimuth;
+    gdouble length, angle;
     gdouble estimated_time;
     gint min, sec;
 
-    azimuth = priv->angle / G_PI * 180.0 + (priv->angle < 0 ? 360.0 : 0);
-    length = hyscan_cartesian_distance (&priv->start, &priv->end);
-    estimated_time = length / priv->track->speed;
+    hyscan_steer_get_track_info (priv->steer, &angle, &length);
+    estimated_time = length / priv->plan->velocity;
     hyscan_gtk_map_steer_time_to_mmss (estimated_time, &min, &sec);
     text = g_strdup_printf (_("Plan: %.1f m/s %.0f° L%.0fm ~%02d:%02d"),
-                            priv->track->speed, azimuth, length, min, sec);
+                            priv->plan->velocity, angle, length, min, sec);
     gtk_label_set_text (GTK_LABEL (priv->track_info), text);
     g_free (text);
   }
@@ -1239,40 +1120,16 @@ exit:
 
 /**
  * hyscan_gtk_map_steer_new:
- * @model: модель навигационных данных
- * @selection: выбор пользователя в планировщике
+ * @steer: модель управления судном #HyScanSteer
  *
  * Создаёт виджет навигации по запланированному галсу
  *
  * Returns: новый виджет #HyScanGtkMapSteer
  */
 GtkWidget *
-hyscan_gtk_map_steer_new (HyScanNavModel         *model,
-                          HyScanPlannerSelection *selection)
+hyscan_gtk_map_steer_new (HyScanSteer *steer)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP_STEER,
-                       "model", model,
-                       "selection", selection,
+                       "steer", steer,
                        NULL);
-}
-
-/**
- * hyscan_gtk_map_steer_sensor_set_offset:
- * @steer: указатель на #HyScanGtkMapSteer
- * @offset: смещение антенны гидролокатора
- *
- * Устанавливает смещение антенны гидролокотора. Смещение используется для
- * внесения поправки в местоположение антенны.
- */
-void
-hyscan_gtk_map_steer_sensor_set_offset (HyScanGtkMapSteer         *steer,
-                                        const HyScanAntennaOffset *offset)
-{
-  HyScanGtkMapSteerPrivate *priv;
-
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_STEER (steer));
-  priv = steer->priv;
-
-  g_clear_pointer (&priv->offset, hyscan_antenna_offset_free);
-  priv->offset = hyscan_antenna_offset_copy (offset);
 }
