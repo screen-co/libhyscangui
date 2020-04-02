@@ -83,8 +83,8 @@
 #define SOUND_VELOCITY          1500.  /* Скорость звука. */
 
 /* Параметры по умолчанию. */
-#define PREFIX_CHANNEL_RMC       "gnss-nmea"
-#define PREFIX_CHANNEL_DPT       "echosounder"
+#define NAME_CHANNEL_RMC          "gnss"
+#define NAME_CHANNEL_DPT          "echosounder"
 #define DEFAULT_CHANNEL_PORT      1
 #define DEFAULT_CHANNEL_STARBOARD 1
 #define DEFAULT_QUALITY           0.5
@@ -648,9 +648,9 @@ hyscan_gtk_map_track_item_schema_build_nmea_enum (HyScanGtkMapTrackItem   *track
       hyscan_db_close (priv->db, param_id);
 
       /* По умолчанию устанавливаем номера каналов по названию датчиков. */
-      if (g_str_has_prefix (sensor_name, PREFIX_CHANNEL_DPT))
+      if (g_strstr_len (sensor_name, -1, NAME_CHANNEL_DPT))
         priv->depth.channel = channel_num;
-      else
+      else if (g_strstr_len (sensor_name, -1, NAME_CHANNEL_RMC))
         priv->nav.channel = channel_num;
 
       /* Добавляем канал в enum. В качестве идентификатора ставим имя датчика,
