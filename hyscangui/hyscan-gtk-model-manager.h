@@ -45,6 +45,7 @@ typedef enum
   SIGNAL_ITEM_COLLAPSED,              /* Сворачивание узла древовидного представления. */
   SIGNAL_VIEW_SCROLLED_HORIZONTAL,    /* Изменение положения горизонтальной прокрутки представления. */
   SIGNAL_VIEW_SCROLLED_VERTICAL,      /* Изменение положения вертикальной прокрутки представления. */
+  SIGNAL_UNSELECT_ALL,                /* Снятие выделения. */
   SIGNAL_MODEL_MANAGER_LAST           /* Количество сигналов. */
 }ModelManagerSignal;
 
@@ -144,6 +145,8 @@ void                 hyscan_model_manager_set_selected_item           (HyScanMod
                                                                        gchar                  *id);
 
 gchar*               hyscan_model_manager_get_selected_item           (HyScanModelManager     *self);
+
+void                 hyscan_model_manager_unselect_all                (HyScanModelManager     *self);
 
 void                 hyscan_model_manager_set_horizontal_adjustment   (HyScanModelManager     *self,
                                                                        GtkAdjustment          *adjustment);

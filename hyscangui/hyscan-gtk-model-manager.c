@@ -74,7 +74,8 @@ static const gchar *signals[] = {"wf-marks-changed",     /* Изменение �
                                  "item-expanded",        /* Разворачивание узла древовидного представления. */
                                  "item-collapsed",       /* Сворачивание узла древовидного представления. */
                                  "scrolled-horizontal",  /* Изменение положения горизонтальной прокрутки представления. */
-                                 "scrolled-vertical"};   /* Изменение положения вертикальной прокрутки представления. */
+                                 "scrolled-vertical",    /* Изменение положения вертикальной прокрутки представления. */
+                                 "unselect"};            /* Снятие выделения. */
 
 /* Форматированная строка для вывода времени и даты. */
 static gchar *date_time_stamp = "%d.%m.%Y %H:%M:%S";
@@ -550,13 +551,6 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
                                           G_TYPE_STRING,   /* Глубина. */
                                           G_TYPE_STRING,   /* Ширина.*/
                                           G_TYPE_STRING)); /* Наклонная дальность. */
-                /* Разрешаем множественный выбор. */
-                /*g_print ("*Selection: %p\n", priv->selection);
-                if (priv->selection)
-                  {
-                    gtk_tree_selection_set_mode (priv->selection, GTK_SELECTION_MULTIPLE);
-                    g_print ("*GTK_SELECTION_MULTIPLE");
-                  }*/
               }
             else
               {
@@ -602,13 +596,6 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
                                             G_TYPE_STRING,   /* Глубина. */
                                             G_TYPE_STRING,   /* Ширина.*/
                                             G_TYPE_STRING);  /* Наклонная дальность. */
-                /* Разрешаем множественный выбор. */
-                /*g_print ("*Selection: %p\n", priv->selection);
-                if (priv->selection)
-                  {
-                    gtk_tree_selection_set_mode (priv->selection, GTK_SELECTION_MULTIPLE);
-                    g_print ("*GTK_SELECTION_MULTIPLE");
-                  }*/
               }
             else
               {
@@ -1902,8 +1889,7 @@ hyscan_model_manager_init_extensions (HyScanModelManager  *self)
             priv->node[type] = hyscan_model_manager_extension_copy (priv->node[type]);
 
           /* Добавляем в общую таблицу с соответствующим идентификатором. */
-          if (g_hash_table_insert (priv->extensions[type], g_strdup (type_id[type]), priv->node[type]))
-            g_print ("%s\n", type_id[type]);
+          g_hash_table_insert (priv->extensions[type], g_strdup (type_id[type]), priv->node[type]);
         }
       counter++;
     }
@@ -2487,9 +2473,6 @@ hyscan_model_manager_set_selected_item (HyScanModelManager *self,
   if (priv->clear_model_flag)  /* Защита против срабатывания сигнала "changed" */
     return;                    /* у GtkTreeSelection при очистке GtkTreeModel.   */
 
-  g_print ("Selected id: %s\n", id);
-  g_print ("selected_id: %s\n", priv->selected_item_id);
-
   if (priv->selected_item_id != NULL)
     {
       g_free (priv->selected_item_id);
@@ -2511,6 +2494,42 @@ hyscan_model_manager_get_selected_item (HyScanModelManager *self)
 {
   HyScanModelManagerPrivate *priv = self->priv;
   return priv->selected_item_id;
+}
+
+/**
+ * hyscan_model_manager_unselect:
+ * @self: указатель на Менеджер Моделей
+ *
+ * Отправляет сигнал о снятии выделния.
+ */
+void
+hyscan_model_manager_unselect_all (HyScanModelManager *self)
+{
+  HyScanModelManagerPrivate *priv = self->priv;
+  ModelManagerObjectType type;
+
+  if (priv->selected_item_id != NULL)
+    {
+      /* Сворачиваем узел. */
+      for (type = LABEL; type < TYPES; type++)
+        {
+          if (priv->extensions[type] != NULL)
+            {
+              Extension *ext = g_hash_table_lookup (priv->extensions[type], priv->selected_item_id);
+
+              if (ext != NULL)
+                {
+                  ext->expanded = FALSE;
+                  break;
+                }
+            }
+        }
+      /* Нет выделеного объекта. */
+      g_free (priv->selected_item_id);
+      priv->selected_item_id = NULL;
+    }
+  /* Отправляем сингнал о снятии выделения. */
+  g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_UNSELECT_ALL], 0);
 }
 
 /**
@@ -2595,7 +2614,6 @@ hyscan_model_manager_toggle_item (HyScanModelManager *self,
           if (ext != NULL)
             {
               ext->active = active;
-              g_print ("id->active: %s\n %s\n", id, ext->active ? "TRUE" : "FALSE");
               break;
             }
         }
@@ -2665,7 +2683,6 @@ hyscan_model_manager_expand_item (HyScanModelManager *self,
           if (ext != NULL)
             {
               ext->expanded = expanded;
-              g_print ("id->expanded: %s\n %s\n", id, ext->expanded ? "TRUE" : "FALSE");
               break;
             }
         }

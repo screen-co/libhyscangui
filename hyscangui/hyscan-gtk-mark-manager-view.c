@@ -23,6 +23,7 @@ enum
 enum
 {
   SIGNAL_SELECTED,   /* Выделение строки. */
+  SIGNAL_UNSELECT,   /* Снять выделение. */
   SIGNAL_TOGGLED,    /* Изменение состояня чек-бокса. */
   SIGNAL_EXPANDED,   /* Разворачивание узла древовидного представления. */
   SIGNAL_LAST
@@ -37,9 +38,10 @@ struct _HyScanMarkManagerViewPrivate
   gulong            signal_selected,  /* Идентификатор сигнала об изменении выбранных объектов. */
                     signal_expanded,  /* Идентификатор сигнала разворачивания узла древовидного представления.*/
                     signal_collapsed; /* Идентификатор сигнала cворачивания узла древовидного представления.*/
-  gboolean          has_selected,
-                    toggle_flag,
-                    focus_start;
+  gboolean          has_selected,     /* Флаг наличия выделенного объекта. */
+                    toggle_flag,      /* Флаг для отмены выделения при клике по чек-боксу. */
+                    focus_start,      /* Флаг получения первого фокуса. */
+                    is_selected;      /* Текущее состояние: TRUE - выделено, FALSE - не выделено. */
 };
 
 static void         hyscan_mark_manager_view_set_property         (GObject               *object,
@@ -156,6 +158,18 @@ hyscan_mark_manager_view_class_init (HyScanMarkManagerViewClass *klass)
                   G_SIGNAL_RUN_LAST, 0, NULL, NULL,
                   g_cclosure_marshal_VOID__STRING,
                   G_TYPE_NONE, 1, G_TYPE_STRING);
+
+  /**
+   * HyScanMarkManagerView::unselect:
+   * @self: указатель на #HyScanMarkManagerView
+   *
+   * Сигнал посылается при снятии выделения.
+   */
+  hyscan_mark_manager_view_signals[SIGNAL_UNSELECT] =
+    g_signal_new ("unselect", HYSCAN_TYPE_MARK_MANAGER_VIEW,
+                  G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+                  g_cclosure_marshal_VOID__VOID,
+                  G_TYPE_NONE, 0);
 
   /**
    * HyScanMarkManagerView::toggled:
@@ -347,23 +361,26 @@ hyscan_mark_manager_view_emit_selected (GtkTreeSelection      *selection,
 
   priv = self->priv;
 
-  /*if (!priv->has_selected)
-    return;*/
-
-  model = gtk_tree_view_get_model (priv->tree_view);
-
-  if (gtk_tree_selection_get_selected (selection, &model, &iter))
+  if (priv->is_selected)
     {
-      gchar *id = NULL;
+      g_signal_emit (self, hyscan_mark_manager_view_signals[SIGNAL_UNSELECT], 0);
+    }
+  else
+    {
+      model = gtk_tree_view_get_model (priv->tree_view);
 
-      gtk_tree_model_get (model,     &iter,
-                          COLUMN_ID, &id,
-                          -1);
-
-      if (id != NULL && 0 != g_strcmp0 (id, ""))
+      if (gtk_tree_selection_get_selected (selection, &model, &iter))
         {
-          g_print ("EMIT SELECTED: %s\n", id);
-          g_signal_emit (self, hyscan_mark_manager_view_signals[SIGNAL_SELECTED], 0, id);
+          gchar *id = NULL;
+
+          gtk_tree_model_get (model,     &iter,
+                              COLUMN_ID, &id,
+                              -1);
+
+          if (id != NULL && 0 != g_strcmp0 (id, ""))
+            {
+              g_signal_emit (self, hyscan_mark_manager_view_signals[SIGNAL_SELECTED], 0, id);
+            }
         }
     }
 }
@@ -417,8 +434,6 @@ hyscan_gtk_mark_manager_view_toggle (HyScanMarkManagerView *self,
   gtk_tree_model_get (model,      iter,
                       COLUMN_ID, &id,
                       -1);
-
-  g_print ("->id: %s\n", id);
 
   if (GTK_IS_TREE_STORE (model))
     gtk_tree_store_set(GTK_TREE_STORE(model), iter, COLUMN_ACTIVE, active, -1);
@@ -619,8 +634,6 @@ hyscan_mark_manager_view_item_expanded (GtkTreeView *tree_view,
                       COLUMN_ID, &id,
                       -1);
 
-  g_print ("expanded->id: %s\nPath: %s\n", id, gtk_tree_path_to_string (path));
-
   if (id != NULL)
     {
       /* Отправляем сигнал о разворачивании узла древовидного представления. */
@@ -646,8 +659,6 @@ hyscan_mark_manager_view_item_collapsed (GtkTreeView *tree_view,
   gtk_tree_model_get (model,      iter,
                       COLUMN_ID, &id,
                       -1);
-
-  g_print ("collapsed->id: %s\nPath: %s\n", id, gtk_tree_path_to_string (path));
 
   if (id != NULL)
     {
@@ -907,8 +918,6 @@ grab_focus (GtkWidget *widget,
 
   g_return_if_fail (HYSCAN_IS_MARK_MANAGER_VIEW (user_data));
 
-  g_print ("FOCUS\n");
-
   self = HYSCAN_MARK_MANAGER_VIEW (user_data);
   priv = self->priv;
   selection = gtk_tree_view_get_selection (priv->tree_view);
@@ -918,7 +927,6 @@ grab_focus (GtkWidget *widget,
       gtk_tree_selection_unselect_all (selection);
       return;
     }
-  /*model = gtk_tree_view_get_model (priv->tree_view);*/
   if (gtk_tree_selection_get_selected (selection, &model, &priv->selected_iter))
     priv->has_selected = TRUE;
 }
@@ -935,8 +943,6 @@ grab_focus_after (GtkWidget *widget,
   GtkTreeSelection *selection;
 
   g_return_if_fail (HYSCAN_IS_MARK_MANAGER_VIEW (user_data));
-
-  g_print ("AFTER FOCUS\n");
 
   self = HYSCAN_MARK_MANAGER_VIEW (user_data);
   priv = self->priv;
@@ -976,7 +982,8 @@ select_func (GtkTreeSelection *selection,
   self = HYSCAN_MARK_MANAGER_VIEW (data);
   priv = self->priv;
 
-  g_print ("SELECT_FUNC\n");
+  priv->is_selected = path_currently_selected;
+
   if (priv->toggle_flag)
     {
       priv->toggle_flag = FALSE;
@@ -993,7 +1000,6 @@ void
 on_show (GtkWidget *widget,
          gpointer   user_data)
 {
-  g_print ("ON SHOW\n");
   /* Возможно, чтобы не обрабатывать сигналы о фокусе,
    * нужно проверить получение фокуса первый раз и здесь. */
   gtk_widget_grab_focus (widget);
@@ -1076,11 +1082,14 @@ hyscan_mark_manager_view_select_all (HyScanMarkManagerView *self,
   GtkTreeSelection *selection = gtk_tree_view_get_selection (priv->tree_view);
 
   if (flag)
-    gtk_tree_selection_select_all (selection);
+    {
+      gtk_tree_selection_select_all (selection);
+      g_signal_emit (self, hyscan_mark_manager_view_signals[SIGNAL_SELECTED], 0, selection);
+    }
   else
-    gtk_tree_selection_unselect_all (selection);
-
-  g_signal_emit (self, hyscan_mark_manager_view_signals[SIGNAL_SELECTED], 0, selection);
+    {
+      gtk_tree_selection_unselect_all (selection);
+    }
 }
 
 /**
@@ -1127,7 +1136,6 @@ hyscan_mark_manager_view_expand_path (HyScanMarkManagerView *self,
 
   if (GTK_IS_TREE_STORE (priv->store))
     {
-      /*g_print ("Path: %s\n", gtk_tree_path_to_string (path));*/
       if (expanded)
         {
           if (priv->signal_expanded != 0)
@@ -1138,10 +1146,6 @@ hyscan_mark_manager_view_expand_path (HyScanMarkManagerView *self,
               if (!gtk_tree_view_row_expanded (priv->tree_view, path))
                 {
                   gtk_tree_view_expand_to_path (priv->tree_view, path);
-                  /*if (gtk_tree_view_expand_row (priv->tree_view, path, FALSE))
-                    g_print ("Has children (TRUE)\n");
-                  else
-                    g_print ("Hasn't children (FALSE)\n");*/
                 }
               /* Включаем сигнал разворачивания узла древовидного представления. */
               g_signal_handler_unblock (G_OBJECT (priv->tree_view), priv->signal_expanded);
@@ -1156,10 +1160,7 @@ hyscan_mark_manager_view_expand_path (HyScanMarkManagerView *self,
               /* Сворачиваем, если узел развёрнут. */
               if (gtk_tree_view_row_expanded (priv->tree_view, path))
                 {
-                  if (gtk_tree_view_collapse_row (priv->tree_view, path))
-                    g_print ("Collapsed (TRUE)\n");
-                  else
-                    g_print ("Not collapsed (FALSE)\n");
+                  gtk_tree_view_collapse_row (priv->tree_view, path);
                 }
               /* Включаем сигнал сворачивания узла древовидного представления. */
               g_signal_handler_unblock (G_OBJECT (priv->tree_view), priv->signal_collapsed);
@@ -1321,7 +1322,6 @@ hyscan_mark_manager_view_select_item (HyScanMarkManagerView *self,
 
           /* Если нужно, разворачиваем узел. */
           path = gtk_tree_model_get_path (model, &iter);
-          g_print ("Select path: %s\n", gtk_tree_path_to_string (path));
           gtk_tree_path_up (path);
           gtk_tree_view_expand_to_path (priv->tree_view, path);
           /* Отключаем сигнал о выделении. */

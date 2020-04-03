@@ -138,6 +138,10 @@ static void         hyscan_mark_manager_item_selected             (HyScanMarkMan
 
 static void         hyscan_mark_manager_select_item               (HyScanMarkManager     *self);
 
+static void         hyscan_mark_manager_unselect                  (HyScanMarkManager     *self);
+
+static void         hyscan_mark_manager_unselect_all              (HyScanMarkManager     *self);
+
 static void         hyscan_mark_manager_item_toggled              (HyScanMarkManager     *self,
                                                                    gchar                 *id,
                                                                    gboolean               active);
@@ -338,12 +342,21 @@ hyscan_mark_manager_constructed (GObject *object)
                                                                    SIGNAL_VIEW_SCROLLED_VERTICAL),
                             G_CALLBACK (hyscan_mark_manager_view_scrolled_vertical),
                             self);
+  /* Подключаем сигнал о снятии выделения.*/
+  g_signal_connect_swapped (priv->model_manager,
+                            hyscan_model_manager_get_signal_title (priv->model_manager,
+                                                                   SIGNAL_UNSELECT_ALL),
+                            G_CALLBACK (hyscan_mark_manager_unselect_all),
+                            self);
   /* Виджет представления. */
   priv->view = hyscan_mark_manager_view_new (model);
   g_object_unref (model);
   /* Соединяем сигнал изменения выбранных элементов представления с функцией-обработчиком. */
   g_signal_connect_swapped (G_OBJECT (priv->view), "selected",
                             G_CALLBACK (hyscan_mark_manager_item_selected), self);
+  /* Соединяем сигнал снятия выделения с функцией-обработчиком. */
+  g_signal_connect_swapped (G_OBJECT (priv->view), "unselect",
+                            G_CALLBACK (hyscan_mark_manager_unselect), self);
   /* Соединяем сигнал изменения состояния чек-боксов с функцией-обработчиком. */
   g_signal_connect_swapped (G_OBJECT (priv->view), "toggled",
                             G_CALLBACK (hyscan_mark_manager_item_toggled), self);
@@ -673,7 +686,6 @@ hyscan_mark_manager_toggle_all (GtkMenuItem       *item,
                                    HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
-  g_print ("Show selected\n");
   hyscan_mark_manager_view_toggle_all (HYSCAN_MARK_MANAGER_VIEW (priv->view), TRUE);
 }
 
@@ -683,7 +695,6 @@ hyscan_mark_manager_untoggle_all (GtkMenuItem       *item,
                                 HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
-  g_print ("Hide selected\n");
   hyscan_mark_manager_view_toggle_all (HYSCAN_MARK_MANAGER_VIEW (priv->view), FALSE);
 }
 
@@ -710,6 +721,26 @@ hyscan_mark_manager_select_item (HyScanMarkManager *self)
 
       hyscan_mark_manager_view_select_item (HYSCAN_MARK_MANAGER_VIEW (priv->view), id);
     }
+}
+
+/* Функция-обработчик сигнала о снятии выделения.
+ * Сигнал отправляет MarkManagerView. */
+void
+hyscan_mark_manager_unselect (HyScanMarkManager *self)
+{
+  HyScanMarkManagerPrivate *priv = self->priv;
+
+  hyscan_model_manager_unselect_all (priv->model_manager);
+}
+
+/* Функция-обработчик сигнала о снятии выделения.
+ * Приходит из Model Manager-а. */
+void
+hyscan_mark_manager_unselect_all (HyScanMarkManager *self)
+{
+  HyScanMarkManagerPrivate *priv = self->priv;
+
+  hyscan_mark_manager_view_select_all (HYSCAN_MARK_MANAGER_VIEW (priv->view), FALSE);
 }
 
 /* Функция-обработчик изменения состояния чек-боксов в MarkManagerView. */
@@ -821,7 +852,6 @@ hyscan_mark_manager_item_expanded (HyScanMarkManager *self,
 void
 hyscan_mark_manager_expand_item (HyScanMarkManager *self)
 {
-  g_print ("EXPANDING SIGNAL FROM MODEL MANAGER CATCHED\n");
   hyscan_mark_manager_expand_current_item (self, TRUE);
 }
 
@@ -830,7 +860,6 @@ hyscan_mark_manager_expand_item (HyScanMarkManager *self)
 void
 hyscan_mark_manager_collapse_item (HyScanMarkManager *self)
 {
-  g_print ("COLLAPSING SIGNAL FROM MODEL MANAGER CATCHED\n");
   hyscan_mark_manager_expand_current_item (self, FALSE);
 }
 
@@ -846,8 +875,6 @@ hyscan_mark_manager_expand_current_item (HyScanMarkManager *self,
   if (iter != NULL)
     {
       GtkTreePath *path = gtk_tree_model_get_path (model, iter);
-
-      g_print ("ID: %s\nPath: %s\n", id, gtk_tree_path_to_string (path));
 
       hyscan_mark_manager_view_expand_path (HYSCAN_MARK_MANAGER_VIEW (priv->view), path, expanded);
 
