@@ -44,8 +44,8 @@ struct _HyScanModelManagerPrivate
   gchar                *project_name;         /* Название проекта. */
 
   GtkTreeSelection     *selection;            /* Выделенные объекты. */
-  GtkAdjustment        *horizontal,           /* Положение горизонтальной полосы прокрутки. */
-                       *vertical;             /* Положение вертикальной полосы прокрутки. */
+  gdouble               horizontal,           /* Положение горизонтальной полосы прокрутки. */
+                        vertical;             /* Положение вертикальной полосы прокрутки. */
 
   gchar                *selected_item_id;     /* Выделенные объекты. */
   Extension            *node[TYPES];          /* Информация для описания узлов для древовидного
@@ -2535,16 +2535,17 @@ hyscan_model_manager_unselect_all (HyScanModelManager *self)
 /**
  * hyscan_model_manager_set_horizontal:
  * @self: указатель на Менеджер Моделей
+ * @value: положение горизонтальной полосы прокрутки
  *
  * Устанавливает положение горизонтальной полосы прокрутки представления.
  */
 void
 hyscan_model_manager_set_horizontal_adjustment (HyScanModelManager *self,
-                                                GtkAdjustment      *adjustment)
+                                                gdouble             value)
 {
   HyScanModelManagerPrivate *priv = self->priv;
 
-  priv->horizontal = adjustment;
+  priv->horizontal = value;
 
   g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_VIEW_SCROLLED_HORIZONTAL], 0);
 }
@@ -2552,16 +2553,17 @@ hyscan_model_manager_set_horizontal_adjustment (HyScanModelManager *self,
 /**
  * hyscan_model_manager_set_vertical:
  * @self: указатель на Менеджер Моделей
+ * @value: положение вертикальной полосы прокрутки
  *
  * Устанавливает положение вертикальной полосы прокрутки представления.
  */
 void
 hyscan_model_manager_set_vertical_adjustment (HyScanModelManager *self,
-                                              GtkAdjustment      *adjustment)
+                                              gdouble             value)
 {
   HyScanModelManagerPrivate *priv = self->priv;
 
-  priv->vertical = adjustment;
+  priv->vertical = value;
 
   g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_VIEW_SCROLLED_VERTICAL], 0);
 }
@@ -2571,7 +2573,7 @@ hyscan_model_manager_set_vertical_adjustment (HyScanModelManager *self,
  *
  * Returns: указатель на параметры горизонтальной полосы прокрутки.
  */
-GtkAdjustment*
+gdouble
 hyscan_model_manager_get_horizontal_adjustment (HyScanModelManager *self)
 {
   HyScanModelManagerPrivate *priv = self->priv;
@@ -2583,7 +2585,7 @@ hyscan_model_manager_get_horizontal_adjustment (HyScanModelManager *self)
  *
  * Returns: указатель на параметры вертикальной полосы прокрутки.
  */
-GtkAdjustment*
+gdouble
 hyscan_model_manager_get_vertical_adjustment (HyScanModelManager *self)
 {
   HyScanModelManagerPrivate *priv = self->priv;

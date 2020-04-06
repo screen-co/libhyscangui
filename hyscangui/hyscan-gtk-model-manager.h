@@ -149,14 +149,14 @@ gchar*               hyscan_model_manager_get_selected_item           (HyScanMod
 void                 hyscan_model_manager_unselect_all                (HyScanModelManager     *self);
 
 void                 hyscan_model_manager_set_horizontal_adjustment   (HyScanModelManager     *self,
-                                                                       GtkAdjustment          *adjustment);
+                                                                       gdouble                 value);
 
 void                 hyscan_model_manager_set_vertical_adjustment     (HyScanModelManager     *self,
-                                                                       GtkAdjustment          *adjustment);
+                                                                       gdouble                 value);
 
-GtkAdjustment*       hyscan_model_manager_get_horizontal_adjustment   (HyScanModelManager     *self);
+gdouble              hyscan_model_manager_get_horizontal_adjustment   (HyScanModelManager     *self);
 
-GtkAdjustment*       hyscan_model_manager_get_vertical_adjustment     (HyScanModelManager     *self);
+gdouble              hyscan_model_manager_get_vertical_adjustment     (HyScanModelManager     *self);
 
 void                 hyscan_model_manager_toggle_item                 (HyScanModelManager     *self,
                                                                        gchar                  *id,

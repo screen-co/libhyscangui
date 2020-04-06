@@ -615,7 +615,7 @@ hyscan_mark_manager_scrolled_horizontal (GtkAdjustment *adjustment,
   self = HYSCAN_MARK_MANAGER (user_data);
   priv = self->priv;
 
-  hyscan_model_manager_set_horizontal_adjustment (priv->model_manager, adjustment);
+  hyscan_model_manager_set_horizontal_adjustment (priv->model_manager, gtk_adjustment_get_value (adjustment));
 }
 
 /* Обработчик сигнала вертикальной прокрутки представления.
@@ -632,7 +632,7 @@ hyscan_mark_manager_scrolled_vertical (GtkAdjustment *adjustment,
   self = HYSCAN_MARK_MANAGER (user_data);
   priv = self->priv;
 
-  hyscan_model_manager_set_vertical_adjustment (priv->model_manager, adjustment);
+  hyscan_model_manager_set_vertical_adjustment (priv->model_manager, gtk_adjustment_get_value (adjustment));
 }
 
 /* Обработчик нажатия кнопки "Удалить выделенное". */
@@ -788,9 +788,10 @@ void
 hyscan_mark_manager_view_scrolled_horizontal (HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
+  GtkAdjustment *adjustment = gtk_scrolled_window_get_hadjustment (GTK_SCROLLED_WINDOW (priv->view));
+  gdouble value = hyscan_model_manager_get_horizontal_adjustment (priv->model_manager);
 
-  gtk_scrolled_window_set_hadjustment (GTK_SCROLLED_WINDOW (priv->view),
-                                       hyscan_model_manager_get_horizontal_adjustment (priv->model_manager));
+  gtk_adjustment_set_value (adjustment, value);
 }
 
 /* Функция-обработчик сигнал вертикальной полосы прокрутки представления.
@@ -799,9 +800,10 @@ void
 hyscan_mark_manager_view_scrolled_vertical (HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
+  GtkAdjustment *adjustment = gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (priv->view));
+  gdouble value = hyscan_model_manager_get_vertical_adjustment (priv->model_manager);
 
-  gtk_scrolled_window_set_vadjustment (GTK_SCROLLED_WINDOW (priv->view),
-                                       hyscan_model_manager_get_vertical_adjustment (priv->model_manager));
+  gtk_adjustment_set_value (adjustment, value);
 }
 
 /* Функция удаляет объект*/
