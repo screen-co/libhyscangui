@@ -89,7 +89,7 @@ main (int    argc,
       char **argv)
 {
   GtkWidget *layer_list, *window, *config_window;
-  HyScanGeoGeodetic center = { 59.9934843, 29.7034145, 0 };
+  HyScanGeoPoint center = { 59.9934843, 29.7034145 };
   GtkWidget *paned;
   HyScanGtkLayer *pin, *control, *ruler, *base;
   HyScanCache *cache;

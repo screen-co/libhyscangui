@@ -65,7 +65,7 @@ static void
 create_tracks (HyScanPlannerModel *model)
 {
   HyScanPlannerTrack track = { .type = HYSCAN_PLANNER_TRACK };
-  HyScanGeoGeodetic center = { 50.0, 50.0, 0 };
+  HyScanGeoPoint center = { 50.0, 50.0 };
   gint i;
 
   for (i = 0; i < 5; i++)

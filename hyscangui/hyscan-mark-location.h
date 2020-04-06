@@ -60,6 +60,7 @@ typedef enum
  * @track_name: имя галса
  * @time: время фиксации строки с меткой
  * @center_geo: географические координаты и курс антенны в момент фиксации метки
+ * @antenna_course: курс антенны в момент фиксации метки, градусы
  * @mark_geo: географические координаты центра метки
  * @offset: горизонтальное расстояние от антенны до метки в метрах (положительные значения по левому борту)
  * @direction: направление излучения передающей антенны
@@ -75,8 +76,9 @@ typedef struct
   gboolean                      loaded;
   gchar                        *track_name;
   gint64                        time;
-  HyScanGeoGeodetic             center_geo;
-  HyScanGeoGeodetic             mark_geo;
+  HyScanGeoPoint                center_geo;
+  gdouble                       antenna_course;
+  HyScanGeoPoint                mark_geo;
   gdouble                       offset;
   HyScanMarkLocationDirection   direction;
   gdouble                       depth;

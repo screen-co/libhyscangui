@@ -182,7 +182,7 @@ hyscan_gtk_map_scale_get_param (HyScanGtkLayer *gtk_layer)
   HyScanGtkMapScale *scale_layer = HYSCAN_GTK_MAP_SCALE (gtk_layer);
   HyScanGtkMapScalePrivate *priv = scale_layer->priv;
 
-  return g_object_ref (priv->param);
+  return g_object_ref (HYSCAN_PARAM (priv->param));
 }
 
 static void

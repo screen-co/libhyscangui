@@ -17,7 +17,7 @@ main (int    argc,
   HyScanCache *cache;
   HyScanProfileMap *profile;
   HyScanGtkLayer *track_layer;
-  HyScanGeoGeodetic center = { .lat = 55.571, .lon = 38.103 };
+  HyScanGeoPoint center = { .lat = 55.571, .lon = 38.103 };
   HyScanDB *db = NULL;
 
   gtk_init (&argc, &argv);

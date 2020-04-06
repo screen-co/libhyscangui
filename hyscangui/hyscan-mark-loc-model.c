@@ -306,13 +306,18 @@ hyscan_mark_loc_model_load_geo (HyScanMarkLocModel *ml_model,
 {
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
   HyScanGeoCartesian2D position;
+  HyScanGeoGeodetic origin;
 
   /* Положение метки относительно судна. */
   position.x = 0;
   position.y = location->offset;
 
-  hyscan_geo_set_origin (priv->geo, location->center_geo, HYSCAN_GEO_ELLIPSOID_WGS84);
-  return hyscan_geo_topoXY2geo (priv->geo, &location->mark_geo, position, 0);
+  origin.lat = location->center_geo.lat;
+  origin.lon = location->center_geo.lon;
+  origin.h = location->antenna_course;
+  hyscan_geo_set_origin (priv->geo, origin, HYSCAN_GEO_ELLIPSOID_WGS84);
+
+  return hyscan_geo_topoXY2geo0 (priv->geo, &location->mark_geo, position);
 }
 
 inline static HyScanNavSmooth *
@@ -346,7 +351,8 @@ hyscan_mark_loc_model_load_nav (HyScanMarkLocModel *ml_model,
   HyScanMarkLocModelPrivate *priv = ml_model->priv;
   HyScanNavSmooth *lat_smooth, *lon_smooth, *angle_smooth;
 
-  HyScanGeoGeodetic coord;
+  HyScanGeoPoint coord;
+  gdouble course;
   HyScanAntennaOffset offset;
   gboolean found;
 
@@ -356,31 +362,33 @@ hyscan_mark_loc_model_load_nav (HyScanMarkLocModel *ml_model,
 
   found = hyscan_nav_smooth_get (lat_smooth, NULL, location->time, &coord.lat) &&
           hyscan_nav_smooth_get (lon_smooth, NULL, location->time, &coord.lon) &&
-          hyscan_nav_smooth_get (angle_smooth, NULL, location->time, &coord.h);
+          hyscan_nav_smooth_get (angle_smooth, NULL, location->time, &course);
 
   if (!found)
     goto exit;
 
   location->center_geo = coord;
+  location->antenna_course = course;
 
   /* Поправка на поворот датчика GPS. */
   offset = hyscan_nav_data_get_offset (hyscan_nav_smooth_get_data (lat_smooth));
   if (offset.yaw != 0)
-    location->center_geo.h -= offset.yaw / G_PI * 180.0;
+    location->antenna_course -= offset.yaw / G_PI * 180.0;
 
   /* Поправка на смещение датчика GPS. */
   if (offset.forward != 0 || offset.starboard != 0)
     {
       HyScanGeoCartesian2D shift;
-      HyScanGeoGeodetic center;
+      HyScanGeoGeodetic origin;
 
       shift.x = -offset.forward;
       shift.y = offset.starboard;
 
-      hyscan_geo_set_origin (priv->geo, location->center_geo, HYSCAN_GEO_ELLIPSOID_WGS84);
-      hyscan_geo_topoXY2geo (priv->geo, &center, shift, 0);
-      location->center_geo.lat = center.lat;
-      location->center_geo.lon = center.lon;
+      origin.lat = location->center_geo.lat;
+      origin.lon = location->center_geo.lon;
+      origin.h = location->antenna_course;
+      hyscan_geo_set_origin (priv->geo, origin, HYSCAN_GEO_ELLIPSOID_WGS84);
+      hyscan_geo_topoXY2geo0 (priv->geo, &location->center_geo, shift);
     }
 
 exit:
@@ -410,21 +418,22 @@ hyscan_mark_loc_model_load_offset (HyScanMarkLocModel *ml_model,
   /* Добавляем поворот антенны. */
   amp_offset = hyscan_amplitude_get_offset (amp);
   if (amp_offset.yaw != 0)
-    location->center_geo.h += amp_offset.yaw / G_PI * 180.0;
+    location->antenna_course += amp_offset.yaw / G_PI * 180.0;
 
   /* Добавляем смещение x, y. */
   if (amp_offset.forward != 0 || amp_offset.starboard != 0)
     {
       HyScanGeoCartesian2D shift;
-      HyScanGeoGeodetic center;
+      HyScanGeoGeodetic origin;
 
       shift.x = amp_offset.forward;
       shift.y = -amp_offset.starboard;
 
-      hyscan_geo_set_origin (priv->geo, location->center_geo, HYSCAN_GEO_ELLIPSOID_WGS84);
-      hyscan_geo_topoXY2geo (priv->geo, &center, shift, 0);
-      location->center_geo.lat = center.lat;
-      location->center_geo.lon = center.lon;
+      origin.lat = location->center_geo.lat;
+      origin.lon = location->center_geo.lon;
+      origin.h = location->antenna_course;
+      hyscan_geo_set_origin (priv->geo, origin, HYSCAN_GEO_ELLIPSOID_WGS84);
+      hyscan_geo_topoXY2geo0 (priv->geo, &location->center_geo, shift);
     }
 
   /* Находим глубину при возможности. Делаем поправки на заглубление эхолота и ГБО. */

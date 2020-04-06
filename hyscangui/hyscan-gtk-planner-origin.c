@@ -165,11 +165,12 @@ hyscan_gtk_planner_origin_val_changed (GtkSpinButton          *spin_btn,
                                        HyScanGtkPlannerOrigin *gtk_origin)
 {
   HyScanGtkPlannerOriginPrivate *priv = gtk_origin->priv;
-  HyScanGeoGeodetic origin;
+  HyScanPlannerOrigin origin;
 
-  origin.lat = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->lat));
-  origin.lon = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->lon));
-  origin.h   = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->azimuth));
+  origin.type = HYSCAN_PLANNER_ORIGIN;
+  origin.origin.lat = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->lat));
+  origin.origin.lon = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->lon));
+  origin.ox = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->azimuth));
 
   hyscan_planner_model_set_origin (priv->model, &origin);
 }
@@ -194,7 +195,7 @@ hyscan_gtk_planner_origin_model_changed (HyScanGtkPlannerOrigin *gtk_origin)
 
   gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->lat), origin->origin.lat);
   gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->lon), origin->origin.lon);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->azimuth), origin->origin.h);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->azimuth), origin->ox);
 
   hyscan_planner_origin_free (origin);
 }

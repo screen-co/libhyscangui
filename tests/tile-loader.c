@@ -55,7 +55,7 @@ parse_zooms (const gchar *zooms,
 
 static void
 parse_latlon (const gchar       *string,
-              HyScanGeoGeodetic *target)
+              HyScanGeoPoint *target)
 {
   gchar **lat_lon;
 
@@ -86,7 +86,7 @@ main (int argc,
   HyScanGeoProjection *projection;
   HyScanProfileMap *profile;
   gchar **headers;
-  HyScanGeoGeodetic from, to;
+  HyScanGeoPoint from, to;
   HyScanGeoCartesian2D from_c2d, to_c2d;
 
   /* Разбор командной строки. */

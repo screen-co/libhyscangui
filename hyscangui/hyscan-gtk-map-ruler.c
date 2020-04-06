@@ -95,8 +95,8 @@ static GList *                  hyscan_gtk_map_ruler_get_segment_at           (H
                                                                                gdouble                   x,
                                                                                gdouble                   y,
                                                                                HyScanGeoCartesian2D     *nearest_);
-static gdouble                  hyscan_gtk_map_ruler_measure                  (HyScanGeoGeodetic         coord1,
-                                                                               HyScanGeoGeodetic         coord2);
+static gdouble                  hyscan_gtk_map_ruler_measure                  (HyScanGeoPoint            coord1,
+                                                                               HyScanGeoPoint            coord2);
 static gdouble                  hyscan_gtk_map_ruler_get_distance             (HyScanGtkMap             *map,
                                                                                GList                    *points);
 static gboolean                 hyscan_gtk_map_ruler_configure                (HyScanGtkMap *map,
@@ -314,7 +314,7 @@ hyscan_gtk_map_ruler_get_param (HyScanGtkLayer *gtk_layer)
 {
   HyScanGtkMapRuler *ruler = HYSCAN_GTK_MAP_RULER (gtk_layer);
 
-  return g_object_ref (ruler->priv->params);
+  return g_object_ref (HYSCAN_PARAM (ruler->priv->params));
 }
 
 static void
@@ -346,8 +346,8 @@ hyscan_gtk_map_ruler_configure (HyScanGtkMap      *map,
 
 /* Определяет расстояние между двумя географическими координатами. */
 static gdouble
-hyscan_gtk_map_ruler_measure (HyScanGeoGeodetic coord1,
-                              HyScanGeoGeodetic coord2)
+hyscan_gtk_map_ruler_measure (HyScanGeoPoint coord1,
+                              HyScanGeoPoint coord2)
 {
   gdouble lon1r;
   gdouble lat1r;
@@ -377,7 +377,7 @@ hyscan_gtk_map_ruler_get_distance (HyScanGtkMap *map,
   GList *point_l;
   HyScanGtkMapPoint *point;
 
-  HyScanGeoGeodetic coord0, coord1;
+  HyScanGeoPoint coord0, coord1;
 
   gdouble distance;
 

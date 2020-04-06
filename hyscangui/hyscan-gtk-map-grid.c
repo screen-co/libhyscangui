@@ -233,7 +233,7 @@ hyscan_gtk_map_grid_get_param (HyScanGtkLayer *gtk_layer)
   HyScanGtkMapGrid *grid_layer = HYSCAN_GTK_MAP_GRID (gtk_layer);
   HyScanGtkMapGridPrivate *priv = grid_layer->priv;
 
-  return g_object_ref (priv->param);
+  return g_object_ref (HYSCAN_PARAM (priv->param));
 }
 
 static void
@@ -308,7 +308,7 @@ hyscan_gtk_map_grid_label (HyScanGtkMapGrid     *grid,
 static void
 hyscan_gtk_map_grid_draw_line (HyScanGtkMapGrid  *grid,
                                cairo_t           *cairo,
-                               HyScanGeoGeodetic *points,
+                               HyScanGeoPoint    *points,
                                gsize              points_len,
                                gboolean           prefer_y,
                                const gchar       *label)
@@ -522,10 +522,10 @@ hyscan_gtk_map_grid_draw (HyScanGtkMap     *map,
 
   gint value_power;
 
-  HyScanGeoGeodetic coords1_geo, coords2_geo;
+  HyScanGeoPoint coords1_geo, coords2_geo;
   HyScanGeoCartesian2D coords1, coords2;
 
-  HyScanGeoGeodetic from_geo, to_geo;
+  HyScanGeoPoint from_geo, to_geo;
   HyScanGeoCartesian2D from, to;
 
   if (!hyscan_gtk_layer_get_visible (HYSCAN_GTK_LAYER (grid)))
@@ -568,7 +568,7 @@ hyscan_gtk_map_grid_draw (HyScanGtkMap     *map,
       {
         gchar *label;
         gsize i;
-        HyScanGeoGeodetic points[LINE_POINTS_NUM];
+        HyScanGeoPoint points[LINE_POINTS_NUM];
 
         for (i = 0; i < LINE_POINTS_NUM; i++)
           {
@@ -608,7 +608,7 @@ hyscan_gtk_map_grid_draw (HyScanGtkMap     *map,
       {
         gchar *label;
         gsize i;
-        HyScanGeoGeodetic points[LINE_POINTS_NUM];
+        HyScanGeoPoint points[LINE_POINTS_NUM];
 
         for (i = 0; i < LINE_POINTS_NUM; i++)
           {

@@ -246,7 +246,7 @@ hyscan_gtk_map_track_draw_beam_get_param (HyScanGtkMapTrackDraw *track_draw)
   HyScanGtkMapTrackDrawBeam *draw_beam = HYSCAN_GTK_MAP_TRACK_DRAW_BEAM (track_draw);
   HyScanGtkMapTrackDrawBeamPrivate *priv = draw_beam->priv;
 
-  return g_object_ref (priv->param);
+  return g_object_ref (HYSCAN_PARAM (priv->param));
 }
 
 static void

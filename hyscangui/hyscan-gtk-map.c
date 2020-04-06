@@ -109,7 +109,7 @@ struct _HyScanGtkMapPrivate
   HyScanGeoProjection     *projection;           /* Картографическая проекция поверхности Земли на плоскость карты. */
   gfloat                   ppi;                  /* PPI экрана. */
 
-  HyScanGeoGeodetic       init_center;           /* Географическая координата центра карты при инициализации. */
+  HyScanGeoPoint       init_center;           /* Географическая координата центра карты при инициализации. */
 
   gdouble                 *scales;               /* Массив доступных масштабов, упорядоченный по возрастанию. */
   gsize                    scales_len;           /* Длина массива scales. */
@@ -183,7 +183,7 @@ hyscan_gtk_map_class_init (HyScanGtkMapClass *klass)
   g_object_class_install_property (object_class, PROP_PROJECTION, pspec);
   hyscan_gtk_map_properties[PROP_PROJECTION] = pspec;
 
-  pspec = g_param_spec_pointer ("init-center", "Initial Center", "HyScanGeoGeodetic",
+  pspec = g_param_spec_pointer ("init-center", "Initial Center", "HyScanGeoPoint",
                                 G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY);
   hyscan_gtk_map_properties[PROP_INIT_CENTER] = pspec;
   g_object_class_install_property (object_class, PROP_INIT_CENTER, pspec);
@@ -248,7 +248,7 @@ hyscan_gtk_map_set_property (GObject      *object,
       break;
 
     case PROP_INIT_CENTER:
-      priv->init_center = *((HyScanGeoGeodetic *) g_value_get_pointer (value));
+      priv->init_center = *((HyScanGeoPoint *) g_value_get_pointer (value));
       break;
 
     default:
@@ -267,7 +267,7 @@ hyscan_gtk_map_init_view (GtkWidget         *widget,
 
   guint width, height;
 
-  HyScanGeoGeodetic coord;
+  HyScanGeoPoint coord;
   HyScanGeoCartesian2D from, to;
 
   gdouble view_margin = .005;        /* Отступ от центра карты до границ видимой области в градусах широты и долготы. */
@@ -465,7 +465,7 @@ hyscan_gtk_map_set_projection_real (HyScanGtkMapPrivate *priv,
  * Returns: указатель на #HyScanGtkMap
  */
 GtkWidget *
-hyscan_gtk_map_new (HyScanGeoGeodetic center)
+hyscan_gtk_map_new (HyScanGeoPoint center)
 {
   return g_object_new (HYSCAN_TYPE_GTK_MAP,
                        "init-center", &center, NULL);
@@ -485,7 +485,7 @@ hyscan_gtk_map_set_projection (HyScanGtkMap        *map,
                                HyScanGeoProjection *projection)
 {
   HyScanGtkMapPrivate *priv;
-  HyScanGeoGeodetic from_geo, to_geo;
+  HyScanGeoPoint from_geo, to_geo;
   HyScanGeoCartesian2D from, to;
 
   g_return_if_fail (HYSCAN_IS_GTK_MAP (map));
@@ -531,7 +531,7 @@ hyscan_gtk_map_get_projection (HyScanGtkMap *map)
  */
 void
 hyscan_gtk_map_move_to (HyScanGtkMap      *map,
-                        HyScanGeoGeodetic  center)
+                        HyScanGeoPoint  center)
 {
   HyScanGtkMapPrivate *priv;
   GtkCifroArea *carea;
@@ -564,7 +564,7 @@ hyscan_gtk_map_move_to (HyScanGtkMap      *map,
  */
 gdouble
 hyscan_gtk_map_get_scale_value (HyScanGtkMap      *map,
-                                HyScanGeoGeodetic  coord)
+                                HyScanGeoPoint  coord)
 {
   g_return_val_if_fail (HYSCAN_IS_GTK_MAP (map), -1.0);
 
@@ -585,7 +585,7 @@ hyscan_gtk_map_get_scale_px (HyScanGtkMap *map)
   HyScanGtkMapPrivate *priv;
   gdouble scale;
   gdouble from_x, to_x, from_y, to_y;
-  HyScanGeoGeodetic geo_center;
+  HyScanGeoPoint geo_center;
   HyScanGeoCartesian2D center;
 
   gdouble dist_pixels;
@@ -650,7 +650,7 @@ hyscan_gtk_map_set_scale_px (HyScanGtkMap *map,
   HyScanGtkMapPrivate *priv;
   gdouble scale_px;
   gdouble from_x, to_x, from_y, to_y;
-  HyScanGeoGeodetic geo_center;
+  HyScanGeoPoint geo_center;
   HyScanGeoCartesian2D center;
 
   gdouble scale_geo;
@@ -684,7 +684,7 @@ hyscan_gtk_map_set_scale_px (HyScanGtkMap *map,
  */
 void
 hyscan_gtk_map_point_to_geo (HyScanGtkMap      *map,
-                             HyScanGeoGeodetic *coords,
+                             HyScanGeoPoint *coords,
                              gdouble            x,
                              gdouble            y)
 {
@@ -711,7 +711,7 @@ hyscan_gtk_map_point_to_geo (HyScanGtkMap      *map,
  */
 void
 hyscan_gtk_map_value_to_geo (HyScanGtkMap         *map,
-                             HyScanGeoGeodetic    *coords,
+                             HyScanGeoPoint    *coords,
                              HyScanGeoCartesian2D  c2d)
 {
   HyScanGtkMapPrivate *priv;
@@ -733,7 +733,7 @@ hyscan_gtk_map_value_to_geo (HyScanGtkMap         *map,
  */
 void
 hyscan_gtk_map_geo_to_value (HyScanGtkMap         *map,
-                             HyScanGeoGeodetic     coords,
+                             HyScanGeoPoint     coords,
                              HyScanGeoCartesian2D *c2d)
 {
   HyScanGtkMapPrivate *priv;
@@ -924,13 +924,7 @@ hyscan_gtk_map_create_scales2 (gdouble  min_scale,
 HyScanGtkMapPoint *
 hyscan_gtk_map_point_copy (HyScanGtkMapPoint *point)
 {
-  HyScanGtkMapPoint *new_point;
-
-  new_point = g_slice_new (HyScanGtkMapPoint);
-  new_point->geo = point->geo;
-  new_point->c2d = point->c2d;
-
-  return new_point;
+  return g_slice_dup (HyScanGtkMapPoint, point);
 }
 
 /**

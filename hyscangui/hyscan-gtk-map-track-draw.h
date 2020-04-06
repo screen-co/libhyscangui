@@ -99,7 +99,8 @@ struct _HyScanGtkMapTrackQuality
  * @source: источник данных
  * @index: индекс записи в канале источника данных
  * @time: время фиксации данных
- * @geo: географические координаты точки и курс движения
+ * @geo: географические координаты точки
+ * @course: курс движения
  * @b_angle: курс с поправкой на смещение антенн GPS и ГЛ, рад
  * @b_length_m: длина луча, метры
  * @nr_length_m: длина ближней зоны диаграммы направленности, метры
@@ -127,7 +128,8 @@ struct _HyScanGtkMapTrackPoint
   guint32                         index;
   gint64                          time;
 
-  HyScanGeoGeodetic               geo;
+  HyScanGeoPoint                  geo;
+  gdouble                         course;
   gdouble                         b_angle;
   gdouble                         b_length_m;
   gdouble                         nr_length_m;
