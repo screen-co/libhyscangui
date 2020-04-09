@@ -273,37 +273,37 @@ hyscan_model_manager_set_property (GObject      *object,
 
   switch (prop_id)
     {
-      /* Название проекта */
-      case PROP_PROJECT_NAME:
-        {
-          if (priv->constructed_flag)
-            hyscan_model_manager_set_project_name (self, g_value_get_string (value));
-          else
-            priv->project_name = g_value_dup_string (value);
-        }
-        break;
-      /* База данных. */
-      case PROP_DB:
-        {
-          priv->db  = g_value_dup_object (value);
-          /* Увеличиваем счётчик ссылок на базу данных. */
-          g_object_ref (priv->db);
-        }
-        break;
-      /* Кэш.*/
-      case PROP_CACHE:
-        {
-          priv->cache  = g_value_dup_object (value);
-          /* Увеличиваем счётчик ссылок на кэш. */
-          g_object_ref (priv->cache);
-        }
-        break;
-      /* Что-то ещё... */
-      default:
-        {
-          G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-        }
-        break;
+    /* Название проекта */
+    case PROP_PROJECT_NAME:
+      {
+        if (priv->constructed_flag)
+          hyscan_model_manager_set_project_name (self, g_value_get_string (value));
+        else
+          priv->project_name = g_value_dup_string (value);
+      }
+      break;
+    /* База данных. */
+    case PROP_DB:
+      {
+        priv->db  = g_value_dup_object (value);
+        /* Увеличиваем счётчик ссылок на базу данных. */
+        g_object_ref (priv->db);
+      }
+      break;
+    /* Кэш.*/
+    case PROP_CACHE:
+      {
+        priv->cache  = g_value_dup_object (value);
+        /* Увеличиваем счётчик ссылок на кэш. */
+        g_object_ref (priv->cache);
+      }
+      break;
+    /* Что-то ещё... */
+    default:
+      {
+        G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      }
+      break;
     }
 }
 
@@ -318,18 +318,18 @@ hyscan_model_manager_get_property (GObject      *object,
 
   switch (prop_id)
     {
-      /* Название проекта */
-      case PROP_PROJECT_NAME:
-        {
-          g_value_set_string (value, priv->project_name);
-        }
-        break;
-      /* Что-то ещё... */
-      default:
-        {
-          G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-        }
-        break;
+    /* Название проекта */
+    case PROP_PROJECT_NAME:
+      {
+        g_value_set_string (value, priv->project_name);
+      }
+      break;
+    /* Что-то ещё... */
+    default:
+      {
+        G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      }
+      break;
     }
 }
 
@@ -1332,20 +1332,20 @@ hyscan_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
                     board_icon = g_strdup ("go-previous");
                   }
                   break;
-                  case HYSCAN_MARK_LOCATION_STARBOARD:
-                    {
-                      board = g_strdup ("Starboard");
-                      board_icon = g_strdup ("go-next");
-                    }
+                case HYSCAN_MARK_LOCATION_STARBOARD:
+                  {
+                    board = g_strdup ("Starboard");
+                    board_icon = g_strdup ("go-next");
+                  }
                   break;
-                  case HYSCAN_MARK_LOCATION_BOTTOM:
-                    {
-                      board = g_strdup ("Bottom");
-                      board_icon = g_strdup ("go-down");
-                    }
+                case HYSCAN_MARK_LOCATION_BOTTOM:
+                  {
+                    board = g_strdup ("Bottom");
+                    board_icon = g_strdup ("go-down");
+                  }
                   break;
-                  default:
-                    board = g_strdup (unknown);
+                default:
+                  board = g_strdup (unknown);
                   break;
                 }
 
@@ -2076,7 +2076,7 @@ hyscan_model_manager_get_extensions (HyScanModelManager     *self,
   GHashTable *table = NULL;
 
   switch (type)
-  {
+    {
     case LABEL:
       {
         table = hyscan_object_model_get (priv->label_model);
@@ -2098,7 +2098,7 @@ hyscan_model_manager_get_extensions (HyScanModelManager     *self,
       }
       break;
     default: break;
-  }
+    }
 
   if (table != NULL)
     {
@@ -2178,7 +2178,45 @@ hyscan_model_manager_delete_item (HyScanModelManager     *self,
                                   ModelManagerObjectType  type,
                                   gchar                  *id)
 {
-  g_print ("DELETING - type: %d, id: %s\n", type, id);
+  HyScanModelManagerPrivate *priv = self->priv;
+
+  switch (type)
+    {
+    case LABEL:
+      {
+        /* Удаляем группу. */
+        /*hyscan_object_model_remove_object (priv->label_model, id);*/
+      }
+      break;
+    case GEO_MARK:
+      {
+        /* Удаляем гео-метку. */
+        /*hyscan_object_model_remove_object (priv->geo_mark_model, id);*/
+      }
+      break;
+    case ACOUSTIC_MARK:
+      {
+        /* Удаляем акустическую метку. */
+        /*hyscan_object_model_remove_object (priv->acoustic_marks_model, id);*/
+      }
+      break;
+    case TRACK:
+      {
+        /* Удаляем галс. */
+
+        /* Получаем идентификатор проекта. */
+        gint32 project_id = hyscan_db_project_open (priv->db, priv->project_name);
+
+        if (project_id >= 0)
+          {
+            /*hyscan_db_track_remove (priv->db,
+                                    project_id,
+                                    id);*/
+          }
+      }
+      break;
+    default: break;
+    }
 }
 
 /* Создаёт новый Extention. Для удаления необходимо использовать hyscan_model_manager_extension_free ().*/
