@@ -41,13 +41,6 @@ enum
   N_PROPERTIES
 };
 
-/* Сигналы. */
-enum
-{
-  SIGNAL_SCROLLED_HORIZONTAL, /* Прокрутка представления по горизонтали. */
-  SIGNAL_SCROLLED_VERTICAL,   /* Прокрутка представления по вертикали. */
-  SIGNAL_LAST
-};
 /* Идентификаторы текста меток и подсказок для элементов панели инструментов. */
 enum
 {
@@ -99,7 +92,7 @@ static gchar *visibility_text[] = {N_("Expand all"),
                                    N_("Untoggle all")};
 /* Текст меток и подсказок для элементов панели инструментов. */
 static gchar *tooltips_text[]   = {N_("Create new group"),
-                                   N_("Delete selected"),
+                                   N_("Delete toggled"),
                                    N_("Actions"),
                                    N_("Grouping")};
 
@@ -118,7 +111,7 @@ static void         hyscan_mark_manager_create_new_label          (GtkToolItem  
 static void         hyscan_mark_manager_set_grouping              (GtkComboBox           *combo,
                                                                    HyScanMarkManager     *self);
 
-static void         hyscan_mark_manager_delete_selected           (GtkToolButton         *button,
+static void         hyscan_mark_manager_delete_toggled            (GtkToolButton         *button,
                                                                    HyScanMarkManager     *self);
 
 static void         hyscan_mark_manager_expand_all                (GtkMenuItem           *item,
@@ -186,8 +179,6 @@ static void         hyscan_mark_manager_expand_all_items          (HyScanMarkMan
 static GtkTreeIter* hyscan_mark_manager_find_item                 (GtkTreeModel          *model,
                                                                    const gchar           *id);
 
-static guint      hyscan_mark_manager_signals[SIGNAL_LAST] = { 0 };
-
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanMarkManager, hyscan_mark_manager, GTK_TYPE_BOX)
 
 static void
@@ -204,30 +195,6 @@ hyscan_mark_manager_class_init (HyScanMarkManagerClass *klass)
     g_param_spec_object ("model_manager", "ModelManager", "Model Manager",
                          HYSCAN_TYPE_MODEL_MANAGER,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-
-  /**
-   * HyScanMarkManager::h-scrolled:
-   * @self: указатель на #HyScanMarkManager
-   *
-   * Сигнал посылается при горизонтальной прокрутке виджета.
-   */
-  hyscan_mark_manager_signals[SIGNAL_SCROLLED_HORIZONTAL] =
-    g_signal_new ("h-scrolled", HYSCAN_TYPE_MARK_MANAGER,
-                  G_SIGNAL_RUN_LAST, 0, NULL, NULL,
-                  g_cclosure_marshal_VOID__OBJECT,
-                  G_TYPE_NONE, 1, GTK_TYPE_ADJUSTMENT);
-
-  /**
-   * HyScanMarkManager::v-scrolled:
-   * @self: указатель на #HyScanMarkManager
-   *
-   * Сигнал посылается при вертикальной прокрутке виджета.
-   */
-  hyscan_mark_manager_signals[SIGNAL_SCROLLED_VERTICAL] =
-    g_signal_new ("v-scrolled", HYSCAN_TYPE_MARK_MANAGER,
-                  G_SIGNAL_RUN_LAST, 0, NULL, NULL,
-                  g_cclosure_marshal_VOID__OBJECT,
-                  G_TYPE_NONE, 1, GTK_TYPE_ADJUSTMENT);
 }
 
 static void
@@ -407,19 +374,19 @@ hyscan_mark_manager_constructed (GObject *object)
                                               _(tooltips_text[SHOW_OR_HIDE]));
   /* Обработчик нажатия кнопки "Удалить выделенное" */
   g_signal_connect (G_OBJECT (action_item),             "clicked",
-                    G_CALLBACK (hyscan_mark_manager_delete_selected), self);
+                    G_CALLBACK (hyscan_mark_manager_delete_toggled), self);
   /* Обработчик выбора пункта меню "Развернуть все". */
   g_signal_connect (G_OBJECT (priv->expand_all_item),   "activate",
-                    G_CALLBACK (hyscan_mark_manager_expand_all),      self);
+                    G_CALLBACK (hyscan_mark_manager_expand_all),     self);
   /* Обработчик выбора пункта меню "Свернуть все". */
   g_signal_connect (G_OBJECT (priv->collapse_all_item), "activate",
-                    G_CALLBACK (hyscan_mark_manager_collapse_all),    self);
+                    G_CALLBACK (hyscan_mark_manager_collapse_all),   self);
   /* Обработчик выбора пункта меню "Отметить все". */
   g_signal_connect (G_OBJECT (toggle_all_item),         "activate",
-                    G_CALLBACK (hyscan_mark_manager_toggle_all),      self);
+                    G_CALLBACK (hyscan_mark_manager_toggle_all),     self);
   /* Обработчик выбора пункта меню "Снять все отметки". */
   g_signal_connect (G_OBJECT (untoggle_all_item),       "activate",
-                    G_CALLBACK (hyscan_mark_manager_untoggle_all),    self);
+                    G_CALLBACK (hyscan_mark_manager_untoggle_all),   self);
   /* Отступ. */
   /*gtk_container_set_border_width (GTK_CONTAINER (toolbar), 20);*/
   /*gtk_toolbar_set_show_arrow (GTK_TOOLBAR (toolbar), TRUE);*/
@@ -635,23 +602,15 @@ hyscan_mark_manager_scrolled_vertical (GtkAdjustment *adjustment,
   hyscan_model_manager_set_vertical_adjustment (priv->model_manager, gtk_adjustment_get_value (adjustment));
 }
 
-/* Обработчик нажатия кнопки "Удалить выделенное". */
+/* Обработчик нажатия кнопки "Удалить выбранное". */
 void
-hyscan_mark_manager_delete_selected (GtkToolButton     *button,
-                                     HyScanMarkManager *self)
+hyscan_mark_manager_delete_toggled (GtkToolButton     *button,
+                                    HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
-  gboolean sensivity = gtk_widget_get_sensitive (
-                           GTK_WIDGET (gtk_tool_button_get_icon_widget (button)));
-  HyScanMarkManagerView *view = HYSCAN_MARK_MANAGER_VIEW (priv->view);
 
-  if (sensivity && hyscan_mark_manager_view_has_selected (view))
-    {
-       GtkTreeSelection *selection = hyscan_mark_manager_view_get_selection (view);
-       /* Удаляем объект из базы данных. */
-       gtk_tree_selection_selected_foreach (selection, hyscan_mark_manager_delete_label, self);
-       gtk_widget_set_sensitive (priv->delete_icon, FALSE);
-    }
+  /* Удаляем объект из базы данных. */
+  hyscan_model_manager_delete_toggled_items (priv->model_manager);
 }
 
 /* Обработчик выбора пункта меню "Развернуть всё". */
@@ -717,7 +676,7 @@ hyscan_mark_manager_select_item (HyScanMarkManager *self)
 
   if (id != NULL)
     {
-      gtk_widget_set_sensitive (priv->delete_icon, id);
+      /*gtk_widget_set_sensitive (priv->delete_icon, id);*/
 
       hyscan_mark_manager_view_select_item (HYSCAN_MARK_MANAGER_VIEW (priv->view), id);
     }
@@ -799,7 +758,7 @@ hyscan_mark_manager_view_scrolled_horizontal (HyScanMarkManager *self)
 void
 hyscan_mark_manager_view_scrolled_vertical (HyScanMarkManager *self)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;
+  HyScanMarkManagerPrivate *priv = self->priv;;
   GtkAdjustment *adjustment = gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (priv->view));
   gdouble value = hyscan_model_manager_get_vertical_adjustment (priv->model_manager);
 

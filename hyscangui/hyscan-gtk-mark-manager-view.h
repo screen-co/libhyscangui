@@ -51,8 +51,6 @@ void                 hyscan_mark_manager_view_set_store              (HyScanMark
 
 GtkTreeSelection*    hyscan_mark_manager_view_get_selection          (HyScanMarkManagerView     *self);
 
-gboolean             hyscan_mark_manager_view_has_selected           (HyScanMarkManagerView     *self);
-
 void                 hyscan_mark_manager_view_expand_all             (HyScanMarkManagerView     *self);
 
 void                 hyscan_mark_manager_view_collapse_all           (HyScanMarkManagerView     *self);

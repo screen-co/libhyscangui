@@ -1019,20 +1019,6 @@ hyscan_mark_manager_view_get_selection (HyScanMarkManagerView *self)
 }
 
 /**
- * hyscan_mark_manager_view_has_selected:
- * @self: указатель на структуру #HyScanMarkManagerView
- *
- * Returns: TRUE - если есть выделенные строки,
- *          FALSE - если нет выделенных строк.
- */
-gboolean
-hyscan_mark_manager_view_has_selected (HyScanMarkManagerView *self)
-{
-  HyScanMarkManagerViewPrivate *priv = self->priv;
-  return (gboolean)gtk_tree_selection_count_selected_rows (gtk_tree_view_get_selection (priv->tree_view));
-}
-
-/**
  * hyscan_mark_manager_view_expand_all:
  * @self: указатель на структуру #HyScanMarkManagerView
  *

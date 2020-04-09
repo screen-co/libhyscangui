@@ -207,6 +207,10 @@ static GHashTable*   hyscan_model_manager_get_extensions                   (HySc
 static gboolean      hyscan_model_manager_is_all_toggled                   (GHashTable              *table,
                                                                             const gchar             *node_id);
 
+static void          hyscan_model_manager_delete_item                      (HyScanModelManager      *self,
+                                                                            ModelManagerObjectType   type,
+                                                                            gchar                   *id);
+
 static guint         hyscan_model_manager_signals[SIGNAL_MODEL_MANAGER_LAST] = { 0 };
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanModelManager, hyscan_model_manager, G_TYPE_OBJECT)
@@ -2148,17 +2152,33 @@ hyscan_model_manager_is_all_toggled (GHashTable  *table,
         {
           if (0 == g_strcmp0 (id, node_id))
             {
-              ext->active = TRUE;
+              counter++;
             }
           if (ext->active)
             counter++;
         }
 
       if (counter == total)
-        return TRUE;
+        {
+          ext = g_hash_table_lookup (table, node_id);
+          if (ext != NULL)
+            {
+              ext->active = TRUE;
+            }
+          return TRUE;
+        }
     }
 
   return FALSE;
+}
+
+/* Удаляет объект из базы данных. */
+void
+hyscan_model_manager_delete_item (HyScanModelManager     *self,
+                                  ModelManagerObjectType  type,
+                                  gchar                  *id)
+{
+  g_print ("DELETING - type: %d, id: %s\n", type, id);
 }
 
 /* Создаёт новый Extention. Для удаления необходимо использовать hyscan_model_manager_extension_free ().*/
@@ -2487,7 +2507,7 @@ hyscan_model_manager_set_selected_item (HyScanModelManager *self,
  * hyscan_model_manager_get_selected_item:
  * @self: указатель на Менеджер Моделей
  *
- * Returns: указатель на список выделенных объектов.
+ * Returns: идентификатор выделенного объекта.
  */
 gchar*
 hyscan_model_manager_get_selected_item (HyScanModelManager *self)
@@ -2749,4 +2769,33 @@ hyscan_model_manager_get_current_id (HyScanModelManager *self)
 {
   HyScanModelManagerPrivate *priv = self->priv;
   return priv->current_id;
+}
+
+/**
+ * hyscan_model_manager_delete_item:
+ * @self: указатель на Менеджер Моделей
+ *
+ * Удаляет выбранные объекты из базы данных.
+ */
+void
+hyscan_model_manager_delete_toggled_items (HyScanModelManager *self)
+{
+  HyScanModelManagerPrivate *priv = self->priv;
+  ModelManagerObjectType type;
+
+  for (type = LABEL; type < TYPES; type++)
+    {
+      gchar **list = hyscan_model_manager_get_toggled_items (self, type);
+
+      if (list != NULL)
+        {
+          gint i;
+          g_print ("---\n");
+          for (i = 0; list[i] != NULL; i++)
+            {
+              hyscan_model_manager_delete_item (self, type, list[i]);
+            }
+          g_strfreev (list);
+        }
+    }
 }
