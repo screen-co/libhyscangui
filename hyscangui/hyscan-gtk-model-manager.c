@@ -2818,7 +2818,6 @@ hyscan_model_manager_get_current_id (HyScanModelManager *self)
 void
 hyscan_model_manager_delete_toggled_items (HyScanModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
   ModelManagerObjectType type;
 
   for (type = LABEL; type < TYPES; type++)
@@ -2828,7 +2827,6 @@ hyscan_model_manager_delete_toggled_items (HyScanModelManager *self)
       if (list != NULL)
         {
           gint i;
-          g_print ("---\n");
           for (i = 0; list[i] != NULL; i++)
             {
               hyscan_model_manager_delete_item (self, type, list[i]);
@@ -2836,4 +2834,36 @@ hyscan_model_manager_delete_toggled_items (HyScanModelManager *self)
           g_strfreev (list);
         }
     }
+}
+
+/**
+ * hyscan_model_manager_has_toggled:
+ * @self: указатель на Менеджер Моделей
+ *
+ * Проверка, есть ли выбранные объекты.
+ * Returns: TRUE  - есть выбранные объекты,
+ *          FALSE - нет выбранных объектов.
+ */
+gboolean
+hyscan_model_manager_has_toggled (HyScanModelManager *self)
+{
+  HyScanModelManagerPrivate *priv = self->priv;
+  ModelManagerObjectType type;
+
+  for (type = LABEL; type < TYPES; type++)
+    {
+      GHashTableIter iter;
+      Extension *ext;
+      gchar *id;
+
+      g_hash_table_iter_init (&iter, priv->extensions[type]);
+      while (g_hash_table_iter_next (&iter, (gpointer*)&id, (gpointer*)&ext))
+        {
+          if (ext->active == TRUE)
+            {
+              return TRUE;
+            }
+        }
+    }
+  return FALSE;
 }

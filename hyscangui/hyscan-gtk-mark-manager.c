@@ -145,11 +145,6 @@ static void         hyscan_mark_manager_view_scrolled_horizontal  (HyScanMarkMan
 
 static void         hyscan_mark_manager_view_scrolled_vertical    (HyScanMarkManager     *self);
 
-static void         hyscan_mark_manager_delete_label              (GtkTreeModel          *model,
-                                                                   GtkTreePath           *path,
-                                                                   GtkTreeIter           *iter,
-                                                                   gpointer               data);
-
 static void         hyscan_mark_manager_grouping_changed          (HyScanMarkManager     *self);
 
 static void         hyscan_mark_manager_view_model_updated        (HyScanMarkManager     *self);
@@ -536,17 +531,6 @@ hyscan_mark_manager_grouping_changed (HyScanMarkManager *self)
   hyscan_mark_manager_select_item (self);
 }
 
-/* Обработчик изменения состояния кнопки "Развернуть/свернуть все узлы." */
-/*void
-hyscan_mark_manager_show_nodes (HyScanMarkManager *self,
-                                GtkToolItem       *item)
-{
-  HyScanMarkManagerPrivate *priv = self->priv;
-  gboolean toggle = !hyscan_model_manager_get_expand_nodes_mode (priv->model_manager);
-
-  hyscan_model_manager_set_expand_nodes_mode (priv->model_manager, toggle);
-}*/
-
 /* Обработчик сигнала обновления модели представления данных. */
 void
 hyscan_mark_manager_view_model_updated (HyScanMarkManager *self)
@@ -608,9 +592,9 @@ hyscan_mark_manager_delete_toggled (GtkToolButton     *button,
                                     HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
-
   /* Удаляем объект из базы данных. */
-  hyscan_model_manager_delete_toggled_items (priv->model_manager);
+  if (gtk_widget_get_sensitive (priv->delete_icon))
+    hyscan_model_manager_delete_toggled_items (priv->model_manager);
 }
 
 /* Обработчик выбора пункта меню "Развернуть всё". */
@@ -619,10 +603,7 @@ hyscan_mark_manager_expand_all (GtkMenuItem       *item,
                                 HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
-/*
-  hyscan_mark_manager_view_select_all (HYSCAN_MARK_MANAGER_VIEW (priv->view), TRUE);
-  gtk_widget_set_sensitive(priv->delete_icon, TRUE);
-*/
+
   hyscan_mark_manager_view_expand_all (HYSCAN_MARK_MANAGER_VIEW (priv->view));
 }
 
@@ -632,10 +613,7 @@ hyscan_mark_manager_collapse_all (GtkMenuItem       *item,
                                   HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
-/*
-  hyscan_mark_manager_view_select_all (HYSCAN_MARK_MANAGER_VIEW (priv->view), FALSE);
-  gtk_widget_set_sensitive(priv->delete_icon, FALSE);
-*/
+
   hyscan_mark_manager_view_collapse_all (HYSCAN_MARK_MANAGER_VIEW (priv->view));
 }
 
@@ -676,8 +654,6 @@ hyscan_mark_manager_select_item (HyScanMarkManager *self)
 
   if (id != NULL)
     {
-      /*gtk_widget_set_sensitive (priv->delete_icon, id);*/
-
       hyscan_mark_manager_view_select_item (HYSCAN_MARK_MANAGER_VIEW (priv->view), id);
     }
 }
@@ -720,8 +696,10 @@ hyscan_mark_manager_toggle_item (HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
   ModelManagerObjectType type;
+  gboolean has_toggled = hyscan_model_manager_has_toggled (priv->model_manager);
 
   g_print ("***\n");
+
   for (type = LABEL; type < TYPES; type++)
     {
       gchar **list = hyscan_model_manager_get_toggled_items (priv->model_manager, type);
@@ -738,7 +716,11 @@ hyscan_mark_manager_toggle_item (HyScanMarkManager *self)
           g_strfreev (list);
         }
     }
+
   g_print ("***\n");
+
+  /* Переключаем состояние кнопки "Удалить выбранное." */
+  gtk_widget_set_sensitive (priv->delete_icon, has_toggled);
 }
 
 /* Функция-обработчик сигнал горизонтальной полосы прокрутки представления.
@@ -763,37 +745,6 @@ hyscan_mark_manager_view_scrolled_vertical (HyScanMarkManager *self)
   gdouble value = hyscan_model_manager_get_vertical_adjustment (priv->model_manager);
 
   gtk_adjustment_set_value (adjustment, value);
-}
-
-/* Функция удаляет объект*/
-void hyscan_mark_manager_delete_label (GtkTreeModel *model,
-                                       GtkTreePath  *path,
-                                       GtkTreeIter  *iter,
-                                       gpointer      data)
-{
-  HyScanMarkManagerPrivate *priv;
-  HyScanObjectModel *label_model;
-  gchar *id;
-  /*GtkTreePath *tmp;*/
-
-  g_return_if_fail (HYSCAN_IS_MARK_MANAGER (data));
-
-  priv = HYSCAN_MARK_MANAGER (data)->priv;
-  label_model = hyscan_model_manager_get_label_model (priv->model_manager);
-  /* Получаем идентификатор удаляемого объекта из нулевой колонки модели (COLUMN_ID) . */
-  gtk_tree_model_get (model, iter, COLUMN_ID, &id, -1);
-  /* Пока что ничего не удаляем. */
-  /*hyscan_object_model_remove_object (label_model, id);*/
-
-  g_object_unref (label_model);
-
-  /*tmp = gtk_tree_path_copy (path);
-  if (gtk_tree_path_up (tmp))
-    {
-      hyscan_mark_manager_view_expand_path (HYSCAN_MARK_MANAGER_VIEW (priv->view), tmp);
-    }
-  gtk_tree_path_free (tmp);*/
-  hyscan_mark_manager_view_expand_path (HYSCAN_MARK_MANAGER_VIEW (priv->view), path, TRUE);
 }
 
 /* Функция-обработчик сигнала о разворачивании узла древовидного представления.

@@ -177,6 +177,8 @@ gchar*               hyscan_model_manager_get_current_id              (HyScanMod
 
 void                 hyscan_model_manager_delete_toggled_items        (HyScanModelManager     *self);
 
+gboolean             hyscan_model_manager_has_toggled                 (HyScanModelManager     *self);
+
 G_END_DECLS
 
 #endif /* __HYSCAN_MODEL_MANAGER_H__ */
