@@ -243,8 +243,8 @@ hyscan_gtk_planner_track_add (HyScanGtkPlannerShift    *shift,
       for (j = 0; j + 1 < cross_pts_len; j += 2)
         {
           new_track = hyscan_planner_track_copy (track_tpl);
-          hyscan_geo_topoXY2geo (priv->geo, &new_track->plan.start, cross_pts[j], 0.0);
-          hyscan_geo_topoXY2geo (priv->geo, &new_track->plan.end, cross_pts[j + 1], 0.0);
+          hyscan_geo_topoXY2geo0 (priv->geo, &new_track->plan.start, cross_pts[j]);
+          hyscan_geo_topoXY2geo0 (priv->geo, &new_track->plan.end, cross_pts[j + 1]);
 
           priv->tracks = g_list_append (priv->tracks, new_track);
           added = TRUE;
@@ -257,8 +257,8 @@ hyscan_gtk_planner_track_add (HyScanGtkPlannerShift    *shift,
   else
     {
       new_track = hyscan_planner_track_copy (track_tpl);
-      hyscan_geo_topoXY2geo (priv->geo, &new_track->plan.start, new_start, 0.0);
-      hyscan_geo_topoXY2geo (priv->geo, &new_track->plan.end, new_end, 0.0);
+      hyscan_geo_topoXY2geo0 (priv->geo, &new_track->plan.start, new_start);
+      hyscan_geo_topoXY2geo0 (priv->geo, &new_track->plan.end, new_end);
 
       priv->tracks = g_list_append (priv->tracks, new_track);
       added = TRUE;
@@ -427,8 +427,8 @@ hyscan_gtk_planner_shift_set_track (HyScanGtkPlannerShift    *shift,
   plan = &priv->track->plan;
 
   priv->geo = hyscan_planner_track_geo (plan, NULL);
-  hyscan_geo_geo2topoXY (priv->geo, &priv->track_start, plan->start);
-  hyscan_geo_geo2topoXY (priv->geo, &priv->track_end, plan->end);
+  hyscan_geo_geo2topoXY0 (priv->geo, &priv->track_start, plan->start);
+  hyscan_geo_geo2topoXY0 (priv->geo, &priv->track_end, plan->end);
 
   if (zone == NULL)
     {
@@ -444,7 +444,7 @@ hyscan_gtk_planner_shift_set_track (HyScanGtkPlannerShift    *shift,
       priv->vertices_len = zone->points_len;
       priv->vertices = g_new (HyScanGeoCartesian2D, priv->vertices_len);
       for (i = 0; i < priv->vertices_len; ++i)
-        hyscan_geo_geo2topoXY (priv->geo, &priv->vertices[i], zone->points[i]);
+        hyscan_geo_geo2topoXY0 (priv->geo, &priv->vertices[i], zone->points[i]);
     }
 
 exit:

@@ -504,7 +504,7 @@ hyscan_gtk_map_track_get_param (HyScanGtkLayer *gtk_layer)
   HyScanGtkMapTrack *track_layer = HYSCAN_GTK_MAP_TRACK (gtk_layer);
   HyScanGtkMapTrackPrivate *priv = track_layer->priv;
 
-  return g_object_ref (priv->param);
+  return g_object_ref (HYSCAN_PARAM (priv->param));
 }
 
 static void

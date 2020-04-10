@@ -310,7 +310,7 @@ hyscan_gtk_map_track_draw_bar_get_style_param (HyScanGtkMapTrackDraw *track_draw
   HyScanGtkMapTrackDrawBar *draw_bar = HYSCAN_GTK_MAP_TRACK_DRAW_BAR (track_draw);
   HyScanGtkMapTrackDrawBarPrivate *priv = draw_bar->priv;
 
-  return g_object_ref (priv->param);
+  return g_object_ref (HYSCAN_PARAM (priv->param));
 }
 
 static void

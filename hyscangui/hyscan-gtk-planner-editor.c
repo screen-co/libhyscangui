@@ -169,7 +169,7 @@ static void        hyscan_gtk_planner_editor_get_value               (HyScanGtkP
 static void        hyscan_gtk_planner_editor_convert_point           (HyScanGtkPlannerEditor      *editor,
                                                                       GtkWidget                   *widget_x,
                                                                       GtkWidget                   *widget_y,
-                                                                      HyScanGeoGeodetic           *value);
+                                                                      HyScanGeoPoint              *value);
 static void        hyscan_gtk_planner_editor_spin_changed            (GtkWidget                   *spin_button,
                                                                       HyScanGtkPlannerEditor      *editor);
 static void        hyscan_gtk_planner_editor_model_changed           (HyScanGtkPlannerEditor      *editor);
@@ -366,8 +366,8 @@ hyscan_gtk_planner_editor_get_value (HyScanGtkPlannerEditor      *editor,
       angle_north = NORMALIZE_DEG (angle_north);
 
       if (priv->geo != NULL &&
-           hyscan_geo_geo2topoXY (priv->geo, &start, plan->start) &&
-           hyscan_geo_geo2topoXY (priv->geo, &end, plan->end))
+           hyscan_geo_geo2topoXY0 (priv->geo, &start, plan->start) &&
+           hyscan_geo_geo2topoXY0 (priv->geo, &end, plan->end))
         {
           angle = atan2 (end.y - start.y, end.x - start.x) / G_PI * 180.0;
           angle = NORMALIZE_DEG (angle);
@@ -527,14 +527,14 @@ static void
 hyscan_gtk_planner_editor_convert_point (HyScanGtkPlannerEditor *editor,
                                          GtkWidget              *widget_x,
                                          GtkWidget              *widget_y,
-                                         HyScanGeoGeodetic      *value)
+                                         HyScanGeoPoint         *value)
 {
   HyScanGtkPlannerEditorPrivate *priv = editor->priv;
-  HyScanGeoGeodetic geodetic;
+  HyScanGeoPoint geodetic;
   HyScanGeoCartesian2D cartesian;
 
   geodetic = *value;
-  hyscan_geo_geo2topoXY (priv->geo, &cartesian, geodetic);
+  hyscan_geo_geo2topoXY0 (priv->geo, &cartesian, geodetic);
 
   if (gtk_widget_get_sensitive (widget_x))
     cartesian.x = gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget_x));
@@ -542,7 +542,7 @@ hyscan_gtk_planner_editor_convert_point (HyScanGtkPlannerEditor *editor,
   if (gtk_widget_get_sensitive (widget_y))
     cartesian.y = gtk_spin_button_get_value (GTK_SPIN_BUTTON (widget_y));
 
-  hyscan_geo_topoXY2geo (priv->geo, value, cartesian, 0);
+  hyscan_geo_topoXY2geo0 (priv->geo, value, cartesian);
 }
 
 /* Инициализирует итератор выбранных галсов. */
@@ -703,15 +703,15 @@ hyscan_gtk_planner_editor_length_changed (HyScanGtkPlannerEditor *editor)
       gdouble dx, dy;
 
       geo = hyscan_planner_track_geo (plan, NULL);
-      hyscan_geo_geo2topoXY (geo, &start_2d, plan->start);
-      hyscan_geo_geo2topoXY (geo, &end_2d, plan->end);
+      hyscan_geo_geo2topoXY0 (geo, &start_2d, plan->start);
+      hyscan_geo_geo2topoXY0 (geo, &end_2d, plan->end);
       dx = end_2d.x - start_2d.x;
       dy = end_2d.y - start_2d.y;
       scale = length / hypot (dx, dy);
       end_2d.x = start_2d.x + scale * dx;
       end_2d.y = start_2d.y + scale * dy;
 
-      hyscan_geo_topoXY2geo (geo, &plan->end, end_2d, 0);
+      hyscan_geo_topoXY2geo0 (geo, &plan->end, end_2d);
       hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), id, (HyScanObject *) track);
       g_object_unref (geo);
     }
@@ -739,15 +739,15 @@ hyscan_gtk_planner_editor_angle_changed (HyScanGtkPlannerEditor *editor)
       gdouble dx, dy;
 
       /* Сохраняем точку начала галса и его длину. */
-      hyscan_geo_geo2topoXY (priv->geo, &start_2d, track->plan.start);
-      hyscan_geo_geo2topoXY (priv->geo, &end_2d, track->plan.end);
+      hyscan_geo_geo2topoXY0 (priv->geo, &start_2d, track->plan.start);
+      hyscan_geo_geo2topoXY0 (priv->geo, &end_2d, track->plan.end);
       dx = end_2d.x - start_2d.x;
       dy = end_2d.y - start_2d.y;
       length = hypot (dx, dy);
       end_2d.x = start_2d.x + length * cos (angle);
       end_2d.y = start_2d.y + length * sin (angle);
 
-      hyscan_geo_topoXY2geo (priv->geo, &track->plan.end, end_2d, 0);
+      hyscan_geo_topoXY2geo0 (priv->geo, &track->plan.end, end_2d);
       hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), id, (HyScanObject *) track);
     }
 }
@@ -789,15 +789,15 @@ hyscan_gtk_planner_editor_track_changed (HyScanGtkPlannerEditor *editor)
 
           /* Сохраняем точку начала галса и его длину. */
           geo = hyscan_planner_track_geo (&track->plan, NULL);
-          hyscan_geo_geo2topoXY (geo, &start_2d, track->plan.start);
-          hyscan_geo_geo2topoXY (geo, &end_2d, track->plan.end);
+          hyscan_geo_geo2topoXY0 (geo, &start_2d, track->plan.start);
+          hyscan_geo_geo2topoXY0 (geo, &end_2d, track->plan.end);
           dx = end_2d.x - start_2d.x;
           dy = end_2d.y - start_2d.y;
           length = hypot (dx, dy);
           end_2d.x = start_2d.x + length * cos (d_angle);
           end_2d.y = start_2d.y + length * sin (d_angle);
 
-          hyscan_geo_topoXY2geo (geo, &track->plan.end, end_2d, 0);
+          hyscan_geo_topoXY2geo0 (geo, &track->plan.end, end_2d);
           g_object_unref (geo);
         }
 

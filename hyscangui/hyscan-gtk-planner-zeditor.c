@@ -521,12 +521,12 @@ hyscan_gtk_planner_zeditor_set_zone (HyScanGtkPlannerZeditor *zeditor)
 
   for (i = 0; i < zone->points_len; i++)
     {
-      HyScanGeoGeodetic *vertex = &zone->points[i];
+      HyScanGeoPoint *vertex = &zone->points[i];
       HyScanGeoCartesian2D cartesian;
       guint number;
 
       if (priv->geo != NULL)
-        hyscan_geo_geo2topoXY (priv->geo, &cartesian, *vertex);
+        hyscan_geo_geo2topoXY0 (priv->geo, &cartesian, *vertex);
       else
         cartesian.x = cartesian.y = 0.0;
 
@@ -615,7 +615,7 @@ hyscan_gtk_planner_zeditor_edited (GtkCellRendererText *cell,
   GtkTreeIter iter;
   guint column;
   HyScanPlannerZone *zone;
-  HyScanGeoGeodetic *vertex;
+  HyScanGeoPoint *vertex;
 
   guint number;
 
@@ -648,12 +648,12 @@ hyscan_gtk_planner_zeditor_edited (GtkCellRendererText *cell,
     {
       HyScanGeoCartesian2D cartesian;
       
-      hyscan_geo_geo2topoXY (priv->geo, &cartesian, *vertex);
+      hyscan_geo_geo2topoXY0 (priv->geo, &cartesian, *vertex);
 
       (column == X_COLUMN) ? (cartesian.x = new_value) : 0;
       (column == Y_COLUMN) ? (cartesian.y = new_value) : 0;
 
-      hyscan_geo_topoXY2geo (priv->geo, vertex, cartesian, 0);
+      hyscan_geo_topoXY2geo0 (priv->geo, vertex, cartesian);
     }
 
   hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, (HyScanObject *) zone);

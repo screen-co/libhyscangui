@@ -84,7 +84,7 @@ struct _HyScanGtkMapKitPrivate
   gboolean                 profile_offline;  /* Признак оффлайн-профиля карты. */
   gchar                   *tile_cache_dir;   /* Путь к директории, в которой хранятся тайлы. */
 
-  HyScanGeoGeodetic        center;           /* Географические координаты для виджета навигации. */
+  HyScanGeoPoint           center;           /* Географические координаты для виджета навигации. */
 
   /* Слои. */
   HyScanGtkLayer          *base_layer;       /* Слой подложки. */
@@ -993,7 +993,7 @@ on_motion_show_coords (HyScanGtkMap    *map,
                        GdkEventMotion  *event,
                        HyScanGtkMapKit *kit)
 {
-  HyScanGeoGeodetic geo;
+  HyScanGeoPoint geo;
   gchar text[255];
 
   hyscan_gtk_map_point_to_geo (map, &geo, event->x, event->y);
@@ -1655,7 +1655,7 @@ hyscan_gtk_map_kit_get_tracks (HyScanGtkMapKit  *kit)
  *          hyscan_gtk_map_kit_free().
  */
 HyScanGtkMapKit *
-hyscan_gtk_map_kit_new (HyScanGeoGeodetic *center,
+hyscan_gtk_map_kit_new (HyScanGeoPoint    *center,
                         HyScanDB          *db,
                         HyScanUnits       *units,
                         const gchar       *cache_dir)

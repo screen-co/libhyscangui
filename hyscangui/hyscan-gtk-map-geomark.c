@@ -696,7 +696,7 @@ hyscan_gtk_map_geomark_handle_create (HyScanGtkLayer *layer,
   /* Создаём новую метку. */
   {
     HyScanGtkMapGeomarkLocation *location;
-    HyScanGeoGeodetic center;
+    HyScanGeoPoint center;
     gchar *mark_name;
 
     g_rw_lock_writer_lock (&priv->mark_lock);
@@ -755,7 +755,7 @@ hyscan_gtk_map_geomark_handle_release (HyScanGtkLayer *layer,
   gchar *mark_id;
 
   HyScanMark *mark;
-  HyScanGeoGeodetic center;
+  HyScanGeoPoint center;
   gdouble scale;
 
   if (howner != gm_layer)
@@ -1115,7 +1115,7 @@ hyscan_gtk_map_geomark_get_param (HyScanGtkLayer *gtk_layer)
   HyScanGtkMapGeomark *gm_layer = HYSCAN_GTK_MAP_GEOMARK (gtk_layer);
   HyScanGtkMapGeomarkPrivate *priv = gm_layer->priv;
 
-  return g_object_ref (priv->param);
+  return g_object_ref (HYSCAN_PARAM (priv->param));
 }
 
 static void

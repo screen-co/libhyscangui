@@ -133,7 +133,7 @@ hyscan_gtk_map_control_press_copy (HyScanGtkMapControl *control,
 {
   HyScanGtkMapControlPrivate *priv = control->priv;
   HyScanGeoCartesian2D val;
-  HyScanGeoGeodetic coords;
+  HyScanGeoPoint coords;
 
   GtkClipboard *clipboard;
   GtkWidget *dialog;

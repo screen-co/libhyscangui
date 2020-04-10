@@ -334,7 +334,7 @@ hyscan_gtk_map_nav_get_param (HyScanGtkLayer *layer)
   HyScanGtkMapNav *nav_layer = HYSCAN_GTK_MAP_NAV (layer);
   HyScanGtkMapNavPrivate *priv = nav_layer->priv;
 
-  return g_object_ref (priv->param);
+  return g_object_ref (HYSCAN_PARAM (priv->param));
 }
 
 /* Обрабатывает "истекшие" путевые точки, т.е. те, у которых время жизни закончилось:
@@ -457,10 +457,9 @@ hyscan_gtk_map_nav_model_changed (HyScanGtkMapNav    *nav_layer,
       point.start = priv->track_lost;
       point.coord.geo.lat = data->coord.lat;
       point.coord.geo.lon = data->coord.lon;
-      point.coord.geo.h = data->heading;
       point.speed = data->speed;
       point.heading = data->heading;
-      point.cog = data->coord.h;
+      point.cog = data->cog;
       point.true_heading = data->true_heading;
       if (priv->map != NULL)
         hyscan_gtk_map_geo_to_value (priv->map, point.coord.geo, &point.coord.c2d);

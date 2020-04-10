@@ -346,7 +346,7 @@ hyscan_gtk_map_wfmark_project_location (HyScanGtkMapWfmark         *wfm_layer,
   /* Определяем координаты центра метки в СК проекции. */
   hyscan_gtk_map_geo_to_value (priv->map, location->mloc->center_geo, &location->antenna_c2d);
 
-  location->angle = location->mloc->center_geo.h / 180.0 * G_PI;
+  location->angle = location->mloc->antenna_course / 180.0 * G_PI;
   location->center_c2d.x = location->antenna_c2d.x - offset * cos (location->angle);
   location->center_c2d.y = location->antenna_c2d.y + offset * sin (location->angle);
 
@@ -1195,7 +1195,7 @@ hyscan_gtk_map_wfmark_get_param (HyScanGtkLayer *layer)
   HyScanGtkMapWfmark *wfm_layer = HYSCAN_GTK_MAP_WFMARK (layer);
   HyScanGtkMapWfmarkPrivate *priv = wfm_layer->priv;
 
-  return g_object_ref (priv->param);
+  return g_object_ref (HYSCAN_PARAM (priv->param));
 }
 
 static void

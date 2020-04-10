@@ -818,7 +818,7 @@ hyscan_gtk_map_track_item_load_length_by_idx (HyScanGtkMapTrackItem     *track,
   HyScanGtkMapTrackItemPrivate *priv = track->priv;
   HyScanAntennaOffset *amp_offset = &side->offset;
   gint64 time;
-  guint32 n_points, count;
+  guint32 n_points;
   gdouble depth;
   gdouble length;
 
@@ -1016,7 +1016,7 @@ hyscan_gtk_map_track_item_cartesian (HyScanGtkMapTrackItem *track,
       nav_offset = &priv->nav.offset;
 
       /* 1. Поправка курса. */
-      hdg = point->geo.h / 180.0 * G_PI - nav_offset->yaw;
+      hdg = point->course / 180.0 * G_PI - nav_offset->yaw;
       hdg_sin = sin (hdg);
       hdg_cos = cos (hdg);
 
@@ -1143,7 +1143,8 @@ hyscan_gtk_map_track_item_load_nav (HyScanGtkMapTrackItem *track)
   for (; index <= last; ++index)
     {
       gint64 time;
-      HyScanGeoGeodetic coords;
+      HyScanGeoPoint coords;
+      gdouble course;
       HyScanGtkMapTrackPoint point = { 0 };
 
       if (!hyscan_nav_data_get (nav->lat_data, NULL, index, &time, &coords.lat))
@@ -1152,13 +1153,14 @@ hyscan_gtk_map_track_item_load_nav (HyScanGtkMapTrackItem *track)
       if (!hyscan_nav_data_get (nav->lon_data, NULL, index, &time, &coords.lon))
         continue;
 
-      if (!hyscan_nav_data_get (nav->trk_data, NULL, index, &time, &coords.h))
+      if (!hyscan_nav_data_get (nav->trk_data, NULL, index, &time, &course))
         continue;
 
       point.source = HYSCAN_GTK_MAP_TRACK_DRAW_SOURCE_NAV;
       point.time = time;
       point.index = index;
       point.geo = coords;
+      point.course = course;
 
       points = g_list_append (points, hyscan_gtk_map_track_point_copy(&point));
     }
@@ -1222,7 +1224,8 @@ hyscan_gtk_map_track_item_load_side (HyScanGtkMapTrackItem     *track,
   for (; index <= last; ++index)
     {
       gint64 time;
-      HyScanGeoGeodetic coords;
+      HyScanGeoPoint coords;
+      gdouble course;
       HyScanGtkMapTrackPoint point = { 0 };
       gboolean nav_found;
 
@@ -1232,7 +1235,7 @@ hyscan_gtk_map_track_item_load_side (HyScanGtkMapTrackItem     *track,
       /* Находим навигационные данные для этой метки времени. */
       nav_found = hyscan_nav_smooth_get (nav->lat_smooth, NULL, time, &coords.lat) &&
                   hyscan_nav_smooth_get (nav->lon_smooth, NULL, time, &coords.lon) &&
-                  hyscan_nav_smooth_get (nav->trk_smooth, NULL, time, &coords.h);
+                  hyscan_nav_smooth_get (nav->trk_smooth, NULL, time, &course);
 
       if (!nav_found)
         continue;
@@ -1240,6 +1243,7 @@ hyscan_gtk_map_track_item_load_side (HyScanGtkMapTrackItem     *track,
       point.source = side->source;
       point.index = index;
       point.geo = coords;
+      point.course = course;
       hyscan_gtk_map_track_item_load_length_by_idx (track, side, &point);
 
       points = g_list_append (points, hyscan_gtk_map_track_point_copy (&point));

@@ -524,7 +524,7 @@ hyscan_gtk_map_pin_added (HyScanGtkLayer          *gtk_layer,
   g_return_if_fail (HYSCAN_IS_GTK_MAP (container));
   g_return_if_fail (priv->map == NULL);
 
-  priv->map = g_object_ref (container);
+  priv->map = g_object_ref (HYSCAN_GTK_MAP (container));
 
   /* Сигналы карты. */
   g_signal_connect (container, "notify::projection", G_CALLBACK (hyscan_gtk_map_pin_projection_notify), gtk_layer);

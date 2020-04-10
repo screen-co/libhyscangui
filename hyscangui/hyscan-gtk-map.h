@@ -79,7 +79,7 @@ typedef struct _HyScanGtkMapClass HyScanGtkMapClass;
  */
 typedef struct
 {
-  HyScanGeoGeodetic    geo;
+  HyScanGeoPoint       geo;
   HyScanGeoCartesian2D c2d;
 } HyScanGtkMapPoint;
 
@@ -99,7 +99,7 @@ HYSCAN_API
 GType                  hyscan_gtk_map_get_type         (void);
 
 HYSCAN_API
-GtkWidget *            hyscan_gtk_map_new              (HyScanGeoGeodetic       center);
+GtkWidget *            hyscan_gtk_map_new              (HyScanGeoPoint          center);
 
 HYSCAN_API
 void                   hyscan_gtk_map_set_projection   (HyScanGtkMap           *map,
@@ -110,7 +110,7 @@ HyScanGeoProjection *  hyscan_gtk_map_get_projection   (HyScanGtkMap           *
 
 HYSCAN_API
 void                   hyscan_gtk_map_move_to          (HyScanGtkMap           *map,
-                                                        HyScanGeoGeodetic       center);
+                                                        HyScanGeoPoint          center);
 
 HYSCAN_API
 gdouble *              hyscan_gtk_map_create_scales2  (gdouble                  min_scale,
@@ -130,7 +130,7 @@ gdouble                hyscan_gtk_map_get_scale_ratio (HyScanGtkMap            *
 
 HYSCAN_API
 gdouble                hyscan_gtk_map_get_scale_value (HyScanGtkMap            *map,
-                                                       HyScanGeoGeodetic        coord);
+                                                       HyScanGeoPoint           coord);
 
 HYSCAN_API
 void                   hyscan_gtk_map_set_scales_meter(HyScanGtkMap            *map,
@@ -153,18 +153,18 @@ gdouble *              hyscan_gtk_map_get_scales      (HyScanGtkMap            *
 
 HYSCAN_API
 void                   hyscan_gtk_map_point_to_geo     (HyScanGtkMap           *map,
-                                                        HyScanGeoGeodetic      *coords,
+                                                        HyScanGeoPoint         *coords,
                                                         gdouble                 x,
                                                         gdouble                 y);
 
 HYSCAN_API
 void                   hyscan_gtk_map_value_to_geo     (HyScanGtkMap           *map,
-                                                        HyScanGeoGeodetic      *coords,
+                                                        HyScanGeoPoint         *coords,
                                                         HyScanGeoCartesian2D    c2d);
 
 HYSCAN_API
 void                   hyscan_gtk_map_geo_to_value     (HyScanGtkMap           *map,
-                                                        HyScanGeoGeodetic       coords,
+                                                        HyScanGeoPoint          coords,
                                                         HyScanGeoCartesian2D   *c2d);
 
 HYSCAN_API

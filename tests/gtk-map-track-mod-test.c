@@ -244,7 +244,7 @@ main (int    argc,
   HyScanDB *db;
   HyScanUnits *units;
   DataTranslator *translator;
-  HyScanGeoGeodetic center = {.lat = 55.571, .lon = 38.103};
+  HyScanGeoPoint center = {.lat = 55.571, .lon = 38.103};
 
   HyScanGtkMapKit *kit;
 

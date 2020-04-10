@@ -329,7 +329,7 @@ static gboolean                   hyscan_gtk_map_planner_middle_drag           (
 static gboolean                   hyscan_gtk_map_planner_edge_drag             (HyScanGtkMapPlanner       *planner,
                                                                                 HyScanGeoCartesian2D      *end_2d,
                                                                                 HyScanGeoCartesian2D      *start_2d,
-                                                                                HyScanGeoGeodetic         *end_geo,
+                                                                                HyScanGeoPoint            *end_geo,
                                                                                 GdkEventMotion            *event);
 static gboolean                   hyscan_gtk_map_planner_vertex_drag           (HyScanGtkMapPlanner       *planner,
                                                                                 GdkEventMotion            *event);
@@ -1092,7 +1092,7 @@ hyscan_gtk_map_planner_origin_drag (HyScanGtkMapPlanner *planner,
   gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &cursor.x, &cursor.y);
 
   angle = G_PI_2 - atan2 (cursor.y - cur_origin->origin.y, cursor.x - cur_origin->origin.x);
-  cur_origin->object->origin.h = angle / G_PI * 180.0;
+  cur_origin->object->ox = angle / G_PI * 180.0;
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 
   return GDK_EVENT_PROPAGATE;
@@ -1450,7 +1450,7 @@ static gboolean
 hyscan_gtk_map_planner_edge_drag (HyScanGtkMapPlanner  *planner,
                                   HyScanGeoCartesian2D *end_2d,
                                   HyScanGeoCartesian2D *start_2d,
-                                  HyScanGeoGeodetic    *end_geo,
+                                  HyScanGeoPoint       *end_geo,
                                   GdkEventMotion       *event)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
@@ -1561,12 +1561,12 @@ hyscan_gtk_map_planner_track_remove (HyScanGtkMapPlanner *planner,
 
 /* Меняет направление галса. */
 static void
-hyscan_gtk_map_planner_track_invert (HyScanGtkMapPlanner           *planner,
+hyscan_gtk_map_planner_track_invert (HyScanGtkMapPlanner            *planner,
                                      const HyScanGtkMapPlannerTrack *track)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
   HyScanPlannerTrack *modified_track;
-  HyScanGeoGeodetic tmp;
+  HyScanGeoPoint tmp;
 
   modified_track = hyscan_planner_track_copy (track->object);
   tmp = modified_track->plan.start;
@@ -2063,7 +2063,7 @@ hyscan_gtk_map_planner_origin_draw (HyScanGtkMapPlanner     *planner,
 
   gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y, origin->origin.x, origin->origin.y);
 
-  angle = origin->object->origin.h / 180.0 * G_PI;
+  angle = origin->object->ox / 180.0 * G_PI;
 
   cairo_save (cairo);
   gdk_cairo_set_source_rgba (cairo, &priv->origin_style.color);
@@ -3069,7 +3069,7 @@ hyscan_gtk_map_planner_zone_save (HyScanGtkMapPlanner     *planner,
       gint i = 0;
 
       g_free (zone->points);
-      zone->points = g_new (HyScanGeoGeodetic, zone->points_len);
+      zone->points = g_new (HyScanGeoPoint, zone->points_len);
       for (link = pzone->points; link != NULL; link = link->next)
         {
           HyScanGtkMapPoint *point = link->data;
@@ -3195,7 +3195,7 @@ hyscan_gtk_map_planner_release_origin (HyScanGtkMapPlanner *planner)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
 
-  hyscan_planner_model_set_origin (priv->model, &priv->cur_origin->object->origin);
+  hyscan_planner_model_set_origin (priv->model, priv->cur_origin->object);
 
   priv->cur_state = STATE_NONE;
   g_clear_pointer (&priv->cur_origin, hyscan_gtk_map_planner_origin_free);
@@ -3303,7 +3303,7 @@ hyscan_gtk_map_planner_get_param (HyScanGtkLayer *layer)
   HyScanGtkMapPlanner *planner = HYSCAN_GTK_MAP_PLANNER (layer);
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
 
-  return g_object_ref (priv->param);
+  return g_object_ref (HYSCAN_PARAM (priv->param));
 }
 
 static void

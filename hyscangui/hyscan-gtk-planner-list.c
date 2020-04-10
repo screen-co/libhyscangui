@@ -603,7 +603,7 @@ hyscan_gtk_planner_list_menu_activate (GtkMenuItem          *button,
       for (i = 0; priv->tracks[i] != NULL; ++i)
         {
           HyScanPlannerTrack *track, *modified_track;
-          HyScanGeoGeodetic swap;
+          HyScanGeoPoint swap;
 
           track = g_hash_table_lookup (priv->objects, priv->tracks[i]);
           if (track == NULL)
