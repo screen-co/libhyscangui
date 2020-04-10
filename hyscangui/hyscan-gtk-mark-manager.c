@@ -592,9 +592,16 @@ hyscan_mark_manager_delete_toggled (GtkToolButton     *button,
                                     HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
-  /* Удаляем объект из базы данных. */
+
   if (gtk_widget_get_sensitive (priv->delete_icon))
-    hyscan_model_manager_delete_toggled_items (priv->model_manager);
+    {
+      /* Удаляем объект из базы данных. */
+      hyscan_model_manager_delete_toggled_items (priv->model_manager);
+      /* После удаления делаём кнопку "Удалить выбранное" неактивной. */
+      /* Пока удаление объектов из базы данных отключено в hyscan_model_manager_delete_toggled_items ().
+       * Поэтому и тут кнопка не должна становиться некативной. */
+      /*gtk_widget_set_sensitive (priv->delete_icon, FALSE);*/
+    }
 }
 
 /* Обработчик выбора пункта меню "Развернуть всё". */

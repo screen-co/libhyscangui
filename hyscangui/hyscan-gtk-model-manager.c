@@ -4,7 +4,6 @@
  *  Created on: 12 фев. 2020 г.
  *      Author: Andrey Zakharov <zaharov@screen-co.ru>
  */
-
 #include <hyscan-gtk-model-manager.h>
 
 enum
@@ -2185,19 +2184,19 @@ hyscan_model_manager_delete_item (HyScanModelManager     *self,
     case LABEL:
       {
         /* Удаляем группу. */
-        /*hyscan_object_model_remove_object (priv->label_model, id);*/
+        hyscan_object_model_remove_object (priv->label_model, id);
       }
       break;
     case GEO_MARK:
       {
         /* Удаляем гео-метку. */
-        /*hyscan_object_model_remove_object (priv->geo_mark_model, id);*/
+        hyscan_object_model_remove_object (priv->geo_mark_model, id);
       }
       break;
     case ACOUSTIC_MARK:
       {
         /* Удаляем акустическую метку. */
-        /*hyscan_object_model_remove_object (priv->acoustic_marks_model, id);*/
+        hyscan_object_model_remove_object (priv->acoustic_marks_model, id);
       }
       break;
     case TRACK:
@@ -2209,9 +2208,9 @@ hyscan_model_manager_delete_item (HyScanModelManager     *self,
 
         if (project_id >= 0)
           {
-            /*hyscan_db_track_remove (priv->db,
+            hyscan_db_track_remove (priv->db,
                                     project_id,
-                                    id);*/
+                                    id);
           }
       }
       break;
@@ -2829,7 +2828,11 @@ hyscan_model_manager_delete_toggled_items (HyScanModelManager *self)
           gint i;
           for (i = 0; list[i] != NULL; i++)
             {
-              hyscan_model_manager_delete_item (self, type, list[i]);
+              /* Пока отключаем удаление объектов из базы данных.
+               * Кнопка "Удалить выбранное" остаётся активной.
+               * Изменить состояние кнопки "Удалить выбранное" будет
+               * нужно в hyscan_mark_manager_delete_toggled (). */
+              /*hyscan_model_manager_delete_item (self, type, list[i]);*/
             }
           g_strfreev (list);
         }
