@@ -14,7 +14,6 @@
 #define __HYSCAN_GTK_MARK_MANAGER_VIEW_H__
 
 #include <gtk/gtk.h>
-#include <hyscan-object-data-label.h>
 #include <hyscan-gtk-model-manager.h>
 
 G_BEGIN_DECLS

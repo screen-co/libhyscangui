@@ -40,20 +40,17 @@ struct _HyScanModelManagerPrivate
   GtkTreeModel         *view_model;           /* Модель представления данных (табличное или древовидное). */
   HyScanCache          *cache;                /* Кэш.*/
   HyScanDB             *db;                   /* База данных. */
-  gchar                *project_name;         /* Название проекта. */
-
-  GtkTreeSelection     *selection;            /* Выделенные объекты. */
-  gdouble               horizontal,           /* Положение горизонтальной полосы прокрутки. */
-                        vertical;             /* Положение вертикальной полосы прокрутки. */
-
-  gchar                *selected_item_id;     /* Выделенные объекты. */
+  ModelManagerGrouping  grouping;             /* Тип группировки. */
   Extension            *node[TYPES];          /* Информация для описания узлов для древовидного
                                                * представления с группировкой по типам. */
-  GHashTable           *extensions[TYPES];
-
-  gchar                *current_id;           /* Идентифифкатор объекта, используется для разворачивания
+  GtkTreeSelection     *selection;            /* Выделенные объекты. */
+  GHashTable           *extensions[TYPES];    /* Массив таблиц с дополнительной информацией для всех типов объектов. */
+  gdouble               horizontal,           /* Положение горизонтальной полосы прокрутки. */
+                        vertical;             /* Положение вертикальной полосы прокрутки. */
+  gchar                *project_name,         /* Название проекта. */
+                       *selected_item_id,     /* Выделенные объекты. */
+                       *current_id;           /* Идентифифкатор объекта, используется для разворачивания
                                                * и сворачивания узлов. */
-  ModelManagerGrouping  grouping;             /* Тип группировки. */
   gboolean              clear_model_flag,     /* Флаг очистки модели. */
                         constructed_flag;     /* Флаг инициализации всех моделей. */
 };
@@ -286,7 +283,7 @@ hyscan_model_manager_set_property (GObject      *object,
       {
         priv->db  = g_value_dup_object (value);
         /* Увеличиваем счётчик ссылок на базу данных. */
-        g_object_ref (priv->db);
+        /*g_object_ref (priv->db);*/
       }
       break;
     /* Кэш.*/
@@ -294,7 +291,7 @@ hyscan_model_manager_set_property (GObject      *object,
       {
         priv->cache  = g_value_dup_object (value);
         /* Увеличиваем счётчик ссылок на кэш. */
-        g_object_ref (priv->cache);
+        /*g_object_ref (priv->cache);*/
       }
       break;
     /* Что-то ещё... */

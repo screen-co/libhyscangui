@@ -219,7 +219,7 @@ hyscan_mark_manager_view_set_property (GObject      *object,
         {
           priv->store = g_value_dup_object (value);
           /* Увеличиваем счётчик ссылок на базу данных. */
-          g_object_ref (priv->store);
+          /*g_object_ref (priv->store);*/
         }
         break;
       /* Что-то ещё... */
@@ -237,7 +237,9 @@ hyscan_mark_manager_view_constructed (GObject *object)
   HyScanMarkManagerView        *self      = HYSCAN_MARK_MANAGER_VIEW (object);
   HyScanMarkManagerViewPrivate *priv      = self->priv;
   GtkScrolledWindow            *widget    = GTK_SCROLLED_WINDOW (object);
-
+  /* Remove this call then class is derived from GObject.
+     This call is strongly needed then class is derived from GtkWidget. */
+  G_OBJECT_CLASS (hyscan_mark_manager_view_parent_class)->constructed (object);
   /* Рамка со скошенными внутрь границами. */
   gtk_scrolled_window_set_shadow_type (widget, GTK_SHADOW_IN);
 
@@ -285,6 +287,8 @@ hyscan_mark_manager_view_finalize (GObject *object)
   HyScanMarkManagerViewPrivate *priv = self->priv;
 
   /* Освобождаем ресурсы. */
+  g_object_unref (priv->store);
+
   G_OBJECT_CLASS (hyscan_mark_manager_view_parent_class)->finalize (object);
 }
 
