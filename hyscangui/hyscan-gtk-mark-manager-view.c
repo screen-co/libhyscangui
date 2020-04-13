@@ -237,8 +237,7 @@ hyscan_mark_manager_view_constructed (GObject *object)
   HyScanMarkManagerView        *self      = HYSCAN_MARK_MANAGER_VIEW (object);
   HyScanMarkManagerViewPrivate *priv      = self->priv;
   GtkScrolledWindow            *widget    = GTK_SCROLLED_WINDOW (object);
-  /* Remove this call then class is derived from GObject.
-     This call is strongly needed then class is derived from GtkWidget. */
+  /* Дефолтный конструктор родительского класса. */
   G_OBJECT_CLASS (hyscan_mark_manager_view_parent_class)->constructed (object);
   /* Рамка со скошенными внутрь границами. */
   gtk_scrolled_window_set_shadow_type (widget, GTK_SHADOW_IN);

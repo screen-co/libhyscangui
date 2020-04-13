@@ -260,8 +260,7 @@ hyscan_mark_manager_constructed (GObject *object)
   HyScanMarkManagerToolbarPosition toolbar_position = TOOLBAR_TOP;
   ModelManagerGrouping index,    /* Для обхода массива с пунктами меню выбора типа представления.*/
                        grouping; /* Для хранения текущего значения. */
-  /* Remove this call then class is derived from GObject.
-     This call is strongly needed then class is derived from GtkWidget. */
+  /* Дефолтный конструктор родительского класса. */
   G_OBJECT_CLASS (hyscan_mark_manager_parent_class)->constructed (object);
   /* Подключаем сигнал об изменении типа группировки.*/
   g_signal_connect_swapped (priv->model_manager,
