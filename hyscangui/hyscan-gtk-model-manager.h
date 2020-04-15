@@ -179,6 +179,9 @@ void                 hyscan_model_manager_delete_toggled_items        (HyScanMod
 
 gboolean             hyscan_model_manager_has_toggled                 (HyScanModelManager     *self);
 
+void                 hyscan_model_manager_toggled_iteml_change_label  (HyScanModelManager     *self,
+                                                                       gchar                  *id);
+
 G_END_DECLS
 
 #endif /* __HYSCAN_MODEL_MANAGER_H__ */

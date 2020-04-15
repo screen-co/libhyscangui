@@ -106,8 +106,9 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              # [[ Журнал меток ]]
              hyscan-gtk-mark-manager.c
              hyscan-gtk-mark-manager-view.c
-             # [[Диалог создания новой группы]]
+             # [[Диалоги]]
              hyscan-gtk-mark-manager-create-label-dialog.c
+             hyscan-gtk-mark-manager-change-label-dialog.c
 
              hyscan-gui-style.c
              ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c
@@ -195,7 +196,8 @@ install (FILES hyscan-gtk-area.h
                hyscan-gtk-model-manager.h
                hyscan-gtk-mark-manager.h
                hyscan-gtk-mark-manager-view.h
-               hyscan-gtk-mark-manager-create-label-dialog.c
+               hyscan-gtk-mark-manager-create-label-dialog.h
+               hyscan-gtk-mark-manager-change-label-dialog.h
          COMPONENT development
          DESTINATION "include/hyscan-${HYSCAN_MAJOR_VERSION}/hyscangui"
          PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)

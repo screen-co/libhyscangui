@@ -677,7 +677,7 @@ void
 hyscan_mark_manager_view_set_list_model (HyScanMarkManagerView *self)
 {
   HyScanMarkManagerViewPrivate *priv = self->priv;
-  GtkTreeViewColumn *column          = gtk_tree_view_column_new();                  /* Колонка для ViewItem-а. */
+  GtkTreeViewColumn *column          = gtk_tree_view_column_new();                  /* Колонка для картинки, чек-бокса и текста. */
   GtkCellRenderer   *renderer        = gtk_cell_renderer_text_new (),               /* Текст. */
                     *icon_renderer   = gtk_cell_renderer_pixbuf_new(),              /* Картинка. */
                     *toggle_renderer = gtk_cell_renderer_toggle_new();              /* Чек-бокс. */

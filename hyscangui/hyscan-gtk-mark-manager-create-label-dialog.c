@@ -157,24 +157,24 @@ hyscan_mark_manager_create_label_dialog_constructed (GObject *object)
   priv->content = gtk_dialog_get_content_area (dialog);
   /* Название группы. */
   priv->entry[TITLE] = hyscan_mark_manager_create_label_dialog_add_item (GTK_BOX (priv->content),
-                                                                  "Title",
-                                                                  "New label");
+                                                                         "Title",
+                                                                         "New label");
   g_signal_connect (priv->entry[TITLE],
                     "changed",
                     G_CALLBACK (hyscan_mark_manager_create_label_dialog_check_entry),
                     self);
   /* Описание группы. */
   priv->entry[DESCRIPTION] = hyscan_mark_manager_create_label_dialog_add_item (GTK_BOX (priv->content),
-                                                                        "Description",
-                                                                        "This is a new label");
+                                                                               "Description",
+                                                                               "This is a new label");
   g_signal_connect (priv->entry[DESCRIPTION],
                     "changed",
                     G_CALLBACK (hyscan_mark_manager_create_label_dialog_check_entry),
                     self);
   /* Оператор. */
   priv->entry[OPERATOR] = hyscan_mark_manager_create_label_dialog_add_item (GTK_BOX (priv->content),
-                                                                     "Operator",
-                                                                     "User");
+                                                                            "Operator",
+                                                                            "User");
   g_signal_connect (priv->entry[OPERATOR],
                     "changed",
                     G_CALLBACK (hyscan_mark_manager_create_label_dialog_check_entry),
@@ -197,12 +197,7 @@ hyscan_mark_manager_create_label_dialog_constructed (GObject *object)
           const gchar *icon_name = (const gchar*)ptr->data;
           GdkPixbuf *pixbuf = gtk_icon_theme_load_icon (icon_theme, icon_name, ICON_SIZE, 0, &error);
 
-          if (!pixbuf)
-            {
-              g_warning ("Couldn't load icon \"%s\".\n Error: %s.", icon_name, error->message);
-              g_error_free (error);
-            }
-          else
+          if (pixbuf != NULL)
             {
               /* Добавляем иконку в IconView. */
               GtkListStore *store = GTK_LIST_STORE (priv->icon_model);
@@ -215,36 +210,43 @@ hyscan_mark_manager_create_label_dialog_constructed (GObject *object)
               /* Освобождаем pixbuf. */
               g_object_unref (pixbuf);
             }
+          else
+            {
+              g_warning ("Couldn't load icon \"%s\".\n Error: %s.", icon_name, error->message);
+              g_error_free (error);
+            }
           ptr = g_list_next (ptr);
         }
         while (ptr != NULL);
 
         /* Создаём IconView с моделью заполненой данными. */
       priv->icon_view = gtk_icon_view_new_with_model(priv->icon_model);
-      }
+    }
 
-      if (priv->icon_view != NULL)
-        {
-          GtkWidget *scroll = gtk_scrolled_window_new (NULL, NULL);
-          GtkIconView *view = GTK_ICON_VIEW (priv->icon_view);
-          /* Связываем колонку с иконкой в модели с IconView. */
-          gtk_icon_view_set_pixbuf_column (view, COLUMN_ICON);
-          /* Связываем колонку с названием иконки в одели с IconView. */
-          gtk_icon_view_set_text_column (view, -1);
-          gtk_icon_view_set_columns (view, 0);
-          /* Устанавливаем ширину каждого элемента. */
-          gtk_icon_view_set_item_width (view, ICON_SIZE);
-          /* Хотя бы один элемент должен быть выбран.*/
-          gtk_icon_view_set_selection_mode (view, GTK_SELECTION_BROWSE);
-          /* Выделяем первую иконку. */
-          gtk_icon_view_select_path (view, gtk_tree_path_new_first ());
-          /* Виджет для выбора иконки в GtkScrolledWindow.*/
-          gtk_container_add(GTK_CONTAINER(scroll), priv->icon_view);
-          /* Добавляем метку "Выбрать иконку". */
-          gtk_box_pack_start (GTK_BOX (priv->content), gtk_label_new ("Choose icon"), FALSE, TRUE, 10);
-          /* Помещаем GtkScrolledWindow в диалог. */
-          gtk_box_pack_start (GTK_BOX (priv->content), GTK_WIDGET (scroll), TRUE, TRUE, 0);
-      }
+  if (priv->icon_view != NULL)
+    {
+      GtkWidget *scroll = gtk_scrolled_window_new (NULL, NULL);
+      GtkIconView *view = GTK_ICON_VIEW (priv->icon_view);
+      /* Связываем колонку с иконкой в модели с IconView. */
+      gtk_icon_view_set_pixbuf_column (view, COLUMN_ICON);
+      /* Связываем колонку с названием иконки в одели с IconView. */
+      gtk_icon_view_set_text_column (view, -1);
+      gtk_icon_view_set_columns (view, 0);
+      /* Заполняем иконками всё пространство виджета автоматически. */
+      gtk_icon_view_set_columns (view, -1);
+      /* Устанавливаем ширину каждого элемента. */
+      gtk_icon_view_set_item_width (view, ICON_SIZE);
+      /* Хотя бы один элемент должен быть выбран.*/
+      gtk_icon_view_set_selection_mode (view, GTK_SELECTION_BROWSE);
+      /* Выделяем первую иконку. */
+      gtk_icon_view_select_path (view, gtk_tree_path_new_first ());
+      /* Виджет для выбора иконки в GtkScrolledWindow.*/
+      gtk_container_add(GTK_CONTAINER(scroll), priv->icon_view);
+      /* Добавляем метку "Выбрать иконку". */
+      gtk_box_pack_start (GTK_BOX (priv->content), gtk_label_new ("Choose icon"), FALSE, TRUE, 10);
+      /* Помещаем GtkScrolledWindow в диалог. */
+      gtk_box_pack_start (GTK_BOX (priv->content), GTK_WIDGET (scroll), TRUE, TRUE, 0);
+    }
   /* Подключаем сигнал для обработки результата диалога. */
   g_signal_connect (dialog,
                     "response",
