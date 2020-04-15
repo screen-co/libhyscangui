@@ -2884,6 +2884,9 @@ hyscan_model_manager_toggled_iteml_change_label (HyScanModelManager *self,
   HyScanModelManagerPrivate *priv = self->priv;
   ModelManagerObjectType  type;
   HyScanLabel *label = (HyScanLabel*)hyscan_object_model_get_id (priv->label_model, id);
+  GHashTable *table = hyscan_object_model_get (priv->label_model);
+  /* Текущая дата и время. */
+  guint64 current_time = g_date_time_to_unix (g_date_time_new_now_local ());
 
   for (type = GEO_MARK; type < TYPES; type++)
     {
@@ -2910,10 +2913,26 @@ hyscan_model_manager_toggled_iteml_change_label (HyScanModelManager *self,
                     object = (HyScanMarkGeo*)hyscan_object_model_get_id (priv->geo_mark_model, list[i]);
                     if (object != NULL)
                       {
+                        GHashTableIter iter;
+                        HyScanLabel *lbl;
+                        gchar *tmp;
+
+                        g_hash_table_iter_init (&iter, table);
+                        while (g_hash_table_iter_next (&iter, (gpointer*)&tmp, (gpointer*)&lbl))
+                          {
+                            if (object->labels == lbl->label)
+                              {
+                                /* Устанавливаем время изменения для группы. */
+                                lbl->mtime = current_time;
+                                /* Сохраняем измения в базе данных. */
+                                hyscan_object_model_modify_object (priv->label_model, tmp, (const HyScanObject*)lbl);
+                                break;
+                              }
+                          }
                         /* Заменяем группу полученому объекту. */
                         object->labels = label->label;
                         /* Устанавливаем время изменения. */
-                        object->mtime  = G_TIME_SPAN_SECOND * g_date_time_to_unix (g_date_time_new_now_local ());
+                        object->mtime  = G_TIME_SPAN_SECOND * current_time;
                         /* Сохраняем измения в базе данных. */
                         hyscan_object_model_modify_object (priv->geo_mark_model,
                                                            list[i],
@@ -2935,10 +2954,26 @@ hyscan_model_manager_toggled_iteml_change_label (HyScanModelManager *self,
                     object = (HyScanMarkWaterfall*)hyscan_object_model_get_id (priv->acoustic_marks_model, list[i]);
                     if (object != NULL)
                       {
+                        GHashTableIter iter;
+                        HyScanLabel *lbl;
+                        gchar *tmp;
+
+                        g_hash_table_iter_init (&iter, table);
+                        while (g_hash_table_iter_next (&iter, (gpointer*)&tmp, (gpointer*)&lbl))
+                          {
+                            if (object->labels == lbl->label)
+                              {
+                                /* Устанавливаем время изменения для группы. */
+                                lbl->mtime = current_time;
+                                /* Сохраняем измения в базе данных. */
+                                hyscan_object_model_modify_object (priv->label_model, tmp, (const HyScanObject*)lbl);
+                                break;
+                              }
+                          }
                         /* Заменяем группу полученому объекту. */
                         object->labels = label->label;
                         /* Устанавливаем время изменения. */
-                        object->mtime  = G_TIME_SPAN_SECOND * g_date_time_to_unix (g_date_time_new_now_local ());
+                        object->mtime  = G_TIME_SPAN_SECOND * current_time;
                         /* Сохраняем измения в базе данных. */
                         hyscan_object_model_modify_object (priv->acoustic_marks_model,
                                                            list[i],
@@ -2955,8 +2990,10 @@ hyscan_model_manager_toggled_iteml_change_label (HyScanModelManager *self,
             }
         }
     }
+  /* Удаляем хэш-таблицу с группами. */
+  g_hash_table_destroy (table);
   /* Устанавливаем время изменения для группы. */
-  label->mtime  = g_date_time_to_unix (g_date_time_new_now_local ());
+  label->mtime = current_time;
   /* Сохраняем измения в базе данных. */
   hyscan_object_model_modify_object (priv->label_model, id, (const HyScanObject*)label);
   /* Освобождаем полученный из базы данных объект. */
