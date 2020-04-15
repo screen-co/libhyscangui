@@ -2827,11 +2827,8 @@ hyscan_model_manager_delete_toggled_items (HyScanModelManager *self)
           gint i;
           for (i = 0; list[i] != NULL; i++)
             {
-              /* Пока отключаем удаление объектов из базы данных.
-               * Кнопка "Удалить выбранное" остаётся активной.
-               * Изменить состояние кнопки "Удалить выбранное" будет
-               * нужно в hyscan_mark_manager_delete_toggled (). */
-              /*hyscan_model_manager_delete_item (self, type, list[i]);*/
+              /* Удаляем выделенные объекты. */
+              hyscan_model_manager_delete_item (self, type, list[i]);
             }
           g_strfreev (list);
         }
