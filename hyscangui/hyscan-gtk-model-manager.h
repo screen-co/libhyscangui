@@ -146,6 +146,8 @@ void                 hyscan_model_manager_set_selected_item           (HyScanMod
 
 gchar*               hyscan_model_manager_get_selected_item           (HyScanModelManager     *self);
 
+gchar*               hyscan_model_manager_get_selected_track          (HyScanModelManager     *self);
+
 void                 hyscan_model_manager_unselect_all                (HyScanModelManager     *self);
 
 void                 hyscan_model_manager_set_horizontal_adjustment   (HyScanModelManager     *self,

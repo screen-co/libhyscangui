@@ -2521,7 +2521,7 @@ hyscan_model_manager_get_view_model (HyScanModelManager   *self)
  */
 void
 hyscan_model_manager_set_selected_item (HyScanModelManager *self,
-                                    gchar              *id)
+                                        gchar              *id)
 {
   HyScanModelManagerPrivate *priv = self->priv;
 
@@ -2549,6 +2549,27 @@ hyscan_model_manager_get_selected_item (HyScanModelManager *self)
 {
   HyScanModelManagerPrivate *priv = self->priv;
   return priv->selected_item_id;
+}
+
+/**
+ * hyscan_model_manager_get_selected_track:
+ * @self: указатель на Менеджер Моделей
+ *
+ * Returns: идентификатор галса в базе данных или NULL, если нет выделенного галса.
+ * когда идентификатор больше не нужен, необходимо использовать #g_free ().
+ */
+gchar*
+hyscan_model_manager_get_selected_track (HyScanModelManager *self)
+{
+  HyScanModelManagerPrivate *priv = self->priv;
+  GHashTable *tracks = hyscan_db_info_get_tracks (priv->track_model);
+  HyScanTrackInfo *info = g_hash_table_lookup (tracks, priv->selected_item_id);
+  gchar *result = NULL;
+  if (info != NULL)
+    {
+       result = g_strdup (info->name);
+    }
+  return result;
 }
 
 /**

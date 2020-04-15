@@ -777,6 +777,8 @@ hyscan_mark_manager_select_item (HyScanMarkManager *self)
     {
       hyscan_mark_manager_view_select_item (HYSCAN_MARK_MANAGER_VIEW (priv->view), id);
     }
+
+  g_print ("TRACK_SELECTED: %s\n", hyscan_model_manager_get_selected_track (priv->model_manager));
 }
 
 /* Функция-обработчик сигнала о снятии выделения.
