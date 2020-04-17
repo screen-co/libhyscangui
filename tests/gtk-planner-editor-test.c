@@ -71,7 +71,7 @@ create_tracks (HyScanPlannerModel *model)
   for (i = 0; i < 5; i++)
     {
       track.number = i;
-      track.plan.velocity = 1.0;
+      track.plan.speed = 1.0;
       track.plan.start = center;
       track.plan.start.lat += 1e-4 * i;
       track.plan.start.lon += 1e-4 * i;

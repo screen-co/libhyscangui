@@ -359,7 +359,7 @@ hyscan_gtk_planner_editor_get_value (HyScanGtkPlannerEditor      *editor,
       gdouble length, angle = 0.0, angle_north, speed;
 
       plan = &track->plan;
-      speed = plan->velocity;
+      speed = plan->speed;
 
       length = hyscan_planner_track_length (plan);
       angle_north = hyscan_planner_track_angle (track) / G_PI * 180.0;
@@ -821,7 +821,7 @@ hyscan_gtk_planner_editor_speed_changed (HyScanGtkPlannerEditor *editor)
       HyScanPlannerTrack *track = iter.track;
       const gchar *id = iter.id;
 
-      track->plan.velocity = speed;
+      track->plan.speed = speed;
       hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), id, (const HyScanObject *) track);
     }
 }

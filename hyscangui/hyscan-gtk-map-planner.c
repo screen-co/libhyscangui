@@ -2548,7 +2548,7 @@ hyscan_gtk_map_planner_track_object_new (void)
   HyScanPlannerTrack *track;
 
   track = hyscan_planner_track_new ();
-  track->plan.velocity = 1.0;
+  track->plan.speed = 1.0;
 
   return track;
 }
