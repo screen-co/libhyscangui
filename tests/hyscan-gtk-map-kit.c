@@ -73,6 +73,7 @@ struct _HyScanGtkMapKitPrivate
   HyScanPlannerSelection  *planner_selection;/* Модель выбранных объектов планировщика. */
   HyScanObjectModel       *mark_geo_model;   /* Модель геометок. */
   HyScanMarkLocModel      *ml_model;         /* Модель местоположения меток водопада. */
+  HyScanMapTrackModel     *track_model;      /* Модель галсов карты. */
   HyScanUnits             *units;
   HyScanDB                *db;
   HyScanCache             *cache;
@@ -477,15 +478,15 @@ on_configure_track_clicked (GtkButton *button,
       if (gtk_tree_model_get_iter (GTK_TREE_MODEL (priv->track_store), &iter, path))
         {
           GtkWidget *window;
-          HyScanGtkMapTrackItem *track;
+          HyScanMapTrackModelInfo *info;
 
           gtk_tree_model_get (GTK_TREE_MODEL (priv->track_store), &iter, TRACK_COLUMN, &track_name, -1);
-          track = hyscan_gtk_map_track_lookup (HYSCAN_GTK_MAP_TRACK (priv->track_layer), track_name);
+          info = hyscan_map_track_model_lookup (priv->track_model, track_name);
 
-          window = create_param_settings_window (kit, _("Track settings"), HYSCAN_PARAM (track));
+          window = create_param_settings_window (kit, _("Track settings"), HYSCAN_PARAM (info->track));
           gtk_widget_show_all (window);
 
-          g_object_unref (track);
+          hyscan_map_track_model_release (priv->track_model, info);
           g_free (track_name);
         }
     }
@@ -690,19 +691,20 @@ static void
 on_track_change (HyScanGtkMapKit *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
-  HyScanGtkMapTrackItem *track_item = NULL;
+  HyScanMapTrackParam *param = NULL;
   gchar *track_name;
-  gboolean has_nmea;
+  gboolean has_nmea = FALSE;
 
   track_name = track_tree_view_get_selected (kit);
 
-  if (track_name != NULL)
-    track_item = hyscan_gtk_map_track_lookup (HYSCAN_GTK_MAP_TRACK (priv->track_layer), track_name);
+  if (track_name != NULL && priv->track_model != NULL)
+    {
+      param = hyscan_map_track_model_param (priv->track_model, track_name);
+      has_nmea = (param != NULL) && hyscan_map_track_param_has_rmc (param);
+      g_clear_object (&param);
+    }
 
-  has_nmea = (track_item != NULL) && hyscan_gtk_map_track_item_has_nmea (track_item);
   gtk_widget_set_sensitive (priv->track_menu_find, has_nmea);
-
-  g_clear_object (&track_item);
   g_free (track_name);
 }
 
@@ -1149,7 +1151,7 @@ track_layer_draw_change (GtkToggleButton   *button,
   hyscan_gtk_map_track_set_draw_type (track_layer, draw_type);
 }
 
-/* Создаёт панель инструментов для слоя булавок и линейки. */
+/* Создаёт панель инструментов для слоя галсов. */
 static GtkWidget *
 create_track_toolbox (HyScanGtkMapKit *kit)
 {
@@ -1159,7 +1161,7 @@ create_track_toolbox (HyScanGtkMapKit *kit)
   g_object_set_data (G_OBJECT (bar), "draw-type", GINT_TO_POINTER (HYSCAN_GTK_MAP_TRACK_BAR));
   g_signal_connect (bar, "notify::active", G_CALLBACK (track_layer_draw_change), kit->priv->track_layer);
 
-  beam = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON (bar), _("Fill beams"));
+  beam = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON (bar), _("Coverage"));
   g_object_set_data (G_OBJECT (beam), "draw-type", GINT_TO_POINTER (HYSCAN_GTK_MAP_TRACK_BEAM));
   g_signal_connect (beam, "notify::active", G_CALLBACK (track_layer_draw_change), kit->priv->track_layer);
 
@@ -1515,8 +1517,8 @@ create_layers (HyScanGtkMapKit *kit)
   priv->pin_layer = hyscan_gtk_map_pin_new ();
 
   /* Слой с галсами. */
-  if (priv->db != NULL)
-    priv->track_layer = hyscan_gtk_map_track_new (priv->db, priv->cache);
+  if (priv->track_model != NULL)
+    priv->track_layer = hyscan_gtk_map_track_new (priv->track_model);
 
   priv->layer_list = hyscan_gtk_layer_list_new (HYSCAN_GTK_LAYER_CONTAINER (kit->map));
 
@@ -1541,6 +1543,7 @@ hyscan_gtk_map_kit_model_create (HyScanGtkMapKit *kit,
     {
       priv->db = g_object_ref (db);
       priv->db_info = hyscan_db_info_new (db);
+      priv->track_model = hyscan_map_track_model_new (db, priv->cache);
     }
 
   kit->map = create_map (kit);
@@ -1627,8 +1630,8 @@ hyscan_gtk_map_kit_set_tracks (HyScanGtkMapKit  *kit,
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
-  if (priv->track_layer != NULL)
-    hyscan_gtk_map_track_set_tracks (HYSCAN_GTK_MAP_TRACK (priv->track_layer), tracks);
+  if (priv->track_model != NULL)
+    hyscan_map_track_model_set_tracks (priv->track_model, tracks);
 
   track_tree_view_visible_changed (kit, (const gchar *const *) tracks);
 }
@@ -1639,8 +1642,8 @@ hyscan_gtk_map_kit_get_tracks (HyScanGtkMapKit  *kit)
 {
   HyScanGtkMapKitPrivate *priv = kit->priv;
 
-  if (priv->track_layer != NULL)
-    return hyscan_gtk_map_track_get_tracks (HYSCAN_GTK_MAP_TRACK (priv->track_layer));
+  if (priv->track_model != NULL)
+    return hyscan_map_track_model_get_tracks (priv->track_model);
 
   return g_new0 (gchar *, 1);
 }
@@ -1704,8 +1707,8 @@ hyscan_gtk_map_kit_set_project (HyScanGtkMapKit *kit,
   if (priv->ml_model != NULL)
     hyscan_mark_loc_model_set_project (priv->ml_model, priv->project_name);
 
-  if (priv->track_layer != NULL)
-    hyscan_gtk_map_track_set_project (HYSCAN_GTK_MAP_TRACK (priv->track_layer), priv->project_name);
+  if (priv->track_model != NULL)
+    hyscan_map_track_model_set_project (priv->track_model, priv->project_name);
 
   if (priv->wfmark_layer != NULL)
     hyscan_gtk_map_wfmark_set_project (HYSCAN_GTK_MAP_WFMARK(priv->wfmark_layer), priv->project_name);
@@ -1994,6 +1997,7 @@ hyscan_gtk_map_kit_free (HyScanGtkMapKit *kit)
   g_clear_object (&priv->planner_selection);
   g_clear_object (&priv->recorder);
   g_clear_object (&priv->units);
+  g_clear_object (&priv->track_model);
   g_free (priv);
 
   g_free (kit);

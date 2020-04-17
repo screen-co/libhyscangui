@@ -16,6 +16,7 @@ main (int    argc,
   GtkWidget *window, *box, *map;
   HyScanCache *cache;
   HyScanProfileMap *profile;
+  HyScanMapTrackModel *track_model;
   HyScanGtkLayer *track_layer;
   HyScanGeoPoint center = { .lat = 55.571, .lon = 38.103 };
   HyScanDB *db = NULL;
@@ -79,7 +80,8 @@ main (int    argc,
   g_free (scales);
 
   /* Слои. */
-  track_layer = hyscan_gtk_map_track_new (db, cache);
+  track_model = hyscan_map_track_model_new (db, cache);
+  track_layer = hyscan_gtk_map_track_new (track_model);
   hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), hyscan_gtk_map_base_new (cache), "base");
   hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), track_layer, "track");
   hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), hyscan_gtk_map_control_new (), "control");
@@ -88,8 +90,8 @@ main (int    argc,
 
   /* Настройка слоя с галсами. */
   hyscan_gtk_layer_set_visible (track_layer, TRUE);
-  hyscan_gtk_map_track_set_project (HYSCAN_GTK_MAP_TRACK (track_layer), project_name);
-  hyscan_gtk_map_track_set_tracks (HYSCAN_GTK_MAP_TRACK (track_layer), track_names);
+  hyscan_map_track_model_set_project (track_model, project_name);
+  hyscan_map_track_model_set_tracks (track_model, track_names);
   if (track_names != NULL)
     hyscan_gtk_map_track_view (HYSCAN_GTK_MAP_TRACK (track_layer), track_names[0], TRUE, NULL);
 
@@ -111,6 +113,7 @@ main (int    argc,
   g_free (project_name);
   g_free (track_names);
   g_free (origin);
+  g_clear_object (&track_model);
   g_clear_object (&db);
   g_clear_object (&cache);
 

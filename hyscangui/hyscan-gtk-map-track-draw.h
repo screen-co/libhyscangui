@@ -35,9 +35,9 @@
 #ifndef __HYSCAN_GTK_MAP_TRACK_DRAW_H__
 #define __HYSCAN_GTK_MAP_TRACK_DRAW_H__
 
-#include <hyscan-geo.h>
 #include <cairo.h>
 #include <hyscan-param.h>
+#include <hyscan-map-track.h>
 #include <gio/gio.h>
 
 G_BEGIN_DECLS
@@ -49,105 +49,6 @@ G_BEGIN_DECLS
 
 typedef struct _HyScanGtkMapTrackDraw HyScanGtkMapTrackDraw;
 typedef struct _HyScanGtkMapTrackDrawInterface HyScanGtkMapTrackDrawInterface;
-typedef struct _HyScanGtkMapTrackDrawData HyScanGtkMapTrackDrawData;
-typedef struct _HyScanGtkMapTrackPoint HyScanGtkMapTrackPoint;
-typedef struct _HyScanGtkMapTrackQuality HyScanGtkMapTrackQuality;
-typedef enum _HyScanGtkMapTrackDrawSource HyScanGtkMapTrackDrawSource;
-
-/**
- * HyScanGtkMapTrackDrawSource:
- * @HYSCAN_GTK_MAP_TRACK_DRAW_SOURCE_NAV: навигационные данные
- * @HYSCAN_GTK_MAP_TRACK_DRAW_SOURCE_LEFT: данные левого борта
- * @HYSCAN_GTK_MAP_TRACK_DRAW_SOURCE_RIGHT: данные правого борта
- *
- * Тип источника данных точки галса.
- */
-enum _HyScanGtkMapTrackDrawSource
-{
-  HYSCAN_GTK_MAP_TRACK_DRAW_SOURCE_NAV,
-  HYSCAN_GTK_MAP_TRACK_DRAW_SOURCE_LEFT,
-  HYSCAN_GTK_MAP_TRACK_DRAW_SOURCE_RIGHT,
-};
-
-/**
- * HyScanGtkMapTrackDrawData:
- * @starboard: (element-type HyScanGtkMapTrackPoint): точки правого борта
- * @port: (element-type HyScanGtkMapTrackPoint): точки левого борта
- * @nav: (element-type HyScanGtkMapTrackPoint): точки навигации
- * @from: минимальные координаты области, внути которой лежат все точки
- * @to: максимальные координаты области, внути которой лежат все точки
- *
- * Данные для отрисовки галса.
- */
-struct _HyScanGtkMapTrackDrawData
-{
-  GList                  *starboard;
-  GList                  *port;
-  GList                  *nav;
-  HyScanGeoCartesian2D    from;
-  HyScanGeoCartesian2D    to;
-};
-
-struct _HyScanGtkMapTrackQuality
-{
-  gdouble start;
-  gdouble quality;
-};
-
-/**
- * HyScanGtkMapTrackPoint:
- * @source: источник данных
- * @index: индекс записи в канале источника данных
- * @time: время фиксации данных
- * @geo: географические координаты точки
- * @course: курс движения
- * @b_angle: курс с поправкой на смещение антенн GPS и ГЛ, рад
- * @b_length_m: длина луча, метры
- * @nr_length_m: длина ближней зоны диаграммы направленности, метры
- * @scale: масштаб картографической проекции в текущей точке
- * @aperture: апертура антенны, ед. проекции
- * @ship_c2d: координаты судна
- * @start_c2d: координаты начала луча
- * @nr_c2d: координаты точки на конце ближней зоны
- * @fr_c2d: координаты центральной точки на конце дальней зоны
- * @fr1_c2d: координаты одной крайней точки на конце дальней зоны
- * @fr2_c2d: координаты второй крайней точки на конце дальней зоны
- * @dist_along: расстояние от начала галса до текущей точки вдоль линии галса, ед. проекции
- * @b_dist: длина луча, ед. проекции
- * @straight: признак того, что точка находится на относительно прямолинейном участке
- * @quality: (element-type: HyScanGtkMapTrackQuality) (array-length=quality_len): отрезки луча, разбитые по качеству
- *
- * Информация о точке на галсе, соответствующая данным по индексу @index из источника @source.
- * Положение судна, антенна гидролокатора, характерные точки диаграммы направленности указаны
- * в координатах картографической проекции.
- *
- */
-struct _HyScanGtkMapTrackPoint
-{
-  HyScanGtkMapTrackDrawSource     source;
-  guint32                         index;
-  gint64                          time;
-
-  HyScanGeoPoint                  geo;
-  gdouble                         course;
-  gdouble                         b_angle;
-  gdouble                         b_length_m;
-  gdouble                         nr_length_m;
-
-  gdouble                         scale;
-  gdouble                         aperture;
-  HyScanGeoCartesian2D            ship_c2d;
-  HyScanGeoCartesian2D            start_c2d;
-  HyScanGeoCartesian2D            nr_c2d;
-  HyScanGeoCartesian2D            fr_c2d;
-  HyScanGeoCartesian2D            fr1_c2d;
-  HyScanGeoCartesian2D            fr2_c2d;
-  gdouble                         dist_along;
-  gdouble                         b_dist;
-  gboolean                        straight;
-  HyScanGtkMapTrackQuality       *quality;
-  guint                           quality_len;
-};
 
 /**
  * HyScanGtkMapTrackDrawInterface:
@@ -162,7 +63,7 @@ struct _HyScanGtkMapTrackDrawInterface
   HyScanParam *        (*get_param)                  (HyScanGtkMapTrackDraw      *track_draw);
 
   void                 (*draw_region)                (HyScanGtkMapTrackDraw      *track_draw,
-                                                      HyScanGtkMapTrackDrawData  *data,
+                                                      HyScanMapTrackData        *data,
                                                       cairo_t                    *cairo,
                                                       gdouble                     scale,
                                                       HyScanGeoCartesian2D       *from,
@@ -175,7 +76,7 @@ GType                    hyscan_gtk_map_track_draw_get_type                  (vo
 
 HYSCAN_API
 void                     hyscan_gtk_map_track_draw_region                    (HyScanGtkMapTrackDraw        *track_draw,
-                                                                              HyScanGtkMapTrackDrawData    *data,
+                                                                              HyScanMapTrackData          *data,
                                                                               cairo_t                      *cairo,
                                                                               gdouble                       scale,
                                                                               HyScanGeoCartesian2D         *from,
@@ -190,12 +91,6 @@ void                     hyscan_gtk_map_track_draw_scale                     (Hy
                                                                               HyScanGeoCartesian2D         *to,
                                                                               gdouble                       scale,
                                                                               HyScanGeoCartesian2D         *local);
-
-HYSCAN_API
-void                     hyscan_gtk_map_track_point_free                     (HyScanGtkMapTrackPoint       *point);
-
-HYSCAN_API
-HyScanGtkMapTrackPoint * hyscan_gtk_map_track_point_copy                     (const HyScanGtkMapTrackPoint *point);
 
 G_END_DECLS
 

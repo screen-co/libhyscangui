@@ -24,7 +24,7 @@ HyScanMapTileSource<|--HyScanMapTileSourceFile
 HyScanMapTileSource<|--HyScanMapTileSourceWeb
 HyScanMapTileSource<|--HyScanMapTileSourceBlend
 
-HyScanGtkMapTrack::tracks "1" *-- "1..*" HyScanGtkMapTrackItem
+HyScanGtkMapTrack::tracks "1" *-- "1..*" HyScanMapTrack
 HyScanGtkMapBase::source "1" *-- "1" HyScanMapTileSource
 HyScanMapTileSourceFile::fallback *-- "1" HyScanMapTileSource
 HyScanMapTileSourceBlend::sources *-- "many" HyScanMapTileSource
@@ -153,7 +153,7 @@ class HyScanGtkMapTrack
     {method} added()
 }
 
-class HyScanGtkMapTrackItem
+class HyScanMapTrack
 {
     HyScanNavData *lat_data
     HyScanNavData *lon_data

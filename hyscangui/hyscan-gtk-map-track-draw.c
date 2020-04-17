@@ -80,7 +80,7 @@ hyscan_gtk_map_track_draw_default_init (HyScanGtkMapTrackDrawInterface *iface)
  */
 void
 hyscan_gtk_map_track_draw_region (HyScanGtkMapTrackDraw     *track_draw,
-                                  HyScanGtkMapTrackDrawData *data,
+                                  HyScanMapTrackData       *data,
                                   cairo_t                   *cairo,
                                   gdouble                    scale,
                                   HyScanGeoCartesian2D      *from,
@@ -139,34 +139,4 @@ hyscan_gtk_map_track_draw_scale (HyScanGeoCartesian2D *global,
 {
   local->x = (global->x - from->x) / scale;
   local->y = (from->y - to->y) / scale - (global->y - to->y) / scale;
-}
-
-/**
- * hyscan_gtk_map_track_point_free:
- * @point: указатель на #HyScanGtkMapTrackPoint
- *
- * Удаляет структуру #HyScanGtkMapTrackPoint.
- */
-void
-hyscan_gtk_map_track_point_free (HyScanGtkMapTrackPoint *point)
-{
-  if (point == NULL)
-    return;
-
-  g_free (point->quality);
-  g_slice_free (HyScanGtkMapTrackPoint, point);
-}
-
-/**
- * hyscan_gtk_map_track_point_copy:
- * @point: указатель на #HyScanGtkMapTrackPoint
- *
- * Создаёт копию структуры #HyScanGtkMapTrackPoint.
- *
- * Returns: копия структуры HyScanGtkMapTrackPoint, для удаления hyscan_gtk_map_track_point_free().
- */
-HyScanGtkMapTrackPoint *
-hyscan_gtk_map_track_point_copy (const HyScanGtkMapTrackPoint *point)
-{
-  return point != NULL ? g_slice_dup (HyScanGtkMapTrackPoint, point) : NULL;
 }

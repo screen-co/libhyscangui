@@ -47,6 +47,7 @@
 #include "hyscan-gtk-layer-param.h"
 #include <hyscan-cartesian.h>
 #include <gdk/gdk.h>
+#include <hyscan-track-proj-quality.h>
 
 struct _HyScanGtkMapTrackDrawBeamPrivate
 {
@@ -60,6 +61,7 @@ static void    hyscan_gtk_map_track_draw_beam_object_constructed       (GObject 
 static void    hyscan_gtk_map_track_draw_beam_object_finalize          (GObject                        *object);
 static void    hyscan_gtk_map_track_draw_beam_emit                     (HyScanGtkMapTrackDrawBeam      *draw_beam);
 static void    hyscan_gtk_map_track_draw_beam_side                     (HyScanGtkMapTrackDrawBeam      *beam,
+                                                                        HyScanTrackProjQuality         *quality_data,
                                                                         HyScanGeoCartesian2D           *from,
                                                                         HyScanGeoCartesian2D           *to,
                                                                         gdouble                         scale,
@@ -122,6 +124,7 @@ hyscan_gtk_map_track_draw_beam_emit (HyScanGtkMapTrackDrawBeam *draw_beam)
 /* Рисует часть галса по точкам points. */
 static void
 hyscan_gtk_map_track_draw_beam_side (HyScanGtkMapTrackDrawBeam *beam,
+                                     HyScanTrackProjQuality    *quality_data,
                                      HyScanGeoCartesian2D      *from,
                                      HyScanGeoCartesian2D      *to,
                                      gdouble                    scale,
@@ -131,7 +134,7 @@ hyscan_gtk_map_track_draw_beam_side (HyScanGtkMapTrackDrawBeam *beam,
 {
   HyScanGtkMapTrackDrawBeamPrivate *priv = beam->priv;
   GList *point_l;
-  HyScanGtkMapTrackPoint *point;
+  HyScanMapTrackPoint *point;
   HyScanGeoCartesian2D start, nf, ff1, ff2;
 
   if (points == NULL)
@@ -152,7 +155,11 @@ hyscan_gtk_map_track_draw_beam_side (HyScanGtkMapTrackDrawBeam *beam,
 
       point = point_l->data;
 
-      if (point->b_dist <= 0 || point->quality_len == 0)
+      const HyScanTrackCovSection *quality_values;
+      gsize quality_len;
+
+      hyscan_track_proj_quality_get (quality_data, point->index, &quality_values, &quality_len);
+      if (point->b_dist <= 0 || quality_len == 0)
         continue;
 
       if (g_cancellable_is_cancelled (cancellable))
@@ -171,11 +178,11 @@ hyscan_gtk_map_track_draw_beam_side (HyScanGtkMapTrackDrawBeam *beam,
       dy2 = ff2.y - start.y;
       dx_nf = (nf.x - start.x) / nr_part;
       dy_nf = (nf.y - start.y) / nr_part;
-      for (guint i = 0; i < point->quality_len - 1; i++)
+      for (guint i = 0; i < quality_len - 1; i++)
         {
-          HyScanGtkMapTrackQuality *section = &point->quality[i];
+          const HyScanTrackCovSection *section = &quality_values[i];
           gdouble s0 = section->start;
-          gdouble s1 = point->quality[i + 1].start;
+          gdouble s1 = quality_values[i + 1].start;
 
           if (section->quality == 0.0)
             continue;
@@ -227,7 +234,8 @@ hyscan_gtk_map_track_draw_beam_side (HyScanGtkMapTrackDrawBeam *beam,
 
 static void
 hyscan_gtk_map_track_draw_beam_draw_region (HyScanGtkMapTrackDraw     *track_draw,
-                                            HyScanGtkMapTrackDrawData *data,
+                                            HyScanTrackProjQuality    *quality_data,
+                                            HyScanMapTrackData       *data,
                                             cairo_t                   *cairo,
                                             gdouble                    scale,
                                             HyScanGeoCartesian2D      *from,
@@ -236,8 +244,8 @@ hyscan_gtk_map_track_draw_beam_draw_region (HyScanGtkMapTrackDraw     *track_dra
 {
   HyScanGtkMapTrackDrawBeam *beam = HYSCAN_GTK_MAP_TRACK_DRAW_BEAM (track_draw);
 
-  hyscan_gtk_map_track_draw_beam_side (beam, from, to, scale, data->port, cairo, cancellable);
-  hyscan_gtk_map_track_draw_beam_side (beam, from, to, scale, data->starboard, cairo, cancellable);
+  hyscan_gtk_map_track_draw_beam_side (beam, quality_data, from, to, scale, data->port, cairo, cancellable);
+  hyscan_gtk_map_track_draw_beam_side (beam, quality_data, from, to, scale, data->starboard, cairo, cancellable);
 }
 
 static HyScanParam *

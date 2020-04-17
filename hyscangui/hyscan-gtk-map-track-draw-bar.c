@@ -167,7 +167,7 @@ hyscan_gtk_map_track_draw_bar_path (HyScanGeoCartesian2D          *from,
                                     HyScanGtkMapTrackDrawBarStyle *style)
 {
   GList *point_l;
-  HyScanGtkMapTrackPoint *point;
+  HyScanMapTrackPoint *point;
   HyScanGeoCartesian2D coord;
 
   /* Рисуем линию движения. */
@@ -196,7 +196,7 @@ hyscan_gtk_map_track_draw_bar_side (HyScanGeoCartesian2D          *from,
                                     HyScanGtkMapTrackDrawBarStyle *style)
 {
   GList *point_l;
-  HyScanGtkMapTrackPoint *point, *next_point;
+  HyScanMapTrackPoint *point, *next_point;
   GdkRGBA *fill_color;
 
   gdouble threshold;
@@ -259,7 +259,7 @@ hyscan_gtk_map_track_draw_bar_start (HyScanGeoCartesian2D          *from,
                                      cairo_t                       *cairo,
                                      HyScanGtkMapTrackDrawBarStyle *style)
 {
-  HyScanGtkMapTrackPoint *point;
+  HyScanMapTrackPoint *point;
   HyScanGeoCartesian2D coord;
 
   if (points == NULL)
@@ -280,7 +280,7 @@ hyscan_gtk_map_track_draw_bar_start (HyScanGeoCartesian2D          *from,
 
 static void
 hyscan_gtk_map_track_draw_bar_draw_region (HyScanGtkMapTrackDraw      *track_draw,
-                                           HyScanGtkMapTrackDrawData  *data,
+                                           HyScanMapTrackData        *data,
                                            cairo_t                    *cairo,
                                            gdouble                     scale,
                                            HyScanGeoCartesian2D       *from,
