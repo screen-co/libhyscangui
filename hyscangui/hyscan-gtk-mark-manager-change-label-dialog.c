@@ -358,7 +358,7 @@ hyscan_mark_manager_change_label_dialog_response (GtkWidget *dialog,
       break;
     default: break;
     }
-  /* Удаляем диалог и обнуляем указатель на диалог.*/
+  /* Удаляем диалог.*/
   gtk_widget_destroy (dialog);
 }
 

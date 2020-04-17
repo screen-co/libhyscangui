@@ -108,7 +108,8 @@ GType                hyscan_model_manager_get_type                    (void);
 
 HyScanModelManager*  hyscan_model_manager_new                         (const gchar            *project_name,
                                                                        HyScanDB               *db,
-                                                                       HyScanCache            *cache);
+                                                                       HyScanCache            *cache,
+                                                                       gchar                  *export_folder);
 
 HyScanDBInfo*        hyscan_model_manager_get_track_model             (HyScanModelManager     *self);
 
@@ -129,6 +130,8 @@ void                 hyscan_model_manager_set_project_name            (HyScanMod
                                                                        const gchar            *project_name);
 
 const gchar*         hyscan_model_manager_get_project_name            (HyScanModelManager     *self);
+
+const gchar*         hyscan_model_manager_get_export_folder           (HyScanModelManager     *self);
 
 HyScanDB*            hyscan_model_manager_get_db                      (HyScanModelManager     *self);
 

@@ -11,6 +11,7 @@ enum
   PROP_PROJECT_NAME = 1,    /* Название проекта. */
   PROP_DB,                  /* База данных. */
   PROP_CACHE,               /* Кэш.*/
+  PROP_EXPORT_FOLDER,       /* Директория для экспорта. */
   N_PROPERTIES
 };
 
@@ -48,6 +49,7 @@ struct _HyScanModelManagerPrivate
   gdouble               horizontal,           /* Положение горизонтальной полосы прокрутки. */
                         vertical;             /* Положение вертикальной полосы прокрутки. */
   gchar                *project_name,         /* Название проекта. */
+                       *export_folder,        /* Директория для экспорта. */
                        *selected_item_id,     /* Выделенные объекты. */
                        *current_id;           /* Идентифифкатор объекта, используется для разворачивания
                                                * и сворачивания узлов. */
@@ -239,6 +241,11 @@ hyscan_model_manager_class_init (HyScanModelManagerClass *klass)
                          "The link to main cache with frequency used stafs",
                          HYSCAN_TYPE_CACHE,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+  /* Директория для экспорта.*/
+    g_object_class_install_property (object_class, PROP_EXPORT_FOLDER,
+      g_param_spec_string ("export_folder", "Export folder", "Directory for export",
+                           "",
+                           G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   /* Создание сигналов. */
   for (index = 0; index < SIGNAL_MODEL_MANAGER_LAST; index++)
     {
@@ -292,6 +299,12 @@ hyscan_model_manager_set_property (GObject      *object,
         priv->cache  = g_value_dup_object (value);
         /* Увеличиваем счётчик ссылок на кэш. */
         /*g_object_ref (priv->cache);*/
+      }
+      break;
+    /* Директория для экспорта.*/
+    case PROP_EXPORT_FOLDER:
+      {
+          priv->export_folder = g_value_dup_string (value);
       }
       break;
     /* Что-то ещё... */
@@ -383,9 +396,10 @@ hyscan_model_manager_finalize (GObject *object)
   HyScanModelManagerPrivate *priv = self->priv;
 
   /* Освобождаем ресурсы. */
-
   g_free (priv->project_name);
   priv->project_name = NULL;
+  g_free (priv->export_folder);
+  priv->export_folder = NULL;
   g_object_unref (priv->cache);
   priv->cache = NULL;
   g_object_unref (priv->db);
@@ -2264,12 +2278,14 @@ hyscan_model_manager_extension_free (gpointer data)
 HyScanModelManager*
 hyscan_model_manager_new (const gchar *project_name,
                           HyScanDB    *db,
-                          HyScanCache *cache)
+                          HyScanCache *cache,
+                          gchar       *export_folder)
 {
   return g_object_new (HYSCAN_TYPE_MODEL_MANAGER,
-                       "project_name", project_name,
-                       "db",           db,
-                       "cache",        cache,
+                       "project_name",  project_name,
+                       "db",            db,
+                       "cache",         cache,
+                       "export_folder", export_folder,
                        NULL);
 }
 
@@ -2410,6 +2426,20 @@ hyscan_model_manager_get_project_name (HyScanModelManager *self)
   HyScanModelManagerPrivate *priv = self->priv;
   return priv->project_name;
 }
+
+/**
+ * hyscan_model_manager_get_export_folder:
+ * @self: указатель на Менеджер Моделей
+ *
+ * Returns: директорию для экспорта
+ */
+const gchar*
+hyscan_model_manager_get_export_folder (HyScanModelManager     *self)
+{
+  HyScanModelManagerPrivate *priv = self->priv;
+  return priv->export_folder;
+}
+
 /**
  * hyscan-model-manager-get-cache:
  * @self: указатель на Менеджер Моделей

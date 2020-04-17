@@ -51,25 +51,25 @@ struct _HyScanMarkManagerCreateLabelDialogPrivate
   HyScanObjectModel *label_model;          /* Модель с данныим о группах. */
 };
 
-static void       hyscan_mark_manager_create_label_dialog_set_property   (GObject      *object,
-                                                                          guint         prop_id,
-                                                                          const GValue *value,
-                                                                          GParamSpec   *pspec);
+static void       hyscan_mark_manager_create_label_dialog_set_property     (GObject      *object,
+                                                                            guint         prop_id,
+                                                                            const GValue *value,
+                                                                            GParamSpec   *pspec);
 
-static void       hyscan_mark_manager_create_label_dialog_constructed    (GObject      *object);
+static void       hyscan_mark_manager_create_label_dialog_constructed      (GObject      *object);
 
-static void       hyscan_mark_manager_create_label_dialog_finalize       (GObject      *object);
+static void       hyscan_mark_manager_create_label_dialog_finalize         (GObject      *object);
 
-static GtkWidget* hyscan_mark_manager_create_label_dialog_add_item       (GtkBox      *content,
-                                                                          const gchar *label_text,
-                                                                          const gchar *entry_text);
+static GtkWidget* hyscan_mark_manager_create_label_dialog_add_item         (GtkBox       *content,
+                                                                            const gchar  *label_text,
+                                                                            const gchar  *entry_text);
 
-static void       hyscan_mark_manager_create_label_dialog_response       (GtkWidget   *dialog,
-                                                                          gint         response,
-                                                                          gpointer     user_data);
+static void       hyscan_mark_manager_create_label_dialog_response         (GtkWidget    *dialog,
+                                                                            gint          response,
+                                                                            gpointer      user_data);
 
-static void       hyscan_mark_manager_create_label_dialog_check_entry    (GtkEntry    *entry,
-                                                                          gpointer     user_data);
+static void       hyscan_mark_manager_create_label_dialog_check_entry      (GtkEntry     *entry,
+                                                                            gpointer      user_data);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanMarkManagerCreateLabelDialog, hyscan_mark_manager_create_label_dialog, GTK_TYPE_DIALOG)
 
@@ -351,7 +351,7 @@ hyscan_mark_manager_create_label_dialog_response (GtkWidget *dialog,
       break;
     default: break;
     }
-  /* Удаляем диалог и обнуляем указатель на диалог.*/
+  /* Удаляем диалог.*/
   gtk_widget_destroy (dialog);
 }
 
