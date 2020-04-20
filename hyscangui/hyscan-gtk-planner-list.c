@@ -863,7 +863,7 @@ hyscan_gtk_planner_list_speed_edited (GtkCellRendererText *renderer,
   if (track == NULL)
     goto exit;
 
-  track->plan.velocity = speed;
+  track->plan.speed = speed;
   hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), zone_id, (HyScanObject *) track);
   hyscan_planner_track_free (track);
 
@@ -1266,7 +1266,7 @@ hyscan_gtk_planner_list_update_zones (HyScanGtkPlannerList *list,
                               TYPE_COLUMN, TYPE_PLANNER_TRACK,
                               KEY_COLUMN, track_key,
                               ID_COLUMN, track->id,
-                              SPEED_COLUMN, track->object->plan.velocity,
+                              SPEED_COLUMN, track->object->plan.speed,
                               ANGLE_COLUMN, track->angle,
                               NUMBER_COLUMN, track->object->number,
                               LENGTH_COLUMN, track->length,
@@ -1297,8 +1297,8 @@ hyscan_gtk_planner_list_update_zones (HyScanGtkPlannerList *list,
                                   KEY_COLUMN, record_key,
                                   ID_COLUMN, record->info->id,
                                   NAME_COLUMN, record->info->name,
-                                  SPEED_COLUMN, record->velocity,
-                                  SPEED_VAR_COLUMN, record->velocity_var,
+                                  SPEED_COLUMN, record->speed,
+                                  SPEED_VAR_COLUMN, record->speed_var,
                                   ANGLE_COLUMN, record->angle,
                                   ANGLE_VAR_COLUMN, record->angle_var,
                                   LENGTH_COLUMN, record->x_length,

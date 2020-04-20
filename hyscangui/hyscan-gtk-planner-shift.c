@@ -309,7 +309,7 @@ hyscan_gtk_planner_shift_update (HyScanGtkPlannerShift *shift)
     goto exit;
 
   track_tpl.zone_id = priv->track->zone_id;
-  track_tpl.plan.velocity = priv->track->plan.velocity;
+  track_tpl.plan.speed = priv->track->plan.speed;
 
   if (fill_zone)
     {

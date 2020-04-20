@@ -666,7 +666,7 @@ hyscan_gtk_map_steer_carea_draw_speed (HyScanGtkMapSteerCarea *steer_carea,
   if (priv->plan == NULL)
     return;
 
-  plan_speed = priv->plan->velocity;
+  plan_speed = priv->plan->speed;
 
   /* Границы координат скорости. */
   from_speed = 0.0;
@@ -1106,10 +1106,10 @@ hyscan_gtk_map_steer_set_track (HyScanGtkMapSteer *gtk_steer)
     gint min, sec;
 
     hyscan_steer_get_track_info (priv->steer, &angle, &length);
-    estimated_time = length / priv->plan->velocity;
+    estimated_time = length / priv->plan->speed;
     hyscan_gtk_map_steer_time_to_mmss (estimated_time, &min, &sec);
     text = g_strdup_printf (_("Plan: %.1f m/s %.0f° L%.0fm ~%02d:%02d"),
-                            priv->plan->velocity, angle, length, min, sec);
+                            priv->plan->speed, angle, length, min, sec);
     gtk_label_set_text (GTK_LABEL (priv->track_info), text);
     g_free (text);
   }
