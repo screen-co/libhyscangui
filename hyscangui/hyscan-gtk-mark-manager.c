@@ -34,6 +34,7 @@
 #include <hyscan-gtk-mark-manager.h>
 #include <hyscan-gtk-mark-manager-create-label-dialog.h>
 #include <hyscan-gtk-mark-manager-change-label-dialog.h>
+#include <hyscan-gtk-mark-export.h>
 #define GETTEXT_PACKAGE "hyscanfnn-evoui"
 #include <glib/gi18n-lib.h>
 
@@ -195,7 +196,8 @@ static void         hyscan_mark_manager_expand_all_items          (HyScanMarkMan
 static GtkTreeIter* hyscan_mark_manager_find_item                 (GtkTreeModel       *model,
                                                                    const gchar        *id);
 
-static void         hyscan_mark_manager_toggled_items_save_as_html (HyScanMarkManager  *self);
+static void         hyscan_mark_manager_toggled_items_save_as_html (GtkMenuItem       *item,
+                                                                    HyScanMarkManager *self);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanMarkManager, hyscan_mark_manager, GTK_TYPE_BOX)
 
@@ -244,7 +246,8 @@ hyscan_mark_manager_set_property (GObject      *object,
       /* Менеджер моделей. */
       case PROP_MODEL_MANAGER:
         {
-          priv->model_manager = g_value_get_object (value);
+          /*priv->model_manager = g_value_get_object (value);*/
+          priv->model_manager = g_value_dup_object (value);
           /* Увеличиваем счётчик ссылок на менеджер моделей. */
           /*g_object_ref (priv->model_manager);*/
         }
@@ -1021,13 +1024,13 @@ hyscan_mark_manager_find_item (GtkTreeModel *model,
 
 /* Обработчик выбора пункта меню "Сохранить как HTML". */
 void
-hyscan_mark_manager_toggled_items_save_as_html (HyScanMarkManager  *self)
+hyscan_mark_manager_toggled_items_save_as_html (GtkMenuItem       *item,
+                                                HyScanMarkManager *self)
 {
-  /*
   HyScanMarkManagerPrivate *priv = self->priv;
   GtkWindow *toplevel = GTK_WINDOW (gtk_widget_get_toplevel (GTK_WIDGET (self)));
-  hyscan_gtk_mark_export_save_as_html (priv->model_manager, toplevel);
-  */
+
+  hyscan_gtk_mark_export_save_as_html (priv->model_manager, toplevel, TRUE);
 }
 
 /**

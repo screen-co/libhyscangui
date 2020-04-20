@@ -99,7 +99,8 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-map-tile-source-file.c
              hyscan-map-tile-source-blend.c
              hyscan-map-tile-loader.c
-
+             # [[ Экспорт ]]
+             hyscan-gtk-mark-export.c
              # [[ Модели ]]
              hyscan-gtk-model-manager.c
 
@@ -193,6 +194,7 @@ install (FILES hyscan-gtk-area.h
                hyscan-cairo.h
                hyscan-gtk-export.h
                hyscan-gui-style.h
+               hyscan-gtk-mark-export.h
                hyscan-gtk-model-manager.h
                hyscan-gtk-mark-manager.h
                hyscan-gtk-mark-manager-view.h
