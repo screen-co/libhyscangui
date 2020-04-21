@@ -2032,6 +2032,7 @@ hyscan_model_manager_refresh_all_items_by_labels (HyScanModelManager *self)
           /* Отображается. */ COLUMN_NAME,         label->name,
                               COLUMN_DESCRIPTION,  label->description,
                               COLUMN_OPERATOR,     label->operator_name,
+                              COLUMN_TOOLTIP,      label->name,
                               COLUMN_TYPE,         LABEL,
                               COLUMN_ICON,         label->icon_name,
                               COLUMN_ACTIVE,       toggled,
