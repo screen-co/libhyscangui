@@ -681,6 +681,8 @@ hyscan_mark_manager_delete_toggled (GtkToolButton     *button,
       hyscan_model_manager_delete_toggled_items (priv->model_manager);
       /* После удаления делаём кнопку "Удалить выбранное" неактивной. */
       gtk_widget_set_sensitive (priv->delete_icon, FALSE);
+      /* После удаления делаём кнопку "Снять все отметки" неактивной. */
+      gtk_widget_set_sensitive (priv->untoggle_all_item, FALSE);
       /* Переключаем состояние кнопки "Перенести в группу." */
       gtk_widget_set_sensitive (priv->change_label, FALSE);
       /* Переключаем состояние кнопки "Сохранить как HTML." */
