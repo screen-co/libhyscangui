@@ -531,6 +531,7 @@ hyscan_mark_manager_view_show_tooltip (GtkWidget  *widget,
   GtkTreeViewColumn *column = NULL;
   /* Получаем модель. */
   GtkTreeModel      *model = gtk_tree_view_get_model (view);
+  GtkTreeIter iter;
 
   g_return_val_if_fail (GTK_IS_TREE_MODEL (model), FALSE);
 
@@ -552,69 +553,21 @@ hyscan_mark_manager_view_show_tooltip (GtkWidget  *widget,
       if (!is_path)
         return FALSE;
     }
-
-  if (GTK_IS_LIST_STORE (model))
+  /* Получаем итератор. */
+  if (gtk_tree_model_get_iter (model, &iter, path))
     {
+      /* Строка с подсказкой. */
+      gchar *str = "";
       /* Определяем положение ветви, чтобы рядом показать подсказку. */
       gtk_tree_view_set_tooltip_cell (view, tooltip, path, column, NULL);
+      /* Получаем текст подсказки из модели. */
+      gtk_tree_model_get (model, &iter, COLUMN_TOOLTIP, &str, -1);
       /* Выводим подсказку. */
-      gtk_tooltip_set_text (tooltip, "TESTING");
+      gtk_tooltip_set_text (tooltip, str);
+      g_free (str);
     }
-  else if (GTK_IS_TREE_STORE (model))
-    {
-      /* Получаем ветвь в виде индексов. */
-      gint depth;
-      gint *indeces = gtk_tree_path_get_indices_with_depth (path, &depth);
-      if (indeces)
-        {
-          /* Строка с подсказкой. */
-          gchar *str = "";
-          /* Определяем положение ветви, чтобы рядом показать подсказку. */
-          gtk_tree_view_set_tooltip_cell (view, tooltip, path, column, NULL);
-          /* Получаем итератор ветви. */
-          GtkTreeIter iter;
-          gtk_tree_model_get_iter (model, &iter, path);
-          /* Освобождаем путь. (Вызывает ошибку)*/
-          /*gtk_tree_path_free (path);*/
-          switch (depth - 1)
-          {
-          /* Курсор на категории. */
-          case 0:
-            {
-              str = g_strdup ("First");
-            }
-            break;
-          /* Курсор на метке. */
-          case 1:
-            {
-              /* Удостоверьтесь что вы закончили вызов gtk_tree_model_get() значением '-1' */
-              /*gtk_tree_model_get (model, &iter, COLUMN_MARK, &str, -1);*/
-              str = g_strdup ("Second");
-            }
-            break;
-          /* Курсор на атрибуте метки. */
-          case 2:
-            {
-              /* Удостоверьтесь что вы закончили вызов gtk_tree_model_get() значением '-1' */
-              /*gtk_tree_model_get (model, &iter, COLUMN_VALUE, &str, -1);*/
-              str = g_strdup ("Third");
-            }
-            break;
-          /* Курсор где-то ещё, выводить подсказку не нужно. */
-          default:
-            {
-              /* Освобождаем путь и выходим. */
-              gtk_tree_path_free (path);
-              return FALSE;
-            }
-          }
-          /* Выводим подсказку. */
-          gtk_tooltip_set_text (tooltip, str);
-          g_free (str);
-       }
-      /* Освобождаем путь. */
-      gtk_tree_path_free (path);
-    }
+  /* Освобождаем путь. */
+  gtk_tree_path_free (path);
 
   return TRUE;
 }
