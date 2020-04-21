@@ -1,10 +1,50 @@
-/*
- * hyscan-gtk-mark-manager-create-label-dialog.с
+/* hyscan-gtk-mark-manager-create-label-dialog.с
  *
- *  Created on: 10 апр. 2020 г.
- *      Author: Andrey Zakharov <zaharov@screen-co.ru>
+ * Copyright 2020 Screen LLC, Andrey Zakharov <zaharov@screen-co.ru>
  *
- * Для работы с GdkPixbuf в Prolect->Properties->C/C++ General->Path and Symbols
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-mark-manager-create-label-dialog
+ * @Short_description: Класс диалога для создания новой группы в Журнале Меток.
+ * @Title: HyScanMarkManagerCreateLabelDialog
+ * @See_also: #HyScanMarkManagerChangeLabelDialog, #HyScanMarkManager, #HyScanMarkManagerView, #HyScanModelManager
+ *
+ * Диалог #HyScanMarkManagerCreateLabelDialog позволяет создать новую группу в Журнале Меток, проверяет введённые пользователем данные.
+ *
+ * - hyscan_mark_manager_create_label_dialog_new () - создание экземпляра диалога;
+ *
+ */
+
+/* Для работы с GdkPixbuf в Prolect->Properties->C/C++ General->Path and Symbols
  * в разделе Includes добавлено "/usr/include/gdk-pixbuf-2.0".
  */
 #include <hyscan-gtk-mark-manager-create-label-dialog.h>
@@ -48,7 +88,7 @@ struct _HyScanMarkManagerCreateLabelDialogPrivate
                     *icon_view,      /* Виджет для отображения иконок. */
                     *ok_button;      /* Кнопка "Ok". */
   GtkTreeModel      *icon_model;     /* Модель с иконками. */
-  HyScanObjectModel *label_model;          /* Модель с данныим о группах. */
+  HyScanObjectModel *label_model;    /* Модель с данныим о группах. */
 };
 
 static void       hyscan_mark_manager_create_label_dialog_set_property     (GObject      *object,
@@ -99,6 +139,7 @@ hyscan_mark_manager_create_label_dialog_init (HyScanMarkManagerCreateLabelDialog
 {
   self->priv = hyscan_mark_manager_create_label_dialog_get_instance_private (self);
 }
+
 static void
 hyscan_mark_manager_create_label_dialog_set_property (GObject      *object,
                                                       guint         prop_id,
@@ -217,8 +258,9 @@ hyscan_mark_manager_create_label_dialog_constructed (GObject *object)
             }
           ptr = g_list_next (ptr);
         }
-        while (ptr != NULL);
+      while (ptr != NULL);
 
+      g_list_free (images);
         /* Создаём IconView с моделью заполненой данными. */
       priv->icon_view = gtk_icon_view_new_with_model(priv->icon_model);
     }
@@ -330,12 +372,15 @@ hyscan_mark_manager_create_label_dialog_response (GtkWidget *dialog,
                 gchar *icon_name = NULL;
                 gtk_tree_model_get (priv->icon_model, &iter, COLUMN_NAME, &icon_name, -1);
                 hyscan_label_set_icon_name (label, icon_name);
+                g_free (icon_name);
               }
             else
               {
+                g_list_free (images);
                 break;
               }
           }
+        g_list_free (images);
         hyscan_label_set_label (label, size);
         hyscan_label_set_ctime (label, time);
         hyscan_label_set_mtime (label, time);
@@ -378,8 +423,8 @@ hyscan_mark_manager_create_label_dialog_check_entry (GtkEntry  *entry,
 
 /**
  * hyscan_mark_manager_create_label_dialog_new:
- * @title: название
- * @active: состояние чек-бокса
+ * @parent: родительское окно
+ * @model: модель с данныим о группах
  *
  * Returns: cоздаёт новый объект #HyScanMarkManagerCreateLabelDialog
  */

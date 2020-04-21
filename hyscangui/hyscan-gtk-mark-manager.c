@@ -82,6 +82,8 @@ struct _HyScanMarkManagerPrivate
                      *combo,                /* Выпадающий список для выбора типа группировки. */
                      *expand_all_item,      /* Пункт выпадающего меню "Развернуть все". */
                      *collapse_all_item,    /* Пункт выпадающего меню "Свернуть все". */
+                     *toggle_all_item,      /* Пункт выпадающего меню "Отметить все". */
+                     *untoggle_all_item,    /* Снять все отметки. */
                      *change_label,         /* Пункт выпадающего меню "Перенести в группу". */
                      *save_as_html,         /* Пункт выпадающего меню "Сохранить в формате HTML". */
                      *new_label_dialog,     /* Диалог создания новой группы. */
@@ -269,9 +271,6 @@ hyscan_mark_manager_constructed (GObject *object)
   GtkBox       *box                 = GTK_BOX (object);   /* Контейнер для панели инструментов и представления.*/
   GtkWidget    *toolbar             = gtk_toolbar_new (); /* Панель инструментов. */
   GtkWidget    *action_menu         = gtk_menu_new ();    /* Меню действий. */
-  /* Пункты меню управления видимостью. */
-  GtkWidget    *toggle_all_item     = gtk_menu_item_new_with_label (_(function_text[TOGGLE_ALL]));
-  GtkWidget    *untoggle_all_item   = gtk_menu_item_new_with_label (_(function_text[UNTOGGLE_ALL]));
   GtkToolItem  *new_label_item      = NULL;
   /* Кнопка для меню управления видимостью. */
   GtkToolItem  *action_item         = NULL;
@@ -376,6 +375,8 @@ hyscan_mark_manager_constructed (GObject *object)
    * "Сохранить как HTML". */
   priv->expand_all_item   = gtk_menu_item_new_with_label (_(function_text[EXPAND_ALL]));
   priv->collapse_all_item = gtk_menu_item_new_with_label (_(function_text[COLLAPSE_ALL]));
+  priv->toggle_all_item   = gtk_menu_item_new_with_label (_(function_text[TOGGLE_ALL]));
+  priv->untoggle_all_item = gtk_menu_item_new_with_label (_(function_text[UNTOGGLE_ALL]));
   priv->change_label      = gtk_menu_item_new_with_label (_(function_text[CHANGE_LABEL]));
   priv->save_as_html      = gtk_menu_item_new_with_label (_(function_text[SAVE_AS_HTML]));
   /* Делаем пункты выпадающего меню "Перенести в группу" неактивным. */
@@ -390,18 +391,19 @@ hyscan_mark_manager_constructed (GObject *object)
       gtk_widget_set_sensitive (priv->expand_all_item,   FALSE);
       gtk_widget_set_sensitive (priv->collapse_all_item, FALSE);
     }
+  gtk_widget_set_sensitive (priv->untoggle_all_item, FALSE);
   /* Меню управления видимостью. */
   gtk_menu_shell_append (GTK_MENU_SHELL (action_menu), priv->expand_all_item);
   gtk_menu_shell_append (GTK_MENU_SHELL (action_menu), priv->collapse_all_item);
-  gtk_menu_shell_append (GTK_MENU_SHELL (action_menu), toggle_all_item);
-  gtk_menu_shell_append (GTK_MENU_SHELL (action_menu), untoggle_all_item);
+  gtk_menu_shell_append (GTK_MENU_SHELL (action_menu), priv->toggle_all_item);
+  gtk_menu_shell_append (GTK_MENU_SHELL (action_menu), priv->untoggle_all_item);
   gtk_menu_shell_append (GTK_MENU_SHELL (action_menu), priv->change_label);
   gtk_menu_shell_append (GTK_MENU_SHELL (action_menu), priv->save_as_html);
   /* Отображаем пункты меню управления видимостью. */
   gtk_widget_show (priv->expand_all_item);
   gtk_widget_show (priv->collapse_all_item);
-  gtk_widget_show (toggle_all_item);
-  gtk_widget_show (untoggle_all_item);
+  gtk_widget_show (priv->toggle_all_item);
+  gtk_widget_show (priv->untoggle_all_item);
   gtk_widget_show (priv->change_label);
   gtk_widget_show (priv->save_as_html);
   /* Устанавливаем меню на кнопку в панели инструментов. */
@@ -418,16 +420,16 @@ hyscan_mark_manager_constructed (GObject *object)
   g_signal_connect (G_OBJECT (priv->collapse_all_item), "activate",
                     G_CALLBACK (hyscan_mark_manager_collapse_all),   self);
   /* Обработчик выбора пункта меню "Отметить все". */
-  g_signal_connect (G_OBJECT (toggle_all_item),         "activate",
+  g_signal_connect (G_OBJECT (priv->toggle_all_item),   "activate",
                     G_CALLBACK (hyscan_mark_manager_toggle_all),     self);
   /* Обработчик выбора пункта меню "Снять все отметки". */
-  g_signal_connect (G_OBJECT (untoggle_all_item),       "activate",
+  g_signal_connect (G_OBJECT (priv->untoggle_all_item), "activate",
                     G_CALLBACK (hyscan_mark_manager_untoggle_all),   self);
   /* Обработчик выбора пункта меню "Пренести в группу". */
-  g_signal_connect (G_OBJECT (priv->change_label),       "activate",
+  g_signal_connect (G_OBJECT (priv->change_label),      "activate",
                     G_CALLBACK (hyscan_mark_manager_toggled_items_change_label), self);
   /* Обработчик выбора пункта меню "Сохранить как HTML". */
-  g_signal_connect (G_OBJECT (priv->save_as_html),       "activate",
+  g_signal_connect (G_OBJECT (priv->save_as_html),      "activate",
                     G_CALLBACK (hyscan_mark_manager_toggled_items_save_as_html), self);
   /* Отступ. */
   /*gtk_container_set_border_width (GTK_CONTAINER (toolbar), 20);*/
@@ -577,6 +579,7 @@ hyscan_mark_manager_grouping_changed (HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate  *priv = self->priv;
   ModelManagerGrouping   grouping = hyscan_model_manager_get_grouping (priv->model_manager);
+  gboolean has_toggled = hyscan_model_manager_has_toggled (priv->model_manager);
 
   if (priv->signal != 0)
     {
@@ -599,6 +602,13 @@ hyscan_mark_manager_grouping_changed (HyScanMarkManager *self)
       gtk_widget_set_sensitive (priv->expand_all_item,   TRUE);
       gtk_widget_set_sensitive (priv->collapse_all_item, TRUE);
     }
+  /* Переключаем состояние кнопки "Удалить выбранное." */
+  gtk_widget_set_sensitive (priv->delete_icon, has_toggled);
+  gtk_widget_set_sensitive (priv->untoggle_all_item, has_toggled);
+  /* Переключаем состояние кнопки "Перенести в группу." */
+  gtk_widget_set_sensitive (priv->change_label, has_toggled);
+  /* Переключаем состояние кнопки "Сохранить как HTML." */
+  gtk_widget_set_sensitive (priv->save_as_html, has_toggled);
   /* Выделяем выбранное */
   hyscan_mark_manager_select_item (self);
 }
@@ -671,6 +681,10 @@ hyscan_mark_manager_delete_toggled (GtkToolButton     *button,
       hyscan_model_manager_delete_toggled_items (priv->model_manager);
       /* После удаления делаём кнопку "Удалить выбранное" неактивной. */
       gtk_widget_set_sensitive (priv->delete_icon, FALSE);
+      /* Переключаем состояние кнопки "Перенести в группу." */
+      gtk_widget_set_sensitive (priv->change_label, FALSE);
+      /* Переключаем состояние кнопки "Сохранить как HTML." */
+      gtk_widget_set_sensitive (priv->save_as_html, FALSE);
     }
 }
 
@@ -861,6 +875,7 @@ hyscan_mark_manager_toggle_item (HyScanMarkManager *self)
 
   /* Переключаем состояние кнопки "Удалить выбранное." */
   gtk_widget_set_sensitive (priv->delete_icon, has_toggled);
+  gtk_widget_set_sensitive (priv->untoggle_all_item, has_toggled);
   /* Переключаем состояние кнопки "Перенести в группу." */
   gtk_widget_set_sensitive (priv->change_label, has_toggled);
   /* Переключаем состояние кнопки "Сохранить как HTML." */
