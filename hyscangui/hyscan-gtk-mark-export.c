@@ -1,8 +1,48 @@
-/*
- * hyscan-gtk-mark-export.c
+/* hyscan-gtk-mark-export.c
  *
- *  Created on: 20 нояб. 2019 г.
- *      Author: Andrey Zakharov <zaharov@screen-co.ru>
+ * Copyright 2019 Screen LLC, Andrey Zakharov <zaharov@screen-co.ru>
+ *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-mark-export
+ * @Short_description: Библиотека с функциями сохранения меток в форматах CSV и HTML,
+ * и их копирования в буфер обмена.
+ * @Title: HyScanGtkMarkExport
+ * @See_also: #HyScanGtkMarkManager
+ *
+ * - hyscan_gtk_mark_export_save_as_csv () - сохранение меток в формате CSV;
+ * - hyscan_gtk_mark_export_copy_to_clipboard () - копирование меток в буфер обмена;
+ * - hyscan_gtk_mark_export_to_str () - получение информации о метках в виде строки;
+ * - hyscan_gtk_mark_export_save_as_html () - сохранение меток в формате HTML.
  *
  * После сохранения графической и текстовой информации в формате HTML, можно
  * сконвертировать данные в различные форматы для дальнейшей обработки.
@@ -26,7 +66,8 @@
  * Затем можно сохранять файл в нужном формате ODT, DOC, DOCX, RTF. Для сохранения в
  * формате PDF Выберите в меню Файл -> Экспорт в PDF. Всё файл сконвертирован.
  */
-#include "hyscan-gtk-mark-export.h"
+
+#include <hyscan-gtk-mark-export.h>
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <gdk/gdk.h>
@@ -220,7 +261,14 @@ hyscan_gtk_mark_export_print_marks (GHashTable *wf_marks,
   return g_string_free (str, FALSE);
 }
 
-
+/**
+ * hyscan_gtk_mark_export_to_str:
+ * @ml_model: указатель на модель водопадных меток с данными о положении в пространстве
+ * @mark_geo_model: указатель на модель геометок
+ * @project_name: указатель на назване проекта
+ *
+ * информация о метках в виде строки
+ */
 gchar*
 hyscan_gtk_mark_export_to_str (HyScanMarkLocModel *ml_model,
                                HyScanObjectModel  *mark_geo_model,
@@ -255,11 +303,11 @@ hyscan_gtk_mark_export_to_str (HyScanMarkLocModel *ml_model,
  * По завершению генерации уменьшает счётчик герируемых тайлов.
  * */
 void
-hyscan_gtk_mark_export_tile_loaded    (Package           *package, /* Пакет дополнительных данных. */
-                                       HyScanTile        *tile,    /* Тайл. */
-                                       gfloat            *img,     /* Акустическое изображение. */
-                                       gint               size,    /* Размер акустического изображения в байтах. */
-                                       gulong             hash)    /* Хэш состояния тайла. */
+hyscan_gtk_mark_export_tile_loaded (Package    *package, /* Пакет дополнительных данных. */
+                                    HyScanTile *tile,    /* Тайл. */
+                                    gfloat     *img,     /* Акустическое изображение. */
+                                    gint        size,    /* Размер акустического изображения в байтах. */
+                                    gulong      hash)    /* Хэш состояния тайла. */
 {
   package->counter--;
 }
@@ -464,9 +512,8 @@ hyscan_gtk_mark_export_save_tile (HyScanMarkLocation *location,     /* Метк�
       g_object_unref (tile);
     }
 }
-/*
- * функция сохраняет тайл в формате PNG.
- * */
+
+/* Функция сохраняет тайл в формате PNG. */
 void
 hyscan_gtk_mark_export_save_tile_as_png (HyScanTile  *tile,       /* Тайл. */
                                          Package     *package,    /* Пакет дополнительных данных. */
@@ -663,14 +710,12 @@ hyscan_gtk_mark_export_init_tile (HyScanTile          *tile,
       tile->info.flags    = HYSCAN_TILE_PROFILER;
     }
 
-  tile_cacheable->w =      /* Будет заполнено генератором. */
-  tile_cacheable->h = 0;   /* Будет заполнено генератором. */
+  tile_cacheable->w =                  /* Будет заполнено генератором. */
+  tile_cacheable->h = 0;               /* Будет заполнено генератором. */
   tile_cacheable->finalized = FALSE;   /* Будет заполнено генератором. */
 }
 
-/*
- * Потоковая функция сохранения меток в формате HTML.
- * */
+/* Потоковая функция сохранения меток в формате HTML. */
 gpointer
 hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
 {
@@ -762,9 +807,9 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
 
       if (data->geo_marks != NULL)
         {
-          HyScanMarkGeo  *geo_mark   = NULL; /*  */
+          HyScanMarkGeo  *geo_mark   = NULL;
           GHashTableIter  hash_iter;
-          gchar          *mark_id    = NULL; /* Идентификатор метки. */
+          gchar          *mark_id    = NULL;
 
           list = g_strconcat (list, _("\t\t<a href=\"#geo\"><strong>Geo marks</strong></a><br>\n"), (gchar*) NULL);
 
@@ -785,9 +830,9 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
 
       if (data->acoustic_marks != NULL)
         {
-          HyScanMarkLocation *location   = NULL; /*  */
+          HyScanMarkLocation *location   = NULL;
           GHashTableIter      hash_iter;
-          gchar              *mark_id    = NULL; /* Идентификатор метки. */
+          gchar              *mark_id    = NULL;
 
           list = g_strconcat (list, _("\t\t<a href=\"#wf\"><strong>Acoustic marks</strong></a><br>\n"), (gchar*) NULL);
 
@@ -945,12 +990,11 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
           /* g_usleep (1000); */
         }
 
-      /* Акустические метки. */
       if (data->acoustic_marks != NULL)
         {
-          HyScanMarkLocation *location   = NULL; /*  */
+          HyScanMarkLocation *location   = NULL;
           GHashTableIter      hash_iter;
-          gchar              *mark_id    = NULL, /* Идентификатор метки. */
+          gchar              *mark_id    = NULL,
                              *category   = _("\t\t<p><a name=\"wf\"><strong>Acoustic marks</strong></a></p>\n");
 
           fwrite (category, sizeof (gchar), strlen (category), file);
@@ -997,9 +1041,7 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
   return NULL;
 }
 
-/*
- * Функция безопасно устанавливает курсор "Часы".
- * */
+/* Функция безопасно устанавливает курсор "Часы". */
 gboolean
 hyscan_gtk_mark_export_set_watch_cursor (gpointer user_data)
 {
@@ -1016,9 +1058,7 @@ hyscan_gtk_mark_export_set_watch_cursor (gpointer user_data)
   return FALSE;
 }
 
-/*
- * Функция безопасно устанавливает курсор по умолчанию.
- * */
+/* Функция безопасно устанавливает курсор по умолчанию. */
 gboolean
 hyscan_gtk_mark_export_set_default_cursor (gpointer user_data)
 {
@@ -1031,9 +1071,7 @@ hyscan_gtk_mark_export_set_default_cursor (gpointer user_data)
   return FALSE;
 }
 
-/*
- * функция возвращает ширину метки с учётом выхода за пределы "борта".
- * */
+/* функция возвращает ширину метки с учётом выхода за пределы "борта". */
 gdouble
 hyscan_gtk_mark_export_get_wfmark_width (HyScanMarkLocation  *location)
 {
@@ -1238,9 +1276,8 @@ hyscan_gtk_mark_export_save_as_html (HyScanModelManager *model_manager,
                                                    (GDestroyNotify) hyscan_mark_geo_free);
           for (i = 0; geo_mark_list[i] != NULL; i++)
             {
-              HyScanMarkGeo *geo_mark = NULL;
-              /* Получаем гео-метку из базы данных по идентификатору. */
-              geo_mark = (HyScanMarkGeo*)hyscan_object_model_get_id (geo_mark_model, geo_mark_list[i]);
+              HyScanMarkGeo *geo_mark = (HyScanMarkGeo*)hyscan_object_model_get_id (geo_mark_model,
+                                                                                    geo_mark_list[i]);
               if (geo_mark != NULL)
                 {
                   g_hash_table_insert (data->geo_marks,
