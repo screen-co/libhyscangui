@@ -1,8 +1,57 @@
-/*
- * hyscan-gtk-mark-manager-view.c
+/* hyscan-gtk-mark-manager-view.c
  *
- *  Created on: 16 янв. 2020 г.
- *      Author: Andrey Zakharov <zaharov@screen-co.ru>
+ * Copyright 2020 Screen LLC, Andrey Zakharov <zaharov@screen-co.ru>
+ *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-mark-manager-view
+ * @Short_description: Класс реализует представление Журнала Меток
+ * @Title: HyScanMarkManagerView
+ * @See_also: #HyScanMarkManager, #HyScanModelManager
+ *
+ * Класс #HyScanMarkManagerView реализует отображение данных в табличном
+ * и древовидном виде с группировкой по типам и группам.
+ *
+ * - hyscan_mark_manager_view_new () - создание нового представления;
+ * - hyscan_mark_manager_view_set_store () - установка модели с данными для отображения;
+ * - hyscan_mark_manager_view_expand_all () - развернуть все узлы древовидного представления;
+ * - hyscan_mark_manager_view_collapse_all () - cвернуть все узлы древовидного представления;
+ * - hyscan_mark_manager_view_unselect_all () - снимает выделение с объектов;
+ * - hyscan_mark_manager_view_toggle_all () - устанавливает состояние чек-бокса для всех объектов;
+ * - hyscan_mark_manager_view_expand_path () - разворачивает или сворачивает узел по заданному пути;
+ * - hyscan_mark_manager_view_get_toggled () - возвращает список идентификаторов объектов
+ * с активированным чек-боксом;
+ * - hyscan_mark_manager_view_select_item () - выделяет объект;
+ * - hyscan_mark_manager_view_find_item_by_id () - поиск объекта по идентификтору.
  */
 #include <hyscan-gtk-mark-manager-view.h>
 #include <hyscan-mark.h>
@@ -92,41 +141,41 @@ static void         hyscan_mark_manager_view_set_list_model       (HyScanMarkMan
 
 static void         hyscan_mark_manager_view_set_tree_model       (HyScanMarkManagerView *self);
 
-static void         remove_column                                 (gpointer               data,
+static void         hyscan_mark_manager_view_remove_column        (gpointer               data,
                                                                    gpointer               user_data);
 
-static void         macro_set_func_icon                           (GtkTreeViewColumn     *tree_column,
+static void         hyscan_mark_manager_view_set_func_icon        (GtkTreeViewColumn     *tree_column,
                                                                    GtkCellRenderer       *cell,
                                                                    GtkTreeModel          *model,
                                                                    GtkTreeIter           *iter,
                                                                    gpointer               data);
 
-static void         macro_set_func_toggle                         (GtkTreeViewColumn     *tree_column,
+static void         hyscan_mark_manager_view_set_func_toggle      (GtkTreeViewColumn     *tree_column,
                                                                    GtkCellRenderer       *cell,
                                                                    GtkTreeModel          *model,
                                                                    GtkTreeIter           *iter,
                                                                    gpointer               data);
 
-static void         macro_set_func_text                           (GtkTreeViewColumn     *tree_column,
+static void         hyscan_mark_manager_view_set_func_text        (GtkTreeViewColumn     *tree_column,
                                                                    GtkCellRenderer       *cell,
                                                                    GtkTreeModel          *model,
                                                                    GtkTreeIter           *iter,
                                                                    gpointer               data);
 
-static void         grab_focus                                    (GtkWidget             *widget,
+static void         hyscan_mark_manager_view_grab_focus           (GtkWidget             *widget,
                                                                    gpointer               user_data);
 
-static void         grab_focus_after                              (GtkWidget             *widget,
+static void         hyscan_mark_manager_view_grab_focus_after     (GtkWidget             *widget,
                                                                    gpointer               user_data);
 
-static gboolean     select_func (GtkTreeSelection *selection,
-                                 GtkTreeModel *model,
-                                 GtkTreePath *path,
-                                 gboolean path_currently_selected,
-                                 gpointer data);
+static gboolean     hyscan_mark_manager_view_select_func          (GtkTreeSelection      *selection,
+                                                                   GtkTreeModel          *model,
+                                                                   GtkTreePath           *path,
+                                                                   gboolean               path_currently_selected,
+                                                                   gpointer               data);
 
-static void         on_show (GtkWidget *widget,
-                             gpointer   user_data);
+static void         hyscan_mark_manager_view_on_show              (GtkWidget             *widget,
+                                                                   gpointer               user_data);
 
 static guint      hyscan_mark_manager_view_signals[SIGNAL_LAST] = { 0 };
 
@@ -203,6 +252,7 @@ hyscan_mark_manager_view_init (HyScanMarkManagerView *self)
   /* Костыль для снятия выделния по умолчанию. */
   self->priv->focus_start = TRUE;
 }
+
 void
 hyscan_mark_manager_view_set_property (GObject      *object,
                                        guint         prop_id,
@@ -216,17 +266,11 @@ hyscan_mark_manager_view_set_property (GObject      *object,
     {
       /* Модель представления данных. */
       case PROP_STORE:
-        {
-          priv->store = g_value_dup_object (value);
-          /* Увеличиваем счётчик ссылок на базу данных. */
-          /*g_object_ref (priv->store);*/
-        }
+        priv->store = g_value_dup_object (value);
         break;
       /* Что-то ещё... */
       default:
-        {
-          G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-        }
+        G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
         break;
     }
 }
@@ -267,17 +311,18 @@ hyscan_mark_manager_view_constructed (GObject *object)
   /* Обработчик показа виджета.
    * Устанваливает фокус первый раз для правильной работы при последующих вызовах. */
   g_signal_connect_after (G_OBJECT (priv->tree_view), "show",
-                          G_CALLBACK (on_show), self);
+                          G_CALLBACK (hyscan_mark_manager_view_on_show), self);
   /* В обработчике получения фокуса сохраняется итератор выделенного объекта. */
   g_signal_connect (G_OBJECT (priv->tree_view), "grab-focus",
-                    G_CALLBACK (grab_focus), self);
+                    G_CALLBACK (hyscan_mark_manager_view_grab_focus), self);
   /* В пост-обработчике получения фокуса выделяются объект по ранее сохранённому итератору. */
   g_signal_connect_after (G_OBJECT (priv->tree_view), "grab-focus",
-                          G_CALLBACK (grab_focus_after), self);
+                          G_CALLBACK (hyscan_mark_manager_view_grab_focus_after), self);
   /* * * * * * * * * * * * * * * * * * * * * * * */
   /* Костыль для правильного выделения объектов. */
   /* * * * * * * * * * * * * * * * * * * * * * * */
 }
+
 /* Деструктор. */
 void
 hyscan_mark_manager_view_finalize (GObject *object)
@@ -287,6 +332,7 @@ hyscan_mark_manager_view_finalize (GObject *object)
 
   /* Освобождаем ресурсы. */
   g_object_unref (priv->store);
+  priv->store = NULL;
 
   G_OBJECT_CLASS (hyscan_mark_manager_view_parent_class)->finalize (object);
 }
@@ -311,7 +357,7 @@ hyscan_mark_manager_view_update (HyScanMarkManagerView *self)
           selection = gtk_tree_view_get_selection (priv->tree_view);
 
           gtk_tree_selection_set_select_function (selection,
-                                                  select_func,
+                                                  hyscan_mark_manager_view_select_func,
                                                   self,
                                                   NULL);
           /* Соединяем сигнал изменения выбранных элементов с функцией-обработчиком. */
@@ -337,7 +383,7 @@ hyscan_mark_manager_view_update (HyScanMarkManagerView *self)
           selection = gtk_tree_view_get_selection (priv->tree_view);
 
           gtk_tree_selection_set_select_function (selection,
-                                                  select_func,
+                                                  hyscan_mark_manager_view_select_func,
                                                   self,
                                                   NULL);
           /* Соединяем сигнал изменения выбранных элементов с функцией-обработчиком. */
@@ -383,6 +429,7 @@ hyscan_mark_manager_view_emit_selected (GtkTreeSelection      *selection,
           if (id != NULL && 0 != g_strcmp0 (id, ""))
             {
               g_signal_emit (self, hyscan_mark_manager_view_signals[SIGNAL_SELECTED], 0, id);
+              g_free (id);
             }
         }
     }
@@ -439,9 +486,9 @@ hyscan_gtk_mark_manager_view_toggle (HyScanMarkManagerView *self,
                       -1);
 
   if (GTK_IS_TREE_STORE (model))
-    gtk_tree_store_set(GTK_TREE_STORE(model), iter, COLUMN_ACTIVE, active, -1);
+    gtk_tree_store_set (GTK_TREE_STORE (model), iter, COLUMN_ACTIVE, active, -1);
   else if (GTK_IS_LIST_STORE (model))
-    gtk_list_store_set(GTK_LIST_STORE(model), iter, COLUMN_ACTIVE, active, -1);
+    gtk_list_store_set (GTK_LIST_STORE (model), iter, COLUMN_ACTIVE, active, -1);
   else
     return;
 
@@ -449,7 +496,6 @@ hyscan_gtk_mark_manager_view_toggle (HyScanMarkManagerView *self,
     {
       /* Отправляем сигнал об изменении состояния чек-бокса. */
       g_signal_emit (self, hyscan_mark_manager_view_signals[SIGNAL_TOGGLED], 0, id, active);
-
       g_free (id);
     }
   /* Если есть дочерние объекты. */
@@ -503,7 +549,7 @@ hyscan_gtk_mark_manager_view_toggle_parent (HyScanMarkManagerView *self,
           gtk_tree_model_get (model,         &parent_iter,
                               COLUMN_ID,     &id,
                               -1);
-          gtk_tree_store_set(GTK_TREE_STORE(model), &parent_iter, COLUMN_ACTIVE, flag, -1);
+          gtk_tree_store_set (GTK_TREE_STORE (model), &parent_iter, COLUMN_ACTIVE, flag, -1);
 
           if (id != NULL)
             {
@@ -581,7 +627,6 @@ hyscan_mark_manager_view_item_expanded (GtkTreeView *tree_view,
 {
   HyScanMarkManagerView *self = HYSCAN_MARK_MANAGER_VIEW (user_data);
   GtkTreeModel *model = gtk_tree_view_get_model (tree_view);
-  GtkTreeSelection *selection = gtk_tree_view_get_selection (tree_view);
   gchar *id = NULL;
 
   g_return_if_fail (HYSCAN_IS_MARK_MANAGER_VIEW (self));
@@ -594,7 +639,6 @@ hyscan_mark_manager_view_item_expanded (GtkTreeView *tree_view,
     {
       /* Отправляем сигнал о разворачивании узла древовидного представления. */
       g_signal_emit (self, hyscan_mark_manager_view_signals[SIGNAL_EXPANDED], 0, id, TRUE);
-
       g_free (id);
     }
 }
@@ -620,7 +664,6 @@ hyscan_mark_manager_view_item_collapsed (GtkTreeView *tree_view,
     {
       /* Отправляем сигнал о разворачивании узла древовидного представления. */
       g_signal_emit (self, hyscan_mark_manager_view_signals[SIGNAL_EXPANDED], 0, id, FALSE);
-
       g_free (id);
     }
 }
@@ -630,14 +673,14 @@ void
 hyscan_mark_manager_view_set_list_model (HyScanMarkManagerView *self)
 {
   HyScanMarkManagerViewPrivate *priv = self->priv;
-  GtkTreeViewColumn *column          = gtk_tree_view_column_new();                  /* Колонка для картинки, чек-бокса и текста. */
+  GtkTreeViewColumn *column          = gtk_tree_view_column_new ();                 /* Колонка для картинки, чек-бокса и текста. */
   GtkCellRenderer   *renderer        = gtk_cell_renderer_text_new (),               /* Текст. */
-                    *icon_renderer   = gtk_cell_renderer_pixbuf_new(),              /* Картинка. */
-                    *toggle_renderer = gtk_cell_renderer_toggle_new();              /* Чек-бокс. */
+                    *icon_renderer   = gtk_cell_renderer_pixbuf_new (),             /* Картинка. */
+                    *toggle_renderer = gtk_cell_renderer_toggle_new ();             /* Чек-бокс. */
   GList             *list            = gtk_tree_view_get_columns (priv->tree_view); /* Список колонок. */
 
   /* Удаляем все колонки. */
-  g_list_foreach (list, remove_column, priv->tree_view);
+  g_list_foreach (list, hyscan_mark_manager_view_remove_column, priv->tree_view);
   /* Освобождаем список колонок. */
   g_list_free (list);
 
@@ -648,11 +691,11 @@ hyscan_mark_manager_view_set_list_model (HyScanMarkManagerView *self)
                     self);
 
   /* Заголовок колонки. */
-  gtk_tree_view_column_set_title(column, "Name");
+  gtk_tree_view_column_set_title (column, _("Name"));
   /* Подключаем функцию для отрисовки чек-бокса.*/
   gtk_tree_view_column_set_cell_data_func (column,
                                            toggle_renderer,
-                                           macro_set_func_toggle,
+                                           hyscan_mark_manager_view_set_func_toggle,
                                            NULL,
                                            NULL);
   /* Добавляем чек-бокс. */
@@ -660,7 +703,7 @@ hyscan_mark_manager_view_set_list_model (HyScanMarkManagerView *self)
   /* Подключаем функцию для отрисовки картинки.*/
   gtk_tree_view_column_set_cell_data_func (column,
                                            icon_renderer,
-                                           macro_set_func_icon,
+                                           hyscan_mark_manager_view_set_func_icon,
                                            NULL,
                                            NULL);
   /* Добавляем картинку.*/
@@ -668,7 +711,7 @@ hyscan_mark_manager_view_set_list_model (HyScanMarkManagerView *self)
   /* Подключаем функцию для отрисовки текста.*/
   gtk_tree_view_column_set_cell_data_func (column,
                                            renderer,
-                                           macro_set_func_text,
+                                           hyscan_mark_manager_view_set_func_text,
                                            NULL,
                                            NULL);
   /* Добавляем текст. */
@@ -678,44 +721,37 @@ hyscan_mark_manager_view_set_list_model (HyScanMarkManagerView *self)
 
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
                                                COLUMN_DESCRIPTION,
-                                               "Description", renderer,
+                                               _("Description"), renderer,
                                                "text", COLUMN_DESCRIPTION,
                                                NULL);
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
                                                COLUMN_OPERATOR,
-                                               "Operator name", renderer,
+                                               _("Operator name"), renderer,
                                                "text", COLUMN_OPERATOR,
                                                NULL);
-/*
-  gtk_tree_view_insert_column_with_attributes (list_view,
-                                               COLUMN_LABEL,
-                                               "Label", renderer,
-                                               "text", COLUMN_LABEL,
-                                               NULL);
-*/
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
                                                COLUMN_CTIME,
-                                               "Created", renderer,
+                                               _("Created"), renderer,
                                                "text", COLUMN_CTIME,
                                                NULL);
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
                                                COLUMN_MTIME,
-                                               "Modified", renderer,
+                                               _("Modified"), renderer,
                                                "text", COLUMN_MTIME,
                                                NULL);
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
                                                COLUMN_LOCATION,
-                                               "Location (WGS 84)", renderer,
+                                               _("Location (WGS 84)"), renderer,
                                                "text", COLUMN_LOCATION,
                                                NULL);
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
                                                COLUMN_TRACK_NAME,
-                                               "Track name", renderer,
+                                               _("Track name"), renderer,
                                                "text", COLUMN_TRACK_NAME,
                                                NULL);
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
                                                COLUMN_BOARD,
-                                               "Board", renderer,
+                                               _("Board"), renderer,
                                                "text", COLUMN_BOARD,
                                                NULL);
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
@@ -725,12 +761,12 @@ hyscan_mark_manager_view_set_list_model (HyScanMarkManagerView *self)
                                                NULL);
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
                                                COLUMN_WIDTH,
-                                               "Width", renderer,
+                                               _("Width"), renderer,
                                                "text", COLUMN_WIDTH,
                                                NULL);
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
                                                COLUMN_SLANT_RANGE,
-                                               "Slant range", renderer,
+                                               _("Slant range"), renderer,
                                                "text", COLUMN_SLANT_RANGE,
                                                NULL);
   /* Показать заголовки. */
@@ -744,14 +780,14 @@ void
 hyscan_mark_manager_view_set_tree_model (HyScanMarkManagerView *self)
 {
   HyScanMarkManagerViewPrivate *priv = self->priv;
-  GtkTreeViewColumn *column          = gtk_tree_view_column_new();                  /* Колонка для ViewItem-а. */
+  GtkTreeViewColumn *column          = gtk_tree_view_column_new ();                 /* Колонка для ViewItem-а. */
   GtkCellRenderer   *renderer        = gtk_cell_renderer_text_new (),               /* Текст. */
-                    *icon_renderer   = gtk_cell_renderer_pixbuf_new(),              /* Картинка. */
-                    *toggle_renderer = gtk_cell_renderer_toggle_new();              /* Чек-бокс. */
+                    *icon_renderer   = gtk_cell_renderer_pixbuf_new (),             /* Картинка. */
+                    *toggle_renderer = gtk_cell_renderer_toggle_new ();             /* Чек-бокс. */
   GList             *list            = gtk_tree_view_get_columns (priv->tree_view); /* Список колонок. */
 
   /* Удаляем все колонки. */
-  g_list_foreach (list, remove_column, priv->tree_view);
+  g_list_foreach (list, hyscan_mark_manager_view_remove_column, priv->tree_view);
   /* Освобождаем список колонок. */
   g_list_free (list);
 
@@ -762,11 +798,11 @@ hyscan_mark_manager_view_set_tree_model (HyScanMarkManagerView *self)
                     self);
 
   /* Заголовок колонки. */
-  gtk_tree_view_column_set_title(column, "Objects");
+  gtk_tree_view_column_set_title (column, _("Objects"));
   /* Подключаем функцию для отрисовки чек-бокса.*/
   gtk_tree_view_column_set_cell_data_func (column,
                                            toggle_renderer,
-                                           macro_set_func_toggle,
+                                           hyscan_mark_manager_view_set_func_toggle,
                                            NULL,
                                            NULL);
   /* Добавляем чек-бокс. */
@@ -774,14 +810,14 @@ hyscan_mark_manager_view_set_tree_model (HyScanMarkManagerView *self)
   /* Подключаем функцию для отрисовки картинки.*/
   gtk_tree_view_column_set_cell_data_func (column,
                                            icon_renderer,
-                                           macro_set_func_icon,
+                                           hyscan_mark_manager_view_set_func_icon,
                                            NULL,
                                            NULL);
   /* Добавляем картинку.*/
   gtk_tree_view_column_pack_start (column, icon_renderer, FALSE);
   gtk_tree_view_column_set_cell_data_func (column,
                                            renderer,
-                                           macro_set_func_text,
+                                           hyscan_mark_manager_view_set_func_text,
                                            NULL,
                                            NULL);
   /* Добавляем текст. */
@@ -790,13 +826,6 @@ hyscan_mark_manager_view_set_tree_model (HyScanMarkManagerView *self)
   gtk_tree_view_append_column (priv->tree_view, column);
   /* Связываем с колонкой, определяющей видимость. */
   gtk_tree_view_column_add_attribute (column, toggle_renderer, "visible", COLUMN_VISIBLE);
-/*
-  gtk_tree_view_insert_column_with_attributes (tree_view,
-                                               COLUMN_TYPE,
-                                               "Objects", renderer,
-                                               "text", COLUMN_NAME,
-                                               NULL);
-*/
   /* Скрыть заголовки. */
   gtk_tree_view_set_headers_visible (priv->tree_view, FALSE);
   /* Показывать ветви линиями. */
@@ -808,8 +837,8 @@ hyscan_mark_manager_view_set_tree_model (HyScanMarkManagerView *self)
 
 /* Функция удаляет колонку из представления. */
 void
-remove_column (gpointer data,
-               gpointer user_data)
+hyscan_mark_manager_view_remove_column (gpointer data,
+                                        gpointer user_data)
 {
   GtkTreeViewColumn *column = GTK_TREE_VIEW_COLUMN (data);
   GtkTreeView *tree_view    = GTK_TREE_VIEW (user_data);
@@ -818,11 +847,11 @@ remove_column (gpointer data,
 
 /* Отображение картинки. */
 void
-macro_set_func_icon (GtkTreeViewColumn *tree_column,
-                     GtkCellRenderer   *cell,
-                     GtkTreeModel      *model,
-                     GtkTreeIter       *iter,
-                     gpointer           data)
+hyscan_mark_manager_view_set_func_icon (GtkTreeViewColumn *tree_column,
+                                        GtkCellRenderer   *cell,
+                                        GtkTreeModel      *model,
+                                        GtkTreeIter       *iter,
+                                        gpointer           data)
 {
   gchar *icon_name = NULL;
   gtk_tree_model_get (model, iter, COLUMN_ICON,  &icon_name, -1);
@@ -833,24 +862,23 @@ macro_set_func_icon (GtkTreeViewColumn *tree_column,
 
 /* Отображение чек-бокса. */
 void
-macro_set_func_toggle (GtkTreeViewColumn *tree_column,
-                       GtkCellRenderer   *cell,
-                       GtkTreeModel      *model,
-                       GtkTreeIter       *iter,
-                       gpointer           data)
+hyscan_mark_manager_view_set_func_toggle (GtkTreeViewColumn *tree_column,
+                                          GtkCellRenderer   *cell,
+                                          GtkTreeModel      *model,
+                                          GtkTreeIter       *iter,
+                                          gpointer           data)
 {
   gboolean active;
   gtk_tree_model_get (model, iter, COLUMN_ACTIVE, &active, -1);
-  /*g_object_set (GTK_CELL_RENDERER (cell), "active", active, NULL);*/
   gtk_cell_renderer_toggle_set_active (GTK_CELL_RENDERER_TOGGLE (cell), active);
 }
 /* Отображение названия. */
 void
-macro_set_func_text (GtkTreeViewColumn *tree_column,
-                     GtkCellRenderer   *cell,
-                     GtkTreeModel      *model,
-                     GtkTreeIter       *iter,
-                     gpointer           data)
+hyscan_mark_manager_view_set_func_text (GtkTreeViewColumn *tree_column,
+                                        GtkCellRenderer   *cell,
+                                        GtkTreeModel      *model,
+                                        GtkTreeIter       *iter,
+                                        gpointer           data)
 {
   gchar *str = NULL;
   /* Отображаются текстовые данные из поля COLUMN_NAME. */
@@ -864,8 +892,8 @@ macro_set_func_text (GtkTreeViewColumn *tree_column,
  * Сохраняет список выделенных объектов.
  * */
 void
-grab_focus (GtkWidget *widget,
-            gpointer   user_data)
+hyscan_mark_manager_view_grab_focus (GtkWidget *widget,
+                                     gpointer   user_data)
 {
   HyScanMarkManagerView *self;
   HyScanMarkManagerViewPrivate *priv;
@@ -887,12 +915,12 @@ grab_focus (GtkWidget *widget,
     priv->has_selected = TRUE;
 }
 
-/* Обработчик, вызываюшися после #grab_focus ().
+/* Обработчик, вызываюшися после #hyscan_mark_manager_view_grab_focus ().
  * Выделяет объекты в соответствии с ранее сохранённым списком.
  * */
 void
-grab_focus_after (GtkWidget *widget,
-                  gpointer   user_data)
+hyscan_mark_manager_view_grab_focus_after (GtkWidget *widget,
+                                           gpointer   user_data)
 {
   HyScanMarkManagerView *self;
   HyScanMarkManagerViewPrivate *priv;
@@ -922,13 +950,13 @@ grab_focus_after (GtkWidget *widget,
     }
 }
 
-/**/
+/* Обработчик выделения объекта. */
 gboolean
-select_func (GtkTreeSelection *selection,
-             GtkTreeModel *model,
-             GtkTreePath *path,
-             gboolean path_currently_selected,
-             gpointer data)
+hyscan_mark_manager_view_select_func (GtkTreeSelection *selection,
+                                      GtkTreeModel     *model,
+                                      GtkTreePath      *path,
+                                      gboolean          path_currently_selected,
+                                      gpointer          data)
 {
   HyScanMarkManagerView *self;
   HyScanMarkManagerViewPrivate *priv;
@@ -953,25 +981,12 @@ select_func (GtkTreeSelection *selection,
 
 /* Установка фокуса для снятия выделения по умолчанию. */
 void
-on_show (GtkWidget *widget,
-         gpointer   user_data)
+hyscan_mark_manager_view_on_show (GtkWidget *widget,
+                                  gpointer   user_data)
 {
   /* Возможно, чтобы не обрабатывать сигналы о фокусе,
    * нужно проверить получение фокуса первый раз и здесь. */
   gtk_widget_grab_focus (widget);
-}
-
-/**
- * hyscan_mark_manager_view_get_selection:
- * @self: указатель на структуру #HyScanMarkManagerView
- *
- * Returns: указатель на объект выбора.
- */
-GtkTreeSelection*
-hyscan_mark_manager_view_get_selection (HyScanMarkManagerView *self)
-{
-  HyScanMarkManagerViewPrivate *priv = self->priv;
-  return gtk_tree_view_get_selection (priv->tree_view);
 }
 
 /**
@@ -1009,29 +1024,18 @@ hyscan_mark_manager_view_collapse_all (HyScanMarkManagerView *self)
 }
 
 /**
- * hyscan_mark_manager_view_select_all:
+ * hyscan_mark_manager_view_unselect_all:
  * @self: указатель на структуру #HyScanMarkManagerView
- * @flag: TRUE - выделяет все объекты,
- *        FALSE - снимает выделение со всех объектов
  *
- * Выделяет все объекты или снимает выделение со всех объектов.
+ * Cнимает выделение со всех объектов.
  */
 void
-hyscan_mark_manager_view_select_all (HyScanMarkManagerView *self,
-                                     gboolean               flag)
+hyscan_mark_manager_view_unselect_all (HyScanMarkManagerView *self)
 {
   HyScanMarkManagerViewPrivate *priv = self->priv;
   GtkTreeSelection *selection = gtk_tree_view_get_selection (priv->tree_view);
 
-  if (flag)
-    {
-      gtk_tree_selection_select_all (selection);
-      g_signal_emit (self, hyscan_mark_manager_view_signals[SIGNAL_SELECTED], 0, selection);
-    }
-  else
-    {
-      gtk_tree_selection_unselect_all (selection);
-    }
+  gtk_tree_selection_unselect_all (selection);
 }
 
 /**
@@ -1114,6 +1118,7 @@ hyscan_mark_manager_view_expand_path (HyScanMarkManagerView *self,
 /**
  * hyscan_mark_manager_view_get_toggled:
  * @self: указатель на структуру #HyScanMarkManagerView
+ * @type: тип объекта
  *
  * Returns: возвращает список идентификаторов объектов
  * с активированным чек-боксом. Тип объекта определяется
@@ -1155,9 +1160,12 @@ hyscan_mark_manager_view_get_toggled (HyScanMarkManagerView *self,
                   list[i++] = g_strdup (id);
                   list[i++] = NULL;
                 }
+              if (id != NULL)
+                g_free (id);
             }
           while (gtk_tree_model_iter_next (priv->store, &iter));
         }
+      gtk_tree_path_free (path);
     }
   else if (GTK_IS_TREE_STORE (priv->store))
     {
@@ -1181,9 +1189,12 @@ hyscan_mark_manager_view_get_toggled (HyScanMarkManagerView *self,
                   list[i++] = g_strdup (id);
                   list[i++] = NULL;
                 }
+              if (id != NULL)
+                g_free (id);
             }
           while (gtk_tree_model_iter_next (priv->store, &iter));
         }
+      gtk_tree_path_free (path);
     }
 
   return list;
@@ -1206,7 +1217,7 @@ hyscan_mark_manager_view_new (GtkTreeModel *store)
 /**
  * hyscan_mark_manager_view_set_store:
  * @self: указатель на структуру #HyScanMarkManagerView
- * @model: модель представления данных
+ * @model: указатель на модель с данными
  *
  * Устанавливает модель представления данных. */
 void
@@ -1215,22 +1226,25 @@ hyscan_mark_manager_view_set_store (HyScanMarkManagerView *self,
 {
   HyScanMarkManagerViewPrivate *priv = self->priv;
 
-  /*g_mutex_lock (&priv->mutex);*/
+  if (priv->store != store)
+    {
+      priv->store = g_object_ref (store);
 
-  priv->store = store;
-  if (GTK_IS_TREE_STORE (priv->store))
-    hyscan_mark_manager_view_set_tree_model (self);
-  else if (GTK_IS_LIST_STORE (priv->store))
-    hyscan_mark_manager_view_set_list_model (self);
-  hyscan_mark_manager_view_update (self);
+      if (GTK_IS_TREE_STORE (priv->store))
+        hyscan_mark_manager_view_set_tree_model (self);
+      else if (GTK_IS_LIST_STORE (priv->store))
+        hyscan_mark_manager_view_set_list_model (self);
+
+      hyscan_mark_manager_view_update (self);
+    }
 }
 
 /**
  * hyscan_mark_manager_view_select_item:
  * @self: указатель на структуру #HyScanMarkManagerView
- * @selection: указатель на список выделенных объектов.
+ * @id: идентификатор выделенного объекта.
  *
- * Устанавливает выделенные объекты.
+ * Выделяет объект.
  */
 void
 hyscan_mark_manager_view_select_item (HyScanMarkManagerView *self,
@@ -1244,10 +1258,11 @@ hyscan_mark_manager_view_select_item (HyScanMarkManagerView *self,
   if (priv->signal_selected != 0 && selection != NULL)
     {
       GtkTreeIter iter;
-      GtkTreePath *path = NULL;
 
-      if (gtk_tree_model_get_iter_first(model, &iter))
+      if (gtk_tree_model_get_iter_first (model, &iter))
         {
+          GtkTreePath *path;
+
           do
             {
               if (hyscan_mark_manager_view_find_item_by_id (model, &iter, id))
@@ -1266,6 +1281,7 @@ hyscan_mark_manager_view_select_item (HyScanMarkManagerView *self,
           path = gtk_tree_model_get_path (model, &iter);
           gtk_tree_path_up (path);
           gtk_tree_view_expand_to_path (priv->tree_view, path);
+          gtk_tree_path_free (path);
           /* Отключаем сигнал о выделении. */
           g_signal_handler_block (G_OBJECT (selection), priv->signal_selected);
           /* Снимаем выделение со всего списка. */
@@ -1280,9 +1296,13 @@ hyscan_mark_manager_view_select_item (HyScanMarkManagerView *self,
 
 /**
  * hyscan_mark_manager_view_find_item_by_id:
+ * @model: указатель на модель с данными
+ * @iter: указатель на итератор
+ * @id: идентификатор
  *
  * Функция для рекурсивного обхода модели и поиска записи по заданному идентификтору.
- * Если запись найдена, то копирует итератор в iter и возвращает TRUE.
+ * Returns: TRUE - если объект найден, то копирует итератор в iter;
+ *          FALSE - объект не найден.
  */
 gboolean
 hyscan_mark_manager_view_find_item_by_id (GtkTreeModel *model,
@@ -1298,7 +1318,11 @@ hyscan_mark_manager_view_find_item_by_id (GtkTreeModel *model,
   if (str == NULL)
     return FALSE;
   if (0 == g_strcmp0 (id, str))
-    return TRUE;
+    {
+      g_free (str);
+      return TRUE;
+    }
+  g_free (str);
 
   if (gtk_tree_model_iter_children (model, &child_iter, iter))
     {

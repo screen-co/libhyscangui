@@ -179,7 +179,7 @@ hyscan_mark_manager_change_label_dialog_constructed (GObject *object)
                                                   G_TYPE_STRING,   /* Дата и время создания. */
                                                   G_TYPE_STRING);  /* Дата и время изменения. */
       /* Получаем тему для иконок. */
-      GtkIconTheme *icon_theme = gtk_icon_theme_get_default();
+      GtkIconTheme *icon_theme = gtk_icon_theme_get_default ();
       HyScanLabel  *object;
       gchar *id;  /* Идентификатор для обхода хэш-таблиц (ключ). */
 
@@ -235,8 +235,8 @@ hyscan_mark_manager_change_label_dialog_constructed (GObject *object)
       if (priv->tree_view != NULL)
         {
           GtkWidget         *scroll        = gtk_scrolled_window_new (NULL, NULL);
-          GtkCellRenderer   *renderer      = gtk_cell_renderer_text_new (),  /* Текст. */
-                            *icon_renderer = gtk_cell_renderer_pixbuf_new(); /* Картинка. */
+          GtkCellRenderer   *renderer      = gtk_cell_renderer_text_new (),   /* Текст. */
+                            *icon_renderer = gtk_cell_renderer_pixbuf_new (); /* Картинка. */
           GtkTreeView       *tree_view     = GTK_TREE_VIEW (priv->tree_view);
           /* Колонка с иконками. */
           gtk_tree_view_insert_column_with_attributes (tree_view,

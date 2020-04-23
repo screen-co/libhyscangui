@@ -932,7 +932,7 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
 
               name = (geo_mark->name == NULL ||
                       0 == g_strcmp0 (geo_mark->name, "")) ?
-                      g_strdup (_(unknown)) : g_strdup(geo_mark->name);
+                      g_strdup (_(unknown)) : g_strdup (geo_mark->name);
 
               description = (geo_mark->description != NULL ||
                              0 == g_strcmp0 (geo_mark->description, "")) ?

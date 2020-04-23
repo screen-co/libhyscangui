@@ -221,9 +221,9 @@ hyscan_mark_manager_create_label_dialog_constructed (GObject *object)
                     G_CALLBACK (hyscan_mark_manager_create_label_dialog_check_entry),
                     self);
   /* Получаем тему. */
-  icon_theme = gtk_icon_theme_get_default();
+  icon_theme = gtk_icon_theme_get_default ();
   /* Получаем список иконок. */
-  images = gtk_icon_theme_list_icons(icon_theme, NULL);
+  images = gtk_icon_theme_list_icons (icon_theme, NULL);
   /* Заполняем IconView иконками из темы. */
   if (images != NULL)
     {
@@ -262,7 +262,7 @@ hyscan_mark_manager_create_label_dialog_constructed (GObject *object)
 
       g_list_free (images);
         /* Создаём IconView с моделью заполненой данными. */
-      priv->icon_view = gtk_icon_view_new_with_model(priv->icon_model);
+      priv->icon_view = gtk_icon_view_new_with_model (priv->icon_model);
     }
 
   if (priv->icon_view != NULL)
@@ -283,7 +283,7 @@ hyscan_mark_manager_create_label_dialog_constructed (GObject *object)
       /* Выделяем первую иконку. */
       gtk_icon_view_select_path (view, gtk_tree_path_new_first ());
       /* Виджет для выбора иконки в GtkScrolledWindow.*/
-      gtk_container_add(GTK_CONTAINER(scroll), priv->icon_view);
+      gtk_container_add (GTK_CONTAINER (scroll), priv->icon_view);
       /* Добавляем метку "Выбрать иконку". */
       gtk_box_pack_start (GTK_BOX (priv->content), gtk_label_new ("Choose icon"), FALSE, TRUE, 10);
       /* Помещаем GtkScrolledWindow в диалог. */

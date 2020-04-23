@@ -1,34 +1,49 @@
-/*
- * hyscan-gtk-mark-manager.c
+/* hyscan-gtk-mark-manager.c
  *
- *  Created on: 14 янв. 2020 г.
- *      Author: Andrey Zakharov <zaharov@screen-co.ru>
+ * Copyright 2020 Screen LLC, Andrey Zakharov <zaharov@screen-co.ru>
  *
- * В hyscancore/hyscan-core-schemas.h добавлено:
- * #define LABEL_SCHEMA_ID                        5468681196977785233
- * #define LABEL_SCHEMA_VERSION                   20200113
- * и
- * #define LABEL_SCHEMA                           "label"
+ * This file is part of HyScanGui library.
  *
- * В базе данных (в файле project.prm/project.sch) добавлена схема label-ов :
- * <schema id="label">
- *  <node id="schema">
- *    <key id="id" name="Label schema id" type="integer" access="readonly">
- *      <default>5468681196977785233</default>
- *    </key>
- *    <key id="version" name="Label schema version" type="integer" access="readonly">
- *      <default>20200113</default>
- *    </key>
- *  </node>
- *  <key id="name" name="Group short name" type="string"/>
- *  <key id="description" name="Detailed description" type="string"/>
- *  <key id="operator" name="Operator name" type="string"/>
- *  <key id="label" name="Applied labels" type="integer"/>
- *  <key id="ctime" name="Creation date and time" type="integer"/>
- *  <key id="mtime" name="Modification date and time" type="integer"/>
- * </schema>
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- * Эту схему нужно добавить в hyscancore/project-schema.xml
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-mark-manager
+ * @Short_description: Класс реализует виджет Журнала Меток
+ * @Title: HyScanMarkManager
+ * @See_also: #HyScanMarkManagerView, #HyScanModelManager,
+ *            #HyScanMarkManagerCreateLabelDialog,
+ *            #HyScanMarkManagerChangeLabelDialog
+ *
+ * Виджет #HyScanMarkManager управляет представлением и реализует функции
+ * для работы с объектами Журнала Меток.
+ *
+ * - hyscan_mark_manager_new () - создание нового виджета.
  */
 
 #include <hyscan-gtk-mark-manager.h>
@@ -40,7 +55,7 @@
 
 enum
 {
-  PROP_MODEL_MANAGER = 1,   /* Менеджер Моделей. */
+  PROP_MODEL_MANAGER = 1, /* Менеджер Моделей. */
   N_PROPERTIES
 };
 
@@ -49,29 +64,29 @@ enum
 {
   CREATE_NEW_GROUP, /* Метка и подсказка для кноки "Создать новую группу". */
   DELETE_SELECTED,  /* Метка и подсказка для кноки "Удалить выделенное". */
-  SHOW_OR_HIDE,     /* Метка для меню управления видимостью . */
+  SHOW_OR_HIDE,     /* Метка для выпадающего меню. */
   GROUPING,         /* Подсказка для выпадающего списка выбора типа представления . */
 };
 
 /* Положение панели инструментов относительно виджета представления. */
 typedef enum
 {
-  TOOLBAR_LEFT,   /* Слева. */
-  TOOLBAR_RIGHT,  /* Справа. */
-  TOOLBAR_BOTTOM, /* Снизу.*/
-  TOOLBAR_TOP     /* Сверху. */
+  TOOLBAR_LEFT,     /* Слева. */
+  TOOLBAR_RIGHT,    /* Справа. */
+  TOOLBAR_BOTTOM,   /* Снизу.*/
+  TOOLBAR_TOP       /* Сверху. */
 }HyScanMarkManagerToolbarPosition;
 
-/* Флаги управления видимостью. */
-typedef enum
+/* Действия (пункты выпадающего меню). */
+enum
 {
-  EXPAND_ALL,    /* Развернуть все. */
-  COLLAPSE_ALL,  /* Свернуть все. */
-  TOGGLE_ALL,    /* Отметить все. */
-  UNTOGGLE_ALL,  /* Снять все отметки. */
-  CHANGE_LABEL,  /* Перенести в группу. */
-  SAVE_AS_HTML   /* Сохранить как HTML. */
-}HyScanMarkManagerViewVisibility;
+  EXPAND_ALL,       /* Развернуть все. */
+  COLLAPSE_ALL,     /* Свернуть все. */
+  TOGGLE_ALL,       /* Отметить все. */
+  UNTOGGLE_ALL,     /* Снять все отметки. */
+  CHANGE_LABEL,     /* Перенести в группу. */
+  SAVE_AS_HTML      /* Сохранить как HTML. */
+};
 
 struct _HyScanMarkManagerPrivate
 {
@@ -108,98 +123,98 @@ static gchar *tooltips_text[]  = {N_("Create new group"),
                                   N_("Actions"),
                                   N_("Grouping")};
 
-static void         hyscan_mark_manager_set_property              (GObject            *object,
-                                                                   guint               prop_id,
-                                                                   const GValue       *value,
-                                                                   GParamSpec         *pspec);
+static void         hyscan_mark_manager_set_property                (GObject            *object,
+                                                                     guint               prop_id,
+                                                                     const GValue       *value,
+                                                                     GParamSpec         *pspec);
 
-static void         hyscan_mark_manager_constructed               (GObject            *object);
+static void         hyscan_mark_manager_constructed                 (GObject            *object);
 
-static void         hyscan_mark_manager_finalize                  (GObject            *object);
+static void         hyscan_mark_manager_finalize                    (GObject            *object);
 
-static void         hyscan_mark_manager_create_new_label          (GtkToolItem        *item,
-                                                                   HyScanMarkManager  *self);
+static void         hyscan_mark_manager_create_new_label            (GtkToolItem        *item,
+                                                                     HyScanMarkManager  *self);
 
-static void         hyscan_mark_manager_release_new_label_dialog  (GtkWidget          *dialog,
-                                                                   gpointer            user_data);
+static void         hyscan_mark_manager_release_new_label_dialog    (GtkWidget          *dialog,
+                                                                     gpointer            user_data);
 
-static void         hyscan_mark_manager_set_grouping              (GtkComboBox        *combo,
-                                                                   HyScanMarkManager  *self);
+static void         hyscan_mark_manager_set_grouping                (GtkComboBox        *combo,
+                                                                     HyScanMarkManager  *self);
 
-static void         hyscan_mark_manager_delete_toggled            (GtkToolButton      *button,
-                                                                   HyScanMarkManager  *self);
+static void         hyscan_mark_manager_delete_toggled              (GtkToolButton      *button,
+                                                                     HyScanMarkManager  *self);
 
-static void         hyscan_mark_manager_expand_all                (GtkMenuItem        *item,
-                                                                   HyScanMarkManager  *self);
+static void         hyscan_mark_manager_expand_all                  (GtkMenuItem        *item,
+                                                                     HyScanMarkManager  *self);
 
-static void         hyscan_mark_manager_collapse_all              (GtkMenuItem        *item,
-                                                                   HyScanMarkManager  *self);
+static void         hyscan_mark_manager_collapse_all                (GtkMenuItem        *item,
+                                                                     HyScanMarkManager  *self);
 
-static void         hyscan_mark_manager_toggle_all                (GtkMenuItem        *item,
-                                                                   HyScanMarkManager  *self);
+static void         hyscan_mark_manager_toggle_all                  (GtkMenuItem        *item,
+                                                                     HyScanMarkManager  *self);
 
-static void         hyscan_mark_manager_untoggle_all              (GtkMenuItem        *item,
-                                                                   HyScanMarkManager  *self);
+static void         hyscan_mark_manager_untoggle_all                (GtkMenuItem        *item,
+                                                                     HyScanMarkManager  *self);
 
-static void         hyscan_mark_manager_toggled_items_change_label (GtkMenuItem       *item,
-                                                                    HyScanMarkManager *self);
+static void         hyscan_mark_manager_toggled_items_change_label  (GtkMenuItem        *item,
+                                                                     HyScanMarkManager  *self);
 
-static void         hyscan_mark_manager_release_change_label_dialog (GtkWidget *dialog,
-                                                                     gpointer   user_data);
+static void         hyscan_mark_manager_release_change_label_dialog (GtkWidget          *dialog,
+                                                                     gpointer            user_data);
 
-static void         hyscan_mark_manager_toggled_iteml_change_label (HyScanMarkManager  *self,
-                                                                    gchar              *id);
+static void         hyscan_mark_manager_toggled_iteml_change_label  (HyScanMarkManager  *self,
+                                                                     gchar              *id);
 
-static void         hyscan_mark_manager_item_selected             (HyScanMarkManager  *self,
-                                                                   gchar              *id);
+static void         hyscan_mark_manager_item_selected               (HyScanMarkManager  *self,
+                                                                     gchar              *id);
 
-static void         hyscan_mark_manager_select_item               (HyScanMarkManager  *self);
+static void         hyscan_mark_manager_select_item                 (HyScanMarkManager  *self);
 
-static void         hyscan_mark_manager_unselect                  (HyScanMarkManager  *self);
+static void         hyscan_mark_manager_unselect                    (HyScanMarkManager  *self);
 
-static void         hyscan_mark_manager_unselect_all              (HyScanMarkManager  *self);
+static void         hyscan_mark_manager_unselect_all                (HyScanMarkManager  *self);
 
-static void         hyscan_mark_manager_item_toggled              (HyScanMarkManager  *self,
-                                                                   gchar              *id,
-                                                                   gboolean            active);
+static void         hyscan_mark_manager_item_toggled                (HyScanMarkManager  *self,
+                                                                     gchar              *id,
+                                                                     gboolean            active);
 
-static void         hyscan_mark_manager_toggle_item               (HyScanMarkManager  *self);
+static void         hyscan_mark_manager_toggle_item                 (HyScanMarkManager  *self);
 
-static void         hyscan_mark_manager_view_scrolled_horizontal  (HyScanMarkManager  *self);
+static void         hyscan_mark_manager_view_scrolled_horizontal    (HyScanMarkManager  *self);
 
-static void         hyscan_mark_manager_view_scrolled_vertical    (HyScanMarkManager  *self);
+static void         hyscan_mark_manager_view_scrolled_vertical      (HyScanMarkManager  *self);
 
-static void         hyscan_mark_manager_grouping_changed          (HyScanMarkManager  *self);
+static void         hyscan_mark_manager_grouping_changed            (HyScanMarkManager  *self);
 
-static void         hyscan_mark_manager_view_model_updated        (HyScanMarkManager  *self);
+static void         hyscan_mark_manager_view_model_updated          (HyScanMarkManager  *self);
 
-static void         hyscan_mark_manager_scrolled_horizontal       (GtkAdjustment      *adjustment,
-                                                                   gpointer            user_data);
+static void         hyscan_mark_manager_scrolled_horizontal         (GtkAdjustment      *adjustment,
+                                                                     gpointer            user_data);
 
-static void         hyscan_mark_manager_scrolled_vertical         (GtkAdjustment      *adjustment,
-                                                                   gpointer            user_data);
+static void         hyscan_mark_manager_scrolled_vertical           (GtkAdjustment      *adjustment,
+                                                                     gpointer            user_data);
 
-static void         hyscan_mark_manager_item_expanded             (HyScanMarkManager  *self,
-                                                                   gchar              *id,
-                                                                   gboolean            expanded);
+static void         hyscan_mark_manager_item_expanded               (HyScanMarkManager  *self,
+                                                                     gchar              *id,
+                                                                     gboolean            expanded);
 
-static void         hyscan_mark_manager_expand_item               (HyScanMarkManager  *self);
+static void         hyscan_mark_manager_expand_item                 (HyScanMarkManager  *self);
 
-static void         hyscan_mark_manager_collapse_item             (HyScanMarkManager  *self);
+static void         hyscan_mark_manager_collapse_item               (HyScanMarkManager  *self);
 
-static void         hyscan_mark_manager_expand_current_item       (HyScanMarkManager  *self,
-                                                                   gboolean            expanded);
+static void         hyscan_mark_manager_expand_current_item         (HyScanMarkManager  *self,
+                                                                     gboolean            expanded);
 
-static void         hyscan_mark_manager_expand_items              (HyScanMarkManager  *self,
-                                                                   gboolean            expanded);
+static void         hyscan_mark_manager_expand_items                (HyScanMarkManager  *self,
+                                                                     gboolean            expanded);
 
-static void         hyscan_mark_manager_expand_all_items          (HyScanMarkManager  *self);
+static void         hyscan_mark_manager_expand_all_items            (HyScanMarkManager  *self);
 
-static GtkTreeIter* hyscan_mark_manager_find_item                 (GtkTreeModel       *model,
-                                                                   const gchar        *id);
+static GtkTreeIter* hyscan_mark_manager_find_item                   (GtkTreeModel       *model,
+                                                                     const gchar        *id);
 
-static void         hyscan_mark_manager_toggled_items_save_as_html (GtkMenuItem       *item,
-                                                                    HyScanMarkManager *self);
+static void         hyscan_mark_manager_toggled_items_save_as_html  (GtkMenuItem        *item,
+                                                                     HyScanMarkManager  *self);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanMarkManager, hyscan_mark_manager, GTK_TYPE_BOX)
 
@@ -247,18 +262,11 @@ hyscan_mark_manager_set_property (GObject      *object,
     {
       /* Менеджер моделей. */
       case PROP_MODEL_MANAGER:
-        {
-          /*priv->model_manager = g_value_get_object (value);*/
-          priv->model_manager = g_value_dup_object (value);
-          /* Увеличиваем счётчик ссылок на менеджер моделей. */
-          /*g_object_ref (priv->model_manager);*/
-        }
+        priv->model_manager = g_value_dup_object (value);
         break;
       /* Что-то ещё... */
       default:
-        {
-          G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-        }
+        G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
         break;
     }
 }
@@ -511,8 +519,9 @@ hyscan_mark_manager_finalize (GObject *object)
   HyScanMarkManager *self = HYSCAN_MARK_MANAGER (object);
   HyScanMarkManagerPrivate *priv = self->priv;
 
-  /*g_object_unref (priv->model_manager);
-  priv->model_manager = NULL;*/
+  /* Освобождаем ресурсы. */
+  g_object_unref (priv->model_manager);
+  priv->model_manager = NULL;
 
   G_OBJECT_CLASS (hyscan_mark_manager_parent_class)->finalize (object);
 }
@@ -532,10 +541,10 @@ hyscan_mark_manager_create_new_label (GtkToolItem       *item,
       priv->new_label_dialog = hyscan_mark_manager_create_label_dialog_new (parent,
                                                                             label_model);
       /* Подключаем сигналу закрытия диалога, чтобы обнулить указатель. */
-      g_signal_connect(priv->new_label_dialog,
-                       "destroy",
-                       G_CALLBACK (hyscan_mark_manager_release_new_label_dialog),
-                       self);
+      g_signal_connect (priv->new_label_dialog,
+                        "destroy",
+                        G_CALLBACK (hyscan_mark_manager_release_new_label_dialog),
+                        self);
       /* Освобождаем указатель на модель с данными о группах. */
       g_object_unref (label_model);
     }
@@ -744,10 +753,10 @@ hyscan_mark_manager_toggled_items_change_label (GtkMenuItem       *item,
       priv->change_label_dialog = hyscan_mark_manager_change_label_dialog_new (parent,
                                                                                label_model);
       /* Подключаем сигналу закрытия диалога, чтобы обнулить указатель. */
-      g_signal_connect(priv->change_label_dialog,
-                       "destroy",
-                       G_CALLBACK (hyscan_mark_manager_release_change_label_dialog),
-                       self);
+      g_signal_connect (priv->change_label_dialog,
+                        "destroy",
+                        G_CALLBACK (hyscan_mark_manager_release_change_label_dialog),
+                        self);
       /* Подключаем сигнал выбора группы. */
       g_signal_connect_swapped (priv->change_label_dialog,
                                 "change-label",
@@ -831,7 +840,7 @@ hyscan_mark_manager_unselect_all (HyScanMarkManager *self)
 {
   HyScanMarkManagerPrivate *priv = self->priv;
 
-  hyscan_mark_manager_view_select_all (HYSCAN_MARK_MANAGER_VIEW (priv->view), FALSE);
+  hyscan_mark_manager_view_unselect_all (HYSCAN_MARK_MANAGER_VIEW (priv->view));
 }
 
 /* Функция-обработчик изменения состояния чек-боксов в MarkManagerView. */
@@ -854,33 +863,13 @@ hyscan_mark_manager_toggle_item (HyScanMarkManager *self)
   ModelManagerObjectType type;
   gboolean has_toggled = hyscan_model_manager_has_toggled (priv->model_manager);
 
-  g_print ("***\n");
-
-  for (type = LABEL; type < TYPES; type++)
-    {
-      gchar **list = hyscan_model_manager_get_toggled_items (priv->model_manager, type);
-
-      if (list != NULL)
-        {
-          gint i;
-
-          for (i = 0; list[i] != NULL; i++)
-            {
-              g_print ("Item #%i: %s\n", i + 1, list[i]);
-            }
-
-          g_strfreev (list);
-        }
-    }
-
-  g_print ("***\n");
-
-  /* Переключаем состояние кнопки "Удалить выбранное." */
+  /* Переключаем состояние кнопки "Удалить выбранное". */
   gtk_widget_set_sensitive (priv->delete_icon, has_toggled);
+  /* Переключаем состояние кнопки "снять все отметки". */
   gtk_widget_set_sensitive (priv->untoggle_all_item, has_toggled);
-  /* Переключаем состояние кнопки "Перенести в группу." */
+  /* Переключаем состояние кнопки "Перенести в группу". */
   gtk_widget_set_sensitive (priv->change_label, has_toggled);
-  /* Переключаем состояние кнопки "Сохранить как HTML." */
+  /* Переключаем состояние кнопки "Сохранить как HTML". */
   gtk_widget_set_sensitive (priv->save_as_html, has_toggled);
 }
 

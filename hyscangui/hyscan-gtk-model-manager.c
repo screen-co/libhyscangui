@@ -1,9 +1,82 @@
-/*
- * hyscan-gtk-model-manager.c
+/* hyscan-gtk-model-manager.c
  *
- *  Created on: 12 фев. 2020 г.
- *      Author: Andrey Zakharov <zaharov@screen-co.ru>
+ * Copyright 2020 Screen LLC, Andrey Zakharov <zaharov@screen-co.ru>
+ *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
  */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-model-manager
+ * @Short_description: Класс реализует обмен данными между различными моделями
+ * и Журналом Меток, и выполняет функции с различными объктами.
+ * @Title: HyScanModelManager
+ * @See_also: #HyScanMarkManager, #HyScanMarkManagerView
+ *
+ * Класс #HyScanModelManager содержит данные из нескольких моделей и реализует общую
+ * модель для табличного или древовидного представления, и функции для работы с объектами
+ * и обмена данными. Виджет #HyScanMarkManager реализует представление данных общей
+ * модели и управление.
+ *
+ * - hyscan_mark_manager_view_new () - создание нового представления;
+ * - hyscan_model_manager_get_track_model () - модель данных с информацией о галсах;
+ * - hyscan_model_manager_get_acoustic_mark_model () - модель данных с информацией об акустических метках;
+ * - hyscan_model_manager_get_geo_mark_model () - модель данных с информацией о гео-метках;
+ * - hyscan_model_manager_get_label_model () - модель данных с информацией о группах;
+ * - hyscan_model_manager_get_acoustic_mark_loc_model - модель данных с информацией об акустических метках c координатами;
+ * - hyscan_model_manager_get_view_model () - модель представления данных для #HyScanMarkManager;
+ * - hyscan_model_manager_get_signal_title () - название сигнала Менеджера Моделей;
+ * - hyscan_model_manager_set_project_name () - смена названия проекта;
+ * - hyscan_model_manager_get_project_name () - название проекта;
+ * - hyscan_model_manager_get_export_folder () - директория для экспорта;
+ * - hyscan_model_manager_get_db () - база данных;
+ * - hyscan_model_manager_get_cache () - кэш;
+ * - hyscan_model_manager_get_all_tracks_id () - список всех галсов;
+ * - hyscan_model_manager_set_grouping () - установка типа группировки древовидного представления: по типам, по группам;
+ * - hyscan_model_manager_get_grouping () - тип группировки;
+ * - hyscan_model_manager_set_selected_item () - выделение объекта;
+ * - hyscan_model_manager_get_selected_item () - идентификатор выделенного объект;
+ * - hyscan_model_manager_get_selected_track () - идентификатор выделенного галса;
+ * - hyscan_model_manager_unselect_all () - снятие выделения;
+ * - hyscan_model_manager_set_horizontal_adjustment () - установка положения горизонтальной полосы прокрутки;
+ * - hyscan_model_manager_set_vertical_adjustment () -  установка положения вертикальной полосы прокрутки;
+ * - hyscan_model_manager_get_horizontal_adjustment () - текущее положение горизонтальной полосы прокрутки;
+ * - hyscan_model_manager_get_vertical_adjustment () - текущее положение вертикальной полосы прокрутки;
+ * - hyscan_model_manager_toggle_item () - установка состояния чек-бокса для объекта по идентификатору;
+ * - hyscan_model_manager_get_toggled_items () - список идентификаторов объектов с активированным чек-боксом;
+ * - hyscan_model_manager_expand_item () - установка состояния узла объекта по идентификатору;
+ * - hyscan_model_manager_get_current_id () - идентифифкатор объекта;
+ * - hyscan_model_manager_delete_toggled_items () - удаление объектов с активированным чек-боксом из базы данных;
+ * - hyscan_model_manager_has_toggled () - наличие объектов с активированным чек-боксом;
+ * - hyscan_model_manager_toggled_iteml_change_label () - перенос объектов с активированным чек-боксом в другую группу.
+ */
+
 #include <hyscan-gtk-model-manager.h>
 
 enum
@@ -44,7 +117,6 @@ struct _HyScanModelManagerPrivate
   ModelManagerGrouping  grouping;             /* Тип группировки. */
   Extension            *node[TYPES];          /* Информация для описания узлов для древовидного
                                                * представления с группировкой по типам. */
-  GtkTreeSelection     *selection;            /* Выделенные объекты. */
   GHashTable           *extensions[TYPES];    /* Массив таблиц с дополнительной информацией для всех типов объектов. */
   gdouble               horizontal,           /* Положение горизонтальной полосы прокрутки. */
                         vertical;             /* Положение вертикальной полосы прокрутки. */
@@ -2333,6 +2405,7 @@ hyscan_model_manager_extension_free (gpointer data)
  * @project_name: название проекта
  * @db: указатель на базу данных
  * @cache: указатель на кэш
+ * @export_folder: папка для экспорта
  *
  * Returns: cоздаёт новый объект #HyScanModelManager
  */
@@ -2448,6 +2521,13 @@ hyscan_model_manager_get_db (HyScanModelManager *self)
   return g_object_ref (priv->db);
 }
 
+/**
+ * hyscan_model_manager_set_project_name:
+ * @self: указатель на Менеджер Моделей
+ * @project_name: название проекта
+ *
+ * Устанавливает название проекта и отправляет сигнал "notify:project-name".
+ */
 void
 hyscan_model_manager_set_project_name (HyScanModelManager *self,
                                        const gchar        *project_name)
@@ -2593,8 +2673,8 @@ hyscan_model_manager_get_grouping (HyScanModelManager   *self)
  * hyscan_model_manager_get_view_model:
  * @self: указатель на Менеджер Моделей
  *
- * Returns: модель представления данных для #GtkTreeView. когда модель больше не нужна,
- * необходимо использовать #g_object_unref ().
+ * Returns: модель представления данных для #HyScanMarkManager.
+ * Когда модель больше не нужна, необходимо использовать #g_object_unref ().
  */
 GtkTreeModel*
 hyscan_model_manager_get_view_model (HyScanModelManager   *self)
@@ -2952,6 +3032,7 @@ hyscan_model_manager_delete_toggled_items (HyScanModelManager *self)
  * @self: указатель на Менеджер Моделей
  *
  * Проверка, есть ли выбранные объекты.
+ *
  * Returns: TRUE  - есть выбранные объекты,
  *          FALSE - нет выбранных объектов.
  */
