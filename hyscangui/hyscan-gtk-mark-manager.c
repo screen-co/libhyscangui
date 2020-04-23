@@ -68,15 +68,6 @@ enum
   GROUPING,         /* Подсказка для выпадающего списка выбора типа представления . */
 };
 
-/* Положение панели инструментов относительно виджета представления. */
-typedef enum
-{
-  TOOLBAR_LEFT,     /* Слева. */
-  TOOLBAR_RIGHT,    /* Справа. */
-  TOOLBAR_BOTTOM,   /* Снизу.*/
-  TOOLBAR_TOP       /* Сверху. */
-}HyScanMarkManagerToolbarPosition;
-
 /* Действия (пункты выпадающего меню). */
 enum
 {
@@ -87,6 +78,15 @@ enum
   CHANGE_LABEL,     /* Перенести в группу. */
   SAVE_AS_HTML      /* Сохранить как HTML. */
 };
+
+/* Положение панели инструментов относительно виджета представления. */
+typedef enum
+{
+  TOOLBAR_LEFT,     /* Слева. */
+  TOOLBAR_RIGHT,    /* Справа. */
+  TOOLBAR_BOTTOM,   /* Снизу.*/
+  TOOLBAR_TOP       /* Сверху. */
+}HyScanMarkManagerToolbarPosition;
 
 struct _HyScanMarkManagerPrivate
 {

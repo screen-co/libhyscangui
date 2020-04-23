@@ -91,17 +91,17 @@ enum
 /* Типы записей в модели. */
 typedef enum
 {
-  PARENT, /* Узел. */
-  CHILD,  /* Объект. */
-  ITEM    /* Атрибут объекта. */
+  PARENT,                   /* Узел. */
+  CHILD,                    /* Объект. */
+  ITEM                      /* Атрибут объекта. */
 } ExtensionType;
 
 /* Структура содержащая расширеную информацию об объектах. */
 typedef struct
 {
-  ExtensionType  type;     /* Тип записи. */
-  gboolean       active,   /* Состояние чек-бокса. */
-                 expanded; /* Развёрнут ли объект (для древовидного представления). */
+  ExtensionType  type;      /* Тип записи. */
+  gboolean       active,    /* Состояние чек-бокса. */
+                 expanded;  /* Развёрнут ли объект (для древовидного представления). */
 }Extension;
 
 struct _HyScanModelManagerPrivate
@@ -156,25 +156,25 @@ static gchar *author = "Default";
 static gchar *unknown = "Unknown";
 
 /* Стандартные картинки для типов объектов. */
-static gchar *icon_name[] = {"emblem-documents",            /* Группы. */
-                             "mark-location",               /* Гео-метки. */
-                             "emblem-photos",               /* Акустические метки. */
-                             "preferences-system-sharing"}; /* Галсы. */
+static gchar *icon_name[] =    {"emblem-documents",            /* Группы. */
+                                "mark-location",               /* Гео-метки. */
+                                "emblem-photos",               /* Акустические метки. */
+                                "preferences-system-sharing"}; /* Галсы. */
 /* Названия типов. */
-static gchar *type_name[] = {"Labels",                       /* Группы. */
-                             "Geo-marks",                    /* Гео-метки. */
-                             "Acoustic marks",               /* Акустические метки. */
-                             "Tracks"};                      /* Галсы. */
+static gchar *type_name[] =    {"Labels",                      /* Группы. */
+                                "Geo-marks",                   /* Гео-метки. */
+                                "Acoustic marks",              /* Акустические метки. */
+                                "Tracks"};                     /* Галсы. */
 /* Описания типов. */
-static gchar *type_desc[] = {"All labels",                   /* Группы. */
-                             "All geo-marks",                /* Гео-метки. */
-                             "All acoustic marks",           /* Акустические метки. */
-                             "All tracks"};                  /* Галсы. */
+static gchar *type_desc[] =    {"All labels",                  /* Группы. */
+                                "All geo-marks",               /* Гео-метки. */
+                                "All acoustic marks",          /* Акустические метки. */
+                                "All tracks"};                 /* Галсы. */
 /* Идентификаторы для узлов для древовидного представления с группировкой по типам. */
-static gchar *type_id[TYPES] = {"ID_NODE_LABEL",         /* Группы. */
-                                "ID_NODE_GEO_MARK",      /* Гео-метки.*/
-                                "ID_NODE_ACOUSTIC_MARK", /* Акустические метки. */
-                                "ID_NODE_TRACK"};        /* Галсы. */
+static gchar *type_id[TYPES] = {"ID_NODE_LABEL",               /* Группы. */
+                                "ID_NODE_GEO_MARK",            /* Гео-метки.*/
+                                "ID_NODE_ACOUSTIC_MARK",       /* Акустические метки. */
+                                "ID_NODE_TRACK"};              /* Галсы. */
 /* Cкорость движения при которой генерируются тайлы в Echosounder-е, но метка
  * сохраняется в базе данных без учёта этого коэфициента масштабирования. */
 static gdouble ship_speed = 10.0;
@@ -361,22 +361,18 @@ hyscan_model_manager_set_property (GObject      *object,
     case PROP_DB:
       {
         priv->db  = g_value_dup_object (value);
-        /* Увеличиваем счётчик ссылок на базу данных. */
-        /*g_object_ref (priv->db);*/
       }
       break;
     /* Кэш.*/
     case PROP_CACHE:
       {
         priv->cache  = g_value_dup_object (value);
-        /* Увеличиваем счётчик ссылок на кэш. */
-        /*g_object_ref (priv->cache);*/
       }
       break;
     /* Директория для экспорта.*/
     case PROP_EXPORT_FOLDER:
       {
-          priv->export_folder = g_value_dup_string (value);
+        priv->export_folder = g_value_dup_string (value);
       }
       break;
     /* Что-то ещё... */
@@ -401,15 +397,11 @@ hyscan_model_manager_get_property (GObject      *object,
     {
     /* Название проекта */
     case PROP_PROJECT_NAME:
-      {
-        g_value_set_string (value, priv->project_name);
-      }
+      g_value_set_string (value, priv->project_name);
       break;
     /* Что-то ещё... */
     default:
-      {
-        G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
-      }
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
     }
 }
@@ -885,6 +877,7 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
                             g_free (board);
                             g_free (depth);
                             g_free (width);
+                            g_free (slant_range);
                           }
                       }
 
@@ -2074,11 +2067,11 @@ void
 hyscan_model_manager_refresh_all_items_by_labels (HyScanModelManager *self)
 {
   HyScanModelManagerPrivate *priv = self->priv;
-  GHashTableIter table_iter;       /* Итератор для обхода хэш-таблиц. */
+  GHashTableIter table_iter;
   GHashTable *labels = hyscan_object_model_get (priv->label_model);
 
   HyScanLabel *label;
-  gchar *id;                       /* Идентификатор для обхода хэш-таблиц (ключ). */
+  gchar *id;
 
   g_hash_table_iter_init (&table_iter, labels);
   while (g_hash_table_iter_next (&table_iter, (gpointer*)&id, (gpointer*)&label))
@@ -2111,26 +2104,27 @@ hyscan_model_manager_refresh_all_items_by_labels (HyScanModelManager *self)
                               COLUMN_VISIBLE,      TRUE,
                               COLUMN_LABEL,        label->label,
                               -1);
-
-
           /* Гео-метки. */
           hyscan_model_manager_refresh_geo_marks_by_labels (store,
                                                             &iter,
                                                             label,
                                                             geo_marks,
                                                             priv->extensions[GEO_MARK]);
+          g_hash_table_unref (geo_marks);
           /* Акустические метки. */
           hyscan_model_manager_refresh_acoustic_marks_by_labels (store,
                                                                  &iter,
                                                                  label,
                                                                  acoustic_marks,
                                                                  priv->extensions[ACOUSTIC_MARK]);
+          g_hash_table_unref (acoustic_marks);
           /* Галсы. */
           hyscan_model_manager_refresh_tracks_by_labels (store,
                                                          &iter,
                                                          label,
                                                          tracks,
                                                          priv->extensions[TRACK]);
+          g_hash_table_unref (tracks);
           /* Проверяем не отмечены ли все дочерние объекты. */
           if (gtk_tree_model_iter_children (priv->view_model, &child_iter, &iter))
             {
@@ -2157,6 +2151,7 @@ hyscan_model_manager_refresh_all_items_by_labels (HyScanModelManager *self)
             }
         }
     }
+  g_hash_table_destroy (labels);
 }
 
 /* Обновляет объекты заданного типа данными из модели для древовидного списка с группировкой по типам. */
@@ -2863,7 +2858,6 @@ hyscan_model_manager_toggle_item (HyScanModelManager *self,
           if (ext != NULL)
             {
               ext->active = active;
-              g_print ("id: %s, active: %s\n", id, ext->active ? "TRUE" : "FALSE");
               break;
             }
         }
@@ -3178,6 +3172,7 @@ hyscan_model_manager_toggled_iteml_change_label (HyScanModelManager *self,
               break;
             default: break;
             }
+          g_strfreev (list);
         }
     }
   /* Удаляем хэш-таблицу с группами. */
