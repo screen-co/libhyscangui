@@ -904,8 +904,6 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
 
                             gchar *ctime = (object->ctime == NULL)? "" : g_date_time_format (object->ctime, date_time_stamp),
                                   *mtime = (object->mtime == NULL)? "" : g_date_time_format (object->mtime, date_time_stamp);
-                            /* В структуре HyScanTrackInfo нет поля labels. */
-                            guint64 labels = 0;
 
                             gtk_list_store_append (store, &store_iter);
                             gtk_list_store_set (store, &store_iter,
@@ -917,9 +915,8 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
                                                 COLUMN_TYPE,        TRACK,
                                                 COLUMN_ICON,        icon_name[TRACK],
                                                 COLUMN_ACTIVE,      (ext != NULL) ? ext->active : FALSE,
-                                                COLUMN_VISIBLE,      TRUE,
-                                                /* В структуре HyScanTrackInfo нет поля labels. */
-                                                COLUMN_LABEL,       labels,
+                                                COLUMN_VISIBLE,     TRUE,
+                                                COLUMN_LABEL,       object->labels,
                                                 COLUMN_CTIME,       ctime,
                                                 COLUMN_MTIME,       mtime,
                                                 -1);
@@ -1788,8 +1785,6 @@ hyscan_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
               GtkTreeIter child_iter,
                           item_iter;
               GHashTableIter iter;
-              /* В структуре HyScanTrackInfo нет поля labels. */
-              guint64 tmp = 0;
               gchar *key,
                     *icon = icon_name[TRACK];
               gchar *ctime = (object->ctime == NULL)? "" : g_date_time_format (object->ctime, date_time_stamp),
@@ -1805,7 +1800,7 @@ hyscan_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
               g_hash_table_iter_init (&iter, labels);
               while (g_hash_table_iter_next (&iter, (gpointer*)&key, (gpointer*)&label))
                 {
-                  if (tmp == label->label)
+                  if (object->labels == label->label)
                     {
                       icon = label->icon_name;
                       break;
@@ -1824,8 +1819,7 @@ hyscan_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
                                   COLUMN_ICON,         icon,
                                   COLUMN_ACTIVE,       toggled,
                                   COLUMN_VISIBLE,      TRUE,
-                                  /* В структуре HyScanTrackInfo нет поля labels. */
-                                  COLUMN_LABEL,        tmp,
+                                  COLUMN_LABEL,        object->labels,
                                   -1);
               /* Атрибуты группы. */
               /* Описание. */
@@ -1886,9 +1880,7 @@ hyscan_model_manager_refresh_tracks_by_labels (GtkTreeStore *store,
       g_hash_table_iter_init (&table_iter, tracks);
       while (g_hash_table_iter_next (&table_iter, (gpointer*)&id, (gpointer*)&object))
         {
-          /* В структуре HyScanTrackInfo нет поля labels. */
-          guint64 labels = 0;
-          if (object != NULL && labels == label->label)
+          if (object != NULL && object->labels == label->label)
             {
               GtkTreeIter child_iter,
                           item_iter;
@@ -1919,12 +1911,12 @@ hyscan_model_manager_refresh_tracks_by_labels (GtkTreeStore *store,
                                   COLUMN_ICON,         icon_name[TRACK],
                                   COLUMN_ACTIVE,       toggled,
                                   COLUMN_VISIBLE,      TRUE,
-                                  COLUMN_LABEL,        labels,
+                                  COLUMN_LABEL,        object->labels,
                                   -1);
 
               g_free (str);
 
-              /* Атрибуты акустической метки. */
+              /* Атрибуты галса. */
               /* Описание. */
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
@@ -3069,8 +3061,9 @@ hyscan_model_manager_toggled_iteml_change_label (HyScanModelManager *self,
   ModelManagerObjectType  type;
   HyScanLabel *label = (HyScanLabel*)hyscan_object_model_get_id (priv->label_model, id);
   GHashTable *table = hyscan_object_model_get (priv->label_model);
-  /* Текущая дата и время. */
-  guint64 current_time = g_date_time_to_unix (g_date_time_new_now_local ());
+  /* Текущие дата и время. */
+  GDateTime *now_local = g_date_time_new_now_local ();
+  guint64 current_time = g_date_time_to_unix (now_local);
 
   for (type = GEO_MARK; type < TYPES; type++)
     {
@@ -3169,6 +3162,44 @@ hyscan_model_manager_toggled_iteml_change_label (HyScanModelManager *self,
               }
               break;
             case TRACK:
+              {
+                gint i;
+
+                for (i = 0; list[i] != NULL; i++)
+                  {
+                    gint32 project_id = hyscan_db_project_open (priv->db, priv->project_name);
+                    /* Получаем объект из базы данных по идентификатору. */
+                    HyScanTrackInfo *object = hyscan_db_info_get_track_info (priv->db, project_id, list[i]);
+
+                    if (object != NULL)
+                      {
+                        GHashTableIter iter;
+                        HyScanLabel *lbl;
+                        gchar *tmp;
+
+                        g_hash_table_iter_init (&iter, table);
+                        while (g_hash_table_iter_next (&iter, (gpointer*)&tmp, (gpointer*)&lbl))
+                          {
+                            if (object->labels == lbl->label)
+                              {
+                                /* Устанавливаем время изменения для группы. */
+                                lbl->mtime = current_time;
+                                /* Сохраняем измения в базе данных. */
+                                hyscan_object_model_modify_object (priv->label_model, tmp, (const HyScanObject*)lbl);
+                                break;
+                             }
+                          }
+                        /* Заменяем группу полученому объекту. */
+                        object->labels = label->label;
+                        /* Устанавливаем время изменения. */
+                        object->mtime  = now_local;
+                        /* Сохраняем измения в базе данных. */
+                        hyscan_db_info_modify_track_info (priv->track_model, object);
+                        /* Освобождаем полученный из базы данных объект. */
+                        hyscan_db_info_track_info_free (object);
+                      }
+                  }
+              }
               break;
             default: break;
             }
