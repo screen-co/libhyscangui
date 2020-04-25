@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-03-04 11:26+0300\n"
+"POT-Creation-Date: 2020-04-24 14:17+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,11 +17,6 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
-
-#: hyscangui/hyscan-gtk-map-wfmark.c:1253
-#, c-format
-msgid "%.2f m."
-msgstr ""
 
 #: hyscangui/hyscan-gtk-planner-editor.c:504
 #, c-format
@@ -89,7 +84,7 @@ msgstr ""
 msgid "Bar width"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-nav.c:961
+#: hyscangui/hyscan-gtk-map-nav.c:962
 msgctxt "Heading"
 msgid "COG"
 msgstr ""
@@ -102,7 +97,7 @@ msgstr ""
 msgid "Collapse All"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-track-item.c:670
+#: hyscangui/hyscan-gtk-map-track-item.c:683
 msgid "Configure track channel data"
 msgstr ""
 
@@ -126,17 +121,17 @@ msgstr ""
 msgid "Create parallel tracks..."
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1236
-msgid "Created: "
+#: hyscangui/hyscan-gtk-map-wfmark.c:1249
+msgid "Created"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-track-item.c:681
+#: hyscangui/hyscan-gtk-map-track-item.c:694
 msgid "DPT Channel"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-planner-zeditor.c:270
 #: hyscangui/hyscan-gtk-map-planner.c:561
 #: hyscangui/hyscan-gtk-map-planner.c:571
-#: hyscangui/hyscan-gtk-planner-zeditor.c:270
 msgid "Delete"
 msgstr ""
 
@@ -152,15 +147,12 @@ msgstr ""
 msgid "Delete zone"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1260
-msgid "Depth: "
+#: hyscangui/hyscan-gtk-map-wfmark.c:1268
+#: hyscangui/hyscan-gtk-map-wfmark.c:1270
+msgid "Depth"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-param-tree.c:256
-msgid "Description"
-msgstr ""
-
-#: hyscangui/hyscan-gtk-map-track-item.c:598
+#: hyscangui/hyscan-gtk-map-track-item.c:608
 msgid "Disabled"
 msgstr ""
 
@@ -180,12 +172,12 @@ msgstr ""
 msgid "Echo mark"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1242
-msgid "Edited: "
+#: hyscangui/hyscan-gtk-map-wfmark.c:1255
+msgid "Edited"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1257
-msgid "Empty."
+#: hyscangui/hyscan-gtk-map-wfmark.c:1270
+msgid "Empty"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-planner-editor.ui:295
@@ -245,7 +237,7 @@ msgstr ""
 msgid "Grid"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-nav.c:961
+#: hyscangui/hyscan-gtk-map-nav.c:962
 msgctxt "Heading"
 msgid "HDG"
 msgstr ""
@@ -309,8 +301,8 @@ msgstr ""
 msgid "Layer visibility"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-planner-editor.ui:79
 #: hyscangui/hyscan-gtk-planner-list-bar.c:209
+#: hyscangui/hyscan-gtk-planner-editor.ui:79
 msgid "Length"
 msgstr ""
 
@@ -332,8 +324,8 @@ msgstr ""
 msgid "Line thickness"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1247
-msgid "Location: "
+#: hyscangui/hyscan-gtk-map-wfmark.c:1261
+msgid "Location"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-planner-origin.ui:51
@@ -349,7 +341,7 @@ msgstr ""
 msgid "Main color"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-track-item.c:700
+#: hyscangui/hyscan-gtk-map-track-item.c:715
 msgid "Minimum quality to display"
 msgstr ""
 
@@ -365,10 +357,6 @@ msgstr ""
 msgid "N"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-param-tree.c:250
-msgid "Name"
-msgstr ""
-
 #: hyscangui/hyscan-gtk-map-planner.c:556
 msgid "Navigate"
 msgstr ""
@@ -377,12 +365,12 @@ msgstr ""
 msgid "Navigation"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-steer.c:1115
+#: hyscangui/hyscan-gtk-map-steer.c:1094
 #: hyscangui/hyscan-gtk-planner-status.c:151
 msgid "No active track"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-wfmark.c:1271
+#: hyscangui/hyscan-gtk-map-wfmark.c:1280
 msgid "Note: "
 msgstr ""
 
@@ -430,7 +418,7 @@ msgstr ""
 msgid "Plan"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-steer.c:1131
+#: hyscangui/hyscan-gtk-map-steer.c:1111
 #, c-format
 msgid "Plan: %.1f m/s %.0f° L%.0fm ~%02d:%02d"
 msgstr ""
@@ -443,7 +431,7 @@ msgstr ""
 msgid "Port"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-track-item.c:687
+#: hyscangui/hyscan-gtk-map-track-item.c:701
 msgid "Port Channel"
 msgstr ""
 
@@ -472,7 +460,7 @@ msgstr ""
 msgid "Quality (from 0 to 100)"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-track-item.c:676
+#: hyscangui/hyscan-gtk-map-track-item.c:689
 msgid "RMC Channel"
 msgstr ""
 
@@ -544,15 +532,15 @@ msgstr ""
 msgid "Selection background"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-track-item.c:688
+#: hyscangui/hyscan-gtk-map-track-item.c:702
 msgid "Show side-scan port channel data"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-track-item.c:695
+#: hyscangui/hyscan-gtk-map-track-item.c:710
 msgid "Show side-scan starboard channel data"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-nav.c:955
+#: hyscangui/hyscan-gtk-map-nav.c:956
 msgid "Signal lost"
 msgstr ""
 
@@ -576,7 +564,7 @@ msgstr ""
 msgid "Starboard"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-track-item.c:694
+#: hyscangui/hyscan-gtk-map-track-item.c:709
 msgid "Starboard Channel"
 msgstr ""
 
@@ -620,7 +608,7 @@ msgstr ""
 msgid "Stroke color"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-track-item.c:699
+#: hyscangui/hyscan-gtk-map-track-item.c:714
 msgid "Target Quality"
 msgstr ""
 
@@ -632,11 +620,11 @@ msgstr ""
 msgid "Text background"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-track-item.c:682
+#: hyscangui/hyscan-gtk-map-track-item.c:695
 msgid "The NMEA-channel with DPT sentences"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-track-item.c:677
+#: hyscangui/hyscan-gtk-map-track-item.c:690
 msgid "The NMEA-channel with RMC sentences"
 msgstr ""
 
@@ -657,6 +645,7 @@ msgstr ""
 msgid "Topo"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-map-wfmark.c:1272
 #: hyscangui/hyscan-gtk-planner-list-bar.c:212 tmp/extract-data-schema.c:57
 msgid "Track"
 msgstr ""
@@ -675,7 +664,7 @@ msgstr ""
 msgid "Track plan"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-track-item.c:670
+#: hyscangui/hyscan-gtk-map-track-item.c:683
 msgid "Track settings"
 msgstr ""
 
@@ -685,10 +674,6 @@ msgstr ""
 
 #: hyscangui/hyscan-gtk-planner-list.c:352
 msgid "Track, °"
-msgstr ""
-
-#: hyscangui/hyscan-gtk-map-wfmark.c:1261
-msgid "Track: "
 msgstr ""
 
 #: hyscangui/hyscan-gtk-planner-shift.c:185
@@ -799,7 +784,7 @@ msgstr ""
 msgid "_Open"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-planner-list.c:1828
+#: hyscangui/hyscan-gtk-planner-list.c:1830
 msgid "_Records"
 msgstr ""
 
@@ -828,13 +813,14 @@ msgid "km"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-map-scale.c:281
-#: hyscangui/hyscan-gtk-planner-status.c:179
-#: hyscangui/hyscan-gtk-map-ruler.c:436 hyscangui/hyscan-gtk-map-ruler.c:438
 #: hyscangui/hyscan-gtk-waterfall-grid.c:596
+#: hyscangui/hyscan-gtk-map-ruler.c:436 hyscangui/hyscan-gtk-map-ruler.c:438
+#: hyscangui/hyscan-gtk-map-wfmark.c:1268
+#: hyscangui/hyscan-gtk-planner-status.c:179
 msgid "m"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-nav.c:963
+#: hyscangui/hyscan-gtk-map-nav.c:964
 msgid "m/s"
 msgstr ""
 
