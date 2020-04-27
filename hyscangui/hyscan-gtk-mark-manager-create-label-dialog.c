@@ -269,11 +269,12 @@ hyscan_mark_manager_create_label_dialog_constructed (GObject *object)
     {
       GtkWidget *scroll = gtk_scrolled_window_new (NULL, NULL);
       GtkIconView *view = GTK_ICON_VIEW (priv->icon_view);
+      GtkTreePath *path = gtk_tree_path_new_first ();
       /* Связываем колонку с иконкой в модели с IconView. */
       gtk_icon_view_set_pixbuf_column (view, COLUMN_ICON);
       /* Связываем колонку с названием иконки в одели с IconView. */
       gtk_icon_view_set_text_column (view, -1);
-      gtk_icon_view_set_columns (view, 0);
+      /*gtk_icon_view_set_columns (view, 0);*/
       /* Заполняем иконками всё пространство виджета автоматически. */
       gtk_icon_view_set_columns (view, -1);
       /* Устанавливаем ширину каждого элемента. */
@@ -281,7 +282,9 @@ hyscan_mark_manager_create_label_dialog_constructed (GObject *object)
       /* Хотя бы один элемент должен быть выбран.*/
       gtk_icon_view_set_selection_mode (view, GTK_SELECTION_BROWSE);
       /* Выделяем первую иконку. */
-      gtk_icon_view_select_path (view, gtk_tree_path_new_first ());
+      gtk_icon_view_select_path (view, path);
+      /* path - больше не нужен. */
+      gtk_tree_path_free (path);
       /* Виджет для выбора иконки в GtkScrolledWindow.*/
       gtk_container_add (GTK_CONTAINER (scroll), priv->icon_view);
       /* Добавляем метку "Выбрать иконку". */
@@ -386,6 +389,8 @@ hyscan_mark_manager_create_label_dialog_response (GtkWidget *dialog,
         hyscan_label_set_mtime (label, time);
         /* Добавляем группу в базу данных. */
         hyscan_object_model_add_object (priv->label_model, (const HyScanObject*) label);
+        /* Освобождаем label. */
+        hyscan_label_free (label);
       }
       break;
     case GTK_RESPONSE_CANCEL:
