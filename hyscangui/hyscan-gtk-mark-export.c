@@ -984,12 +984,13 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
           g_timeout_add (0, hyscan_gtk_mark_export_set_watch_cursor, data->toplevel);
           g_free (rand);
         }
-      while (package.counter)
+      while (package.counter > 0)
         {
           /* Ждём пока сгенерируются и сохранятся все тайлы. */
           /* g_usleep (1000); */
+          g_print ("Waiting...\n");
         }
-
+      g_print ("Done.\n");
       if (data->acoustic_marks != NULL)
         {
           HyScanMarkLocation *location   = NULL;

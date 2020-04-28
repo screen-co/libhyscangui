@@ -159,6 +159,8 @@ hyscan_mark_manager_change_label_dialog_constructed (GObject *object)
   gtk_window_set_modal (window, FALSE);
   /* Закрывать вместе с родительским окном. */
   gtk_window_set_destroy_with_parent (window, TRUE);
+  /* Размер диалога. */
+  gtk_widget_set_size_request (GTK_WIDGET (dialog), 600, 400);
   /* Добавляем кнопки "ОК" и "Cancel". */
   priv->ok_button = gtk_dialog_add_button (dialog, _("OK"), GTK_RESPONSE_OK);
   gtk_dialog_add_button (dialog, _("Cancel"), GTK_RESPONSE_CANCEL);
@@ -289,7 +291,9 @@ hyscan_mark_manager_change_label_dialog_constructed (GObject *object)
                                        GTK_SELECTION_BROWSE);
           /* Помещаем GtkTreeView в GtkScrolledWindow. */
           gtk_container_add (GTK_CONTAINER (scroll), priv->tree_view);
-          gtk_container_add (GTK_CONTAINER (priv->content), scroll);
+          /*gtk_container_add (GTK_CONTAINER (priv->content), scroll);*/
+          /*gtk_box_pack_start (GTK_BOX (scroll), priv->tree_view, TRUE, TRUE, 0);*/
+          gtk_box_pack_start (GTK_BOX (priv->content), scroll, TRUE, TRUE, 0);
         }
       else
         {
