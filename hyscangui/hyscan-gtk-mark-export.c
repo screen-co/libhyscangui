@@ -77,9 +77,7 @@
 #include <hyscan-tile-color.h>
 #include <math.h>
 #include <stdint.h>
-
-#define GETTEXT_PACKAGE "hyscanfnn-evoui"
-#include <glib/gi18n-lib.h>
+#include <glib/gi18n.h>
 
 /* Структура для передачи данных в поток сохранения меток в формате HTML. */
 typedef struct _DataForHTML

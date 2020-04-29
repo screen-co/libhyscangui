@@ -9,8 +9,7 @@
  */
 #include <hyscan-gtk-mark-manager-change-label-dialog.h>
 #include <hyscan-object-data-label.h>
-#define GETTEXT_PACKAGE "hyscanfnn-evoui"
-#include <glib/gi18n-lib.h>
+#include <glib/gi18n.h>
 
 enum
 {
@@ -152,7 +151,7 @@ hyscan_mark_manager_change_label_dialog_constructed (GObject *object)
   /* Дефолтный конструктор родительского класса. */
   G_OBJECT_CLASS (hyscan_mark_manager_change_label_dialog_parent_class)->constructed (object);
   /* Устанавливаем заголовок диаога. */
-  gtk_window_set_title (window, "Choose label");
+  gtk_window_set_title (window, _("Choose label"));
   /* Устанавливаем родительское окно. */
   gtk_window_set_transient_for (window, priv->parent);
   /* Создаём немодальный диалог. */
@@ -243,13 +242,13 @@ hyscan_mark_manager_change_label_dialog_constructed (GObject *object)
           /* Колонка с иконками. */
           gtk_tree_view_insert_column_with_attributes (tree_view,
                                                        COLUMN_ICON,
-                                                       "Icon", icon_renderer,
+                                                       _("Icon"), icon_renderer,
                                                        "pixbuf", COLUMN_ICON,
                                                        NULL);
           /* Колонка с названиями групп. */
           gtk_tree_view_insert_column_with_attributes (tree_view,
                                                        COLUMN_NAME,
-                                                       "Title", renderer,
+                                                       _("Title"), renderer,
                                                        "text", COLUMN_NAME,
                                                        NULL);
           /* Колонка с ID. */
@@ -261,25 +260,25 @@ hyscan_mark_manager_change_label_dialog_constructed (GObject *object)
           /* Колонка с описанием групп. */
           gtk_tree_view_insert_column_with_attributes (tree_view,
                                                        COLUMN_DESCRIPTION,
-                                                       "Description", renderer,
+                                                       _("Description"), renderer,
                                                        "text", COLUMN_DESCRIPTION,
                                                        NULL);
           /* Колонка с описанием групп. */
           gtk_tree_view_insert_column_with_attributes (tree_view,
                                                        COLUMN_OPERATOR,
-                                                       "Operator", renderer,
+                                                       _("Operator"), renderer,
                                                        "text", COLUMN_OPERATOR,
                                                        NULL);
           /* Колонка с датой и временем создания. */
           gtk_tree_view_insert_column_with_attributes (tree_view,
                                                        COLUMN_CTIME,
-                                                       "Created", renderer,
+                                                       _("Created"), renderer,
                                                        "text", COLUMN_CTIME,
                                                        NULL);
           /* Колонка с датой и временем изменения. */
           gtk_tree_view_insert_column_with_attributes (tree_view,
                                                        COLUMN_MTIME,
-                                                       "Modified", renderer,
+                                                       _("Modified"), renderer,
                                                        "text", COLUMN_MTIME,
                                                        NULL);
           /* Показать заголовки. */

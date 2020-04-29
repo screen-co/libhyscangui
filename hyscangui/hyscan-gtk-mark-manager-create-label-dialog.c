@@ -49,12 +49,12 @@
  */
 #include <hyscan-gtk-mark-manager-create-label-dialog.h>
 #include <hyscan-object-data-label.h>
+#include <glib/gi18n.h>
+
 /* Проверка содержимого GtkEntry. */
 #define IS_EMPTY(entry) (0 == g_strcmp0 (gtk_entry_get_text ( (entry) ), ""))
 /* Размер иконок для отображения в GtkIconView. */
 #define ICON_SIZE 16
-#define GETTEXT_PACKAGE "hyscanfnn-evoui"
-#include <glib/gi18n-lib.h>
 
 enum
 {
@@ -184,7 +184,7 @@ hyscan_mark_manager_create_label_dialog_constructed (GObject *object)
   /* Дефолтный конструктор родительского класса. */
   G_OBJECT_CLASS (hyscan_mark_manager_create_label_dialog_parent_class)->constructed (object);
   /* Устанавливаем заголовок диаога. */
-  gtk_window_set_title (window, "New label");
+  gtk_window_set_title (window, _("New label"));
   /* Устанавливаем родительское окно. */
   gtk_window_set_transient_for (window, priv->parent);
   /* Создаём немодальный диалог. */
@@ -200,24 +200,24 @@ hyscan_mark_manager_create_label_dialog_constructed (GObject *object)
   priv->content = gtk_dialog_get_content_area (dialog);
   /* Название группы. */
   priv->entry[TITLE] = hyscan_mark_manager_create_label_dialog_add_item (GTK_BOX (priv->content),
-                                                                         "Title",
-                                                                         "New label");
+                                                                         _("Title"),
+                                                                         _("New label"));
   g_signal_connect (priv->entry[TITLE],
                     "changed",
                     G_CALLBACK (hyscan_mark_manager_create_label_dialog_check_entry),
                     self);
   /* Описание группы. */
   priv->entry[DESCRIPTION] = hyscan_mark_manager_create_label_dialog_add_item (GTK_BOX (priv->content),
-                                                                               "Description",
-                                                                               "This is a new label");
+                                                                               _("Description"),
+                                                                               _("This is a new label"));
   g_signal_connect (priv->entry[DESCRIPTION],
                     "changed",
                     G_CALLBACK (hyscan_mark_manager_create_label_dialog_check_entry),
                     self);
   /* Оператор. */
   priv->entry[OPERATOR] = hyscan_mark_manager_create_label_dialog_add_item (GTK_BOX (priv->content),
-                                                                            "Operator",
-                                                                            "User");
+                                                                            _("Operator"),
+                                                                            _("User"));
   g_signal_connect (priv->entry[OPERATOR],
                     "changed",
                     G_CALLBACK (hyscan_mark_manager_create_label_dialog_check_entry),
@@ -290,7 +290,7 @@ hyscan_mark_manager_create_label_dialog_constructed (GObject *object)
       /* Виджет для выбора иконки в GtkScrolledWindow.*/
       gtk_container_add (GTK_CONTAINER (scroll), priv->icon_view);
       /* Добавляем метку "Выбрать иконку". */
-      gtk_box_pack_start (GTK_BOX (priv->content), gtk_label_new ("Choose icon"), FALSE, TRUE, 10);
+      gtk_box_pack_start (GTK_BOX (priv->content), gtk_label_new (_("Choose icon")), FALSE, TRUE, 10);
       /* Помещаем GtkScrolledWindow в диалог. */
       gtk_box_pack_start (GTK_BOX (priv->content), GTK_WIDGET (scroll), TRUE, TRUE, 0);
     }

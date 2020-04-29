@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-24 14:17+0300\n"
+"POT-Creation-Date: 2020-04-29 15:14+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,6 +18,84 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
+#: hyscangui/hyscan-gtk-mark-export.c:387
+#, c-format
+msgid ""
+"\t\t\t<p><a name=\"%s\"><strong>%s</strong></a></p>\n"
+"\t\t\t\t<img src=\"%s/%s.png\" alt=\"%s\" title=\"%s\">\n"
+"\t\t\t\t<p>Date: %s<br>\n"
+"\t\t\t\tTime: %s<br>\n"
+"\t\t\t\tLocation: %s, %s (%s)<br>\n"
+"\t\t\t\tDescription: %s<br>\n"
+"\t\t\t\tComment: %s<br>\n"
+"\t\t\t\tNotes: %s<br>\n"
+"\t\t\t\tTrack: %s<br>\n"
+"\t\t\t\tTrack creation date: %s<br>\n"
+"\t\t\t\tBoard: %s<br>\n"
+"\t\t\t\tDepth: %.2f m<br>\n"
+"\t\t\t\tProject: %s<br>\n"
+"\t\t\t\t%s</p>\n"
+"\t\t\t<br style=\"page-break-before: always\"/>\n"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-export.c:405
+#, c-format
+msgid ""
+"\t\t\t<p><a name=\"%s\"><strong>%s</strong></a></p>\n"
+"\t\t\t\t<img src=\"%s/%s.png\" alt=\"%s\" title=\"%s\">\n"
+"\t\t\t\t<p>Date: %s<br>\n"
+"\t\t\t\tTime: %s<br>\n"
+"\t\t\t\tLocation: %s, %s (%s)<br>\n"
+"\t\t\t\tDescription: %s<br>\n"
+"\t\t\t\tComment: %s<br>\n"
+"\t\t\t\tNotes: %s<br>\n"
+"\t\t\t\tTrack: %s<br>\n"
+"\t\t\t\tTrack creation date: %s<br>\n"
+"\t\t\t\tBoard: %s<br>\n"
+"\t\t\t\tDepth: %.2f m<br>\n"
+"\t\t\t\tWidth: %.2f m<br>\n"
+"\t\t\t\tSlant range: %.2f m<br>\n"
+"\t\t\t\tProject: %s<br>\n"
+"\t\t\t\t%s</p>\n"
+"\t\t\t<br style=\"page-break-before: always\"/>\n"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-export.c:944
+#, c-format
+msgid ""
+"\t\t\t<p><a name=\"%s\"><strong>%s</strong></a></p>\n"
+"\t\t\t\t<p>Date: %s<br>\n"
+"\t\t\t\tTime: %s<br>\n"
+"\t\t\t\tLocation: %s, %s (%s)<br>\n"
+"\t\t\t\tDescription: %s<br>\n"
+"\t\t\t\tComment: %s<br>\n"
+"\t\t\t\tNotes: %s<br>\n"
+"\t\t\t\tProject: %s<br>\n"
+"\t\t\t\t%s</p>\n"
+"\t\t\t<br style=\"page-break-before: always\"/>\n"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-export.c:812
+msgid "\t\t<a href=\"#geo\"><strong>Geo marks</strong></a><br>\n"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-export.c:835
+msgid "\t\t<a href=\"#wf\"><strong>Acoustic marks</strong></a><br>\n"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-export.c:905
+msgid "\t\t<p><a name=\"geo\"><strong>Geo marks</strong></a></p>\n"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-export.c:997
+msgid "\t\t<p><a name=\"wf\"><strong>Acoustic marks</strong></a></p>\n"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-model-manager.c:159
+#, c-format
+msgid "%.2f m"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-planner-editor.c:504
 #, c-format
 msgid "%d track selected"
@@ -25,8 +103,38 @@ msgid_plural "%d tracks selected"
 msgstr[0] ""
 msgstr[1] ""
 
+#: hyscangui/hyscan-gtk-mark-export.c:288
+#: hyscangui/hyscan-gtk-mark-export.c:1209
+#, c-format
+msgid ""
+"%s\n"
+"Project: %s\n"
+"%s%s"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-export.c:783
+#, c-format
+msgid ""
+"%s<br>\n"
+"\t\t%s<br>\n"
+"\t\t%s<br>\n"
+"\t\t%s</p>\n"
+"\t\t<p>Statistics<br>\n"
+"\t\tGeo marks: %i<br>\n"
+"\t\tAcoustic marks: %i<br>\n"
+"\t\tTotal: %i"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-export.c:552
 msgid "Abort"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-model-manager.c:173
+msgid "Acoustic marks"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-manager.c:122
+msgid "Actions"
 msgstr ""
 
 #: tmp/extract-data-schema.c:61
@@ -41,8 +149,8 @@ msgstr ""
 msgid "Add parallel tracks"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-planner-shift.c:165
 #: hyscangui/hyscan-gtk-planner-list.c:368
+#: hyscangui/hyscan-gtk-planner-shift.c:165
 msgid "Adjust length to _zone boundary"
 msgstr ""
 
@@ -53,6 +161,22 @@ msgstr ""
 
 #: hyscangui/hyscan-gtk-planner-import.c:199
 msgid "All Files"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-model-manager.c:178
+msgid "All acoustic marks"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-model-manager.c:177
+msgid "All geo-marks"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-model-manager.c:176
+msgid "All labels"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-model-manager.c:179
+msgid "All tracks"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-planner-editor.ui:415
@@ -84,17 +208,66 @@ msgstr ""
 msgid "Bar width"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-model-manager.c:1487
+#: hyscangui/hyscan-gtk-model-manager.c:1706
+#: hyscangui/hyscan-gtk-mark-manager-view.c:752
+msgid "Board"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-model-manager.c:869
+#: hyscangui/hyscan-gtk-model-manager.c:1475
+#: hyscangui/hyscan-gtk-model-manager.c:1694
+#: hyscangui/hyscan-gtk-mark-export.c:452
+msgid "Bottom"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-manager.c:111
+msgid "By labels"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-manager.c:110
+msgid "By types"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-map-nav.c:962
 msgctxt "Heading"
 msgid "COG"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-mark-export.c:1140
+#: hyscangui/hyscan-gtk-mark-export.c:1246
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:198
+#: hyscangui/hyscan-gtk-mark-manager-change-label-dialog.c:165
 #: hyscangui/hyscan-gtk-map-planner.c:1777
 msgid "Cancel"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-mark-manager.c:117
+msgid "Change label"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-export.c:1248
+msgid "Choose"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-export.c:1243
+msgid "Choose directory"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:293
+msgid "Choose icon"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-manager-change-label-dialog.c:154
+msgid "Choose label"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-planner-list-bar.c:134
 msgid "Collapse All"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-manager.c:114
+msgid "Collapse all"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-map-track-item.c:683
@@ -117,16 +290,36 @@ msgstr ""
 msgid "Course"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-mark-manager.c:120
+msgid "Create new group"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-map-planner.c:559
 msgid "Create parallel tracks..."
 msgstr ""
 
+#: hyscangui/hyscan-gtk-mark-manager-change-label-dialog.c:275
 #: hyscangui/hyscan-gtk-map-wfmark.c:1249
+#: hyscangui/hyscan-gtk-mark-manager-view.c:732
 msgid "Created"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-model-manager.c:1048
+#: hyscangui/hyscan-gtk-model-manager.c:1171
+#: hyscangui/hyscan-gtk-model-manager.c:1283
+#: hyscangui/hyscan-gtk-model-manager.c:1422
+#: hyscangui/hyscan-gtk-model-manager.c:1641
+#: hyscangui/hyscan-gtk-model-manager.c:1873
+#: hyscangui/hyscan-gtk-model-manager.c:1968
+msgid "Creation time"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-map-track-item.c:694
 msgid "DPT Channel"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-model-manager.c:161
+msgid "Default"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-planner-zeditor.c:270
@@ -139,6 +332,10 @@ msgstr ""
 msgid "Delete current project plan"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-mark-manager.c:121
+msgid "Delete toggled"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-map-planner.c:565
 msgid "Delete vertex"
 msgstr ""
@@ -147,9 +344,24 @@ msgstr ""
 msgid "Delete zone"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-model-manager.c:1498
+#: hyscangui/hyscan-gtk-model-manager.c:1717
 #: hyscangui/hyscan-gtk-map-wfmark.c:1268
 #: hyscangui/hyscan-gtk-map-wfmark.c:1270
 msgid "Depth"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-model-manager.c:1028
+#: hyscangui/hyscan-gtk-model-manager.c:1150
+#: hyscangui/hyscan-gtk-model-manager.c:1262
+#: hyscangui/hyscan-gtk-model-manager.c:1401
+#: hyscangui/hyscan-gtk-model-manager.c:1620
+#: hyscangui/hyscan-gtk-model-manager.c:1855
+#: hyscangui/hyscan-gtk-model-manager.c:1950
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:211
+#: hyscangui/hyscan-gtk-mark-manager-change-label-dialog.c:263
+#: hyscangui/hyscan-gtk-mark-manager-view.c:722
+msgid "Description"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-map-track-item.c:608
@@ -176,6 +388,7 @@ msgstr ""
 msgid "Edited"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-mark-export.c:107
 #: hyscangui/hyscan-gtk-map-wfmark.c:1270
 msgid "Empty"
 msgstr ""
@@ -204,6 +417,10 @@ msgstr ""
 msgid "Expand All"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-mark-manager.c:113
+msgid "Expand all"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-planner-import.c:328
 msgid "Failed to import"
 msgstr ""
@@ -225,6 +442,10 @@ msgstr ""
 msgid "Free tracks"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-mark-export.c:111
+msgid "Generated: <a href=\"http://screen-co.ru/\">HyScan5</a>."
+msgstr ""
+
 #: hyscangui/hyscan-gtk-planner-editor.ui:385
 msgid "Geo"
 msgstr ""
@@ -233,8 +454,16 @@ msgstr ""
 msgid "Geo Marks"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-model-manager.c:172
+msgid "Geo-marks"
+msgstr ""
+
 #: tmp/extract-data-schema.c:17
 msgid "Grid"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-manager.c:123
+msgid "Grouping"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-map-nav.c:962
@@ -256,6 +485,10 @@ msgstr ""
 
 #: tmp/extract-data-schema.c:43 tmp/extract-data-schema.c:49
 msgid "Hover color"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-manager-change-label-dialog.c:245
+msgid "Icon"
 msgstr ""
 
 #: tmp/extract-data-schema.c:50
@@ -288,12 +521,16 @@ msgstr ""
 msgid "Label color"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-model-manager.c:171
+msgid "Labels"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-planner-origin.ui:17
 msgid "Lat"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-planner-zeditor.c:256
 #: hyscangui/hyscan-gtk-planner-origin.ui:12
+#: hyscangui/hyscan-gtk-planner-zeditor.c:256
 msgid "Latitude"
 msgstr ""
 
@@ -324,16 +561,24 @@ msgstr ""
 msgid "Line thickness"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-model-manager.c:1192
+#: hyscangui/hyscan-gtk-model-manager.c:1304
+#: hyscangui/hyscan-gtk-model-manager.c:1443
+#: hyscangui/hyscan-gtk-model-manager.c:1662
 #: hyscangui/hyscan-gtk-map-wfmark.c:1261
 msgid "Location"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-manager-view.c:742
+msgid "Location (WGS 84)"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-planner-origin.ui:51
 msgid "Lon"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-planner-zeditor.c:257
 #: hyscangui/hyscan-gtk-planner-origin.ui:46
+#: hyscangui/hyscan-gtk-planner-zeditor.c:257
 msgid "Longitude"
 msgstr ""
 
@@ -341,8 +586,27 @@ msgstr ""
 msgid "Main color"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-mark-export.c:764
+msgid "Marks report"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-map-track-item.c:715
 msgid "Minimum quality to display"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-model-manager.c:1059
+#: hyscangui/hyscan-gtk-model-manager.c:1183
+#: hyscangui/hyscan-gtk-model-manager.c:1295
+#: hyscangui/hyscan-gtk-model-manager.c:1434
+#: hyscangui/hyscan-gtk-model-manager.c:1653
+#: hyscangui/hyscan-gtk-model-manager.c:1882
+#: hyscangui/hyscan-gtk-model-manager.c:1977
+msgid "Modification time"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-manager-change-label-dialog.c:281
+#: hyscangui/hyscan-gtk-mark-manager-view.c:737
+msgid "Modified"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-map-control.c:165
@@ -357,6 +621,10 @@ msgstr ""
 msgid "N"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-mark-manager-view.c:692
+msgid "Name"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-map-planner.c:556
 msgid "Navigate"
 msgstr ""
@@ -365,8 +633,13 @@ msgstr ""
 msgid "Navigation"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-map-steer.c:1094
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:187
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:204
+msgid "New label"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-planner-status.c:151
+#: hyscangui/hyscan-gtk-map-steer.c:1094
 msgid "No active track"
 msgstr ""
 
@@ -378,12 +651,37 @@ msgstr ""
 msgid "Number tracks starting from here"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:197
+#: hyscangui/hyscan-gtk-mark-manager-change-label-dialog.c:164
+msgid "OK"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-planner-origin.ui:85
 msgid "OX"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-planner-origin.ui:80
 msgid "OX axis direction"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-manager-view.c:799
+msgid "Objects"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-model-manager.c:1037
+#: hyscangui/hyscan-gtk-model-manager.c:1159
+#: hyscangui/hyscan-gtk-model-manager.c:1271
+#: hyscangui/hyscan-gtk-model-manager.c:1410
+#: hyscangui/hyscan-gtk-model-manager.c:1629
+#: hyscangui/hyscan-gtk-model-manager.c:1864
+#: hyscangui/hyscan-gtk-model-manager.c:1959
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:219
+#: hyscangui/hyscan-gtk-mark-manager-change-label-dialog.c:269
+msgid "Operator"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-manager-view.c:727
+msgid "Operator name"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-map-direction.c:187
@@ -427,7 +725,10 @@ msgstr ""
 msgid "Planner"
 msgstr ""
 
-#: tmp/extract-data-schema.c:26
+#: hyscangui/hyscan-gtk-model-manager.c:845
+#: hyscangui/hyscan-gtk-model-manager.c:1463
+#: hyscangui/hyscan-gtk-model-manager.c:1682
+#: hyscangui/hyscan-gtk-mark-export.c:446 tmp/extract-data-schema.c:26
 msgid "Port"
 msgstr ""
 
@@ -451,8 +752,23 @@ msgstr ""
 msgid "Progress done"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-planner-list-bar.c:208
+#: hyscangui/hyscan-gtk-mark-export.c:770
+#, c-format
+msgid "Project creation date: %s"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-export.c:766
+#, c-format
+msgid "Project description: %s"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-export.c:765
+#, c-format
+msgid "Project: %s"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-planner-list.c:347
+#: hyscangui/hyscan-gtk-planner-list-bar.c:208
 msgid "Quality"
 msgstr ""
 
@@ -466,6 +782,11 @@ msgstr ""
 
 #: hyscangui/hyscan-gtk-planner-editor.ui:398
 msgid "Reference point is not set"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-export.c:773
+#, c-format
+msgid "Report creation date: %s"
 msgstr ""
 
 #: tmp/extract-data-schema.c:9
@@ -484,8 +805,17 @@ msgstr ""
 msgid "SD(y)"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-mark-export.c:1142
 #: hyscangui/hyscan-gtk-map-planner.c:1776
 msgid "Save"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-manager.c:118
+msgid "Save as HTML"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-export.c:1137
+msgid "Save file"
 msgstr ""
 
 #: tmp/extract-data-schema.c:14
@@ -556,11 +886,20 @@ msgstr ""
 msgid "Signal lost line"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-model-manager.c:1544
+#: hyscangui/hyscan-gtk-model-manager.c:1763
+#: hyscangui/hyscan-gtk-mark-manager-view.c:767
+msgid "Slant range"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-planner-editor.ui:31
 msgid "Speed"
 msgstr ""
 
-#: tmp/extract-data-schema.c:27
+#: hyscangui/hyscan-gtk-model-manager.c:860
+#: hyscangui/hyscan-gtk-model-manager.c:1469
+#: hyscangui/hyscan-gtk-model-manager.c:1688
+#: hyscangui/hyscan-gtk-mark-export.c:449 tmp/extract-data-schema.c:27
 msgid "Starboard"
 msgstr ""
 
@@ -628,8 +967,12 @@ msgstr ""
 msgid "The NMEA-channel with RMC sentences"
 msgstr ""
 
-#: hyscangui/hyscan-gtk-planner-list-bar.c:210
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:212
+msgid "This is a new label"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-planner-list.c:349
+#: hyscangui/hyscan-gtk-planner-list-bar.c:210
 msgid "Time"
 msgstr ""
 
@@ -637,8 +980,14 @@ msgstr ""
 msgid "Time, hh:mm:ss"
 msgstr ""
 
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:203
+#: hyscangui/hyscan-gtk-mark-manager-change-label-dialog.c:251
 #: hyscangui/hyscan-gtk-planner-list.c:455
 msgid "Title"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-manager.c:115
+msgid "Toggle all"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-planner-editor.ui:649
@@ -660,6 +1009,12 @@ msgid ""
 "from the context menu."
 msgstr ""
 
+#: hyscangui/hyscan-gtk-model-manager.c:1453
+#: hyscangui/hyscan-gtk-model-manager.c:1672
+#: hyscangui/hyscan-gtk-mark-manager-view.c:747
+msgid "Track name"
+msgstr ""
+
 #: hyscangui/hyscan-gtk-planner-import.c:206
 msgid "Track plan"
 msgstr ""
@@ -674,6 +1029,10 @@ msgstr ""
 
 #: hyscangui/hyscan-gtk-planner-list.c:352
 msgid "Track, °"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-model-manager.c:174
+msgid "Tracks"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-planner-shift.c:185
@@ -694,6 +1053,23 @@ msgstr ""
 
 #: hyscangui/hyscan-gtk-planner-list.c:352
 msgid "Trk, °"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-manager.c:109
+msgid "Ungrouped"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-model-manager.c:163
+#: hyscangui/hyscan-gtk-mark-export.c:109
+msgid "Unknown"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-manager.c:116
+msgid "Untoggle all"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:220
+msgid "User"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-planner-list.c:350
@@ -718,6 +1094,12 @@ msgstr ""
 
 #: tmp/extract-data-schema.c:46
 msgid "Waterfall Marks"
+msgstr ""
+
+#: hyscangui/hyscan-gtk-model-manager.c:1534
+#: hyscangui/hyscan-gtk-model-manager.c:1753
+#: hyscangui/hyscan-gtk-mark-manager-view.c:762
+msgid "Width"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-planner-status.c:166
@@ -813,10 +1195,10 @@ msgid "km"
 msgstr ""
 
 #: hyscangui/hyscan-gtk-map-scale.c:281
+#: hyscangui/hyscan-gtk-planner-status.c:179
 #: hyscangui/hyscan-gtk-waterfall-grid.c:596
 #: hyscangui/hyscan-gtk-map-ruler.c:436 hyscangui/hyscan-gtk-map-ruler.c:438
 #: hyscangui/hyscan-gtk-map-wfmark.c:1268
-#: hyscangui/hyscan-gtk-planner-status.c:179
 msgid "m"
 msgstr ""
 

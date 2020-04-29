@@ -58,9 +58,7 @@
 #include <hyscan-mark-location.h>
 #include <hyscan-db-info.h>
 #include <hyscan-gui-marshallers.h>
-
-#define GETTEXT_PACKAGE "hyscanfnn-evoui"
-#include <glib/gi18n-lib.h>
+#include <glib/gi18n.h>
 
 enum
 {
@@ -526,7 +524,7 @@ hyscan_gtk_mark_manager_view_toggle_parent (HyScanMarkManagerView *self,
 
       if (gtk_tree_model_iter_children (model, &child_iter, &parent_iter))
         {
-          gint total    = gtk_tree_model_iter_n_children  (model, &parent_iter),
+          gint total   = gtk_tree_model_iter_n_children  (model, &parent_iter),
                counter = 0;
           gchar *id;
           gboolean flag;

@@ -50,8 +50,7 @@
 #include <hyscan-gtk-mark-manager-create-label-dialog.h>
 #include <hyscan-gtk-mark-manager-change-label-dialog.h>
 #include <hyscan-gtk-mark-export.h>
-#define GETTEXT_PACKAGE "hyscanfnn-evoui"
-#include <glib/gi18n-lib.h>
+#include <glib/gi18n.h>
 
 enum
 {
@@ -111,7 +110,7 @@ static gchar *view_type_text[] = {N_("Ungrouped"),
                                   N_("By types"),
                                   N_("By labels")};
 /* Текст пунктов меню. */
-static gchar *function_text[]  = {N_("Expand all"),
+static gchar *action_text[]    = {N_("Expand all"),
                                   N_("Collapse all"),
                                   N_("Toggle all"),
                                   N_("Untoggle all"),
@@ -381,12 +380,12 @@ hyscan_mark_manager_constructed (GObject *object)
    * "Свернуть все",
    * "Перенести в группу",
    * "Сохранить как HTML". */
-  priv->expand_all_item   = gtk_menu_item_new_with_label (_(function_text[EXPAND_ALL]));
-  priv->collapse_all_item = gtk_menu_item_new_with_label (_(function_text[COLLAPSE_ALL]));
-  priv->toggle_all_item   = gtk_menu_item_new_with_label (_(function_text[TOGGLE_ALL]));
-  priv->untoggle_all_item = gtk_menu_item_new_with_label (_(function_text[UNTOGGLE_ALL]));
-  priv->change_label      = gtk_menu_item_new_with_label (_(function_text[CHANGE_LABEL]));
-  priv->save_as_html      = gtk_menu_item_new_with_label (_(function_text[SAVE_AS_HTML]));
+  priv->expand_all_item   = gtk_menu_item_new_with_label (_(action_text[EXPAND_ALL]));
+  priv->collapse_all_item = gtk_menu_item_new_with_label (_(action_text[COLLAPSE_ALL]));
+  priv->toggle_all_item   = gtk_menu_item_new_with_label (_(action_text[TOGGLE_ALL]));
+  priv->untoggle_all_item = gtk_menu_item_new_with_label (_(action_text[UNTOGGLE_ALL]));
+  priv->change_label      = gtk_menu_item_new_with_label (_(action_text[CHANGE_LABEL]));
+  priv->save_as_html      = gtk_menu_item_new_with_label (_(action_text[SAVE_AS_HTML]));
   /* Делаем пункты выпадающего меню "Перенести в группу" неактивным. */
   gtk_widget_set_sensitive (priv->change_label, FALSE);
   /* Делаем пункты выпадающего меню "Сохранить как HTML" неактивным. */
