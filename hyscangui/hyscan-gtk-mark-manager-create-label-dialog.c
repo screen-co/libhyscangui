@@ -100,10 +100,6 @@ static void       hyscan_mark_manager_create_label_dialog_constructed      (GObj
 
 static void       hyscan_mark_manager_create_label_dialog_finalize         (GObject      *object);
 
-static GtkWidget* hyscan_mark_manager_create_label_dialog_add_item         (GtkBox       *content,
-                                                                            const gchar  *label_text,
-                                                                            const gchar  *entry_text);
-
 static void       hyscan_mark_manager_create_label_dialog_response         (GtkWidget    *dialog,
                                                                             gint          response,
                                                                             gpointer      user_data);
@@ -180,6 +176,12 @@ hyscan_mark_manager_create_label_dialog_constructed (GObject *object)
   GtkIconTheme *icon_theme;                /* Тема оформленя, откуда беуться иконки. */
   GtkDialog *dialog = GTK_DIALOG (object); /* Диалог. */
   GtkWindow *window = GTK_WINDOW (dialog); /* Тот же диалог, но GtkWindow. */
+  GtkWidget *title  = gtk_label_new (_("Title")),                  /* Метка "Название группы". */
+            *desc   = gtk_label_new (_("Description")),            /* Метка "Описание". */
+            *user   = gtk_label_new (_("Operator")),               /* Метка "Опреатор". */
+            *left   = gtk_box_new (GTK_ORIENTATION_VERTICAL,   0), /* Контейнер для меток. */
+            *right  = gtk_box_new (GTK_ORIENTATION_VERTICAL,   0), /* Контейнер для полей ввода. */
+            *box    = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0); /* Общий контейнер. */
   GList     *images;                       /* Список иконок из темы. */
   /* Дефолтный конструктор родительского класса. */
   G_OBJECT_CLASS (hyscan_mark_manager_create_label_dialog_parent_class)->constructed (object);
@@ -198,26 +200,40 @@ hyscan_mark_manager_create_label_dialog_constructed (GObject *object)
   gtk_dialog_add_button (dialog, _("Cancel"), GTK_RESPONSE_CANCEL);
   /* Получаем контейнер для размещения виджетов диалога. */
   priv->content = gtk_dialog_get_content_area (dialog);
-  /* Название группы. */
-  priv->entry[TITLE] = hyscan_mark_manager_create_label_dialog_add_item (GTK_BOX (priv->content),
-                                                                         _("Title"),
-                                                                         _("New label"));
+  /* Текст слева. */
+  gtk_widget_set_halign (title, GTK_ALIGN_START);
+  gtk_widget_set_halign (desc,  GTK_ALIGN_START);
+  gtk_widget_set_halign (user,  GTK_ALIGN_START);
+  /* Метки в контейнер.  */
+  gtk_box_pack_start (GTK_BOX (left), title, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (left), desc,  TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (left), user,  TRUE, TRUE, 0);
+  /* Поля ввода. */
+  priv->entry[TITLE]       = gtk_entry_new ();
+  priv->entry[DESCRIPTION] = gtk_entry_new ();
+  priv->entry[OPERATOR]    = gtk_entry_new ();
+  /* Текст по умолчанию. */
+  gtk_entry_set_text (GTK_ENTRY (priv->entry[TITLE]),       _("New label"));
+  gtk_entry_set_text (GTK_ENTRY (priv->entry[DESCRIPTION]), _("This is a new label"));
+  gtk_entry_set_text (GTK_ENTRY (priv->entry[OPERATOR]),    _("User"));
+  /* Поля ввода в контейнер. */
+  gtk_box_pack_start (GTK_BOX (right), priv->entry[TITLE],       TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (right), priv->entry[DESCRIPTION], TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (right), priv->entry[OPERATOR],    TRUE, TRUE, 0);
+  /* Метки и поля ввода в контейнер. */
+  gtk_box_pack_start (GTK_BOX (box), left,  FALSE, TRUE, 10);
+  gtk_box_pack_start (GTK_BOX (box), right, TRUE,  TRUE, 0);
+  /* Контейнер с метками и полями ввода в диалог. */
+  gtk_box_pack_start (GTK_BOX (priv->content), box, FALSE, TRUE, 0);
+  /* Подключаем сигналы для проверки заполнения поля ввода. */
   g_signal_connect (priv->entry[TITLE],
                     "changed",
                     G_CALLBACK (hyscan_mark_manager_create_label_dialog_check_entry),
                     self);
-  /* Описание группы. */
-  priv->entry[DESCRIPTION] = hyscan_mark_manager_create_label_dialog_add_item (GTK_BOX (priv->content),
-                                                                               _("Description"),
-                                                                               _("This is a new label"));
   g_signal_connect (priv->entry[DESCRIPTION],
                     "changed",
                     G_CALLBACK (hyscan_mark_manager_create_label_dialog_check_entry),
                     self);
-  /* Оператор. */
-  priv->entry[OPERATOR] = hyscan_mark_manager_create_label_dialog_add_item (GTK_BOX (priv->content),
-                                                                            _("Operator"),
-                                                                            _("User"));
   g_signal_connect (priv->entry[OPERATOR],
                     "changed",
                     G_CALLBACK (hyscan_mark_manager_create_label_dialog_check_entry),
@@ -315,24 +331,6 @@ hyscan_mark_manager_create_label_dialog_finalize (GObject *object)
   g_object_unref (priv->icon_model);
 
   G_OBJECT_CLASS (hyscan_mark_manager_create_label_dialog_parent_class)->finalize (object);
-}
-
-/* Создаёт метку и поле ввода для одного элемента диалога создания новой группы. */
-GtkWidget*
-hyscan_mark_manager_create_label_dialog_add_item (GtkBox      *content,
-                                                  const gchar *label_text,
-                                                  const gchar *entry_text)
-{
-  GtkBox    *box   = GTK_BOX (gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 10));
-  GtkWidget *entry = gtk_entry_new ();
-  /* Название группы. */
-  gtk_box_pack_start (box, gtk_label_new (label_text), FALSE, TRUE, 0);
-  /* Поле для ввода названия группы. */
-  gtk_entry_set_text (GTK_ENTRY (entry), entry_text);
-  gtk_box_pack_start (box, entry, TRUE, TRUE, 0);
-  /* Помещаем метку и поле ввода в контейнер. */
-  gtk_box_pack_start (content, GTK_WIDGET (box), FALSE, TRUE, 0);
-  return entry;
 }
 
 /* Функция-обработчик результата диалога создания новой группы. */
