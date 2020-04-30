@@ -37,7 +37,7 @@
 
 #include <cairo.h>
 #include <hyscan-param.h>
-#include <hyscan-map-track.h>
+#include <hyscan-geo.h>
 #include <gio/gio.h>
 
 G_BEGIN_DECLS
@@ -58,17 +58,17 @@ typedef struct _HyScanGtkMapTrackDrawInterface HyScanGtkMapTrackDrawInterface;
  */
 struct _HyScanGtkMapTrackDrawInterface
 {
-  GTypeInterface       g_iface;
+  GTypeInterface         g_iface;
 
-  HyScanParam *        (*get_param)                  (HyScanGtkMapTrackDraw      *track_draw);
+  HyScanParam *          (*get_param)                                        (HyScanGtkMapTrackDraw        *track_draw);
 
-  void                 (*draw_region)                (HyScanGtkMapTrackDraw      *track_draw,
-                                                      HyScanMapTrackData        *data,
-                                                      cairo_t                    *cairo,
-                                                      gdouble                     scale,
-                                                      HyScanGeoCartesian2D       *from,
-                                                      HyScanGeoCartesian2D       *to,
-                                                      GCancellable               *cancellable);
+  void                   (*draw_region)                                      (HyScanGtkMapTrackDraw        *track_draw,
+                                                                              const gchar                  *track_name,
+                                                                              cairo_t                      *cairo,
+                                                                              gdouble                       scale,
+                                                                              HyScanGeoCartesian2D         *from,
+                                                                              HyScanGeoCartesian2D         *to,
+                                                                              GCancellable                 *cancellable);
 };
 
 HYSCAN_API
@@ -76,7 +76,7 @@ GType                    hyscan_gtk_map_track_draw_get_type                  (vo
 
 HYSCAN_API
 void                     hyscan_gtk_map_track_draw_region                    (HyScanGtkMapTrackDraw        *track_draw,
-                                                                              HyScanMapTrackData          *data,
+                                                                              const gchar                  *track_name,
                                                                               cairo_t                      *cairo,
                                                                               gdouble                       scale,
                                                                               HyScanGeoCartesian2D         *from,

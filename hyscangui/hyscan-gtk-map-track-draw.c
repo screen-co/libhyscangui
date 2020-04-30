@@ -68,7 +68,7 @@ hyscan_gtk_map_track_draw_default_init (HyScanGtkMapTrackDrawInterface *iface)
 /**
  * hyscan_gtk_map_track_draw_region:
  * @track_draw: указатель на #HyScanGtkMapTrackDraw
- * @data: данные точек галса
+ * @track_name: имя галса
  * @cairo: контекст cairo
  * @scale: масштаб
  * @from: границы видимой области
@@ -80,7 +80,7 @@ hyscan_gtk_map_track_draw_default_init (HyScanGtkMapTrackDrawInterface *iface)
  */
 void
 hyscan_gtk_map_track_draw_region (HyScanGtkMapTrackDraw     *track_draw,
-                                  HyScanMapTrackData       *data,
+                                  const gchar               *track_name,
                                   cairo_t                   *cairo,
                                   gdouble                    scale,
                                   HyScanGeoCartesian2D      *from,
@@ -93,7 +93,7 @@ hyscan_gtk_map_track_draw_region (HyScanGtkMapTrackDraw     *track_draw,
 
   iface = HYSCAN_GTK_MAP_TRACK_DRAW_GET_IFACE (track_draw);
   if (iface->draw_region != NULL)
-    (* iface->draw_region) (track_draw, data, cairo, scale, from, to, cancellable);
+    (* iface->draw_region) (track_draw, track_name, cairo, scale, from, to, cancellable);
 }
 
 /**

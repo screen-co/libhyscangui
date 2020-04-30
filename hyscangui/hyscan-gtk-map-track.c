@@ -178,14 +178,14 @@ hyscan_gtk_map_track_object_constructed (GObject *object)
   hyscan_param_proxy_node_set_name (priv->param, "/", "Tracks", NULL);
 
   /* Класс отрисовки полосами. */
-  priv->draw_bar = hyscan_gtk_map_track_draw_bar_new ();
+  priv->draw_bar = hyscan_gtk_map_track_draw_bar_new (priv->model);
   g_signal_connect_swapped (priv->draw_bar, "param-changed", G_CALLBACK (hyscan_gtk_map_track_param_set), track_layer);
   child_param = hyscan_gtk_map_track_draw_get_param (priv->draw_bar);
   hyscan_param_proxy_add (priv->param, "/bar", child_param, "/");
   g_object_unref (child_param);
 
-  /* Класс отрисовки лучами. */
-  priv->draw_beam = hyscan_gtk_map_track_draw_beam_new ();
+  /* Класс отрисовки лучами (покрытие). */
+  priv->draw_beam = hyscan_gtk_map_track_draw_beam_new (priv->model);
   g_signal_connect_swapped (priv->draw_beam, "param-changed", G_CALLBACK (hyscan_gtk_map_track_param_set), track_layer);
   child_param = hyscan_gtk_map_track_draw_get_param (priv->draw_beam);
   hyscan_param_proxy_add (priv->param, "/beam", child_param, "/");
@@ -254,19 +254,7 @@ hyscan_gtk_map_track_fill_tile (HyScanGtkMapTiled *tiled_layer,
   active_tracks = hyscan_map_track_model_get_tracks (priv->model);
   for (i = 0; active_tracks[i] != NULL; ++i)
     {
-      HyScanMapTrackData data;
-      HyScanMapTrackModelInfo *info;
-
-      info = hyscan_map_track_model_lookup (priv->model, active_tracks[i]);
-      if (info == NULL)
-        continue;
-
-      hyscan_map_track_get (info->track, &data);
-      /* Рисуем галс только в том случае, если он лежит внутри тайла. */
-      if (!(data.to.x < min.x || data.from.x > max.x || data.to.y < min.y || data.from.y > max.y))
-        hyscan_gtk_map_track_draw_region (track_draw, &data, cairo, scale, &from, &to, cancellable);
-
-      hyscan_map_track_model_release (priv->model, info);
+      hyscan_gtk_map_track_draw_region (track_draw, active_tracks[i], cairo, scale, &from, &to, cancellable);
 
       if (g_cancellable_is_cancelled (cancellable))
         break;

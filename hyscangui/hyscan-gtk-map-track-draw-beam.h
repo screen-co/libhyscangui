@@ -36,6 +36,7 @@
 #define __HYSCAN_GTK_MAP_TRACK_DRAW_BEAM_H__
 
 #include <hyscan-gtk-map-track-draw.h>
+#include <hyscan-map-track-model.h>
 
 G_BEGIN_DECLS
 
@@ -66,7 +67,7 @@ HYSCAN_API
 GType                        hyscan_gtk_map_track_draw_beam_get_type (void);
 
 HYSCAN_API
-HyScanGtkMapTrackDraw *      hyscan_gtk_map_track_draw_beam_new      (void);
+HyScanGtkMapTrackDraw *      hyscan_gtk_map_track_draw_beam_new      (HyScanMapTrackModel *model);
 
 G_END_DECLS
 

@@ -52,6 +52,12 @@
 #define DEFAULT_LINE_WIDTH            1                             /* Толщина линии движения. */
 #define DEFAULT_STROKE_WIDTH          1.0                           /* Толщина обводки. */
 
+enum
+{
+  PROP_0,
+  PROP_MODEL,
+};
+
 typedef struct
 {
   GdkRGBA                             color_left;                   /* Цвет левого борта. */
@@ -66,12 +72,17 @@ typedef struct
 
 struct _HyScanGtkMapTrackDrawBarPrivate
 {
+  HyScanMapTrackModel                *model;                        /* Модель данных. */
   HyScanGtkMapTrackDrawBarStyle       style;                        /* Стиль оформления. */
   GMutex                              lock;                         /* Мьютекс для доступа к полю style. */
   HyScanGtkLayerParam                *param;                        /* HyScanParam для стилей оформления. */
 };
 
 static void    hyscan_gtk_map_track_draw_bar_interface_init           (HyScanGtkMapTrackDrawInterface *iface);
+static void    hyscan_gtk_map_track_draw_bar_set_property             (GObject                        *object,
+                                                                       guint                           prop_id,
+                                                                       const GValue                   *value,
+                                                                       GParamSpec                     *pspec);
 static void    hyscan_gtk_map_track_draw_bar_object_constructed       (GObject                        *object);
 static void    hyscan_gtk_map_track_draw_bar_object_finalize          (GObject                        *object);
 static void    hyscan_gtk_map_track_draw_bar_emit                     (HyScanGtkMapTrackDrawBar       *draw_bar);
@@ -103,14 +114,40 @@ hyscan_gtk_map_track_draw_bar_class_init (HyScanGtkMapTrackDrawBarClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
+  object_class->set_property = hyscan_gtk_map_track_draw_bar_set_property;
   object_class->constructed = hyscan_gtk_map_track_draw_bar_object_constructed;
   object_class->finalize = hyscan_gtk_map_track_draw_bar_object_finalize;
+
+  g_object_class_install_property (object_class, PROP_MODEL,
+                                   g_param_spec_object ("model", "Model", "HyScanMapTrackModel", HYSCAN_TYPE_MAP_TRACK_MODEL,
+                                                        G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
 hyscan_gtk_map_track_draw_bar_init (HyScanGtkMapTrackDrawBar *gtk_map_track_draw_bar)
 {
   gtk_map_track_draw_bar->priv = hyscan_gtk_map_track_draw_bar_get_instance_private (gtk_map_track_draw_bar);
+}
+
+static void
+hyscan_gtk_map_track_draw_bar_set_property (GObject      *object,
+                                            guint         prop_id,
+                                            const GValue *value,
+                                            GParamSpec   *pspec)
+{
+  HyScanGtkMapTrackDrawBar *draw_bar = HYSCAN_GTK_MAP_TRACK_DRAW_BAR (object);
+  HyScanGtkMapTrackDrawBarPrivate *priv = draw_bar->priv;
+
+  switch (prop_id)
+    {
+    case PROP_MODEL:
+      priv->model = g_value_dup_object (value);
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+    }
 }
 
 static void
@@ -146,6 +183,7 @@ hyscan_gtk_map_track_draw_bar_object_finalize (GObject *object)
   HyScanGtkMapTrackDrawBarPrivate *priv = gtk_map_track_draw_bar->priv;
 
   g_object_unref (priv->param);
+  g_object_unref (priv->model);
   g_mutex_clear (&priv->lock);
 
   G_OBJECT_CLASS (hyscan_gtk_map_track_draw_bar_parent_class)->finalize (object);
@@ -280,7 +318,7 @@ hyscan_gtk_map_track_draw_bar_start (HyScanGeoCartesian2D          *from,
 
 static void
 hyscan_gtk_map_track_draw_bar_draw_region (HyScanGtkMapTrackDraw      *track_draw,
-                                           HyScanMapTrackData        *data,
+                                           const gchar                *track_name,
                                            cairo_t                    *cairo,
                                            gdouble                     scale,
                                            HyScanGeoCartesian2D       *from,
@@ -290,18 +328,37 @@ hyscan_gtk_map_track_draw_bar_draw_region (HyScanGtkMapTrackDraw      *track_dra
   HyScanGtkMapTrackDrawBar *draw_bar = HYSCAN_GTK_MAP_TRACK_DRAW_BAR (track_draw);
   HyScanGtkMapTrackDrawBarPrivate *priv = draw_bar->priv;
   HyScanGtkMapTrackDrawBarStyle style;
+  HyScanMapTrackData data;
+  HyScanMapTrackModelInfo *track_info;
 
+  /* Блокируем доступ к данным галса. */
+  track_info = hyscan_map_track_model_lookup (priv->model, track_name);
+  if (!hyscan_map_track_get (track_info->track, &data))
+    goto exit;
+
+  /* Проверяем, что точки галса лежат внутри тайла. */
+  if (data.to.x < MIN (from->x, to->x) || data.from.x > MAX (from->x, to->x) ||
+      data.to.y < MIN (from->y, to->y) || data.from.y > MAX (from->y, to->y))
+    {
+      goto exit;
+    }
+
+  /* Копируем стиль оформления. */
   g_mutex_lock (&priv->lock);
   style = priv->style;
   g_mutex_unlock (&priv->lock);
 
+  /* Рисуем. */
   cairo_save (cairo);
   cairo_set_antialias (cairo, CAIRO_ANTIALIAS_FAST);
-  hyscan_gtk_map_track_draw_bar_side (from, to, scale, data->port, cairo, &style);
-  hyscan_gtk_map_track_draw_bar_side (from, to, scale, data->starboard, cairo, &style);
-  hyscan_gtk_map_track_draw_bar_path (from, to, scale, data->nav, cairo, &style);
-  hyscan_gtk_map_track_draw_bar_start (from, to, scale, data->nav, cairo, &style);
+  hyscan_gtk_map_track_draw_bar_side (from, to, scale, data.port, cairo, &style);
+  hyscan_gtk_map_track_draw_bar_side (from, to, scale, data.starboard, cairo, &style);
+  hyscan_gtk_map_track_draw_bar_path (from, to, scale, data.nav, cairo, &style);
+  hyscan_gtk_map_track_draw_bar_start (from, to, scale, data.nav, cairo, &style);
   cairo_restore (cairo);
+
+exit:
+  hyscan_map_track_model_release (priv->model, track_info);
 }
 
 static HyScanParam *
@@ -320,8 +377,18 @@ hyscan_gtk_map_track_draw_bar_interface_init (HyScanGtkMapTrackDrawInterface *if
   iface->draw_region = hyscan_gtk_map_track_draw_bar_draw_region;
 }
 
+/**
+ * hyscan_gtk_map_track_draw_bar_new:
+ * @model: модель данных #HyScanMapTrackModel
+ *
+ * Создаёт объект для рисования изображения галса.
+ *
+ * Returns: указатель на #HyScanGtkMapTrackDrawBar, для удаления g_object_unref().
+ */
 HyScanGtkMapTrackDraw *
-hyscan_gtk_map_track_draw_bar_new (void)
+hyscan_gtk_map_track_draw_bar_new (HyScanMapTrackModel *model)
 {
-  return g_object_new (HYSCAN_TYPE_GTK_MAP_TRACK_DRAW_BAR, NULL);
+  return g_object_new (HYSCAN_TYPE_GTK_MAP_TRACK_DRAW_BAR,
+                       "model", model,
+                       NULL);
 }

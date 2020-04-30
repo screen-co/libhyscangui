@@ -478,15 +478,15 @@ on_configure_track_clicked (GtkButton *button,
       if (gtk_tree_model_get_iter (GTK_TREE_MODEL (priv->track_store), &iter, path))
         {
           GtkWidget *window;
-          HyScanMapTrackModelInfo *info;
+          HyScanMapTrackParam *track_param;
 
           gtk_tree_model_get (GTK_TREE_MODEL (priv->track_store), &iter, TRACK_COLUMN, &track_name, -1);
-          info = hyscan_map_track_model_lookup (priv->track_model, track_name);
+          track_param = hyscan_map_track_model_param (priv->track_model, track_name);
 
-          window = create_param_settings_window (kit, _("Track settings"), HYSCAN_PARAM (info->track));
+          window = create_param_settings_window (kit, _("Track settings"), HYSCAN_PARAM (track_param));
           gtk_widget_show_all (window);
 
-          hyscan_map_track_model_release (priv->track_model, info);
+          g_object_unref (track_param);
           g_free (track_name);
         }
     }

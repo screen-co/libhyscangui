@@ -49,14 +49,25 @@
 #include <gdk/gdk.h>
 #include <hyscan-track-proj-quality.h>
 
+enum
+{
+  PROP_0,
+  PROP_MODEL,
+};
+
 struct _HyScanGtkMapTrackDrawBeamPrivate
 {
+  HyScanMapTrackModel *model;        /* Модель данных. */
   GdkRGBA              color;        /* Цвет покрытия. */
   GMutex               lock;         /* Мьютекс для блокировки доступа к color. */
   HyScanGtkLayerParam *param;        /* Параметры отрисовщика. */
 };
 
 static void    hyscan_gtk_map_track_draw_beam_interface_init           (HyScanGtkMapTrackDrawInterface *iface);
+static void    hyscan_gtk_map_track_draw_beam_set_property             (GObject                        *object,
+                                                                        guint                           prop_id,
+                                                                        const GValue                   *value,
+                                                                        GParamSpec                     *pspec);
 static void    hyscan_gtk_map_track_draw_beam_object_constructed       (GObject                        *object);
 static void    hyscan_gtk_map_track_draw_beam_object_finalize          (GObject                        *object);
 static void    hyscan_gtk_map_track_draw_beam_emit                     (HyScanGtkMapTrackDrawBeam      *draw_beam);
@@ -78,14 +89,40 @@ hyscan_gtk_map_track_draw_beam_class_init (HyScanGtkMapTrackDrawBeamClass *klass
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
+  object_class->set_property = hyscan_gtk_map_track_draw_beam_set_property;
   object_class->constructed = hyscan_gtk_map_track_draw_beam_object_constructed;
   object_class->finalize = hyscan_gtk_map_track_draw_beam_object_finalize;
+
+  g_object_class_install_property (object_class, PROP_MODEL,
+                                   g_param_spec_object ("model", "Model", "HyScanMapTrackModel", HYSCAN_TYPE_MAP_TRACK_MODEL,
+                                                        G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
 hyscan_gtk_map_track_draw_beam_init (HyScanGtkMapTrackDrawBeam *gtk_map_track_draw_beam)
 {
   gtk_map_track_draw_beam->priv = hyscan_gtk_map_track_draw_beam_get_instance_private (gtk_map_track_draw_beam);
+}
+
+static void
+hyscan_gtk_map_track_draw_beam_set_property (GObject      *object,
+                                             guint         prop_id,
+                                             const GValue *value,
+                                             GParamSpec   *pspec)
+{
+  HyScanGtkMapTrackDrawBeam *draw_beam = HYSCAN_GTK_MAP_TRACK_DRAW_BEAM (object);
+  HyScanGtkMapTrackDrawBeamPrivate *priv = draw_beam->priv;
+
+  switch (prop_id)
+    {
+    case PROP_MODEL:
+      priv->model = g_value_dup_object (value);
+      break;
+
+    default:
+      G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
+      break;
+    }
 }
 
 static void
@@ -110,6 +147,7 @@ hyscan_gtk_map_track_draw_beam_object_finalize (GObject *object)
   HyScanGtkMapTrackDrawBeamPrivate *priv = gtk_map_track_draw_beam->priv;
 
   g_object_unref (priv->param);
+  g_object_unref (priv->model);
   g_mutex_clear (&priv->lock);
 
   G_OBJECT_CLASS (hyscan_gtk_map_track_draw_beam_parent_class)->finalize (object);
@@ -151,15 +189,15 @@ hyscan_gtk_map_track_draw_beam_side (HyScanGtkMapTrackDrawBeam *beam,
 
   for (point_l = points; point_l != NULL; point_l = point_l->next)
     {
+      const gdouble *quality;
+      gsize i, quality_len;
+
       gdouble nr_part, dx1, dy1, dx2, dy2, dx_nf, dy_nf;
 
       point = point_l->data;
 
-      const HyScanTrackCovSection *quality_values;
-      gsize quality_len;
-
-      hyscan_track_proj_quality_get (quality_data, point->index, &quality_values, &quality_len);
-      if (point->b_dist <= 0 || quality_len == 0)
+      quality = hyscan_track_proj_quality_squash (quality_data, point->index, &quality_len);
+      if (point->b_dist <= 0 || quality == NULL || quality_len == 0)
         continue;
 
       if (g_cancellable_is_cancelled (cancellable))
@@ -178,14 +216,10 @@ hyscan_gtk_map_track_draw_beam_side (HyScanGtkMapTrackDrawBeam *beam,
       dy2 = ff2.y - start.y;
       dx_nf = (nf.x - start.x) / nr_part;
       dy_nf = (nf.y - start.y) / nr_part;
-      for (guint i = 0; i < quality_len - 1; i++)
+      for (i = 0; i < quality_len; i += 2)
         {
-          const HyScanTrackCovSection *section = &quality_values[i];
-          gdouble s0 = section->start;
-          gdouble s1 = quality_values[i + 1].start;
-
-          if (section->quality == 0.0)
-            continue;
+          /* Начало и конец отрезка луча. */
+          gdouble s0 = quality[i], s1 = quality[i+1];
 
           /* Ближняя зона. */
           if (s0 < nr_part)
@@ -234,8 +268,7 @@ hyscan_gtk_map_track_draw_beam_side (HyScanGtkMapTrackDrawBeam *beam,
 
 static void
 hyscan_gtk_map_track_draw_beam_draw_region (HyScanGtkMapTrackDraw     *track_draw,
-                                            HyScanTrackProjQuality    *quality_data,
-                                            HyScanMapTrackData       *data,
+                                            const gchar               *track_name,
                                             cairo_t                   *cairo,
                                             gdouble                    scale,
                                             HyScanGeoCartesian2D      *from,
@@ -243,9 +276,33 @@ hyscan_gtk_map_track_draw_beam_draw_region (HyScanGtkMapTrackDraw     *track_dra
                                             GCancellable              *cancellable)
 {
   HyScanGtkMapTrackDrawBeam *beam = HYSCAN_GTK_MAP_TRACK_DRAW_BEAM (track_draw);
+  HyScanGtkMapTrackDrawBeamPrivate *priv = beam->priv;
+  HyScanMapTrackData data;
+  HyScanMapTrackModelInfo *track_info;
 
-  hyscan_gtk_map_track_draw_beam_side (beam, quality_data, from, to, scale, data->port, cairo, cancellable);
-  hyscan_gtk_map_track_draw_beam_side (beam, quality_data, from, to, scale, data->starboard, cairo, cancellable);
+  /* Блокируем доступ к данным галса. */
+  track_info = hyscan_map_track_model_lookup (priv->model, track_name);
+  if (!hyscan_map_track_get (track_info->track, &data))
+    goto exit;
+
+  /* Проверяем, что точки галса лежат внутри тайла. */
+  if (data.to.x < MIN (from->x, to->x) || data.from.x > MAX (from->x, to->x) ||
+      data.to.y < MIN (from->y, to->y) || data.from.y > MAX (from->y, to->y))
+    {
+      goto exit;
+    }
+
+  /* Рисуем. */
+  hyscan_gtk_map_track_draw_beam_side (beam,
+                                       hyscan_map_track_get_quality_port (track_info->track),
+                                       from, to, scale, data.port, cairo, cancellable);
+
+  hyscan_gtk_map_track_draw_beam_side (beam,
+                                       hyscan_map_track_get_quality_starboard (track_info->track),
+                                       from, to, scale, data.starboard, cairo, cancellable);
+
+exit:
+  hyscan_map_track_model_release (priv->model, track_info);
 }
 
 static HyScanParam *
@@ -266,13 +323,16 @@ hyscan_gtk_map_track_draw_beam_interface_init (HyScanGtkMapTrackDrawInterface *i
 
 /**
  * hyscan_gtk_map_track_draw_beam_new:
+ * @model: модель данных #HyScanMapTrackModel
  *
  * Функция создаёт объект для рисования покрытия галса.
  *
  * Returns: (transfer full): новый объект #HyScanGtkMapTrackDraw, для удаления g_object_unref().
  */
 HyScanGtkMapTrackDraw *
-hyscan_gtk_map_track_draw_beam_new (void)
+hyscan_gtk_map_track_draw_beam_new (HyScanMapTrackModel *model)
 {
-  return g_object_new (HYSCAN_TYPE_GTK_MAP_TRACK_DRAW_BEAM, NULL);
+  return g_object_new (HYSCAN_TYPE_GTK_MAP_TRACK_DRAW_BEAM,
+                       "model", model,
+                       NULL);
 }
