@@ -332,7 +332,7 @@ hyscan_gtk_map_track_draw_bar_draw_region (HyScanGtkMapTrackDraw      *track_dra
   HyScanMapTrackModelInfo *track_info;
 
   /* Блокируем доступ к данным галса. */
-  track_info = hyscan_map_track_model_lookup (priv->model, track_name);
+  track_info = hyscan_map_track_model_lock (priv->model, track_name);
   if (!hyscan_map_track_get (track_info->track, &data))
     goto exit;
 
@@ -358,7 +358,7 @@ hyscan_gtk_map_track_draw_bar_draw_region (HyScanGtkMapTrackDraw      *track_dra
   cairo_restore (cairo);
 
 exit:
-  hyscan_map_track_model_release (priv->model, track_info);
+  hyscan_map_track_model_unlock (track_info);
 }
 
 static HyScanParam *

@@ -482,12 +482,12 @@ hyscan_gtk_map_track_view_load (GTask        *task,
 
   /* Находим запрошенный галс. */
   track_name = task_data;
-  info = hyscan_map_track_model_lookup (priv->model, track_name);
+  info = hyscan_map_track_model_lock (priv->model, track_name);
   if (info == NULL)
     goto exit;
 
   result = hyscan_map_track_view (info->track, &view[0], &view[1]);
-  hyscan_map_track_model_release (priv->model, info);
+  hyscan_map_track_model_unlock (info);
 
 exit:
   if (result)
