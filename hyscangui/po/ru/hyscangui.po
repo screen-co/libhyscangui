@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-04-30 10:19+0300\n"
+"POT-Creation-Date: 2020-05-01 11:39+0300\n"
 "PO-Revision-Date: 2019-05-31 17:01+0300\n"
 "Last-Translator: Automatically generated\n"
 "Language-Team: none\n"
@@ -291,7 +291,7 @@ msgstr "ПУ"
 
 #: hyscangui/hyscan-gtk-mark-export.c:1140
 #: hyscangui/hyscan-gtk-mark-export.c:1246
-#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:200
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:207
 #: hyscangui/hyscan-gtk-mark-manager-change-label-dialog.c:165
 #: hyscangui/hyscan-gtk-map-planner.c:1777
 msgid "Cancel"
@@ -309,9 +309,9 @@ msgstr "Выбрать"
 msgid "Choose directory"
 msgstr "Выберите директорию"
 
-#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:309
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:304
 msgid "Choose icon"
-msgstr "Выберите изображеие"
+msgstr "Выберите изображение"
 
 #: hyscangui/hyscan-gtk-mark-manager-change-label-dialog.c:154
 msgid "Choose label"
@@ -413,7 +413,7 @@ msgstr "Глубина"
 #: hyscangui/hyscan-gtk-model-manager.c:1620
 #: hyscangui/hyscan-gtk-model-manager.c:1855
 #: hyscangui/hyscan-gtk-model-manager.c:1950
-#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:180
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:99
 #: hyscangui/hyscan-gtk-mark-manager-change-label-dialog.c:263
 #: hyscangui/hyscan-gtk-mark-manager-view.c:722
 msgid "Description"
@@ -691,8 +691,8 @@ msgstr "Начать навигацию"
 msgid "Navigation"
 msgstr "Навигация"
 
-#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:189
-#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:216
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:94
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:196
 msgid "New label"
 msgstr "Новая группа"
 
@@ -709,7 +709,7 @@ msgstr "Описание:"
 msgid "Number tracks starting from here"
 msgstr "Назначить номер галсов, начиная с этого"
 
-#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:199
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:206
 #: hyscangui/hyscan-gtk-mark-manager-change-label-dialog.c:164
 msgid "OK"
 msgstr "ОК"
@@ -733,7 +733,7 @@ msgstr "Объекты"
 #: hyscangui/hyscan-gtk-model-manager.c:1629
 #: hyscangui/hyscan-gtk-model-manager.c:1864
 #: hyscangui/hyscan-gtk-model-manager.c:1959
-#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:181
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:100
 #: hyscangui/hyscan-gtk-mark-manager-change-label-dialog.c:269
 msgid "Operator"
 msgstr "Оператор"
@@ -1025,7 +1025,7 @@ msgstr "Канал NMEA с сообщениями DPT"
 msgid "The NMEA-channel with RMC sentences"
 msgstr "Канал NMEA с сообщениями RMC"
 
-#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:217
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:95
 msgid "This is a new label"
 msgstr "Новая группа"
 
@@ -1038,7 +1038,7 @@ msgstr "Время"
 msgid "Time, hh:mm:ss"
 msgstr "Время, чч:мм:сс"
 
-#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:179
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:98
 #: hyscangui/hyscan-gtk-mark-manager-change-label-dialog.c:251
 #: hyscangui/hyscan-gtk-planner-list.c:455
 msgid "Title"
@@ -1128,7 +1128,7 @@ msgstr "Нет данных"
 msgid "Untoggle all"
 msgstr "Снять все отметки"
 
-#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:218
+#: hyscangui/hyscan-gtk-mark-manager-create-label-dialog.c:96
 msgid "User"
 msgstr "Опрератор"
 
