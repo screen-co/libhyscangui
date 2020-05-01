@@ -63,15 +63,6 @@ enum
   N_PROPERTIES
 };
 
-/* Поля для вода данных GtkEntry. */
-enum
-{
-  TITLE,       /* Название группы. */
-  DESCRIPTION, /* Описание группы. */
-  OPERATOR,    /* Оператор. */
-  N_ENTRY      /* Количество полей. */
-};
-
 /* Колонки для модели с иконками. */
 enum
 {
@@ -80,16 +71,33 @@ enum
   N_COLUMNS     /* Количество колонок. */
 };
 
+/* Поля для вода данных GtkEntry. */
+typedef enum
+{
+  TITLE,       /* Название группы. */
+  DESCRIPTION, /* Описание группы. */
+  OPERATOR,    /* Оператор. */
+  N_ENTRY      /* Количество полей. */
+} EntryType;
+
 struct _HyScanMarkManagerCreateLabelDialogPrivate
 {
   GtkWindow         *parent;         /* Родительское окно. */
   GtkWidget         *content,        /* Контейнер для размещения виджетов диалога.  */
                     *entry[N_ENTRY], /* Поля для ввода данных. */
-                    *icon_view,      /* Виджет для отображения иконок. */
-                    *ok_button;      /* Кнопка "Ok". */
+                    *icon_view;      /* Виджет для отображения иконок. */
   GtkTreeModel      *icon_model;     /* Модель с иконками. */
   HyScanObjectModel *label_model;    /* Модель с данныим о группах. */
 };
+
+/* Текст для полей ввода по умолчанию. */
+static gchar *entry_default_text[N_ENTRY] = {N_("New label"),
+                                             N_("This is a new label"),
+                                             N_("User")};
+/* Текстовые метки по умолчанию.*/
+static gchar *label_text[N_ENTRY] = {N_("Title"),
+                                     N_("Description"),
+                                     N_("Operator")};
 
 static void       hyscan_mark_manager_create_label_dialog_set_property     (GObject      *object,
                                                                             guint         prop_id,
@@ -176,13 +184,12 @@ hyscan_mark_manager_create_label_dialog_constructed (GObject *object)
   GtkIconTheme *icon_theme;                /* Тема оформленя, откуда беуться иконки. */
   GtkDialog *dialog = GTK_DIALOG (object); /* Диалог. */
   GtkWindow *window = GTK_WINDOW (dialog); /* Тот же диалог, но GtkWindow. */
-  GtkWidget *title  = gtk_label_new (_("Title")),                  /* Метка "Название группы". */
-            *desc   = gtk_label_new (_("Description")),            /* Метка "Описание". */
-            *user   = gtk_label_new (_("Operator")),               /* Метка "Опреатор". */
+  GtkWidget *label[N_ENTRY],               /* Текстовые метки. */
             *left   = gtk_box_new (GTK_ORIENTATION_VERTICAL,   0), /* Контейнер для меток. */
             *right  = gtk_box_new (GTK_ORIENTATION_VERTICAL,   0), /* Контейнер для полей ввода. */
             *box    = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0); /* Общий контейнер. */
   GList     *images;                       /* Список иконок из темы. */
+  EntryType  type;
   /* Дефолтный конструктор родительского класса. */
   G_OBJECT_CLASS (hyscan_mark_manager_create_label_dialog_parent_class)->constructed (object);
   /* Устанавливаем заголовок диаога. */
@@ -196,48 +203,36 @@ hyscan_mark_manager_create_label_dialog_constructed (GObject *object)
   /* Размер диалога. */
   gtk_widget_set_size_request (GTK_WIDGET (dialog), 600, 400);
   /* Добавляем кнопки "ОК" и "Cancel". */
-  priv->ok_button = gtk_dialog_add_button (dialog, _("OK"), GTK_RESPONSE_OK);
+  gtk_dialog_add_button (dialog, _("OK"),     GTK_RESPONSE_OK);
   gtk_dialog_add_button (dialog, _("Cancel"), GTK_RESPONSE_CANCEL);
   /* Получаем контейнер для размещения виджетов диалога. */
   priv->content = gtk_dialog_get_content_area (dialog);
-  /* Текст слева. */
-  gtk_widget_set_halign (title, GTK_ALIGN_START);
-  gtk_widget_set_halign (desc,  GTK_ALIGN_START);
-  gtk_widget_set_halign (user,  GTK_ALIGN_START);
-  /* Метки в контейнер.  */
-  gtk_box_pack_start (GTK_BOX (left), title, TRUE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (left), desc,  TRUE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (left), user,  TRUE, TRUE, 0);
-  /* Поля ввода. */
-  priv->entry[TITLE]       = gtk_entry_new ();
-  priv->entry[DESCRIPTION] = gtk_entry_new ();
-  priv->entry[OPERATOR]    = gtk_entry_new ();
-  /* Текст по умолчанию. */
-  gtk_entry_set_text (GTK_ENTRY (priv->entry[TITLE]),       _("New label"));
-  gtk_entry_set_text (GTK_ENTRY (priv->entry[DESCRIPTION]), _("This is a new label"));
-  gtk_entry_set_text (GTK_ENTRY (priv->entry[OPERATOR]),    _("User"));
-  /* Поля ввода в контейнер. */
-  gtk_box_pack_start (GTK_BOX (right), priv->entry[TITLE],       TRUE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (right), priv->entry[DESCRIPTION], TRUE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (right), priv->entry[OPERATOR],    TRUE, TRUE, 0);
+  /* Создаём и размещаем текстовые метки и поля ввода. */
+  for (type = TITLE; type < N_ENTRY; type++)
+    {
+      /* Текстовая метка. */
+      label[type] = gtk_label_new (_(label_text[type]));
+      /* Текстовую метку в контейнер слева. */
+      gtk_widget_set_halign (label[type], GTK_ALIGN_START);
+      /* Метки в контейнер.  */
+      gtk_box_pack_start (GTK_BOX (left), label[type], TRUE, TRUE, 0);
+      /* Поле ввода. */
+      priv->entry[type] = gtk_entry_new ();
+      /* Текст поля ввода по умолчанию. */
+      gtk_entry_set_text (GTK_ENTRY (priv->entry[type]), _(entry_default_text[type]));
+      /* Поле ввода в контейнер справа. */
+      gtk_box_pack_start (GTK_BOX (right), priv->entry[type], TRUE, TRUE, 0);
+      /* Подключаем сигнал для проверки заполнения поля ввода. */
+      g_signal_connect (priv->entry[type],
+                        "changed",
+                        G_CALLBACK (hyscan_mark_manager_create_label_dialog_check_entry),
+                        self);
+    }
   /* Метки и поля ввода в контейнер. */
   gtk_box_pack_start (GTK_BOX (box), left,  FALSE, TRUE, 10);
   gtk_box_pack_start (GTK_BOX (box), right, TRUE,  TRUE, 0);
   /* Контейнер с метками и полями ввода в диалог. */
   gtk_box_pack_start (GTK_BOX (priv->content), box, FALSE, TRUE, 0);
-  /* Подключаем сигналы для проверки заполнения поля ввода. */
-  g_signal_connect (priv->entry[TITLE],
-                    "changed",
-                    G_CALLBACK (hyscan_mark_manager_create_label_dialog_check_entry),
-                    self);
-  g_signal_connect (priv->entry[DESCRIPTION],
-                    "changed",
-                    G_CALLBACK (hyscan_mark_manager_create_label_dialog_check_entry),
-                    self);
-  g_signal_connect (priv->entry[OPERATOR],
-                    "changed",
-                    G_CALLBACK (hyscan_mark_manager_create_label_dialog_check_entry),
-                    self);
   /* Получаем тему. */
   icon_theme = gtk_icon_theme_get_default ();
   /* Получаем список иконок. */
@@ -421,9 +416,9 @@ hyscan_mark_manager_create_label_dialog_check_entry (GtkEntry  *entry,
   if (IS_EMPTY (GTK_ENTRY (priv->entry[TITLE]))       ||
       IS_EMPTY (GTK_ENTRY (priv->entry[DESCRIPTION])) ||
       IS_EMPTY (GTK_ENTRY (priv->entry[OPERATOR])))
-    gtk_widget_set_sensitive (priv->ok_button, FALSE);
+    gtk_dialog_set_response_sensitive (GTK_DIALOG (self), GTK_RESPONSE_OK, FALSE);
   else
-    gtk_widget_set_sensitive (priv->ok_button, TRUE);
+    gtk_dialog_set_response_sensitive (GTK_DIALOG (self), GTK_RESPONSE_OK, TRUE);
 }
 
 /**
