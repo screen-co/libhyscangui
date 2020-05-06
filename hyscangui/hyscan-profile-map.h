@@ -84,6 +84,10 @@ HYSCAN_API
 HyScanProfileMap *     hyscan_profile_map_new_default      (const gchar        *cache_dir);
 
 HYSCAN_API
+HyScanProfileMap *     hyscan_profile_map_copy             (HyScanProfileMap   *profile,
+                                                            const gchar        *file_name);
+
+HYSCAN_API
 HyScanProfileMap *     hyscan_profile_map_new_full         (const gchar        *title,
                                                             const gchar        *url_format,
                                                             const gchar        *cache_dir,
@@ -110,9 +114,8 @@ gboolean               hyscan_profile_map_apply            (HyScanProfileMap   *
                                                             const gchar        *base_layer_id);
 
 HYSCAN_API
-gboolean               hyscan_profile_map_write             (HyScanProfileMap   *profile,
-                                                             HyScanGtkMap       *map,
-                                                             const gchar        *file);
+void                   hyscan_profile_map_set_param         (HyScanProfileMap   *profile,
+                                                             HyScanParam        *layers_param);
 
 G_END_DECLS
 

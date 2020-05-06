@@ -50,10 +50,17 @@ static gchar *file_name;
 static void
 map_config_apply (HyScanGtkParam *param_tree)
 {
+  HyScanParam *param;
+
   hyscan_gtk_param_apply (param_tree);
 
-  if (file_name != NULL)
-    hyscan_profile_map_write (profile, HYSCAN_GTK_MAP (map), file_name);
+  if (file_name == NULL)
+    return;
+
+  param = hyscan_gtk_layer_container_get_param (HYSCAN_GTK_LAYER_CONTAINER (map));
+  hyscan_profile_map_set_param (profile, param);
+  hyscan_profile_write (HYSCAN_PROFILE (profile));
+  g_object_unref (param);
 }
 
 static GtkWidget *
