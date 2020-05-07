@@ -32,42 +32,42 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
-#ifndef __HYSCAN_MARK_MANAGER_CREATE_LABEL_DIALOG_H__
-#define __HYSCAN_MARK_MANAGER_CREATE_LABEL_DIALOG_H__
+#ifndef __HYSCAN_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG_H__
+#define __HYSCAN_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG_H__
 
 #include <gtk/gtk.h>
 #include <hyscan-object-model.h>
 
 G_BEGIN_DECLS
 
-#define HYSCAN_TYPE_MARK_MANAGER_CREATE_LABEL_DIALOG             (hyscan_mark_manager_create_label_dialog_get_type ())
-#define HYSCAN_MARK_MANAGER_CREATE_LABEL_DIALOG(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_MARK_MANAGER_CREATE_LABEL_DIALOG, HyScanMarkManagerCreateLabelDialog))
-#define HYSCAN_IS_MARK_MANAGER_CREATE_LABEL_DIALOG(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_MARK_MANAGER_CREATE_LABEL_DIALOG))
-#define HYSCAN_MARK_MANAGER_CREATE_LABEL_DIALOG_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_MARK_MANAGER_CREATE_LABEL_DIALOG, HyScanMarkManagerCreateLabelDialogClass))
-#define HYSCAN_IS_MARK_MANAGER_CREATE_LABEL_DIALOG_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_MARK_MANAGER_CREATE_LABEL_DIALOG))
-#define HYSCAN_MARK_MANAGER_CREATE_LABEL_DIALOG_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_MARK_MANAGER_CREATE_LABEL_DIALOG, HyScanMarkManagerCreateLabelDialogClass))
+#define HYSCAN_TYPE_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG             (hyscan_gtk_mark_manager_create_label_dialog_get_type ())
+#define HYSCAN_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG, HyScanGtkMarkManagerCreateLabelDialog))
+#define HYSCAN_IS_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG))
+#define HYSCAN_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG, HyScanGtkMarkManagerCreateLabelDialogClass))
+#define HYSCAN_IS_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG))
+#define HYSCAN_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG, HyScanGtkMarkManagerCreateLabelDialogClass))
 
-typedef struct _HyScanMarkManagerCreateLabelDialog        HyScanMarkManagerCreateLabelDialog;
-typedef struct _HyScanMarkManagerCreateLabelDialogPrivate HyScanMarkManagerCreateLabelDialogPrivate;
-typedef struct _HyScanMarkManagerCreateLabelDialogClass   HyScanMarkManagerCreateLabelDialogClass;
+typedef struct _HyScanGtkMarkManagerCreateLabelDialog        HyScanGtkMarkManagerCreateLabelDialog;
+typedef struct _HyScanGtkMarkManagerCreateLabelDialogPrivate HyScanGtkMarkManagerCreateLabelDialogPrivate;
+typedef struct _HyScanGtkMarkManagerCreateLabelDialogClass   HyScanGtkMarkManagerCreateLabelDialogClass;
 
-struct _HyScanMarkManagerCreateLabelDialog
+struct _HyScanGtkMarkManagerCreateLabelDialog
 {
   GtkDialog parent_instance;
 
-  HyScanMarkManagerCreateLabelDialogPrivate *priv;
+  HyScanGtkMarkManagerCreateLabelDialogPrivate *priv;
 };
 
-struct _HyScanMarkManagerCreateLabelDialogClass
+struct _HyScanGtkMarkManagerCreateLabelDialogClass
 {
   GtkDialogClass parent_class;
 };
 
-GType      hyscan_mark_manager_create_label_dialog_get_type (void);
+GType      hyscan_gtk_mark_manager_create_label_dialog_get_type (void);
 
-GtkWidget* hyscan_mark_manager_create_label_dialog_new      (GtkWindow         *parent,
-                                                             HyScanObjectModel *model);
+GtkWidget* hyscan_gtk_mark_manager_create_label_dialog_new      (GtkWindow         *parent,
+                                                                 HyScanObjectModel *model);
 
 G_END_DECLS
 
-#endif /* __HYSCAN_MARK_MANAGER_CREATE_LABEL_DIALOG_H__ */
+#endif /* __HYSCAN_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG_H__ */

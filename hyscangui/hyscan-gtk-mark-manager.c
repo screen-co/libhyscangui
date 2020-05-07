@@ -537,8 +537,8 @@ hyscan_mark_manager_create_new_label (GtkToolItem       *item,
       HyScanObjectModel *label_model = hyscan_model_manager_get_label_model (priv->model_manager);
       GtkWindow *parent = GTK_WINDOW (gtk_widget_get_toplevel (GTK_WIDGET (self)));
       /* Создаём немодальный диалог для создания новой группы. */
-      priv->new_label_dialog = hyscan_mark_manager_create_label_dialog_new (parent,
-                                                                            label_model);
+      priv->new_label_dialog = hyscan_gtk_mark_manager_create_label_dialog_new (parent,
+                                                                                label_model);
       /* Подключаем сигналу закрытия диалога, чтобы обнулить указатель. */
       g_signal_connect (priv->new_label_dialog,
                         "destroy",
@@ -749,8 +749,8 @@ hyscan_mark_manager_toggled_items_change_label (GtkMenuItem       *item,
       HyScanObjectModel *label_model = hyscan_model_manager_get_label_model (priv->model_manager);
       GtkWindow *parent = GTK_WINDOW (gtk_widget_get_toplevel (GTK_WIDGET (self)));
       /* Создаём немодальный диалог для переноса объектов в другую группу. */
-      priv->change_label_dialog = hyscan_mark_manager_change_label_dialog_new (parent,
-                                                                               label_model);
+      priv->change_label_dialog = hyscan_gtk_mark_manager_change_label_dialog_new (parent,
+                                                                                   label_model);
       /* Подключаем сигналу закрытия диалога, чтобы обнулить указатель. */
       g_signal_connect (priv->change_label_dialog,
                         "destroy",
