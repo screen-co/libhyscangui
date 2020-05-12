@@ -112,6 +112,11 @@ static void       hyscan_gtk_mark_manager_create_label_dialog_response         (
 static void       hyscan_gtk_mark_manager_create_label_dialog_check_entry      (GtkEntry     *entry,
                                                                                 gpointer      user_data);
 
+static guint64    hyscan_gtk_mark_manager_create_label_dialog_generate_label   (GHashTable   *table);
+
+static gboolean   hyscan_gtk_mark_manager_create_label_dialog_validate_label   (GHashTable   *table,
+                                                                                guint64       label);
+
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMarkManagerCreateLabelDialog, hyscan_gtk_mark_manager_create_label_dialog, GTK_TYPE_DIALOG)
 
 static void
@@ -329,10 +334,10 @@ hyscan_gtk_mark_manager_create_label_dialog_response (GtkWidget *dialog,
     case GTK_RESPONSE_OK:
       {
         HyScanLabel *label = hyscan_label_new ();
-        GList       *images;
-        gint64       time  = g_date_time_to_unix (g_date_time_new_now_local ());
         GHashTable  *table = hyscan_object_model_get (priv->label_model);
-        guint size = g_hash_table_size (table);
+        GList       *images;
+        gint64  time  = g_date_time_to_unix (g_date_time_new_now_local ());
+        guint64 size  = hyscan_gtk_mark_manager_create_label_dialog_generate_label (table);
         g_print ("OK\n");
         g_hash_table_destroy (table);
         /* Заполняем данные о группе. */
@@ -403,6 +408,41 @@ hyscan_gtk_mark_manager_create_label_dialog_check_entry (GtkEntry  *entry,
     gtk_dialog_set_response_sensitive (GTK_DIALOG (self), GTK_RESPONSE_OK, FALSE);
   else
     gtk_dialog_set_response_sensitive (GTK_DIALOG (self), GTK_RESPONSE_OK, TRUE);
+}
+
+/* Генерация идентификатора группы. */
+guint64
+hyscan_gtk_mark_manager_create_label_dialog_generate_label (GHashTable *table)
+{
+  guint64 label = g_random_int ();
+  label = label << 32 | g_random_int ();
+  while (!hyscan_gtk_mark_manager_create_label_dialog_validate_label (table, label))
+    {
+      label = g_random_int ();
+      label = label << 32 | g_random_int ();
+    }
+  return label;
+}
+
+/* Проверка идентификатора группы. */
+gboolean
+hyscan_gtk_mark_manager_create_label_dialog_validate_label (GHashTable *table,
+                                                             guint64     label)
+{
+  GHashTableIter  table_iter;
+  HyScanLabel    *object;
+  gchar          *id;
+
+  g_hash_table_iter_init (&table_iter, table);
+  while (g_hash_table_iter_next (&table_iter, (gpointer*)&id, (gpointer*)&object))
+    {
+      if (object != NULL)
+        {
+          if (object->label == label)
+            return FALSE;
+        }
+    }
+  return TRUE;
 }
 
 /**
