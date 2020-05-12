@@ -77,7 +77,7 @@
 #include <hyscan-tile-color.h>
 #include <math.h>
 #include <stdint.h>
-#include <glib/gi18n.h>
+#include <glib/gi18n-lib.h>
 
 /* Структура для передачи данных в поток сохранения меток в формате HTML. */
 typedef struct _DataForHTML

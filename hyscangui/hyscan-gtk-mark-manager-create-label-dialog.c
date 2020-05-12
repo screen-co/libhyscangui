@@ -49,7 +49,7 @@
  */
 #include <hyscan-gtk-mark-manager-create-label-dialog.h>
 #include <hyscan-object-data-label.h>
-#include <glib/gi18n.h>
+#include <glib/gi18n-lib.h>
 
 /* Проверка содержимого GtkEntry. */
 #define IS_EMPTY(entry) (0 == g_strcmp0 (gtk_entry_get_text ( (entry) ), ""))

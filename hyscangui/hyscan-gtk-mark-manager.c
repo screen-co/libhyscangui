@@ -50,7 +50,7 @@
 #include <hyscan-gtk-mark-manager-create-label-dialog.h>
 #include <hyscan-gtk-mark-manager-change-label-dialog.h>
 #include <hyscan-gtk-mark-export.h>
-#include <glib/gi18n.h>
+#include <glib/gi18n-lib.h>
 
 enum
 {

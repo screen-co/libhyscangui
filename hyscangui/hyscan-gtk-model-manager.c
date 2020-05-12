@@ -78,7 +78,7 @@
  */
 
 #include <hyscan-gtk-model-manager.h>
-#include <glib/gi18n.h>
+#include <glib/gi18n-lib.h>
 
 enum
 {
@@ -1222,17 +1222,12 @@ hyscan_model_manager_refresh_geo_marks_by_labels (GtkTreeStore *store,
               GtkTreeIter child_iter,
                           item_iter;
               Extension *ext = g_hash_table_lookup (extensions, id);
-              gchar *str = NULL,
-                    *tmp = g_strdup (_(type_name[GEO_MARK])),
-                    *position = g_strdup_printf ("%.6f° %.6f° (WGS 84)",
+              gchar *position = g_strdup_printf ("%.6f° %.6f° (WGS 84)",
                                                  object->center.lat,
                                                  object->center.lon);
               gboolean toggled = FALSE;
 
-              /*str = g_strdup_printf ("%s (%s)", object->name, type_name[GEO_MARK]);*/
-              tmp[g_utf8_strlen (tmp , -1) - 1] = '\0';
-              str = g_strdup_printf ("%s (%s)", object->name, tmp);
-              g_free (tmp);
+
 
               if (ext != NULL)
                 toggled = (ext != NULL) ? ext->active : FALSE;
@@ -1241,7 +1236,7 @@ hyscan_model_manager_refresh_geo_marks_by_labels (GtkTreeStore *store,
               gtk_tree_store_append (store, &child_iter, iter);
               gtk_tree_store_set (store,              &child_iter,
                                   COLUMN_ID,           id,
-                                  COLUMN_NAME,         str,
+                                  COLUMN_NAME,         object->name,
                                   COLUMN_DESCRIPTION,  object->description,
                                   COLUMN_OPERATOR,     object->operator_name,
                                   COLUMN_TOOLTIP,      _(type_name[GEO_MARK]),
@@ -1251,8 +1246,6 @@ hyscan_model_manager_refresh_geo_marks_by_labels (GtkTreeStore *store,
                                   COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->labels,
                                   -1);
-
-              g_free (str);
 
               /* Атрибуты акустической метки. */
               /* Описание. */
@@ -1577,20 +1570,13 @@ hyscan_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore *store,
               GtkTreeIter child_iter,
                           item_iter;
               Extension *ext = g_hash_table_lookup (extensions, id);
-              gchar *str = NULL,
-                    *tmp = g_strdup (_(type_name[ACOUSTIC_MARK])),
-                    *position = g_strdup_printf ("%.6f° %.6f° (WGS 84)",
+              gchar *position = g_strdup_printf ("%.6f° %.6f° (WGS 84)",
                                                  location->mark_geo.lat,
                                                  location->mark_geo.lon),
                     *board,
                     *board_icon = g_strdup ("network-wireless-no-route-symbolic"),
                     *depth = g_strdup_printf (_(distance_stamp), location->depth);
               gboolean toggled = FALSE;
-
-              /*str = g_strdup_printf ("%s (%s)", object->name, type_name[ACOUSTIC_MARK]);*/
-              tmp[g_utf8_strlen (tmp , -1) - 1] = '\0';
-              str = g_strdup_printf ("%s (%s)", object->name, tmp);
-              g_free (tmp);
 
               if (ext != NULL)
                 toggled = (ext != NULL) ? ext->active : FALSE;
@@ -1599,7 +1585,7 @@ hyscan_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore *store,
               gtk_tree_store_append (store, &child_iter, iter);
               gtk_tree_store_set (store,              &child_iter,
                                   COLUMN_ID,           id,
-                                  COLUMN_NAME,         str,
+                                  COLUMN_NAME,         object->name,
                                   COLUMN_DESCRIPTION,  object->description,
                                   COLUMN_OPERATOR,     object->operator_name,
                                   COLUMN_TOOLTIP,      _(type_name[ACOUSTIC_MARK]),
@@ -1609,8 +1595,6 @@ hyscan_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore *store,
                                   COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->labels,
                                   -1);
-
-              g_free (str);
 
               /* Атрибуты акустической метки. */
               /* Описание. */
@@ -1911,16 +1895,9 @@ hyscan_model_manager_refresh_tracks_by_labels (GtkTreeStore *store,
               GtkTreeIter child_iter,
                           item_iter;
               Extension *ext = g_hash_table_lookup (extensions, id);
-              gchar *str = NULL,
-                    *tmp = g_strdup (_(type_name[TRACK])),
-                    *ctime = (object->ctime == NULL)? "" : g_date_time_format (object->ctime, date_time_stamp),
+              gchar *ctime = (object->ctime == NULL)? "" : g_date_time_format (object->ctime, date_time_stamp),
                     *mtime = (object->mtime == NULL)? "" : g_date_time_format (object->mtime, date_time_stamp);
               gboolean toggled = FALSE;
-
-              /*str = g_strdup_printf ("%s (%s)", object->name, type_name[TRACK]);*/
-              tmp[g_utf8_strlen (tmp , -1) - 1] = '\0';
-              str = g_strdup_printf ("%s (%s)", object->name, tmp);
-              g_free (tmp);
 
               if (ext != NULL)
                 toggled = (ext != NULL) ? ext->active : FALSE;
@@ -1929,7 +1906,7 @@ hyscan_model_manager_refresh_tracks_by_labels (GtkTreeStore *store,
               gtk_tree_store_append (store, &child_iter, iter);
               gtk_tree_store_set (store,              &child_iter,
                                   COLUMN_ID,           id,
-                                  COLUMN_NAME,         str,
+                                  COLUMN_NAME,         object->name,
                                   COLUMN_DESCRIPTION,  object->description,
                                   COLUMN_OPERATOR,     object->operator_name,
                                   COLUMN_TOOLTIP,      _(type_name[TRACK]),
@@ -1939,8 +1916,6 @@ hyscan_model_manager_refresh_tracks_by_labels (GtkTreeStore *store,
                                   COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->labels,
                                   -1);
-
-              g_free (str);
 
               /* Атрибуты галса. */
               /* Описание. */

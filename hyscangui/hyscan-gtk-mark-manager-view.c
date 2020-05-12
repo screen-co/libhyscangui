@@ -58,7 +58,7 @@
 #include <hyscan-mark-location.h>
 #include <hyscan-db-info.h>
 #include <hyscan-gui-marshallers.h>
-#include <glib/gi18n.h>
+#include <glib/gi18n-lib.h>
 
 enum
 {
@@ -754,7 +754,7 @@ hyscan_mark_manager_view_set_list_model (HyScanMarkManagerView *self)
                                                NULL);
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
                                                COLUMN_DEPTH,
-                                               "Depth", renderer,
+                                               _("Depth"), renderer,
                                                "text", COLUMN_DEPTH,
                                                NULL);
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
