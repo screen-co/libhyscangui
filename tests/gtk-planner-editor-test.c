@@ -64,7 +64,7 @@ create_project (HyScanDB *db)
 static void
 create_tracks (HyScanPlannerModel *model)
 {
-  HyScanPlannerTrack track = { .type = HYSCAN_PLANNER_TRACK };
+  HyScanPlannerTrack track = { .type = HYSCAN_TYPE_PLANNER_TRACK };
   HyScanGeoPoint center = { 50.0, 50.0 };
   gint i;
 

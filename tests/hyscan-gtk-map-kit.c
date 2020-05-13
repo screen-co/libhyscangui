@@ -744,12 +744,12 @@ on_marks_activated (GtkTreeView        *treeview,
   if (gtk_tree_model_get_iter (model, &iter, path))
   {
     gchar *mark_id;
-    HyScanObjectType mark_type;
+    GType mark_type;
 
     gtk_tree_model_get (model, &iter, MARK_ID_COLUMN, &mark_id, MARK_TYPE_COLUMN, &mark_type, -1);
-    if (mark_type == HYSCAN_MARK_WATERFALL && priv->wfmark_layer != NULL)
+    if (mark_type == HYSCAN_TYPE_MARK_WATERFALL && priv->wfmark_layer != NULL)
       hyscan_gtk_map_wfmark_mark_view (HYSCAN_GTK_MAP_WFMARK (priv->wfmark_layer), mark_id, FALSE);
-    else if (mark_type == HYSCAN_MARK_GEO && priv->geomark_layer != NULL)
+    else if (mark_type == HYSCAN_TYPE_MARK_GEO && priv->geomark_layer != NULL)
       hyscan_gtk_map_geomark_mark_view (HYSCAN_GTK_MAP_GEOMARK (priv->geomark_layer), mark_id, FALSE);
 
     g_free (mark_id);
@@ -806,16 +806,16 @@ list_store_insert (HyScanGtkMapKit   *kit,
       gchar *time_str;
       gchar *type_name;
 
-      if (mark->type == HYSCAN_MARK_WATERFALL && ((HyScanMarkWaterfall *) mark)->track == NULL)
+      if (mark->type == HYSCAN_TYPE_MARK_WATERFALL && ((HyScanMarkWaterfall *) mark)->track == NULL)
         continue;
 
       /* Добавляем в список меток. */
       local = g_date_time_new_from_unix_local (mark->mtime / 1000000);
       time_str = g_date_time_format (local, "%d.%m %H:%M");
 
-      if (mark->type == HYSCAN_MARK_WATERFALL)
+      if (mark->type == HYSCAN_TYPE_MARK_WATERFALL)
         type_name = "W";
-      else if (mark->type == HYSCAN_MARK_GEO)
+      else if (mark->type == HYSCAN_TYPE_MARK_GEO)
         type_name = "G";
       else
         type_name = "?";
@@ -898,7 +898,7 @@ create_wfmark_toolbox (HyScanGtkMapKit *kit)
                                          G_TYPE_STRING,  /* MARK_NAME_COLUMN   */
                                          G_TYPE_STRING,  /* MARK_MTIME_COLUMN */
                                          G_TYPE_INT64,   /* MARK_MTIME_SORT_COLUMN */
-                                         G_TYPE_UINT,    /* MARK_TYPE_COLUMN */
+                                         G_TYPE_GTYPE,   /* MARK_TYPE_COLUMN */
                                          G_TYPE_STRING,  /* MARK_TYPE_NAME_COLUMN */
                                          -1);
   priv->mark_tree = create_mark_tree_view (kit, GTK_TREE_MODEL (priv->mark_store));

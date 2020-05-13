@@ -167,7 +167,7 @@ hyscan_gtk_planner_origin_val_changed (GtkSpinButton          *spin_btn,
   HyScanGtkPlannerOriginPrivate *priv = gtk_origin->priv;
   HyScanPlannerOrigin origin;
 
-  origin.type = HYSCAN_PLANNER_ORIGIN;
+  origin.type = HYSCAN_TYPE_PLANNER_ORIGIN;
   origin.origin.lat = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->lat));
   origin.origin.lon = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->lon));
   origin.ox = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->azimuth));
