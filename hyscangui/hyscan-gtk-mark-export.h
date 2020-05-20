@@ -42,25 +42,25 @@
 #include <hyscan-gtk-model-manager.h>
 
 void
-hyscan_gtk_mark_export_save_as_csv       (GtkWindow          *window,
-                                          HyScanMarkLocModel *ml_model,
-                                          HyScanObjectModel  *mark_geo_model,
-                                          gchar              *project_name);
+hyscan_gtk_mark_export_save_as_csv       (GtkWindow             *window,
+                                          HyScanMarkLocModel    *ml_model,
+                                          HyScanObjectModel     *mark_geo_model,
+                                          gchar                 *project_name);
 
 void
-hyscan_gtk_mark_export_copy_to_clipboard (HyScanMarkLocModel *ml_model,
-                                          HyScanObjectModel  *mark_geo_model,
-                                          gchar              *project_name);
+hyscan_gtk_mark_export_copy_to_clipboard (HyScanMarkLocModel    *ml_model,
+                                          HyScanObjectModel     *mark_geo_model,
+                                          gchar                 *project_name);
 
 gchar*
-hyscan_gtk_mark_export_to_str            (HyScanMarkLocModel *ml_model,
-                                          HyScanObjectModel  *mark_geo_model,
-                                          gchar              *project_name);
+hyscan_gtk_mark_export_to_str            (HyScanMarkLocModel    *ml_model,
+                                          HyScanObjectModel     *mark_geo_model,
+                                          gchar                 *project_name);
 
 void
-hyscan_gtk_mark_export_save_as_html      (HyScanModelManager *model_manager,
-                                          GtkWindow          *toplevel,
-                                          gboolean            toggled);
+hyscan_gtk_mark_export_save_as_html      (HyScanGtkModelManager *model_manager,
+                                          GtkWindow             *toplevel,
+                                          gboolean               toggled);
 
 #endif /* __HYSCAN_GTK_MARK_EXPORT_H__ */
 

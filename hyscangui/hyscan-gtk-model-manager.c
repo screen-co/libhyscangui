@@ -36,45 +36,45 @@
  * SECTION: hyscan-gtk-model-manager
  * @Short_description: Класс реализует обмен данными между различными моделями
  * и Журналом Меток, и выполняет функции с различными объктами.
- * @Title: HyScanModelManager
- * @See_also: #HyScanMarkManager, #HyScanMarkManagerView
+ * @Title: HyScanGtkModelManager
+ * @See_also: #HyScanGtkMarkManager, #HyScanGtkMarkManagerView
  *
- * Класс #HyScanModelManager содержит данные из нескольких моделей и реализует общую
+ * Класс #HyScanGtkModelManager содержит данные из нескольких моделей и реализует общую
  * модель для табличного или древовидного представления, и функции для работы с объектами
- * и обмена данными. Виджет #HyScanMarkManager реализует представление данных общей
+ * и обмена данными. Виджет #HyScanGtkMarkManager реализует представление данных общей
  * модели и управление.
  *
- * - hyscan_mark_manager_view_new () - создание нового представления;
- * - hyscan_model_manager_get_track_model () - модель данных с информацией о галсах;
- * - hyscan_model_manager_get_acoustic_mark_model () - модель данных с информацией об акустических метках;
- * - hyscan_model_manager_get_geo_mark_model () - модель данных с информацией о гео-метках;
- * - hyscan_model_manager_get_label_model () - модель данных с информацией о группах;
- * - hyscan_model_manager_get_acoustic_mark_loc_model - модель данных с информацией об акустических метках c координатами;
- * - hyscan_model_manager_get_view_model () - модель представления данных для #HyScanMarkManager;
- * - hyscan_model_manager_get_signal_title () - название сигнала Менеджера Моделей;
- * - hyscan_model_manager_set_project_name () - смена названия проекта;
- * - hyscan_model_manager_get_project_name () - название проекта;
- * - hyscan_model_manager_get_export_folder () - директория для экспорта;
- * - hyscan_model_manager_get_db () - база данных;
- * - hyscan_model_manager_get_cache () - кэш;
- * - hyscan_model_manager_get_all_tracks_id () - список всех галсов;
- * - hyscan_model_manager_set_grouping () - установка типа группировки древовидного представления: по типам, по группам;
- * - hyscan_model_manager_get_grouping () - тип группировки;
- * - hyscan_model_manager_set_selected_item () - выделение объекта;
- * - hyscan_model_manager_get_selected_item () - идентификатор выделенного объект;
- * - hyscan_model_manager_get_selected_track () - идентификатор выделенного галса;
- * - hyscan_model_manager_unselect_all () - снятие выделения;
- * - hyscan_model_manager_set_horizontal_adjustment () - установка положения горизонтальной полосы прокрутки;
- * - hyscan_model_manager_set_vertical_adjustment () -  установка положения вертикальной полосы прокрутки;
- * - hyscan_model_manager_get_horizontal_adjustment () - текущее положение горизонтальной полосы прокрутки;
- * - hyscan_model_manager_get_vertical_adjustment () - текущее положение вертикальной полосы прокрутки;
- * - hyscan_model_manager_toggle_item () - установка состояния чек-бокса для объекта по идентификатору;
- * - hyscan_model_manager_get_toggled_items () - список идентификаторов объектов с активированным чек-боксом;
- * - hyscan_model_manager_expand_item () - установка состояния узла объекта по идентификатору;
- * - hyscan_model_manager_get_current_id () - идентифифкатор объекта;
- * - hyscan_model_manager_delete_toggled_items () - удаление объектов с активированным чек-боксом из базы данных;
- * - hyscan_model_manager_has_toggled () - наличие объектов с активированным чек-боксом;
- * - hyscan_model_manager_toggled_iteml_change_label () - перенос объектов с активированным чек-боксом в другую группу.
+ * - hyscan_gtk_mark_manager_view_new () - создание нового представления;
+ * - hyscan_gtk_model_manager_get_track_model () - модель данных с информацией о галсах;
+ * - hyscan_gtk_model_manager_get_acoustic_mark_model () - модель данных с информацией об акустических метках;
+ * - hyscan_gtk_model_manager_get_geo_mark_model () - модель данных с информацией о гео-метках;
+ * - hyscan_gtk_model_manager_get_label_model () - модель данных с информацией о группах;
+ * - hyscan_gtk_model_manager_get_acoustic_mark_loc_model - модель данных с информацией об акустических метках c координатами;
+ * - hyscan_gtk_model_manager_get_view_model () - модель представления данных для #HyScanMarkManager;
+ * - hyscan_gtk_model_manager_get_signal_title () - название сигнала Менеджера Моделей;
+ * - hyscan_gtk_model_manager_set_project_name () - смена названия проекта;
+ * - hyscan_gtk_model_manager_get_project_name () - название проекта;
+ * - hyscan_gtk_model_manager_get_export_folder () - директория для экспорта;
+ * - hyscan_gtk_model_manager_get_db () - база данных;
+ * - hyscan_gtk_model_manager_get_cache () - кэш;
+ * - hyscan_gtk_model_manager_get_all_tracks_id () - список всех галсов;
+ * - hyscan_gtk_model_manager_set_grouping () - установка типа группировки древовидного представления: по типам, по группам;
+ * - hyscan_gtk_model_manager_get_grouping () - тип группировки;
+ * - hyscan_gtk_model_manager_set_selected_item () - выделение объекта;
+ * - hyscan_gtk_model_manager_get_selected_item () - идентификатор выделенного объект;
+ * - hyscan_gtk_model_manager_get_selected_track () - идентификатор выделенного галса;
+ * - hyscan_gtk_model_manager_unselect_all () - снятие выделения;
+ * - hyscan_gtk_model_manager_set_horizontal_adjustment () - установка положения горизонтальной полосы прокрутки;
+ * - hyscan_gtk_model_manager_set_vertical_adjustment () -  установка положения вертикальной полосы прокрутки;
+ * - hyscan_gtk_model_manager_get_horizontal_adjustment () - текущее положение горизонтальной полосы прокрутки;
+ * - hyscan_gtk_model_manager_get_vertical_adjustment () - текущее положение вертикальной полосы прокрутки;
+ * - hyscan_gtk_model_manager_toggle_item () - установка состояния чек-бокса для объекта по идентификатору;
+ * - hyscan_gtk_model_manager_get_toggled_items () - список идентификаторов объектов с активированным чек-боксом;
+ * - hyscan_gtk_model_manager_expand_item () - установка состояния узла объекта по идентификатору;
+ * - hyscan_gtk_model_manager_get_current_id () - идентифифкатор объекта;
+ * - hyscan_gtk_model_manager_delete_toggled_items () - удаление объектов с активированным чек-боксом из базы данных;
+ * - hyscan_gtk_model_manager_has_toggled () - наличие объектов с активированным чек-боксом;
+ * - hyscan_gtk_model_manager_toggled_iteml_change_label () - перенос объектов с активированным чек-боксом в другую группу.
  */
 
 #include <hyscan-gtk-model-manager.h>
@@ -105,7 +105,7 @@ typedef struct
                  expanded;  /* Развёрнут ли объект (для древовидного представления). */
 }Extension;
 
-struct _HyScanModelManagerPrivate
+struct _HyScanGtkModelManagerPrivate
 {
   HyScanObjectModel    *acoustic_marks_model, /* Модель данных акустических меток. */
                        *geo_mark_model,       /* Модель данных гео-меток. */
@@ -188,139 +188,139 @@ static gdouble ship_speed = 10.0;
 /* Идентификатор для отслеживания изменения названия проекта. */
 static GParamSpec   *notify = NULL;
 
-static void          hyscan_model_manager_set_property                     (GObject                 *object,
-                                                                            guint                    prop_id,
-                                                                            const GValue            *value,
-                                                                            GParamSpec              *pspec);
+static void          hyscan_gtk_model_manager_set_property                     (GObject                 *object,
+                                                                                guint                    prop_id,
+                                                                                const GValue            *value,
+                                                                                GParamSpec              *pspec);
 
-static void          hyscan_model_manager_get_property                     (GObject                 *object,
-                                                                            guint                    prop_id,
-                                                                            GValue                  *value,
-                                                                            GParamSpec              *pspec);
+static void          hyscan_gtk_model_manager_get_property                     (GObject                 *object,
+                                                                                guint                    prop_id,
+                                                                                GValue                  *value,
+                                                                                GParamSpec              *pspec);
 
-static void          hyscan_model_manager_constructed                      (GObject                 *object);
+static void          hyscan_gtk_model_manager_constructed                      (GObject                 *object);
 
-static void          hyscan_model_manager_finalize                         (GObject                 *object);
+static void          hyscan_gtk_model_manager_finalize                         (GObject                 *object);
 
-static void          hyscan_model_manager_acoustic_marks_model_changed     (HyScanObjectModel       *model,
-                                                                            HyScanModelManager      *self);
+static void          hyscan_gtk_model_manager_acoustic_marks_model_changed     (HyScanObjectModel       *model,
+                                                                                HyScanGtkModelManager   *self);
 
-static void          hyscan_model_manager_track_model_changed              (HyScanDBInfo            *model,
-                                                                            HyScanModelManager      *self);
+static void          hyscan_gtk_model_manager_track_model_changed              (HyScanDBInfo            *model,
+                                                                                HyScanGtkModelManager   *self);
 
-static void          hyscan_model_manager_acoustic_marks_loc_model_changed (HyScanMarkLocModel      *model,
-                                                                            HyScanModelManager      *self);
+static void          hyscan_gtk_model_manager_acoustic_marks_loc_model_changed (HyScanMarkLocModel      *model,
+                                                                                HyScanGtkModelManager   *self);
 
-static void          hyscan_model_manager_geo_mark_model_changed           (HyScanObjectModel       *model,
-                                                                            HyScanModelManager      *self);
+static void          hyscan_gtk_model_manager_geo_mark_model_changed           (HyScanObjectModel       *model,
+                                                                                HyScanGtkModelManager   *self);
 
-static void          hyscan_model_manager_label_model_changed              (HyScanObjectModel       *model,
-                                                                            HyScanModelManager      *self);
+static void          hyscan_gtk_model_manager_label_model_changed              (HyScanObjectModel       *model,
+                                                                                HyScanGtkModelManager   *self);
 
-static GtkTreeModel* hyscan_model_manager_update_view_model                (HyScanModelManager      *self);
+static GtkTreeModel* hyscan_gtk_model_manager_update_view_model                (HyScanGtkModelManager   *self);
 
-static void          hyscan_model_manager_set_view_model                   (HyScanModelManager      *self);
+static void          hyscan_gtk_model_manager_set_view_model                   (HyScanGtkModelManager   *self);
 
-static void          hyscan_model_manager_refresh_all_items_by_types       (HyScanModelManager      *self);
+static void          hyscan_gtk_model_manager_refresh_all_items_by_types       (HyScanGtkModelManager   *self);
 
-static void          hyscan_model_manager_refresh_all_items_by_labels      (HyScanModelManager      *self);
+static void          hyscan_gtk_model_manager_refresh_all_items_by_labels      (HyScanGtkModelManager   *self);
 
-static void          hyscan_model_manager_refresh_items_by_types           (HyScanModelManager      *self,
-                                                                            ModelManagerObjectType   type);
+static void          hyscan_gtk_model_manager_refresh_items_by_types           (HyScanGtkModelManager   *self,
+                                                                                ModelManagerObjectType   type);
 
-static void          hyscan_model_manager_refresh_labels_by_types          (GtkTreeStore            *store,
-                                                                            GHashTable              *labels,
-                                                                            GHashTable              *extensions);
+static void          hyscan_gtk_model_manager_refresh_labels_by_types          (GtkTreeStore            *store,
+                                                                                GHashTable              *labels,
+                                                                                GHashTable              *extensions);
 
-static void          hyscan_model_manager_refresh_geo_marks_by_types       (GtkTreeStore            *store,
-                                                                            GHashTable              *geo_marks,
-                                                                            GHashTable              *extensions,
-                                                                            GHashTable              *labels);
+static void          hyscan_gtk_model_manager_refresh_geo_marks_by_types       (GtkTreeStore            *store,
+                                                                                GHashTable              *geo_marks,
+                                                                                GHashTable              *extensions,
+                                                                                GHashTable              *labels);
 
-static void          hyscan_model_manager_refresh_geo_marks_by_labels      (GtkTreeStore            *store,
-                                                                            GtkTreeIter             *iter,
-                                                                            HyScanLabel             *label,
-                                                                            GHashTable              *geo_marks,
-                                                                            GHashTable              *extensions);
+static void          hyscan_gtk_model_manager_refresh_geo_marks_by_labels      (GtkTreeStore            *store,
+                                                                                GtkTreeIter             *iter,
+                                                                                HyScanLabel             *label,
+                                                                                GHashTable              *geo_marks,
+                                                                                GHashTable              *extensions);
 
-static void          hyscan_model_manager_refresh_acoustic_marks_by_types  (GtkTreeStore            *store,
-                                                                            GHashTable              *acoustic_marks,
-                                                                            GHashTable              *extensions,
-                                                                            GHashTable              *labels);
+static void          hyscan_gtk_model_manager_refresh_acoustic_marks_by_types  (GtkTreeStore            *store,
+                                                                                GHashTable              *acoustic_marks,
+                                                                                GHashTable              *extensions,
+                                                                                GHashTable              *labels);
 
-static void          hyscan_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore            *store,
-                                                                            GtkTreeIter             *iter,
-                                                                            HyScanLabel             *label,
-                                                                            GHashTable              *acoustic_marks,
-                                                                            GHashTable              *extensions);
+static void          hyscan_gtk_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore            *store,
+                                                                                GtkTreeIter             *iter,
+                                                                                HyScanLabel             *label,
+                                                                                GHashTable              *acoustic_marks,
+                                                                                GHashTable              *extensions);
 
-static void          hyscan_model_manager_refresh_tracks_by_types          (GtkTreeStore            *store,
-                                                                            GHashTable              *tracks,
-                                                                            GHashTable              *extensions,
-                                                                            GHashTable              *labels);
+static void          hyscan_gtk_model_manager_refresh_tracks_by_types          (GtkTreeStore            *store,
+                                                                                GHashTable              *tracks,
+                                                                                GHashTable              *extensions,
+                                                                                GHashTable              *labels);
 
-static void          hyscan_model_manager_refresh_tracks_by_labels         (GtkTreeStore            *store,
-                                                                            GtkTreeIter             *iter,
-                                                                            HyScanLabel             *label,
-                                                                            GHashTable              *tracks,
-                                                                            GHashTable              *extensions);
+static void          hyscan_gtk_model_manager_refresh_tracks_by_labels         (GtkTreeStore            *store,
+                                                                                GtkTreeIter             *iter,
+                                                                                HyScanLabel             *label,
+                                                                                GHashTable              *tracks,
+                                                                                GHashTable              *extensions);
 
-static void          hyscan_model_manager_clear_view_model                 (GtkTreeModel            *view_model,
-                                                                            gboolean                *flag);
+static void          hyscan_gtk_model_manager_clear_view_model                 (GtkTreeModel            *view_model,
+                                                                                gboolean                *flag);
 
-static gboolean      hyscan_model_manager_init_extensions                  (HyScanModelManager      *self);
+static gboolean      hyscan_gtk_model_manager_init_extensions                  (HyScanGtkModelManager   *self);
 
-static Extension*    hyscan_model_manager_extension_new                    (ExtensionType            type,
-                                                                            gboolean                 active,
-                                                                            gboolean                 selected);
+static Extension*    hyscan_gtk_model_manager_extension_new                    (ExtensionType            type,
+                                                                                gboolean                 active,
+                                                                                gboolean                 selected);
 
-static Extension*    hyscan_model_manager_extension_copy                   (Extension               *ext);
+static Extension*    hyscan_gtk_model_manager_extension_copy                   (Extension               *ext);
 
-static void          hyscan_model_manager_extension_free                   (gpointer                 data);
+static void          hyscan_gtk_model_manager_extension_free                   (gpointer                 data);
 
-static GHashTable*   hyscan_model_manager_get_extensions                   (HyScanModelManager      *self,
-                                                                            ModelManagerObjectType   type);
+static GHashTable*   hyscan_gtk_model_manager_get_extensions                   (HyScanGtkModelManager   *self,
+                                                                                ModelManagerObjectType   type);
 
-static gboolean      hyscan_model_manager_is_all_toggled                   (GHashTable              *table,
-                                                                            const gchar             *node_id);
+static gboolean      hyscan_gtk_model_manager_is_all_toggled                   (GHashTable              *table,
+                                                                                const gchar             *node_id);
 
-static void          hyscan_model_manager_delete_item                      (HyScanModelManager      *self,
-                                                                            ModelManagerObjectType   type,
-                                                                            gchar                   *id);
+static void          hyscan_gtk_model_manager_delete_item                      (HyScanGtkModelManager   *self,
+                                                                                ModelManagerObjectType   type,
+                                                                                gchar                   *id);
 
-static void          hyscan_model_manager_geo_mark_change_label            (HyScanModelManager      *self,
-                                                                            gchar                  **list,
-                                                                            HyScanLabel             *label,
-                                                                            GHashTable              *table,
-                                                                            guint64                  current_time);
+static void          hyscan_gtk_model_manager_geo_mark_change_label            (HyScanGtkModelManager   *self,
+                                                                                gchar                  **list,
+                                                                                HyScanLabel             *label,
+                                                                                GHashTable              *table,
+                                                                                guint64                  current_time);
 
-static void          hyscan_model_manager_acoustic_mark_change_label       (HyScanModelManager      *self,
-                                                                            gchar                  **list,
-                                                                            HyScanLabel             *label,
-                                                                            GHashTable              *table,
-                                                                            guint64                  current_time);
+static void          hyscan_gtk_model_manager_acoustic_mark_change_label       (HyScanGtkModelManager   *self,
+                                                                                gchar                  **list,
+                                                                                HyScanLabel             *label,
+                                                                                GHashTable              *table,
+                                                                                guint64                  current_time);
 
-static void          hyscan_model_manager_track_change_label               (HyScanModelManager      *self,
-                                                                            gchar                  **list,
-                                                                            HyScanLabel             *label,
-                                                                            GHashTable              *table,
-                                                                            GDateTime               *now_local,
-                                                                            guint64                  current_time);
+static void          hyscan_gtk_model_manager_track_change_label               (HyScanGtkModelManager   *self,
+                                                                                gchar                  **list,
+                                                                                HyScanLabel             *label,
+                                                                                GHashTable              *table,
+                                                                                GDateTime               *now_local,
+                                                                                guint64                  current_time);
 
 static guint         hyscan_model_manager_signals[SIGNAL_MODEL_MANAGER_LAST] = { 0 };
 
-G_DEFINE_TYPE_WITH_PRIVATE (HyScanModelManager, hyscan_model_manager, G_TYPE_OBJECT)
+G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkModelManager, hyscan_gtk_model_manager, G_TYPE_OBJECT)
 
 void
-hyscan_model_manager_class_init (HyScanModelManagerClass *klass)
+hyscan_gtk_model_manager_class_init (HyScanGtkModelManagerClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
   guint index;
 
-  object_class->set_property = hyscan_model_manager_set_property;
-  object_class->get_property = hyscan_model_manager_get_property;
-  object_class->constructed  = hyscan_model_manager_constructed;
-  object_class->finalize     = hyscan_model_manager_finalize;
+  object_class->set_property = hyscan_gtk_model_manager_set_property;
+  object_class->get_property = hyscan_gtk_model_manager_get_property;
+  object_class->constructed  = hyscan_gtk_model_manager_constructed;
+  object_class->finalize     = hyscan_gtk_model_manager_finalize;
 
   /* Название проекта. */
   notify = g_param_spec_string ("project_name", "Project_name", "Project name",
@@ -349,7 +349,7 @@ hyscan_model_manager_class_init (HyScanModelManagerClass *klass)
     {
        hyscan_model_manager_signals[index] =
                     g_signal_new (signals[index],
-                                  HYSCAN_TYPE_MODEL_MANAGER,
+                                  HYSCAN_TYPE_GTK_MODEL_MANAGER,
                                   G_SIGNAL_RUN_LAST,
                                   0, NULL, NULL,
                                   g_cclosure_marshal_VOID__VOID,
@@ -358,19 +358,19 @@ hyscan_model_manager_class_init (HyScanModelManagerClass *klass)
 }
 
 void
-hyscan_model_manager_init (HyScanModelManager *self)
+hyscan_gtk_model_manager_init (HyScanGtkModelManager *self)
 {
-  self->priv = hyscan_model_manager_get_instance_private (self);
+  self->priv = hyscan_gtk_model_manager_get_instance_private (self);
 }
 
 void
-hyscan_model_manager_set_property (GObject      *object,
-                                   guint         prop_id,
-                                   const GValue *value,
-                                   GParamSpec   *pspec)
+hyscan_gtk_model_manager_set_property (GObject      *object,
+                                       guint         prop_id,
+                                       const GValue *value,
+                                       GParamSpec   *pspec)
 {
-  HyScanModelManager *self = HYSCAN_MODEL_MANAGER (object);
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManager *self = HYSCAN_GTK_MODEL_MANAGER (object);
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
   switch (prop_id)
     {
@@ -378,7 +378,7 @@ hyscan_model_manager_set_property (GObject      *object,
     case PROP_PROJECT_NAME:
       {
         if (priv->constructed_flag)
-          hyscan_model_manager_set_project_name (self, g_value_get_string (value));
+          hyscan_gtk_model_manager_set_project_name (self, g_value_get_string (value));
         else
           priv->project_name = g_value_dup_string (value);
       }
@@ -411,13 +411,13 @@ hyscan_model_manager_set_property (GObject      *object,
 }
 
 void
-hyscan_model_manager_get_property (GObject      *object,
-                                   guint         prop_id,
-                                   GValue       *value,
-                                   GParamSpec   *pspec)
+hyscan_gtk_model_manager_get_property (GObject      *object,
+                                       guint         prop_id,
+                                       GValue       *value,
+                                       GParamSpec   *pspec)
 {
-  HyScanModelManager *self = HYSCAN_MODEL_MANAGER (object);
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManager *self = HYSCAN_GTK_MODEL_MANAGER (object);
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
   switch (prop_id)
     {
@@ -434,56 +434,56 @@ hyscan_model_manager_get_property (GObject      *object,
 
 /* Конструктор. */
 void
-hyscan_model_manager_constructed (GObject *object)
+hyscan_gtk_model_manager_constructed (GObject *object)
 {
-  HyScanModelManager *self = HYSCAN_MODEL_MANAGER (object);
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManager *self = HYSCAN_GTK_MODEL_MANAGER (object);
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   /* Модель галсов. */
   priv->track_model = hyscan_db_info_new (priv->db);
   hyscan_db_info_set_project (priv->track_model, priv->project_name);
   priv->signal_tracks_changed = g_signal_connect (priv->track_model,
                     "tracks-changed",
-                    G_CALLBACK (hyscan_model_manager_track_model_changed),
+                    G_CALLBACK (hyscan_gtk_model_manager_track_model_changed),
                     self);
   /* Модель данных акустических меток с координатами. */
   priv->acoustic_loc_model = hyscan_mark_loc_model_new (priv->db, priv->cache);
   hyscan_mark_loc_model_set_project (priv->acoustic_loc_model, priv->project_name);
   priv->signal_acoustic_marks_changed = g_signal_connect (priv->acoustic_loc_model,
                     "changed",
-                    G_CALLBACK (hyscan_model_manager_acoustic_marks_loc_model_changed),
+                    G_CALLBACK (hyscan_gtk_model_manager_acoustic_marks_loc_model_changed),
                     self);
   /* Модель акустических меток. */
   priv->acoustic_marks_model = hyscan_object_model_new (HYSCAN_TYPE_OBJECT_DATA_WFMARK);
   hyscan_object_model_set_project (priv->acoustic_marks_model, priv->db, priv->project_name);
   priv->signal_acoustic_marks_loc_changed = g_signal_connect (priv->acoustic_marks_model,
                     "changed",
-                    G_CALLBACK (hyscan_model_manager_acoustic_marks_model_changed),
+                    G_CALLBACK (hyscan_gtk_model_manager_acoustic_marks_model_changed),
                     self);
   /* Модель геометок. */
   priv->geo_mark_model = hyscan_object_model_new (HYSCAN_TYPE_OBJECT_DATA_GEOMARK);
   hyscan_object_model_set_project (priv->geo_mark_model, priv->db, priv->project_name);
   priv->signal_geo_marks_changed = g_signal_connect (priv->geo_mark_model,
                     "changed",
-                    G_CALLBACK (hyscan_model_manager_geo_mark_model_changed),
+                    G_CALLBACK (hyscan_gtk_model_manager_geo_mark_model_changed),
                     self);
   /* Модель данных групп. */
   priv->label_model = hyscan_object_model_new (HYSCAN_TYPE_OBJECT_DATA_LABEL);
   hyscan_object_model_set_project (priv->label_model, priv->db, priv->project_name);
   priv->signal_labels_changed = g_signal_connect (priv->label_model,
                     "changed",
-                    G_CALLBACK (hyscan_model_manager_label_model_changed),
+                    G_CALLBACK (hyscan_gtk_model_manager_label_model_changed),
                     self);
   /* Создаём модель представления данных. */
-  priv->view_model = hyscan_model_manager_update_view_model (self);
+  priv->view_model = hyscan_gtk_model_manager_update_view_model (self);
   /* Устанавливаем флаг инициализации всех моделей. */
   priv->constructed_flag = TRUE;
 }
 /* Деструктор. */
 void
-hyscan_model_manager_finalize (GObject *object)
+hyscan_gtk_model_manager_finalize (GObject *object)
 {
-  HyScanModelManager *self = HYSCAN_MODEL_MANAGER (object);
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManager *self = HYSCAN_GTK_MODEL_MANAGER (object);
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
   /* Освобождаем ресурсы. */
   g_free (priv->project_name);
@@ -495,69 +495,69 @@ hyscan_model_manager_finalize (GObject *object)
   g_object_unref (priv->db);
   priv->db = NULL;
 
-  G_OBJECT_CLASS (hyscan_model_manager_parent_class)->finalize (object);
+  G_OBJECT_CLASS (hyscan_gtk_model_manager_parent_class)->finalize (object);
 }
 
 /* Обработчик сигнала изменения данных в модели галсов. */
 void
-hyscan_model_manager_track_model_changed (HyScanDBInfo       *model,
-                                          HyScanModelManager *self)
+hyscan_gtk_model_manager_track_model_changed (HyScanDBInfo          *model,
+                                              HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
-  hyscan_model_manager_update_view_model (self);
+  hyscan_gtk_model_manager_update_view_model (self);
   g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_TRACKS_CHANGED], 0);
 }
 
 /* Обработчик сигнала изменения данных в модели акустических меток. */
 void
-hyscan_model_manager_acoustic_marks_model_changed (HyScanObjectModel  *model,
-                                                   HyScanModelManager *self)
+hyscan_gtk_model_manager_acoustic_marks_model_changed (HyScanObjectModel     *model,
+                                                       HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
-  hyscan_model_manager_update_view_model (self);
+  hyscan_gtk_model_manager_update_view_model (self);
   g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_ACOUSTIC_MARKS_CHANGED], 0);
 }
 
 /* Обработчик сигнала изменения данных в модели акустических меток с координатами. */
 void
-hyscan_model_manager_acoustic_marks_loc_model_changed (HyScanMarkLocModel *model,
-                                                       HyScanModelManager *self)
+hyscan_gtk_model_manager_acoustic_marks_loc_model_changed (HyScanMarkLocModel    *model,
+                                                           HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
-  hyscan_model_manager_update_view_model (self);
+  hyscan_gtk_model_manager_update_view_model (self);
   g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_ACOUSTIC_MARKS_LOC_CHANGED], 0);
 }
 
 /* Обработчик сигнала изменения данных в модели гео-меток. */
 void
-hyscan_model_manager_geo_mark_model_changed (HyScanObjectModel  *model,
-                                             HyScanModelManager *self)
+hyscan_gtk_model_manager_geo_mark_model_changed (HyScanObjectModel  *model,
+                                                 HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
-  hyscan_model_manager_update_view_model (self);
+  hyscan_gtk_model_manager_update_view_model (self);
   g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_GEO_MARKS_CHANGED], 0);
 }
 
 /* Обработчик сигнала изменения данных в модели групп. */
 void
-hyscan_model_manager_label_model_changed (HyScanObjectModel  *model,
-                                          HyScanModelManager *self)
+hyscan_gtk_model_manager_label_model_changed (HyScanObjectModel  *model,
+                                              HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
-  hyscan_model_manager_update_view_model (self);
+  hyscan_gtk_model_manager_update_view_model (self);
   g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_LABELS_CHANGED], 0);
 }
 
 /* Функция обновляет модель представления данных в соответствии с текущими параметрами. */
 GtkTreeModel*
-hyscan_model_manager_update_view_model (HyScanModelManager *self)
+hyscan_gtk_model_manager_update_view_model (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
   if (priv->view_model == NULL)
     {
@@ -610,7 +610,7 @@ hyscan_model_manager_update_view_model (HyScanModelManager *self)
     }
 
   /* Обновляем данные в модели. */
-  hyscan_model_manager_set_view_model (self);
+  hyscan_gtk_model_manager_set_view_model (self);
 
   /* Отправляем сигнал об обновлении модели представления данных. */
   g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_VIEW_MODEL_UPDATED], 0);
@@ -620,11 +620,11 @@ hyscan_model_manager_update_view_model (HyScanModelManager *self)
 
 /* Функция (если нужно пересоздаёт и) настраивает модель представления данных. */
 void
-hyscan_model_manager_set_view_model (HyScanModelManager *self)
+hyscan_gtk_model_manager_set_view_model (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
-  if (hyscan_model_manager_init_extensions (self))
+  if (hyscan_gtk_model_manager_init_extensions (self))
     {
       switch (priv->grouping)
         {
@@ -635,7 +635,7 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
             if (GTK_IS_LIST_STORE (priv->view_model))
               {
                 /* Очищаем модель. */
-                hyscan_model_manager_clear_view_model (priv->view_model, &priv->clear_model_flag);
+                hyscan_gtk_model_manager_clear_view_model (priv->view_model, &priv->clear_model_flag);
                 g_object_unref (priv->view_model);
                 /* Создаём новую модель. */
                 priv->view_model = GTK_TREE_MODEL (
@@ -662,14 +662,14 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
             else
               {
                 /* Очищаем модель. */
-                hyscan_model_manager_clear_view_model (priv->view_model, &priv->clear_model_flag);
+                hyscan_gtk_model_manager_clear_view_model (priv->view_model, &priv->clear_model_flag);
                 priv->view_model = GTK_TREE_MODEL (priv->view_model);
               }
 
             if (priv->grouping == BY_TYPES)
-              hyscan_model_manager_refresh_all_items_by_types (self);
+              hyscan_gtk_model_manager_refresh_all_items_by_types (self);
             else if (priv->grouping == BY_LABELS)
-              hyscan_model_manager_refresh_all_items_by_labels (self);
+              hyscan_gtk_model_manager_refresh_all_items_by_labels (self);
           }
           break;
         case UNGROUPED: /* Табличное представление. */
@@ -682,7 +682,7 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
             if (GTK_IS_TREE_STORE (priv->view_model))
               {
                 /* Очищаем модель. */
-                hyscan_model_manager_clear_view_model (priv->view_model, &priv->clear_model_flag);
+                hyscan_gtk_model_manager_clear_view_model (priv->view_model, &priv->clear_model_flag);
                 g_object_unref (priv->view_model);
                 /* Создаём новую модель. */
                 store = gtk_list_store_new (MAX_COLUMNS,     /* Количество колонок для представления данных. */
@@ -708,7 +708,7 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
             else
               {
                 /* Очищаем модель. */
-                hyscan_model_manager_clear_view_model (priv->view_model, &priv->clear_model_flag);
+                hyscan_gtk_model_manager_clear_view_model (priv->view_model, &priv->clear_model_flag);
                 store = GTK_LIST_STORE (priv->view_model);
               }
             /* Группы. */
@@ -965,9 +965,9 @@ hyscan_model_manager_set_view_model (HyScanModelManager *self)
 
 /* Функция создаёт и заполняет узел "Группы" в древовидной модели с группировкой по типам. */
 void
-hyscan_model_manager_refresh_labels_by_types (GtkTreeStore *store,
-                                              GHashTable   *labels,
-                                              GHashTable   *extensions)
+hyscan_gtk_model_manager_refresh_labels_by_types (GtkTreeStore *store,
+                                                  GHashTable   *labels,
+                                                  GHashTable   *extensions)
 {
   if (extensions != NULL)
     {
@@ -975,7 +975,7 @@ hyscan_model_manager_refresh_labels_by_types (GtkTreeStore *store,
       GHashTableIter table_iter;       /* Итератор для обхода хэш-таблиц. */
       HyScanLabel *object;
       gchar *id;                       /* Идентификатор для обхода хэш-таблиц (ключ). */
-      gboolean active = hyscan_model_manager_is_all_toggled (extensions, type_id[LABEL]);
+      gboolean active = hyscan_gtk_model_manager_is_all_toggled (extensions, type_id[LABEL]);
 
       /* Добавляем новый узел "Группы" в модель */
       gtk_tree_store_append (store, &parent_iter, NULL);
@@ -1068,10 +1068,10 @@ hyscan_model_manager_refresh_labels_by_types (GtkTreeStore *store,
 
 /* Функция создаёт и заполняет узел "Гео-метки" в древовидной модели с группировкой по типам. */
 void
-hyscan_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
-                                                 GHashTable   *geo_marks,
-                                                 GHashTable   *extensions,
-                                                 GHashTable   *labels)
+hyscan_gtk_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
+                                                     GHashTable   *geo_marks,
+                                                     GHashTable   *extensions,
+                                                     GHashTable   *labels)
 {
   if (extensions != NULL)
     {
@@ -1079,7 +1079,7 @@ hyscan_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
       GHashTableIter table_iter;       /* Итератор для обхода хэш-таблиц. */
       HyScanMarkGeo *object;
       gchar *id;                       /* Идентификатор для обхода хэш-таблиц (ключ). */
-      gboolean active = hyscan_model_manager_is_all_toggled (extensions, type_id[GEO_MARK]);
+      gboolean active = hyscan_gtk_model_manager_is_all_toggled (extensions, type_id[GEO_MARK]);
 
       /* Добавляем новый узел "Гео-метки" в модель */
       gtk_tree_store_append (store, &parent_iter, NULL);
@@ -1202,11 +1202,11 @@ hyscan_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
 
 /* Функция создаёт и заполняет узел "Гео-метки" в древовидной модели с группировкой по группам. */
 void
-hyscan_model_manager_refresh_geo_marks_by_labels (GtkTreeStore *store,
-                                                  GtkTreeIter  *iter,
-                                                  HyScanLabel  *label,
-                                                  GHashTable   *geo_marks,
-                                                  GHashTable   *extensions)
+hyscan_gtk_model_manager_refresh_geo_marks_by_labels (GtkTreeStore *store,
+                                                      GtkTreeIter  *iter,
+                                                      HyScanLabel  *label,
+                                                      GHashTable   *geo_marks,
+                                                      GHashTable   *extensions)
 {
   if (label != NULL)
     {
@@ -1307,10 +1307,10 @@ hyscan_model_manager_refresh_geo_marks_by_labels (GtkTreeStore *store,
 
 /* Функция создаёт и заполняет узел "Акустические метки" в древовидной модели с группировкой по типам. */
 void
-hyscan_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
-                                                      GHashTable   *acoustic_marks,
-                                                      GHashTable   *extensions,
-                                                      GHashTable   *labels)
+hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
+                                                          GHashTable   *acoustic_marks,
+                                                          GHashTable   *extensions,
+                                                          GHashTable   *labels)
 {
   if (extensions != NULL)
     {
@@ -1318,7 +1318,7 @@ hyscan_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
       GHashTableIter table_iter;       /* Итератор для обхода хэш-таблиц. */
       HyScanMarkLocation *location;
       gchar *id;                       /* Идентификатор для обхода хэш-таблиц (ключ). */
-      gboolean active = hyscan_model_manager_is_all_toggled (extensions, type_id[ACOUSTIC_MARK]);
+      gboolean active = hyscan_gtk_model_manager_is_all_toggled (extensions, type_id[ACOUSTIC_MARK]);
 
       /* Добавляем новый узел "Акустические метки" в модель. */
       gtk_tree_store_append (store, &parent_iter, NULL);
@@ -1548,11 +1548,11 @@ hyscan_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
 
 /* Функция создаёт и заполняет узел "Акустические метки" в древовидной модели с группировкой по группам. */
 void
-hyscan_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore *store,
-                                                       GtkTreeIter  *iter,
-                                                       HyScanLabel  *label,
-                                                       GHashTable   *acoustic_marks,
-                                                       GHashTable   *extensions)
+hyscan_gtk_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore *store,
+                                                           GtkTreeIter  *iter,
+                                                           HyScanLabel  *label,
+                                                           GHashTable   *acoustic_marks,
+                                                           GHashTable   *extensions)
 {
   if (label != NULL)
     {
@@ -1758,10 +1758,10 @@ hyscan_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore *store,
 
 /* Функция создаёт и заполняет узел "Галсы" в древовидной модели с группировкой по типам. */
 void
-hyscan_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
-                                              GHashTable   *tracks,
-                                              GHashTable   *extensions,
-                                              GHashTable   *labels)
+hyscan_gtk_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
+                                                  GHashTable   *tracks,
+                                                  GHashTable   *extensions,
+                                                  GHashTable   *labels)
 {
   if (extensions != NULL)
     {
@@ -1769,7 +1769,7 @@ hyscan_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
       GHashTableIter table_iter;       /* Итератор для обхода хэш-таблиц. */
       HyScanTrackInfo *object;
       gchar *id;                       /* Идентификатор для обхода хэш-таблиц (ключ). */
-      gboolean active = hyscan_model_manager_is_all_toggled (extensions, type_id[TRACK]);
+      gboolean active = hyscan_gtk_model_manager_is_all_toggled (extensions, type_id[TRACK]);
 
       /* Добавляем новый узел "Галсы" в модель. */
       gtk_tree_store_append (store, &parent_iter, NULL);
@@ -1875,11 +1875,11 @@ hyscan_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
 
 /* Функция создаёт и заполняет узел "Галсы" в древовидной модели с группировкой по группам. */
 void
-hyscan_model_manager_refresh_tracks_by_labels (GtkTreeStore *store,
-                                               GtkTreeIter  *iter,
-                                               HyScanLabel  *label,
-                                               GHashTable   *tracks,
-                                               GHashTable   *extensions)
+hyscan_gtk_model_manager_refresh_tracks_by_labels (GtkTreeStore *store,
+                                                   GtkTreeIter  *iter,
+                                                   HyScanLabel  *label,
+                                                   GHashTable   *tracks,
+                                                   GHashTable   *extensions)
 {
   if (label != NULL)
     {
@@ -1961,8 +1961,8 @@ hyscan_model_manager_refresh_tracks_by_labels (GtkTreeStore *store,
 
 /* Очищает модель от содержимого. */
 void
-hyscan_model_manager_clear_view_model (GtkTreeModel *view_model,
-                                       gboolean     *flag)
+hyscan_gtk_model_manager_clear_view_model (GtkTreeModel *view_model,
+                                           gboolean     *flag)
 {
   /* Защита от срабатывания срабатывания сигнала "changed"
    * у GtkTreeSelection при очистке GtkTreeModel.
@@ -1989,9 +1989,9 @@ hyscan_model_manager_clear_view_model (GtkTreeModel *view_model,
 
 /* Инициализирует массив с данными об объектах данными из моделей. */
 gboolean
-hyscan_model_manager_init_extensions (HyScanModelManager  *self)
+hyscan_gtk_model_manager_init_extensions (HyScanGtkModelManager  *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   ModelManagerObjectType type;
   gint counter = 0;
 
@@ -2002,19 +2002,19 @@ hyscan_model_manager_init_extensions (HyScanModelManager  *self)
       if (priv->extensions[type] == NULL)
         {
           priv->extensions[type] = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
-                                          (GDestroyNotify)hyscan_model_manager_extension_free);
+                                          (GDestroyNotify)hyscan_gtk_model_manager_extension_free);
         }
       /* Сохраняем указатель на таблицу со старыми данными. */
       tmp = priv->extensions[type];
       /* Заполняем таблицу новыми данными. */
-      priv->extensions[type] = hyscan_model_manager_get_extensions (self, type);
+      priv->extensions[type] = hyscan_gtk_model_manager_get_extensions (self, type);
 
       if (priv->extensions[type] != NULL)
         {
           /* Начальная инициализация узлов для древовидного представления с группировкой по типам.*/
           if (priv->node[type] == NULL)
             {
-              priv->node[type] = hyscan_model_manager_extension_new (PARENT, FALSE, FALSE);
+              priv->node[type] = hyscan_gtk_model_manager_extension_new (PARENT, FALSE, FALSE);
             }
           else
             {
@@ -2022,7 +2022,7 @@ hyscan_model_manager_init_extensions (HyScanModelManager  *self)
 
               if (ext != NULL)
                 {
-                  priv->node[type] = hyscan_model_manager_extension_copy (ext);
+                  priv->node[type] = hyscan_gtk_model_manager_extension_copy (ext);
                 }
             }
 
@@ -2040,9 +2040,9 @@ hyscan_model_manager_init_extensions (HyScanModelManager  *self)
 
 /* Обновляет ВСЕ ОБЪЕКТЫ для древовидного списка с группировкой по типам. */
 void
-hyscan_model_manager_refresh_all_items_by_types (HyScanModelManager *self)
+hyscan_gtk_model_manager_refresh_all_items_by_types (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   ModelManagerObjectType type;
 
   /*for (type = LABEL; type < TYPES; type++)*/
@@ -2050,16 +2050,16 @@ hyscan_model_manager_refresh_all_items_by_types (HyScanModelManager *self)
     {
       if (priv->extensions[type] != NULL)
         {
-          hyscan_model_manager_refresh_items_by_types (self, type);
+          hyscan_gtk_model_manager_refresh_items_by_types (self, type);
         }
     }
 }
 
 /* Обновляет ВСЕ ОБЪЕКТЫ для древовидного списка с группировкой по группам. */
 void
-hyscan_model_manager_refresh_all_items_by_labels (HyScanModelManager *self)
+hyscan_gtk_model_manager_refresh_all_items_by_labels (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   GHashTableIter table_iter;
   GHashTable *labels = hyscan_object_model_get (priv->label_model);
 
@@ -2098,25 +2098,25 @@ hyscan_model_manager_refresh_all_items_by_labels (HyScanModelManager *self)
                               COLUMN_LABEL,        label->label,
                               -1);
           /* Гео-метки. */
-          hyscan_model_manager_refresh_geo_marks_by_labels (store,
-                                                            &iter,
-                                                            label,
-                                                            geo_marks,
-                                                            priv->extensions[GEO_MARK]);
+          hyscan_gtk_model_manager_refresh_geo_marks_by_labels (store,
+                                                                &iter,
+                                                                label,
+                                                                geo_marks,
+                                                                priv->extensions[GEO_MARK]);
           g_hash_table_unref (geo_marks);
           /* Акустические метки. */
-          hyscan_model_manager_refresh_acoustic_marks_by_labels (store,
-                                                                 &iter,
-                                                                 label,
-                                                                 acoustic_marks,
-                                                                 priv->extensions[ACOUSTIC_MARK]);
+          hyscan_gtk_model_manager_refresh_acoustic_marks_by_labels (store,
+                                                                     &iter,
+                                                                     label,
+                                                                     acoustic_marks,
+                                                                     priv->extensions[ACOUSTIC_MARK]);
           g_hash_table_unref (acoustic_marks);
           /* Галсы. */
-          hyscan_model_manager_refresh_tracks_by_labels (store,
-                                                         &iter,
-                                                         label,
-                                                         tracks,
-                                                         priv->extensions[TRACK]);
+          hyscan_gtk_model_manager_refresh_tracks_by_labels (store,
+                                                             &iter,
+                                                             label,
+                                                             tracks,
+                                                             priv->extensions[TRACK]);
           g_hash_table_unref (tracks);
           /* Проверяем не отмечены ли все дочерние объекты. */
           if (gtk_tree_model_iter_children (priv->view_model, &child_iter, &iter))
@@ -2149,10 +2149,10 @@ hyscan_model_manager_refresh_all_items_by_labels (HyScanModelManager *self)
 
 /* Обновляет объекты заданного типа данными из модели для древовидного списка с группировкой по типам. */
 void
-hyscan_model_manager_refresh_items_by_types (HyScanModelManager     *self,
-                                             ModelManagerObjectType  type)
+hyscan_gtk_model_manager_refresh_items_by_types (HyScanGtkModelManager  *self,
+                                                 ModelManagerObjectType  type)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   GtkTreeStore *store = GTK_TREE_STORE (priv->view_model);
   GHashTable   *extensions = priv->extensions[type];
 
@@ -2161,7 +2161,7 @@ hyscan_model_manager_refresh_items_by_types (HyScanModelManager     *self,
     case LABEL:
       {
         GHashTable *labels = hyscan_object_model_get (priv->label_model);
-        hyscan_model_manager_refresh_labels_by_types (store, labels, extensions);
+        hyscan_gtk_model_manager_refresh_labels_by_types (store, labels, extensions);
         g_hash_table_destroy (labels);
       }
       break;
@@ -2169,7 +2169,7 @@ hyscan_model_manager_refresh_items_by_types (HyScanModelManager     *self,
       {
         GHashTable *geo_marks = hyscan_object_model_get (priv->geo_mark_model),
                    *labels = hyscan_object_model_get (priv->label_model);
-        hyscan_model_manager_refresh_geo_marks_by_types (store, geo_marks, extensions, labels);
+        hyscan_gtk_model_manager_refresh_geo_marks_by_types (store, geo_marks, extensions, labels);
         g_hash_table_destroy (labels);
         g_hash_table_destroy (geo_marks);
       }
@@ -2178,7 +2178,7 @@ hyscan_model_manager_refresh_items_by_types (HyScanModelManager     *self,
       {
         GHashTable *acoustic_marks = hyscan_mark_loc_model_get (priv->acoustic_loc_model),
                    *labels = hyscan_object_model_get (priv->label_model);
-        hyscan_model_manager_refresh_acoustic_marks_by_types (store, acoustic_marks, extensions, labels);
+        hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (store, acoustic_marks, extensions, labels);
         g_hash_table_destroy (labels);
         g_hash_table_destroy (acoustic_marks);
       }
@@ -2187,7 +2187,7 @@ hyscan_model_manager_refresh_items_by_types (HyScanModelManager     *self,
       {
         GHashTable *tracks = hyscan_db_info_get_tracks (priv->track_model),
                    *labels = hyscan_object_model_get (priv->label_model);
-        hyscan_model_manager_refresh_tracks_by_types (store, tracks, extensions, labels);
+        hyscan_gtk_model_manager_refresh_tracks_by_types (store, tracks, extensions, labels);
         g_hash_table_destroy (labels);
         g_hash_table_destroy (tracks);
       }
@@ -2201,10 +2201,10 @@ hyscan_model_manager_refresh_items_by_types (HyScanModelManager     *self,
  * необходимо использовать #g_hash_table_unref ().
  * */
 GHashTable*
-hyscan_model_manager_get_extensions (HyScanModelManager     *self,
-                                     ModelManagerObjectType  type)
+hyscan_gtk_model_manager_get_extensions (HyScanGtkModelManager  *self,
+                                         ModelManagerObjectType  type)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   GHashTable *table = NULL;
 
   switch (type)
@@ -2235,7 +2235,7 @@ hyscan_model_manager_get_extensions (HyScanModelManager     *self,
   if (table != NULL)
     {
       GHashTable *extensions = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
-                                                 (GDestroyNotify)hyscan_model_manager_extension_free);
+                                                 (GDestroyNotify)hyscan_gtk_model_manager_extension_free);
       GHashTableIter  iter;
       gpointer object;
       gchar *id;
@@ -2247,12 +2247,12 @@ hyscan_model_manager_get_extensions (HyScanModelManager     *self,
 
           if (ext == NULL)
             {
-              ext = hyscan_model_manager_extension_new (CHILD, FALSE, FALSE);
+              ext = hyscan_gtk_model_manager_extension_new (CHILD, FALSE, FALSE);
               g_hash_table_insert (extensions, g_strdup (id), ext);
             }
           else
             {
-              ext = hyscan_model_manager_extension_copy (ext);
+              ext = hyscan_gtk_model_manager_extension_copy (ext);
               g_hash_table_insert (extensions, g_strdup (id), ext);
             }
         }
@@ -2268,8 +2268,8 @@ hyscan_model_manager_get_extensions (HyScanModelManager     *self,
  * В противном случае, возвращает FALSE.
  * */
 gboolean
-hyscan_model_manager_is_all_toggled (GHashTable  *table,
-                                     const gchar *node_id)
+hyscan_gtk_model_manager_is_all_toggled (GHashTable  *table,
+                                         const gchar *node_id)
 {
   GHashTableIter iter;
   Extension *ext;
@@ -2306,11 +2306,11 @@ hyscan_model_manager_is_all_toggled (GHashTable  *table,
 
 /* Удаляет объект из базы данных. */
 void
-hyscan_model_manager_delete_item (HyScanModelManager     *self,
-                                  ModelManagerObjectType  type,
-                                  gchar                  *id)
+hyscan_gtk_model_manager_delete_item (HyScanGtkModelManager  *self,
+                                      ModelManagerObjectType  type,
+                                      gchar                  *id)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
   switch (type)
     {
@@ -2353,13 +2353,13 @@ hyscan_model_manager_delete_item (HyScanModelManager     *self,
 
 /* Переносит гео-метку в другую группу. */
 void
-hyscan_model_manager_geo_mark_change_label (HyScanModelManager  *self,
-                                            gchar              **list,
-                                            HyScanLabel         *label,
-                                            GHashTable          *table,
-                                            guint64              current_time)
+hyscan_gtk_model_manager_geo_mark_change_label (HyScanGtkModelManager  *self,
+                                                gchar                 **list,
+                                                HyScanLabel            *label,
+                                                GHashTable             *table,
+                                                guint64                 current_time)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
   if (priv->signal_geo_marks_changed != 0)
     {
@@ -2409,13 +2409,13 @@ hyscan_model_manager_geo_mark_change_label (HyScanModelManager  *self,
 
 /* Переносит акустическую метку в другую группу */
 void
-hyscan_model_manager_acoustic_mark_change_label (HyScanModelManager  *self,
-                                                 gchar              **list,
-                                                 HyScanLabel         *label,
-                                                 GHashTable          *table,
-                                                 guint64              current_time)
+hyscan_gtk_model_manager_acoustic_mark_change_label (HyScanGtkModelManager  *self,
+                                                     gchar                 **list,
+                                                     HyScanLabel            *label,
+                                                     GHashTable             *table,
+                                                     guint64                 current_time)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
   if (priv->signal_acoustic_marks_changed != 0)
     {
@@ -2465,14 +2465,14 @@ hyscan_model_manager_acoustic_mark_change_label (HyScanModelManager  *self,
 
 /* Переносит галс в другую группу */
 void
-hyscan_model_manager_track_change_label (HyScanModelManager  *self,
-                                         gchar              **list,
-                                         HyScanLabel         *label,
-                                         GHashTable          *table,
-                                         GDateTime           *now_local,
-                                         guint64              current_time)
+hyscan_gtk_model_manager_track_change_label (HyScanGtkModelManager  *self,
+                                             gchar                 **list,
+                                             HyScanLabel            *label,
+                                             GHashTable             *table,
+                                             GDateTime              *now_local,
+                                             guint64                 current_time)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
   if (priv->signal_tracks_changed != 0)
     {
@@ -2519,11 +2519,11 @@ hyscan_model_manager_track_change_label (HyScanModelManager  *self,
     }
 }
 /* Создаёт новый Extention. Для удаления необходимо
- * использовать hyscan_model_manager_extension_free ().*/
+ * использовать hyscan_gtk_model_manager_extension_free ().*/
 Extension*
-hyscan_model_manager_extension_new (ExtensionType  type,
-                                    gboolean       active,
-                                    gboolean       expanded)
+hyscan_gtk_model_manager_extension_new (ExtensionType  type,
+                                        gboolean       active,
+                                        gboolean       expanded)
 {
   Extension *ext = g_new (Extension, 1);
   ext->type      = type;
@@ -2532,9 +2532,9 @@ hyscan_model_manager_extension_new (ExtensionType  type,
   return ext;
 }
 
-/* Создаёт копию Extention-а. Для удаления необходимо использовать hyscan_model_manager_extension_free ().*/
+/* Создаёт копию Extention-а. Для удаления необходимо использовать hyscan_gtk_model_manager_extension_free ().*/
 Extension*
-hyscan_model_manager_extension_copy (Extension *ext)
+hyscan_gtk_model_manager_extension_copy (Extension *ext)
 {
   Extension *copy = g_new (Extension, 1);
   copy->type      = ext->type;
@@ -2545,7 +2545,7 @@ hyscan_model_manager_extension_copy (Extension *ext)
 
 /* Освобождает ресурсы Extention-а */
 void
-hyscan_model_manager_extension_free (gpointer data)
+hyscan_gtk_model_manager_extension_free (gpointer data)
 {
   if (data != NULL)
     {
@@ -2557,21 +2557,21 @@ hyscan_model_manager_extension_free (gpointer data)
 }
 
 /**
- * hyscan_model_manager_new:
+ * hyscan_gtk_model_manager_new:
  * @project_name: название проекта
  * @db: указатель на базу данных
  * @cache: указатель на кэш
  * @export_folder: папка для экспорта
  *
- * Returns: cоздаёт новый объект #HyScanModelManager
+ * Returns: cоздаёт новый объект #HyScanGtkModelManager
  */
-HyScanModelManager*
-hyscan_model_manager_new (const gchar *project_name,
-                          HyScanDB    *db,
-                          HyScanCache *cache,
-                          gchar       *export_folder)
+HyScanGtkModelManager*
+hyscan_gtk_model_manager_new (const gchar *project_name,
+                              HyScanDB    *db,
+                              HyScanCache *cache,
+                              gchar       *export_folder)
 {
-  return g_object_new (HYSCAN_TYPE_MODEL_MANAGER,
+  return g_object_new (HYSCAN_TYPE_GTK_MODEL_MANAGER,
                        "project_name",  project_name,
                        "db",            db,
                        "cache",         cache,
@@ -2580,115 +2580,115 @@ hyscan_model_manager_new (const gchar *project_name,
 }
 
 /**
- * hyscan_model_manager_get_track_model:
+ * hyscan_gtk_model_manager_get_track_model:
  * @self: указатель на Менеджер Моделей
  *
  * Returns: указатель на модель галсов. Когда модель больше не нужна,
  * необходимо использовать #g_object_unref ().
  */
 HyScanDBInfo*
-hyscan_model_manager_get_track_model (HyScanModelManager *self)
+hyscan_gtk_model_manager_get_track_model (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   return g_object_ref (priv->track_model);
 }
 
 /**
- * hyscan_model_manager_get_acoustic_mark_model:
+ * hyscan_gtk_model_manager_get_acoustic_mark_model:
  * @self: указатель на Менеджер Моделей
  *
  * Returns: указатель на модель акустических меток. Когда модель больше не нужна,
  * необходимо использовать #g_object_unref ().
  */
 HyScanObjectModel*
-hyscan_model_manager_get_acoustic_mark_model (HyScanModelManager *self)
+hyscan_gtk_model_manager_get_acoustic_mark_model (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   return g_object_ref (priv->acoustic_marks_model);
 }
 
 /**
- * hyscan_model_manager_get_geo_mark_model:
+ * hyscan_gtk_model_manager_get_geo_mark_model:
  * @self: указатель на Менеджер Моделей
  *
  * Returns: указатель на модель гео-меток. Когда модель больше не нужна,
  * необходимо использовать #g_object_unref ().
  */
 HyScanObjectModel*
-hyscan_model_manager_get_geo_mark_model (HyScanModelManager *self)
+hyscan_gtk_model_manager_get_geo_mark_model (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   return g_object_ref (priv->geo_mark_model);
 }
 
 /**
- * hyscan_model_manager_get_label_model:
+ * hyscan_gtk_model_manager_get_label_model:
  * @self: указатель на Менеджер Моделей
  *
  * Returns: указатель на модель групп. Когда модель больше не нужна,
  * необходимо использовать #g_object_unref ().
  */
 HyScanObjectModel*
-hyscan_model_manager_get_label_model (HyScanModelManager *self)
+hyscan_gtk_model_manager_get_label_model (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   return g_object_ref (priv->label_model);
 }
 
 /**
- * hyscan_model_manager_get_acoustic_mark_loc_model:
+ * hyscan_gtk_model_manager_get_acoustic_mark_loc_model:
  * @self: указатель на Менеджер Моделей
  *
  * Returns: указатель на модель акустических меток с координатами. Когда модель больше не нужна,
  * необходимо использовать #g_object_unref ().
  */
 HyScanMarkLocModel*
-hyscan_model_manager_get_acoustic_mark_loc_model (HyScanModelManager *self)
+hyscan_gtk_model_manager_get_acoustic_mark_loc_model (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   return g_object_ref (priv->acoustic_loc_model);
 }
 
 /**
- * hyscan_model_manager_get_signal_title:
+ * hyscan_gtk_model_manager_get_signal_title:
  * @self: указатель на Менеджер Моделей
  * signal: сигнал Менеджера Моделей
  *
  * Returns: название сигнала Менеджера Моделей
  */
 const gchar*
-hyscan_model_manager_get_signal_title (HyScanModelManager *self,
-                                       ModelManagerSignal  signal)
+hyscan_gtk_model_manager_get_signal_title (HyScanGtkModelManager *self,
+                                           ModelManagerSignal     signal)
 {
   return signals[signal];
 }
 
 /**
- * hyscan-model-manager-get-db:
+ * hyscan_gtk_model_manager_get_db:
  * @self: указатель на Менеджер Моделей
  *
  * Returns: указатель на Базу Данных. Когда БД больше не нужна,
  * необходимо использовать #g_object_unref ().
  */
 HyScanDB*
-hyscan_model_manager_get_db (HyScanModelManager *self)
+hyscan_gtk_model_manager_get_db (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   return g_object_ref (priv->db);
 }
 
 /**
- * hyscan_model_manager_set_project_name:
+ * hyscan_gtk_model_manager_set_project_name:
  * @self: указатель на Менеджер Моделей
  * @project_name: название проекта
  *
  * Устанавливает название проекта и отправляет сигнал "notify:project-name".
  */
 void
-hyscan_model_manager_set_project_name (HyScanModelManager *self,
-                                       const gchar        *project_name)
+hyscan_gtk_model_manager_set_project_name (HyScanGtkModelManager *self,
+                                           const gchar           *project_name)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
   if (0 != g_strcmp0 (priv->project_name, project_name))
     {
@@ -2712,56 +2712,56 @@ hyscan_model_manager_set_project_name (HyScanModelManager *self,
 }
 
 /**
- * hyscan_model_manager_get_project_name:
+ * hyscan_gtk_model_manager_get_project_name:
  * @self: указатель на Менеджер Моделей
  *
  * Returns: название проекта
  */
 const gchar*
-hyscan_model_manager_get_project_name (HyScanModelManager *self)
+hyscan_gtk_model_manager_get_project_name (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   return priv->project_name;
 }
 
 /**
- * hyscan_model_manager_get_export_folder:
+ * hyscan_gtk_model_manager_get_export_folder:
  * @self: указатель на Менеджер Моделей
  *
  * Returns: директорию для экспорта
  */
 const gchar*
-hyscan_model_manager_get_export_folder (HyScanModelManager     *self)
+hyscan_gtk_model_manager_get_export_folder (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   return priv->export_folder;
 }
 
 /**
- * hyscan-model-manager-get-cache:
+ * hyscan_gtk_model_manager_get_cache:
  * @self: указатель на Менеджер Моделей
  *
  * Returns: указатель на кэш. Когда кэш больше не нужен,
  * необходимо использовать #g_object_unref ().
  */
 HyScanCache*
-hyscan_model_manager_get_cache (HyScanModelManager *self)
+hyscan_gtk_model_manager_get_cache (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   return g_object_ref (priv->cache);
 }
 
 /**
- * hyscan_model_manager_get_all_tracks_id:
+ * hyscan_gtk_model_manager_get_all_tracks_id:
  * @self: указатель на Менеджер Моделей
  *
  * Returns: NULL-терминированный список идентификаторов всех галсов.
  * Когда список больше не нужен, необходимо использовать #g_strfreev ().
  */
 gchar**
-hyscan_model_manager_get_all_tracks_id (HyScanModelManager *self)
+hyscan_gtk_model_manager_get_all_tracks_id (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
   GHashTable *tracks;
   guint count; /* Количество галсов. */
@@ -2791,66 +2791,66 @@ hyscan_model_manager_get_all_tracks_id (HyScanModelManager *self)
 }
 
 /**
- * hyscan_model_manager_set_grouping:
+ * hyscan_gtk_model_manager_set_grouping:
  * @self: указатель на Менеджер Моделей
  * @grouping: тип группировки
  *
  * Устанавливает тип группировки и отправляет сигнал об изменении типа группировки
  */
 void
-hyscan_model_manager_set_grouping (HyScanModelManager   *self,
-                                   ModelManagerGrouping  grouping)
+hyscan_gtk_model_manager_set_grouping (HyScanGtkModelManager   *self,
+                                       ModelManagerGrouping     grouping)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
   if (priv->grouping != grouping)
     {
       priv->grouping = grouping;
-      hyscan_model_manager_update_view_model (self);
+      hyscan_gtk_model_manager_update_view_model (self);
 
       g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_GROUPING_CHANGED ], 0);
     }
 }
 
 /**
- * hyscan_model_manager_get_grouping:
+ * hyscan_gtk_model_manager_get_grouping:
  * @self: указатель на Менеджер Моделей
  *
  * Returns: действительный тип группировки
  */
 ModelManagerGrouping
-hyscan_model_manager_get_grouping (HyScanModelManager   *self)
+hyscan_gtk_model_manager_get_grouping (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   return priv->grouping;
 }
 
 /**
- * hyscan_model_manager_get_view_model:
+ * hyscan_gtk_model_manager_get_view_model:
  * @self: указатель на Менеджер Моделей
  *
  * Returns: модель представления данных для #HyScanMarkManager.
  * Когда модель больше не нужна, необходимо использовать #g_object_unref ().
  */
 GtkTreeModel*
-hyscan_model_manager_get_view_model (HyScanModelManager   *self)
+hyscan_gtk_model_manager_get_view_model (HyScanGtkModelManager   *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   return g_object_ref (priv->view_model);
 }
 
 /**
- * hyscan_model_manager_set_selected_item:
+ * hyscan_gtk_model_manager_set_selected_item:
  * @self: указатель на Менеджер Моделей
  * @selection: указатель на выделенные объекты
  *
  * Устанавливает выделенную строку.
  */
 void
-hyscan_model_manager_set_selected_item (HyScanModelManager *self,
-                                        gchar              *id)
+hyscan_gtk_model_manager_set_selected_item (HyScanGtkModelManager *self,
+                                            gchar                 *id)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
   if (priv->clear_model_flag)  /* Защита против срабатывания сигнала "changed" */
     return;                    /* у GtkTreeSelection при очистке GtkTreeModel.   */
@@ -2866,29 +2866,29 @@ hyscan_model_manager_set_selected_item (HyScanModelManager *self,
 }
 
 /**
- * hyscan_model_manager_get_selected_item:
+ * hyscan_gtk_model_manager_get_selected_item:
  * @self: указатель на Менеджер Моделей
  *
  * Returns: идентификатор выделенного объекта.
  */
 gchar*
-hyscan_model_manager_get_selected_item (HyScanModelManager *self)
+hyscan_gtk_model_manager_get_selected_item (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   return priv->selected_item_id;
 }
 
 /**
- * hyscan_model_manager_get_selected_track:
+ * hyscan_gtk_model_manager_get_selected_track:
  * @self: указатель на Менеджер Моделей
  *
  * Returns: идентификатор галса в базе данных или NULL, если нет выделенного галса.
  * когда идентификатор больше не нужен, необходимо использовать #g_free ().
  */
 gchar*
-hyscan_model_manager_get_selected_track (HyScanModelManager *self)
+hyscan_gtk_model_manager_get_selected_track (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   GHashTable *tracks = hyscan_db_info_get_tracks (priv->track_model);
   HyScanTrackInfo *info = g_hash_table_lookup (tracks, priv->selected_item_id);
   gchar *result = NULL;
@@ -2900,15 +2900,15 @@ hyscan_model_manager_get_selected_track (HyScanModelManager *self)
 }
 
 /**
- * hyscan_model_manager_unselect:
+ * hyscan_gtk_model_manager_unselect_all:
  * @self: указатель на Менеджер Моделей
  *
  * Отправляет сигнал о снятии выделния.
  */
 void
-hyscan_model_manager_unselect_all (HyScanModelManager *self)
+hyscan_gtk_model_manager_unselect_all (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   ModelManagerObjectType type;
 
   if (priv->selected_item_id != NULL)
@@ -2936,17 +2936,17 @@ hyscan_model_manager_unselect_all (HyScanModelManager *self)
 }
 
 /**
- * hyscan_model_manager_set_horizontal:
+ * hyscan_gtk_model_manager_set_horizontal_adjustment:
  * @self: указатель на Менеджер Моделей
  * @value: положение горизонтальной полосы прокрутки
  *
  * Устанавливает положение горизонтальной полосы прокрутки представления.
  */
 void
-hyscan_model_manager_set_horizontal_adjustment (HyScanModelManager *self,
-                                                gdouble             value)
+hyscan_gtk_model_manager_set_horizontal_adjustment (HyScanGtkModelManager *self,
+                                                    gdouble                value)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
   priv->horizontal = value;
 
@@ -2954,60 +2954,61 @@ hyscan_model_manager_set_horizontal_adjustment (HyScanModelManager *self,
 }
 
 /**
- * hyscan_model_manager_set_vertical:
+ * hyscan_gtk_model_manager_set_vertical:
  * @self: указатель на Менеджер Моделей
  * @value: положение вертикальной полосы прокрутки
  *
  * Устанавливает положение вертикальной полосы прокрутки представления.
  */
 void
-hyscan_model_manager_set_vertical_adjustment (HyScanModelManager *self,
-                                              gdouble             value)
+hyscan_gtk_model_manager_set_vertical_adjustment (HyScanGtkModelManager *self,
+                                                  gdouble             value)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
 
   priv->vertical = value;
 
   g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_VIEW_SCROLLED_VERTICAL], 0);
 }
 
-/* hyscan_model_manager_get_horizontal_adjustment:
+/* hyscan_gtk_model_manager_get_horizontal_adjustment:
  * @self: указатель на Менеджер Моделей
  *
  * Returns: указатель на параметры горизонтальной полосы прокрутки.
  */
 gdouble
-hyscan_model_manager_get_horizontal_adjustment (HyScanModelManager *self)
+hyscan_gtk_model_manager_get_horizontal_adjustment (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   return priv->horizontal;
 }
 
-/* hyscan_model_manager_get_vertical_adjustment:
+/* hyscan_gtk_model_manager_get_vertical_adjustment:
  * @self: указатель на Менеджер Моделей
  *
  * Returns: указатель на параметры вертикальной полосы прокрутки.
  */
 gdouble
-hyscan_model_manager_get_vertical_adjustment (HyScanModelManager *self)
+hyscan_gtk_model_manager_get_vertical_adjustment (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   return priv->vertical;
 }
 
 /**
- * hyscan_model_manager_toggle_item:
+ * hyscan_gtk_model_manager_toggle_item:
  * @self: указатель на Менеджер Моделей
  * @id: идентификатор объекта в базе данных
+ * active: состояние чек-бокса
  *
  * Переключает состояние чек-бокса.
  */
 void
-hyscan_model_manager_toggle_item (HyScanModelManager *self,
-                                  gchar              *id,
-                                  gboolean            active)
+hyscan_gtk_model_manager_toggle_item (HyScanGtkModelManager *self,
+                                      gchar                 *id,
+                                      gboolean               active)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   ModelManagerObjectType type;
 
   for (type = LABEL; type < TYPES; type++)
@@ -3028,7 +3029,7 @@ hyscan_model_manager_toggle_item (HyScanModelManager *self,
 }
 
 /**
- * hyscan_model_manager_get_toggled_items:
+ * hyscan_gtk_model_manager_get_toggled_items:
  * @self: указатель на Менеджер Моделей
  * @type: тип запрашиваемых объектов
  *
@@ -3038,10 +3039,10 @@ hyscan_model_manager_toggle_item (HyScanModelManager *self,
  * необходимо использовать #g_strfreev ().
  */
 gchar**
-hyscan_model_manager_get_toggled_items (HyScanModelManager     *self,
-                                        ModelManagerObjectType  type)
+hyscan_gtk_model_manager_get_toggled_items (HyScanGtkModelManager     *self,
+                                            ModelManagerObjectType     type)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   Extension *ext;
   GHashTableIter iter;
   guint i = 0;
@@ -3064,7 +3065,7 @@ hyscan_model_manager_get_toggled_items (HyScanModelManager     *self,
 }
 
 /**
- * hyscan_model_manager_expand_item:
+ * hyscan_gtk_model_manager_expand_item:
  * @self: указатель на Менеджер Моделей
  * @id: идентификатор объекта в базе данных
  * @expanded: состояние узла TRUE - развёрнут, FALSE - свёрнут.
@@ -3072,11 +3073,11 @@ hyscan_model_manager_get_toggled_items (HyScanModelManager     *self,
  * Сохраняет состояние узла.
  */
 void
-hyscan_model_manager_expand_item (HyScanModelManager *self,
-                                  gchar              *id,
-                                  gboolean            expanded)
+hyscan_gtk_model_manager_expand_item (HyScanGtkModelManager *self,
+                                      gchar                 *id,
+                                      gboolean               expanded)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   ModelManagerObjectType type;
 
   for (type = LABEL; type < TYPES; type++)
@@ -3104,7 +3105,7 @@ hyscan_model_manager_expand_item (HyScanModelManager *self,
 }
 
 /**
- * hyscan_model_manager_get_expanded_items:
+ * hyscan_gtk_model_manager_get_expanded_items:
  * @self: указатель на Менеджер Моделей
  * @type: тип запрашиваемых объектов
  * @expanded: TRUE  - развёрнутые,
@@ -3116,11 +3117,11 @@ hyscan_model_manager_expand_item (HyScanModelManager *self,
  * больше не нужен, необходимо использовать #g_strfreev ().
  */
 gchar**
-hyscan_model_manager_get_expanded_items (HyScanModelManager     *self,
-                                         ModelManagerObjectType  type,
-                                         gboolean                expanded)
+hyscan_gtk_model_manager_get_expanded_items (HyScanGtkModelManager  *self,
+                                             ModelManagerObjectType  type,
+                                             gboolean                expanded)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   Extension *ext;
   GHashTableIter iter;
   guint i = 0;
@@ -3142,32 +3143,32 @@ hyscan_model_manager_get_expanded_items (HyScanModelManager     *self,
   return list;
 }
 /**
- * hyscan_model_manager_get_current_id:
+ * hyscan_gtk_model_manager_get_current_id:
  * @self: указатель на Менеджер Моделей
  *
  * Returns: возвращает идентификатор текущего объекта в виде строки.
  */
 gchar*
-hyscan_model_manager_get_current_id (HyScanModelManager *self)
+hyscan_gtk_model_manager_get_current_id (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   return priv->current_id;
 }
 
 /**
- * hyscan_model_manager_delete_item:
+ * hyscan_gtk_model_manager_delete_toggled_items:
  * @self: указатель на Менеджер Моделей
  *
  * Удаляет выбранные объекты из базы данных.
  */
 void
-hyscan_model_manager_delete_toggled_items (HyScanModelManager *self)
+hyscan_gtk_model_manager_delete_toggled_items (HyScanGtkModelManager *self)
 {
   ModelManagerObjectType type;
 
   for (type = LABEL; type < TYPES; type++)
     {
-      gchar **list = hyscan_model_manager_get_toggled_items (self, type);
+      gchar **list = hyscan_gtk_model_manager_get_toggled_items (self, type);
 
       if (list != NULL)
         {
@@ -3175,7 +3176,7 @@ hyscan_model_manager_delete_toggled_items (HyScanModelManager *self)
           for (i = 0; list[i] != NULL; i++)
             {
               /* Удаляем выделенные объекты. */
-              hyscan_model_manager_delete_item (self, type, list[i]);
+              hyscan_gtk_model_manager_delete_item (self, type, list[i]);
             }
           g_strfreev (list);
         }
@@ -3183,7 +3184,7 @@ hyscan_model_manager_delete_toggled_items (HyScanModelManager *self)
 }
 
 /**
- * hyscan_model_manager_has_toggled:
+ * hyscan_gtk_model_manager_has_toggled:
  * @self: указатель на Менеджер Моделей
  *
  * Проверка, есть ли выбранные объекты.
@@ -3192,9 +3193,9 @@ hyscan_model_manager_delete_toggled_items (HyScanModelManager *self)
  *          FALSE - нет выбранных объектов.
  */
 gboolean
-hyscan_model_manager_has_toggled (HyScanModelManager *self)
+hyscan_gtk_model_manager_has_toggled (HyScanGtkModelManager *self)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   ModelManagerObjectType type;
 
   for (type = LABEL; type < TYPES; type++)
@@ -3216,17 +3217,17 @@ hyscan_model_manager_has_toggled (HyScanModelManager *self)
 }
 
 /**
- * hyscan_model_manager_toggled_iteml_change_label:
+ * hyscan_gtk_model_manager_toggled_iteml_change_label:
  * @self: указатель на Менеджер Моделей
  * @id: группа в которую нужно перенести выделенные объекты.
  *
  * Присваивает выделенным объектам заданную группу и обновляет дату и время сделанных изменений.
  */
 void
-hyscan_model_manager_toggled_iteml_change_label (HyScanModelManager *self,
-                                                 gchar              *id)
+hyscan_gtk_model_manager_toggled_iteml_change_label (HyScanGtkModelManager *self,
+                                                     gchar                 *id)
 {
-  HyScanModelManagerPrivate *priv = self->priv;
+  HyScanGtkModelManagerPrivate *priv = self->priv;
   ModelManagerObjectType  type;
   HyScanLabel *label = (HyScanLabel*)hyscan_object_model_get_id (priv->label_model, id);
   GHashTable *table = hyscan_object_model_get (priv->label_model);
@@ -3240,26 +3241,26 @@ hyscan_model_manager_toggled_iteml_change_label (HyScanModelManager *self,
 
   for (type = GEO_MARK; type < TYPES; type++)
     {
-      gchar** list = hyscan_model_manager_get_toggled_items (self, type);
+      gchar** list = hyscan_gtk_model_manager_get_toggled_items (self, type);
 
       if (list != NULL)
         {
           /* Разворачиваем родительский узел. */
           if (priv->grouping == BY_LABELS)
             {
-              hyscan_model_manager_expand_item (self, id, TRUE);
+              hyscan_gtk_model_manager_expand_item (self, id, TRUE);
             }
 
           switch (type)
             {
             case GEO_MARK:
-              hyscan_model_manager_geo_mark_change_label (self, list, label, table, current_time);
+              hyscan_gtk_model_manager_geo_mark_change_label (self, list, label, table, current_time);
               break;
             case ACOUSTIC_MARK:
-              hyscan_model_manager_acoustic_mark_change_label (self, list, label, table, current_time);
+              hyscan_gtk_model_manager_acoustic_mark_change_label (self, list, label, table, current_time);
               break;
             case TRACK:
-              hyscan_model_manager_track_change_label (self, list, label, table, now_local, current_time);
+              hyscan_gtk_model_manager_track_change_label (self, list, label, table, now_local, current_time);
               break;
             default: break;
             }
@@ -3278,5 +3279,5 @@ hyscan_model_manager_toggled_iteml_change_label (HyScanModelManager *self,
   if (priv->signal_labels_changed != 0)
     g_signal_handler_unblock (priv->label_model, priv->signal_labels_changed);
 
-  hyscan_model_manager_update_view_model (self);
+  hyscan_gtk_model_manager_update_view_model (self);
 }

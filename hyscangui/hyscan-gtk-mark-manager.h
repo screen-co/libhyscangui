@@ -40,32 +40,32 @@
 
 G_BEGIN_DECLS
 
-#define HYSCAN_TYPE_MARK_MANAGER             (hyscan_mark_manager_get_type ())
-#define HYSCAN_MARK_MANAGER(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_MARK_MANAGER, HyScanMarkManager))
-#define HYSCAN_IS_MARK_MANAGER(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_MARK_MANAGER))
-#define HYSCAN_MARK_MANAGER_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_MARK_MANAGER, HyScanMarkManagerClass))
-#define HYSCAN_IS_MARK_MANAGER_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_MARK_MANAGER))
-#define HYSCAN_MARK_MANAGER_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_MARK_MANAGER, HyScanMarkManagerClass))
+#define HYSCAN_TYPE_GTK_MARK_MANAGER             (hyscan_gtk_mark_manager_get_type ())
+#define HYSCAN_GTK_MARK_MANAGER(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_MARK_MANAGER, HyScanGtkMarkManager))
+#define HYSCAN_IS_GTK_MARK_MANAGER(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_MARK_MANAGER))
+#define HYSCAN_GTK_MARK_MANAGER_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_MARK_MANAGER, HyScanGtkMarkManagerClass))
+#define HYSCAN_IS_GTK_MARK_MANAGER_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_MARK_MANAGER))
+#define HYSCAN_GTK_MARK_MANAGER_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_MARK_MANAGER, HyScanGtkMarkManagerClass))
 
-typedef struct _HyScanMarkManager        HyScanMarkManager;
-typedef struct _HyScanMarkManagerPrivate HyScanMarkManagerPrivate;
-typedef struct _HyScanMarkManagerClass   HyScanMarkManagerClass;
+typedef struct _HyScanGtkMarkManager        HyScanGtkMarkManager;
+typedef struct _HyScanGtkMarkManagerPrivate HyScanGtkMarkManagerPrivate;
+typedef struct _HyScanGtkMarkManagerClass   HyScanGtkMarkManagerClass;
 
-struct _HyScanMarkManager
+struct _HyScanGtkMarkManager
 {
   GtkBox parent_instance;
 
-  HyScanMarkManagerPrivate *priv;
+  HyScanGtkMarkManagerPrivate *priv;
 };
 
-struct _HyScanMarkManagerClass
+struct _HyScanGtkMarkManagerClass
 {
   GtkBoxClass parent_class;
 };
 
-GType        hyscan_mark_manager_get_type   (void);
+GType        hyscan_gtk_mark_manager_get_type   (void);
 
-GtkWidget*   hyscan_mark_manager_new        (HyScanModelManager *model_manager);
+GtkWidget*   hyscan_gtk_mark_manager_new        (HyScanGtkModelManager *model_manager);
 
 G_END_DECLS
 

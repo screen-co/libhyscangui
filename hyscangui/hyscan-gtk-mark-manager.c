@@ -35,15 +35,15 @@
 /**
  * SECTION: hyscan-gtk-mark-manager
  * @Short_description: Класс реализует виджет Журнала Меток
- * @Title: HyScanMarkManager
- * @See_also: #HyScanMarkManagerView, #HyScanModelManager,
- *            #HyScanMarkManagerCreateLabelDialog,
- *            #HyScanMarkManagerChangeLabelDialog
+ * @Title: HyScanGtkMarkManager
+ * @See_also: #HyScanGtkMarkManagerView, #HyScanGtkModelManager,
+ *            #HyScanGtkMarkManagerCreateLabelDialog,
+ *            #HyScanGtkMarkManagerChangeLabelDialog
  *
  * Виджет #HyScanMarkManager управляет представлением и реализует функции
  * для работы с объектами Журнала Меток.
  *
- * - hyscan_mark_manager_new () - создание нового виджета.
+ * - hyscan_gtk_mark_manager_new () - создание нового виджета.
  */
 
 #include <hyscan-gtk-mark-manager.h>
@@ -61,49 +61,49 @@ enum
 /* Идентификаторы текста меток и подсказок для элементов панели инструментов. */
 enum
 {
-  CREATE_NEW_GROUP, /* Метка и подсказка для кноки "Создать новую группу". */
-  DELETE_SELECTED,  /* Метка и подсказка для кноки "Удалить выделенное". */
-  SHOW_OR_HIDE,     /* Метка для выпадающего меню. */
-  GROUPING,         /* Подсказка для выпадающего списка выбора типа представления . */
+  CREATE_NEW_GROUP,       /* Метка и подсказка для кноки "Создать новую группу". */
+  DELETE_SELECTED,        /* Метка и подсказка для кноки "Удалить выделенное". */
+  SHOW_OR_HIDE,           /* Метка для выпадающего меню. */
+  GROUPING,               /* Подсказка для выпадающего списка выбора типа представления . */
 };
 
 /* Действия (пункты выпадающего меню). */
 enum
 {
-  EXPAND_ALL,       /* Развернуть все. */
-  COLLAPSE_ALL,     /* Свернуть все. */
-  TOGGLE_ALL,       /* Отметить все. */
-  UNTOGGLE_ALL,     /* Снять все отметки. */
-  CHANGE_LABEL,     /* Перенести в группу. */
-  SAVE_AS_HTML      /* Сохранить как HTML. */
+  EXPAND_ALL,             /* Развернуть все. */
+  COLLAPSE_ALL,           /* Свернуть все. */
+  TOGGLE_ALL,             /* Отметить все. */
+  UNTOGGLE_ALL,           /* Снять все отметки. */
+  CHANGE_LABEL,           /* Перенести в группу. */
+  SAVE_AS_HTML            /* Сохранить как HTML. */
 };
 
 /* Положение панели инструментов относительно виджета представления. */
 typedef enum
 {
-  TOOLBAR_LEFT,     /* Слева. */
-  TOOLBAR_RIGHT,    /* Справа. */
-  TOOLBAR_BOTTOM,   /* Снизу.*/
-  TOOLBAR_TOP       /* Сверху. */
-}HyScanMarkManagerToolbarPosition;
+  TOOLBAR_LEFT,           /* Слева. */
+  TOOLBAR_RIGHT,          /* Справа. */
+  TOOLBAR_BOTTOM,         /* Снизу.*/
+  TOOLBAR_TOP             /* Сверху. */
+}HyScanGtkMarkManagerToolbarPosition;
 
-struct _HyScanMarkManagerPrivate
+struct _HyScanGtkMarkManagerPrivate
 {
-  HyScanModelManager *model_manager;        /* Менеджер Моделей. */
+  HyScanGtkModelManager *model_manager;       /* Менеджер Моделей. */
 
-  GtkWidget          *view,                 /* Виджет представления. */
-                     *delete_icon,          /* Виджет для иконки для кнопки "Удалить выделенное". */
-                     *combo,                /* Выпадающий список для выбора типа группировки. */
-                     *expand_all_item,      /* Пункт выпадающего меню "Развернуть все". */
-                     *collapse_all_item,    /* Пункт выпадающего меню "Свернуть все". */
-                     *toggle_all_item,      /* Пункт выпадающего меню "Отметить все". */
-                     *untoggle_all_item,    /* Снять все отметки. */
-                     *change_label,         /* Пункт выпадающего меню "Перенести в группу". */
-                     *save_as_html,         /* Пункт выпадающего меню "Сохранить в формате HTML". */
-                     *new_label_dialog,     /* Диалог создания новой группы. */
-                     *change_label_dialog;  /* Диалог переноса объектов в другую группу. */
-  GtkIconSize         icon_size;            /* Размер иконок. */
-  gulong              signal;               /* Идентификатор сигнала изменения типа группировки.*/
+  GtkWidget             *view,                /* Виджет представления. */
+                        *delete_icon,         /* Виджет для иконки для кнопки "Удалить выделенное". */
+                        *combo,               /* Выпадающий список для выбора типа группировки. */
+                        *expand_all_item,     /* Пункт выпадающего меню "Развернуть все". */
+                        *collapse_all_item,   /* Пункт выпадающего меню "Свернуть все". */
+                        *toggle_all_item,     /* Пункт выпадающего меню "Отметить все". */
+                        *untoggle_all_item,   /* Снять все отметки. */
+                        *change_label,        /* Пункт выпадающего меню "Перенести в группу". */
+                        *save_as_html,        /* Пункт выпадающего меню "Сохранить в формате HTML". */
+                        *new_label_dialog,    /* Диалог создания новой группы. */
+                        *change_label_dialog; /* Диалог переноса объектов в другую группу. */
+  GtkIconSize            icon_size;           /* Размер иконок. */
+  gulong                 signal;              /* Идентификатор сигнала изменения типа группировки.*/
 };
 /* Текст пунктов выпадающего списка для выбора типа представления. */
 static gchar *view_type_text[] = {N_("Ungrouped"),
@@ -122,121 +122,121 @@ static gchar *tooltips_text[]  = {N_("Create new group"),
                                   N_("Actions"),
                                   N_("Grouping")};
 
-static void         hyscan_mark_manager_set_property                (GObject            *object,
-                                                                     guint               prop_id,
-                                                                     const GValue       *value,
-                                                                     GParamSpec         *pspec);
+static void         hyscan_gtk_mark_manager_set_property                (GObject              *object,
+                                                                         guint                 prop_id,
+                                                                         const GValue         *value,
+                                                                         GParamSpec           *pspec);
 
-static void         hyscan_mark_manager_constructed                 (GObject            *object);
+static void         hyscan_gtk_mark_manager_constructed                 (GObject              *object);
 
-static void         hyscan_mark_manager_finalize                    (GObject            *object);
+static void         hyscan_gtk_mark_manager_finalize                    (GObject              *object);
 
-static void         hyscan_mark_manager_create_new_label            (GtkToolItem        *item,
-                                                                     HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_create_new_label            (GtkToolItem          *item,
+                                                                         HyScanGtkMarkManager *self);
 
-static void         hyscan_mark_manager_release_new_label_dialog    (GtkWidget          *dialog,
-                                                                     gpointer            user_data);
+static void         hyscan_gtk_mark_manager_release_new_label_dialog    (GtkWidget            *dialog,
+                                                                         gpointer              user_data);
 
-static void         hyscan_mark_manager_set_grouping                (GtkComboBox        *combo,
-                                                                     HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_set_grouping                (GtkComboBox          *combo,
+                                                                         HyScanGtkMarkManager *self);
 
-static void         hyscan_mark_manager_delete_toggled              (GtkToolButton      *button,
-                                                                     HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_delete_toggled              (GtkToolButton        *button,
+                                                                         HyScanGtkMarkManager *self);
 
-static void         hyscan_mark_manager_expand_all                  (GtkMenuItem        *item,
-                                                                     HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_expand_all                  (GtkMenuItem          *item,
+                                                                         HyScanGtkMarkManager *self);
 
-static void         hyscan_mark_manager_collapse_all                (GtkMenuItem        *item,
-                                                                     HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_collapse_all                (GtkMenuItem          *item,
+                                                                         HyScanGtkMarkManager *self);
 
-static void         hyscan_mark_manager_toggle_all                  (GtkMenuItem        *item,
-                                                                     HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_toggle_all                  (GtkMenuItem          *item,
+                                                                         HyScanGtkMarkManager *self);
 
-static void         hyscan_mark_manager_untoggle_all                (GtkMenuItem        *item,
-                                                                     HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_untoggle_all                (GtkMenuItem          *item,
+                                                                         HyScanGtkMarkManager *self);
 
-static void         hyscan_mark_manager_toggled_items_change_label  (GtkMenuItem        *item,
-                                                                     HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_toggled_items_change_label  (GtkMenuItem          *item,
+                                                                         HyScanGtkMarkManager *self);
 
-static void         hyscan_mark_manager_release_change_label_dialog (GtkWidget          *dialog,
-                                                                     gpointer            user_data);
+static void         hyscan_gtk_mark_manager_release_change_label_dialog (GtkWidget            *dialog,
+                                                                         gpointer              user_data);
 
-static void         hyscan_mark_manager_toggled_iteml_change_label  (HyScanMarkManager  *self,
-                                                                     gchar              *id);
+static void         hyscan_gtk_mark_manager_toggled_iteml_change_label  (HyScanGtkMarkManager *self,
+                                                                         gchar                *id);
 
-static void         hyscan_mark_manager_item_selected               (HyScanMarkManager  *self,
-                                                                     gchar              *id);
+static void         hyscan_gtk_mark_manager_item_selected               (HyScanGtkMarkManager *self,
+                                                                         gchar                *id);
 
-static void         hyscan_mark_manager_select_item                 (HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_select_item                 (HyScanGtkMarkManager *self);
 
-static void         hyscan_mark_manager_unselect                    (HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_unselect                    (HyScanGtkMarkManager *self);
 
-static void         hyscan_mark_manager_unselect_all                (HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_unselect_all                (HyScanGtkMarkManager *self);
 
-static void         hyscan_mark_manager_item_toggled                (HyScanMarkManager  *self,
-                                                                     gchar              *id,
-                                                                     gboolean            active);
+static void         hyscan_gtk_mark_manager_item_toggled                (HyScanGtkMarkManager *self,
+                                                                         gchar                *id,
+                                                                         gboolean              active);
 
-static void         hyscan_mark_manager_toggle_item                 (HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_toggle_item                 (HyScanGtkMarkManager *self);
 
-static void         hyscan_mark_manager_view_scrolled_horizontal    (HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_view_scrolled_horizontal    (HyScanGtkMarkManager *self);
 
-static void         hyscan_mark_manager_view_scrolled_vertical      (HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_view_scrolled_vertical      (HyScanGtkMarkManager *self);
 
-static void         hyscan_mark_manager_grouping_changed            (HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_grouping_changed            (HyScanGtkMarkManager *self);
 
-static void         hyscan_mark_manager_view_model_updated          (HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_view_model_updated          (HyScanGtkMarkManager *self);
 
-static void         hyscan_mark_manager_scrolled_horizontal         (GtkAdjustment      *adjustment,
-                                                                     gpointer            user_data);
+static void         hyscan_gtk_mark_manager_scrolled_horizontal         (GtkAdjustment        *adjustment,
+                                                                         gpointer              user_data);
 
-static void         hyscan_mark_manager_scrolled_vertical           (GtkAdjustment      *adjustment,
-                                                                     gpointer            user_data);
+static void         hyscan_gtk_mark_manager_scrolled_vertical           (GtkAdjustment        *adjustment,
+                                                                         gpointer              user_data);
 
-static void         hyscan_mark_manager_item_expanded               (HyScanMarkManager  *self,
-                                                                     gchar              *id,
-                                                                     gboolean            expanded);
+static void         hyscan_gtk_mark_manager_item_expanded               (HyScanGtkMarkManager *self,
+                                                                         gchar                *id,
+                                                                         gboolean              expanded);
 
-static void         hyscan_mark_manager_expand_item                 (HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_expand_item                 (HyScanGtkMarkManager *self);
 
-static void         hyscan_mark_manager_collapse_item               (HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_collapse_item               (HyScanGtkMarkManager *self);
 
-static void         hyscan_mark_manager_expand_current_item         (HyScanMarkManager  *self,
-                                                                     gboolean            expanded);
+static void         hyscan_gtk_mark_manager_expand_current_item         (HyScanGtkMarkManager *self,
+                                                                         gboolean              expanded);
 
-static void         hyscan_mark_manager_expand_items                (HyScanMarkManager  *self,
-                                                                     gboolean            expanded);
+static void         hyscan_gtk_mark_manager_expand_items                (HyScanGtkMarkManager *self,
+                                                                         gboolean              expanded);
 
-static void         hyscan_mark_manager_expand_all_items            (HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_expand_all_items            (HyScanGtkMarkManager *self);
 
-static GtkTreeIter* hyscan_mark_manager_find_item                   (GtkTreeModel       *model,
-                                                                     const gchar        *id);
+static GtkTreeIter* hyscan_gtk_mark_manager_find_item                   (GtkTreeModel         *model,
+                                                                         const gchar          *id);
 
-static void         hyscan_mark_manager_toggled_items_save_as_html  (GtkMenuItem        *item,
-                                                                     HyScanMarkManager  *self);
+static void         hyscan_gtk_mark_manager_toggled_items_save_as_html  (GtkMenuItem          *item,
+                                                                         HyScanGtkMarkManager *self);
 
-G_DEFINE_TYPE_WITH_PRIVATE (HyScanMarkManager, hyscan_mark_manager, GTK_TYPE_BOX)
+G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMarkManager, hyscan_gtk_mark_manager, GTK_TYPE_BOX)
 
 static void
-hyscan_mark_manager_class_init (HyScanMarkManagerClass *klass)
+hyscan_gtk_mark_manager_class_init (HyScanGtkMarkManagerClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
-  object_class->set_property = hyscan_mark_manager_set_property;
-  object_class->constructed  = hyscan_mark_manager_constructed;
-  object_class->finalize     = hyscan_mark_manager_finalize;
+  object_class->set_property = hyscan_gtk_mark_manager_set_property;
+  object_class->constructed  = hyscan_gtk_mark_manager_constructed;
+  object_class->finalize     = hyscan_gtk_mark_manager_finalize;
 
   /* Менеджер моделей. */
   g_object_class_install_property (object_class, PROP_MODEL_MANAGER,
     g_param_spec_object ("model_manager", "ModelManager", "Model Manager",
-                         HYSCAN_TYPE_MODEL_MANAGER,
+                         HYSCAN_TYPE_GTK_MODEL_MANAGER,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
 static void
-hyscan_mark_manager_init (HyScanMarkManager *self)
+hyscan_gtk_mark_manager_init (HyScanGtkMarkManager *self)
 {
-  self->priv = hyscan_mark_manager_get_instance_private (self);
+  self->priv = hyscan_gtk_mark_manager_get_instance_private (self);
   /* Размеры иконок.
   GTK_ICON_SIZE_INVALID            Invalid size.
   GTK_ICON_SIZE_MENU               Size appropriate for menus (16px).
@@ -249,13 +249,13 @@ hyscan_mark_manager_init (HyScanMarkManager *self)
   self->priv->icon_size = GTK_ICON_SIZE_LARGE_TOOLBAR;
 }
 static void
-hyscan_mark_manager_set_property (GObject      *object,
-                                  guint         prop_id,
-                                  const GValue *value,
-                                  GParamSpec   *pspec)
+hyscan_gtk_mark_manager_set_property (GObject      *object,
+                                      guint         prop_id,
+                                      const GValue *value,
+                                      GParamSpec   *pspec)
 {
-  HyScanMarkManager *self        = HYSCAN_MARK_MANAGER (object);
-  HyScanMarkManagerPrivate *priv = self->priv;
+  HyScanGtkMarkManager *self        = HYSCAN_GTK_MARK_MANAGER (object);
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
 
   switch (prop_id)
     {
@@ -271,10 +271,10 @@ hyscan_mark_manager_set_property (GObject      *object,
 }
 /* Конструктор. */
 static void
-hyscan_mark_manager_constructed (GObject *object)
+hyscan_gtk_mark_manager_constructed (GObject *object)
 {
-  HyScanMarkManager        *self    = HYSCAN_MARK_MANAGER (object);
-  HyScanMarkManagerPrivate *priv    = self->priv;
+  HyScanGtkMarkManager        *self = HYSCAN_GTK_MARK_MANAGER (object);
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
   GtkBox       *box                 = GTK_BOX (object);   /* Контейнер для панели инструментов и представления.*/
   GtkWidget    *toolbar             = gtk_toolbar_new (); /* Панель инструментов. */
   GtkWidget    *action_menu         = gtk_menu_new ();    /* Меню действий. */
@@ -283,82 +283,82 @@ hyscan_mark_manager_constructed (GObject *object)
   GtkToolItem  *action_item         = NULL;
   GtkToolItem  *separator           = gtk_separator_tool_item_new (); /* Разделитель. */
   GtkToolItem  *container           = gtk_tool_item_new (); /* Контейнер для выпадающего списка. */
-  GtkTreeModel *model               = hyscan_model_manager_get_view_model (priv->model_manager);
+  GtkTreeModel *model               = hyscan_gtk_model_manager_get_view_model (priv->model_manager);
   /* Размещаем панель инструментов сверху. */
-  HyScanMarkManagerToolbarPosition toolbar_position = TOOLBAR_TOP;
+  HyScanGtkMarkManagerToolbarPosition toolbar_position = TOOLBAR_TOP;
   ModelManagerGrouping index,    /* Для обхода массива с пунктами меню выбора типа представления.*/
                        grouping; /* Для хранения текущего значения. */
   /* Дефолтный конструктор родительского класса. */
-  G_OBJECT_CLASS (hyscan_mark_manager_parent_class)->constructed (object);
+  G_OBJECT_CLASS (hyscan_gtk_mark_manager_parent_class)->constructed (object);
   /* Подключаем сигнал об изменении типа группировки.*/
   g_signal_connect_swapped (priv->model_manager,
-                            hyscan_model_manager_get_signal_title (priv->model_manager,
-                                                                   SIGNAL_GROUPING_CHANGED),
-                            G_CALLBACK (hyscan_mark_manager_grouping_changed),
+                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
+                                                                       SIGNAL_GROUPING_CHANGED),
+                            G_CALLBACK (hyscan_gtk_mark_manager_grouping_changed),
                             self);
   /* Подключаем сигнал об обновлении модели представления данных.*/
   g_signal_connect_swapped (priv->model_manager,
-                            hyscan_model_manager_get_signal_title (priv->model_manager,
-                                                                   SIGNAL_VIEW_MODEL_UPDATED),
-                            G_CALLBACK (hyscan_mark_manager_view_model_updated),
+                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
+                                                                       SIGNAL_VIEW_MODEL_UPDATED),
+                            G_CALLBACK (hyscan_gtk_mark_manager_view_model_updated),
                             self);
   /* Подключаем сигнал о выделении строки.*/
   g_signal_connect_swapped (priv->model_manager,
-                            hyscan_model_manager_get_signal_title (priv->model_manager,
-                                                                   SIGNAL_ITEM_SELECTED),
-                            G_CALLBACK (hyscan_mark_manager_select_item),
+                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
+                                                                       SIGNAL_ITEM_SELECTED),
+                            G_CALLBACK (hyscan_gtk_mark_manager_select_item),
                             self);
   /* Подключаем сигнал об изменении состояния чек-бокса. */
   g_signal_connect_swapped (priv->model_manager,
-                            hyscan_model_manager_get_signal_title (priv->model_manager,
-                                                                   SIGNAL_ITEM_TOGGLED),
-                            G_CALLBACK (hyscan_mark_manager_toggle_item),
+                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
+                                                                       SIGNAL_ITEM_TOGGLED),
+                            G_CALLBACK (hyscan_gtk_mark_manager_toggle_item),
                             self);
   /* Подключаем сигнал о разворачивании узла древовидного представления. */
   g_signal_connect_swapped (priv->model_manager,
-                            hyscan_model_manager_get_signal_title (priv->model_manager,
-                                                                   SIGNAL_ITEM_EXPANDED),
-                            G_CALLBACK (hyscan_mark_manager_expand_item),
+                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
+                                                                       SIGNAL_ITEM_EXPANDED),
+                            G_CALLBACK (hyscan_gtk_mark_manager_expand_item),
                             self);
   /* Подключаем сигнал о сворачивании узла древовидного представления. */
   g_signal_connect_swapped (priv->model_manager,
-                            hyscan_model_manager_get_signal_title (priv->model_manager,
-                                                                   SIGNAL_ITEM_COLLAPSED),
-                            G_CALLBACK (hyscan_mark_manager_collapse_item),
+                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
+                                                                       SIGNAL_ITEM_COLLAPSED),
+                            G_CALLBACK (hyscan_gtk_mark_manager_collapse_item),
                             self);
   /* Подключаем сигнал о горизонтальной прокрутке представления.*/
   g_signal_connect_swapped (priv->model_manager,
-                            hyscan_model_manager_get_signal_title (priv->model_manager,
-                                                                   SIGNAL_VIEW_SCROLLED_HORIZONTAL),
-                            G_CALLBACK (hyscan_mark_manager_view_scrolled_horizontal),
+                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
+                                                                       SIGNAL_VIEW_SCROLLED_HORIZONTAL),
+                            G_CALLBACK (hyscan_gtk_mark_manager_view_scrolled_horizontal),
                             self);
   /* Подключаем сигнал о вертикальной прокрутке представления.*/
   g_signal_connect_swapped (priv->model_manager,
-                            hyscan_model_manager_get_signal_title (priv->model_manager,
-                                                                   SIGNAL_VIEW_SCROLLED_VERTICAL),
-                            G_CALLBACK (hyscan_mark_manager_view_scrolled_vertical),
+                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
+                                                                       SIGNAL_VIEW_SCROLLED_VERTICAL),
+                            G_CALLBACK (hyscan_gtk_mark_manager_view_scrolled_vertical),
                             self);
   /* Подключаем сигнал о снятии выделения.*/
   g_signal_connect_swapped (priv->model_manager,
-                            hyscan_model_manager_get_signal_title (priv->model_manager,
-                                                                   SIGNAL_UNSELECT_ALL),
-                            G_CALLBACK (hyscan_mark_manager_unselect_all),
+                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
+                                                                       SIGNAL_UNSELECT_ALL),
+                            G_CALLBACK (hyscan_gtk_mark_manager_unselect_all),
                             self);
   /* Виджет представления. */
-  priv->view = hyscan_mark_manager_view_new (model);
+  priv->view = hyscan_gtk_mark_manager_view_new (model);
   g_object_unref (model);
   /* Соединяем сигнал изменения выбранных элементов представления с функцией-обработчиком. */
   g_signal_connect_swapped (G_OBJECT (priv->view), "selected",
-                            G_CALLBACK (hyscan_mark_manager_item_selected), self);
+                            G_CALLBACK (hyscan_gtk_mark_manager_item_selected), self);
   /* Соединяем сигнал снятия выделения с функцией-обработчиком. */
   g_signal_connect_swapped (G_OBJECT (priv->view), "unselect",
-                            G_CALLBACK (hyscan_mark_manager_unselect), self);
+                            G_CALLBACK (hyscan_gtk_mark_manager_unselect), self);
   /* Соединяем сигнал изменения состояния чек-боксов с функцией-обработчиком. */
   g_signal_connect_swapped (G_OBJECT (priv->view), "toggled",
-                            G_CALLBACK (hyscan_mark_manager_item_toggled), self);
+                            G_CALLBACK (hyscan_gtk_mark_manager_item_toggled), self);
   /* Соединяем сигнал разворачивания узла древовидного представления с функцией-обработчиком. */
   g_signal_connect_swapped (G_OBJECT (priv->view), "expanded",
-                            G_CALLBACK (hyscan_mark_manager_item_expanded), self);
+                            G_CALLBACK (hyscan_gtk_mark_manager_item_expanded), self);
   /* Кнопка "Создать новую группу". */
   new_label_item  = gtk_tool_button_new (NULL, _(tooltips_text[CREATE_NEW_GROUP]));
   gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (new_label_item), "insert-object");
@@ -368,7 +368,7 @@ hyscan_mark_manager_constructed (GObject *object)
   gtk_widget_set_tooltip_text (GTK_WIDGET (new_label_item), _(tooltips_text[CREATE_NEW_GROUP]));
   /* Обработчик нажатия кнопки "Новая группа". */
   g_signal_connect (G_OBJECT (new_label_item), "clicked",
-                    G_CALLBACK (hyscan_mark_manager_create_new_label), self);
+                    G_CALLBACK (hyscan_gtk_mark_manager_create_new_label), self);
   /* Иконка для кнопки "Удалить выделенное". */
   priv->delete_icon = gtk_image_new_from_icon_name ("edit-delete", priv->icon_size);
   /* Делаем неактивной кнопку "Удалить выделенное". */
@@ -391,7 +391,7 @@ hyscan_mark_manager_constructed (GObject *object)
   /* Делаем пункты выпадающего меню "Сохранить как HTML" неактивным. */
   gtk_widget_set_sensitive (priv->save_as_html, FALSE);
   /* Активируем текущий тип группировки. */
-  grouping = hyscan_model_manager_get_grouping (priv->model_manager);
+  grouping = hyscan_gtk_model_manager_get_grouping (priv->model_manager);
   /* Если представление табличное, то делаем их неактивными.*/
   if (grouping == UNGROUPED)
     {
@@ -419,25 +419,25 @@ hyscan_mark_manager_constructed (GObject *object)
                                               _(tooltips_text[SHOW_OR_HIDE]));
   /* Обработчик нажатия кнопки "Удалить выделенное" */
   g_signal_connect (G_OBJECT (action_item),             "clicked",
-                    G_CALLBACK (hyscan_mark_manager_delete_toggled), self);
+                    G_CALLBACK (hyscan_gtk_mark_manager_delete_toggled), self);
   /* Обработчик выбора пункта меню "Развернуть все". */
   g_signal_connect (G_OBJECT (priv->expand_all_item),   "activate",
-                    G_CALLBACK (hyscan_mark_manager_expand_all),     self);
+                    G_CALLBACK (hyscan_gtk_mark_manager_expand_all),     self);
   /* Обработчик выбора пункта меню "Свернуть все". */
   g_signal_connect (G_OBJECT (priv->collapse_all_item), "activate",
-                    G_CALLBACK (hyscan_mark_manager_collapse_all),   self);
+                    G_CALLBACK (hyscan_gtk_mark_manager_collapse_all),   self);
   /* Обработчик выбора пункта меню "Отметить все". */
   g_signal_connect (G_OBJECT (priv->toggle_all_item),   "activate",
-                    G_CALLBACK (hyscan_mark_manager_toggle_all),     self);
+                    G_CALLBACK (hyscan_gtk_mark_manager_toggle_all),     self);
   /* Обработчик выбора пункта меню "Снять все отметки". */
   g_signal_connect (G_OBJECT (priv->untoggle_all_item), "activate",
-                    G_CALLBACK (hyscan_mark_manager_untoggle_all),   self);
+                    G_CALLBACK (hyscan_gtk_mark_manager_untoggle_all),   self);
   /* Обработчик выбора пункта меню "Пренести в группу". */
   g_signal_connect (G_OBJECT (priv->change_label),      "activate",
-                    G_CALLBACK (hyscan_mark_manager_toggled_items_change_label), self);
+                    G_CALLBACK (hyscan_gtk_mark_manager_toggled_items_change_label), self);
   /* Обработчик выбора пункта меню "Сохранить как HTML". */
   g_signal_connect (G_OBJECT (priv->save_as_html),      "activate",
-                    G_CALLBACK (hyscan_mark_manager_toggled_items_save_as_html), self);
+                    G_CALLBACK (hyscan_gtk_mark_manager_toggled_items_save_as_html), self);
   /* Отступ. */
   /*gtk_container_set_border_width (GTK_CONTAINER (toolbar), 20);*/
   /*gtk_toolbar_set_show_arrow (GTK_TOOLBAR (toolbar), TRUE);*/
@@ -449,7 +449,7 @@ hyscan_mark_manager_constructed (GObject *object)
     }
   /* Обработчик выбора типа представления. */
   priv->signal = g_signal_connect (G_OBJECT (priv->combo), "changed",
-                    G_CALLBACK (hyscan_mark_manager_set_grouping), self);
+                    G_CALLBACK (hyscan_gtk_mark_manager_set_grouping), self);
   gtk_widget_set_tooltip_text (priv->combo, _(tooltips_text[GROUPING]));
   gtk_combo_box_set_active (GTK_COMBO_BOX (priv->combo), grouping);
   /* Выпадающий список в контейнер. */
@@ -503,38 +503,38 @@ hyscan_mark_manager_constructed (GObject *object)
   /* Подключаем сигнал горизонтальной прокрутки. */
   g_signal_connect (gtk_scrolled_window_get_hadjustment (GTK_SCROLLED_WINDOW (priv->view)),
                     "value-changed",
-                    G_CALLBACK (hyscan_mark_manager_scrolled_horizontal),
+                    G_CALLBACK (hyscan_gtk_mark_manager_scrolled_horizontal),
                     self);
   /* Подключаем сигнал вертикальной прокрутки. */
   g_signal_connect (gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (priv->view)),
                     "value-changed",
-                    G_CALLBACK (hyscan_mark_manager_scrolled_vertical),
+                    G_CALLBACK (hyscan_gtk_mark_manager_scrolled_vertical),
                     self);
 }
 /* Деструктор. */
 static void
-hyscan_mark_manager_finalize (GObject *object)
+hyscan_gtk_mark_manager_finalize (GObject *object)
 {
-  HyScanMarkManager *self = HYSCAN_MARK_MANAGER (object);
-  HyScanMarkManagerPrivate *priv = self->priv;
+  HyScanGtkMarkManager *self = HYSCAN_GTK_MARK_MANAGER (object);
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
 
   /* Освобождаем ресурсы. */
   g_object_unref (priv->model_manager);
   priv->model_manager = NULL;
 
-  G_OBJECT_CLASS (hyscan_mark_manager_parent_class)->finalize (object);
+  G_OBJECT_CLASS (hyscan_gtk_mark_manager_parent_class)->finalize (object);
 }
 /* Обработчик нажатия кнопки "Новая группа". */
 void
-hyscan_mark_manager_create_new_label (GtkToolItem       *item,
-                                      HyScanMarkManager *self)
+hyscan_gtk_mark_manager_create_new_label (GtkToolItem          *item,
+                                          HyScanGtkMarkManager *self)
 {
   /* Создаём диалог для сохранения новой группы в базе данных. */
-  HyScanMarkManagerPrivate *priv = self->priv;
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
 
   if (priv->new_label_dialog == NULL)
     {
-      HyScanObjectModel *label_model = hyscan_model_manager_get_label_model (priv->model_manager);
+      HyScanObjectModel *label_model = hyscan_gtk_model_manager_get_label_model (priv->model_manager);
       GtkWindow *parent = GTK_WINDOW (gtk_widget_get_toplevel (GTK_WIDGET (self)));
       /* Создаём немодальный диалог для создания новой группы. */
       priv->new_label_dialog = hyscan_gtk_mark_manager_create_label_dialog_new (parent,
@@ -542,7 +542,7 @@ hyscan_mark_manager_create_new_label (GtkToolItem       *item,
       /* Подключаем сигналу закрытия диалога, чтобы обнулить указатель. */
       g_signal_connect (priv->new_label_dialog,
                         "destroy",
-                        G_CALLBACK (hyscan_mark_manager_release_new_label_dialog),
+                        G_CALLBACK (hyscan_gtk_mark_manager_release_new_label_dialog),
                         self);
       /* Освобождаем указатель на модель с данными о группах. */
       g_object_unref (label_model);
@@ -556,15 +556,15 @@ hyscan_mark_manager_create_new_label (GtkToolItem       *item,
 
 /* Функция-обработчик сигнала закрытия диалога создания новой группы.*/
 void
-hyscan_mark_manager_release_new_label_dialog (GtkWidget *dialog,
-                                              gpointer   user_data)
+hyscan_gtk_mark_manager_release_new_label_dialog (GtkWidget *dialog,
+                                                  gpointer   user_data)
 {
-  HyScanMarkManager *self;
-  HyScanMarkManagerPrivate *priv;
+  HyScanGtkMarkManager *self;
+  HyScanGtkMarkManagerPrivate *priv;
 
-  g_return_if_fail (HYSCAN_IS_MARK_MANAGER (user_data));
+  g_return_if_fail (HYSCAN_IS_GTK_MARK_MANAGER (user_data));
 
-  self = HYSCAN_MARK_MANAGER (user_data);
+  self = HYSCAN_GTK_MARK_MANAGER (user_data);
   priv = self->priv;
   /* Обнуляем указатель на диалог создания новой группы. */
   priv->new_label_dialog = NULL;
@@ -572,22 +572,22 @@ hyscan_mark_manager_release_new_label_dialog (GtkWidget *dialog,
 
 /* Обработчик выбора тип представления. */
 void
-hyscan_mark_manager_set_grouping (GtkComboBox       *combo,
-                                  HyScanMarkManager *self)
+hyscan_gtk_mark_manager_set_grouping (GtkComboBox          *combo,
+                                      HyScanGtkMarkManager *self)
 {
-  HyScanMarkManagerPrivate  *priv     = self->priv;
+  HyScanGtkMarkManagerPrivate  *priv  = self->priv;
   ModelManagerGrouping       grouping = gtk_combo_box_get_active (combo);
 
-  hyscan_model_manager_set_grouping (priv->model_manager, grouping);
+  hyscan_gtk_model_manager_set_grouping (priv->model_manager, grouping);
 }
 
 /* Обработчик изменения типа группировки. */
 void
-hyscan_mark_manager_grouping_changed (HyScanMarkManager *self)
+hyscan_gtk_mark_manager_grouping_changed (HyScanGtkMarkManager *self)
 {
-  HyScanMarkManagerPrivate  *priv = self->priv;
-  ModelManagerGrouping   grouping = hyscan_model_manager_get_grouping (priv->model_manager);
-  gboolean has_toggled = hyscan_model_manager_has_toggled (priv->model_manager);
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
+  ModelManagerGrouping grouping = hyscan_gtk_model_manager_get_grouping (priv->model_manager);
+  gboolean has_toggled = hyscan_gtk_model_manager_has_toggled (priv->model_manager);
 
   if (priv->signal != 0)
     {
@@ -618,75 +618,75 @@ hyscan_mark_manager_grouping_changed (HyScanMarkManager *self)
   /* Переключаем состояние кнопки "Сохранить как HTML." */
   gtk_widget_set_sensitive (priv->save_as_html, has_toggled);
   /* Выделяем выбранное */
-  hyscan_mark_manager_select_item (self);
+  hyscan_gtk_mark_manager_select_item (self);
 }
 
 /* Обработчик сигнала обновления модели представления данных. */
 void
-hyscan_mark_manager_view_model_updated (HyScanMarkManager *self)
+hyscan_gtk_mark_manager_view_model_updated (HyScanGtkMarkManager *self)
 {
-  HyScanMarkManagerPrivate *priv  = self->priv;
-  HyScanMarkManagerView    *view  = HYSCAN_MARK_MANAGER_VIEW (priv->view);
-  GtkTreeModel             *model = hyscan_model_manager_get_view_model (priv->model_manager);
-  gchar                    *id    = hyscan_model_manager_get_selected_item (priv->model_manager);
+  HyScanGtkMarkManagerPrivate *priv  = self->priv;
+  HyScanGtkMarkManagerView *view  = HYSCAN_GTK_MARK_MANAGER_VIEW (priv->view);
+  GtkTreeModel             *model = hyscan_gtk_model_manager_get_view_model (priv->model_manager);
+  gchar                    *id    = hyscan_gtk_model_manager_get_selected_item (priv->model_manager);
 
   if (model != NULL)
     {
-      hyscan_mark_manager_view_set_store (view, model);
+      hyscan_gtk_mark_manager_view_set_store (view, model);
       g_object_unref (model);
     }
 
-  hyscan_mark_manager_expand_all_items (self);
+  hyscan_gtk_mark_manager_expand_all_items (self);
 
   if (id != NULL)
-    hyscan_mark_manager_view_select_item (view, id);
+    hyscan_gtk_mark_manager_view_select_item (view, id);
 }
 
 /* Обработчик сигнала горизонтальной прокрутки представления.
- * Сигнал приходит из #HyScanModelManagerView.*/
+ * Сигнал приходит из #HyScanGtkModelManagerView.*/
 void
-hyscan_mark_manager_scrolled_horizontal (GtkAdjustment *adjustment,
-                                         gpointer       user_data)
+hyscan_gtk_mark_manager_scrolled_horizontal (GtkAdjustment *adjustment,
+                                             gpointer       user_data)
 {
-  HyScanMarkManager *self;
-  HyScanMarkManagerPrivate *priv;
+  HyScanGtkMarkManager *self;
+  HyScanGtkMarkManagerPrivate *priv;
 
-  g_return_if_fail (HYSCAN_IS_MARK_MANAGER (user_data));
+  g_return_if_fail (HYSCAN_IS_GTK_MARK_MANAGER (user_data));
 
-  self = HYSCAN_MARK_MANAGER (user_data);
+  self = HYSCAN_GTK_MARK_MANAGER (user_data);
   priv = self->priv;
 
-  hyscan_model_manager_set_horizontal_adjustment (priv->model_manager, gtk_adjustment_get_value (adjustment));
+  hyscan_gtk_model_manager_set_horizontal_adjustment (priv->model_manager, gtk_adjustment_get_value (adjustment));
 }
 
 /* Обработчик сигнала вертикальной прокрутки представления.
- * Сигнал приходит из #HyScanModelManagerView.*/
+ * Сигнал приходит из #HyScanGtkModelManagerView.*/
 void
-hyscan_mark_manager_scrolled_vertical (GtkAdjustment *adjustment,
-                                       gpointer       user_data)
+hyscan_gtk_mark_manager_scrolled_vertical (GtkAdjustment *adjustment,
+                                           gpointer       user_data)
 {
-  HyScanMarkManager *self;
-  HyScanMarkManagerPrivate *priv;
+  HyScanGtkMarkManager *self;
+  HyScanGtkMarkManagerPrivate *priv;
 
-  g_return_if_fail (HYSCAN_IS_MARK_MANAGER (user_data));
+  g_return_if_fail (HYSCAN_IS_GTK_MARK_MANAGER (user_data));
 
-  self = HYSCAN_MARK_MANAGER (user_data);
+  self = HYSCAN_GTK_MARK_MANAGER (user_data);
   priv = self->priv;
 
-  hyscan_model_manager_set_vertical_adjustment (priv->model_manager, gtk_adjustment_get_value (adjustment));
+  hyscan_gtk_model_manager_set_vertical_adjustment (priv->model_manager, gtk_adjustment_get_value (adjustment));
 }
 
 /* Обработчик нажатия кнопки "Удалить выбранное". */
 void
-hyscan_mark_manager_delete_toggled (GtkToolButton     *button,
-                                    HyScanMarkManager *self)
+hyscan_gtk_mark_manager_delete_toggled (GtkToolButton        *button,
+                                        HyScanGtkMarkManager *self)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
 
   if (gtk_widget_get_sensitive (priv->delete_icon))
     {
       /* Удаляем объект из базы данных. */
-      hyscan_model_manager_delete_toggled_items (priv->model_manager);
+      hyscan_gtk_model_manager_delete_toggled_items (priv->model_manager);
       /* После удаления делаём кнопку "Удалить выбранное" неактивной. */
       gtk_widget_set_sensitive (priv->delete_icon, FALSE);
       /* После удаления делаём кнопку "Снять все отметки" неактивной. */
@@ -700,53 +700,53 @@ hyscan_mark_manager_delete_toggled (GtkToolButton     *button,
 
 /* Обработчик выбора пункта меню "Развернуть всё". */
 void
-hyscan_mark_manager_expand_all (GtkMenuItem       *item,
-                                HyScanMarkManager *self)
+hyscan_gtk_mark_manager_expand_all (GtkMenuItem          *item,
+                                    HyScanGtkMarkManager *self)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
 
-  hyscan_mark_manager_view_expand_all (HYSCAN_MARK_MANAGER_VIEW (priv->view));
+  hyscan_gtk_mark_manager_view_expand_all (HYSCAN_GTK_MARK_MANAGER_VIEW (priv->view));
 }
 
 /* Обработчик выбора пункта меню "Свернуть всё". */
 void
-hyscan_mark_manager_collapse_all (GtkMenuItem       *item,
-                                  HyScanMarkManager *self)
+hyscan_gtk_mark_manager_collapse_all (GtkMenuItem          *item,
+                                      HyScanGtkMarkManager *self)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
 
-  hyscan_mark_manager_view_collapse_all (HYSCAN_MARK_MANAGER_VIEW (priv->view));
+  hyscan_gtk_mark_manager_view_collapse_all (HYSCAN_GTK_MARK_MANAGER_VIEW (priv->view));
 }
 
 /* Обработчик выбора пункта меню "Отметить все". */
 void
-hyscan_mark_manager_toggle_all (GtkMenuItem       *item,
-                                HyScanMarkManager *self)
+hyscan_gtk_mark_manager_toggle_all (GtkMenuItem          *item,
+                                    HyScanGtkMarkManager *self)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;
-  hyscan_mark_manager_view_toggle_all (HYSCAN_MARK_MANAGER_VIEW (priv->view), TRUE);
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
+  hyscan_gtk_mark_manager_view_toggle_all (HYSCAN_GTK_MARK_MANAGER_VIEW (priv->view), TRUE);
 }
 
 /* Обработчик выбора пункта меню "Снять все отметки". */
 void
-hyscan_mark_manager_untoggle_all (GtkMenuItem       *item,
-                                  HyScanMarkManager *self)
+hyscan_gtk_mark_manager_untoggle_all (GtkMenuItem          *item,
+                                      HyScanGtkMarkManager *self)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;
-  hyscan_mark_manager_view_toggle_all (HYSCAN_MARK_MANAGER_VIEW (priv->view), FALSE);
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
+  hyscan_gtk_mark_manager_view_toggle_all (HYSCAN_GTK_MARK_MANAGER_VIEW (priv->view), FALSE);
 }
 
 /* Обработчик выбора пункта меню "Перенести в группу". */
 void
-hyscan_mark_manager_toggled_items_change_label (GtkMenuItem       *item,
-                                                HyScanMarkManager *self)
+hyscan_gtk_mark_manager_toggled_items_change_label (GtkMenuItem          *item,
+                                                    HyScanGtkMarkManager *self)
 {
   /* Создаём диалог для сохранения новой группы в базе данных. */
-  HyScanMarkManagerPrivate *priv = self->priv;
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
 
   if (priv->change_label_dialog == NULL)
     {
-      HyScanObjectModel *label_model = hyscan_model_manager_get_label_model (priv->model_manager);
+      HyScanObjectModel *label_model = hyscan_gtk_model_manager_get_label_model (priv->model_manager);
       GtkWindow *parent = GTK_WINDOW (gtk_widget_get_toplevel (GTK_WIDGET (self)));
       /* Создаём немодальный диалог для переноса объектов в другую группу. */
       priv->change_label_dialog = hyscan_gtk_mark_manager_change_label_dialog_new (parent,
@@ -754,12 +754,12 @@ hyscan_mark_manager_toggled_items_change_label (GtkMenuItem       *item,
       /* Подключаем сигналу закрытия диалога, чтобы обнулить указатель. */
       g_signal_connect (priv->change_label_dialog,
                         "destroy",
-                        G_CALLBACK (hyscan_mark_manager_release_change_label_dialog),
+                        G_CALLBACK (hyscan_gtk_mark_manager_release_change_label_dialog),
                         self);
       /* Подключаем сигнал выбора группы. */
       g_signal_connect_swapped (priv->change_label_dialog,
                                 "change-label",
-                                G_CALLBACK (hyscan_mark_manager_toggled_iteml_change_label),
+                                G_CALLBACK (hyscan_gtk_mark_manager_toggled_iteml_change_label),
                                 self);
       /* Освобождаем указатель на модель с данными о группах. */
       g_object_unref (label_model);
@@ -773,15 +773,15 @@ hyscan_mark_manager_toggled_items_change_label (GtkMenuItem       *item,
 
 /* Функция-обработчик сигнала закрытия диалога переноса объектов в другую группу.*/
 void
-hyscan_mark_manager_release_change_label_dialog (GtkWidget *dialog,
-                                                 gpointer   user_data)
+hyscan_gtk_mark_manager_release_change_label_dialog (GtkWidget *dialog,
+                                                     gpointer   user_data)
 {
-  HyScanMarkManager *self;
-  HyScanMarkManagerPrivate *priv;
+  HyScanGtkMarkManager *self;
+  HyScanGtkMarkManagerPrivate *priv;
 
-  g_return_if_fail (HYSCAN_IS_MARK_MANAGER (user_data));
+  g_return_if_fail (HYSCAN_IS_GTK_MARK_MANAGER (user_data));
 
-  self = HYSCAN_MARK_MANAGER (user_data);
+  self = HYSCAN_GTK_MARK_MANAGER (user_data);
   priv = self->priv;
   /* Обнуляем указатель на диалог переноса объектов в другую группу. */
   priv->change_label_dialog = NULL;
@@ -791,76 +791,75 @@ hyscan_mark_manager_release_change_label_dialog (GtkWidget *dialog,
  * Меняет группу у выбранных объектов.
  * */
 void
-hyscan_mark_manager_toggled_iteml_change_label (HyScanMarkManager  *self,
-                                                gchar              *id)
+hyscan_gtk_mark_manager_toggled_iteml_change_label (HyScanGtkMarkManager  *self,
+                                                    gchar                 *id)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
 
-  hyscan_model_manager_toggled_iteml_change_label (priv->model_manager, id);
+  hyscan_gtk_model_manager_toggled_iteml_change_label (priv->model_manager, id);
 }
 
 /* Функция-обработчик выделения объектов MarkManagerView. */
 void
-hyscan_mark_manager_item_selected (HyScanMarkManager *self,
-                                   gchar             *id)
+hyscan_gtk_mark_manager_item_selected (HyScanGtkMarkManager *self,
+                                       gchar                *id)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
 
-  hyscan_model_manager_set_selected_item (priv->model_manager, id);
+  hyscan_gtk_model_manager_set_selected_item (priv->model_manager, id);
 }
 
 /* Функция-обработчик выделения cтроки. Сигнал отправляет ModelManager. */
 void
-hyscan_mark_manager_select_item (HyScanMarkManager *self)
+hyscan_gtk_mark_manager_select_item (HyScanGtkMarkManager *self)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;
-  gchar *id = hyscan_model_manager_get_selected_item (priv->model_manager);
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
+  gchar *id = hyscan_gtk_model_manager_get_selected_item (priv->model_manager);
 
   if (id != NULL)
     {
-      hyscan_mark_manager_view_select_item (HYSCAN_MARK_MANAGER_VIEW (priv->view), id);
+      hyscan_gtk_mark_manager_view_select_item (HYSCAN_GTK_MARK_MANAGER_VIEW (priv->view), id);
     }
 }
 
 /* Функция-обработчик сигнала о снятии выделения.
  * Сигнал отправляет MarkManagerView. */
 void
-hyscan_mark_manager_unselect (HyScanMarkManager *self)
+hyscan_gtk_mark_manager_unselect (HyScanGtkMarkManager *self)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
 
-  hyscan_model_manager_unselect_all (priv->model_manager);
+  hyscan_gtk_model_manager_unselect_all (priv->model_manager);
 }
 
 /* Функция-обработчик сигнала о снятии выделения.
  * Приходит из Model Manager-а. */
 void
-hyscan_mark_manager_unselect_all (HyScanMarkManager *self)
+hyscan_gtk_mark_manager_unselect_all (HyScanGtkMarkManager *self)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
 
-  hyscan_mark_manager_view_unselect_all (HYSCAN_MARK_MANAGER_VIEW (priv->view));
+  hyscan_gtk_mark_manager_view_unselect_all (HYSCAN_GTK_MARK_MANAGER_VIEW (priv->view));
 }
 
 /* Функция-обработчик изменения состояния чек-боксов в MarkManagerView. */
 void
-hyscan_mark_manager_item_toggled (HyScanMarkManager *self,
-                                  gchar             *id,
-                                  gboolean           active)
+hyscan_gtk_mark_manager_item_toggled (HyScanGtkMarkManager *self,
+                                      gchar                *id,
+                                      gboolean              active)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
 
-  hyscan_model_manager_toggle_item (priv->model_manager, id, active);
+  hyscan_gtk_model_manager_toggle_item (priv->model_manager, id, active);
 }
 
 /* Функция-обработчик сигнала об изменении состояния чек-бокса.
  * Приходит из Model Manager-а. */
 void
-hyscan_mark_manager_toggle_item (HyScanMarkManager *self)
+hyscan_gtk_mark_manager_toggle_item (HyScanGtkMarkManager *self)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;
-  ModelManagerObjectType type;
-  gboolean has_toggled = hyscan_model_manager_has_toggled (priv->model_manager);
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
+  gboolean has_toggled = hyscan_gtk_model_manager_has_toggled (priv->model_manager);
 
   /* Переключаем состояние кнопки "Удалить выбранное". */
   gtk_widget_set_sensitive (priv->delete_icon, has_toggled);
@@ -873,71 +872,72 @@ hyscan_mark_manager_toggle_item (HyScanMarkManager *self)
 }
 
 /* Функция-обработчик сигнал горизонтальной полосы прокрутки представления.
- * Сигнал приходит из #HyScanModelManager-а. */
+ * Сигнал приходит из #HyScanGtkModelManager-а. */
 void
-hyscan_mark_manager_view_scrolled_horizontal (HyScanMarkManager *self)
+hyscan_gtk_mark_manager_view_scrolled_horizontal (HyScanGtkMarkManager *self)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
   GtkAdjustment *adjustment = gtk_scrolled_window_get_hadjustment (GTK_SCROLLED_WINDOW (priv->view));
-  gdouble value = hyscan_model_manager_get_horizontal_adjustment (priv->model_manager);
+  gdouble value = hyscan_gtk_model_manager_get_horizontal_adjustment (priv->model_manager);
 
   gtk_adjustment_set_value (adjustment, value);
 }
 
 /* Функция-обработчик сигнал вертикальной полосы прокрутки представления.
- * Сигнал приходит из #HyScanModelManager-а.*/
+ * Сигнал приходит из #HyScanGtkModelManager-а.*/
 void
-hyscan_mark_manager_view_scrolled_vertical (HyScanMarkManager *self)
+hyscan_gtk_mark_manager_view_scrolled_vertical (HyScanGtkMarkManager *self)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;;
+  HyScanGtkMarkManagerPrivate *priv = self->priv;;
   GtkAdjustment *adjustment = gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (priv->view));
-  gdouble value = hyscan_model_manager_get_vertical_adjustment (priv->model_manager);
+  gdouble value = hyscan_gtk_model_manager_get_vertical_adjustment (priv->model_manager);
 
   gtk_adjustment_set_value (adjustment, value);
 }
 
 /* Функция-обработчик сигнала о разворачивании узла древовидного представления.
- * Сигнал приходит из #HyScanModelManagerView. */
+ * Сигнал приходит из #HyScanGtkModelManagerView. */
 void
-hyscan_mark_manager_item_expanded (HyScanMarkManager *self,
-                                   gchar             *id,
-                                   gboolean           expanded)
+hyscan_gtk_mark_manager_item_expanded (HyScanGtkMarkManager *self,
+                                       gchar                *id,
+                                       gboolean              expanded)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
 
-  hyscan_model_manager_expand_item (priv->model_manager, id, expanded);
+  hyscan_gtk_model_manager_expand_item (priv->model_manager, id, expanded);
 }
 
 /* Функция-обработчик сигнала о разворачивании узла древовидного представления.
- * Сигнал приходит из #HyScanModelManager-а.*/
+ * Сигнал приходит из #HyScanGtkModelManager-а.*/
 void
-hyscan_mark_manager_expand_item (HyScanMarkManager *self)
+hyscan_gtk_mark_manager_expand_item (HyScanGtkMarkManager *self)
 {
-  hyscan_mark_manager_expand_current_item (self, TRUE);
+  hyscan_gtk_mark_manager_expand_current_item (self, TRUE);
 }
 
 /* Функция-обработчик сигнала о cворачивании узла древовидного представления.
- * Сигнал приходит из #HyScanModelManager-а.*/
+ * Сигнал приходит из #HyScanGtkModelManager-а.*/
 void
-hyscan_mark_manager_collapse_item (HyScanMarkManager *self)
+hyscan_gtk_mark_manager_collapse_item (HyScanGtkMarkManager *self)
 {
-  hyscan_mark_manager_expand_current_item (self, FALSE);
+  hyscan_gtk_mark_manager_expand_current_item (self, FALSE);
 }
 
+/* Разворачивает или сворачивает узел древовидного представления. */
 void
-hyscan_mark_manager_expand_current_item (HyScanMarkManager *self,
-                                         gboolean           expanded)
+hyscan_gtk_mark_manager_expand_current_item (HyScanGtkMarkManager *self,
+                                             gboolean              expanded)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;
-  GtkTreeModel *model = hyscan_model_manager_get_view_model (priv->model_manager);
-  gchar        *id    = hyscan_model_manager_get_current_id (priv->model_manager);
-  GtkTreeIter  *iter  = hyscan_mark_manager_find_item (model, id);
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
+  GtkTreeModel *model = hyscan_gtk_model_manager_get_view_model (priv->model_manager);
+  gchar        *id    = hyscan_gtk_model_manager_get_current_id (priv->model_manager);
+  GtkTreeIter  *iter  = hyscan_gtk_mark_manager_find_item (model, id);
 
   if (iter != NULL)
     {
       GtkTreePath *path = gtk_tree_model_get_path (model, iter);
 
-      hyscan_mark_manager_view_expand_path (HYSCAN_MARK_MANAGER_VIEW (priv->view), path, expanded);
+      hyscan_gtk_mark_manager_view_expand_path (HYSCAN_GTK_MARK_MANAGER_VIEW (priv->view), path, expanded);
 
       gtk_tree_path_free (path);
     }
@@ -952,10 +952,10 @@ hyscan_mark_manager_expand_current_item (HyScanMarkManager *self,
  * сворачивает те узлы, которые нужно свернуть.
  * */
 void
-hyscan_mark_manager_expand_all_items (HyScanMarkManager *self)
+hyscan_gtk_mark_manager_expand_all_items (HyScanGtkMarkManager *self)
 {
-  hyscan_mark_manager_expand_items (self, FALSE);
-  hyscan_mark_manager_expand_items (self, TRUE);
+  hyscan_gtk_mark_manager_expand_items (self, FALSE);
+  hyscan_gtk_mark_manager_expand_items (self, TRUE);
 }
 
 /* Разворачивает или сворачивает узлы древовидного
@@ -965,15 +965,15 @@ hyscan_mark_manager_expand_all_items (HyScanMarkManager *self)
  * FALSE - сворачивает, те что нужно свернуть.
  * */
 void
-hyscan_mark_manager_expand_items (HyScanMarkManager *self,
-                                 gboolean           expanded)
+hyscan_gtk_mark_manager_expand_items (HyScanGtkMarkManager *self,
+                                      gboolean              expanded)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
   ModelManagerObjectType type;
 
   for (type = LABEL; type < TYPES; type++)
     {
-      gchar **list = hyscan_model_manager_get_expanded_items (priv->model_manager, type, expanded);
+      gchar **list = hyscan_gtk_model_manager_get_expanded_items (priv->model_manager, type, expanded);
 
       if (list != NULL)
         {
@@ -981,14 +981,14 @@ hyscan_mark_manager_expand_items (HyScanMarkManager *self,
 
           for (i = 0; list[i] != NULL; i++)
             {
-              GtkTreeModel *model = hyscan_model_manager_get_view_model (priv->model_manager);
-              GtkTreeIter  *iter  = hyscan_mark_manager_find_item (model, list[i]);
+              GtkTreeModel *model = hyscan_gtk_model_manager_get_view_model (priv->model_manager);
+              GtkTreeIter  *iter  = hyscan_gtk_mark_manager_find_item (model, list[i]);
 
               if (iter != NULL)
                 {
                   GtkTreePath *path = gtk_tree_model_get_path (model, iter);
 
-                  hyscan_mark_manager_view_expand_path (HYSCAN_MARK_MANAGER_VIEW (priv->view), path, expanded);
+                  hyscan_gtk_mark_manager_view_expand_path (HYSCAN_GTK_MARK_MANAGER_VIEW (priv->view), path, expanded);
 
                   gtk_tree_path_free (path);
                 }
@@ -1008,8 +1008,8 @@ hyscan_mark_manager_expand_items (HyScanMarkManager *self,
  * необходимо использовать #gtk_tree_iter_free ().
  * */
 GtkTreeIter*
-hyscan_mark_manager_find_item (GtkTreeModel *model,
-                               const gchar  *id)
+hyscan_gtk_mark_manager_find_item (GtkTreeModel *model,
+                                   const gchar  *id)
 {
   GtkTreeIter iter;
 
@@ -1017,7 +1017,7 @@ hyscan_mark_manager_find_item (GtkTreeModel *model,
     {
       do
         {
-          if (hyscan_mark_manager_view_find_item_by_id (model, &iter, id))
+          if (hyscan_gtk_mark_manager_view_find_item_by_id (model, &iter, id))
             {
               return gtk_tree_iter_copy (&iter);
             }
@@ -1029,25 +1029,25 @@ hyscan_mark_manager_find_item (GtkTreeModel *model,
 
 /* Обработчик выбора пункта меню "Сохранить как HTML". */
 void
-hyscan_mark_manager_toggled_items_save_as_html (GtkMenuItem       *item,
-                                                HyScanMarkManager *self)
+hyscan_gtk_mark_manager_toggled_items_save_as_html (GtkMenuItem       *item,
+                                                    HyScanGtkMarkManager *self)
 {
-  HyScanMarkManagerPrivate *priv = self->priv;
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
   GtkWindow *toplevel = GTK_WINDOW (gtk_widget_get_toplevel (GTK_WIDGET (self)));
 
   hyscan_gtk_mark_export_save_as_html (priv->model_manager, toplevel, TRUE);
 }
 
 /**
- * hyscan_mark_manager_new:
+ * hyscan_gtk_mark_manager_new:
  * @model_manager: Указатель на Менеджер Моделей
  *
  * Returns: cоздаёт новый объект #HyScanMarkManager
  */
 GtkWidget*
-hyscan_mark_manager_new (HyScanModelManager *model_manager)
+hyscan_gtk_mark_manager_new (HyScanGtkModelManager *model_manager)
 {
-  return GTK_WIDGET (g_object_new (HYSCAN_TYPE_MARK_MANAGER,
+  return GTK_WIDGET (g_object_new (HYSCAN_TYPE_GTK_MARK_MANAGER,
                                    "model_manager",  model_manager,
                                    NULL));
 }

@@ -1229,12 +1229,12 @@ hyscan_gtk_mark_export_copy_to_clipboard (HyScanMarkLocModel *ml_model,
  * Сохраняет метки в формате HTML.
  */
 void
-hyscan_gtk_mark_export_save_as_html (HyScanModelManager *model_manager,
-                                     GtkWindow          *toplevel,
-                                     gboolean            toggled)
+hyscan_gtk_mark_export_save_as_html (HyScanGtkModelManager *model_manager,
+                                     GtkWindow             *toplevel,
+                                     gboolean               toggled)
 {
-  HyScanMarkLocModel *acoustic_mark_model = hyscan_model_manager_get_acoustic_mark_loc_model (model_manager);
-  HyScanObjectModel  *geo_mark_model = hyscan_model_manager_get_geo_mark_model (model_manager);
+  HyScanMarkLocModel *acoustic_mark_model = hyscan_gtk_model_manager_get_acoustic_mark_loc_model (model_manager);
+  HyScanObjectModel  *geo_mark_model = hyscan_gtk_model_manager_get_geo_mark_model (model_manager);
   GtkWidget   *dialog = NULL;   /* Диалог выбора директории. */
   GThread     *thread = NULL;   /* Поток. */
   DataForHTML *data   = NULL;   /* Данные для потока. */
@@ -1250,7 +1250,7 @@ hyscan_gtk_mark_export_save_as_html (HyScanModelManager *model_manager,
                                         NULL);
 
   gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog),
-                                       hyscan_model_manager_get_export_folder (model_manager));
+                                       hyscan_gtk_model_manager_get_export_folder (model_manager));
 
   res = gtk_dialog_run (GTK_DIALOG (dialog));
 
@@ -1263,8 +1263,8 @@ hyscan_gtk_mark_export_save_as_html (HyScanModelManager *model_manager,
   data = g_malloc0 (sizeof (DataForHTML));
   if (toggled)
     {
-      gchar **geo_mark_list = hyscan_model_manager_get_toggled_items (model_manager, GEO_MARK),
-            **acoustic_mark_list  = hyscan_model_manager_get_toggled_items (model_manager, ACOUSTIC_MARK);
+      gchar **geo_mark_list = hyscan_gtk_model_manager_get_toggled_items (model_manager, GEO_MARK),
+            **acoustic_mark_list  = hyscan_gtk_model_manager_get_toggled_items (model_manager, ACOUSTIC_MARK);
       gint i;
 
       if (geo_mark_list != NULL)
@@ -1325,9 +1325,9 @@ hyscan_gtk_mark_export_save_as_html (HyScanModelManager *model_manager,
       return;
     }
 
-  data->project_name = hyscan_model_manager_get_project_name (model_manager);
-  data->db = hyscan_model_manager_get_db (model_manager);
-  data->cache = hyscan_model_manager_get_cache (model_manager);
+  data->project_name = hyscan_gtk_model_manager_get_project_name (model_manager);
+  data->db = hyscan_gtk_model_manager_get_db (model_manager);
+  data->cache = hyscan_gtk_model_manager_get_cache (model_manager);
   data->toplevel = toplevel;
   data->folder = gtk_file_chooser_get_current_folder (GTK_FILE_CHOOSER (dialog));
   gdk_rgba_parse (&data->color, "#FFFF00");

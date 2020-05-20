@@ -32,8 +32,8 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
-#ifndef __HYSCAN_MODEL_MANAGER_H__
-#define __HYSCAN_MODEL_MANAGER_H__
+#ifndef __HYSCAN_GTK_MODEL_MANAGER_H__
+#define __HYSCAN_GTK_MODEL_MANAGER_H__
 
 #include <gtk/gtk.h>
 #include <hyscan-db-info.h>
@@ -43,16 +43,16 @@
 
 G_BEGIN_DECLS
 
-#define HYSCAN_TYPE_MODEL_MANAGER             (hyscan_model_manager_get_type ())
-#define HYSCAN_MODEL_MANAGER(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_MODEL_MANAGER, HyScanModelManager))
-#define HYSCAN_IS_MODEL_MANAGER(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_MODEL_MANAGER))
-#define HYSCAN_MODEL_MANAGER_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_MODEL_MANAGER, HyScanModelManagerClass))
-#define HYSCAN_IS_MODEL_MANAGER_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_MODEL_MANAGER))
-#define HYSCAN_MODEL_MANAGER_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_MODEL_MANAGER, HyScanModelManagerClass))
+#define HYSCAN_TYPE_GTK_MODEL_MANAGER             (hyscan_gtk_model_manager_get_type ())
+#define HYSCAN_GTK_MODEL_MANAGER(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_MODEL_MANAGER, HyScanGtkModelManager))
+#define HYSCAN_IS_GTK_MODEL_MANAGER(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_MODEL_MANAGER))
+#define HYSCAN_GTK_MODEL_MANAGER_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_MODEL_MANAGER, HyScanGtkModelManagerClass))
+#define HYSCAN_IS_GTK_MODEL_MANAGER_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_MODEL_MANAGER))
+#define HYSCAN_GTK_MODEL_MANAGER_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_MODEL_MANAGER, HyScanGtkModelManagerClass))
 
-typedef struct _HyScanModelManager        HyScanModelManager;
-typedef struct _HyScanModelManagerPrivate HyScanModelManagerPrivate;
-typedef struct _HyScanModelManagerClass   HyScanModelManagerClass;
+typedef struct _HyScanGtkModelManager        HyScanGtkModelManager;
+typedef struct _HyScanGtkModelManagerPrivate HyScanGtkModelManagerPrivate;
+typedef struct _HyScanGtkModelManagerClass   HyScanGtkModelManagerClass;
 
 /* Сигналы.
  * Должны идти в порядке соответвующем signals[].
@@ -120,101 +120,101 @@ enum
   MAX_COLUMNS         /* Общее количество колонок для представления данных. */
 };
 
-struct _HyScanModelManager
+struct _HyScanGtkModelManager
 {
   GObject parent_instance;
 
-  HyScanModelManagerPrivate *priv;
+  HyScanGtkModelManagerPrivate *priv;
 };
 
-struct _HyScanModelManagerClass
+struct _HyScanGtkModelManagerClass
 {
   GObjectClass parent_class;
 };
 
-GType                hyscan_model_manager_get_type                    (void);
+GType                  hyscan_gtk_model_manager_get_type                    (void);
 
-HyScanModelManager*  hyscan_model_manager_new                         (const gchar            *project_name,
-                                                                       HyScanDB               *db,
-                                                                       HyScanCache            *cache,
-                                                                       gchar                  *export_folder);
+HyScanGtkModelManager* hyscan_gtk_model_manager_new                         (const gchar               *project_name,
+                                                                             HyScanDB                  *db,
+                                                                             HyScanCache               *cache,
+                                                                             gchar                     *export_folder);
 
-HyScanDBInfo*        hyscan_model_manager_get_track_model             (HyScanModelManager     *self);
+HyScanDBInfo*          hyscan_gtk_model_manager_get_track_model             (HyScanGtkModelManager     *self);
 
-HyScanObjectModel*   hyscan_model_manager_get_acoustic_mark_model     (HyScanModelManager     *self);
+HyScanObjectModel*     hyscan_gtk_model_manager_get_acoustic_mark_model     (HyScanGtkModelManager     *self);
 
-HyScanObjectModel*   hyscan_model_manager_get_geo_mark_model          (HyScanModelManager     *self);
+HyScanObjectModel*     hyscan_gtk_model_manager_get_geo_mark_model          (HyScanGtkModelManager     *self);
 
-HyScanObjectModel*   hyscan_model_manager_get_label_model             (HyScanModelManager     *self);
+HyScanObjectModel*     hyscan_gtk_model_manager_get_label_model             (HyScanGtkModelManager     *self);
 
-HyScanMarkLocModel*  hyscan_model_manager_get_acoustic_mark_loc_model (HyScanModelManager     *self);
+HyScanMarkLocModel*    hyscan_gtk_model_manager_get_acoustic_mark_loc_model (HyScanGtkModelManager     *self);
 
-GtkTreeModel*        hyscan_model_manager_get_view_model              (HyScanModelManager     *self);
+GtkTreeModel*          hyscan_gtk_model_manager_get_view_model              (HyScanGtkModelManager     *self);
 
-const gchar*         hyscan_model_manager_get_signal_title            (HyScanModelManager     *self,
-                                                                       ModelManagerSignal      signal_title);
+const gchar*           hyscan_gtk_model_manager_get_signal_title            (HyScanGtkModelManager     *self,
+                                                                             ModelManagerSignal         signal_title);
 
-void                 hyscan_model_manager_set_project_name            (HyScanModelManager     *self,
-                                                                       const gchar            *project_name);
+void                   hyscan_gtk_model_manager_set_project_name            (HyScanGtkModelManager     *self,
+                                                                             const gchar               *project_name);
 
-const gchar*         hyscan_model_manager_get_project_name            (HyScanModelManager     *self);
+const gchar*           hyscan_gtk_model_manager_get_project_name            (HyScanGtkModelManager     *self);
 
-const gchar*         hyscan_model_manager_get_export_folder           (HyScanModelManager     *self);
+const gchar*           hyscan_gtk_model_manager_get_export_folder           (HyScanGtkModelManager     *self);
 
-HyScanDB*            hyscan_model_manager_get_db                      (HyScanModelManager     *self);
+HyScanDB*              hyscan_gtk_model_manager_get_db                      (HyScanGtkModelManager     *self);
 
-HyScanCache*         hyscan_model_manager_get_cache                   (HyScanModelManager     *self);
+HyScanCache*           hyscan_gtk_model_manager_get_cache                   (HyScanGtkModelManager     *self);
 
-gchar**              hyscan_model_manager_get_all_tracks_id           (HyScanModelManager     *self);
+gchar**                hyscan_gtk_model_manager_get_all_tracks_id           (HyScanGtkModelManager     *self);
 
-void                 hyscan_model_manager_set_grouping                (HyScanModelManager     *self,
-                                                                       ModelManagerGrouping    grouping);
+void                   hyscan_gtk_model_manager_set_grouping                (HyScanGtkModelManager     *self,
+                                                                             ModelManagerGrouping       grouping);
 
-ModelManagerGrouping hyscan_model_manager_get_grouping                (HyScanModelManager     *self);
+ModelManagerGrouping   hyscan_gtk_model_manager_get_grouping                (HyScanGtkModelManager     *self);
 
-void                 hyscan_model_manager_set_selected_item           (HyScanModelManager     *self,
-                                                                       gchar                  *id);
+void                   hyscan_gtk_model_manager_set_selected_item           (HyScanGtkModelManager     *self,
+                                                                             gchar                     *id);
 
-gchar*               hyscan_model_manager_get_selected_item           (HyScanModelManager     *self);
+gchar*                 hyscan_gtk_model_manager_get_selected_item           (HyScanGtkModelManager     *self);
 
-gchar*               hyscan_model_manager_get_selected_track          (HyScanModelManager     *self);
+gchar*                 hyscan_gtk_model_manager_get_selected_track          (HyScanGtkModelManager     *self);
 
-void                 hyscan_model_manager_unselect_all                (HyScanModelManager     *self);
+void                   hyscan_gtk_model_manager_unselect_all                (HyScanGtkModelManager     *self);
 
-void                 hyscan_model_manager_set_horizontal_adjustment   (HyScanModelManager     *self,
-                                                                       gdouble                 value);
+void                   hyscan_gtk_model_manager_set_horizontal_adjustment   (HyScanGtkModelManager     *self,
+                                                                             gdouble                    value);
 
-void                 hyscan_model_manager_set_vertical_adjustment     (HyScanModelManager     *self,
-                                                                       gdouble                 value);
+void                   hyscan_gtk_model_manager_set_vertical_adjustment     (HyScanGtkModelManager     *self,
+                                                                             gdouble                    value);
 
-gdouble              hyscan_model_manager_get_horizontal_adjustment   (HyScanModelManager     *self);
+gdouble                hyscan_gtk_model_manager_get_horizontal_adjustment   (HyScanGtkModelManager     *self);
 
-gdouble              hyscan_model_manager_get_vertical_adjustment     (HyScanModelManager     *self);
+gdouble                hyscan_gtk_model_manager_get_vertical_adjustment     (HyScanGtkModelManager     *self);
 
-void                 hyscan_model_manager_toggle_item                 (HyScanModelManager     *self,
-                                                                       gchar                  *id,
-                                                                       gboolean                active);
+void                   hyscan_gtk_model_manager_toggle_item                 (HyScanGtkModelManager     *self,
+                                                                             gchar                     *id,
+                                                                             gboolean                   active);
 
-gchar**              hyscan_model_manager_get_toggled_items           (HyScanModelManager     *self,
-                                                                       ModelManagerObjectType  type);
+gchar**                hyscan_gtk_model_manager_get_toggled_items           (HyScanGtkModelManager     *self,
+                                                                             ModelManagerObjectType     type);
 
-void                 hyscan_model_manager_expand_item                 (HyScanModelManager     *self,
-                                                                       gchar                  *id,
-                                                                       gboolean                expanded);
+void                   hyscan_gtk_model_manager_expand_item                 (HyScanGtkModelManager     *self,
+                                                                             gchar                     *id,
+                                                                             gboolean                   expanded);
 
-gchar**              hyscan_model_manager_get_expanded_items          (HyScanModelManager     *self,
-                                                                       ModelManagerObjectType  type,
-                                                                       gboolean                expanded);
+gchar**                hyscan_gtk_model_manager_get_expanded_items          (HyScanGtkModelManager     *self,
+                                                                             ModelManagerObjectType     type,
+                                                                             gboolean                   expanded);
 
-gchar*               hyscan_model_manager_get_current_id              (HyScanModelManager     *self);
+gchar*                 hyscan_gtk_model_manager_get_current_id              (HyScanGtkModelManager     *self);
 
-void                 hyscan_model_manager_delete_toggled_items        (HyScanModelManager     *self);
+void                   hyscan_gtk_model_manager_delete_toggled_items        (HyScanGtkModelManager     *self);
 
-gboolean             hyscan_model_manager_has_toggled                 (HyScanModelManager     *self);
+gboolean               hyscan_gtk_model_manager_has_toggled                 (HyScanGtkModelManager     *self);
 
-void                 hyscan_model_manager_toggled_iteml_change_label  (HyScanModelManager     *self,
-                                                                       gchar                  *id);
+void                   hyscan_gtk_model_manager_toggled_iteml_change_label  (HyScanGtkModelManager     *self,
+                                                                             gchar                     *id);
 
 G_END_DECLS
 
-#endif /* __HYSCAN_MODEL_MANAGER_H__ */
+#endif /* __HYSCAN_GTK_MODEL_MANAGER_H__ */
