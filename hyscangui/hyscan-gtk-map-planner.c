@@ -2689,7 +2689,7 @@ hyscan_gtk_map_planner_handle_create_zone (HyScanGtkMapPlanner  *planner,
   HyScanGtkMapPoint vertex;
 
   /* Создаём новую зону только в слое, в БД пока не добавляем. */
-  zone.type = HYSCAN_PLANNER_ZONE;
+  zone.type = HYSCAN_TYPE_PLANNER_ZONE;
   zone.name = "Zone";
   zone.points_len = 0;
   zone.ctime = 0;
@@ -2723,7 +2723,7 @@ hyscan_gtk_map_planner_handle_create_origin (HyScanGtkMapPlanner  *planner,
   HyScanGtkMapPlannerOrigin *origin_proj;
 
   /* Создаём новую зону только в слое, в БД пока не добавляем. */
-  origin.type = HYSCAN_PLANNER_ORIGIN;
+  origin.type = HYSCAN_TYPE_PLANNER_ORIGIN;
 
   origin_proj = hyscan_gtk_map_planner_origin_create ();
   origin_proj->origin = point;

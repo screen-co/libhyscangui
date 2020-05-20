@@ -1378,9 +1378,9 @@ hyscan_gtk_planner_list_bind_activate (GtkCheckMenuItem     *button,
     return;
 
   if (active)
-    hyscan_planner_track_add_record (plan_track, record_id);
+    hyscan_planner_track_record_append (plan_track, record_id);
   else
-    hyscan_planner_track_delete_record (plan_track, record_id);
+    hyscan_planner_track_record_delete (plan_track, record_id);
 
   hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), plan_track_id, (const HyScanObject *) plan_track);
 }

@@ -99,12 +99,13 @@
 #include <hyscan-proj.h>
 #include <string.h>
 
-#define PROJ_MERC         "merc"
-#define PROJ_WEBMERC      "webmerc"
-#define INI_PREFIX_URL    "url"
-#define INI_PREFIX_DIR    "dir"
-#define INI_PREFIX_HEADER "header"
-#define INI_GROUP         "global"
+#define HYSCAN_PROFILE_MAP_VERSION 0X1343AA4
+#define PROJ_MERC                  "merc"
+#define PROJ_WEBMERC               "webmerc"
+#define INI_PREFIX_URL             "url"
+#define INI_PREFIX_DIR             "dir"
+#define INI_PREFIX_HEADER          "header"
+#define INI_GROUP                  "global"
 
 typedef struct
 {
@@ -125,11 +126,14 @@ struct _HyScanProfileMapPrivate
 
   HyScanGeoProjection   *geo_projection;    /* Объект географической проекции. */
   HyScanMapTileSource   *tile_source;       /* Объект источника тайлов. */
+  HyScanParam           *layers_param;      /* Параметры слоёв карты. */
 };
 
 static void                 hyscan_profile_map_object_finalize     (GObject                       *object);
 static void                 hyscan_profile_map_object_constructed  (GObject                       *object);
 static gboolean             hyscan_profile_map_read                (HyScanProfile                 *profile,
+                                                                    GKeyFile                      *file);
+static gboolean             hyscan_profile_map_write               (HyScanProfile                 *profile,
                                                                     GKeyFile                      *file);
 static HyScanGeoProjection *hyscan_profile_map_projection_create   (HyScanProfileMap              *profile);
 static HyScanMapTileSource *hyscan_profile_map_source_create       (HyScanProfileMap              *profile);
@@ -149,7 +153,6 @@ static HyScanMapTileSource *hyscan_profile_map_source_wrap         (HyScanProfil
                                                                     HyScanMapTileSource           *fb_source);
 static void                 hyscan_profile_map_configure           (HyScanProfileMap              *profile);
 static void                 hyscan_profile_map_set_params          (HyScanProfileMap              *profile,
-                                                                    const gchar                   *title,
                                                                     const gchar                   *projection,
                                                                     guint                          min_zoom,
                                                                     guint                          max_zoom);
@@ -164,7 +167,9 @@ hyscan_profile_map_class_init (HyScanProfileMapClass *klass)
 
   object_class->constructed = hyscan_profile_map_object_constructed;
   object_class->finalize = hyscan_profile_map_object_finalize;
+  profile_class->version = HYSCAN_PROFILE_MAP_VERSION;
   profile_class->read = hyscan_profile_map_read;
+  profile_class->write = hyscan_profile_map_write;
 }
 
 static void
@@ -196,6 +201,7 @@ hyscan_profile_map_object_finalize (GObject *object)
   g_free (priv->cache_dir);
   g_clear_object (&priv->geo_projection);
   g_clear_object (&priv->tile_source);
+  g_clear_object (&priv->layers_param);
 
   G_OBJECT_CLASS (hyscan_profile_map_parent_class)->finalize (object);
 }
@@ -238,14 +244,13 @@ hyscan_profile_map_source_param_add (HyScanProfileMap             *profile,
 /* Устанавливает параметры профиля. */
 static void
 hyscan_profile_map_set_params (HyScanProfileMap  *profile,
-                               const gchar       *title,
                                const gchar       *projection,
                                guint              min_zoom,
                                guint              max_zoom)
 {
   HyScanProfileMapPrivate *priv = profile->priv;
 
-  hyscan_profile_set_name (HYSCAN_PROFILE (profile), title);
+  g_free (priv->projection);
   priv->projection = g_strdup (projection);
   priv->min_zoom = min_zoom;
   priv->max_zoom = max_zoom;
@@ -403,7 +408,8 @@ hyscan_profile_map_new_full (const gchar  *title,
   source.headers = g_strdupv (headers);
 
   profile = hyscan_profile_map_new (cache_dir, NULL);
-  hyscan_profile_map_set_params (profile, title, projection, min_zoom, max_zoom);
+  hyscan_profile_set_name (HYSCAN_PROFILE (profile), title);
+  hyscan_profile_map_set_params (profile, projection, min_zoom, max_zoom);
   hyscan_profile_map_source_param_add (profile, &source);
   hyscan_profile_map_configure (profile);
 
@@ -454,18 +460,15 @@ static gboolean
 hyscan_profile_map_read (HyScanProfile *profile,
                          GKeyFile      *file)
 {
+  HyScanProfileMapPrivate *priv = HYSCAN_PROFILE_MAP (profile)->priv;
   gboolean result = FALSE;
 
   guint max_zoom, min_zoom;
-  gchar *title = NULL, *projection = NULL;
+  gchar *projection = NULL;
 
   GError *error = NULL;
   gchar **keys;
   gint i;
-
-  title = g_key_file_get_string (file, INI_GROUP, "title", &error);
-  if (error != NULL)
-    goto exit;
 
   projection = g_key_file_get_string (file, INI_GROUP, "proj", &error);
   if (error != NULL)
@@ -482,6 +485,7 @@ hyscan_profile_map_read (HyScanProfile *profile,
   /* Ищем пары ключей url{suffix} и dir{suffix} - формат ссылки на тайл и папку кэширования.
    * Например: url_osm - dir_osm, url1 - dir1.
    * */
+  g_array_remove_range (priv->sources, 0, priv->sources->len);
   keys = g_key_file_get_keys (file, INI_GROUP, NULL, NULL);
   for (i = 0; keys[i] != NULL; ++i)
     {
@@ -498,7 +502,7 @@ hyscan_profile_map_read (HyScanProfile *profile,
     }
   g_strfreev (keys);
 
-  hyscan_profile_map_set_params (HYSCAN_PROFILE_MAP (profile), title, projection, min_zoom, max_zoom);
+  hyscan_profile_map_set_params (HYSCAN_PROFILE_MAP (profile), projection, min_zoom, max_zoom);
   hyscan_profile_map_configure (HYSCAN_PROFILE_MAP (profile));
 
   result = TRUE;
@@ -510,10 +514,79 @@ exit:
       g_clear_error (&error);
     }
 
-  g_free (title);
   g_free (projection);
 
   return result;
+}
+
+static gboolean
+hyscan_profile_map_write (HyScanProfile *profile,
+                          GKeyFile      *key_file)
+{
+  HyScanProfileMapPrivate *priv = HYSCAN_PROFILE_MAP (profile)->priv;
+
+  /* Записываем параметры профиля. */
+  {
+    guint i, j;
+
+    g_key_file_set_string (key_file, INI_GROUP, "proj", priv->projection);
+    g_key_file_set_uint64 (key_file, INI_GROUP, "min_zoom", priv->min_zoom);
+    g_key_file_set_uint64 (key_file, INI_GROUP, "max_zoom", priv->max_zoom);
+
+    for (i = 0; i < priv->sources->len; i++)
+      {
+        HyScanProfileMapSource *source;
+        gchar *url_key, *dir_key, *suffix;
+
+        source = &g_array_index (priv->sources, HyScanProfileMapSource, i);
+
+        suffix = i == 0 ? g_strdup ("") : g_strdup_printf ("%d", i);
+        url_key = g_strdup_printf (INI_PREFIX_URL"%s", suffix);
+        dir_key = g_strdup_printf (INI_PREFIX_DIR"%s", suffix);
+
+        g_key_file_set_string (key_file, INI_GROUP, url_key, source->url_format);
+        g_key_file_set_string (key_file, INI_GROUP, dir_key, source->cache_dir);
+
+        for (j = 0; source->headers != NULL && source->headers[j] != NULL; j++)
+          {
+            gchar *hdr_key;
+
+            hdr_key = g_strdup_printf (INI_PREFIX_HEADER"%s%d", suffix, j);
+            g_key_file_set_string (key_file, INI_GROUP, hdr_key, source->headers[j]);
+            g_free (hdr_key);
+          }
+
+        g_free (suffix);
+        g_free (url_key);
+        g_free (dir_key);
+      }
+  }
+
+  /* Записываем параметры карты. */
+  if (priv->layers_param == NULL)
+    return TRUE;
+
+  {
+    HyScanDataSchema *schema;
+    HyScanParamList *list;
+    const gchar * const * keys;
+    gint i;
+
+    list = hyscan_param_list_new ();
+    schema = hyscan_param_schema (priv->layers_param);
+
+    keys = hyscan_data_schema_list_keys (schema);
+    for (i = 0; keys != NULL && keys[i] != NULL; i++)
+      hyscan_param_list_add (list, keys[i]);
+
+    hyscan_param_get (priv->layers_param, list);
+    hyscan_gtk_layer_param_list_to_file (key_file, list, schema);
+
+    g_object_unref (list);
+    g_object_unref (schema);
+  }
+
+  return TRUE;
 }
 
 /**
@@ -532,7 +605,8 @@ hyscan_profile_map_new_default (const gchar *cache_dir)
   HyScanProfileMapSource source;
 
   profile = hyscan_profile_map_new (cache_dir, NULL);
-  hyscan_profile_map_set_params (profile, "OpenStreetMap", PROJ_WEBMERC, 0, 19);
+  hyscan_profile_set_name (HYSCAN_PROFILE (profile), "OpenStreetMap");
+  hyscan_profile_map_set_params (profile, PROJ_WEBMERC, 0, 19);
   source.cache_dir = "osm";
   source.url_format = "http://a.tile.openstreetmap.org/{z}/{x}/{y}.png";
   source.headers = NULL;
@@ -566,6 +640,44 @@ hyscan_profile_map_new (const gchar *cache_dir,
     profile->priv->cache_dir = g_dir_make_tmp ("hyscan-map-XXXXXX", NULL);
 
   return profile;
+}
+
+/**
+ * hyscan_profile_map_copy:
+ * @profile: указатель на #HyScanProfileMap
+ * @file_name: имя файла для хранения профиля
+ *
+ * Returns: (transfer full): копия профиля, для удаления g_object_unref().
+ */
+HyScanProfileMap *
+hyscan_profile_map_copy (HyScanProfileMap *profile,
+                         const gchar      *file_name)
+{
+  HyScanProfileMap *copy;
+  HyScanProfileMapPrivate *priv, *copy_priv;
+  guint i;
+
+  g_return_val_if_fail (HYSCAN_IS_PROFILE_MAP (profile), NULL);
+
+  copy = g_object_new (HYSCAN_TYPE_PROFILE_MAP, "file", file_name, NULL);
+
+  priv = profile->priv;
+  copy_priv = copy->priv;
+
+  copy_priv->cache_dir = g_strdup (priv->cache_dir);
+  copy_priv->offline = priv->offline;
+  hyscan_profile_set_name (HYSCAN_PROFILE (copy), hyscan_profile_get_name (HYSCAN_PROFILE (profile)));
+  hyscan_profile_map_set_params (copy, priv->projection, priv->min_zoom, priv->max_zoom);
+  for (i = 0; i < priv->sources->len; i++)
+    {
+      HyScanProfileMapSource *source;
+
+      source = &g_array_index (priv->sources, HyScanProfileMapSource, i);
+      hyscan_profile_map_source_param_add (copy, source);
+    }
+  hyscan_profile_map_configure (profile);
+
+  return copy;
 }
 
 /**
@@ -663,6 +775,26 @@ hyscan_profile_map_apply (HyScanProfileMap *profile,
 }
 
 /**
+ * hyscan_profile_map_set_param:
+ * @profile: указатель на #HyScanProfileMap
+ * @layers_param: параметры слоёв карты #HyScanParam
+ *
+ * Устанавливает параметры слоёв карты.
+ */
+void
+hyscan_profile_map_set_param (HyScanProfileMap *profile,
+                              HyScanParam      *layers_param)
+{
+  HyScanProfileMapPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_PROFILE_MAP (profile));
+  priv = profile->priv;
+
+  g_clear_object (&priv->layers_param);
+  priv->layers_param = layers_param != NULL ? g_object_ref (layers_param) : NULL;
+}
+
+/**
  * hyscan_profile_map_get_source:
  * @profile: указатель на профиль карты HyScanProfileMap
  *
@@ -677,100 +809,4 @@ hyscan_profile_map_get_source (HyScanProfileMap *profile)
   priv = profile->priv;
 
   return g_object_ref (priv->tile_source);
-}
-
-/**
- * hyscan_profile_map_write:
- * @profile: указатель на #HyScanProfileMap
- * @map: указатель на карту #HyScanGtkMap, для загрузки конфигурации
- * @file: путь к записываемому файлу
- *
- * Сохраняет конфигурацию профиля карты в файл.
- *
- * Returns: %TRUE, если настройки сохранены успешно.
- */
-gboolean
-hyscan_profile_map_write (HyScanProfileMap *profile,
-                          HyScanGtkMap     *map,
-                          const gchar      *file)
-{
-  HyScanProfileMapPrivate *priv;
-  GKeyFile *key_file;
-  gboolean result;
-
-  g_return_val_if_fail (HYSCAN_IS_PROFILE_MAP (profile), FALSE);
-  priv = profile->priv;
-
-  key_file = g_key_file_new ();
-  g_key_file_load_from_file (key_file, file, G_KEY_FILE_KEEP_COMMENTS, NULL);
-
-  /* Записываем параметры профиля. */
-  {
-    const gchar *title;
-    guint i, j;
-
-    title = hyscan_profile_get_name (HYSCAN_PROFILE (profile));
-
-    g_key_file_set_string (key_file, INI_GROUP, "title", title);
-    g_key_file_set_string (key_file, INI_GROUP, "proj", priv->projection);
-    g_key_file_set_uint64 (key_file, INI_GROUP, "min_zoom", priv->min_zoom);
-    g_key_file_set_uint64 (key_file, INI_GROUP, "max_zoom", priv->max_zoom);
-
-    for (i = 0; i < priv->sources->len; i++)
-      {
-        HyScanProfileMapSource *source;
-        gchar *url_key, *dir_key, *suffix;
-
-        source = &g_array_index (priv->sources, HyScanProfileMapSource, i);
-
-        suffix = i == 0 ? g_strdup ("") : g_strdup_printf ("%d", i);
-        url_key = g_strdup_printf (INI_PREFIX_URL"%s", suffix);
-        dir_key = g_strdup_printf (INI_PREFIX_DIR"%s", suffix);
-
-        g_key_file_set_string (key_file, INI_GROUP, url_key, source->url_format);
-        g_key_file_set_string (key_file, INI_GROUP, dir_key, source->cache_dir);
-
-        for (j = 0; source->headers != NULL && source->headers[j] != NULL; j++)
-          {
-            gchar *hdr_key;
-
-            hdr_key = g_strdup_printf (INI_PREFIX_HEADER"%s%d", suffix, j);
-            g_key_file_set_string (key_file, INI_GROUP, hdr_key, source->headers[j]);
-            g_free (hdr_key);
-          }
-
-        g_free (suffix);
-        g_free (url_key);
-        g_free (dir_key);
-      }
-  }
-
-  /* Записываем параметры карты. */
-  {
-    HyScanParam *param;
-    HyScanDataSchema *schema;
-    HyScanParamList *list;
-    const gchar * const * keys;
-    gint i;
-
-    param = hyscan_gtk_layer_container_get_param (HYSCAN_GTK_LAYER_CONTAINER (map));
-    list = hyscan_param_list_new ();
-    schema = hyscan_param_schema (param);
-
-    keys = hyscan_data_schema_list_keys (schema);
-    for (i = 0; keys != NULL && keys[i] != NULL; i++)
-      hyscan_param_list_add (list, keys[i]);
-
-    hyscan_param_get (param, list);
-    hyscan_gtk_layer_param_list_to_file (key_file, list, schema);
-
-    g_object_unref (param);
-    g_object_unref (list);
-    g_object_unref (schema);
-  }
-
-  result = g_key_file_save_to_file (key_file, file, NULL);
-  g_key_file_unref (key_file);
-
-  return result;
 }
