@@ -364,6 +364,7 @@ hyscan_gtk_mark_manager_create_label_dialog_response (GtkWidget *dialog,
             else
               {
                 g_list_free (images);
+                hyscan_label_free (label);
                 break;
               }
           }
