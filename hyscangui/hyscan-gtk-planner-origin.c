@@ -58,11 +58,12 @@ enum
 
 struct _HyScanGtkPlannerOriginPrivate
 {
-  HyScanPlannerModel *model;      /* Модель объектов планировщика. */
+  HyScanPlannerModel *model;              /* Модель объектов планировщика. */
+  gboolean            changed_internal;   /* Признак того, что параметры изменены по сигналу "changed". */
 
-  GtkWidget          *lat;        /* Поле для ввода широты. */
-  GtkWidget          *lon;        /* Поле для ввода долготы. */
-  GtkWidget          *azimuth;    /* Поле для ввода азимута. */
+  GtkWidget          *lat;                /* Поле для ввода широты. */
+  GtkWidget          *lon;                /* Поле для ввода долготы. */
+  GtkWidget          *azimuth;            /* Поле для ввода азимута. */
 };
 
 static void    hyscan_gtk_planner_origin_set_property             (GObject                    *object,
@@ -172,6 +173,9 @@ hyscan_gtk_planner_origin_val_changed (GtkSpinButton          *spin_btn,
   origin.origin.lon = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->lon));
   origin.ox = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->azimuth));
 
+  if (priv->changed_internal)
+    return;
+
   hyscan_planner_model_set_origin (priv->model, &origin);
 }
 
@@ -184,20 +188,21 @@ hyscan_gtk_planner_origin_model_changed (HyScanGtkPlannerOrigin *gtk_origin)
   origin = hyscan_planner_model_get_origin (priv->model);
   gtk_widget_set_sensitive (GTK_WIDGET (gtk_origin), origin != NULL);
 
+  priv->changed_internal = TRUE;
   if (origin == NULL)
     {
       gtk_entry_set_text (GTK_ENTRY (priv->lat), "");
       gtk_entry_set_text (GTK_ENTRY (priv->lon), "");
       gtk_entry_set_text (GTK_ENTRY (priv->azimuth), "");
-
-      return;
     }
-
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->lat), origin->origin.lat);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->lon), origin->origin.lon);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->azimuth), origin->ox);
-
-  hyscan_planner_origin_free (origin);
+  else
+    {
+      gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->lat), origin->origin.lat);
+      gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->lon), origin->origin.lon);
+      gtk_spin_button_set_value (GTK_SPIN_BUTTON (priv->azimuth), origin->ox);
+      hyscan_planner_origin_free (origin);
+    }
+  priv->changed_internal = FALSE;
 }
 
 /**
