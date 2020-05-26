@@ -248,7 +248,7 @@ hyscan_gtk_map_direction_trk_chgd (HyScanGtkMapDirection *direction)
   if (active_id == NULL)
     return;
 
-  track = (HyScanPlannerTrack *) hyscan_object_model_get_id (priv->obj_model, active_id);
+  track = (HyScanPlannerTrack *) hyscan_object_model_get_by_id (priv->obj_model, active_id);
   g_free (active_id);
   if (!HYSCAN_IS_PLANNER_TRACK (track))
     return;
