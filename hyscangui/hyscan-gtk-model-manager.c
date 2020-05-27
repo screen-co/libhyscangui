@@ -448,14 +448,14 @@ hyscan_gtk_model_manager_constructed (GObject *object)
   /* Модель данных акустических меток с координатами. */
   priv->acoustic_loc_model = hyscan_mark_loc_model_new (priv->db, priv->cache);
   hyscan_mark_loc_model_set_project (priv->acoustic_loc_model, priv->project_name);
-  priv->signal_acoustic_marks_changed = g_signal_connect (priv->acoustic_loc_model,
+  priv->signal_acoustic_marks_loc_changed = g_signal_connect (priv->acoustic_loc_model,
                     "changed",
                     G_CALLBACK (hyscan_gtk_model_manager_acoustic_marks_loc_model_changed),
                     self);
   /* Модель акустических меток. */
   priv->acoustic_marks_model = hyscan_object_model_new (HYSCAN_TYPE_OBJECT_DATA_WFMARK);
   hyscan_object_model_set_project (priv->acoustic_marks_model, priv->db, priv->project_name);
-  priv->signal_acoustic_marks_loc_changed = g_signal_connect (priv->acoustic_marks_model,
+  priv->signal_acoustic_marks_changed = g_signal_connect (priv->acoustic_marks_model,
                     "changed",
                     G_CALLBACK (hyscan_gtk_model_manager_acoustic_marks_model_changed),
                     self);
