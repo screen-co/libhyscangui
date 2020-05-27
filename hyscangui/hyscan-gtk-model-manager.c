@@ -2339,12 +2339,11 @@ hyscan_gtk_model_manager_delete_item (HyScanGtkModelManager  *self,
         /* Получаем идентификатор проекта. */
         gint32 project_id = hyscan_db_project_open (priv->db, priv->project_name);
 
-        if (project_id >= 0)
-          {
-            hyscan_db_track_remove (priv->db,
-                                    project_id,
-                                    id);
-          }
+        if (project_id <= 0)
+          break;
+
+        hyscan_db_track_remove (priv->db, project_id, id);
+        hyscan_db_close (priv->db, project_id);
       }
       break;
     default: break;
@@ -2371,7 +2370,7 @@ hyscan_gtk_model_manager_geo_mark_change_label (HyScanGtkModelManager  *self,
         {
           HyScanMarkGeo *object = NULL;
           /* Получаем объект из базы данных по идентификатору. */
-          object = (HyScanMarkGeo*)hyscan_object_model_get_id (priv->geo_mark_model, list[i]);
+          object = (HyScanMarkGeo*)hyscan_object_model_get_by_id (priv->geo_mark_model, list[i]);
           if (object != NULL)
             {
               GHashTableIter iter;
@@ -2427,7 +2426,7 @@ hyscan_gtk_model_manager_acoustic_mark_change_label (HyScanGtkModelManager  *sel
         {
           HyScanMarkWaterfall *object = NULL;
           /* Получаем объект из базы данных по идентификатору. */
-          object = (HyScanMarkWaterfall*)hyscan_object_model_get_id (priv->acoustic_marks_model, list[i]);
+          object = (HyScanMarkWaterfall*)hyscan_object_model_get_by_id (priv->acoustic_marks_model, list[i]);
           if (object != NULL)
             {
               GHashTableIter iter;
@@ -2473,6 +2472,10 @@ hyscan_gtk_model_manager_track_change_label (HyScanGtkModelManager  *self,
                                              guint64                 current_time)
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
+  gint32 project_id = hyscan_db_project_open (priv->db, priv->project_name);
+
+  if (project_id <= 0)
+    return;
 
   if (priv->signal_tracks_changed != 0)
     {
@@ -2482,7 +2485,6 @@ hyscan_gtk_model_manager_track_change_label (HyScanGtkModelManager  *self,
 
       for (i = 0; list[i] != NULL; i++)
         {
-          gint32 project_id = hyscan_db_project_open (priv->db, priv->project_name);
           /* Получаем объект из базы данных по идентификатору. */
           HyScanTrackInfo *object = hyscan_db_info_get_track_info (priv->db, project_id, list[i]);
 
@@ -2514,6 +2516,7 @@ hyscan_gtk_model_manager_track_change_label (HyScanGtkModelManager  *self,
               hyscan_db_info_track_info_free (object);
             }
         }
+      hyscan_db_close (priv->db, project_id);
       /* Включаем сигнал. */
       g_signal_handler_unblock (priv->track_model, priv->signal_tracks_changed);
     }
@@ -3229,7 +3232,7 @@ hyscan_gtk_model_manager_toggled_iteml_change_label (HyScanGtkModelManager *self
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
   ModelManagerObjectType  type;
-  HyScanLabel *label = (HyScanLabel*)hyscan_object_model_get_id (priv->label_model, id);
+  HyScanLabel *label = (HyScanLabel*)hyscan_object_model_get_by_id (priv->label_model, id);
   GHashTable *table = hyscan_object_model_get (priv->label_model);
   /* Текущие дата и время. */
   GDateTime *now_local = g_date_time_new_now_local ();

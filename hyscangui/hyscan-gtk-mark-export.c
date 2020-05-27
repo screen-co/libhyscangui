@@ -1002,11 +1002,16 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
 
           while (g_hash_table_iter_next (&hash_iter, (gpointer *) &mark_id, (gpointer *) &location))
             {
+              HyScanTrackInfo *track_info;
               gint32 project_id = hyscan_db_project_open (data->db, data->project_name);
-              HyScanTrackInfo *track_info = hyscan_db_info_get_track_info (
-                                                   data->db,
-                                                   project_id,
-                                                   location->track_name);
+
+              if (project_id <= 0)
+                continue;
+
+              track_info = hyscan_db_info_get_track_info (data->db,
+                                                          project_id,
+                                                          location->track_name);
+              hyscan_db_close (data->db, project_id);
               hyscan_gtk_mark_export_save_tile (location,
                                                 track_info->ctime,
                                                 tile_queue,
@@ -1275,8 +1280,8 @@ hyscan_gtk_mark_export_save_as_html (HyScanGtkModelManager *model_manager,
                                                    (GDestroyNotify) hyscan_mark_geo_free);
           for (i = 0; geo_mark_list[i] != NULL; i++)
             {
-              HyScanMarkGeo *geo_mark = (HyScanMarkGeo*)hyscan_object_model_get_id (geo_mark_model,
-                                                                                    geo_mark_list[i]);
+              HyScanMarkGeo *geo_mark = (HyScanMarkGeo*)hyscan_object_model_get_by_id (geo_mark_model,
+                                                                                       geo_mark_list[i]);
               if (geo_mark != NULL)
                 {
                   g_hash_table_insert (data->geo_marks,
