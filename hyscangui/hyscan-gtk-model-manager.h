@@ -132,86 +132,119 @@ struct _HyScanGtkModelManagerClass
   GObjectClass parent_class;
 };
 
+HYSCAN_API
 GType                  hyscan_gtk_model_manager_get_type                    (void);
 
+HYSCAN_API
 HyScanGtkModelManager* hyscan_gtk_model_manager_new                         (const gchar               *project_name,
                                                                              HyScanDB                  *db,
                                                                              HyScanCache               *cache,
                                                                              gchar                     *export_folder);
 
+HYSCAN_API
 HyScanDBInfo*          hyscan_gtk_model_manager_get_track_model             (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 HyScanObjectModel*     hyscan_gtk_model_manager_get_acoustic_mark_model     (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 HyScanObjectModel*     hyscan_gtk_model_manager_get_geo_mark_model          (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 HyScanObjectModel*     hyscan_gtk_model_manager_get_label_model             (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 HyScanMarkLocModel*    hyscan_gtk_model_manager_get_acoustic_mark_loc_model (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 GtkTreeModel*          hyscan_gtk_model_manager_get_view_model              (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 const gchar*           hyscan_gtk_model_manager_get_signal_title            (HyScanGtkModelManager     *self,
                                                                              ModelManagerSignal         signal_title);
 
+HYSCAN_API
 void                   hyscan_gtk_model_manager_set_project_name            (HyScanGtkModelManager     *self,
                                                                              const gchar               *project_name);
 
+HYSCAN_API
 const gchar*           hyscan_gtk_model_manager_get_project_name            (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 const gchar*           hyscan_gtk_model_manager_get_export_folder           (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 HyScanDB*              hyscan_gtk_model_manager_get_db                      (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 HyScanCache*           hyscan_gtk_model_manager_get_cache                   (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 gchar**                hyscan_gtk_model_manager_get_all_tracks_id           (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 void                   hyscan_gtk_model_manager_set_grouping                (HyScanGtkModelManager     *self,
                                                                              ModelManagerGrouping       grouping);
 
+HYSCAN_API
 ModelManagerGrouping   hyscan_gtk_model_manager_get_grouping                (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 void                   hyscan_gtk_model_manager_set_selected_item           (HyScanGtkModelManager     *self,
                                                                              gchar                     *id);
 
+HYSCAN_API
 gchar*                 hyscan_gtk_model_manager_get_selected_item           (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 gchar*                 hyscan_gtk_model_manager_get_selected_track          (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 void                   hyscan_gtk_model_manager_unselect_all                (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 void                   hyscan_gtk_model_manager_set_horizontal_adjustment   (HyScanGtkModelManager     *self,
                                                                              gdouble                    value);
 
+HYSCAN_API
 void                   hyscan_gtk_model_manager_set_vertical_adjustment     (HyScanGtkModelManager     *self,
                                                                              gdouble                    value);
 
+HYSCAN_API
 gdouble                hyscan_gtk_model_manager_get_horizontal_adjustment   (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 gdouble                hyscan_gtk_model_manager_get_vertical_adjustment     (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 void                   hyscan_gtk_model_manager_toggle_item                 (HyScanGtkModelManager     *self,
                                                                              gchar                     *id,
                                                                              gboolean                   active);
 
+HYSCAN_API
 gchar**                hyscan_gtk_model_manager_get_toggled_items           (HyScanGtkModelManager     *self,
                                                                              ModelManagerObjectType     type);
 
+HYSCAN_API
 void                   hyscan_gtk_model_manager_expand_item                 (HyScanGtkModelManager     *self,
                                                                              gchar                     *id,
                                                                              gboolean                   expanded);
 
+HYSCAN_API
 gchar**                hyscan_gtk_model_manager_get_expanded_items          (HyScanGtkModelManager     *self,
                                                                              ModelManagerObjectType     type,
                                                                              gboolean                   expanded);
 
+HYSCAN_API
 gchar*                 hyscan_gtk_model_manager_get_current_id              (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 void                   hyscan_gtk_model_manager_delete_toggled_items        (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 gboolean               hyscan_gtk_model_manager_has_toggled                 (HyScanGtkModelManager     *self);
 
+HYSCAN_API
 void                   hyscan_gtk_model_manager_toggled_iteml_change_label  (HyScanGtkModelManager     *self,
                                                                              gchar                     *id);
 

@@ -63,8 +63,10 @@ struct _HyScanGtkMarkManagerClass
   GtkBoxClass parent_class;
 };
 
+HYSCAN_API
 GType        hyscan_gtk_mark_manager_get_type   (void);
 
+HYSCAN_API
 GtkWidget*   hyscan_gtk_mark_manager_new        (HyScanGtkModelManager *model_manager);
 
 G_END_DECLS

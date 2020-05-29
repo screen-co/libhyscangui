@@ -41,22 +41,26 @@
 #include <hyscan-tile-queue.h>
 #include <hyscan-gtk-model-manager.h>
 
+HYSCAN_API
 void
 hyscan_gtk_mark_export_save_as_csv       (GtkWindow             *window,
                                           HyScanMarkLocModel    *ml_model,
                                           HyScanObjectModel     *mark_geo_model,
                                           gchar                 *project_name);
 
+HYSCAN_API
 void
 hyscan_gtk_mark_export_copy_to_clipboard (HyScanMarkLocModel    *ml_model,
                                           HyScanObjectModel     *mark_geo_model,
                                           gchar                 *project_name);
 
+HYSCAN_API
 gchar*
 hyscan_gtk_mark_export_to_str            (HyScanMarkLocModel    *ml_model,
                                           HyScanObjectModel     *mark_geo_model,
                                           gchar                 *project_name);
 
+HYSCAN_API
 void
 hyscan_gtk_mark_export_save_as_html      (HyScanGtkModelManager *model_manager,
                                           GtkWindow             *toplevel,
