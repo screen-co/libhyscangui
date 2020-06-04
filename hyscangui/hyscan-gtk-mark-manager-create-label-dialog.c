@@ -297,9 +297,11 @@ hyscan_gtk_mark_manager_create_label_dialog_response (GtkWidget *dialog,
       GdkPixbuf   *pixbuf = NULL;
       GHashTable  *table  = hyscan_object_model_get (priv->label_model);
       GList       *images;
-      gint64       time   = g_date_time_to_unix (g_date_time_new_now_local ());
+      GDateTime   *dt     = g_date_time_new_now_local ();
+      gint64       time   = g_date_time_to_unix (dt);
       guint64      id     = hyscan_gtk_mark_manager_create_label_dialog_generate_label (table);
 
+      g_date_time_unref (dt);
       g_hash_table_destroy (table);
 
       hyscan_label_set_text (label,

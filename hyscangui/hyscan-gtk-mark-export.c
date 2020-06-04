@@ -274,7 +274,7 @@ hyscan_gtk_mark_export_to_str (HyScanMarkLocModel *ml_model,
 {
   GHashTable *wf_marks, *geo_marks;
   GDateTime *local;
-  gchar *str, *marks;
+  gchar *str, *marks, *date;
 
   wf_marks = hyscan_mark_loc_model_get (ml_model);
   geo_marks = hyscan_object_model_get (mark_geo_model);
@@ -283,11 +283,18 @@ hyscan_gtk_mark_export_to_str (HyScanMarkLocModel *ml_model,
     return NULL;
 
   local = g_date_time_new_now_local ();
+  date = g_date_time_format (local, "%A %B %e %T %Y");
+
+  g_date_time_unref (local);
 
   marks = hyscan_gtk_mark_export_print_marks (wf_marks, geo_marks);
   str = g_strdup_printf (_("%s\nProject: %s\n%s%s"),
-                         g_date_time_format (local, "%A %B %e %T %Y"),
-                         project_name, hyscan_gtk_mark_export_header, marks);
+                         date,
+                         project_name,
+                         hyscan_gtk_mark_export_header,
+                         marks);
+
+  g_free (date);
 
   g_hash_table_unref (wf_marks);
   g_hash_table_unref (geo_marks);
@@ -747,6 +754,7 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
       Package                  package;
       guint wf_mark_size  = g_hash_table_size (data->acoustic_marks),
             geo_mark_size = g_hash_table_size (data->geo_marks);
+      GDateTime *local = g_date_time_new_now_local ();
       gchar *header    = "<!DOCTYPE html>\n"
                          "<html lang=\"ru\">\n"
                          "\t<head>\n"
@@ -770,13 +778,17 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
             *crtime    = g_strdup_printf (_("Project creation date: %s"),
                                          (project_info->ctime == NULL)? _(empty) :
                                                 g_date_time_format (project_info->ctime, time_stamp)),
-            *gntime    = g_strdup_printf (_("Report creation date: %s"),
-                                          g_date_time_format (g_date_time_new_now_local (), time_stamp)),
+            *date      = g_date_time_format (local, time_stamp),
+            *gntime    = g_strdup_printf (_("Report creation date: %s"), date),
             *footer    = "\t</body>\n"
                          "</html>",
             *str       = NULL,
             *txt_title = NULL,
             *list      = "\t\t<br style=\"page-break-before: always\"/>\n";
+
+      g_date_time_unref (local);
+      g_free (date);
+
       title = g_strdup_printf (title, data->project_name);
       if (wf_mark_size > 0 || geo_mark_size > 0)
         {
@@ -1200,7 +1212,7 @@ hyscan_gtk_mark_export_copy_to_clipboard (HyScanMarkLocModel *ml_model,
   GHashTable   *wf_marks,
                *geo_marks;
   GDateTime    *local;
-  gchar        *str, *marks;
+  gchar        *str, *marks, *date;
 
   wf_marks  = hyscan_mark_loc_model_get (ml_model);
   geo_marks = hyscan_object_model_get (mark_geo_model);
@@ -1209,11 +1221,18 @@ hyscan_gtk_mark_export_copy_to_clipboard (HyScanMarkLocModel *ml_model,
     return;
 
   local = g_date_time_new_now_local ();
+  date = g_date_time_format (local, "%A %B %e %T %Y");
+
+  g_date_time_unref (local);
 
   marks = hyscan_gtk_mark_export_print_marks (wf_marks, geo_marks);
   str   = g_strdup_printf (_("%s\nProject: %s\n%s%s"),
-                           g_date_time_format (local, "%A %B %e %T %Y"),
-                           project_name, hyscan_gtk_mark_export_header, marks);
+                           date,
+                           project_name,
+                           hyscan_gtk_mark_export_header,
+                           marks);
+
+  g_free (date);
 
   g_hash_table_unref (wf_marks);
   g_hash_table_unref (geo_marks);
@@ -1318,7 +1337,7 @@ hyscan_gtk_mark_export_save_as_html (HyScanGtkModelManager *model_manager,
   else
     {
       data->geo_marks = hyscan_object_model_get (geo_mark_model);
-      data->acoustic_marks  = hyscan_mark_loc_model_get (acoustic_mark_model);
+      data->acoustic_marks = hyscan_mark_loc_model_get (acoustic_mark_model);
     }
 
   g_object_unref (geo_mark_model);

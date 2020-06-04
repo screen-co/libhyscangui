@@ -195,7 +195,6 @@ hyscan_gtk_mark_manager_change_label_dialog_constructed (GObject *object)
                                                   G_TYPE_STRING,   /* Оператор. */
                                                   G_TYPE_STRING,   /* Дата и время создания. */
                                                   G_TYPE_STRING);  /* Дата и время изменения. */
-      GtkIconTheme   *icon_theme = gtk_icon_theme_get_default ();
       HyScanLabel    *object;
       gchar          *id;
 
@@ -205,7 +204,9 @@ hyscan_gtk_mark_manager_change_label_dialog_constructed (GObject *object)
           if (object != NULL)
             {
               GdkPixbuf *icon = NULL;
-              GInputStream *stream = g_memory_input_stream_new ();
+              GInputStream *stream;
+              GDateTime *ctime = g_date_time_new_from_unix_local (object->ctime),
+                        *mtime = g_date_time_new_from_unix_local (object->mtime);
               GError *error = NULL;
               guchar *buf;
               gsize length;
@@ -213,7 +214,8 @@ hyscan_gtk_mark_manager_change_label_dialog_constructed (GObject *object)
               buf = g_base64_decode ((const gchar*)object->icon_data, &length);
               stream = g_memory_input_stream_new_from_data ((const void*)buf, (gssize)length, g_free);
               icon = gdk_pixbuf_new_from_stream (stream, NULL, &error);
-              g_object_unref (stream);
+              g_input_stream_close (stream, NULL, NULL);
+              g_free (buf);
 
               if (icon != NULL)
                 {
@@ -225,16 +227,14 @@ hyscan_gtk_mark_manager_change_label_dialog_constructed (GObject *object)
                                       COLUMN_DESCRIPTION,  object->description,   /* Описание группы. */
                                       COLUMN_OPERATOR,     object->operator_name, /* Оператор. */
                                       /* Дата и время создания. */
-                                      COLUMN_CTIME,        g_date_time_format (
-                                                             g_date_time_new_from_unix_local (object->ctime),
-                                                             "%d.%m.%Y %H:%M:%S"),
+                                      COLUMN_CTIME,        g_date_time_format (ctime, "%d.%m.%Y %H:%M:%S"),
                                       /* Дата и время изменения. */
-                                      COLUMN_MTIME,        g_date_time_format (
-                                                             g_date_time_new_from_unix_local (object->mtime),
-                                                             "%d.%m.%Y %H:%M:%S"),
+                                      COLUMN_MTIME,        g_date_time_format (mtime, "%d.%m.%Y %H:%M:%S"),
                                       -1);
                   g_object_unref (icon);
                 }
+              g_date_time_unref (ctime);
+              g_date_time_unref (mtime);
             }
         }
 
