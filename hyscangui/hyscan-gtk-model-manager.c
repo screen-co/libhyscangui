@@ -88,6 +88,23 @@ enum
   PROP_EXPORT_FOLDER,       /* Директория для экспорта. */
   N_PROPERTIES
 };
+/* Атрибуты объекта. */
+enum
+{
+  DESCRIPTION,              /* Описание. */
+  OPERATOR,                 /* Оператор. */
+  CREATION_TIME,            /* Время сохдания. */
+  MODIFICATION_TIME,        /* Время изменения. */
+  LOCATION,                 /* Координаты. */
+  BOARD,                    /* Борт по умолчанию. */
+  PORT,                     /* Левый борт. */
+  STARBOARD,                /* Правый борт. */
+  BOTTOM,                   /* Под собой. */
+  DEPTH,                    /* Глубина. */
+  WIDTH,                    /* Ширина. */
+  SLANT_RANGE,              /* Наклонная дальность. */
+  N_ATTR                    /* Количество атрибутов. */
+};
 
 /* Типы записей в модели. */
 typedef enum
@@ -163,10 +180,24 @@ static gchar *author = N_("Default");
 static gchar *unknown = N_("Unknown");
 
 /* Стандартные картинки для типов объектов. */
-static gchar *icon_name[] =    {"emblem-documents",            /* Группы. */
-                                "mark-location",               /* Гео-метки. */
-                                "emblem-photos",               /* Акустические метки. */
-                                "preferences-system-sharing"}; /* Галсы. */
+static gchar *type_icon[TYPES] =  {"/org/hyscan/icons/emblem-documents.png",            /* Группы. */
+                                   "/org/hyscan/icons/mark-location.png",               /* Гео-метки. */
+                                   "/org/hyscan/icons/emblem-photos.png",               /* Акустические метки. */
+                                   "/org/hyscan/icons/preferences-system-sharing.png"}; /* Галсы. */
+/* Графические изображения для атрибутов обьектов. */
+static gchar *attr_icon[N_ATTR] = {"/org/hyscan/icons/accessories-text-editor.png",     /* Описание. */
+                                   "/org/hyscan/icons/avatar-default.png",              /* Оператор. */
+                                   "/org/hyscan/icons/appointment-new.png",             /* Время создания. */
+                                   "/org/hyscan/icons/document-open-recent.png",        /* Время изменения. */
+                                   "/org/hyscan/icons/preferences-desktop-locale.png",  /* Координаты */
+                                   "/org/hyscan/icons/network-wireless-no-route-symbolic.symbolic.png", /* Борт по умолчанию. */
+                                   "/org/hyscan/icons/go-previous.png",                  /* Левый борт. */
+                                   "/org/hyscan/icons/go-next.png",                      /* Правый борт. */
+                                   "/org/hyscan/icons/go-down.png",                      /* Под собой. */
+                                   "/org/hyscan/icons/object-flip-vertical.png",         /* Глубина. */
+                                   "/org/hyscan/icons/object-flip-horizontal.png",       /* Ширина. */
+                                   "/org/hyscan/icons/content-loading-symbolic.symbolic.png" /* Наклонная дальность. */
+};
 /* Названия типов. */
 static gchar *type_name[] =    {N_("Labels"),                      /* Группы. */
                                 N_("Geo-marks"),                   /* Гео-метки. */
@@ -571,7 +602,7 @@ hyscan_gtk_model_manager_update_view_model (HyScanGtkModelManager *self)
                                     G_TYPE_STRING,   /* Оператор, создавший объект. */
                                     G_TYPE_STRING,   /* Текст подсказки. */
                                     G_TYPE_UINT,     /* Тип объекта: группа, гео-метка, акустическая метка или галс. */
-                                    G_TYPE_STRING,   /* Название картинки. */
+                                    GDK_TYPE_PIXBUF, /* Графическое изображение. */
                                     G_TYPE_BOOLEAN,  /* Статус чек-бокса. */
                                     G_TYPE_BOOLEAN,  /* Видимость чек-бокса. */
                                     G_TYPE_UINT64,   /* Метки групп к которым принадлежит объект. */
@@ -594,7 +625,7 @@ hyscan_gtk_model_manager_update_view_model (HyScanGtkModelManager *self)
                                     G_TYPE_STRING,   /* Оператор, создавший объект. */
                                     G_TYPE_STRING,   /* Текст подсказки. */
                                     G_TYPE_UINT,     /* Тип объекта: группа, гео-метка, акустическая метка или галс. */
-                                    G_TYPE_STRING,   /* Название картинки. */
+                                    GDK_TYPE_PIXBUF, /* Графическое изображение. */
                                     G_TYPE_BOOLEAN,  /* Статус чек-бокса. */
                                     G_TYPE_BOOLEAN,  /* Видимость чек-бокса. */
                                     G_TYPE_UINT64,   /* Метки групп к которым принадлежит объект. */
@@ -646,7 +677,7 @@ hyscan_gtk_model_manager_set_view_model (HyScanGtkModelManager *self)
                                           G_TYPE_STRING,   /* Оператор, создавший объект. */
                                           G_TYPE_STRING,   /* Текст подсказки. */
                                           G_TYPE_UINT,     /* Тип объекта: группа, гео-метка, акустическая метка или галс. */
-                                          G_TYPE_STRING,   /* Название картинки. */
+                                          GDK_TYPE_PIXBUF, /* Графическое изображение. */
                                           G_TYPE_BOOLEAN,  /* Статус чек-бокса. */
                                           G_TYPE_BOOLEAN,  /* Видимость чек-бокса. */
                                           G_TYPE_UINT64,   /* Метки групп к которым принадлежит объект. */
@@ -692,7 +723,7 @@ hyscan_gtk_model_manager_set_view_model (HyScanGtkModelManager *self)
                                             G_TYPE_STRING,   /* Оператор, создавший объект. */
                                             G_TYPE_STRING,   /* Текст подсказки. */
                                             G_TYPE_UINT,     /* Тип объекта: группа, гео-метка, акустическая метка или галс. */
-                                            G_TYPE_STRING,   /* Название картинки. */
+                                            GDK_TYPE_PIXBUF, /* Графическое изображение. */
                                             G_TYPE_BOOLEAN,  /* Статус чек-бокса. */
                                             G_TYPE_BOOLEAN,  /* Видимость чек-бокса. */
                                             G_TYPE_UINT64,   /* Метки групп к которым принадлежит объект. */
@@ -711,47 +742,6 @@ hyscan_gtk_model_manager_set_view_model (HyScanGtkModelManager *self)
                 hyscan_gtk_model_manager_clear_view_model (priv->view_model, &priv->clear_model_flag);
                 store = GTK_LIST_STORE (priv->view_model);
               }
-            /* Группы. */
-/*            if (priv->extensions[LABEL] != NULL)
-              {
-                GHashTable *table = hyscan_object_model_get (priv->label_model);
-                HyScanLabel *object;
-
-                if (table != NULL)
-                  {
-                    GHashTableIter  table_iter;      *//* Итератор для обхода хэш-таблиц. */
-/*                    gchar *id;                       *//* Идентификатор для обхода хэш-таблиц (ключ). */
-
-/*                    g_hash_table_iter_init (&table_iter, table);
-                    while (g_hash_table_iter_next (&table_iter, (gpointer*)&id, (gpointer*)&object))
-                      {
-                        if (object != NULL)
-                          {
-                             Extension *ext = g_hash_table_lookup (priv->extensions[LABEL], id);
-
-                             gtk_list_store_append (store, &store_iter);
-                             gtk_list_store_set (store,              &store_iter,
-                                                 COLUMN_ID,           id,
-                                                 COLUMN_NAME,         object->name,
-                                                 COLUMN_DESCRIPTION,  object->description,
-                                                 COLUMN_OPERATOR,     object->operator_name,
-                                                 COLUMN_TYPE,         LABEL,
-                                                 COLUMN_ICON,         object->icon_name,
-                                                 COLUMN_ACTIVE,       (ext != NULL) ? ext->active : FALSE,
-                                                 COLUMN_LABEL,        object->label,
-                                                 COLUMN_CTIME,        g_date_time_format (
-                                                                        g_date_time_new_from_unix_local (object->ctime),
-                                                                        date_time_stamp),
-                                                 COLUMN_MTIME,        g_date_time_format (
-                                                                        g_date_time_new_from_unix_local (object->mtime),
-                                                                        date_time_stamp),
-                                                 -1);
-                          }
-                      }
-
-                    g_hash_table_destroy (table);
-                  }
-              }*/
             /* Гео-метки. */
             if (priv->extensions[GEO_MARK] != NULL)
               {
@@ -772,6 +762,7 @@ hyscan_gtk_model_manager_set_view_model (HyScanGtkModelManager *self)
                             gchar *position = g_strdup_printf ("%.6f° %.6f°",
                                                                object->center.lat,
                                                                object->center.lon);
+                            GtkWidget *image = gtk_image_new_from_resource (type_icon[GEO_MARK]);
 
                             gtk_list_store_append (store, &store_iter);
                             gtk_list_store_set (store,              &store_iter,
@@ -781,7 +772,7 @@ hyscan_gtk_model_manager_set_view_model (HyScanGtkModelManager *self)
                                                 COLUMN_OPERATOR,     object->operator_name,
                                                 COLUMN_TOOLTIP,      _(type_name[GEO_MARK]),
                                                 COLUMN_TYPE,         GEO_MARK,
-                                                COLUMN_ICON,         icon_name[GEO_MARK],
+                                                COLUMN_ICON,         gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                                 COLUMN_ACTIVE,       (ext != NULL) ? ext->active : FALSE,
                                                 COLUMN_VISIBLE,      TRUE,
                                                 COLUMN_LABEL,        object->labels,
@@ -795,7 +786,7 @@ hyscan_gtk_model_manager_set_view_model (HyScanGtkModelManager *self)
                                                                        date_time_stamp),
                                                 COLUMN_LOCATION,     position,
                                                 -1);
-
+                            gtk_widget_destroy (image);
                             g_free (position);
                           }
                       }
@@ -829,6 +820,7 @@ hyscan_gtk_model_manager_set_view_model (HyScanGtkModelManager *self)
                                   *depth = g_strdup_printf (_(distance_stamp), location->depth),
                                   *width = g_strdup_printf (_(distance_stamp), 2.0 * location->mark->width),
                                   *slant_range = NULL;
+                            GtkWidget *image = gtk_image_new_from_resource (type_icon[ACOUSTIC_MARK]);
 
                             switch (location->direction)
                               {
@@ -880,7 +872,7 @@ hyscan_gtk_model_manager_set_view_model (HyScanGtkModelManager *self)
                                                 COLUMN_OPERATOR,     object->operator_name,
                                                 COLUMN_TOOLTIP,      _(type_name[ACOUSTIC_MARK]),
                                                 COLUMN_TYPE,         ACOUSTIC_MARK,
-                                                COLUMN_ICON,         icon_name[ACOUSTIC_MARK],
+                                                COLUMN_ICON,         gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                                 COLUMN_ACTIVE,       (ext != NULL) ? ext->active : FALSE,
                                                 COLUMN_VISIBLE,      TRUE,
                                                 COLUMN_LABEL,        object->labels,
@@ -899,6 +891,7 @@ hyscan_gtk_model_manager_set_view_model (HyScanGtkModelManager *self)
                                                 COLUMN_WIDTH,        width,
                                                 COLUMN_SLANT_RANGE,  slant_range,
                                                 -1);
+                            gtk_widget_destroy (image);
                             g_free (position);
                             g_free (board);
                             g_free (depth);
@@ -930,6 +923,7 @@ hyscan_gtk_model_manager_set_view_model (HyScanGtkModelManager *self)
 
                             gchar *ctime = (object->ctime == NULL)? "" : g_date_time_format (object->ctime, date_time_stamp),
                                   *mtime = (object->mtime == NULL)? "" : g_date_time_format (object->mtime, date_time_stamp);
+                            GtkWidget *image = gtk_image_new_from_resource (type_icon[TRACK]);
 
                             gtk_list_store_append (store, &store_iter);
                             gtk_list_store_set (store, &store_iter,
@@ -939,13 +933,14 @@ hyscan_gtk_model_manager_set_view_model (HyScanGtkModelManager *self)
                                                 COLUMN_OPERATOR,    object->operator_name,
                                                 COLUMN_TOOLTIP,     _(type_name[TRACK]),
                                                 COLUMN_TYPE,        TRACK,
-                                                COLUMN_ICON,        icon_name[TRACK],
+                                                COLUMN_ICON,        gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                                 COLUMN_ACTIVE,      (ext != NULL) ? ext->active : FALSE,
                                                 COLUMN_VISIBLE,     TRUE,
                                                 COLUMN_LABEL,       object->labels,
                                                 COLUMN_CTIME,       ctime,
                                                 COLUMN_MTIME,       mtime,
                                                 -1);
+                            gtk_widget_destroy (image);
                           }
                       }
 
@@ -972,10 +967,11 @@ hyscan_gtk_model_manager_refresh_labels_by_types (GtkTreeStore *store,
   if (extensions != NULL)
     {
       GtkTreeIter parent_iter;
+      GtkWidget *image = gtk_image_new_from_resource (type_icon[LABEL]);
       GHashTableIter table_iter;       /* Итератор для обхода хэш-таблиц. */
       HyScanLabel *object;
       gchar *id;                       /* Идентификатор для обхода хэш-таблиц (ключ). */
-      gboolean active = hyscan_gtk_model_manager_is_all_toggled (extensions, type_id[LABEL]);
+      gboolean active  = hyscan_gtk_model_manager_is_all_toggled (extensions, type_id[LABEL]);
 
       /* Добавляем новый узел "Группы" в модель */
       gtk_tree_store_append (store, &parent_iter, NULL);
@@ -986,11 +982,12 @@ hyscan_gtk_model_manager_refresh_labels_by_types (GtkTreeStore *store,
                           COLUMN_OPERATOR,     _(author),
                           COLUMN_TOOLTIP,      _(type_name[LABEL]),
                           COLUMN_TYPE,         LABEL,
-                          COLUMN_ICON,         icon_name[LABEL],
+                          COLUMN_ICON,         gtk_image_get_pixbuf (GTK_IMAGE (image)),
                           COLUMN_ACTIVE,       active,
                           COLUMN_VISIBLE,      TRUE,
                           COLUMN_LABEL,        0,
                           -1);
+      gtk_widget_destroy (image);
 
       g_hash_table_iter_init (&table_iter, labels);
       while (g_hash_table_iter_next (&table_iter, (gpointer*)&id, (gpointer*)&object))
@@ -1000,6 +997,9 @@ hyscan_gtk_model_manager_refresh_labels_by_types (GtkTreeStore *store,
               GtkTreeIter child_iter,
                           item_iter;
               gboolean toggled = active;
+              GtkWidget *image;
+              GtkIconTheme *icon_theme = gtk_icon_theme_get_default ();
+              GdkPixbuf *icon  = gtk_icon_theme_load_icon (icon_theme, object->icon_data, 16, 0, NULL);
 
               if (!active)
                 {
@@ -1015,52 +1015,62 @@ hyscan_gtk_model_manager_refresh_labels_by_types (GtkTreeStore *store,
                                   COLUMN_OPERATOR,     object->operator_name,
                                   COLUMN_TOOLTIP,      object->name,
                                   COLUMN_TYPE,         LABEL,
-                                  COLUMN_ICON,         object->icon_name,
+                                  COLUMN_ICON,         icon,
                                   COLUMN_ACTIVE,       toggled,
                                   COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->label,
                                   -1);
+              /* Очищаем иконку. */
+              g_object_unref (icon);
               /* Атрибуты группы. */
               /* Описание. */
+              image = gtk_image_new_from_resource (attr_icon[DESCRIPTION]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->description,
                                   COLUMN_TOOLTIP, _("Description"),
-                                  COLUMN_ICON,    "accessories-text-editor",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Оператор. */
+              image = gtk_image_new_from_resource (attr_icon[OPERATOR]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->operator_name,
                                   COLUMN_TOOLTIP, _("Operator"),
-                                  COLUMN_ICON,    "avatar-default",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Время создания. */
+              image = gtk_image_new_from_resource (attr_icon[CREATION_TIME]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    g_date_time_format (
                                                     g_date_time_new_from_unix_local (object->ctime),
                                                     date_time_stamp),
                                   COLUMN_TOOLTIP, _("Creation time"),
-                                  COLUMN_ICON,    "appointment-new",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Время модификации. */
+              image = gtk_image_new_from_resource (attr_icon[MODIFICATION_TIME]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    g_date_time_format (
                                                     g_date_time_new_from_unix_local (object->mtime),
                                                     date_time_stamp),
                                   COLUMN_TOOLTIP, _("Modification time"),
-                                  COLUMN_ICON,    "document-open-recent",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
             }
         }
     }
@@ -1076,6 +1086,7 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
   if (extensions != NULL)
     {
       GtkTreeIter parent_iter;
+      GtkWidget *image = gtk_image_new_from_resource (type_icon[GEO_MARK]);
       GHashTableIter table_iter;       /* Итератор для обхода хэш-таблиц. */
       HyScanMarkGeo *object;
       gchar *id;                       /* Идентификатор для обхода хэш-таблиц (ключ). */
@@ -1090,11 +1101,12 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
                           COLUMN_OPERATOR,     _(author),
                           COLUMN_TOOLTIP,      _(type_name[GEO_MARK]),
                           COLUMN_TYPE,         GEO_MARK,
-                          COLUMN_ICON,         icon_name[GEO_MARK],
+                          COLUMN_ICON,         gtk_image_get_pixbuf (GTK_IMAGE (image)),
                           COLUMN_ACTIVE,       active,
                           COLUMN_VISIBLE,      TRUE,
                           COLUMN_LABEL,        0,
                           -1);
+      gtk_widget_destroy (image);
 
       g_hash_table_iter_init (&table_iter, geo_marks);
       while (g_hash_table_iter_next (&table_iter, (gpointer*)&id, (gpointer*)&object))
@@ -1106,11 +1118,14 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
                           item_iter;
               GHashTableIter iter;
               gchar *key,
-                    *icon = icon_name[GEO_MARK],
+                    *icon = "mark-location",
                     *position = g_strdup_printf ("%.6f° %.6f° (WGS 84)",
                                                  object->center.lat,
                                                  object->center.lon);
               gboolean toggled = active;
+              GError       *error = NULL;
+              GtkIconTheme *icon_theme = gtk_icon_theme_get_default ();
+              GdkPixbuf    *pixbuf;
 
               if (!active)
                 {
@@ -1123,9 +1138,27 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
                 {
                   if (object->labels == label->label)
                     {
-                      icon = label->icon_name;
+                      icon = label->icon_data;
                       break;
                     }
+                }
+
+              if (gtk_icon_theme_has_icon (icon_theme, icon))
+                {
+                  pixbuf  = gtk_icon_theme_load_icon (icon_theme, icon, 16, 0, NULL);
+                }
+              else
+                {
+                  GInputStream *stream = g_memory_input_stream_new ();
+                  GError *error = NULL;
+                  guchar *buf;
+                  gsize length;
+
+                  buf = g_base64_decode ((const gchar*)icon, &length);
+                  stream = g_memory_input_stream_new_from_data ((const void*)buf, (gssize)length, g_free);
+                  pixbuf = gdk_pixbuf_new_from_stream (stream, NULL, &error);
+
+                  g_object_unref (stream);
                 }
 
               /* Добавляем новый узел c названием гео-метки в модель */
@@ -1137,31 +1170,38 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
                                   COLUMN_OPERATOR,     object->operator_name,
                                   COLUMN_TOOLTIP,      object->name,
                                   COLUMN_TYPE,         GEO_MARK,
-                                  COLUMN_ICON,         icon,
+                                  COLUMN_ICON,         pixbuf,
                                   COLUMN_ACTIVE,       toggled,
                                   COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->labels,
                                   -1);
+              /* Очищаем иконку. */
+              g_object_unref (pixbuf);
               /* Атрибуты гео-метки. */
               /* Описание. */
+              image = gtk_image_new_from_resource (attr_icon[DESCRIPTION]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->description,
                                   COLUMN_TOOLTIP, _("Description"),
-                                  COLUMN_ICON,    "accessories-text-editor",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Оператор. */
+              image = gtk_image_new_from_resource (attr_icon[OPERATOR]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->operator_name,
                                   COLUMN_TOOLTIP, _("Operator"),
-                                  COLUMN_ICON,    "avatar-default",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Время создания. */
+              image = gtk_image_new_from_resource (attr_icon[CREATION_TIME]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    g_date_time_format (
@@ -1169,11 +1209,13 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
                                                       object->ctime / G_TIME_SPAN_SECOND),
                                                     date_time_stamp),
                                   COLUMN_TOOLTIP, _("Creation time"),
-                                  COLUMN_ICON,    "appointment-new",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Время модификации. */
+              image = gtk_image_new_from_resource (attr_icon[MODIFICATION_TIME]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    g_date_time_format (
@@ -1181,19 +1223,22 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
                                                       object->mtime / G_TIME_SPAN_SECOND),
                                                     date_time_stamp),
                                   COLUMN_TOOLTIP, _("Modification time"),
-                                  COLUMN_ICON,    "document-open-recent",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Координаты. */
+              image = gtk_image_new_from_resource (attr_icon[LOCATION]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    position,
                                   COLUMN_TOOLTIP, _("Location"),
-                                  COLUMN_ICON,    "preferences-desktop-locale",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               g_free (position);
             }
         }
@@ -1221,13 +1266,12 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_labels (GtkTreeStore *store,
             {
               GtkTreeIter child_iter,
                           item_iter;
+              GtkWidget *image = gtk_image_new_from_resource (type_icon[GEO_MARK]);
               Extension *ext = g_hash_table_lookup (extensions, id);
-              gchar *position = g_strdup_printf ("%.6f° %.6f° (WGS 84)",
+              gchar *location = g_strdup_printf ("%.6f° %.6f° (WGS 84)",
                                                  object->center.lat,
                                                  object->center.lon);
               gboolean toggled = FALSE;
-
-
 
               if (ext != NULL)
                 toggled = (ext != NULL) ? ext->active : FALSE;
@@ -1241,32 +1285,37 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_labels (GtkTreeStore *store,
                                   COLUMN_OPERATOR,     object->operator_name,
                                   COLUMN_TOOLTIP,      _(type_name[GEO_MARK]),
                                   COLUMN_TYPE,         GEO_MARK,
-                                  COLUMN_ICON,         icon_name[GEO_MARK],
+                                  COLUMN_ICON,         gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,       toggled,
                                   COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->labels,
                                   -1);
-
+              gtk_widget_destroy (image);
               /* Атрибуты акустической метки. */
               /* Описание. */
+              image = gtk_image_new_from_resource (attr_icon[DESCRIPTION]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->description,
                                   COLUMN_TOOLTIP, _("Description"),
-                                  COLUMN_ICON,    "accessories-text-editor",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Оператор. */
+              image = gtk_image_new_from_resource (attr_icon[OPERATOR]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->operator_name,
                                   COLUMN_TOOLTIP, _("Operator"),
-                                  COLUMN_ICON,    "avatar-default",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Время создания. */
+              image = gtk_image_new_from_resource (attr_icon[CREATION_TIME]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    g_date_time_format (
@@ -1274,11 +1323,13 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_labels (GtkTreeStore *store,
                                                       object->ctime / G_TIME_SPAN_SECOND),
                                                     date_time_stamp),
                                   COLUMN_TOOLTIP, _("Creation time"),
-                                  COLUMN_ICON,    "appointment-new",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                    -1);
+              gtk_widget_destroy (image);
               /* Время модификации. */
+              image = gtk_image_new_from_resource (attr_icon[MODIFICATION_TIME]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    g_date_time_format (
@@ -1286,20 +1337,23 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_labels (GtkTreeStore *store,
                                                       object->mtime / G_TIME_SPAN_SECOND),
                                                     date_time_stamp),
                                   COLUMN_TOOLTIP, _("Modification time"),
-                                  COLUMN_ICON,    "document-open-recent",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Координаты . */
+              image = gtk_image_new_from_resource (attr_icon[LOCATION]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
-              /* Отображается. */ COLUMN_NAME,    position,
+              /* Отображается. */ COLUMN_NAME,    location,
                                   COLUMN_TOOLTIP, _("Location"),
-                                  COLUMN_ICON,    "preferences-desktop-locale",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
-              g_free (position);
+              g_free (location);
+              gtk_widget_destroy (image);
             }
         }
     }
@@ -1315,10 +1369,11 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
   if (extensions != NULL)
     {
       GtkTreeIter parent_iter;
+      GtkWidget *image = gtk_image_new_from_resource (type_icon[ACOUSTIC_MARK]);
       GHashTableIter table_iter;       /* Итератор для обхода хэш-таблиц. */
       HyScanMarkLocation *location;
       gchar *id;                       /* Идентификатор для обхода хэш-таблиц (ключ). */
-      gboolean active = hyscan_gtk_model_manager_is_all_toggled (extensions, type_id[ACOUSTIC_MARK]);
+      gboolean active  = hyscan_gtk_model_manager_is_all_toggled (extensions, type_id[ACOUSTIC_MARK]);
 
       /* Добавляем новый узел "Акустические метки" в модель. */
       gtk_tree_store_append (store, &parent_iter, NULL);
@@ -1329,11 +1384,12 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
                           COLUMN_OPERATOR,     _(author),
                           COLUMN_TOOLTIP,      _(type_name[ACOUSTIC_MARK]),
                           COLUMN_TYPE,         ACOUSTIC_MARK,
-                          COLUMN_ICON,         icon_name[ACOUSTIC_MARK],
+                          COLUMN_ICON,         gtk_image_get_pixbuf (GTK_IMAGE (image)),
                           COLUMN_ACTIVE,       active,
                           COLUMN_VISIBLE,      TRUE,
                           COLUMN_LABEL,        0,
                           -1);
+      gtk_widget_destroy (image);
 
       g_hash_table_iter_init (&table_iter, acoustic_marks);
       while (g_hash_table_iter_next (&table_iter, (gpointer*)&id, (gpointer*)&location))
@@ -1345,16 +1401,18 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
               HyScanLabel *label;
               GtkTreeIter child_iter,
                           item_iter;
+              GtkIconTheme *icon_theme = gtk_icon_theme_get_default ();
+              GdkPixbuf *pixbuf;
               GHashTableIter iter;
               gchar *key,
-                    *icon = icon_name[ACOUSTIC_MARK],
+                    *icon = type_icon[ACOUSTIC_MARK],
                     *position = g_strdup_printf ("%.6f° %.6f° (WGS 84)",
                                                  location->mark_geo.lat,
                                                  location->mark_geo.lon),
                     *board,
-                    *board_icon = g_strdup ("network-wireless-no-route-symbolic"),
+                    *board_icon = g_strdup (attr_icon[BOARD]),
                     *depth = g_strdup_printf (_(distance_stamp), location->depth);
-              gboolean toggled = active;
+              gboolean toggled  = active;
 
               if (!active)
                 {
@@ -1367,9 +1425,27 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
                 {
                   if (object->labels == label->label)
                     {
-                      icon = label->icon_name;
+                      icon = label->icon_data;
                       break;
                     }
+                }
+
+              if (gtk_icon_theme_has_icon (icon_theme, icon))
+                {
+                  pixbuf  = gtk_icon_theme_load_icon (icon_theme, icon, 16, 0, NULL);
+                }
+              else
+                {
+                  GInputStream *stream = g_memory_input_stream_new ();
+                  GError *error = NULL;
+                  guchar *buf;
+                  gsize length;
+
+                  buf = g_base64_decode ((const gchar*)icon, &length);
+                  stream = g_memory_input_stream_new_from_data ((const void*)buf, (gssize)length, g_free);
+                  pixbuf = gdk_pixbuf_new_from_stream (stream, NULL, &error);
+
+                  g_object_unref (stream);
                 }
 
               /* Добавляем новый узел c названием группы в модель */
@@ -1381,31 +1457,38 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
                                   COLUMN_OPERATOR,     object->operator_name,
                                   COLUMN_TOOLTIP,      object->name,
                                   COLUMN_TYPE,         ACOUSTIC_MARK,
-                                  COLUMN_ICON,         icon,
+                                  COLUMN_ICON,         pixbuf,
                                   COLUMN_ACTIVE,       toggled,
                                   COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->labels,
                                   -1);
+              /* Очищаем иконку. */
+              g_object_unref (pixbuf);
               /* Атрибуты акустической метки. */
               /* Описание. */
+              image = gtk_image_new_from_resource (attr_icon[DESCRIPTION]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->description,
                                   COLUMN_TOOLTIP, _("Description"),
-                                  COLUMN_ICON,    "accessories-text-editor",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Оператор. */
+              image = gtk_image_new_from_resource (attr_icon[OPERATOR]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->operator_name,
                                   COLUMN_TOOLTIP, _("Operator"),
-                                  COLUMN_ICON,    "avatar-default",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Время создания. */
+              image = gtk_image_new_from_resource (attr_icon[CREATION_TIME]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    g_date_time_format (
@@ -1413,11 +1496,13 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
                                                       object->ctime / G_TIME_SPAN_SECOND),
                                                     date_time_stamp),
                                   COLUMN_TOOLTIP, _("Creation time"),
-                                  COLUMN_ICON,    "appointment-new",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                    -1);
+              gtk_widget_destroy (image);
               /* Время модификации. */
+              image = gtk_image_new_from_resource (attr_icon[MODIFICATION_TIME]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    g_date_time_format (
@@ -1425,75 +1510,87 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
                                                       object->mtime / G_TIME_SPAN_SECOND),
                                                     date_time_stamp),
                                   COLUMN_TOOLTIP, _("Modification time"),
-                                  COLUMN_ICON,    "document-open-recent",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Координаты. */
+              image = gtk_image_new_from_resource (attr_icon[LOCATION]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    position,
                                   COLUMN_TOOLTIP, _("Location"),
-                                  COLUMN_ICON,    "preferences-desktop-locale",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
               g_free (position);
+              gtk_widget_destroy (image);
               /* Название галса. */
+              /* Загружаем иконку. */
+              pixbuf  = gtk_icon_theme_load_icon (icon_theme, type_icon[TRACK], 16, 0, NULL);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    location->track_name,
                                   COLUMN_TOOLTIP, _("Track name"),
-                                  COLUMN_ICON,    icon_name[TRACK],
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Борт. */
               switch (location->direction)
                 {
                 case HYSCAN_MARK_LOCATION_PORT:
                   {
                     board = g_strdup (_("Port"));
-                    board_icon = g_strdup ("go-previous");
+                    g_free (board_icon);
+                    board_icon = g_strdup (attr_icon[PORT]);
                   }
                   break;
                 case HYSCAN_MARK_LOCATION_STARBOARD:
                   {
                     board = g_strdup (_("Starboard"));
-                    board_icon = g_strdup ("go-next");
+                    g_free (board_icon);
+                    board_icon = g_strdup (attr_icon[STARBOARD]);
                   }
                   break;
                 case HYSCAN_MARK_LOCATION_BOTTOM:
                   {
                     board = g_strdup (_("Bottom"));
-                    board_icon = g_strdup ("go-down");
+                    g_free (board_icon);
+                    board_icon = g_strdup (attr_icon[BOTTOM]);
                   }
                   break;
                 default:
                   board = g_strdup (_(unknown));
                   break;
                 }
-
+              image = gtk_image_new_from_resource (board_icon);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    board,
                                   COLUMN_TOOLTIP, _("Board"),
-                                  COLUMN_ICON,    board_icon,
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
               g_free (board);
               g_free (board_icon);
+              gtk_widget_destroy (image);
               /* Глубина. */
+              image = gtk_image_new_from_resource (attr_icon[DEPTH]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    depth,
                                   COLUMN_TOOLTIP, _("Depth"),
-                                  COLUMN_ICON,    "object-flip-vertical",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
               g_free (depth);
+              gtk_widget_destroy (image);
               /* Атрибуты акустических меток для левого и правого бортов. */
               if (location->direction != HYSCAN_MARK_LOCATION_BOTTOM)
                 {
@@ -1521,25 +1618,29 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
                         }
                     }
                   /* Ширина. */
+                  image = gtk_image_new_from_resource (attr_icon[WIDTH]);
                   gtk_tree_store_append (store, &item_iter, &child_iter);
                   gtk_tree_store_set (store,         &item_iter,
                   /* Отображается. */ COLUMN_NAME,    width,
                                       COLUMN_TOOLTIP, _("Width"),
-                                      COLUMN_ICON,    "object-flip-horizontal",
+                                      COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                       COLUMN_ACTIVE,  toggled,
                                       COLUMN_VISIBLE, FALSE,
                                       -1);
                   g_free (width);
+                  gtk_widget_destroy (image);
                   /* Наклонная дальность. */
+                  image = gtk_image_new_from_resource (attr_icon[SLANT_RANGE]);
                   gtk_tree_store_append (store, &item_iter, &child_iter);
                   gtk_tree_store_set (store,         &item_iter,
                   /* Отображается. */ COLUMN_NAME,    slant_range,
                                       COLUMN_TOOLTIP, _("Slant range"),
-                                      COLUMN_ICON,    "content-loading-symbolic",
+                                      COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                       COLUMN_ACTIVE,  toggled,
                                       COLUMN_VISIBLE, FALSE,
                                       -1);
                   g_free (slant_range);
+                  gtk_widget_destroy (image);
                 }
             }
         }
@@ -1569,12 +1670,13 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore *store,
             {
               GtkTreeIter child_iter,
                           item_iter;
+              GtkWidget *image = gtk_image_new_from_resource (type_icon[ACOUSTIC_MARK]);
               Extension *ext = g_hash_table_lookup (extensions, id);
               gchar *position = g_strdup_printf ("%.6f° %.6f° (WGS 84)",
                                                  location->mark_geo.lat,
                                                  location->mark_geo.lon),
                     *board,
-                    *board_icon = g_strdup ("network-wireless-no-route-symbolic"),
+                    *board_icon = g_strdup (attr_icon[BOARD]),
                     *depth = g_strdup_printf (_(distance_stamp), location->depth);
               gboolean toggled = FALSE;
 
@@ -1590,32 +1692,37 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore *store,
                                   COLUMN_OPERATOR,     object->operator_name,
                                   COLUMN_TOOLTIP,      _(type_name[ACOUSTIC_MARK]),
                                   COLUMN_TYPE,         ACOUSTIC_MARK,
-                                  COLUMN_ICON,         icon_name[ACOUSTIC_MARK],
+                                  COLUMN_ICON,         gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,       toggled,
                                   COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->labels,
                                   -1);
-
+              gtk_widget_destroy (image);
               /* Атрибуты акустической метки. */
               /* Описание. */
+              image = gtk_image_new_from_resource (attr_icon[DESCRIPTION]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->description,
                                   COLUMN_TOOLTIP, _("Description"),
-                                  COLUMN_ICON,    "accessories-text-editor",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Оператор. */
+              image = gtk_image_new_from_resource (attr_icon[OPERATOR]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->operator_name,
                                   COLUMN_TOOLTIP, _("Operator"),
-                                  COLUMN_ICON,    "avatar-default",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Время создания. */
+              image = gtk_image_new_from_resource (attr_icon[CREATION_TIME]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    g_date_time_format (
@@ -1623,11 +1730,13 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore *store,
                                                       object->ctime / G_TIME_SPAN_SECOND),
                                                     date_time_stamp),
                                   COLUMN_TOOLTIP, _("Creation time"),
-                                  COLUMN_ICON,    "appointment-new",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                    -1);
+              gtk_widget_destroy (image);
               /* Время модификации. */
+              image = gtk_image_new_from_resource (attr_icon[MODIFICATION_TIME]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    g_date_time_format (
@@ -1635,74 +1744,85 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore *store,
                                                       object->mtime / G_TIME_SPAN_SECOND),
                                                     date_time_stamp),
                                   COLUMN_TOOLTIP, _("Modification time"),
-                                  COLUMN_ICON,    "document-open-recent",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Координаты. */
+              image = gtk_image_new_from_resource (attr_icon[LOCATION]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    position,
                                   COLUMN_TOOLTIP, _("Location"),
-                                  COLUMN_ICON,    "preferences-desktop-locale",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               g_free (position);
               /* Название галса. */
+              image = gtk_image_new_from_resource (type_icon[TRACK]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    location->track_name,
                                   COLUMN_TOOLTIP, _("Track name"),
-                                  COLUMN_ICON,    icon_name[TRACK],
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Борт. */
               switch (location->direction)
                 {
                 case HYSCAN_MARK_LOCATION_PORT:
                   {
                     board = g_strdup (_("Port"));
-                    board_icon = g_strdup ("go-previous");
+                    g_free (board_icon);
+                    board_icon = g_strdup (attr_icon[PORT]);
                   }
                   break;
                 case HYSCAN_MARK_LOCATION_STARBOARD:
                   {
                     board = g_strdup (_("Starboard"));
-                    board_icon = g_strdup ("go-next");
+                    g_free (board_icon);
+                    board_icon = g_strdup (attr_icon[STARBOARD]);
                   }
                   break;
                 case HYSCAN_MARK_LOCATION_BOTTOM:
                   {
                     board = g_strdup (_("Bottom"));
-                    board_icon = g_strdup ("go-down");
+                    g_free (board_icon);
+                    board_icon = g_strdup (attr_icon[BOTTOM]);
                   }
                   break;
                 default:
                   board = g_strdup (_(unknown));
                   break;
                 }
-
+              image = gtk_image_new_from_resource (board_icon);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    board,
                                   COLUMN_TOOLTIP, _("Board"),
-                                  COLUMN_ICON,    board_icon,
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               g_free (board);
               g_free (board_icon);
               /* Глубина. */
+              image = gtk_image_new_from_resource (attr_icon[DEPTH]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    depth,
                                   COLUMN_TOOLTIP, _("Depth"),
-                                  COLUMN_ICON,    "object-flip-vertical",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               g_free (depth);
               /* Атрибуты акустических меток для левого и правого бортов. */
               if (location->direction != HYSCAN_MARK_LOCATION_BOTTOM)
@@ -1731,24 +1851,28 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore *store,
                         }
                     }
                   /* Ширина. */
+                  image = gtk_image_new_from_resource (attr_icon[WIDTH]);
                   gtk_tree_store_append (store, &item_iter, &child_iter);
                   gtk_tree_store_set (store,         &item_iter,
                   /* Отображается. */ COLUMN_NAME,    width,
                                       COLUMN_TOOLTIP, _("Width"),
-                                      COLUMN_ICON,    "object-flip-horizontal",
+                                      COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                       COLUMN_ACTIVE,  toggled,
                                       COLUMN_VISIBLE, FALSE,
                                       -1);
+                  gtk_widget_destroy (image);
                   g_free (width);
                   /* Наклонная дальность. */
+                  image = gtk_image_new_from_resource (attr_icon[SLANT_RANGE]);
                   gtk_tree_store_append (store, &item_iter, &child_iter);
                   gtk_tree_store_set (store,         &item_iter,
                   /* Отображается. */ COLUMN_NAME,    slant_range,
                                       COLUMN_TOOLTIP, _("Slant range"),
-                                      COLUMN_ICON,    "content-loading-symbolic",
+                                      COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                       COLUMN_ACTIVE,  toggled,
                                       COLUMN_VISIBLE, FALSE,
                                       -1);
+                  gtk_widget_destroy (image);
                   g_free (slant_range);
                 }
             }
@@ -1766,10 +1890,11 @@ hyscan_gtk_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
   if (extensions != NULL)
     {
       GtkTreeIter parent_iter;
+      GtkWidget *image = gtk_image_new_from_resource (type_icon[TRACK]);
       GHashTableIter table_iter;       /* Итератор для обхода хэш-таблиц. */
       HyScanTrackInfo *object;
       gchar *id;                       /* Идентификатор для обхода хэш-таблиц (ключ). */
-      gboolean active = hyscan_gtk_model_manager_is_all_toggled (extensions, type_id[TRACK]);
+      gboolean active  = hyscan_gtk_model_manager_is_all_toggled (extensions, type_id[TRACK]);
 
       /* Добавляем новый узел "Галсы" в модель. */
       gtk_tree_store_append (store, &parent_iter, NULL);
@@ -1780,11 +1905,12 @@ hyscan_gtk_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
                           COLUMN_OPERATOR,     _(author),
                           COLUMN_TOOLTIP,      _(type_name[TRACK]),
                           COLUMN_TYPE,         TRACK,
-                          COLUMN_ICON,         icon_name[TRACK],
+                          COLUMN_ICON,         gtk_image_get_pixbuf (GTK_IMAGE (image)),
                           COLUMN_ACTIVE,       active,
                           COLUMN_VISIBLE,      TRUE,
                           COLUMN_LABEL,        0,
                           -1);
+      gtk_widget_destroy (image);
 
       g_hash_table_iter_init (&table_iter, tracks);
       while (g_hash_table_iter_next (&table_iter, (gpointer*)&id, (gpointer*)&object))
@@ -1794,9 +1920,11 @@ hyscan_gtk_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
               HyScanLabel *label;
               GtkTreeIter child_iter,
                           item_iter;
+              GtkIconTheme *icon_theme = gtk_icon_theme_get_default ();
+              GdkPixbuf *pixbuf;
               GHashTableIter iter;
               gchar *key,
-                    *icon = icon_name[TRACK];
+                    *icon = type_icon[TRACK];
               gchar *ctime = (object->ctime == NULL)? "" : g_date_time_format (object->ctime, date_time_stamp),
                     *mtime = (object->mtime == NULL)? "" : g_date_time_format (object->mtime, date_time_stamp);
               gboolean toggled = active;
@@ -1812,9 +1940,27 @@ hyscan_gtk_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
                 {
                   if (object->labels == label->label)
                     {
-                      icon = label->icon_name;
+                      icon = label->icon_data;
                       break;
                     }
+                }
+
+              if (gtk_icon_theme_has_icon (icon_theme, icon))
+                {
+                  pixbuf  = gtk_icon_theme_load_icon (icon_theme, icon, 16, 0, NULL);
+                }
+              else
+                {
+                  GInputStream *stream = g_memory_input_stream_new ();
+                  GError *error = NULL;
+                  guchar *buf;
+                  gsize length;
+
+                  buf = g_base64_decode ((const gchar*)icon, &length);
+                  stream = g_memory_input_stream_new_from_data ((const void*)buf, (gssize)length, g_free);
+                  pixbuf = gdk_pixbuf_new_from_stream (stream, NULL, &error);
+
+                  g_object_unref (stream);
                 }
 
               /* Добавляем новый узел c названием галса в модель */
@@ -1826,48 +1972,58 @@ hyscan_gtk_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
                                   COLUMN_OPERATOR,     object->operator_name,
                                   COLUMN_TOOLTIP,      object->name,
                                   COLUMN_TYPE,         TRACK,
-                                  COLUMN_ICON,         icon,
+                                  COLUMN_ICON,         pixbuf,
                                   COLUMN_ACTIVE,       toggled,
                                   COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->labels,
                                   -1);
+              /* Очищаем иконку. */
+              g_object_unref (pixbuf);
               /* Атрибуты группы. */
               /* Описание. */
+              image = gtk_image_new_from_resource (attr_icon[DESCRIPTION]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->description,
                                   COLUMN_TOOLTIP, _("Description"),
-                                  COLUMN_ICON,    "accessories-text-editor",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Оператор. */
+              image = gtk_image_new_from_resource (attr_icon[OPERATOR]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->operator_name,
                                   COLUMN_TOOLTIP, _("Operator"),
-                                  COLUMN_ICON,    "avatar-default",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Время создания. */
+              image = gtk_image_new_from_resource (attr_icon[CREATION_TIME]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    ctime,
                                   COLUMN_TOOLTIP, _("Creation time"),
-                                  COLUMN_ICON,    "appointment-new",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
-                                   -1);
+                                  -1);
+              gtk_widget_destroy (image);
               /* Время модификации. */
+              image = gtk_image_new_from_resource (attr_icon[MODIFICATION_TIME]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    mtime,
                                   COLUMN_TOOLTIP, _("Modification time"),
-                                  COLUMN_ICON,    "document-open-recent",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
             }
         }
     }
@@ -1894,6 +2050,7 @@ hyscan_gtk_model_manager_refresh_tracks_by_labels (GtkTreeStore *store,
             {
               GtkTreeIter child_iter,
                           item_iter;
+              GtkWidget *image = gtk_image_new_from_resource (type_icon[TRACK]);
               Extension *ext = g_hash_table_lookup (extensions, id);
               gchar *ctime = (object->ctime == NULL)? "" : g_date_time_format (object->ctime, date_time_stamp),
                     *mtime = (object->mtime == NULL)? "" : g_date_time_format (object->mtime, date_time_stamp);
@@ -1911,49 +2068,57 @@ hyscan_gtk_model_manager_refresh_tracks_by_labels (GtkTreeStore *store,
                                   COLUMN_OPERATOR,     object->operator_name,
                                   COLUMN_TOOLTIP,      _(type_name[TRACK]),
                                   COLUMN_TYPE,         TRACK,
-                                  COLUMN_ICON,         icon_name[TRACK],
+                                  COLUMN_ICON,         gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,       toggled,
                                   COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->labels,
                                   -1);
-
+              gtk_widget_destroy (image);
               /* Атрибуты галса. */
               /* Описание. */
+              image = gtk_image_new_from_resource (attr_icon[DESCRIPTION]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->description,
                                   COLUMN_TOOLTIP, _("Description"),
-                                  COLUMN_ICON,    "accessories-text-editor",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Оператор. */
+              image = gtk_image_new_from_resource (attr_icon[OPERATOR]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    object->operator_name,
                                   COLUMN_TOOLTIP, _("Operator"),
-                                  COLUMN_ICON,    "avatar-default",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
               /* Время создания. */
+              image = gtk_image_new_from_resource (attr_icon[CREATION_TIME]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    ctime,
                                   COLUMN_TOOLTIP, _("Creation time"),
-                                  COLUMN_ICON,    "appointment-new",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
-                                   -1);
+                                  -1);
+              gtk_widget_destroy (image);
               /* Время модификации. */
+              image = gtk_image_new_from_resource (attr_icon[MODIFICATION_TIME]);
               gtk_tree_store_append (store, &item_iter, &child_iter);
               gtk_tree_store_set (store,         &item_iter,
               /* Отображается. */ COLUMN_NAME,    mtime,
                                   COLUMN_TOOLTIP, _("Modification time"),
-                                  COLUMN_ICON,    "document-open-recent",
+                                  COLUMN_ICON,    gtk_image_get_pixbuf (GTK_IMAGE (image)),
                                   COLUMN_ACTIVE,  toggled,
                                   COLUMN_VISIBLE, FALSE,
                                   -1);
+              gtk_widget_destroy (image);
             }
         }
     }
@@ -2074,11 +2239,31 @@ hyscan_gtk_model_manager_refresh_all_items_by_labels (HyScanGtkModelManager *sel
           GtkTreeIter iter,
                       child_iter;
           GtkTreeStore *store = GTK_TREE_STORE (priv->view_model);
+          GtkIconTheme *icon_theme = gtk_icon_theme_get_default ();
+          GdkPixbuf *icon;
           GHashTable *acoustic_marks = hyscan_mark_loc_model_get (priv->acoustic_loc_model),
                      *geo_marks      = hyscan_object_model_get (priv->geo_mark_model),
                      *tracks         = hyscan_db_info_get_tracks (priv->track_model);
           Extension *ext = g_hash_table_lookup (priv->extensions[LABEL], id);
           gboolean toggled = FALSE;
+
+          if (gtk_icon_theme_has_icon (icon_theme, label->icon_data))
+            {
+              icon  = gtk_icon_theme_load_icon (icon_theme, label->icon_data, 16, 0, NULL);
+            }
+          else
+            {
+              GInputStream *stream = g_memory_input_stream_new ();
+              GError *error = NULL;
+              guchar *buf;
+              gsize length;
+
+              buf = g_base64_decode ((const gchar*)label->icon_data, &length);
+              stream = g_memory_input_stream_new_from_data ((const void*)buf, (gssize)length, g_free);
+              icon = gdk_pixbuf_new_from_stream (stream, NULL, &error);
+
+              g_object_unref (stream);
+            }
 
           if (ext != NULL)
             toggled = (ext != NULL) ? ext->active : FALSE;
@@ -2092,11 +2277,13 @@ hyscan_gtk_model_manager_refresh_all_items_by_labels (HyScanGtkModelManager *sel
                               COLUMN_OPERATOR,     label->operator_name,
                               COLUMN_TOOLTIP,      label->name,
                               COLUMN_TYPE,         LABEL,
-                              COLUMN_ICON,         label->icon_name,
+                              COLUMN_ICON,         icon,
                               COLUMN_ACTIVE,       toggled,
                               COLUMN_VISIBLE,      TRUE,
                               COLUMN_LABEL,        label->label,
                               -1);
+          /* Очищаем иконку. */
+          g_object_unref (icon);
           /* Гео-метки. */
           hyscan_gtk_model_manager_refresh_geo_marks_by_labels (store,
                                                                 &iter,

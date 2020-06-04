@@ -851,11 +851,11 @@ hyscan_gtk_mark_manager_view_set_func_icon (GtkTreeViewColumn *tree_column,
                                             GtkTreeIter       *iter,
                                             gpointer           data)
 {
-  gchar *icon_name = NULL;
-  gtk_tree_model_get (model, iter, COLUMN_ICON,  &icon_name, -1);
-  g_object_set (GTK_CELL_RENDERER (cell), "icon-name", icon_name, NULL);
-  if (icon_name != NULL)
-    g_free (icon_name);
+  GdkPixbuf *pixbuf = NULL;
+  gtk_tree_model_get (model, iter, COLUMN_ICON,  &pixbuf, -1);
+  g_object_set (GTK_CELL_RENDERER (cell), "pixbuf", pixbuf, NULL);
+  if (pixbuf != NULL)
+    g_object_unref (pixbuf);
 }
 
 /* Отображение чек-бокса. */

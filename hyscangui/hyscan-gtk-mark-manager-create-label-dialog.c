@@ -61,7 +61,6 @@ enum
 enum
 {
   COLUMN_ICON,    /* Колонка с иконкой. */
-  COLUMN_NAME,    /* Колонка с названием иконки. */
   N_COLUMNS       /* Количество колонок. */
 };
 
@@ -217,7 +216,7 @@ hyscan_gtk_mark_manager_create_label_dialog_constructed (GObject *object)
 
   ptr = g_list_first (images);
 
-  priv->icon_model = GTK_TREE_MODEL (gtk_list_store_new (N_COLUMNS, GDK_TYPE_PIXBUF, G_TYPE_STRING));
+  priv->icon_model = GTK_TREE_MODEL (gtk_list_store_new (N_COLUMNS, GDK_TYPE_PIXBUF));
 
   do
     {
@@ -230,10 +229,7 @@ hyscan_gtk_mark_manager_create_label_dialog_constructed (GObject *object)
           GtkListStore *store = GTK_LIST_STORE (priv->icon_model);
 
           gtk_list_store_append (store, &iter);
-          gtk_list_store_set (store, &iter,
-                              COLUMN_ICON, pixbuf,
-                              COLUMN_NAME, icon_name,
-                              -1);
+          gtk_list_store_set (store, &iter, COLUMN_ICON, pixbuf, -1);
           g_object_unref (pixbuf);
         }
       else
@@ -297,11 +293,12 @@ hyscan_gtk_mark_manager_create_label_dialog_response (GtkWidget *dialog,
 
   if (response == GTK_RESPONSE_OK)
     {
-      HyScanLabel *label = hyscan_label_new ();
-      GHashTable  *table = hyscan_object_model_get (priv->label_model);
+      HyScanLabel *label  = hyscan_label_new ();
+      GdkPixbuf   *pixbuf = NULL;
+      GHashTable  *table  = hyscan_object_model_get (priv->label_model);
       GList       *images;
-      gint64       time  = g_date_time_to_unix (g_date_time_new_now_local ());
-      guint64      id    = hyscan_gtk_mark_manager_create_label_dialog_generate_label (table);
+      gint64       time   = g_date_time_to_unix (g_date_time_new_now_local ());
+      guint64      id     = hyscan_gtk_mark_manager_create_label_dialog_generate_label (table);
 
       g_hash_table_destroy (table);
 
@@ -313,7 +310,9 @@ hyscan_gtk_mark_manager_create_label_dialog_response (GtkWidget *dialog,
 
       if (g_list_length (images) == 0)
         {
-          hyscan_label_set_icon_name (label, "emblem-default");
+          GtkWidget *image = gtk_image_new_from_resource ("/org/hyscan/icons/emblem-default.png");
+          pixbuf = gtk_image_get_pixbuf (GTK_IMAGE (image));
+          gtk_widget_destroy (image);
         }
       else
         {
@@ -321,27 +320,41 @@ hyscan_gtk_mark_manager_create_label_dialog_response (GtkWidget *dialog,
           GtkTreeIter iter;
           if (gtk_tree_model_get_iter (priv->icon_model, &iter, (GtkTreePath*)ptr->data))
             {
-              gchar *icon_name = NULL;
-              gtk_tree_model_get (priv->icon_model, &iter, COLUMN_NAME, &icon_name, -1);
-              hyscan_label_set_icon_name (label, icon_name);
-              g_free (icon_name);
-            }
-          else
-            {
-              hyscan_label_free (label);
-              g_list_free (images);
-              gtk_widget_destroy (dialog);
-              return;
+              gtk_tree_model_get (priv->icon_model, &iter, COLUMN_ICON, &pixbuf, -1);
             }
         }
+
       g_list_free (images);
-      hyscan_label_set_label (label, id);
-      hyscan_label_set_ctime (label, time);
-      hyscan_label_set_mtime (label, time);
-      /* Добавляем группу в базу данных. */
-      hyscan_object_model_add_object (priv->label_model, (const HyScanObject*) label);
+
+      if (pixbuf != NULL)
+        {
+          GOutputStream *stream = g_memory_output_stream_new_resizable ();
+
+          if (gdk_pixbuf_save_to_stream (pixbuf, stream, "png", NULL, NULL, NULL))
+            {
+              gpointer data = g_memory_output_stream_get_data (G_MEMORY_OUTPUT_STREAM (stream));
+
+              gsize length = g_memory_output_stream_get_size (G_MEMORY_OUTPUT_STREAM (stream));
+              gchar *str = g_base64_encode ((const guchar*)data, length);
+
+              hyscan_label_set_icon_data (label, (const gchar*)str);
+
+              g_object_unref (pixbuf);
+              g_free (str);
+            }
+
+          g_object_unref (stream);
+
+          hyscan_label_set_label (label, id);
+          hyscan_label_set_ctime (label, time);
+          hyscan_label_set_mtime (label, time);
+          /* Добавляем группу в базу данных. */
+          hyscan_object_model_add_object (priv->label_model, (const HyScanObject*) label);
+        }
+
       hyscan_label_free (label);
     }
+
   gtk_widget_destroy (dialog);
 }
 
