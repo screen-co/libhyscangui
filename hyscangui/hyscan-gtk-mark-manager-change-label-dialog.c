@@ -205,23 +205,15 @@ hyscan_gtk_mark_manager_change_label_dialog_constructed (GObject *object)
           if (object != NULL)
             {
               GdkPixbuf *icon = NULL;
-              if (gtk_icon_theme_has_icon (icon_theme, object->icon_data))
-                {
-                  icon = gtk_icon_theme_load_icon (icon_theme, object->icon_data, 16, 0, NULL);
-                }
-              else
-                {
-                  GInputStream *stream = g_memory_input_stream_new ();
-                  GError *error = NULL;
-                  guchar *buf;
-                  gsize length;
+              GInputStream *stream = g_memory_input_stream_new ();
+              GError *error = NULL;
+              guchar *buf;
+              gsize length;
 
-                  buf = g_base64_decode ((const gchar*)object->icon_data, &length);
-                  stream = g_memory_input_stream_new_from_data ((const void*)buf, (gssize)length, g_free);
-                  icon = gdk_pixbuf_new_from_stream (stream, NULL, &error);
-
-                  g_object_unref (stream);
-                }
+              buf = g_base64_decode ((const gchar*)object->icon_data, &length);
+              stream = g_memory_input_stream_new_from_data ((const void*)buf, (gssize)length, g_free);
+              icon = gdk_pixbuf_new_from_stream (stream, NULL, &error);
+              g_object_unref (stream);
 
               if (icon != NULL)
                 {

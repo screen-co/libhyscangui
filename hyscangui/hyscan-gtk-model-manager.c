@@ -999,13 +999,22 @@ hyscan_gtk_model_manager_refresh_labels_by_types (GtkTreeStore *store,
               gboolean toggled = active;
               GtkWidget *image;
               GtkIconTheme *icon_theme = gtk_icon_theme_get_default ();
-              GdkPixbuf *icon  = gtk_icon_theme_load_icon (icon_theme, object->icon_data, 16, 0, NULL);
+              GdkPixbuf *pixbuf;
+              GInputStream *stream = g_memory_input_stream_new ();
+              GError *error = NULL;
+              guchar *buf;
+              gsize length;
 
               if (!active)
                 {
                   Extension *ext = g_hash_table_lookup (extensions, id);
                   toggled = (ext != NULL) ? ext->active : FALSE;
                 }
+
+              buf = g_base64_decode ((const gchar*)object->icon_data, &length);
+              stream = g_memory_input_stream_new_from_data ((const void*)buf, (gssize)length, g_free);
+              pixbuf = gdk_pixbuf_new_from_stream (stream, NULL, &error);
+              g_object_unref (stream);
               /* Добавляем новый узел c названием группы в модель */
               gtk_tree_store_append (store, &child_iter, &parent_iter);
               gtk_tree_store_set (store,              &child_iter,
@@ -1015,13 +1024,13 @@ hyscan_gtk_model_manager_refresh_labels_by_types (GtkTreeStore *store,
                                   COLUMN_OPERATOR,     object->operator_name,
                                   COLUMN_TOOLTIP,      object->name,
                                   COLUMN_TYPE,         LABEL,
-                                  COLUMN_ICON,         icon,
+                                  COLUMN_ICON,         pixbuf,
                                   COLUMN_ACTIVE,       toggled,
                                   COLUMN_VISIBLE,      TRUE,
                                   COLUMN_LABEL,        object->label,
                                   -1);
               /* Очищаем иконку. */
-              g_object_unref (icon);
+              g_object_unref (pixbuf);
               /* Атрибуты группы. */
               /* Описание. */
               image = gtk_image_new_from_resource (attr_icon[DESCRIPTION]);
@@ -1114,18 +1123,21 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
           if (object != NULL)
             {
               HyScanLabel *label;
-              GtkTreeIter child_iter,
-                          item_iter;
+              GtkTreeIter  child_iter,
+                           item_iter;
+              GdkPixbuf   *pixbuf;
               GHashTableIter iter;
-              gchar *key,
-                    *icon = "mark-location",
-                    *position = g_strdup_printf ("%.6f° %.6f° (WGS 84)",
-                                                 object->center.lat,
-                                                 object->center.lon);
+              GInputStream *stream = g_memory_input_stream_new ();
+              GError *error = NULL;
+              gsize   length;
+              guchar *buf;
+              gchar  *key,
+                     *icon = "mark-location",
+                     *position = g_strdup_printf ("%.6f° %.6f° (WGS 84)",
+                                                  object->center.lat,
+                                                  object->center.lon);
               gboolean toggled = active;
-              GError       *error = NULL;
-              GtkIconTheme *icon_theme = gtk_icon_theme_get_default ();
-              GdkPixbuf    *pixbuf;
+
 
               if (!active)
                 {
@@ -1143,23 +1155,10 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_types (GtkTreeStore *store,
                     }
                 }
 
-              if (gtk_icon_theme_has_icon (icon_theme, icon))
-                {
-                  pixbuf  = gtk_icon_theme_load_icon (icon_theme, icon, 16, 0, NULL);
-                }
-              else
-                {
-                  GInputStream *stream = g_memory_input_stream_new ();
-                  GError *error = NULL;
-                  guchar *buf;
-                  gsize length;
-
-                  buf = g_base64_decode ((const gchar*)icon, &length);
-                  stream = g_memory_input_stream_new_from_data ((const void*)buf, (gssize)length, g_free);
-                  pixbuf = gdk_pixbuf_new_from_stream (stream, NULL, &error);
-
-                  g_object_unref (stream);
-                }
+              buf = g_base64_decode ((const gchar*)icon, &length);
+              stream = g_memory_input_stream_new_from_data ((const void*)buf, (gssize)length, g_free);
+              pixbuf = gdk_pixbuf_new_from_stream (stream, NULL, &error);
+              g_object_unref (stream);
 
               /* Добавляем новый узел c названием гео-метки в модель */
               gtk_tree_store_append (store, &child_iter, &parent_iter);
@@ -1404,6 +1403,10 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
               GtkIconTheme *icon_theme = gtk_icon_theme_get_default ();
               GdkPixbuf *pixbuf;
               GHashTableIter iter;
+              GInputStream *stream = g_memory_input_stream_new ();
+              GError *error = NULL;
+              guchar *buf;
+              gsize length;
               gchar *key,
                     *icon = type_icon[ACOUSTIC_MARK],
                     *position = g_strdup_printf ("%.6f° %.6f° (WGS 84)",
@@ -1412,7 +1415,7 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
                     *board,
                     *board_icon = g_strdup (attr_icon[BOARD]),
                     *depth = g_strdup_printf (_(distance_stamp), location->depth);
-              gboolean toggled  = active;
+              gboolean toggled = active;
 
               if (!active)
                 {
@@ -1430,23 +1433,10 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
                     }
                 }
 
-              if (gtk_icon_theme_has_icon (icon_theme, icon))
-                {
-                  pixbuf  = gtk_icon_theme_load_icon (icon_theme, icon, 16, 0, NULL);
-                }
-              else
-                {
-                  GInputStream *stream = g_memory_input_stream_new ();
-                  GError *error = NULL;
-                  guchar *buf;
-                  gsize length;
-
-                  buf = g_base64_decode ((const gchar*)icon, &length);
-                  stream = g_memory_input_stream_new_from_data ((const void*)buf, (gssize)length, g_free);
-                  pixbuf = gdk_pixbuf_new_from_stream (stream, NULL, &error);
-
-                  g_object_unref (stream);
-                }
+              buf = g_base64_decode ((const gchar*)icon, &length);
+              stream = g_memory_input_stream_new_from_data ((const void*)buf, (gssize)length, g_free);
+              pixbuf = gdk_pixbuf_new_from_stream (stream, NULL, &error);
+              g_object_unref (stream);
 
               /* Добавляем новый узел c названием группы в модель */
               gtk_tree_store_append (store, &child_iter, &parent_iter);
@@ -1920,13 +1910,16 @@ hyscan_gtk_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
               HyScanLabel *label;
               GtkTreeIter child_iter,
                           item_iter;
-              GtkIconTheme *icon_theme = gtk_icon_theme_get_default ();
               GdkPixbuf *pixbuf;
               GHashTableIter iter;
-              gchar *key,
-                    *icon = type_icon[TRACK];
-              gchar *ctime = (object->ctime == NULL)? "" : g_date_time_format (object->ctime, date_time_stamp),
-                    *mtime = (object->mtime == NULL)? "" : g_date_time_format (object->mtime, date_time_stamp);
+              GInputStream *stream = g_memory_input_stream_new ();
+              GError *error = NULL;
+              gsize   length;
+              guchar *buf;
+              gchar  *key,
+                     *icon = type_icon[TRACK];
+              gchar  *ctime = (object->ctime == NULL)? "" : g_date_time_format (object->ctime, date_time_stamp),
+                     *mtime = (object->mtime == NULL)? "" : g_date_time_format (object->mtime, date_time_stamp);
               gboolean toggled = active;
 
               if (!active)
@@ -1945,23 +1938,10 @@ hyscan_gtk_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
                     }
                 }
 
-              if (gtk_icon_theme_has_icon (icon_theme, icon))
-                {
-                  pixbuf  = gtk_icon_theme_load_icon (icon_theme, icon, 16, 0, NULL);
-                }
-              else
-                {
-                  GInputStream *stream = g_memory_input_stream_new ();
-                  GError *error = NULL;
-                  guchar *buf;
-                  gsize length;
-
-                  buf = g_base64_decode ((const gchar*)icon, &length);
-                  stream = g_memory_input_stream_new_from_data ((const void*)buf, (gssize)length, g_free);
-                  pixbuf = gdk_pixbuf_new_from_stream (stream, NULL, &error);
-
-                  g_object_unref (stream);
-                }
+              buf = g_base64_decode ((const gchar*)icon, &length);
+              stream = g_memory_input_stream_new_from_data ((const void*)buf, (gssize)length, g_free);
+              pixbuf = gdk_pixbuf_new_from_stream (stream, NULL, &error);
+              g_object_unref (stream);
 
               /* Добавляем новый узел c названием галса в модель */
               gtk_tree_store_append (store, &child_iter, &parent_iter);
@@ -2239,31 +2219,21 @@ hyscan_gtk_model_manager_refresh_all_items_by_labels (HyScanGtkModelManager *sel
           GtkTreeIter iter,
                       child_iter;
           GtkTreeStore *store = GTK_TREE_STORE (priv->view_model);
-          GtkIconTheme *icon_theme = gtk_icon_theme_get_default ();
           GdkPixbuf *icon;
+          GInputStream *stream = g_memory_input_stream_new ();
+          GError *error = NULL;
           GHashTable *acoustic_marks = hyscan_mark_loc_model_get (priv->acoustic_loc_model),
                      *geo_marks      = hyscan_object_model_get (priv->geo_mark_model),
                      *tracks         = hyscan_db_info_get_tracks (priv->track_model);
           Extension *ext = g_hash_table_lookup (priv->extensions[LABEL], id);
+          guchar *buf;
+          gsize length;
           gboolean toggled = FALSE;
 
-          if (gtk_icon_theme_has_icon (icon_theme, label->icon_data))
-            {
-              icon  = gtk_icon_theme_load_icon (icon_theme, label->icon_data, 16, 0, NULL);
-            }
-          else
-            {
-              GInputStream *stream = g_memory_input_stream_new ();
-              GError *error = NULL;
-              guchar *buf;
-              gsize length;
-
-              buf = g_base64_decode ((const gchar*)label->icon_data, &length);
-              stream = g_memory_input_stream_new_from_data ((const void*)buf, (gssize)length, g_free);
-              icon = gdk_pixbuf_new_from_stream (stream, NULL, &error);
-
-              g_object_unref (stream);
-            }
+          buf = g_base64_decode ((const gchar*)label->icon_data, &length);
+          stream = g_memory_input_stream_new_from_data ((const void*)buf, (gssize)length, g_free);
+          icon = gdk_pixbuf_new_from_stream (stream, NULL, &error);
+          g_object_unref (stream);
 
           if (ext != NULL)
             toggled = (ext != NULL) ? ext->active : FALSE;
