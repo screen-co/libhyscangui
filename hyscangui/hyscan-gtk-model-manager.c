@@ -1940,7 +1940,7 @@ hyscan_gtk_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
               gsize   length;
               guchar *buf;
               gchar  *key,
-                     *icon = type_icon[TRACK];
+                     *icon = NULL;
               gchar  *ctime = (object->ctime == NULL)? "" : g_date_time_format (object->ctime, date_time_stamp),
                      *mtime = (object->mtime == NULL)? "" : g_date_time_format (object->mtime, date_time_stamp);
               gboolean toggled = active;
