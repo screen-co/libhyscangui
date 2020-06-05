@@ -385,12 +385,10 @@ hyscan_gtk_mark_manager_create_label_dialog_check_entry (GtkEntry  *entry,
 static guint64
 hyscan_gtk_mark_manager_create_label_dialog_generate_label (GHashTable *table)
 {
-  guint64 label = g_random_int ();
-  label = label << 32 | g_random_int ();
+  guint64 label = 0x1;
   while (!hyscan_gtk_mark_manager_create_label_dialog_validate_label (table, label))
     {
-      label = g_random_int ();
-      label = label << 32 | g_random_int ();
+      label = (label << 1);
     }
   return label;
 }

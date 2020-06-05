@@ -52,6 +52,8 @@
 #include <hyscan-gtk-mark-export.h>
 #include <glib/gi18n-lib.h>
 
+#define MAX_LABELS 32 /* Максимальное количество групп. */
+
 enum
 {
   PROP_MODEL_MANAGER = 1, /* Менеджер Моделей. */
@@ -102,6 +104,7 @@ struct _HyScanGtkMarkManagerPrivate
                         *save_as_html,        /* Пункт выпадающего меню "Сохранить в формате HTML". */
                         *new_label_dialog,    /* Диалог создания новой группы. */
                         *change_label_dialog; /* Диалог переноса объектов в другую группу. */
+  GtkToolItem           *new_label_item;      /* Кнопка "Новая группа". */
   GtkIconSize            icon_size;           /* Размер иконок. */
   gulong                 signal;              /* Идентификатор сигнала изменения типа группировки.*/
 };
@@ -172,6 +175,8 @@ static void         hyscan_gtk_mark_manager_select_item                 (HyScanG
 static void         hyscan_gtk_mark_manager_unselect                    (HyScanGtkMarkManager *self);
 
 static void         hyscan_gtk_mark_manager_unselect_all                (HyScanGtkMarkManager *self);
+
+static void         hyscan_gtk_mark_manager_labels_changed              (HyScanGtkMarkManager *self);
 
 static void         hyscan_gtk_mark_manager_item_toggled                (HyScanGtkMarkManager *self,
                                                                          gchar                *id,
@@ -278,7 +283,6 @@ hyscan_gtk_mark_manager_constructed (GObject *object)
   GtkBox       *box                 = GTK_BOX (object);   /* Контейнер для панели инструментов и представления.*/
   GtkWidget    *toolbar             = gtk_toolbar_new (); /* Панель инструментов. */
   GtkWidget    *action_menu         = gtk_menu_new ();    /* Меню действий. */
-  GtkToolItem  *new_label_item      = NULL;
   /* Кнопка для меню управления видимостью. */
   GtkToolItem  *action_item         = NULL;
   GtkToolItem  *separator           = gtk_separator_tool_item_new (); /* Разделитель. */
@@ -286,8 +290,8 @@ hyscan_gtk_mark_manager_constructed (GObject *object)
   GtkTreeModel *model               = hyscan_gtk_model_manager_get_view_model (priv->model_manager);
   /* Размещаем панель инструментов сверху. */
   HyScanGtkMarkManagerToolbarPosition toolbar_position = TOOLBAR_TOP;
-  ModelManagerGrouping index,    /* Для обхода массива с пунктами меню выбора типа представления.*/
-                       grouping; /* Для хранения текущего значения. */
+  ModelManagerGrouping index,     /* Для обхода массива с пунктами меню выбора типа представления.*/
+                       grouping;  /* Для хранения текущего значения. */
   /* Дефолтный конструктор родительского класса. */
   G_OBJECT_CLASS (hyscan_gtk_mark_manager_parent_class)->constructed (object);
   /* Подключаем сигнал об изменении типа группировки.*/
@@ -344,6 +348,12 @@ hyscan_gtk_mark_manager_constructed (GObject *object)
                                                                        SIGNAL_UNSELECT_ALL),
                             G_CALLBACK (hyscan_gtk_mark_manager_unselect_all),
                             self);
+  /* Подключаем сигнал об изменении данных в модели групп. */
+  g_signal_connect_swapped (priv->model_manager,
+                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
+                                                                       SIGNAL_LABELS_CHANGED),
+                            G_CALLBACK (hyscan_gtk_mark_manager_labels_changed),
+                            self);
   /* Виджет представления. */
   priv->view = hyscan_gtk_mark_manager_view_new (model);
   g_object_unref (model);
@@ -360,15 +370,17 @@ hyscan_gtk_mark_manager_constructed (GObject *object)
   g_signal_connect_swapped (G_OBJECT (priv->view), "expanded",
                             G_CALLBACK (hyscan_gtk_mark_manager_item_expanded), self);
   /* Кнопка "Создать новую группу". */
-  new_label_item  = gtk_tool_button_new (NULL, _(tooltips_text[CREATE_NEW_GROUP]));
-  gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (new_label_item), "insert-object");
-  /* Кнопка для меню управления видимостью. */
+  priv->new_label_item = gtk_tool_button_new (NULL, _(tooltips_text[CREATE_NEW_GROUP]));
+  gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (priv->new_label_item), "insert-object");
+  gtk_widget_set_tooltip_text (GTK_WIDGET (priv->new_label_item), _(tooltips_text[CREATE_NEW_GROUP]));
+  /* Обработчик нажатия кнопки "Новая группа". */
+  g_signal_connect (G_OBJECT (priv->new_label_item), "clicked",
+                    G_CALLBACK (hyscan_gtk_mark_manager_create_new_label), self);
+  /* Если создано более MAX_LABELS групп, делаем кнопку "Новая группа" неактивной. */
+  hyscan_gtk_mark_manager_labels_changed (self);
+  /* Кнопка для меню управления. */
   action_item = gtk_menu_tool_button_new (NULL, _(tooltips_text[DELETE_SELECTED]));
   gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (action_item), "edit-delete");
-  gtk_widget_set_tooltip_text (GTK_WIDGET (new_label_item), _(tooltips_text[CREATE_NEW_GROUP]));
-  /* Обработчик нажатия кнопки "Новая группа". */
-  g_signal_connect (G_OBJECT (new_label_item), "clicked",
-                    G_CALLBACK (hyscan_gtk_mark_manager_create_new_label), self);
   /* Иконка для кнопки "Удалить выделенное". */
   priv->delete_icon = gtk_image_new_from_icon_name ("edit-delete", priv->icon_size);
   /* Делаем неактивной кнопку "Удалить выделенное". */
@@ -455,10 +467,10 @@ hyscan_gtk_mark_manager_constructed (GObject *object)
   /* Выпадающий список в контейнер. */
   gtk_container_add (GTK_CONTAINER (container), priv->combo);
   /* Заполняем панель инструментов. */
-  gtk_toolbar_insert (GTK_TOOLBAR (toolbar), new_label_item,   -1);
-  gtk_toolbar_insert (GTK_TOOLBAR (toolbar), action_item,      -1);
-  gtk_toolbar_insert (GTK_TOOLBAR (toolbar), container,        -1);
-  gtk_toolbar_insert (GTK_TOOLBAR (toolbar), separator,        -1);
+  gtk_toolbar_insert (GTK_TOOLBAR (toolbar), priv->new_label_item, -1);
+  gtk_toolbar_insert (GTK_TOOLBAR (toolbar), action_item,          -1);
+  gtk_toolbar_insert (GTK_TOOLBAR (toolbar), container,            -1);
+  gtk_toolbar_insert (GTK_TOOLBAR (toolbar), separator,            -1);
   /* Добавляем панель инструментов и представление с учётом взаимного расположения. */
   switch (toolbar_position)
   {
@@ -840,6 +852,24 @@ hyscan_gtk_mark_manager_unselect_all (HyScanGtkMarkManager *self)
   HyScanGtkMarkManagerPrivate *priv = self->priv;
 
   hyscan_gtk_mark_manager_view_unselect_all (HYSCAN_GTK_MARK_MANAGER_VIEW (priv->view));
+}
+
+/* Функция-обработчик сигнала об изменении данных в модели групп.
+ * Приходит из Model Manager-а. */
+void
+hyscan_gtk_mark_manager_labels_changed (HyScanGtkMarkManager *self)
+{
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
+  HyScanObjectModel *label_model;
+  GHashTable *table;
+  guint size;
+  /* Если групп более MAX_LABELS, делаем кнопку "Новая группа" неактивной. */
+  label_model = hyscan_gtk_model_manager_get_label_model (priv->model_manager);
+  table = hyscan_object_model_get (label_model);
+  size = g_hash_table_size (table);
+  gtk_widget_set_sensitive (GTK_WIDGET (priv->new_label_item), size < MAX_LABELS);
+  g_hash_table_destroy (table);
+  g_object_unref (label_model);
 }
 
 /* Функция-обработчик изменения состояния чек-боксов в MarkManagerView. */
