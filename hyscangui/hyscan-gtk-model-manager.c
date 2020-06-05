@@ -1964,7 +1964,7 @@ hyscan_gtk_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
               /* Если нет иконки группы, используем иконку из ресурсов. */
               if (icon == NULL)
                 {
-                  pixbuf = gdk_pixbuf_new_from_resource (type_icon[GEO_MARK], NULL);
+                  pixbuf = gdk_pixbuf_new_from_resource (type_icon[TRACK], NULL);
                 }
               else
                 {
