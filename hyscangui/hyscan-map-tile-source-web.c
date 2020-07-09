@@ -305,7 +305,7 @@ error:
   if (error != NULL)
     {
       if (!g_error_matches (error, G_IO_ERROR, G_IO_ERROR_CANCELLED))
-        g_warning ("HyScanMapTileSourceWeb: failed to read \"%s\" (%s)", task->url, error->message);
+        g_debug ("HyScanMapTileSourceWeb: failed to read \"%s\" (%s)", task->url, error->message);
 
       g_clear_error (&error);
     }
@@ -415,7 +415,8 @@ hyscan_map_tile_source_web_set_format (HyScanMapTileSourceWebPrivate *priv,
   gchar *replace_xyz[] = {"{x}", "%1$d", "{y}", "%2$d", "{z}", "%3$d", NULL};
   gchar *replace_quad[] = {"{quadkey}", "%s", NULL};
   gchar *inverse_y = NULL;
-  g_free (priv->url_format);
+
+  g_clear_pointer (&priv->url_format, g_free);
 
   /* Проверяем, не инвентированна ли ось Y у источника тайлов. */
   inverse_y = hyscan_map_tile_source_web_replace (url_tpl, replace_inv_y);
@@ -425,11 +426,10 @@ hyscan_map_tile_source_web_set_format (HyScanMapTileSourceWebPrivate *priv,
 
   /* Проверяем, подходит ли формат xyz. */
   priv->url_format = hyscan_map_tile_source_web_replace (url_tpl, replace_xyz);
-  g_free (inverse_y);
   if (priv->url_format != NULL)
     {
       priv->url_type = URL_FORMAT_XYZ;
-      return;
+      goto exit;
     }
 
   /* Проверяем, подходит ли формат quad. */
@@ -437,11 +437,14 @@ hyscan_map_tile_source_web_set_format (HyScanMapTileSourceWebPrivate *priv,
   if (priv->url_format != NULL)
     {
       priv->url_type = URL_FORMAT_QUAD;
-      return;
+      goto exit;
     }
 
   priv->url_type = URL_FORMAT_INVALID;
-  g_warning ("HyScanMapTileSourceWeb: wrong URL format");
+  g_warning ("HyScanMapTileSourceWeb: wrong URL format '%s'", url_tpl);
+
+exit:
+  g_free (inverse_y);
 }
 
 /* Гененрирует quadkey для bing maps. Для удаления g_free.
