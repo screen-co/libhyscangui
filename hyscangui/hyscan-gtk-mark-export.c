@@ -388,7 +388,7 @@ hyscan_gtk_mark_export_save_tile (HyScanMarkLocation *location,     /* Метк�
                   GDateTime *local = NULL;
                   gchar *lat, *lon, *name, *description, *comment, *notes,
                         *date, *time, *content, *file_name, *board, *format,
-                        *track_time = (track_ctime == NULL)? _(empty) : g_date_time_format (track_ctime, time_stamp);
+                        *track_time = (track_ctime == NULL)? g_strdup (_(empty)) : g_date_time_format (track_ctime, time_stamp);
                   if (echo)
                     {
                       format = g_strdup (_("\t\t\t<p><a name=\"%s\"><strong>%s</strong></a></p>\n"
@@ -493,6 +493,7 @@ hyscan_gtk_mark_export_save_tile (HyScanMarkLocation *location,     /* Метк�
                   g_free (description);
                   g_free (comment);
                   g_free (notes);
+                  g_free (track_time);
                   g_free (date);
                   g_free (time);
                   g_free (board);

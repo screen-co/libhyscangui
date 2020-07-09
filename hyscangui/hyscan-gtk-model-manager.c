@@ -917,8 +917,8 @@ hyscan_gtk_model_manager_set_view_model (HyScanGtkModelManager *self)
                           {
                             GdkPixbuf *pixbuf = gdk_pixbuf_new_from_resource (type_icon[TRACK], NULL);
                             Extension *ext = g_hash_table_lookup (priv->extensions[TRACK], id);
-                            gchar *ctime = (object->ctime == NULL)? "" : g_date_time_format (object->ctime, date_time_stamp),
-                                  *mtime = (object->mtime == NULL)? "" : g_date_time_format (object->mtime, date_time_stamp);
+                            gchar *ctime = (object->ctime == NULL)? g_strdup ("") : g_date_time_format (object->ctime, date_time_stamp),
+                                  *mtime = (object->mtime == NULL)? g_strdup ("") : g_date_time_format (object->mtime, date_time_stamp);
 
                             gtk_list_store_append (store, &store_iter);
                             gtk_list_store_set (store, &store_iter,
@@ -1941,8 +1941,8 @@ hyscan_gtk_model_manager_refresh_tracks_by_types (GtkTreeStore *store,
               guchar *buf;
               gchar  *key,
                      *icon = NULL;
-              gchar  *ctime = (object->ctime == NULL)? "" : g_date_time_format (object->ctime, date_time_stamp),
-                     *mtime = (object->mtime == NULL)? "" : g_date_time_format (object->mtime, date_time_stamp);
+              gchar  *ctime = (object->ctime == NULL)? g_strdup ("") : g_date_time_format (object->ctime, date_time_stamp),
+                     *mtime = (object->mtime == NULL)? g_strdup ("") : g_date_time_format (object->mtime, date_time_stamp);
               gboolean toggled = active;
 
               if (!active)
@@ -2069,8 +2069,8 @@ hyscan_gtk_model_manager_refresh_tracks_by_labels (GtkTreeStore *store,
                           item_iter;
               GdkPixbuf *pixbuf = gdk_pixbuf_new_from_resource (type_icon[TRACK], NULL);
               Extension *ext = g_hash_table_lookup (extensions, id);
-              gchar *ctime = (object->ctime == NULL)? "" : g_date_time_format (object->ctime, date_time_stamp),
-                    *mtime = (object->mtime == NULL)? "" : g_date_time_format (object->mtime, date_time_stamp);
+              gchar *ctime = (object->ctime == NULL)? g_strdup ("") : g_date_time_format (object->ctime, date_time_stamp),
+                    *mtime = (object->mtime == NULL)? g_strdup ("") : g_date_time_format (object->mtime, date_time_stamp);
               gboolean toggled = FALSE;
 
               if (ext != NULL)
