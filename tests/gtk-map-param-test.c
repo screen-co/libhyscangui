@@ -72,7 +72,7 @@ map_config_new (void)
   box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
 
   param = hyscan_gtk_layer_container_get_param (HYSCAN_GTK_LAYER_CONTAINER (map));
-  gtk_param = hyscan_gtk_param_cc_new (param, "/", FALSE);
+  gtk_param = hyscan_gtk_param_cc_new_full (param, "/", FALSE);
   button = gtk_button_new_with_label ("Apply");
 
   g_signal_connect_swapped (button, "clicked", map_config_apply, gtk_param);

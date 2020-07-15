@@ -414,7 +414,7 @@ create_param_settings_window (HyScanGtkMapKit *kit,
   g_signal_connect_swapped (window, "destroy", G_CALLBACK (gtk_widget_destroy), window);
 
   /* Виджет отображения параметров. */
-  frontend = hyscan_gtk_param_list_new (param, "/", FALSE);
+  frontend = hyscan_gtk_param_list_new_full (param, "/", FALSE);
   hyscan_gtk_param_set_watch_period (HYSCAN_GTK_PARAM (frontend), 500);
 
   /* Кнопки сохранения настроек. */
