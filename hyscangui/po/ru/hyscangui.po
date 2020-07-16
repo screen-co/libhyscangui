@@ -519,7 +519,7 @@ msgstr "Сетка"
 
 #: hyscangui/hyscan-gtk-mark-manager.c:123
 msgid "Grouping"
-msgstr "Гриппировка"
+msgstr "Группировка"
 
 #: hyscangui/hyscan-gtk-map-nav.c:962
 msgctxt "Heading"
