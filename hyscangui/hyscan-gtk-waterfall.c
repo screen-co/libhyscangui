@@ -1505,20 +1505,20 @@ hyscan_gtk_waterfall_get_scale (HyScanGtkWaterfall *self,
  *
  * Функция включает и выключает автосдвижку изображения.
  */
-gboolean
+void
 hyscan_gtk_waterfall_automove (HyScanGtkWaterfall *self,
                                gboolean            automove)
 {
   HyScanGtkWaterfallPrivate *priv;
 
-  g_return_val_if_fail (HYSCAN_IS_GTK_WATERFALL (self), FALSE);
+  g_return_if_fail (HYSCAN_IS_GTK_WATERFALL (self));
   priv = self->priv;
 
   if (priv->automove == automove)
-    return automove;
+    return;
 
   if (priv->auto_tag == 0)
-    return FALSE;
+    return;
 
   priv->automove = automove;
 
@@ -1528,7 +1528,6 @@ hyscan_gtk_waterfall_automove (HyScanGtkWaterfall *self,
     gtk_cifro_area_move (GTK_CIFRO_AREA (self), G_MAXINT, 0);
 
   g_signal_emit (self, hyscan_gtk_waterfall_signals[SIGNAL_AUTOMOVE_STATE], 0, automove);
-  return automove;
 }
 
 /**

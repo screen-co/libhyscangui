@@ -113,7 +113,7 @@ gint                    hyscan_gtk_waterfall_get_scale                  (HyScanG
                                                                          gint               *num);
 
 HYSCAN_API
-gboolean                hyscan_gtk_waterfall_automove                   (HyScanGtkWaterfall *wfall,
+void                    hyscan_gtk_waterfall_automove                   (HyScanGtkWaterfall *wfall,
                                                                          gboolean            automove);
 
 HYSCAN_API

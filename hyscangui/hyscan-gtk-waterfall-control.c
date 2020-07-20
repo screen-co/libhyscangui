@@ -68,13 +68,6 @@
                                               (display_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER &&\
                                                dir == GDK_SCROLL_UP))
 
-enum
-{
-  MOVE_NONE,
-  MOVE_START,
-  MOVE_DONE
-};
-
 struct _HyScanGtkWaterfallControlPrivate
 {
   HyScanGtkWaterfall        *wfall;          /* Водопад. */
@@ -82,7 +75,6 @@ struct _HyScanGtkWaterfallControlPrivate
 
   guint     width;               /* Ширина виджета. */
   guint     height;              /* Высота виджета. */
-  gboolean  move_area;           /* Признак перемещения при нажатой клавише мыши. */
   gdouble   move_from_y;         /* Y-координата мыши в момент нажатия кнопки.    */
   gdouble   move_from_x;         /* X-координата мыши в момент нажатия кнопки.    */
   gdouble   start_from_x;        /* Начальная граница отображения по оси X.       */
@@ -90,6 +82,8 @@ struct _HyScanGtkWaterfallControlPrivate
   gdouble   start_from_y;        /* Начальная граница отображения по оси Y.       */
   gdouble   start_to_y;          /* Начальная граница отображения по оси Y.       */
   gboolean  scroll_without_ctrl; /* Режим прокрутки. */
+
+  gboolean  moving;              /* Признак перемещения при нажатой клавише мыши. */
 };
 
 static void         hyscan_gtk_waterfall_control_interface_init  (HyScanGtkLayerInterface   *iface);
@@ -166,9 +160,9 @@ hyscan_gtk_waterfall_control_added (HyScanGtkLayer          *layer,
 
   /* Сигналы Gtk. */
   g_signal_connect_after (wfall, "configure-event", G_CALLBACK (hyscan_gtk_waterfall_control_configure), self);
-  // g_signal_connect (wfall, "button-press-event",    G_CALLBACK (hyscan_gtk_waterfall_control_mouse_button), self);
-  // g_signal_connect (wfall, "button-release-event",  G_CALLBACK (hyscan_gtk_waterfall_control_mouse_button), self);
-  // g_signal_connect (wfall, "motion-notify-event",   G_CALLBACK (hyscan_gtk_waterfall_control_mouse_motion), self);
+  g_signal_connect (wfall, "button-press-event",    G_CALLBACK (hyscan_gtk_waterfall_control_mouse_button), self);
+  g_signal_connect (wfall, "button-release-event",  G_CALLBACK (hyscan_gtk_waterfall_control_mouse_button), self);
+  g_signal_connect (wfall, "motion-notify-event",   G_CALLBACK (hyscan_gtk_waterfall_control_mouse_motion), self);
   g_signal_connect (wfall, "scroll-event",          G_CALLBACK (hyscan_gtk_waterfall_control_mouse_wheel), self);
   g_signal_connect (wfall, "key-press-event",       G_CALLBACK (hyscan_gtk_waterfall_control_keyboard), self);
 
@@ -228,10 +222,6 @@ hyscan_gtk_waterfall_control_keyboard (GtkWidget   *widget,
   GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
   HyScanGtkWaterfallControlPrivate *priv = self->priv;
   guint key = event->keyval;
-
-  /* Проверяем, есть ли у нас право обработки ввода. */
-  // if (GTK_WATERFALL_CONTROL_INPUT_ID != hyscan_gtk_waterfall_get_input_owner (HYSCAN_GTK_WATERFALL (widget)))
-    // return FALSE;
 
   gboolean arrow_keys = FALSE;
   gboolean plus_minus_keys = FALSE;
@@ -319,7 +309,6 @@ hyscan_gtk_waterfall_control_mouse_button (GtkWidget                 *widget,
                                            GdkEventButton            *event,
                                            HyScanGtkWaterfallControl *self)
 {
-  GtkCifroArea *carea = GTK_CIFRO_AREA (widget);
   HyScanGtkWaterfallControlPrivate *priv = self->priv;
 
   gtk_widget_grab_focus (widget);
@@ -327,38 +316,9 @@ hyscan_gtk_waterfall_control_mouse_button (GtkWidget                 *widget,
   if (event->button != 1)
     return GDK_EVENT_PROPAGATE;
 
-  if (event->type == GDK_BUTTON_PRESS)
-    {
-      guint width, height;
-      guint b_top, b_bottom, b_left, b_right;
-
-      gtk_cifro_area_get_size (carea, &width, &height);
-      gtk_cifro_area_get_border (carea, &b_top, &b_bottom, &b_left, &b_right);
-
-      if (event->x > b_left && event->x < width - b_right &&
-          event->y > b_top && event->y < height - b_bottom)
-        {
-          priv->move_from_x = event->x;
-          priv->move_from_y = event->y;
-          priv->move_area = MOVE_START;
-          gtk_cifro_area_get_view (carea, &priv->start_from_x, &priv->start_to_x,
-                                          &priv->start_from_y, &priv->start_to_y);
-        }
-    }
-
-  else if (event->type == GDK_BUTTON_RELEASE)
-    {
-      if (priv->move_area == MOVE_START)
-        {
-          priv->move_area = MOVE_NONE;
-          return GDK_EVENT_PROPAGATE;
-        }
-      if (priv->move_area == MOVE_DONE)
-        {
-          priv->move_area = MOVE_NONE;
-          return GDK_EVENT_STOP;
-        }
-    }
+  priv->moving = event->type == GDK_BUTTON_PRESS;
+  priv->move_from_x = event->x;
+  priv->move_from_y = event->y;
 
   return GDK_EVENT_PROPAGATE;
 }
@@ -374,38 +334,36 @@ hyscan_gtk_waterfall_control_mouse_motion (GtkWidget                 *widget,
   gdouble x0, y0, x1, y1, dx, dy;
   gdouble stored, received;
   guint widget_size;
+  gboolean to_start;
 
   /* Режим перемещения - сдвигаем область. */
-  if (priv->move_area == MOVE_NONE)
+  if (!priv->moving)
     return GDK_EVENT_PROPAGATE;
-
-  priv->move_area = MOVE_DONE;
 
   gtk_cifro_area_point_to_value (carea, priv->move_from_x, priv->move_from_y, &x0, &y0);
   gtk_cifro_area_point_to_value (carea, event->x, event->y, &x1, &y1);
   dx = x0 - x1;
   dy = y0 - y1;
 
-  gtk_cifro_area_set_view (carea, priv->start_from_x + dx, priv->start_to_x + dx,
-                                  priv->start_from_y + dy, priv->start_to_y + dy);
-
-  gdk_event_request_motions (event);
-
   if (priv->display_type == HYSCAN_WATERFALL_DISPLAY_SIDESCAN)
     {
       stored = priv->move_from_y;
       received = event->y;
       widget_size = priv->height;
+      to_start = dy < 0;
     }
   else /* if (priv->display_type == HYSCAN_WATERFALL_DISPLAY_ECHOSOUNDER) */
     {
       stored = event->x;
       received = priv->move_from_x;
       widget_size = priv->width;
+      to_start = dx < 0;
     }
-
-  if (received < stored - widget_size / 10.0)
+  if (to_start && received < stored - widget_size / 10.0
+   )
+  {
     hyscan_gtk_waterfall_automove (priv->wfall, FALSE);
+  }
 
   return GDK_EVENT_PROPAGATE;
 }
