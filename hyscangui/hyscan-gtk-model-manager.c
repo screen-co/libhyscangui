@@ -2513,19 +2513,19 @@ hyscan_gtk_model_manager_delete_item (HyScanGtkModelManager  *self,
     case LABEL:
       {
         /* Удаляем группу. */
-        hyscan_object_model_remove_object (priv->label_model, id);
+        hyscan_object_model_remove (priv->label_model, id);
       }
       break;
     case GEO_MARK:
       {
         /* Удаляем гео-метку. */
-        hyscan_object_model_remove_object (priv->geo_mark_model, id);
+        hyscan_object_model_remove (priv->geo_mark_model, id);
       }
       break;
     case ACOUSTIC_MARK:
       {
         /* Удаляем акустическую метку. */
-        hyscan_object_model_remove_object (priv->acoustic_marks_model, id);
+        hyscan_object_model_remove (priv->acoustic_marks_model, id);
       }
       break;
     case TRACK:
@@ -2581,7 +2581,7 @@ hyscan_gtk_model_manager_geo_mark_change_label (HyScanGtkModelManager  *self,
                       /* Устанавливаем время изменения для группы. */
                       lbl->mtime = current_time;
                       /* Сохраняем измения в базе данных. */
-                      hyscan_object_model_modify_object (priv->label_model, tmp, (const HyScanObject*)lbl);
+                      hyscan_object_model_modify (priv->label_model, tmp, (const HyScanObject*)lbl);
                       break;
                     }
                 }
@@ -2590,9 +2590,8 @@ hyscan_gtk_model_manager_geo_mark_change_label (HyScanGtkModelManager  *self,
               /* Устанавливаем время изменения. */
               object->mtime  = G_TIME_SPAN_SECOND * current_time;
               /* Сохраняем измения в базе данных. */
-              hyscan_object_model_modify_object (priv->geo_mark_model,
-                                                 list[i],
-                                                 (const HyScanObject*)object);
+              hyscan_object_model_modify (priv->geo_mark_model, list[i],
+                                          (const HyScanObject*)object);
               /* Освобождаем полученный из базы данных объект. */
               hyscan_mark_geo_free (object);
             }
@@ -2637,7 +2636,7 @@ hyscan_gtk_model_manager_acoustic_mark_change_label (HyScanGtkModelManager  *sel
                       /* Устанавливаем время изменения для группы. */
                       lbl->mtime = current_time;
                       /* Сохраняем измения в базе данных. */
-                      hyscan_object_model_modify_object (priv->label_model, tmp, (const HyScanObject*)lbl);
+                      hyscan_object_model_modify (priv->label_model, tmp, (const HyScanObject*)lbl);
                       break;
                     }
                 }
@@ -2646,9 +2645,8 @@ hyscan_gtk_model_manager_acoustic_mark_change_label (HyScanGtkModelManager  *sel
               /* Устанавливаем время изменения. */
               object->mtime  = G_TIME_SPAN_SECOND * current_time;
               /* Сохраняем измения в базе данных. */
-              hyscan_object_model_modify_object (priv->acoustic_marks_model,
-                                                 list[i],
-                                                 (const HyScanObject*)object);
+              hyscan_object_model_modify (priv->acoustic_marks_model, list[i],
+                                          (const HyScanObject*)object);
               /* Освобождаем полученный из базы данных объект. */
               hyscan_mark_waterfall_free (object);
             }
@@ -2698,7 +2696,7 @@ hyscan_gtk_model_manager_track_change_label (HyScanGtkModelManager  *self,
                       /* Устанавливаем время изменения для группы. */
                       lbl->mtime = current_time;
                       /* Сохраняем измения в базе данных. */
-                      hyscan_object_model_modify_object (priv->label_model, tmp, (const HyScanObject*)lbl);
+                      hyscan_object_model_modify (priv->label_model, tmp, (const HyScanObject*)lbl);
                       break;
                    }
                 }
@@ -3471,7 +3469,7 @@ hyscan_gtk_model_manager_toggled_iteml_change_label (HyScanGtkModelManager *self
   /* Устанавливаем время изменения для группы. */
   label->mtime = current_time;
   /* Сохраняем измения в базе данных. */
-  hyscan_object_model_modify_object (priv->label_model, id, (const HyScanObject*)label);
+  hyscan_object_model_modify (priv->label_model, id, (const HyScanObject*)label);
   /* Освобождаем полученный из базы данных объект. */
   hyscan_label_free (label);
   /* Включаем сигнал. */

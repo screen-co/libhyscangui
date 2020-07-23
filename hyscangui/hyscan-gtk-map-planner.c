@@ -1553,7 +1553,7 @@ hyscan_gtk_map_planner_track_remove (HyScanGtkMapPlanner *planner,
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
 
   /* Удаляем из модели. */
-  hyscan_object_model_remove_object (HYSCAN_OBJECT_MODEL (priv->model), track_id);
+  hyscan_object_model_remove (HYSCAN_OBJECT_MODEL (priv->model), track_id);
 
   /* Удаляем из внутреннего списка. */
   g_hash_table_remove (priv->tracks, track_id);
@@ -1573,8 +1573,8 @@ hyscan_gtk_map_planner_track_invert (HyScanGtkMapPlanner            *planner,
   modified_track->plan.start = modified_track->plan.end;
   modified_track->plan.end = tmp;
 
-  hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), track->id,
-                                     (const HyScanObject *) modified_track);
+  hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), track->id,
+                              (const HyScanObject *) modified_track);
   hyscan_planner_track_free (modified_track);
 }
 
@@ -1620,8 +1620,8 @@ hyscan_gtk_map_planner_track_extend (HyScanGtkMapPlanner           *planner,
     return;
 
   modified_track = hyscan_planner_track_extend (track->object, zone->object);
-  hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), track->id,
-                                     (const HyScanObject *) modified_track);
+  hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), track->id,
+                              (const HyScanObject *) modified_track);
   hyscan_planner_track_free (modified_track);
 }
 
@@ -3047,7 +3047,7 @@ hyscan_gtk_map_planner_zone_remove (HyScanGtkMapPlanner *planner,
                                     const gchar         *zone_id)
 {
   HyScanGtkMapPlannerPrivate *priv = planner->priv;
-  hyscan_object_model_remove_object (HYSCAN_OBJECT_MODEL (priv->model), zone_id);
+  hyscan_object_model_remove (HYSCAN_OBJECT_MODEL (priv->model), zone_id);
   g_hash_table_remove (priv->zones, zone_id);
 }
 
@@ -3079,9 +3079,9 @@ hyscan_gtk_map_planner_zone_save (HyScanGtkMapPlanner     *planner,
 
       /* Обновляем параметры зоны в БД. */
       if (pzone->id != NULL)
-        hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), pzone->id, (HyScanObject *) zone);
+        hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), pzone->id, (HyScanObject *) zone);
       else
-        hyscan_object_model_add_object (HYSCAN_OBJECT_MODEL (priv->model), (HyScanObject *) zone);
+        hyscan_object_model_add (HYSCAN_OBJECT_MODEL (priv->model), (HyScanObject *) zone);
 
       /* Обновляем внутреннее состояние, пока не пришло уведомление из БД. */
       zone_copy = hyscan_gtk_map_planner_zone_copy (pzone);
@@ -3140,9 +3140,9 @@ hyscan_gtk_map_planner_save_current (HyScanGtkMapPlanner *planner)
   object = (HyScanObject *) cur_track->object;
 
   if (priv->cur_track->id == NULL)
-    hyscan_object_model_add_object (HYSCAN_OBJECT_MODEL (priv->model), object);
+    hyscan_object_model_add (HYSCAN_OBJECT_MODEL (priv->model), object);
   else
-    hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), cur_track->id, object);
+    hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), cur_track->id, object);
 
   /* Обновляем внутреннюю таблицу галсов. */
   track_copy = hyscan_gtk_map_planner_track_copy (cur_track);
@@ -3177,8 +3177,8 @@ hyscan_gtk_map_planner_release_group (HyScanGtkMapPlanner *planner)
   while (g_hash_table_iter_next (&iter, NULL, (gpointer *) &track_edit))
     {
       track = hyscan_gtk_map_planner_track_copy (track_edit->current);
-      hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), track->id,
-                                         (const HyScanObject *) track->object);
+      hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), track->id,
+                                  (const HyScanObject *) track->object);
 
       /* Обновляем внутренний список галсов. */
       track->disabled = TRUE;

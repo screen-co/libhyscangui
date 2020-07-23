@@ -182,7 +182,7 @@ hyscan_gtk_mark_manager_create_label_dialog_constructed (GObject *object)
   gtk_window_set_destroy_with_parent (window, TRUE);
 
   gtk_widget_set_size_request (GTK_WIDGET (dialog), 600, 400);
-  
+
   gtk_dialog_add_button (dialog, _("OK"),     GTK_RESPONSE_OK);
   gtk_dialog_add_button (dialog, _("Cancel"), GTK_RESPONSE_CANCEL);
 
@@ -351,7 +351,7 @@ hyscan_gtk_mark_manager_create_label_dialog_response (GtkWidget *dialog,
           hyscan_label_set_ctime (label, time);
           hyscan_label_set_mtime (label, time);
           /* Добавляем группу в базу данных. */
-          hyscan_object_model_add_object (priv->label_model, (const HyScanObject*) label);
+          hyscan_object_model_add (priv->label_model, (const HyScanObject*) label);
         }
 
       hyscan_label_free (label);
