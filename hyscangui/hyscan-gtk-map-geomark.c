@@ -557,7 +557,7 @@ hyscan_gtk_map_geomark_draw (GtkCifroArea        *carea,
   /* Рисуем активную метку. */
   if (priv->drag_mark != NULL)
     hyscan_gtk_map_geomark_draw_location (gm_layer, cairo, priv->drag_mark, TRUE);
-  
+
   /* Если активной метки нет, то рисуем хэндл, за который можно активировать метку. */
   else
     hyscan_gtk_map_geomark_draw_handle (gm_layer, cairo);
@@ -793,9 +793,9 @@ hyscan_gtk_map_geomark_handle_release (HyScanGtkLayer *layer,
 
   /* Обновляем модель меток. */
   if (mark_id == NULL)
-    hyscan_object_model_add_object (priv->model, (const HyScanObject *) mark);
+    hyscan_object_model_add (priv->model, (const HyScanObject *) mark);
   else
-    hyscan_object_model_modify_object (priv->model, mark_id, (const HyScanObject *) mark);
+    hyscan_object_model_modify (priv->model, mark_id, (const HyScanObject *) mark);
 
   hyscan_gtk_map_geomark_location_free (location);
   g_free (mark_id);
@@ -914,7 +914,7 @@ hyscan_gtk_map_geomark_key_press (HyScanGtkMapGeomark *gm_layer,
       g_rw_lock_writer_unlock (&priv->mark_lock);
 
       if (mark_id != NULL)
-        hyscan_object_model_remove_object (priv->model, mark_id);
+        hyscan_object_model_remove (priv->model, mark_id);
       g_free (mark_id);
 
       hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);

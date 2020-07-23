@@ -393,7 +393,7 @@ hyscan_gtk_planner_zeditor_vertex_duplicate (HyScanGtkPlannerZeditor *zeditor)
   g_return_if_fail (HYSCAN_IS_PLANNER_ZONE (zone));
 
   hyscan_planner_zone_vertex_dup (zone, priv->vertex);
-  hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, (const HyScanObject *) zone);
+  hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, (const HyScanObject *) zone);
 }
 
 /* Удаляет текущую вершину. */
@@ -412,12 +412,12 @@ hyscan_gtk_planner_zeditor_vertex_delete (HyScanGtkPlannerZeditor *zeditor)
   if (zone->points_len > 3)
     {
       hyscan_planner_zone_vertex_remove (zone, priv->vertex);
-      hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, (const HyScanObject *) zone);
+      hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, (const HyScanObject *) zone);
       hyscan_planner_selection_set_zone (priv->selection, priv->zone_id, MAX (0, priv->vertex - 1));
     }
   else
     {
-      hyscan_object_model_remove_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id);
+      hyscan_object_model_remove (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id);
       g_clear_pointer (&priv->zone_id, g_free);
     }
 }
@@ -647,7 +647,7 @@ hyscan_gtk_planner_zeditor_edited (GtkCellRendererText *cell,
   else if (priv->geo != NULL && (column == X_COLUMN || column == Y_COLUMN))
     {
       HyScanGeoCartesian2D cartesian;
-      
+
       hyscan_geo_geo2topoXY0 (priv->geo, &cartesian, *vertex);
 
       (column == X_COLUMN) ? (cartesian.x = new_value) : 0;
@@ -656,7 +656,7 @@ hyscan_gtk_planner_zeditor_edited (GtkCellRendererText *cell,
       hyscan_geo_topoXY2geo0 (priv->geo, vertex, cartesian);
     }
 
-  hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, (HyScanObject *) zone);
+  hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, (HyScanObject *) zone);
 }
 
 /**

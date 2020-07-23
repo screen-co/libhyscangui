@@ -852,7 +852,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
 
           if (task->action == TASK_REMOVE)
             {
-              hyscan_object_model_remove_object (priv->markmodel, task->id);
+              hyscan_object_model_remove (priv->markmodel, task->id);
               continue;
             }
 
@@ -902,7 +902,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               hyscan_mark_waterfall_set_center_by_type (mark, source, index0, count0);
               hyscan_mark_waterfall_set_track  (mark, track_id);
 
-              hyscan_object_model_add_object (priv->markmodel, (const HyScanObject *) mark);
+              hyscan_object_model_add (priv->markmodel, (const HyScanObject *) mark);
               hyscan_mark_waterfall_free (mark);
               g_free (label);
             }
@@ -914,7 +914,7 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               hyscan_mark_set_size ((HyScanMark*)mark, mw, mh);
               hyscan_mark_waterfall_set_center_by_type (mark, source, index0, count0);
 
-              hyscan_object_model_modify_object (priv->markmodel, task->id, (const HyScanObject *) mark);
+              hyscan_object_model_modify (priv->markmodel, task->id, (const HyScanObject *) mark);
               hyscan_mark_waterfall_free (mark);
             }
         }

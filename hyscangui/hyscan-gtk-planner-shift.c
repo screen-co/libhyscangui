@@ -469,5 +469,5 @@ hyscan_gtk_planner_shift_save (HyScanGtkPlannerShift *shift,
   priv = shift->priv;
 
   for (link = priv->tracks; link != NULL; link = link->next)
-    hyscan_object_model_add_object (model, link->data);
+    hyscan_object_model_add (model, link->data);
 }

@@ -560,7 +560,7 @@ hyscan_gtk_planner_list_menu_activate (GtkMenuItem          *button,
     {
       gint i;
       for (i = 0; priv->tracks[i] != NULL; ++i)
-        hyscan_object_model_remove_object (HYSCAN_OBJECT_MODEL (priv->model), priv->tracks[i]);
+        hyscan_object_model_remove (HYSCAN_OBJECT_MODEL (priv->model), priv->tracks[i]);
     }
 
   else if (button == GTK_MENU_ITEM (priv->menu.nav))
@@ -591,8 +591,8 @@ hyscan_gtk_planner_list_menu_activate (GtkMenuItem          *button,
             continue;
 
           modified_track = hyscan_planner_track_extend (track, zone);
-          hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), priv->tracks[i],
-                                             (const HyScanObject *) modified_track);
+          hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), priv->tracks[i],
+                                      (const HyScanObject *) modified_track);
           hyscan_planner_track_free (modified_track);
         }
     }
@@ -613,8 +613,8 @@ hyscan_gtk_planner_list_menu_activate (GtkMenuItem          *button,
           swap = modified_track->plan.start;
           modified_track->plan.start = modified_track->plan.end;
           modified_track->plan.end = swap;
-          hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), priv->tracks[i],
-                                             (const HyScanObject *) modified_track);
+          hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), priv->tracks[i],
+                                      (const HyScanObject *) modified_track);
           hyscan_planner_track_free (modified_track);
         }
     }
@@ -644,8 +644,8 @@ hyscan_gtk_planner_list_menu_activate (GtkMenuItem          *button,
 
                   track_object = hyscan_planner_track_copy (track->object);
                   track_object->plan = *record->info->plan;
-                  hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model),
-                                                     track->id, (const HyScanObject *) track_object);
+                  hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model),
+                                              track->id, (const HyScanObject *) track_object);
                   hyscan_planner_track_free (track_object);
 
                   goto exit;
@@ -822,7 +822,7 @@ hyscan_gtk_planner_list_title_edited (GtkCellRendererText *renderer,
 
   g_free (zone->name);
   zone->name = g_strdup (new_text);
-  hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), zone_id, (HyScanObject *) zone);
+  hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), zone_id, (HyScanObject *) zone);
   hyscan_planner_zone_free (zone);
 
 exit:
@@ -864,7 +864,7 @@ hyscan_gtk_planner_list_speed_edited (GtkCellRendererText *renderer,
     goto exit;
 
   track->plan.speed = speed;
-  hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), zone_id, (HyScanObject *) track);
+  hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), zone_id, (HyScanObject *) track);
   hyscan_planner_track_free (track);
 
 exit:
@@ -1382,7 +1382,7 @@ hyscan_gtk_planner_list_bind_activate (GtkCheckMenuItem     *button,
   else
     hyscan_planner_track_record_delete (plan_track, record_id);
 
-  hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), plan_track_id, (const HyScanObject *) plan_track);
+  hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), plan_track_id, (const HyScanObject *) plan_track);
 }
 
 static gint
@@ -1570,7 +1570,7 @@ hyscan_gtk_planner_tree_store_row_drop_possible (GtkTreeDragDest  *drag_dest,
 
   if (!gtk_tree_get_row_drag_data (selection_data, &src_model, &src_path))
     goto exit;
-  
+
   /* Может перетаскивать только внутри нашей модели */
   if (src_model != GTK_TREE_MODEL (drag_dest))
     goto exit;
@@ -1653,7 +1653,7 @@ hyscan_gtk_planner_tree_store_drag_data_delete (GtkTreeDragSource *drag_source,
 
       modified_track = hyscan_planner_track_copy (track);
       modified_track->number = number;
-      hyscan_object_model_modify_object (HYSCAN_OBJECT_MODEL (priv->model), track_id, (HyScanObject *) modified_track);
+      hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), track_id, (HyScanObject *) modified_track);
       hyscan_planner_track_free (modified_track);
 
     next:
