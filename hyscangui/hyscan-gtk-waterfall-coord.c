@@ -221,7 +221,7 @@ hyscan_gtk_waterfall_coord_object_finalize (GObject *object)
   g_mutex_clear (&priv->state_lock);
 
   g_cond_clear (&priv->cond);
-  g_object_unref (priv->font);
+  g_clear_object (&priv->font);
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_coord_parent_class)->finalize (object);
 }

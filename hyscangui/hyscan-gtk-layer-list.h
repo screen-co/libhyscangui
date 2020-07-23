@@ -47,6 +47,16 @@ G_BEGIN_DECLS
 #define HYSCAN_IS_GTK_LAYER_LIST_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_LAYER_LIST))
 #define HYSCAN_GTK_LAYER_LIST_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_LAYER_LIST, HyScanGtkLayerListClass))
 
+/**
+ * hyscan_gtk_layer_list_visible_fn:
+ * @layer: слой
+ * @visible: признак видимости
+ *
+ * Функция устанавливает видимость слоя.
+ */
+typedef void     (*hyscan_gtk_layer_list_visible_fn)           (HyScanGtkLayer *layer,
+                                                                gboolean        visible);
+
 typedef struct _HyScanGtkLayerList HyScanGtkLayerList;
 typedef struct _HyScanGtkLayerListPrivate HyScanGtkLayerListPrivate;
 typedef struct _HyScanGtkLayerListClass HyScanGtkLayerListClass;
@@ -67,25 +77,29 @@ HYSCAN_API
 GType                  hyscan_gtk_layer_list_get_type         (void);
 
 HYSCAN_API
-GtkWidget *            hyscan_gtk_layer_list_new              (HyScanGtkLayerContainer *container);
+GtkWidget *            hyscan_gtk_layer_list_new              (HyScanGtkLayerContainer          *container);
 
 HYSCAN_API
-void                   hyscan_gtk_layer_list_add              (HyScanGtkLayerList      *layer_list,
-                                                               HyScanGtkLayer          *layer,
-                                                               const gchar             *key,
-                                                               const gchar             *title);
+void                   hyscan_gtk_layer_list_add              (HyScanGtkLayerList               *layer_list,
+                                                               HyScanGtkLayer                   *layer,
+                                                               const gchar                      *key,
+                                                               const gchar                      *title);
 
 HYSCAN_API
-void                   hyscan_gtk_layer_list_set_tools        (HyScanGtkLayerList      *list,
-                                                               const gchar             *key,
-                                                               GtkWidget               *tools);
+void                   hyscan_gtk_layer_list_set_tools        (HyScanGtkLayerList               *list,
+                                                               const gchar                      *key,
+                                                               GtkWidget                        *tools);
+HYSCAN_API
+void                   hyscan_gtk_layer_list_set_visible_fn   (HyScanGtkLayerList               *list,
+                                                               const gchar                      *key,
+                                                               hyscan_gtk_layer_list_visible_fn  visible_fn);
 
 HYSCAN_API
-gchar **               hyscan_gtk_layer_list_get_visible_ids  (HyScanGtkLayerList      *list);
+gchar **               hyscan_gtk_layer_list_get_visible_ids  (HyScanGtkLayerList                *list);
 
 HYSCAN_API
-void                   hyscan_gtk_layer_list_set_visible_ids  (HyScanGtkLayerList      *list,
-                                                               gchar                  **ids);
+void                   hyscan_gtk_layer_list_set_visible_ids  (HyScanGtkLayerList                *list,
+                                                               gchar                            **ids);
 
 G_END_DECLS
 

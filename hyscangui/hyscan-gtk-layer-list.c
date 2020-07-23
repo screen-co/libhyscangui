@@ -69,13 +69,14 @@ struct _HyScanGtkLayerListPrivate
 };
 
 typedef struct {
-  HyScanGtkLayerList      *list;            /* Указатель на HyScanGtkLayerList. */
-  HyScanGtkLayer          *layer;           /* Слой HyScanGtkLayer. */
-  gchar                   *name;            /* Идентификатор пункта меню. */
-  GtkWidget               *activate_btn;    /* Кнопка активации пункта меню. */
-  GtkWidget               *vsbl_btn;        /* Кнопка управления видимостью слоя. */
-  GtkWidget               *vsbl_img;        /* Иконка в кнопке управления видимостью слоя. */
-  GtkWidget               *revealer;        /* Контейнер для виджета настройки. */
+  HyScanGtkLayerList               *list;            /* Указатель на HyScanGtkLayerList. */
+  HyScanGtkLayer                   *layer;           /* Слой HyScanGtkLayer. */
+  gchar                            *name;            /* Идентификатор пункта меню. */
+  hyscan_gtk_layer_list_visible_fn  visible_fn;      /* Реакция на изменения видимости слоя. */
+  GtkWidget                        *activate_btn;    /* Кнопка активации пункта меню. */
+  GtkWidget                        *vsbl_btn;        /* Кнопка управления видимостью слоя. */
+  GtkWidget                        *vsbl_img;        /* Иконка в кнопке управления видимостью слоя. */
+  GtkWidget                        *revealer;        /* Контейнер для виджета настройки. */
 } HyScanGtkLayerListItem;
 
 static void        hyscan_gtk_layer_list_object_constructed       (GObject                *object);
@@ -179,7 +180,7 @@ hyscan_gtk_layer_list_toggle_visible (HyScanGtkLayerListItem *item)
     return;
 
   visible = gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (item->vsbl_btn));
-  hyscan_gtk_layer_set_visible (item->layer, visible);
+  item->visible_fn (item->layer, visible);
 
   icon_name = visible ? "eye" : "hidden";
   item->vsbl_img = gtk_image_new_from_icon_name (icon_name, GTK_ICON_SIZE_SMALL_TOOLBAR);
@@ -274,6 +275,7 @@ hyscan_gtk_layer_list_add (HyScanGtkLayerList *layer_list,
     {
       item->layer = g_object_ref (layer);
       item->vsbl_btn = gtk_toggle_button_new_with_label (NULL);
+      item->visible_fn = hyscan_gtk_layer_set_visible;
       gtk_widget_set_tooltip_text (item->vsbl_btn, _("Layer visibility"));
       gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (item->vsbl_btn), hyscan_gtk_layer_get_visible (item->layer));
       hyscan_gtk_layer_list_toggle_visible (item);
@@ -333,12 +335,41 @@ hyscan_gtk_layer_list_set_tools (HyScanGtkLayerList *layer_list,
   HyScanGtkLayerListPrivate *priv = layer_list->priv;
   HyScanGtkLayerListItem *item;
 
+  g_return_if_fail (HYSCAN_IS_GTK_LAYER_LIST (layer_list));
+
   item = g_hash_table_lookup (priv->list_items, key);
   if (item == NULL)
     return;
 
   gtk_container_add (GTK_CONTAINER (item->revealer), tools);
   gtk_widget_set_opacity (gtk_button_get_image (GTK_BUTTON (item->activate_btn)), 1.0);
+}
+
+/**
+ * hyscan_gtk_layer_list_set_tools:
+ * @layer_list: указатель на #HyScanGtkLayerList
+ * @key: ключ пункта меню
+ * @visible_fn: функция для установки видимости слоя
+ *
+ * Устанавливает функцию включения видимости слоя для пункта меню @key. По умолчанию используется функция
+ * hyscan_gtk_layer_set_visible(), которая управляет видимостью всего слоя.
+ */
+void
+hyscan_gtk_layer_list_set_visible_fn (HyScanGtkLayerList               *layer_list,
+                                      const gchar                      *key,
+                                      hyscan_gtk_layer_list_visible_fn  visible_fn)
+{
+  HyScanGtkLayerListPrivate *priv = layer_list->priv;
+  HyScanGtkLayerListItem *item;
+
+  g_return_if_fail (HYSCAN_IS_GTK_LAYER_LIST (layer_list));
+  g_return_if_fail (visible_fn != NULL);
+
+  item = g_hash_table_lookup (priv->list_items, key);
+  if (item == NULL)
+    return;
+
+  item->visible_fn = visible_fn;
 }
 
 /**

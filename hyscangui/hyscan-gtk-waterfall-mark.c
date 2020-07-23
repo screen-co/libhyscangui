@@ -394,7 +394,7 @@ hyscan_gtk_waterfall_mark_object_finalize (GObject *object)
   g_list_free_full (priv->cancellable, hyscan_gtk_waterfall_mark_free_task);
   hyscan_gtk_waterfall_mark_clear_task (&priv->current);
 
-  g_object_unref (priv->font);
+  g_clear_object (&priv->font);
 
   G_OBJECT_CLASS (hyscan_gtk_waterfall_mark_parent_class)->finalize (object);
 }
