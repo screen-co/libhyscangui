@@ -6,7 +6,7 @@
 #include <locale.h>
 #include <hyscan-gtk-area.h>
 #include <hyscan-control.h>
-#include <hyscan-sonar-model.h>
+#include <hyscan-control-model.h>
 
 #define GPS_SENSOR_NAME "my-nmea-sensor"
 
@@ -126,7 +126,7 @@ int main (int     argc,
   GtkWidget *window;
 
   HyScanDB *db = NULL;
-  HyScanSonarModel *sonar;
+  HyScanControlModel *sonar;
   HyScanSonarRecorder *recorder;
   HyScanControl *control;
   HyScanUnits *units;
@@ -207,7 +207,7 @@ int main (int     argc,
   if (profile_dir != NULL)
     hyscan_gtk_map_kit_load_profiles (kit, profile_dir);
 
-  sonar = hyscan_sonar_model_new (control);
+  sonar = hyscan_control_model_new (control);
   recorder = hyscan_sonar_recorder_new (HYSCAN_SONAR (sonar), db);
 
   if (control != NULL)
