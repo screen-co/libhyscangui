@@ -238,7 +238,6 @@ main (int    argc,
   gchar *project_read = NULL;  /* Проекты для чтения. */
   gchar *project_write = NULL; /* Проекты для записи. */
   gchar *track_name = NULL;    /* Имя галса. */
-  gchar *profile_dir = NULL;   /* Путь к каталогу, где хранятся профили карты. */
   gchar *origin = NULL;        /* Координаты центра карты. */
 
   HyScanDB *db;
@@ -256,7 +255,6 @@ main (int    argc,
     GOptionContext *context;
     GOptionEntry entries[] =
       {
-        {"map-profiles",  'm', 0, G_OPTION_ARG_STRING, &profile_dir,   "Path to dir with map profiles", NULL},
         {"db-uri",        'd', 0, G_OPTION_ARG_STRING, &db_uri,        "Database uri",                  NULL},
         {"project-read",  'r', 0, G_OPTION_ARG_STRING, &project_read,  "Source project name",           NULL},
         {"project-write", 'w', 0, G_OPTION_ARG_STRING, &project_write, "Destination project name",      NULL},
@@ -316,7 +314,6 @@ main (int    argc,
   translator = translator_new (db, project_read, project_write, track_name);
   kit = hyscan_gtk_map_kit_new (&center, db, units, "/tmp/tile-cache");
   hyscan_gtk_map_kit_set_project (kit, project_write);
-  hyscan_gtk_map_kit_load_profiles (kit, profile_dir);
 
   gtk_grid_attach (GTK_GRID (grid), kit->navigation, 0, 0, 1, 1);
   gtk_grid_attach (GTK_GRID (grid), kit->map,        1, 0, 1, 1);

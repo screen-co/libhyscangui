@@ -16,7 +16,6 @@
 
 static gchar *db_uri;                        /* Ссылка на базу данных. */
 static gchar *project_name;                  /* Ссылка на базу данных. */
-static gchar *profile_dir;                   /* Путь к каталогу, где хранятся профили карты. */
 static gchar *track_file;                    /* Путь к файлу с NMEA-строками. */
 static gchar *origin;                        /* Координаты центра карты. */
 static gchar *udp_host;                      /* Хост для подключения к GPS-приемнику. */
@@ -145,7 +144,6 @@ int main (int     argc,
         { "udp-host",        'h', 0, G_OPTION_ARG_STRING, &udp_host,          "Listen to UDP host", NULL},
         { "udp-port",        'P', 0, G_OPTION_ARG_INT,    &udp_port,          "Listen to UDP port", NULL},
         { "track-file",      't', 0, G_OPTION_ARG_STRING, &track_file,        "GPS-track file with NMEA-sentences", NULL },
-        { "profile-dir",     'd', 0, G_OPTION_ARG_STRING, &profile_dir,       "Path to dir with map profiles", NULL },
         { "db-uri",          'D', 0, G_OPTION_ARG_STRING, &db_uri,            "Database uri", NULL},
         { "project-name",    'p', 0, G_OPTION_ARG_STRING, &project_name,      "Project name", NULL},
         { "origin",          '0', 0, G_OPTION_ARG_STRING, &origin,            "Map origin, lat,lon", NULL},
@@ -204,8 +202,6 @@ int main (int     argc,
 
   kit = hyscan_gtk_map_kit_new (&center, db, units, "/tmp/tile-cache");
   hyscan_gtk_map_kit_set_project (kit, project_name);
-  if (profile_dir != NULL)
-    hyscan_gtk_map_kit_load_profiles (kit, profile_dir);
 
   sonar = hyscan_control_model_new (control);
   recorder = hyscan_sonar_recorder_new (HYSCAN_SONAR (sonar), db);

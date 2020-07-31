@@ -90,6 +90,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-map-planner.c
              hyscan-gtk-map-steer.c
              hyscan-gtk-map-direction.c
+             hyscan-gtk-map-profile-switch.c
 
              #[[ Загрузка тайлов ]]
              hyscan-map-tile.c
