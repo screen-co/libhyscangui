@@ -106,10 +106,11 @@ enum
 };
 
 #define TILE_SIZE_PX (256)
-static const gdouble zooms_gost[] = {5000.0, 4000., 3000., 2000.0, 1000.0,
-                                       800.,  500.,  400.,  300.,   200.,
-                                       100.,   75.,   50.,   40.,    20.,
-                                        10.,    5.,    4.,    2.,     1.};
+static const gdouble zooms_gost[] = {25000., 20000., 15000., 10000.,
+                                      5000.,  4000.,  3000.,  2000., 1000.,
+                                       800.,   500.,   400.,   300.,  200., 100.,
+                                        75.,    50.,    40.,   20.,    10.,
+                                         5.,     4.,     2.,    1.};
 static const int ZOOM_LEVELS = G_N_ELEMENTS (zooms_gost);
 
 struct _HyScanGtkWaterfallPrivate
