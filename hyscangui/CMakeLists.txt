@@ -62,6 +62,8 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-planner-list.c
              hyscan-gtk-planner-list-bar.c
              hyscan-gtk-planner-import.c
+             hyscan-gtk-map-track-list.c
+             hyscan-gtk-map-mark-list.c
              hyscan-cairo.c
              hyscan-gtk-export.c
 
