@@ -127,8 +127,10 @@ struct _HyScanGtkModelManagerPrivate
   HyScanObjectModel    *acoustic_marks_model, /* Модель данных акустических меток. */
                        *geo_mark_model,       /* Модель данных гео-меток. */
                        *label_model;          /* Модель данных групп. */
+  HyScanPlannerModel   *planner_model;        /* Модель данных планирования. */
   HyScanMarkLocModel   *acoustic_loc_model;   /* Модель данных акустических меток с координатами. */
   HyScanDBInfo         *track_model;          /* Модель данных галсов. */
+  HyScanUnits          *units;                /* Модель единиц измерения. */
   GtkTreeModel         *view_model;           /* Модель представления данных (табличное или древовидное). */
   HyScanCache          *cache;                /* Кэш.*/
   HyScanDB             *db;                   /* База данных. */
@@ -497,6 +499,13 @@ hyscan_gtk_model_manager_constructed (GObject *object)
                     "changed",
                     G_CALLBACK (hyscan_gtk_model_manager_geo_mark_model_changed),
                     self);
+  /* Модель объектов планирования. */
+  priv->planner_model = hyscan_planner_model_new ();
+  hyscan_object_model_set_project (HYSCAN_OBJECT_MODEL (priv->planner_model), priv->db, priv->project_name);
+
+  /* Единицы измерения. */
+  priv->units = hyscan_units_new ();
+
   /* Модель данных групп. */
   priv->label_model = hyscan_object_model_new (HYSCAN_TYPE_OBJECT_DATA_LABEL);
   hyscan_object_model_set_project (priv->label_model, priv->db, priv->project_name);
@@ -2777,6 +2786,20 @@ hyscan_gtk_model_manager_new (const gchar *project_name,
 }
 
 /**
+ * hyscan_gtk_model_manager_get_units:
+ * @self: указатель на Менеджер Моделей
+ *
+ * Returns: указатель на модель единиц измерения. Когда модель больше не нужна,
+ * необходимо использовать #g_object_unref ().
+ */
+HyScanUnits *
+hyscan_gtk_model_manager_get_units (HyScanGtkModelManager *self)
+{
+  HyScanGtkModelManagerPrivate *priv = self->priv;
+  return g_object_ref (priv->units);
+}
+
+/**
  * hyscan_gtk_model_manager_get_track_model:
  * @self: указатель на Менеджер Моделей
  *
@@ -2816,6 +2839,20 @@ hyscan_gtk_model_manager_get_geo_mark_model (HyScanGtkModelManager *self)
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
   return g_object_ref (priv->geo_mark_model);
+}
+
+/**
+ * hyscan_gtk_model_manager_get_planner_model:
+ * @self: указатель на Менеджер Моделей
+ *
+ * Returns: указатель на модель объектов планирования. Когда модель больше не нужна,
+ * необходимо использовать #g_object_unref ().
+ */
+HyScanPlannerModel*
+hyscan_gtk_model_manager_get_planner_model (HyScanGtkModelManager     *self)
+{
+  HyScanGtkModelManagerPrivate *priv = self->priv;
+  return g_object_ref (priv->planner_model);
 }
 
 /**
@@ -2901,6 +2938,8 @@ hyscan_gtk_model_manager_set_project_name (HyScanGtkModelManager *self,
         hyscan_object_model_set_project (priv->acoustic_marks_model, priv->db, priv->project_name);
       if (priv->geo_mark_model)
         hyscan_object_model_set_project (priv->geo_mark_model, priv->db, priv->project_name);
+      if (priv->planner_model)
+        hyscan_object_model_set_project (HYSCAN_OBJECT_MODEL (priv->planner_model), priv->db, priv->project_name);
       if (priv->label_model != NULL)
         hyscan_object_model_set_project (priv->label_model, priv->db, priv->project_name);
       /* Отправляем сигнал об изменении названия проекта. */

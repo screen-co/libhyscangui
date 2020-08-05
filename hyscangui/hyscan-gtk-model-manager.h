@@ -40,6 +40,8 @@
 #include <hyscan-object-model.h>
 #include <hyscan-mark-loc-model.h>
 #include <hyscan-object-data-label.h>
+#include <hyscan-units.h>
+#include <hyscan-planner-model.h>
 
 G_BEGIN_DECLS
 
@@ -142,6 +144,9 @@ HyScanGtkModelManager* hyscan_gtk_model_manager_new                         (con
                                                                              gchar                     *export_folder);
 
 HYSCAN_API
+HyScanUnits *          hyscan_gtk_model_manager_get_units                  (HyScanGtkModelManager     *self);
+
+HYSCAN_API
 HyScanDBInfo*          hyscan_gtk_model_manager_get_track_model             (HyScanGtkModelManager     *self);
 
 HYSCAN_API
@@ -149,6 +154,9 @@ HyScanObjectModel*     hyscan_gtk_model_manager_get_acoustic_mark_model     (HyS
 
 HYSCAN_API
 HyScanObjectModel*     hyscan_gtk_model_manager_get_geo_mark_model          (HyScanGtkModelManager     *self);
+
+HYSCAN_API
+HyScanPlannerModel*    hyscan_gtk_model_manager_get_planner_model           (HyScanGtkModelManager     *self);
 
 HYSCAN_API
 HyScanObjectModel*     hyscan_gtk_model_manager_get_label_model             (HyScanGtkModelManager     *self);

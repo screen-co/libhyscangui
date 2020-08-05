@@ -70,6 +70,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              #[[ Виджет карты ]]
              hyscan-gtk-map.c
              hyscan-profile-map.c
+             hyscan-gtk-map-builder.c
 
              #[[ Слои ]]
              hyscan-gtk-layer-param.c
