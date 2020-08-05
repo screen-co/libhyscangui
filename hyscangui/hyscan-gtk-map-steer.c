@@ -276,6 +276,7 @@ hyscan_gtk_map_steer_object_finalize (GObject *object)
   HyScanGtkMapSteer *gtk_steer = HYSCAN_GTK_MAP_STEER (object);
   HyScanGtkMapSteerPrivate *priv = gtk_steer->priv;
 
+  g_signal_handlers_disconnect_by_data (priv->steer, gtk_steer);
   g_free (priv->track_id);
   hyscan_track_plan_free (priv->plan);
   g_clear_object (&priv->steer);
@@ -955,12 +956,12 @@ hyscan_gtk_map_steer_carea_scroll (GtkWidget      *widget,
   else if (event->direction == GDK_SCROLL_DOWN)
     zoom = GTK_CIFRO_AREA_ZOOM_OUT;
   else
-    zoom = GTK_CIFRO_AREA_ZOOM_NONE;
+    return GDK_EVENT_PROPAGATE;
 
   gtk_cifro_area_get_view (carea, &from_x, &to_x, &from_y, &to_y);
   gtk_cifro_area_zoom (carea, zoom, zoom, (from_x + to_x) / 2.0, (from_y + to_y) / 2.0);
 
-  return FALSE;
+  return GDK_EVENT_STOP;
 }
 
 /* Определяет, находится ли точка (x, y) на линии допустимого отклонения, чтобы захватить её мышкой. */

@@ -236,7 +236,7 @@ hyscan_gtk_map_base_object_finalize (GObject *object)
   /* Освобождаем память. */
   g_clear_pointer (&priv->surface, cairo_surface_destroy);
   g_clear_object (&priv->map);
-  g_object_unref (priv->source);
+  g_clear_object (&priv->source);
   g_object_unref (priv->cache);
   g_object_unref (priv->cache_buffer);
   g_object_unref (priv->tile_buffer);
