@@ -122,7 +122,7 @@ hyscan_gtk_map_profile_switch_class_init (HyScanGtkMapProfileSwitchClass *klass)
     g_param_spec_string ("cache-dir", "Cache Directory", "Map tiles cache directory", NULL,
                          G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
   g_object_class_install_property (object_class, PROP_OFFLINE,
-    g_param_spec_boolean ("offline", "Offline", "Work in offline mode", NULL,
+    g_param_spec_boolean ("offline", "Offline", "Work in offline mode", FALSE,
                           G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
 }
 
@@ -213,9 +213,7 @@ hyscan_gtk_map_profile_switch_object_constructed (GObject *object)
 {
   HyScanGtkMapProfileSwitch *profile_switch = HYSCAN_GTK_MAP_PROFILE_SWITCH (object);
 
-
   G_OBJECT_CLASS (hyscan_gtk_map_profile_switch_parent_class)->constructed (object);
-
 }
 
 static void
@@ -227,6 +225,7 @@ hyscan_gtk_map_profile_switch_object_finalize (GObject *object)
   g_hash_table_destroy (priv->profiles);
   g_object_unref (priv->map);
   g_free (priv->base_id);
+  g_free (priv->active_id);
 
   G_OBJECT_CLASS (hyscan_gtk_map_profile_switch_parent_class)->finalize (object);
 }

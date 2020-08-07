@@ -137,10 +137,7 @@ hyscan_gtk_map_track_class_init (HyScanGtkMapTrackClass *klass)
 static void
 hyscan_gtk_map_track_init (HyScanGtkMapTrack *gtk_map_track)
 {
-  HyScanGtkMapTrackPrivate *priv;
-
   gtk_map_track->priv = hyscan_gtk_map_track_get_instance_private (gtk_map_track);
-  priv = gtk_map_track->priv;
 }
 
 static void
@@ -226,7 +223,6 @@ hyscan_gtk_map_track_fill_tile (HyScanGtkMapTiled *tiled_layer,
   gint i;
 
   HyScanGeoCartesian2D from, to;
-  HyScanGeoCartesian2D max, min;
   gdouble scale;
 
   cairo_t *cairo;
@@ -236,10 +232,6 @@ hyscan_gtk_map_track_fill_tile (HyScanGtkMapTiled *tiled_layer,
   tile_size = hyscan_map_tile_get_size (tile);
   hyscan_map_tile_get_bounds (tile, &from, &to);
   scale = hyscan_map_tile_get_scale (tile);
-  max.x = MAX (from.x, to.x);
-  max.y = MAX (from.y, to.y);
-  min.x = MIN (from.x, to.x);
-  min.y = MIN (from.y, to.y);
 
   surface = cairo_image_surface_create (CAIRO_FORMAT_ARGB32, tile_size, tile_size);
   cairo = cairo_create (surface);

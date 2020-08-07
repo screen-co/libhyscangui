@@ -425,8 +425,6 @@ hyscan_gtk_planner_list_query_tooltip (GtkWidget  *widget,
                                        gboolean    keyboard_tooltip,
                                        GtkTooltip *tooltip)
 {
-  HyScanGtkPlannerList *list = HYSCAN_GTK_PLANNER_LIST (widget);
-  HyScanGtkPlannerListPrivate *priv = list->priv;
   GtkTreeIter iter;
   GtkTreeModel *model;
   gint type;

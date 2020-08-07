@@ -551,17 +551,13 @@ hyscan_gtk_map_builder_track_draw_change (GtkToggleButton   *button,
 
 /* Обрабатывает переход к текущему положению на карте. */
 static void
-hyscan_gtk_map_builder_locate_click (GtkButton *locate_button)
+hyscan_gtk_map_builder_locate_click (HyScanGtkMapBuilder *builder)
 {
+  HyScanGtkMapBuilderPrivate *priv = builder->priv;
   HyScanNavStateData data;
-  HyScanNavState *nav_state;
-  HyScanGtkMap *map;
 
-  nav_state = HYSCAN_NAV_STATE (g_object_get_data (G_OBJECT (locate_button), "nav-state"));
-  map = HYSCAN_GTK_MAP (g_object_get_data (G_OBJECT (locate_button), "map"));
-
-  if (hyscan_nav_state_get (nav_state, &data, NULL))
-    hyscan_gtk_map_move_to (map, data.coord);
+  if (hyscan_nav_state_get (HYSCAN_NAV_STATE (priv->nav_model), &data, NULL))
+    hyscan_gtk_map_move_to (priv->map, data.coord);
 }
 
 /* Добавляет виджет навигации. */
@@ -860,19 +856,6 @@ hyscan_gtk_map_builder_get_offline (HyScanGtkMapBuilder *builder)
 }
 
 void
-hyscan_gtk_map_builder_add_offline_switch (HyScanGtkMapBuilder *builder)
-{
-  HyScanGtkMapBuilderPrivate *priv;
-  HyScanGtkLayer *planner_layer;
-  GtkWidget *gtk_switch, *label;
-
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
-  priv = builder->priv;
-
-  gtk_switch_new ();
-}
-
-void
 hyscan_gtk_map_builder_add_planner (HyScanGtkMapBuilder    *builder,
                                     gboolean                write_records)
 {
@@ -1084,7 +1067,7 @@ static HyScanNavModel *
 hyscan_gtk_map_builder_init_nav_model (HyScanControlModel *control_model)
 {
   HyScanNavModel *nav_model;
-  HyScanAntennaOffset offset;
+  HyScanAntennaOffset offset = {0};
   HyScanControl *control = hyscan_control_model_get_control (control_model);
   const gchar *const *sensors;
   const gchar *sensor_name;
@@ -1155,8 +1138,6 @@ hyscan_gtk_map_builder_add_nav (HyScanGtkMapBuilder *builder,
   /* Определение местоположения. */
   priv->locate_button = gtk_button_new_from_icon_name ("network-wireless-signal-good-symbolic", GTK_ICON_SIZE_BUTTON);
   gtk_button_set_label (GTK_BUTTON (priv->locate_button), _("My location"));
-  g_object_set_data_full (G_OBJECT (priv->locate_button), "map", g_object_ref (priv->map), g_object_unref);
-  g_object_set_data_full (G_OBJECT (priv->locate_button), "nav-state", g_object_ref (priv->nav_model), g_object_unref);
   g_signal_connect (priv->locate_button, "clicked", G_CALLBACK (hyscan_gtk_map_builder_locate_click), NULL);
 
   /* Слой с траекторией движения судна. */

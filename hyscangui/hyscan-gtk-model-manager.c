@@ -526,6 +526,44 @@ hyscan_gtk_model_manager_finalize (GObject *object)
   HyScanGtkModelManagerPrivate *priv = self->priv;
 
   /* Освобождаем ресурсы. */
+  if (priv->track_model != NULL)
+    {
+      g_signal_handlers_disconnect_by_data (priv->track_model, object);
+      g_object_unref (priv->track_model);
+    }
+
+  if (priv->acoustic_loc_model != NULL)
+    {
+      g_signal_handlers_disconnect_by_data (priv->acoustic_loc_model, object);
+      g_object_unref (priv->acoustic_loc_model);
+    }
+
+  if (priv->acoustic_marks_model != NULL)
+    {
+      g_signal_handlers_disconnect_by_data (priv->acoustic_marks_model, object);
+      g_object_unref (priv->acoustic_marks_model);
+    }
+
+  if (priv->geo_mark_model != NULL)
+    {
+      g_signal_handlers_disconnect_by_data (priv->geo_mark_model, object);
+      g_object_unref (priv->geo_mark_model);
+    }
+
+  if (priv->planner_model != NULL)
+    {
+      g_signal_handlers_disconnect_by_data (priv->planner_model, object);
+      g_object_unref (priv->planner_model);
+    }
+  if (priv->label_model != NULL)
+    {
+      g_signal_handlers_disconnect_by_data (priv->label_model, object);
+      g_object_unref (priv->label_model);
+    }
+
+  g_clear_object (&priv->view_model);
+  g_clear_object (&priv->units);
+
   g_free (priv->project_name);
   priv->project_name = NULL;
   g_free (priv->export_folder);
