@@ -1002,6 +1002,7 @@ hyscan_gtk_map_builder_add_marks (HyScanGtkMapBuilder *builder)
   scrolled_window = gtk_scrolled_window_new (NULL, NULL);
   gtk_widget_set_hexpand (scrolled_window, FALSE);
   gtk_widget_set_vexpand (scrolled_window, FALSE);
+  gtk_scrolled_window_set_overlay_scrolling (GTK_SCROLLED_WINDOW (scrolled_window), FALSE);
   gtk_scrolled_window_set_shadow_type (GTK_SCROLLED_WINDOW (scrolled_window), GTK_SHADOW_IN);
   gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled_window),
                                   GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
@@ -1025,6 +1026,7 @@ hyscan_gtk_map_builder_add_track_list (HyScanGtkMapBuilder *builder)
 
   /* Область прокрутки со списком галсов. */
   scrolled_window = gtk_scrolled_window_new (NULL, NULL);
+  gtk_scrolled_window_set_overlay_scrolling (GTK_SCROLLED_WINDOW (scrolled_window), FALSE);
   gtk_scrolled_window_set_shadow_type (GTK_SCROLLED_WINDOW (scrolled_window), GTK_SHADOW_IN);
   gtk_widget_set_hexpand (scrolled_window, FALSE);
   gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled_window), GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
