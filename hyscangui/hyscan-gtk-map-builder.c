@@ -1138,7 +1138,7 @@ hyscan_gtk_map_builder_add_nav (HyScanGtkMapBuilder *builder,
   /* Определение местоположения. */
   priv->locate_button = gtk_button_new_from_icon_name ("network-wireless-signal-good-symbolic", GTK_ICON_SIZE_BUTTON);
   gtk_button_set_label (GTK_BUTTON (priv->locate_button), _("My location"));
-  g_signal_connect (priv->locate_button, "clicked", G_CALLBACK (hyscan_gtk_map_builder_locate_click), NULL);
+  g_signal_connect_swapped (priv->locate_button, "clicked", G_CALLBACK (hyscan_gtk_map_builder_locate_click), builder);
 
   /* Слой с траекторией движения судна. */
   nav_layer = hyscan_gtk_map_nav_new (HYSCAN_NAV_STATE (priv->nav_model));
