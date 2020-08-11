@@ -87,6 +87,12 @@ main (int    argc,
   hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (map), hyscan_gtk_map_control_new (), "control");
   profile = hyscan_profile_map_new_default (NULL);
   hyscan_profile_map_apply (profile, HYSCAN_GTK_MAP (map), "base");
+  {
+    HyScanGeoProjection *projection;
+    projection = hyscan_gtk_map_get_projection (HYSCAN_GTK_MAP (map));
+    hyscan_map_track_model_set_projection (track_model, projection);
+    g_object_unref (projection);
+  }
 
   /* Настройка слоя с галсами. */
   hyscan_gtk_layer_set_visible (track_layer, TRUE);

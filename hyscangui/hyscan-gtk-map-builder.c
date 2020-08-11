@@ -212,7 +212,7 @@ hyscan_gtk_map_builder_object_constructed (GObject *object)
 {
   HyScanGtkMapBuilder *builder = HYSCAN_GTK_MAP_BUILDER (object);
   HyScanGtkMapBuilderPrivate *priv = builder->priv;
-  HyScanGtkLayer *base_layer, *map_grid, *ruler, *pin_layer;
+  HyScanGtkLayer *base_layer;
 
   HyScanGeoPoint center = { 0 };
   gdouble *scales;
@@ -254,28 +254,19 @@ hyscan_gtk_map_builder_object_constructed (GObject *object)
   /* Создаём виджет списка слоёв. */
   priv->layer_list = hyscan_gtk_layer_list_new (HYSCAN_GTK_LAYER_CONTAINER (priv->map));
 
+  /* Прочие виджеты. */
   priv->statusbar = hyscan_gtk_map_builder_create_stbar (builder);
   priv->right_col = hyscan_gtk_map_builder_create_tools (builder);
   priv->left_col = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
   gtk_widget_set_margin_end (priv->left_col, 6);
 
+  /* Слой подложки. */
   base_layer = hyscan_gtk_map_base_new (priv->cache);
-  map_grid = hyscan_gtk_map_grid_new (priv->units);
-  ruler = hyscan_gtk_map_ruler_new ();
-  pin_layer = hyscan_gtk_map_pin_new ();
-
   hyscan_gtk_map_builder_add_layer (builder, base_layer, FALSE, LAYER_BASE,  _("Base Map"));
-  hyscan_gtk_map_builder_add_layer (builder, ruler,      TRUE,  LAYER_RULER, _("Ruler"));
-  hyscan_gtk_map_builder_add_layer (builder, pin_layer,  TRUE,  LAYER_PIN,   _("Pin"));
-  hyscan_gtk_map_builder_add_layer (builder, map_grid,   TRUE,  LAYER_GRID,  _("Grid"));
 
-  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), LAYER_RULER,
-                                   hyscan_gtk_map_builder_pin_toolbox (ruler, _("Remove ruler")));
-  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), LAYER_PIN,
-                                   hyscan_gtk_map_builder_pin_toolbox (pin_layer, _("Remove all pins")));
-  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), LAYER_GRID,
-                                   hyscan_gtk_map_builder_grid_toolbox (builder));
-
+  /* Связываем используемую проекцию на карте и в модели галсов карты.
+   * todo: надо создать модель карты в libhyscanmodel, которая бы хранила текущую проекцию. */
+  g_object_bind_property (priv->map, "projection", priv->track_model, "projection", G_BINDING_SYNC_CREATE);
   g_signal_connect_swapped (priv->model_manager,
                             "notify::project-name",
                             G_CALLBACK (hyscan_gtk_map_builder_project_changed),
@@ -292,8 +283,8 @@ hyscan_gtk_map_builder_object_finalize (GObject *object)
   g_object_unref (priv->units);
   g_object_unref (priv->model_manager);
   g_object_unref (priv->cache);
-  g_object_unref (priv->planner_selection);
-  g_object_unref (priv->planner_model);
+  g_clear_object (&priv->planner_selection);
+  g_clear_object (&priv->planner_model);
   g_object_unref (priv->db_info);
   g_object_unref (priv->mark_geo_model);
   g_object_unref (priv->ml_model);
@@ -563,24 +554,29 @@ hyscan_gtk_map_builder_locate_click (HyScanGtkMapBuilder *builder)
 /* Добавляет виджет навигации. */
 static void
 hyscan_gtk_map_builder_add_steer (HyScanGtkMapBuilder *builder,
-                                  HyScanSonarRecorder *recorder)
+                                  HyScanControlModel  *control_model,
+                                  gboolean             enable_autostart)
 {
   HyScanGtkMapBuilderPrivate *priv = builder->priv;
   GtkWidget *direction;
   GtkWidget *autostart;
   GtkWidget *autoselect;
 
-  priv->steer = hyscan_steer_new (HYSCAN_NAV_STATE (priv->nav_model), priv->planner_selection, recorder);
+  priv->steer = hyscan_steer_new (HYSCAN_NAV_STATE (priv->nav_model), priv->planner_selection, control_model);
 
 
   direction = hyscan_gtk_map_direction_new (HYSCAN_GTK_MAP (priv->map), priv->planner_selection,
                                             HYSCAN_NAV_STATE (priv->nav_model));
 
-  if (recorder != NULL)
+  if (enable_autostart)
     {
       autostart = gtk_check_button_new_with_mnemonic (_("_Autostart recording"));
       g_object_bind_property (autostart, "active", priv->steer, "autostart", G_BINDING_SYNC_CREATE);
       gtk_container_add (GTK_CONTAINER (direction), autostart);
+    }
+  else
+    {
+      hyscan_steer_set_autostart (priv->steer, FALSE);
     }
 
   autoselect = gtk_check_button_new_with_mnemonic (_("_Select track automatically"));
@@ -740,7 +736,7 @@ nav_tools (HyScanGtkMapNav *nav_layer)
 
 /* Функция-обработчик передёт режим отображения меток с акустическим изображением в соответствующий слой. */
 static void
-hyscan_gtk_map_kit_on_changed_combo_box (GtkComboBox    *combo,
+hyscan_gtk_map_builder_on_changed_combo_box (GtkComboBox    *combo,
                                          HyScanGtkLayer *layer)
 {
   hyscan_gtk_map_wfmark_set_show_mode (HYSCAN_GTK_MAP_WFMARK (layer),
@@ -759,7 +755,7 @@ create_wfmark_layer_toolbox (HyScanGtkMapWfmark *layer)
   gtk_combo_box_set_active (GTK_COMBO_BOX (combo), 0);
 
   g_signal_connect (GTK_COMBO_BOX (combo), "changed",
-                    G_CALLBACK (hyscan_gtk_map_kit_on_changed_combo_box), layer);
+                    G_CALLBACK (hyscan_gtk_map_builder_on_changed_combo_box), layer);
 
   return combo;
 }
@@ -973,6 +969,57 @@ hyscan_gtk_map_builder_add_layer (HyScanGtkMapBuilder *builder,
       hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (priv->map), layer, key);
     }
   hyscan_gtk_layer_list_add (HYSCAN_GTK_LAYER_LIST (priv->layer_list), layer, key, title);
+
+  /* Применяем профиль, чтобы загрузить его параметры. */
+  hyscan_gtk_map_profile_switch_set_id (HYSCAN_GTK_MAP_PROFILE_SWITCH (priv->profile_switch), NULL);
+}
+
+void
+hyscan_gtk_map_builder_add_ruler (HyScanGtkMapBuilder *builder)
+{
+  HyScanGtkMapBuilderPrivate *priv;
+  HyScanGtkLayer *ruler;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
+  priv = builder->priv;
+
+  ruler = hyscan_gtk_map_ruler_new ();
+  hyscan_gtk_map_builder_add_layer (builder, ruler, TRUE, LAYER_RULER, _("Ruler"));
+
+  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), LAYER_RULER,
+                                   hyscan_gtk_map_builder_pin_toolbox (ruler, _("Remove ruler")));
+}
+
+void
+hyscan_gtk_map_builder_add_pin (HyScanGtkMapBuilder *builder)
+{
+  HyScanGtkMapBuilderPrivate *priv;
+  HyScanGtkLayer *pin_layer;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
+  priv = builder->priv;
+
+  pin_layer = hyscan_gtk_map_pin_new ();
+
+  hyscan_gtk_map_builder_add_layer (builder, pin_layer, TRUE, LAYER_PIN, _("Pin"));
+
+  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), LAYER_PIN,
+                                   hyscan_gtk_map_builder_pin_toolbox (pin_layer, _("Remove all pins")));
+}
+
+void
+hyscan_gtk_map_builder_add_grid (HyScanGtkMapBuilder *builder)
+{
+  HyScanGtkMapBuilderPrivate *priv;
+  HyScanGtkLayer *map_grid;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
+  priv = builder->priv;
+
+  map_grid = hyscan_gtk_map_grid_new (priv->units);
+  hyscan_gtk_map_builder_add_layer (builder, map_grid,   TRUE,  LAYER_GRID,  _("Grid"));
+  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), LAYER_GRID,
+                                   hyscan_gtk_map_builder_grid_toolbox (builder));
 }
 
 void
@@ -1115,16 +1162,18 @@ hyscan_gtk_map_builder_get_selected_track (HyScanGtkMapBuilder *builder)
 }
 
 /**
- * hyscan_gtk_map_kit_add_nav:
+ * hyscan_gtk_map_builder_add_nav:
  * @builder: указатель на #HyScanGtkMapBuilder
- * @sensor: датчик GPS-ресивера
- * @sensor_name: имя датчика
- * @offset: смещение датчика
+ * @control_model: модель оборудования
+ * @enable_autostart: включить возможность автостарта записи
+ *
+ * Функция добавляет слой и виджеты для судовождения.
+ * Установите @enable_autostart = %TRUE, если планируется осуществлять запись галсов.
  */
 void
 hyscan_gtk_map_builder_add_nav (HyScanGtkMapBuilder *builder,
                                 HyScanControlModel  *control_model,
-                                HyScanSonarRecorder *recorder)
+                                gboolean             enable_autostart)
 {
   HyScanGtkMapBuilderPrivate *priv;
   GtkWidget *box;
@@ -1155,11 +1204,11 @@ hyscan_gtk_map_builder_add_nav (HyScanGtkMapBuilder *builder,
   gtk_box_pack_start (GTK_BOX (box), priv->locate_button, FALSE, TRUE, 6);
 
   hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), LAYER_NAV, box);
-  hyscan_gtk_map_builder_add_steer (builder, recorder);
+  hyscan_gtk_map_builder_add_steer (builder, control_model, enable_autostart);
 }
 
 /**
- * hyscan_gtk_map_kit_run_planner_import:
+ * hyscan_gtk_map_builder_run_planner_import:
  * @kit: указатель на HyScanGtkMapKit
  *
  * Создаёт окно с виджетом импорта данных планировщика
@@ -1204,7 +1253,7 @@ hyscan_gtk_map_builder_run_planner_import (HyScanGtkMapBuilder *builder)
   gtk_widget_show_all (window);
 }
 
-GtkWidget *
+HyScanGtkMap *
 hyscan_gtk_map_builder_get_map (HyScanGtkMapBuilder *builder)
 {
   HyScanGtkMapBuilderPrivate *priv;
@@ -1212,7 +1261,7 @@ hyscan_gtk_map_builder_get_map (HyScanGtkMapBuilder *builder)
   g_return_val_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder), NULL);
   priv = builder->priv;
 
-  return GTK_WIDGET (priv->map);
+  return priv->map;
 }
 
 GtkWidget *

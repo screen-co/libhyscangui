@@ -4,7 +4,6 @@
 #include <hyscan-gtk-map.h>
 #include <hyscan-control-model.h>
 #include <hyscan-gtk-model-manager.h>
-#include <hyscan-sonar-recorder.h>
 
 G_BEGIN_DECLS
 
@@ -51,6 +50,15 @@ HYSCAN_API
 gchar *                hyscan_gtk_map_builder_get_selected_track (HyScanGtkMapBuilder       *builder);
 
 HYSCAN_API
+void                   hyscan_gtk_map_builder_add_ruler          (HyScanGtkMapBuilder       *builder);
+
+HYSCAN_API
+void                   hyscan_gtk_map_builder_add_pin            (HyScanGtkMapBuilder       *builder);
+
+HYSCAN_API
+void                   hyscan_gtk_map_builder_add_grid            (HyScanGtkMapBuilder       *builder);
+
+HYSCAN_API
 void                   hyscan_gtk_map_builder_add_marks          (HyScanGtkMapBuilder       *builder);
 
 HYSCAN_API
@@ -59,7 +67,7 @@ void                   hyscan_gtk_map_builder_add_tracks         (HyScanGtkMapBu
 HYSCAN_API
 void                   hyscan_gtk_map_builder_add_nav            (HyScanGtkMapBuilder       *builder,
                                                                   HyScanControlModel        *control_model,
-                                                                  HyScanSonarRecorder       *recorder);
+                                                                  gboolean                   enable_autostart);
 
 HYSCAN_API
 void                   hyscan_gtk_map_builder_add_planner        (HyScanGtkMapBuilder       *builder,
@@ -81,7 +89,7 @@ void                   hyscan_gtk_map_builder_add_layer          (HyScanGtkMapBu
                                                                   const gchar               *title);
 
 HYSCAN_API
-GtkWidget *            hyscan_gtk_map_builder_get_map            (HyScanGtkMapBuilder       *builder);
+HyScanGtkMap *         hyscan_gtk_map_builder_get_map            (HyScanGtkMapBuilder       *builder);
 
 HYSCAN_API
 GtkWidget *            hyscan_gtk_map_builder_get_tools          (HyScanGtkMapBuilder       *builder);

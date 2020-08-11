@@ -1,5 +1,6 @@
 #include <hyscan-data-writer.h>
-#include "hyscan-gtk-map-kit.h"
+#include <hyscan-gtk-map-builder.h>
+#include <hyscan-cached.h>
 
 typedef struct
 {
@@ -128,6 +129,7 @@ read_channel_params (DataTranslator   *translator,
   hyscan_db_param_get (translator->db, read_param_id, NULL, param_list);
 
   hyscan_db_close (translator->db, read_param_id);
+  g_object_unref (schema);
 
   return param_list;
 }
@@ -241,11 +243,12 @@ main (int    argc,
   gchar *origin = NULL;        /* Координаты центра карты. */
 
   HyScanDB *db;
-  HyScanUnits *units;
   DataTranslator *translator;
   HyScanGeoPoint center = {.lat = 55.571, .lon = 38.103};
 
-  HyScanGtkMapKit *kit;
+  HyScanGtkMapBuilder *map_builder;
+  HyScanCache *cache;
+  HyScanGtkModelManager *model_manager;
 
   gtk_init (&argc, &argv);
 
@@ -310,14 +313,17 @@ main (int    argc,
   gtk_container_set_border_width (GTK_CONTAINER (grid), 20);
 
   db = hyscan_db_new (db_uri);
-  units = hyscan_units_new ();
   translator = translator_new (db, project_read, project_write, track_name);
-  kit = hyscan_gtk_map_kit_new (&center, db, units, "/tmp/tile-cache");
-  hyscan_gtk_map_kit_set_project (kit, project_write);
 
-  gtk_grid_attach (GTK_GRID (grid), kit->navigation, 0, 0, 1, 1);
-  gtk_grid_attach (GTK_GRID (grid), kit->map,        1, 0, 1, 1);
-  gtk_grid_attach (GTK_GRID (grid), kit->control,    2, 0, 1, 1);
+  cache = HYSCAN_CACHE (hyscan_cached_new (255));
+  model_manager = hyscan_gtk_model_manager_new (project_write, db, cache, NULL);
+  map_builder = hyscan_gtk_map_builder_new (model_manager);
+  hyscan_gtk_map_builder_add_tracks (map_builder);
+  hyscan_gtk_map_move_to (hyscan_gtk_map_builder_get_map (map_builder), center);
+
+  gtk_grid_attach (GTK_GRID (grid), hyscan_gtk_map_builder_get_left_col (map_builder), 0, 0, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), hyscan_gtk_map_builder_get_central (map_builder), 1, 0, 1, 1);
+  gtk_grid_attach (GTK_GRID (grid), hyscan_gtk_map_builder_get_right_col (map_builder), 2, 0, 1, 1);
 
   gtk_container_add (GTK_CONTAINER (window), grid);
 
@@ -327,9 +333,10 @@ main (int    argc,
   gtk_main ();
 
   /* Cleanup. */
-  g_clear_object (&units);
+  g_clear_object (&model_manager);
+  g_clear_object (&cache);
   g_clear_object (&db);
-  hyscan_gtk_map_kit_free (kit);
+  g_clear_object (&map_builder);
   translator_free (translator);
 
   return 0;

@@ -1,4 +1,3 @@
-#include "hyscan-gtk-map-kit.h"
 #include <hyscan-gtk-map.h>
 #include <hyscan-nmea-file-device.h>
 #include <hyscan-driver.h>
@@ -7,6 +6,8 @@
 #include <hyscan-gtk-area.h>
 #include <hyscan-control.h>
 #include <hyscan-control-model.h>
+#include <hyscan-gtk-map-builder.h>
+#include <hyscan-cached.h>
 
 #define GPS_SENSOR_NAME "my-nmea-sensor"
 
@@ -95,10 +96,11 @@ load_nmea_udp_device (const gchar *nmea_udp_host,
 }
 
 /* Объект управления датчиками. */
-HyScanControl *
+HyScanControlModel *
 create_control (HyScanDB *db)
 {
   HyScanControl *control;
+  HyScanControlModel *control_model;
   HyScanDevice *device = NULL;
 
   if (track_file != NULL)
@@ -116,7 +118,12 @@ create_control (HyScanDB *db)
 
   hyscan_sensor_set_enable (HYSCAN_SENSOR (control), GPS_SENSOR_NAME, TRUE);
 
-  return control;
+  control_model = hyscan_control_model_new (control);
+
+  g_object_unref (device);
+  g_object_unref (control);
+
+  return control_model;
 }
 
 int main (int     argc,
@@ -126,12 +133,11 @@ int main (int     argc,
 
   HyScanDB *db = NULL;
   HyScanControlModel *sonar;
-  HyScanSonarRecorder *recorder;
-  HyScanControl *control;
-  HyScanUnits *units;
   HyScanGeoPoint center = {.lat = 55.571, .lon = 38.103};
+  HyScanCache *cache;
+  HyScanGtkModelManager *model_manager;
 
-  HyScanGtkMapKit *kit;
+  HyScanGtkMapBuilder *map_builder;
 
   gtk_init (&argc, &argv);
 
@@ -162,11 +168,17 @@ int main (int     argc,
         return -1;
       }
 
+    if (db_uri == NULL)
+      {
+        g_print ("%s", g_option_context_get_help (context, FALSE, NULL));
+        return -1;
+      }
+
     if (udp_host != NULL && track_file != NULL)
       {
         g_warning ("udp-host and track-file are mutually exclusive options.");
         g_print ("%s", g_option_context_get_help (context, FALSE, NULL));
-        return 0;
+        return -1;
       }
 
     if (origin != NULL)
@@ -194,27 +206,30 @@ int main (int     argc,
   gtk_window_set_title (GTK_WINDOW (window), project_name);
   gtk_window_set_default_size (GTK_WINDOW (window), 1024, 600);
 
-  if (db_uri != NULL)
-    db = hyscan_db_new (db_uri);
+  db = hyscan_db_new (db_uri);
+  if (db == NULL)
+    g_error ("Failed to connect to db: %s", db_uri);
 
-  control = create_control (db);
-  units = hyscan_units_new ();
+  cache = HYSCAN_CACHE (hyscan_cached_new (255));
+  model_manager = hyscan_gtk_model_manager_new (project_name, db, cache, NULL);
+  map_builder = hyscan_gtk_map_builder_new (model_manager);
 
-  kit = hyscan_gtk_map_kit_new (&center, db, units, "/tmp/tile-cache");
-  hyscan_gtk_map_kit_set_project (kit, project_name);
-
-  sonar = hyscan_control_model_new (control);
-  recorder = hyscan_sonar_recorder_new (HYSCAN_SONAR (sonar), db);
-
-  if (control != NULL)
-    hyscan_gtk_map_kit_add_nav (kit, HYSCAN_SENSOR (control), GPS_SENSOR_NAME, recorder, NULL, delay_time);
+  sonar = create_control (db);
+  if (sonar != NULL)
+    hyscan_gtk_map_builder_add_nav (map_builder, sonar, FALSE);
 
   if (db != NULL)
     {
-      hyscan_gtk_map_kit_add_marks_geo (kit);
-      hyscan_gtk_map_kit_add_marks_wf (kit);
-      hyscan_gtk_map_kit_add_planner (kit);
+      hyscan_gtk_map_builder_add_tracks (map_builder);
+      hyscan_gtk_map_builder_add_marks (map_builder);
+      hyscan_gtk_map_builder_add_grid (map_builder);
+      hyscan_gtk_map_builder_add_pin (map_builder);
+      hyscan_gtk_map_builder_add_ruler (map_builder);
+      hyscan_gtk_map_builder_add_planner (map_builder, TRUE);
+      hyscan_gtk_map_builder_add_planner_list (map_builder);
     }
+
+  hyscan_gtk_map_move_to (hyscan_gtk_map_builder_get_map (map_builder), center);
 
   /* Стоим интерфейс. */
   {
@@ -227,12 +242,12 @@ int main (int     argc,
 
     map_box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
 
-    gtk_box_pack_start (GTK_BOX (map_box), kit->map, TRUE, TRUE, 0);
-    gtk_box_pack_start (GTK_BOX (map_box), kit->status_bar, FALSE, TRUE, 0);
+    gtk_box_pack_start (GTK_BOX (map_box), hyscan_gtk_map_builder_get_central (map_builder), TRUE, TRUE, 0);
+    gtk_box_pack_start (GTK_BOX (map_box), hyscan_gtk_map_builder_get_bar (map_builder), FALSE, TRUE, 0);
 
     hyscan_gtk_area_set_central (HYSCAN_GTK_AREA (area), map_box);
-    hyscan_gtk_area_set_left (HYSCAN_GTK_AREA (area), kit->navigation);
-    hyscan_gtk_area_set_right (HYSCAN_GTK_AREA (area), kit->control);
+    hyscan_gtk_area_set_left (HYSCAN_GTK_AREA (area), hyscan_gtk_map_builder_get_left_col (map_builder));
+    hyscan_gtk_area_set_right (HYSCAN_GTK_AREA (area), hyscan_gtk_map_builder_get_right_col (map_builder));
 
     gtk_container_add (GTK_CONTAINER (window), area);
     g_signal_connect (G_OBJECT (window), "destroy", G_CALLBACK (destroy_callback), NULL);
@@ -244,9 +259,10 @@ int main (int     argc,
   gtk_main ();
 
   /* Cleanup. */
+  g_clear_object (&cache);
+  g_clear_object (&sonar);
   g_clear_object (&db);
-  g_clear_object (&units);
-  hyscan_gtk_map_kit_free (kit);
+  g_object_unref (map_builder);
 
   return 0;
 }

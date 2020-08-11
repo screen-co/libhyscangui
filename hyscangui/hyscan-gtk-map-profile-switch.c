@@ -62,7 +62,7 @@
 #include <hyscan-gtk-param-cc.h>
 
 #define PROFILE_DIR          "map-profiles"
-#define PROFILE_DEFAULT_ID "default"
+#define PROFILE_DEFAULT_ID   "default"
 #define PROFILE_EXTENSION    ".ini"
 
 enum
@@ -552,9 +552,9 @@ hyscan_gtk_map_profile_switch_get_id (HyScanGtkMapProfileSwitch *profile_switch)
 /**
  * hyscan_gtk_map_profile_switch_set_id:
  * @profile_switch: указатель на #HyScanGtkMapProfileSwitch
- * @profile_id: идентификатор профиля карты
+ * @profile_id: (nullable): идентификатор профиля карты или %NULL для применения текущего профиля
  *
- * Функция устанавливает активный профиль карты @profile_id.
+ * Функция применяет профиль карты @profile_id.
  *
  */
 void
@@ -565,9 +565,11 @@ hyscan_gtk_map_profile_switch_set_id (HyScanGtkMapProfileSwitch *profile_switch,
   HyScanProfileMap *profile;
 
   g_return_if_fail (HYSCAN_IS_GTK_MAP_PROFILE_SWITCH (profile_switch));
-  g_return_if_fail (profile_id != NULL);
 
   priv = profile_switch->priv;
+
+  if (profile_id == NULL)
+    profile_id = priv->active_id;
 
   profile = g_hash_table_lookup (priv->profiles, profile_id);
   if (profile == NULL)

@@ -87,10 +87,11 @@ struct _HyScanGtkMapTrackPrivate
   gboolean                        visible;          /* Признак видимости слоя. */
   gboolean                        shutdown;         /* Признак удаления слоя. */
 
-  HyScanMapTrackModel            *model;
+  HyScanMapTrackModel            *model;            /* Модель картографической проекции галсов. */
 
   GRWLock                         a_lock;           /* Доступ к модификации массива active_tracks. */
   gchar                         **active_tracks;    /* NULL-терминированный массив названий видимых галсов. */
+  GList                          *tracks_connected; /* Список галсов #HyScanMapTrack, к сигналам которых подключён слой. */
 
   HyScanGtkMapTrackDrawType       draw_type;        /* Активный тип объекта для рисования. */
   HyScanGtkMapTrackDraw          *draw_bar;         /* Объект для рисования галса полосами. */
@@ -110,6 +111,7 @@ static void     hyscan_gtk_map_track_fill_tile                    (HyScanGtkMapT
                                                                    GCancellable                *cancellable);
 static void     hyscan_gtk_map_track_param_set                    (HyScanGtkLayer              *gtk_layer);
 static void     hyscan_gtk_map_track_set_tracks                   (HyScanGtkMapTrack           *track_layer);
+static void     hyscan_gtk_map_track_disconnect_tracks            (HyScanGtkMapTrack           *track_layer);
 
 static HyScanGtkLayerInterface *hyscan_gtk_layer_parent_interface = NULL;
 
@@ -200,7 +202,10 @@ hyscan_gtk_map_track_object_finalize (GObject *object)
   HyScanGtkMapTrack *gtk_map_track = HYSCAN_GTK_MAP_TRACK (object);
   HyScanGtkMapTrackPrivate *priv = gtk_map_track->priv;
 
+  hyscan_gtk_map_track_disconnect_tracks (gtk_map_track);
+
   g_rw_lock_clear (&priv->a_lock);
+  g_clear_object (&priv->model);
   g_clear_object (&priv->draw_bar);
   g_clear_object (&priv->draw_beam);
   g_clear_object (&priv->param);
@@ -303,20 +308,6 @@ hyscan_gtk_map_track_draw (HyScanGtkMap      *map,
 #endif
 }
 
-/* Обрабатывает сигнал об изменении картографической проекции. */
-static void
-hyscan_gtk_map_track_projection_notify (HyScanGtkMap      *map,
-                                        GParamSpec        *pspec,
-                                        HyScanGtkMapTrack *layer)
-{
-  HyScanGtkMapTrackPrivate *priv = layer->priv;
-  HyScanGeoProjection *projection;
-
-  projection = hyscan_gtk_map_get_projection (map);
-  hyscan_map_track_model_set_projection (priv->model, projection);
-  g_object_unref (projection);
-}
-
 /* Реализация HyScanGtkLayerInterface.added.
  * Обрабатывает добавление слой на карту. */
 static void
@@ -332,8 +323,6 @@ hyscan_gtk_map_track_added (HyScanGtkLayer          *gtk_layer,
   priv->map = g_object_ref (HYSCAN_GTK_MAP (container));
   g_signal_connect_after (priv->map, "visible-draw", 
                           G_CALLBACK (hyscan_gtk_map_track_draw), track_layer);
-  g_signal_connect (priv->map, "notify::projection",
-                    G_CALLBACK (hyscan_gtk_map_track_projection_notify), track_layer);
 
   hyscan_gtk_layer_parent_interface->added (gtk_layer, container);
 
@@ -523,30 +512,40 @@ hyscan_gtk_map_track_area_mod (HyScanGtkMapTrack *track_layer,
     }
 }
 
+/* Отключает от галсов, к которым слой был подключён. */
+static void
+hyscan_gtk_map_track_disconnect_tracks (HyScanGtkMapTrack *track_layer)
+{
+  HyScanGtkMapTrackPrivate *priv;
+  GList *link;
+
+  priv = track_layer->priv;
+
+  /* Отключаемся от сигналов. */
+  for (link = priv->tracks_connected; link != NULL; link = link->next)
+    {
+      HyScanMapTrack *track = link->data;
+
+      g_signal_handlers_disconnect_by_data (track, track_layer);
+    }
+
+  g_list_free_full (priv->tracks_connected, g_object_unref);
+  priv->tracks_connected = NULL;
+}
+
 /**
  * Устанавливает слежку за активными галсами.
  */
 static void
-hyscan_gtk_map_track_set_tracks (HyScanGtkMapTrack  *track_layer)
+hyscan_gtk_map_track_set_tracks (HyScanGtkMapTrack *track_layer)
 {
   HyScanGtkMapTrackPrivate *priv;
   gint i;
 
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_TRACK (track_layer));
   priv = track_layer->priv;
 
   /* Отключаемся от сигналов. */
-  for (i = 0; priv->active_tracks[i] != NULL; i++)
-    {
-      HyScanMapTrackModelInfo *info;
-
-      info = hyscan_map_track_model_get (priv->model, priv->active_tracks[i]);
-      if (info == NULL)
-        continue;
-
-      g_signal_handlers_disconnect_by_data (info->track, track_layer);
-      hyscan_map_track_model_info_unref (info);
-    }
+  hyscan_gtk_map_track_disconnect_tracks (track_layer);
 
   /* Обновляем список галсов. */
   g_rw_lock_writer_lock (&priv->a_lock);
@@ -563,6 +562,7 @@ hyscan_gtk_map_track_set_tracks (HyScanGtkMapTrack  *track_layer)
       if (info == NULL)
         continue;
 
+      priv->tracks_connected = g_list_append (priv->tracks_connected, g_object_ref (info->track));
       g_signal_connect_swapped (info->track, "area-mod", G_CALLBACK (hyscan_gtk_map_track_area_mod), track_layer);
       hyscan_map_track_model_info_unref (info);
     }
