@@ -1,3 +1,37 @@
+/* hyscan-gtk-map-builder.h
+ *
+ * Copyright 2020 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
+ *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
 #ifndef __HYSCAN_GTK_MAP_BUILDER_H__
 #define __HYSCAN_GTK_MAP_BUILDER_H__
 
@@ -82,32 +116,13 @@ void                   hyscan_gtk_map_builder_layer_set_tools    (HyScanGtkMapBu
                                                                   GtkWidget                 *widget);
 
 HYSCAN_API
-void                   hyscan_gtk_map_builder_add_layer          (HyScanGtkMapBuilder       *builder,
-                                                                  HyScanGtkLayer            *layer,
-                                                                  gboolean                   visible,
-                                                                  const gchar               *key,
-                                                                  const gchar               *title);
-
-HYSCAN_API
 HyScanGtkMap *         hyscan_gtk_map_builder_get_map            (HyScanGtkMapBuilder       *builder);
-
-HYSCAN_API
-GtkWidget *            hyscan_gtk_map_builder_get_tools          (HyScanGtkMapBuilder       *builder);
 
 HYSCAN_API
 GtkWidget *            hyscan_gtk_map_builder_get_bar            (HyScanGtkMapBuilder        *builder);
 
 HYSCAN_API
-GtkWidget *            hyscan_gtk_map_builder_get_layer_list     (HyScanGtkMapBuilder        *builder);
-
-HYSCAN_API
-GtkWidget *            hyscan_gtk_map_builder_get_profile_switch (HyScanGtkMapBuilder      *builder);
-
-HYSCAN_API
 GtkWidget *            hyscan_gtk_map_builder_get_mark_list      (HyScanGtkMapBuilder       *builder);
-
-HYSCAN_API
-GtkWidget *            hyscan_gtk_map_builder_get_planner_list   (HyScanGtkMapBuilder       *builder);
 
 HYSCAN_API
 GtkWidget *            hyscan_gtk_map_builder_get_track_list     (HyScanGtkMapBuilder       *builder);

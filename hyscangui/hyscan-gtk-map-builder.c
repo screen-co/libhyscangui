@@ -1,3 +1,83 @@
+/* hyscan-gtk-map-builder.c
+ *
+ * Copyright 2020 Screen LLC, Alexey Sakhnov <alexsakhnov@gmail.com>
+ *
+ * This file is part of HyScanGui library.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-map-builder
+ * @Short_description: Класс компоновки виджетов карты и их управлением
+ * @Title: HyScanGtkMapBuilder
+ *
+ * Класс предназначен для создания виджетов на вкладке карты. Все необходимые модели
+ * данных класс получает извне при помощи #HyScanGtkModelManager, которые
+ * передаётся при создании объекта - hyscan_gtk_map_builder_new().
+ *
+ * Вкладка карты компануется динамически при помощи функций, которые определяют
+ * заранее установленный набор слоёв карты и инструментов для них:
+ *
+ * - hyscan_gtk_map_builder_add_ruler() - линейка,
+ * - hyscan_gtk_map_builder_add_pin() - булавки,
+ * - hyscan_gtk_map_builder_add_grid() - сетка,
+ * - hyscan_gtk_map_builder_add_marks() - метки,
+ * - hyscan_gtk_map_builder_add_tracks() - галсы,
+ * - hyscan_gtk_map_builder_add_nav() - навигация,
+ * - hyscan_gtk_map_builder_add_planner() - планирование,
+ * - hyscan_gtk_map_builder_add_planner_list() - таблица плана галсов.
+ *
+ * Также могут быть установлены пользовательские инструменты при помощи функции
+ * hyscan_gtk_map_builder_layer_set_tools().
+ *
+ * Для получения отдельных виджетов карты используются функции:
+ * - hyscan_gtk_map_builder_get_map() - виджет карты,
+ * - hyscan_gtk_map_builder_get_central() - центральный виджет,
+ * - hyscan_gtk_map_builder_get_left_col() - виджет левого столбца,
+ * - hyscan_gtk_map_builder_get_right_col() - виджет правого столбца,
+ * - hyscan_gtk_map_builder_get_bar() - статусная строка,
+ *
+ * Настройка вкладки могут быть сохранены и загружены из ini-файла:
+ * - hyscan_gtk_map_builder_file_read(),
+ * - hyscan_gtk_map_builder_file_write().
+ *
+ * Также есть состояние вкладки, которое не доступно на данный момент через
+ * модели данных, и запрашивается напрямую у объектка вкладки:
+ * - hyscan_gtk_map_builder_set_offline(),
+ * - hyscan_gtk_map_builder_get_offline() - режим работы оффлайн,
+ * - hyscan_gtk_map_builder_get_selected_track() - текущий выбранный галс карты,
+ *
+ *
+ * Функция hyscan_gtk_map_builder_run_planner_import() предназначена для запуска
+ * диалога импорта плана галсов.
+ */
+
 #include "hyscan-gtk-map-builder.h"
 #include "hyscan-gtk-map-profile-switch.h"
 #include "hyscan-gtk-layer-list.h"
@@ -35,15 +115,15 @@
 #define PLANNER_TAB_ORIGIN    "origin"
 #define PLANNER_TAB_STATUS    "status"
 
-#define LAYER_BASE     "base"
-#define LAYER_RULER    "ruler"
-#define LAYER_PIN      "pin"
-#define LAYER_GRID     "grid"
-#define LAYER_WFMARK   "wfmark"
-#define LAYER_PLANNER  "planner"
-#define LAYER_GEOMARK  "geomark"
-#define LAYER_TRACK    "track"
-#define LAYER_NAV      "nav"
+#define LAYER_BASE            "base"
+#define LAYER_RULER           "ruler"
+#define LAYER_PIN             "pin"
+#define LAYER_GRID            "grid"
+#define LAYER_WFMARK          "wfmark"
+#define LAYER_PLANNER         "planner"
+#define LAYER_GEOMARK         "geomark"
+#define LAYER_TRACK           "track"
+#define LAYER_NAV             "nav"
 
 #define PLANNER_TOOLS_MODE    "planner-mode"
 
@@ -130,6 +210,11 @@ static void        hyscan_gtk_map_builder_track_draw_change        (GtkToggleBut
                                                                     GParamSpec                *pspec,
                                                                     HyScanGtkMapTrack         *track_layer);
 static void        hyscan_gtk_map_builder_project_changed          (HyScanGtkMapBuilder       *builder);
+static void        hyscan_gtk_map_builder_add_layer                (HyScanGtkMapBuilder       *builder,
+                                                                    HyScanGtkLayer            *layer,
+                                                                    gboolean                   visible,
+                                                                    const gchar               *key,
+                                                                    const gchar               *title);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMapBuilder, hyscan_gtk_map_builder, G_TYPE_OBJECT)
 
@@ -745,7 +830,7 @@ hyscan_gtk_map_builder_on_changed_combo_box (GtkComboBox    *combo,
 
 /* Функция создаёт панель инструментов для слоя меток с акустическим изображением. */
 static GtkWidget *
-create_wfmark_layer_toolbox (HyScanGtkMapWfmark *layer)
+hyscan_gtk_map_builder_create_wfmark_layer_toolbox (HyScanGtkMapWfmark *layer)
 {
   GtkWidget *combo;
 
@@ -760,8 +845,9 @@ create_wfmark_layer_toolbox (HyScanGtkMapWfmark *layer)
   return combo;
 }
 
+/* Виджет редактирования полигона в планировании. */
 static GtkWidget *
-create_planner_zeditor (HyScanGtkMapBuilder *builder)
+hyscan_gtk_map_builder_create_planner_zeditor (HyScanGtkMapBuilder *builder)
 {
   HyScanGtkMapBuilderPrivate *priv = builder->priv;
   GtkWidget *box, *scroll_wnd, *zeditor, *topo_checkbox;
@@ -786,9 +872,9 @@ create_planner_zeditor (HyScanGtkMapBuilder *builder)
 }
 
 static void
-planner_stack_switch_tracks (HyScanPlannerSelection  *selection,
-                             const gchar * const     *tracks,
-                             GtkStack                *stack)
+hyscan_gtk_map_builder_planner_switch_tracks (HyScanPlannerSelection  *selection,
+                                              const gchar * const     *tracks,
+                                              GtkStack                *stack)
 {
   gchar *zone_id;
   gboolean track_selected;
@@ -809,260 +895,17 @@ planner_stack_switch_tracks (HyScanPlannerSelection  *selection,
 }
 
 static void
-planner_stack_switch_zone (HyScanPlannerSelection  *selection,
-                           GtkStack                *stack)
+hyscan_gtk_map_builder_planner_switch_zone (HyScanPlannerSelection  *selection,
+                                            GtkStack                *stack)
 {
   gchar **tracks;
 
   tracks = hyscan_planner_selection_get_tracks (selection);
-  planner_stack_switch_tracks (selection, (const gchar *const *) tracks, stack);
+  hyscan_gtk_map_builder_planner_switch_tracks (selection, (const gchar *const *) tracks, stack);
   g_strfreev (tracks);
 }
 
-HyScanGtkMapBuilder *
-hyscan_gtk_map_builder_new (HyScanGtkModelManager *model_manager)
-{
-  return g_object_new (HYSCAN_TYPE_GTK_MAP_BUILDER,
-                       "model-manager", model_manager,
-                       NULL);
-}
-
-
-void
-hyscan_gtk_map_builder_set_offline (HyScanGtkMapBuilder *builder,
-                                    gboolean             offline)
-{
-  HyScanGtkMapBuilderPrivate *priv;
-
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
-  priv = builder->priv;
-
-  hyscan_gtk_map_profile_switch_set_offline (HYSCAN_GTK_MAP_PROFILE_SWITCH (priv->profile_switch), offline);
-}
-
-gboolean
-hyscan_gtk_map_builder_get_offline (HyScanGtkMapBuilder *builder)
-{
-  HyScanGtkMapBuilderPrivate *priv;
-
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder), FALSE);
-  priv = builder->priv;
-
-  return hyscan_gtk_map_profile_switch_get_offline (HYSCAN_GTK_MAP_PROFILE_SWITCH (priv->profile_switch));
-}
-
-void
-hyscan_gtk_map_builder_add_planner (HyScanGtkMapBuilder    *builder,
-                                    gboolean                write_records)
-{
-  HyScanGtkMapBuilderPrivate *priv;
-  HyScanGtkLayer *planner_layer;
-
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
-  priv = builder->priv;
-
-  g_return_if_fail (priv->planner_model == NULL);
-
-  /* Модель данных планировщика. */
-  priv->planner_model = hyscan_gtk_model_manager_get_planner_model (priv->model_manager);
-  priv->planner_selection = hyscan_planner_selection_new (priv->planner_model);
-
-  /* Слой планировщика. */
-  planner_layer = hyscan_gtk_map_planner_new (priv->planner_model, priv->planner_selection);
-  hyscan_gtk_map_builder_add_layer (builder, planner_layer, FALSE, LAYER_PLANNER, _("Planner"));
-  priv->layer_planner = HYSCAN_GTK_MAP_PLANNER (planner_layer);
-
-  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), LAYER_PLANNER,
-                                   hyscan_gtk_map_builder_planner_tools (builder));
-
-  if (write_records)
-    hyscan_planner_selection_watch_records (priv->planner_selection, priv->db_info);
-}
-
-void
-hyscan_gtk_map_builder_add_planner_list (HyScanGtkMapBuilder *builder)
-{
-  HyScanGtkMapBuilderPrivate *priv;
-  GtkWidget *vbox, *hbox, *stack;
-  GtkWidget *list_bar, *track_editor, *zone_editor, *scroll_wnd;
-  HyScanTrackStats *track_stats;
-  HyScanPlannerStats *planner_stats;
-
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
-  priv = builder->priv;
-
-  track_stats = hyscan_track_stats_new (priv->db_info, priv->planner_model, priv->cache);
-  planner_stats = hyscan_planner_stats_new (track_stats, priv->planner_model);
-  g_object_unref (track_stats);
-
-  /* Список схемы галсов помещаем в GtkScrolledWindow. */
-  priv->planner_list = hyscan_gtk_planner_list_new (priv->planner_model, priv->planner_selection, planner_stats,
-                                                    priv->layer_planner);
-  hyscan_gtk_planner_list_enable_binding (HYSCAN_GTK_PLANNER_LIST (priv->planner_list), priv->db_info);
-
-  scroll_wnd = gtk_scrolled_window_new (NULL, NULL);
-  gtk_widget_set_hexpand (scroll_wnd, FALSE);
-  gtk_widget_set_vexpand (scroll_wnd, FALSE);
-  gtk_scrolled_window_set_shadow_type (GTK_SCROLLED_WINDOW (scroll_wnd), GTK_SHADOW_IN);
-  gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scroll_wnd), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-  gtk_scrolled_window_set_min_content_height (GTK_SCROLLED_WINDOW (scroll_wnd), 50);
-  gtk_container_add (GTK_CONTAINER (scroll_wnd), priv->planner_list);
-
-  /* Панель управления списком схемы галсов. */
-  list_bar = hyscan_gtk_planner_list_bar_new (HYSCAN_GTK_PLANNER_LIST (priv->planner_list));
-
-  /* Стек виджетов для редактирования параметров галсов и зон. */
-  stack = gtk_stack_new ();
-  gtk_widget_set_margin_top (stack, 6);
-
-  track_editor = hyscan_gtk_planner_editor_new (priv->planner_model, priv->planner_selection);
-  zone_editor = create_planner_zeditor (builder);
-  gtk_stack_add_named (GTK_STACK (stack), track_editor, "track-editor");
-  gtk_stack_add_named (GTK_STACK (stack), zone_editor, "zone-editor");
-
-  /* Переключение виджетов в стеке в зависимости от выбранного объекта. */
-  g_signal_connect (priv->planner_selection, "tracks-changed", G_CALLBACK (planner_stack_switch_tracks), stack);
-  g_signal_connect (priv->planner_selection, "zone-changed", G_CALLBACK (planner_stack_switch_zone), stack);
-
-  /* Компануем все виджеты вместе. */
-  vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
-  gtk_box_pack_start (GTK_BOX (vbox), list_bar, FALSE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (vbox), scroll_wnd, TRUE, TRUE, 0);
-
-  hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
-  gtk_box_pack_start (GTK_BOX (hbox), vbox, TRUE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (hbox), stack, FALSE, TRUE, 0);
-
-  priv->planner_list_wrap = hbox;
-
-  priv->paned = hyscan_gtk_paned_new ();
-  hyscan_gtk_paned_add (HYSCAN_GTK_PANED (priv->paned), priv->planner_list_wrap, "tracks", _("Planned tracks"), NULL);
-  hyscan_gtk_paned_set_center_widget (HYSCAN_GTK_PANED (priv->paned), GTK_WIDGET (priv->map));
-}
-
-void
-hyscan_gtk_map_builder_layer_set_tools (HyScanGtkMapBuilder *builder,
-                                        const gchar         *layer_id,
-                                        GtkWidget           *widget)
-{
-  HyScanGtkMapBuilderPrivate *priv = builder->priv;
-
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
-
-  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), layer_id, widget);
-}
-
-/* Добавляет @layer на карту и в список слоёв. */
-void
-hyscan_gtk_map_builder_add_layer (HyScanGtkMapBuilder *builder,
-                                  HyScanGtkLayer      *layer,
-                                  gboolean             visible,
-                                  const gchar         *key,
-                                  const gchar         *title)
-{
-  HyScanGtkMapBuilderPrivate *priv = builder->priv;
-
-  /* Регистрируем слой в карте. */
-  if (layer != NULL)
-    {
-      hyscan_gtk_layer_set_visible (layer, visible);
-      hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (priv->map), layer, key);
-    }
-  hyscan_gtk_layer_list_add (HYSCAN_GTK_LAYER_LIST (priv->layer_list), layer, key, title);
-
-  /* Применяем профиль, чтобы загрузить его параметры. */
-  hyscan_gtk_map_profile_switch_set_id (HYSCAN_GTK_MAP_PROFILE_SWITCH (priv->profile_switch), NULL);
-}
-
-void
-hyscan_gtk_map_builder_add_ruler (HyScanGtkMapBuilder *builder)
-{
-  HyScanGtkMapBuilderPrivate *priv;
-  HyScanGtkLayer *ruler;
-
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
-  priv = builder->priv;
-
-  ruler = hyscan_gtk_map_ruler_new ();
-  hyscan_gtk_map_builder_add_layer (builder, ruler, TRUE, LAYER_RULER, _("Ruler"));
-
-  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), LAYER_RULER,
-                                   hyscan_gtk_map_builder_pin_toolbox (ruler, _("Remove ruler")));
-}
-
-void
-hyscan_gtk_map_builder_add_pin (HyScanGtkMapBuilder *builder)
-{
-  HyScanGtkMapBuilderPrivate *priv;
-  HyScanGtkLayer *pin_layer;
-
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
-  priv = builder->priv;
-
-  pin_layer = hyscan_gtk_map_pin_new ();
-
-  hyscan_gtk_map_builder_add_layer (builder, pin_layer, TRUE, LAYER_PIN, _("Pin"));
-
-  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), LAYER_PIN,
-                                   hyscan_gtk_map_builder_pin_toolbox (pin_layer, _("Remove all pins")));
-}
-
-void
-hyscan_gtk_map_builder_add_grid (HyScanGtkMapBuilder *builder)
-{
-  HyScanGtkMapBuilderPrivate *priv;
-  HyScanGtkLayer *map_grid;
-
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
-  priv = builder->priv;
-
-  map_grid = hyscan_gtk_map_grid_new (priv->units);
-  hyscan_gtk_map_builder_add_layer (builder, map_grid,   TRUE,  LAYER_GRID,  _("Grid"));
-  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), LAYER_GRID,
-                                   hyscan_gtk_map_builder_grid_toolbox (builder));
-}
-
-void
-hyscan_gtk_map_builder_add_marks (HyScanGtkMapBuilder *builder)
-{
-  HyScanGtkMapBuilderPrivate *priv = builder->priv;
-  GtkWidget *scrolled_window;
-
-  /* Слой с метками. */
-  priv->wfmark_layer = HYSCAN_GTK_MAP_WFMARK (hyscan_gtk_map_wfmark_new (priv->ml_model, priv->db, priv->cache, priv->units));
-  hyscan_gtk_map_wfmark_set_project (HYSCAN_GTK_MAP_WFMARK (priv->wfmark_layer), priv->project_name);
-  hyscan_gtk_map_builder_add_layer (builder, HYSCAN_GTK_LAYER (priv->wfmark_layer),
-                                    FALSE, LAYER_WFMARK, _("Waterfall Marks"));
-  hyscan_gtk_map_builder_layer_set_tools (builder, LAYER_WFMARK, create_wfmark_layer_toolbox (priv->wfmark_layer));
-
-  /* Слой с геометками. */
-  priv->geomark_layer = HYSCAN_GTK_MAP_GEOMARK (hyscan_gtk_map_geomark_new (priv->mark_geo_model));
-  hyscan_gtk_map_builder_add_layer (builder, HYSCAN_GTK_LAYER (priv->geomark_layer), FALSE, LAYER_GEOMARK, _("Geo Marks"));
-
-  /* Список меток слева. */
-  priv->mark_list = hyscan_gtk_map_mark_list_new (priv->mark_geo_model,
-                                                  priv->ml_model,
-                                                  priv->wfmark_layer,
-                                                  priv->geomark_layer);
-
-  /* Область прокрутки со списком меток. */
-  scrolled_window = gtk_scrolled_window_new (NULL, NULL);
-  gtk_widget_set_hexpand (scrolled_window, FALSE);
-  gtk_widget_set_vexpand (scrolled_window, FALSE);
-  gtk_scrolled_window_set_overlay_scrolling (GTK_SCROLLED_WINDOW (scrolled_window), FALSE);
-  gtk_scrolled_window_set_shadow_type (GTK_SCROLLED_WINDOW (scrolled_window), GTK_SHADOW_IN);
-  gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled_window),
-                                  GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-  gtk_scrolled_window_set_min_content_width (GTK_SCROLLED_WINDOW (scrolled_window), 150);
-  gtk_scrolled_window_set_min_content_height (GTK_SCROLLED_WINDOW (scrolled_window), 120);
-  gtk_container_add (GTK_CONTAINER (scrolled_window), priv->mark_list);
-
-  /* Помещаем в панель навигации. */
-  gtk_box_pack_start (GTK_BOX (priv->left_col), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL), FALSE, FALSE, 0);
-  gtk_box_pack_start (GTK_BOX (priv->left_col), scrolled_window, TRUE, TRUE, 0);
-}
-
-/* Выбор галсов проекта. */
+/* Виджет выбора галсов проекта. */
 static void
 hyscan_gtk_map_builder_add_track_list (HyScanGtkMapBuilder *builder)
 {
@@ -1083,37 +926,8 @@ hyscan_gtk_map_builder_add_track_list (HyScanGtkMapBuilder *builder)
   gtk_box_pack_start (GTK_BOX (priv->left_col), scrolled_window, TRUE, TRUE, 0);
 }
 
-void
-hyscan_gtk_map_builder_add_tracks (HyScanGtkMapBuilder *builder)
-{
-  HyScanGtkMapBuilderPrivate *priv;
-  GtkWidget *bar, *beam, *box;
-  
-  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
-  priv = builder->priv;
-
-  priv->track_layer = HYSCAN_GTK_MAP_TRACK (hyscan_gtk_map_track_new (priv->track_model));
-  hyscan_gtk_map_builder_add_layer (builder, HYSCAN_GTK_LAYER (priv->track_layer), FALSE, LAYER_TRACK, _("Tracks"));
-
-  /* Создаём инструменты для слоя галсов. */
-  bar = gtk_radio_button_new_with_label_from_widget (NULL, _("Distance bars"));
-  g_object_set_data (G_OBJECT (bar), "draw-type", GINT_TO_POINTER (HYSCAN_GTK_MAP_TRACK_BAR));
-  g_signal_connect (bar, "notify::active", G_CALLBACK (hyscan_gtk_map_builder_track_draw_change), priv->track_layer);
-
-  beam = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON (bar), _("Coverage"));
-  g_object_set_data (G_OBJECT (beam), "draw-type", GINT_TO_POINTER (HYSCAN_GTK_MAP_TRACK_BEAM));
-  g_signal_connect (beam, "notify::active", G_CALLBACK (hyscan_gtk_map_builder_track_draw_change), priv->track_layer);
-
-  box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
-  gtk_box_pack_start (GTK_BOX (box), bar, FALSE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (box), beam, FALSE, TRUE, 0);
-
-  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), LAYER_TRACK, box);
-  hyscan_gtk_map_builder_add_track_list (builder);
-}
-
 static HyScanNavModel *
-hyscan_gtk_map_builder_init_nav_model (HyScanControlModel *control_model)
+hyscan_gtk_map_builder_create_nav_model (HyScanControlModel *control_model)
 {
   HyScanNavModel *nav_model;
   HyScanAntennaOffset offset = {0};
@@ -1150,6 +964,284 @@ hyscan_gtk_map_builder_init_nav_model (HyScanControlModel *control_model)
   return nav_model;
 }
 
+/* Добавляет layer на карту и в список слоёв. */
+static void
+hyscan_gtk_map_builder_add_layer (HyScanGtkMapBuilder *builder,
+                                  HyScanGtkLayer      *layer,
+                                  gboolean             visible,
+                                  const gchar         *key,
+                                  const gchar         *title)
+{
+  HyScanGtkMapBuilderPrivate *priv = builder->priv;
+
+  /* Регистрируем слой в карте. */
+  if (layer != NULL)
+    {
+      hyscan_gtk_layer_set_visible (layer, visible);
+      hyscan_gtk_layer_container_add (HYSCAN_GTK_LAYER_CONTAINER (priv->map), layer, key);
+    }
+  hyscan_gtk_layer_list_add (HYSCAN_GTK_LAYER_LIST (priv->layer_list), layer, key, title);
+
+  /* Применяем профиль, чтобы загрузить его параметры. */
+  hyscan_gtk_map_profile_switch_set_id (HYSCAN_GTK_MAP_PROFILE_SWITCH (priv->profile_switch), NULL);
+}
+
+/**
+ * hyscan_gtk_map_builder_new:
+ * @model_manager: указатель на #HyScanGtkModelManager
+ *
+ * Функция создаёт объект для создания и настройки вкладки карты.
+ *
+ * Returns: новый объект #HyScanGtkMapBuilder, для удаления g_object_unref().
+ */
+HyScanGtkMapBuilder *
+hyscan_gtk_map_builder_new (HyScanGtkModelManager *model_manager)
+{
+  return g_object_new (HYSCAN_TYPE_GTK_MAP_BUILDER,
+                       "model-manager", model_manager,
+                       NULL);
+}
+
+/**
+ * hyscan_gtk_map_builder_set_offline:
+ * @builder: указатель на #HyScanGtkMapBuilder
+ * @offline: признак работы оффлайн
+ *
+ * Функция включает режим работы карты "оффлайн".
+ */
+void
+hyscan_gtk_map_builder_set_offline (HyScanGtkMapBuilder *builder,
+                                    gboolean             offline)
+{
+  HyScanGtkMapBuilderPrivate *priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
+  priv = builder->priv;
+
+  hyscan_gtk_map_profile_switch_set_offline (HYSCAN_GTK_MAP_PROFILE_SWITCH (priv->profile_switch), offline);
+}
+
+/**
+ * hyscan_gtk_map_builder_set_offline:
+ * @builder: указатель на #HyScanGtkMapBuilder
+ *
+ * Функция возвращает статус работы карты "оффлайн".
+ */
+gboolean
+hyscan_gtk_map_builder_get_offline (HyScanGtkMapBuilder *builder)
+{
+  HyScanGtkMapBuilderPrivate *priv;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder), FALSE);
+  priv = builder->priv;
+
+  return hyscan_gtk_map_profile_switch_get_offline (HYSCAN_GTK_MAP_PROFILE_SWITCH (priv->profile_switch));
+}
+
+/**
+ * hyscan_gtk_map_builder_add_planner:
+ * @builder: указатель на #HyScanGtkMapBuilder
+ * @write_records: добавлять в активный план новые галсы
+ *
+ * Функция добавляет элементы планирования на вкладку: слой планирования и виджеты
+ * для создания плана.
+ *
+ * Если @write_records = %TRUE, то галсы, в которые происходит запись в данный момент,
+ * будут связываться с активным планом.
+ */
+void
+hyscan_gtk_map_builder_add_planner (HyScanGtkMapBuilder *builder,
+                                    gboolean             write_records)
+{
+  HyScanGtkMapBuilderPrivate *priv;
+  HyScanGtkLayer *planner_layer;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
+  priv = builder->priv;
+
+  g_return_if_fail (priv->planner_model == NULL);
+
+  /* Модель данных планировщика. */
+  priv->planner_model = hyscan_gtk_model_manager_get_planner_model (priv->model_manager);
+  priv->planner_selection = hyscan_planner_selection_new (priv->planner_model);
+
+  /* Слой планировщика. */
+  planner_layer = hyscan_gtk_map_planner_new (priv->planner_model, priv->planner_selection);
+  hyscan_gtk_map_builder_add_layer (builder, planner_layer, FALSE, LAYER_PLANNER, _("Planner"));
+  priv->layer_planner = HYSCAN_GTK_MAP_PLANNER (planner_layer);
+
+  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), LAYER_PLANNER,
+                                   hyscan_gtk_map_builder_planner_tools (builder));
+
+  if (write_records)
+    hyscan_planner_selection_watch_records (priv->planner_selection, priv->db_info);
+}
+
+/**
+ * hyscan_gtk_map_builder_add_planner_list:
+ * @builder: указатель на #HyScanGtkMapBuilder
+ *
+ * Функция добавляет на вкладку таблицу объектов планировщика.
+ *
+ * Предварительно должно быть добавлено планирование: hyscan_gtk_map_builder_add_planner().
+ */
+void
+hyscan_gtk_map_builder_add_planner_list (HyScanGtkMapBuilder *builder)
+{
+  HyScanGtkMapBuilderPrivate *priv;
+  GtkWidget *vbox, *hbox, *stack;
+  GtkWidget *list_bar, *track_editor, *zone_editor, *scroll_wnd;
+  HyScanTrackStats *track_stats;
+  HyScanPlannerStats *planner_stats;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
+  priv = builder->priv;
+
+  g_return_if_fail (priv->planner_model != NULL);
+
+  track_stats = hyscan_track_stats_new (priv->db_info, priv->planner_model, priv->cache);
+  planner_stats = hyscan_planner_stats_new (track_stats, priv->planner_model);
+  g_object_unref (track_stats);
+
+  /* Список схемы галсов помещаем в GtkScrolledWindow. */
+  priv->planner_list = hyscan_gtk_planner_list_new (priv->planner_model, priv->planner_selection, planner_stats,
+                                                    priv->layer_planner);
+  hyscan_gtk_planner_list_enable_binding (HYSCAN_GTK_PLANNER_LIST (priv->planner_list), priv->db_info);
+
+  scroll_wnd = gtk_scrolled_window_new (NULL, NULL);
+  gtk_widget_set_hexpand (scroll_wnd, FALSE);
+  gtk_widget_set_vexpand (scroll_wnd, FALSE);
+  gtk_scrolled_window_set_shadow_type (GTK_SCROLLED_WINDOW (scroll_wnd), GTK_SHADOW_IN);
+  gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scroll_wnd), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+  gtk_scrolled_window_set_min_content_height (GTK_SCROLLED_WINDOW (scroll_wnd), 50);
+  gtk_container_add (GTK_CONTAINER (scroll_wnd), priv->planner_list);
+
+  /* Панель управления списком схемы галсов. */
+  list_bar = hyscan_gtk_planner_list_bar_new (HYSCAN_GTK_PLANNER_LIST (priv->planner_list));
+
+  /* Стек виджетов для редактирования параметров галсов и зон. */
+  stack = gtk_stack_new ();
+  gtk_widget_set_margin_top (stack, 6);
+
+  track_editor = hyscan_gtk_planner_editor_new (priv->planner_model, priv->planner_selection);
+  zone_editor = hyscan_gtk_map_builder_create_planner_zeditor (builder);
+  gtk_stack_add_named (GTK_STACK (stack), track_editor, "track-editor");
+  gtk_stack_add_named (GTK_STACK (stack), zone_editor, "zone-editor");
+
+  /* Переключение виджетов в стеке в зависимости от выбранного объекта. */
+  g_signal_connect (priv->planner_selection, "tracks-changed", G_CALLBACK (hyscan_gtk_map_builder_planner_switch_tracks), stack);
+  g_signal_connect (priv->planner_selection, "zone-changed", G_CALLBACK (hyscan_gtk_map_builder_planner_switch_zone), stack);
+
+  /* Компануем все виджеты вместе. */
+  vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+  gtk_box_pack_start (GTK_BOX (vbox), list_bar, FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (vbox), scroll_wnd, TRUE, TRUE, 0);
+
+  hbox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+  gtk_box_pack_start (GTK_BOX (hbox), vbox, TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (hbox), stack, FALSE, TRUE, 0);
+
+  priv->planner_list_wrap = hbox;
+
+  priv->paned = hyscan_gtk_paned_new ();
+  hyscan_gtk_paned_add (HYSCAN_GTK_PANED (priv->paned), priv->planner_list_wrap, "tracks", _("Planned tracks"), NULL);
+  hyscan_gtk_paned_set_center_widget (HYSCAN_GTK_PANED (priv->paned), GTK_WIDGET (priv->map));
+}
+
+/**
+ * hyscan_gtk_map_builder_layer_set_tools:
+ * @builder: указатель на #HyScanGtkMapBuilder
+ * @layer_id: идентификатор слоя
+ * @widget: виджет инструментов
+ *
+ * Функция устанавливает инструменты для слоя.
+ */
+void
+hyscan_gtk_map_builder_layer_set_tools (HyScanGtkMapBuilder *builder,
+                                        const gchar         *layer_id,
+                                        GtkWidget           *widget)
+{
+  HyScanGtkMapBuilderPrivate *priv = builder->priv;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
+
+  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), layer_id, widget);
+}
+
+/**
+ * hyscan_gtk_map_builder_add_ruler:
+ * @builder: указатель на #HyScanGtkMapBuilder
+ *
+ * Функция добавляет линейку на вкладку.
+ */
+void
+hyscan_gtk_map_builder_add_ruler (HyScanGtkMapBuilder *builder)
+{
+  HyScanGtkMapBuilderPrivate *priv;
+  HyScanGtkLayer *ruler;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
+  priv = builder->priv;
+
+  ruler = hyscan_gtk_map_ruler_new ();
+  hyscan_gtk_map_builder_add_layer (builder, ruler, TRUE, LAYER_RULER, _("Ruler"));
+
+  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), LAYER_RULER,
+                                   hyscan_gtk_map_builder_pin_toolbox (ruler, _("Remove ruler")));
+}
+
+/**
+ * hyscan_gtk_map_builder_add_ruler:
+ * @builder: указатель на #HyScanGtkMapBuilder
+ *
+ * Функция добавляет булавки на вкладку.
+ */
+void
+hyscan_gtk_map_builder_add_pin (HyScanGtkMapBuilder *builder)
+{
+  HyScanGtkMapBuilderPrivate *priv;
+  HyScanGtkLayer *pin_layer;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
+  priv = builder->priv;
+
+  pin_layer = hyscan_gtk_map_pin_new ();
+
+  hyscan_gtk_map_builder_add_layer (builder, pin_layer, TRUE, LAYER_PIN, _("Pin"));
+
+  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), LAYER_PIN,
+                                   hyscan_gtk_map_builder_pin_toolbox (pin_layer, _("Remove all pins")));
+}
+
+/**
+ * hyscan_gtk_map_builder_add_ruler:
+ * @builder: указатель на #HyScanGtkMapBuilder
+ *
+ * Функция добавляет координатную сетку и виджет для выбора формата широты и долготы.
+ */
+void
+hyscan_gtk_map_builder_add_grid (HyScanGtkMapBuilder *builder)
+{
+  HyScanGtkMapBuilderPrivate *priv;
+  HyScanGtkLayer *map_grid;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
+  priv = builder->priv;
+
+  map_grid = hyscan_gtk_map_grid_new (priv->units);
+  hyscan_gtk_map_builder_add_layer (builder, map_grid,   TRUE,  LAYER_GRID,  _("Grid"));
+  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), LAYER_GRID,
+                                   hyscan_gtk_map_builder_grid_toolbox (builder));
+}
+
+/**
+ * hyscan_gtk_map_builder_get_selected_track:
+ * @builder: указатель на #HyScanGtkMapBuilder
+ *
+ * Функция возвращает имя выбранного галса в виджете галсов.
+ *
+ * Returns: (transfer full): названия выбранного галса или %NULL, для удаления g_free().
+ */
 gchar *
 hyscan_gtk_map_builder_get_selected_track (HyScanGtkMapBuilder *builder)
 {
@@ -1159,6 +1251,88 @@ hyscan_gtk_map_builder_get_selected_track (HyScanGtkMapBuilder *builder)
   priv = builder->priv;
 
   return hyscan_gtk_map_track_list_get_selected (HYSCAN_GTK_MAP_TRACK_LIST (priv->track_list));
+}
+
+/**
+ * hyscan_gtk_map_builder_add_marks:
+ * @builder: указатель на #HyScanGtkMapBuilder
+ *
+ * Функция добавляет слои акустических и геометок, а также виджет списка меток.
+ */
+void
+hyscan_gtk_map_builder_add_marks (HyScanGtkMapBuilder *builder)
+{
+  HyScanGtkMapBuilderPrivate *priv = builder->priv;
+  GtkWidget *scrolled_window;
+
+  /* Слой с метками. */
+  priv->wfmark_layer = HYSCAN_GTK_MAP_WFMARK (hyscan_gtk_map_wfmark_new (priv->ml_model, priv->db, priv->cache, priv->units));
+  hyscan_gtk_map_wfmark_set_project (HYSCAN_GTK_MAP_WFMARK (priv->wfmark_layer), priv->project_name);
+  hyscan_gtk_map_builder_add_layer (builder, HYSCAN_GTK_LAYER (priv->wfmark_layer),
+                                    FALSE, LAYER_WFMARK, _("Waterfall Marks"));
+  hyscan_gtk_map_builder_layer_set_tools (builder, LAYER_WFMARK,
+                                          hyscan_gtk_map_builder_create_wfmark_layer_toolbox (priv->wfmark_layer));
+
+  /* Слой с геометками. */
+  priv->geomark_layer = HYSCAN_GTK_MAP_GEOMARK (hyscan_gtk_map_geomark_new (priv->mark_geo_model));
+  hyscan_gtk_map_builder_add_layer (builder, HYSCAN_GTK_LAYER (priv->geomark_layer), FALSE, LAYER_GEOMARK, _("Geo Marks"));
+
+  /* Список меток слева. */
+  priv->mark_list = hyscan_gtk_map_mark_list_new (priv->mark_geo_model,
+                                                  priv->ml_model,
+                                                  priv->wfmark_layer,
+                                                  priv->geomark_layer);
+
+  /* Область прокрутки со списком меток. */
+  scrolled_window = gtk_scrolled_window_new (NULL, NULL);
+  gtk_widget_set_hexpand (scrolled_window, FALSE);
+  gtk_widget_set_vexpand (scrolled_window, FALSE);
+  gtk_scrolled_window_set_overlay_scrolling (GTK_SCROLLED_WINDOW (scrolled_window), FALSE);
+  gtk_scrolled_window_set_shadow_type (GTK_SCROLLED_WINDOW (scrolled_window), GTK_SHADOW_IN);
+  gtk_scrolled_window_set_policy (GTK_SCROLLED_WINDOW (scrolled_window),
+                                  GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+  gtk_scrolled_window_set_min_content_width (GTK_SCROLLED_WINDOW (scrolled_window), 150);
+  gtk_scrolled_window_set_min_content_height (GTK_SCROLLED_WINDOW (scrolled_window), 120);
+  gtk_container_add (GTK_CONTAINER (scrolled_window), priv->mark_list);
+
+  /* Помещаем в панель навигации. */
+  gtk_box_pack_start (GTK_BOX (priv->left_col), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL), FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (priv->left_col), scrolled_window, TRUE, TRUE, 0);
+}
+
+/**
+ * hyscan_gtk_map_builder_add_tracks:
+ * @builder: указатель на #HyScanGtkMapBuilder
+ *
+ * Функция добавляет слой галсов и виджет выбора галсов на вкладку.
+ */
+void
+hyscan_gtk_map_builder_add_tracks (HyScanGtkMapBuilder *builder)
+{
+  HyScanGtkMapBuilderPrivate *priv;
+  GtkWidget *bar, *beam, *box;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder));
+  priv = builder->priv;
+
+  priv->track_layer = HYSCAN_GTK_MAP_TRACK (hyscan_gtk_map_track_new (priv->track_model));
+  hyscan_gtk_map_builder_add_layer (builder, HYSCAN_GTK_LAYER (priv->track_layer), FALSE, LAYER_TRACK, _("Tracks"));
+
+  /* Создаём инструменты для слоя галсов. */
+  bar = gtk_radio_button_new_with_label_from_widget (NULL, _("Distance bars"));
+  g_object_set_data (G_OBJECT (bar), "draw-type", GINT_TO_POINTER (HYSCAN_GTK_MAP_TRACK_BAR));
+  g_signal_connect (bar, "notify::active", G_CALLBACK (hyscan_gtk_map_builder_track_draw_change), priv->track_layer);
+
+  beam = gtk_radio_button_new_with_label_from_widget (GTK_RADIO_BUTTON (bar), _("Coverage"));
+  g_object_set_data (G_OBJECT (beam), "draw-type", GINT_TO_POINTER (HYSCAN_GTK_MAP_TRACK_BEAM));
+  g_signal_connect (beam, "notify::active", G_CALLBACK (hyscan_gtk_map_builder_track_draw_change), priv->track_layer);
+
+  box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 6);
+  gtk_box_pack_start (GTK_BOX (box), bar, FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), beam, FALSE, TRUE, 0);
+
+  hyscan_gtk_layer_list_set_tools (HYSCAN_GTK_LAYER_LIST (priv->layer_list), LAYER_TRACK, box);
+  hyscan_gtk_map_builder_add_track_list (builder);
 }
 
 /**
@@ -1184,7 +1358,7 @@ hyscan_gtk_map_builder_add_nav (HyScanGtkMapBuilder *builder,
   priv = builder->priv;
 
   /* Навигационные данные. */
-  priv->nav_model = hyscan_gtk_map_builder_init_nav_model (control_model);
+  priv->nav_model = hyscan_gtk_map_builder_create_nav_model (control_model);
 
   /* Определение местоположения. */
   priv->locate_button = gtk_button_new_from_icon_name ("network-wireless-signal-good-symbolic", GTK_ICON_SIZE_BUTTON);
@@ -1211,7 +1385,7 @@ hyscan_gtk_map_builder_add_nav (HyScanGtkMapBuilder *builder,
  * hyscan_gtk_map_builder_run_planner_import:
  * @kit: указатель на HyScanGtkMapKit
  *
- * Создаёт окно с виджетом импорта данных планировщика
+ * Создаёт окно с виджетом импорта данных планирования.
  */
 void
 hyscan_gtk_map_builder_run_planner_import (HyScanGtkMapBuilder *builder)
@@ -1253,6 +1427,14 @@ hyscan_gtk_map_builder_run_planner_import (HyScanGtkMapBuilder *builder)
   gtk_widget_show_all (window);
 }
 
+/**
+ * hyscan_gtk_map_builder_get_map:
+ * @builder: указатель на #HyScanGtkMapBuilder
+ *
+ * Функция возвращает виджет карты #HyScanGtkMap.
+ *
+ * Returns: виджет карты #HyScanGtkMap.
+ */
 HyScanGtkMap *
 hyscan_gtk_map_builder_get_map (HyScanGtkMapBuilder *builder)
 {
@@ -1264,17 +1446,14 @@ hyscan_gtk_map_builder_get_map (HyScanGtkMapBuilder *builder)
   return priv->map;
 }
 
-GtkWidget *
-hyscan_gtk_map_builder_get_tools (HyScanGtkMapBuilder *builder)
-{
-  HyScanGtkMapBuilderPrivate *priv;
-
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder), NULL);
-  priv = builder->priv;
-
-  return priv->right_col;
-}
-
+/**
+ * hyscan_gtk_map_builder_get_bar:
+ * @builder: указатель на #HyScanGtkMapBuilder
+ *
+ * Функция возвращает виджет статусной строки.
+ *
+ * Returns: виджет GtkWidget.
+ */
 GtkWidget *
 hyscan_gtk_map_builder_get_bar (HyScanGtkMapBuilder *builder)
 {
@@ -1286,28 +1465,14 @@ hyscan_gtk_map_builder_get_bar (HyScanGtkMapBuilder *builder)
   return priv->statusbar;
 }
 
-GtkWidget *
-hyscan_gtk_map_builder_get_layer_list (HyScanGtkMapBuilder *builder)
-{
-  HyScanGtkMapBuilderPrivate *priv;
-
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder), NULL);
-  priv = builder->priv;
-
-  return priv->layer_list;
-}
-
-GtkWidget *
-hyscan_gtk_map_builder_get_profile_switch (HyScanGtkMapBuilder *builder)
-{
-  HyScanGtkMapBuilderPrivate *priv;
-
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder), NULL);
-  priv = builder->priv;
-
-  return priv->profile_switch;
-}
-
+/**
+ * hyscan_gtk_map_builder_get_mark_list:
+ * @builder: указатель на #HyScanGtkMapBuilder
+ *
+ * Функция возвращает виджет списка меток, если они были включены. Иначе %NULL.
+ *
+ * Returns: виджет GtkWidget.
+ */
 GtkWidget *
 hyscan_gtk_map_builder_get_mark_list (HyScanGtkMapBuilder *builder)
 {
@@ -1319,17 +1484,14 @@ hyscan_gtk_map_builder_get_mark_list (HyScanGtkMapBuilder *builder)
   return priv->mark_list;
 }
 
-GtkWidget *
-hyscan_gtk_map_builder_get_planner_list (HyScanGtkMapBuilder *builder)
-{
-  HyScanGtkMapBuilderPrivate *priv;
-
-  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder), NULL);
-  priv = builder->priv;
-
-  return priv->planner_list_wrap;
-}
-
+/**
+ * hyscan_gtk_map_builder_get_track_list:
+ * @builder: указатель на #HyScanGtkMapBuilder
+ *
+ * Функция возвращает виджет списка галсов, если они были включены. Иначе %NULL.
+ *
+ * Returns: виджет GtkWidget.
+ */
 GtkWidget *
 hyscan_gtk_map_builder_get_track_list (HyScanGtkMapBuilder *builder)
 {
@@ -1341,6 +1503,14 @@ hyscan_gtk_map_builder_get_track_list (HyScanGtkMapBuilder *builder)
   return priv->track_list;
 }
 
+/**
+ * hyscan_gtk_map_builder_get_right_col:
+ * @builder: указатель на #HyScanGtkMapBuilder
+ *
+ * Функция возвращает виджет левого столбца вкладки.
+ *
+ * Returns: виджет GtkWidget.
+ */
 GtkWidget *
 hyscan_gtk_map_builder_get_left_col (HyScanGtkMapBuilder *builder)
 {
@@ -1352,6 +1522,14 @@ hyscan_gtk_map_builder_get_left_col (HyScanGtkMapBuilder *builder)
   return priv->left_col;
 }
 
+/**
+ * hyscan_gtk_map_builder_get_right_col:
+ * @builder: указатель на #HyScanGtkMapBuilder
+ *
+ * Функция возвращает виджет правого столбца вкладки.
+ *
+ * Returns: виджет GtkWidget.
+ */
 GtkWidget *
 hyscan_gtk_map_builder_get_right_col (HyScanGtkMapBuilder *builder)
 {
@@ -1363,6 +1541,15 @@ hyscan_gtk_map_builder_get_right_col (HyScanGtkMapBuilder *builder)
   return priv->right_col;
 }
 
+/**
+ * hyscan_gtk_map_builder_get_central:
+ * @builder: указатель на #HyScanGtkMapBuilder
+ *
+ * Функция возвращает центральный виджет вкладки. В зависимости от компановки это
+ * может быть как просто карта #HyScanGtkMap, так и какой-то составной виджет.
+ *
+ * Returns: центральный виджет GtkWidget.
+ */
 GtkWidget *
 hyscan_gtk_map_builder_get_central (HyScanGtkMapBuilder *builder)
 {
@@ -1379,7 +1566,7 @@ hyscan_gtk_map_builder_get_central (HyScanGtkMapBuilder *builder)
  * @builder: указатель на #HyScanGtkMapBuilder
  * @file: #GKeyFile для чтения
  *
- * Загружает настройки карты из файла @file
+ * Загружает настройки вкладки карты из файла @file
  */
 void
 hyscan_gtk_map_builder_file_read (HyScanGtkMapBuilder *builder,
@@ -1452,7 +1639,7 @@ hyscan_gtk_map_builder_file_read (HyScanGtkMapBuilder *builder,
  * @builder: указатель на #HyScanGtkMapBuilder
  * @file: #GKeyFile для записи
  *
- * Сохраняет настройки карты в файл @file.
+ * Сохраняет настройки вкладки карты в файл @file.
  */
 void
 hyscan_gtk_map_builder_file_write (HyScanGtkMapBuilder *builder,
