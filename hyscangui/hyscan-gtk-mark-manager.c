@@ -865,7 +865,7 @@ hyscan_gtk_mark_manager_labels_changed (HyScanGtkMarkManager *self)
   guint size;
   /* Если групп более MAX_LABELS, делаем кнопку "Новая группа" неактивной. */
   label_model = hyscan_gtk_model_manager_get_label_model (priv->model_manager);
-  table = hyscan_object_model_get (label_model);
+  table = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (label_model), HYSCAN_TYPE_LABEL);
   size = g_hash_table_size (table);
   gtk_widget_set_sensitive (GTK_WIDGET (priv->new_label_item), size < MAX_LABELS);
   g_hash_table_destroy (table);

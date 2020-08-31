@@ -169,7 +169,7 @@ hyscan_gtk_mark_manager_change_label_dialog_constructed (GObject *object)
   GtkDialog  *dialog  = GTK_DIALOG (object);
   GtkWindow  *window  = GTK_WINDOW (dialog);
   GtkWidget  *content = gtk_dialog_get_content_area (dialog);
-  GHashTable *table   = hyscan_object_model_get (priv->label_model);
+  GHashTable *table   = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model), HYSCAN_TYPE_LABEL);
 
   G_OBJECT_CLASS (hyscan_gtk_mark_manager_change_label_dialog_parent_class)->constructed (object);
 

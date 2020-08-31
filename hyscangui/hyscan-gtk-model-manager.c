@@ -486,14 +486,16 @@ hyscan_gtk_model_manager_constructed (GObject *object)
                     G_CALLBACK (hyscan_gtk_model_manager_acoustic_marks_loc_model_changed),
                     self);
   /* Модель акустических меток. */
-  priv->acoustic_marks_model = hyscan_object_model_new (HYSCAN_TYPE_OBJECT_DATA_WFMARK);
+  priv->acoustic_marks_model = hyscan_object_model_new ();
+  hyscan_object_model_set_types (priv->acoustic_marks_model, 1, HYSCAN_TYPE_OBJECT_DATA_WFMARK);
   hyscan_object_model_set_project (priv->acoustic_marks_model, priv->db, priv->project_name);
   priv->signal_acoustic_marks_changed = g_signal_connect (priv->acoustic_marks_model,
                     "changed",
                     G_CALLBACK (hyscan_gtk_model_manager_acoustic_marks_model_changed),
                     self);
   /* Модель геометок. */
-  priv->geo_mark_model = hyscan_object_model_new (HYSCAN_TYPE_OBJECT_DATA_GEOMARK);
+  priv->geo_mark_model = hyscan_object_model_new ();
+  hyscan_object_model_set_types (priv->geo_mark_model, 1, HYSCAN_TYPE_OBJECT_DATA_GEOMARK);
   hyscan_object_model_set_project (priv->geo_mark_model, priv->db, priv->project_name);
   priv->signal_geo_marks_changed = g_signal_connect (priv->geo_mark_model,
                     "changed",
@@ -507,7 +509,8 @@ hyscan_gtk_model_manager_constructed (GObject *object)
   priv->units = hyscan_units_new ();
 
   /* Модель данных групп. */
-  priv->label_model = hyscan_object_model_new (HYSCAN_TYPE_OBJECT_DATA_LABEL);
+  priv->label_model = hyscan_object_model_new ();
+  hyscan_object_model_set_types (priv->label_model, 1, HYSCAN_TYPE_OBJECT_DATA_LABEL);
   hyscan_object_model_set_project (priv->label_model, priv->db, priv->project_name);
   priv->signal_labels_changed = g_signal_connect (priv->label_model,
                     "changed",
@@ -782,7 +785,8 @@ hyscan_gtk_model_manager_set_view_model (HyScanGtkModelManager *self)
             /* Гео-метки. */
             if (priv->extensions[GEO_MARK] != NULL)
               {
-                GHashTable *table = hyscan_object_model_get (priv->geo_mark_model);
+                GHashTable *table = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->geo_mark_model),
+                                                                 HYSCAN_TYPE_MARK_GEO);
                 HyScanMarkGeo *object;
 
                 if (table != NULL)
@@ -2292,7 +2296,8 @@ hyscan_gtk_model_manager_refresh_all_items_by_labels (HyScanGtkModelManager *sel
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
   GHashTableIter table_iter;
-  GHashTable *labels = hyscan_object_model_get (priv->label_model);
+  GHashTable *labels = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model),
+                                                    HYSCAN_TYPE_LABEL);
 
   HyScanLabel *label;
   gchar *id;
@@ -2309,7 +2314,7 @@ hyscan_gtk_model_manager_refresh_all_items_by_labels (HyScanGtkModelManager *sel
           GInputStream *stream;
           GError *error = NULL;
           GHashTable *acoustic_marks = hyscan_mark_loc_model_get (priv->acoustic_loc_model),
-                     *geo_marks      = hyscan_object_model_get (priv->geo_mark_model),
+                     *geo_marks      = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->geo_mark_model), HYSCAN_TYPE_MARK_GEO),
                      *tracks         = hyscan_db_info_get_tracks (priv->track_model);
           Extension *ext = g_hash_table_lookup (priv->extensions[LABEL], id);
           guchar *buf;
@@ -2403,15 +2408,15 @@ hyscan_gtk_model_manager_refresh_items_by_types (HyScanGtkModelManager  *self,
     {
     case LABEL:
       {
-        GHashTable *labels = hyscan_object_model_get (priv->label_model);
+        GHashTable *labels = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model), HYSCAN_TYPE_LABEL);
         hyscan_gtk_model_manager_refresh_labels_by_types (store, labels, extensions);
         g_hash_table_destroy (labels);
       }
       break;
     case GEO_MARK:
       {
-        GHashTable *geo_marks = hyscan_object_model_get (priv->geo_mark_model),
-                   *labels = hyscan_object_model_get (priv->label_model);
+        GHashTable *geo_marks = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->geo_mark_model), HYSCAN_TYPE_MARK_GEO),
+                   *labels = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model), HYSCAN_TYPE_LABEL);
         hyscan_gtk_model_manager_refresh_geo_marks_by_types (store, geo_marks, extensions, labels);
         g_hash_table_destroy (labels);
         g_hash_table_destroy (geo_marks);
@@ -2420,7 +2425,7 @@ hyscan_gtk_model_manager_refresh_items_by_types (HyScanGtkModelManager  *self,
     case ACOUSTIC_MARK:
       {
         GHashTable *acoustic_marks = hyscan_mark_loc_model_get (priv->acoustic_loc_model),
-                   *labels = hyscan_object_model_get (priv->label_model);
+                   *labels = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model), HYSCAN_TYPE_LABEL);
         hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (store, acoustic_marks, extensions, labels);
         g_hash_table_destroy (labels);
         g_hash_table_destroy (acoustic_marks);
@@ -2429,7 +2434,7 @@ hyscan_gtk_model_manager_refresh_items_by_types (HyScanGtkModelManager  *self,
     case TRACK:
       {
         GHashTable *tracks = hyscan_db_info_get_tracks (priv->track_model),
-                   *labels = hyscan_object_model_get (priv->label_model);
+                   *labels = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model), HYSCAN_TYPE_LABEL);
         hyscan_gtk_model_manager_refresh_tracks_by_types (store, tracks, extensions, labels);
         g_hash_table_destroy (labels);
         g_hash_table_destroy (tracks);
@@ -2454,12 +2459,12 @@ hyscan_gtk_model_manager_get_extensions (HyScanGtkModelManager  *self,
     {
     case LABEL:
       {
-        table = hyscan_object_model_get (priv->label_model);
+        table = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model), HYSCAN_TYPE_LABEL);
       }
       break;
     case GEO_MARK:
       {
-        table = hyscan_object_model_get (priv->geo_mark_model);
+        table = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->geo_mark_model), HYSCAN_TYPE_MARK_GEO);
       }
       break;
     case ACOUSTIC_MARK:
@@ -2560,19 +2565,19 @@ hyscan_gtk_model_manager_delete_item (HyScanGtkModelManager  *self,
     case LABEL:
       {
         /* Удаляем группу. */
-        hyscan_object_model_remove (priv->label_model, id);
+        hyscan_object_store_remove (HYSCAN_OBJECT_STORE (priv->label_model), HYSCAN_TYPE_LABEL, id);
       }
       break;
     case GEO_MARK:
       {
         /* Удаляем гео-метку. */
-        hyscan_object_model_remove (priv->geo_mark_model, id);
+        hyscan_object_store_remove (HYSCAN_OBJECT_STORE (priv->geo_mark_model), HYSCAN_TYPE_MARK_GEO, id);
       }
       break;
     case ACOUSTIC_MARK:
       {
         /* Удаляем акустическую метку. */
-        hyscan_object_model_remove (priv->acoustic_marks_model, id);
+        hyscan_object_store_remove (HYSCAN_OBJECT_STORE (priv->acoustic_marks_model), HYSCAN_TYPE_MARK_WATERFALL, id);
       }
       break;
     case TRACK:
@@ -2613,7 +2618,9 @@ hyscan_gtk_model_manager_geo_mark_change_label (HyScanGtkModelManager  *self,
         {
           HyScanMarkGeo *object = NULL;
           /* Получаем объект из базы данных по идентификатору. */
-          object = (HyScanMarkGeo*)hyscan_object_model_get_by_id (priv->geo_mark_model, list[i]);
+          object = (HyScanMarkGeo*)hyscan_object_store_get (HYSCAN_OBJECT_STORE (priv->geo_mark_model),
+                                                            HYSCAN_TYPE_MARK_GEO,
+                                                            list[i]);
           if (object != NULL)
             {
               GHashTableIter iter;
@@ -2628,7 +2635,7 @@ hyscan_gtk_model_manager_geo_mark_change_label (HyScanGtkModelManager  *self,
                       /* Устанавливаем время изменения для группы. */
                       lbl->mtime = current_time;
                       /* Сохраняем измения в базе данных. */
-                      hyscan_object_model_modify (priv->label_model, tmp, (const HyScanObject*)lbl);
+                      hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->label_model), tmp, (const HyScanObject*)lbl);
                       break;
                     }
                 }
@@ -2637,7 +2644,7 @@ hyscan_gtk_model_manager_geo_mark_change_label (HyScanGtkModelManager  *self,
               /* Устанавливаем время изменения. */
               object->mtime  = G_TIME_SPAN_SECOND * current_time;
               /* Сохраняем измения в базе данных. */
-              hyscan_object_model_modify (priv->geo_mark_model, list[i],
+              hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->geo_mark_model), list[i],
                                           (const HyScanObject*)object);
               /* Освобождаем полученный из базы данных объект. */
               hyscan_mark_geo_free (object);
@@ -2668,7 +2675,9 @@ hyscan_gtk_model_manager_acoustic_mark_change_label (HyScanGtkModelManager  *sel
         {
           HyScanMarkWaterfall *object = NULL;
           /* Получаем объект из базы данных по идентификатору. */
-          object = (HyScanMarkWaterfall*)hyscan_object_model_get_by_id (priv->acoustic_marks_model, list[i]);
+          object = (HyScanMarkWaterfall*)hyscan_object_store_get (HYSCAN_OBJECT_STORE (priv->acoustic_marks_model),
+                                                                  HYSCAN_TYPE_MARK_WATERFALL,
+                                                                  list[i]);
           if (object != NULL)
             {
               GHashTableIter iter;
@@ -2683,7 +2692,7 @@ hyscan_gtk_model_manager_acoustic_mark_change_label (HyScanGtkModelManager  *sel
                       /* Устанавливаем время изменения для группы. */
                       lbl->mtime = current_time;
                       /* Сохраняем измения в базе данных. */
-                      hyscan_object_model_modify (priv->label_model, tmp, (const HyScanObject*)lbl);
+                      hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->label_model), tmp, (const HyScanObject*)lbl);
                       break;
                     }
                 }
@@ -2692,7 +2701,7 @@ hyscan_gtk_model_manager_acoustic_mark_change_label (HyScanGtkModelManager  *sel
               /* Устанавливаем время изменения. */
               object->mtime  = G_TIME_SPAN_SECOND * current_time;
               /* Сохраняем измения в базе данных. */
-              hyscan_object_model_modify (priv->acoustic_marks_model, list[i],
+              hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->acoustic_marks_model), list[i],
                                           (const HyScanObject*)object);
               /* Освобождаем полученный из базы данных объект. */
               hyscan_mark_waterfall_free (object);
@@ -2743,7 +2752,7 @@ hyscan_gtk_model_manager_track_change_label (HyScanGtkModelManager  *self,
                       /* Устанавливаем время изменения для группы. */
                       lbl->mtime = current_time;
                       /* Сохраняем измения в базе данных. */
-                      hyscan_object_model_modify (priv->label_model, tmp, (const HyScanObject*)lbl);
+                      hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->label_model), tmp, (const HyScanObject*)lbl);
                       break;
                    }
                 }
@@ -3503,8 +3512,8 @@ hyscan_gtk_model_manager_toggled_iteml_change_label (HyScanGtkModelManager *self
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
   ModelManagerObjectType  type;
-  HyScanLabel *label = (HyScanLabel*)hyscan_object_model_get_by_id (priv->label_model, id);
-  GHashTable *table = hyscan_object_model_get (priv->label_model);
+  HyScanLabel *label = (HyScanLabel*)hyscan_object_store_get (HYSCAN_OBJECT_STORE (priv->label_model), HYSCAN_TYPE_LABEL, id);
+  GHashTable *table = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model), HYSCAN_TYPE_LABEL);
   /* Текущие дата и время. */
   GDateTime *now_local = g_date_time_new_now_local ();
   guint64 current_time = g_date_time_to_unix (now_local);
@@ -3546,7 +3555,7 @@ hyscan_gtk_model_manager_toggled_iteml_change_label (HyScanGtkModelManager *self
   /* Устанавливаем время изменения для группы. */
   label->mtime = current_time;
   /* Сохраняем измения в базе данных. */
-  hyscan_object_model_modify (priv->label_model, id, (const HyScanObject*)label);
+  hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->label_model), id, (const HyScanObject*)label);
   /* Освобождаем полученный из базы данных объект. */
   hyscan_label_free (label);
   /* Включаем сигнал. */

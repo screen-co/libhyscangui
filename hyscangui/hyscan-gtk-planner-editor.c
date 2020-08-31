@@ -573,9 +573,6 @@ hyscan_gtk_planner_editor_iter_next (HyScanGtkPlannerEditorIter *iter)
       g_hash_table_lookup_extended (priv->objects, selected_id,
                                     (gpointer *) &iter->id, (gpointer *) &iter->track);
 
-      if (!HYSCAN_IS_PLANNER_TRACK (iter->track))
-        continue;
-
       ++iter->i;
 
       return TRUE;
@@ -629,7 +626,7 @@ hyscan_gtk_planner_editor_start_changed (HyScanGtkPlannerEditor *editor)
   while (hyscan_gtk_planner_editor_iter_next (&iter))
     {
       hyscan_gtk_planner_editor_convert_point (editor, priv->start_x, priv->start_y, &iter.track->plan.start);
-      hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), iter.id, (HyScanObject *) iter.track);
+      hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->model), iter.id, (HyScanObject *) iter.track);
     }
 }
 
@@ -643,7 +640,7 @@ hyscan_gtk_planner_editor_end_changed (HyScanGtkPlannerEditor *editor)
   while (hyscan_gtk_planner_editor_iter_next (&iter))
     {
       hyscan_gtk_planner_editor_convert_point (editor, priv->end_x, priv->end_y, &iter.track->plan.end);
-      hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), iter.id, (HyScanObject *) iter.track);
+      hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->model), iter.id, (HyScanObject *) iter.track);
     }
 }
 
@@ -660,7 +657,7 @@ hyscan_gtk_planner_editor_start_geo_changed (HyScanGtkPlannerEditor *editor)
         iter.track->plan.start.lat = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->start_lat));
       if (gtk_widget_get_sensitive (priv->start_lon))
         iter.track->plan.start.lon = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->start_lon));
-      hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), iter.id, (HyScanObject *) iter.track);
+      hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->model), iter.id, (HyScanObject *) iter.track);
     }
 }
 
@@ -677,7 +674,7 @@ hyscan_gtk_planner_editor_end_geo_changed (HyScanGtkPlannerEditor *editor)
         iter.track->plan.end.lat = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->end_lat));
       if (gtk_widget_get_sensitive (priv->end_lon))
         iter.track->plan.end.lon = gtk_spin_button_get_value (GTK_SPIN_BUTTON (priv->end_lon));
-      hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), iter.id, (HyScanObject *) iter.track);
+      hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->model), iter.id, (HyScanObject *) iter.track);
     }
 }
 
@@ -712,7 +709,7 @@ hyscan_gtk_planner_editor_length_changed (HyScanGtkPlannerEditor *editor)
       end_2d.y = start_2d.y + scale * dy;
 
       hyscan_geo_topoXY2geo0 (geo, &plan->end, end_2d);
-      hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), id, (HyScanObject *) track);
+      hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->model), id, (HyScanObject *) track);
       g_object_unref (geo);
     }
 }
@@ -748,7 +745,7 @@ hyscan_gtk_planner_editor_angle_changed (HyScanGtkPlannerEditor *editor)
       end_2d.y = start_2d.y + length * sin (angle);
 
       hyscan_geo_topoXY2geo0 (priv->geo, &track->plan.end, end_2d);
-      hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), id, (HyScanObject *) track);
+      hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->model), id, (HyScanObject *) track);
     }
 }
 
@@ -801,7 +798,7 @@ hyscan_gtk_planner_editor_track_changed (HyScanGtkPlannerEditor *editor)
           g_object_unref (geo);
         }
 
-      hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), id, (HyScanObject *) track);
+      hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->model), id, (HyScanObject *) track);
     }
 }
 
@@ -822,7 +819,10 @@ hyscan_gtk_planner_editor_speed_changed (HyScanGtkPlannerEditor *editor)
       const gchar *id = iter.id;
 
       track->plan.speed = speed;
-      hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), id, (const HyScanObject *) track);
+      hyscan_object_store_set (HYSCAN_OBJECT_STORE (priv->model),
+                               HYSCAN_TYPE_PLANNER_TRACK,
+                               id,
+                               (const HyScanObject *) track);
     }
 }
 
@@ -832,7 +832,7 @@ hyscan_gtk_planner_editor_model_changed (HyScanGtkPlannerEditor *editor)
   HyScanGtkPlannerEditorPrivate *priv = editor->priv;
 
   g_clear_pointer (&priv->objects, g_hash_table_destroy);
-  priv->objects = hyscan_object_model_get (HYSCAN_OBJECT_MODEL (priv->model));
+  priv->objects = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->model), HYSCAN_TYPE_PLANNER_TRACK);
   g_clear_object (&priv->geo);
   priv->geo = hyscan_planner_model_get_geo (priv->model);
 

@@ -96,7 +96,7 @@ typedef struct
 struct _HyScanGtkMapGeomarkPrivate
 {
   HyScanGtkMap                            *map;                /* Карта. */
-  HyScanObjectModel                       *model;              /* Модель меток. */
+  HyScanObjectStore                       *model;              /* Модель меток. */
 
   gboolean                                 visible;            /* Признак видимости слоя. */
 
@@ -327,7 +327,7 @@ hyscan_gtk_map_geomark_model_changed (HyScanGtkMapGeomark *gm_layer)
   HyScanGtkMapGeomarkPrivate *priv = gm_layer->priv;
   GHashTable *marks;
 
-  marks = hyscan_object_model_get (priv->model);
+  marks = hyscan_object_store_get_all (priv->model, HYSCAN_TYPE_MARK_GEO);
 
   g_rw_lock_writer_lock (&priv->mark_lock);
 
@@ -792,10 +792,7 @@ hyscan_gtk_map_geomark_handle_release (HyScanGtkLayer *layer,
   hyscan_mark_set_mtime (mark, g_get_real_time ());
 
   /* Обновляем модель меток. */
-  if (mark_id == NULL)
-    hyscan_object_model_add (priv->model, (const HyScanObject *) mark);
-  else
-    hyscan_object_model_modify (priv->model, mark_id, (const HyScanObject *) mark);
+  hyscan_object_store_set (priv->model, HYSCAN_TYPE_MARK_GEO, mark_id, (const HyScanObject *) mark);
 
   hyscan_gtk_map_geomark_location_free (location);
   g_free (mark_id);
@@ -914,7 +911,7 @@ hyscan_gtk_map_geomark_key_press (HyScanGtkMapGeomark *gm_layer,
       g_rw_lock_writer_unlock (&priv->mark_lock);
 
       if (mark_id != NULL)
-        hyscan_object_model_remove (priv->model, mark_id);
+        hyscan_object_store_remove (priv->model, HYSCAN_TYPE_MARK_GEO, mark_id);
       g_free (mark_id);
 
       hyscan_gtk_layer_container_set_handle_grabbed (HYSCAN_GTK_LAYER_CONTAINER (priv->map), NULL);

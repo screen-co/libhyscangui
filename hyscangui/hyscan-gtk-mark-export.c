@@ -277,7 +277,7 @@ hyscan_gtk_mark_export_to_str (HyScanMarkLocModel *ml_model,
   gchar *str, *marks, *date;
 
   wf_marks = hyscan_mark_loc_model_get (ml_model);
-  geo_marks = hyscan_object_model_get (mark_geo_model);
+  geo_marks = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (mark_geo_model), HYSCAN_TYPE_MARK_GEO);
 
   if (wf_marks == NULL || geo_marks == NULL)
     return NULL;
@@ -1147,7 +1147,7 @@ hyscan_gtk_mark_export_save_as_csv (GtkWindow          *window,
              *marks;
 
   wf_marks  = hyscan_mark_loc_model_get (ml_model);
-  geo_marks = hyscan_object_model_get (mark_geo_model);
+  geo_marks = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (mark_geo_model), HYSCAN_TYPE_MARK_GEO);
 
   if (wf_marks == NULL || geo_marks == NULL)
     return;
@@ -1216,7 +1216,7 @@ hyscan_gtk_mark_export_copy_to_clipboard (HyScanMarkLocModel *ml_model,
   gchar        *str, *marks, *date;
 
   wf_marks  = hyscan_mark_loc_model_get (ml_model);
-  geo_marks = hyscan_object_model_get (mark_geo_model);
+  geo_marks = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (mark_geo_model), HYSCAN_TYPE_MARK_GEO);
 
   if (wf_marks == NULL || geo_marks == NULL)
     return;
@@ -1300,8 +1300,9 @@ hyscan_gtk_mark_export_save_as_html (HyScanGtkModelManager *model_manager,
                                                    (GDestroyNotify) hyscan_mark_geo_free);
           for (i = 0; geo_mark_list[i] != NULL; i++)
             {
-              HyScanMarkGeo *geo_mark = (HyScanMarkGeo*)hyscan_object_model_get_by_id (geo_mark_model,
-                                                                                       geo_mark_list[i]);
+              HyScanMarkGeo *geo_mark = (HyScanMarkGeo*) hyscan_object_store_get (HYSCAN_OBJECT_STORE (geo_mark_model),
+                                                                                  HYSCAN_TYPE_MARK_GEO,
+                                                                                  geo_mark_list[i]);
               if (geo_mark != NULL)
                 {
                   g_hash_table_insert (data->geo_marks,
@@ -1337,7 +1338,7 @@ hyscan_gtk_mark_export_save_as_html (HyScanGtkModelManager *model_manager,
     }
   else
     {
-      data->geo_marks = hyscan_object_model_get (geo_mark_model);
+      data->geo_marks = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (geo_mark_model), HYSCAN_TYPE_MARK_GEO);
       data->acoustic_marks = hyscan_mark_loc_model_get (acoustic_mark_model);
     }
 
