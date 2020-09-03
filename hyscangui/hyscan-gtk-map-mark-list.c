@@ -79,7 +79,6 @@ enum
 
 struct _HyScanGtkMapMarkListPrivate
 {
-  gint                         prop_a;
   GtkListStore                *mark_store;
   HyScanMark                   selected_mark;
   HyScanGeoPoint               selected_location;
@@ -349,8 +348,8 @@ hyscan_gtk_map_mark_list_filter_iters (HyScanGtkMapMarkList *mark_list,
         }
       else
         {
-          g_free (mark_id);
           valid = gtk_list_store_remove (priv->mark_store, &gtk_iter);
+          g_free (mark_id);
           continue;
         }
     }
@@ -387,7 +386,11 @@ hyscan_gtk_map_mark_list_changed (HyScanGtkMapMarkList *mark_list)
       g_hash_table_unref (marks);
     }
 
-  if (priv->model_geomark != NULL && (marks = hyscan_object_model_get (priv->model_geomark)) != NULL)
+  marks = priv->model_geomark != NULL ?
+          hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->model_geomark), HYSCAN_TYPE_MARK_GEO) :
+          NULL;
+
+  if (marks != NULL)
     {
       HyScanMarkGeo *mark;
       GHashTable *gtk_iters;
@@ -525,5 +528,5 @@ hyscan_gtk_map_mark_list_get_selected (HyScanGtkMapMarkList *mark_list,
   if (location != NULL)
     *location = priv->selected_location;
 
-  return priv->selected_id;
+  return g_strdup (priv->selected_id);
 }
