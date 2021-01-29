@@ -114,6 +114,8 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-mark-manager-create-label-dialog.c
              hyscan-gtk-mark-manager-change-label-dialog.c
 
+             hyscan-gtk-gliko-minimal.c
+
              hyscan-gui-style.c
              ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c
              ${CMAKE_BINARY_DIR}/resources/hyscan-gui-resources.c)
@@ -123,7 +125,8 @@ target_link_libraries (${HYSCAN_GUI_LIBRARY}
                        ${HYSCAN_LIBRARIES}
                        ${GTKCIFROAREA_LIBRARIES}
                        ${LIBSOUP_LIBRARIES}
-                       ${GDK_PIXBUF_LIBRARIES})
+                       ${GDK_PIXBUF_LIBRARIES}
+                       ${GL_LIBRARIES})
 
 set_target_properties (${HYSCAN_GUI_LIBRARY} PROPERTIES DEFINE_SYMBOL "HYSCAN_API_EXPORTS")
 set_target_properties (${HYSCAN_GUI_LIBRARY} PROPERTIES SOVERSION ${HYSCAN_GUI_VERSION})
