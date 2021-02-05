@@ -39,6 +39,12 @@ add_custom_command (OUTPUT "${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshalle
                     DEPENDS hyscan-gui-marshallers.list
                     VERBATIM)
 
+include_directories( ${CMAKE_CURRENT_BINARY_DIR} )
+
+execute_process( COMMAND cat ${CMAKE_CURRENT_SOURCE_DIR}/hyscan-gtk-gliko-area.frag.c
+                 COMMAND awk -f ${CMAKE_CURRENT_SOURCE_DIR}/hyscan-gtk-gliko-literal.awk
+                 OUTPUT_FILE ${CMAKE_CURRENT_BINARY_DIR}/hyscan-gtk-gliko-area.frag.h )
+
 add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-area.c
              hyscan-gtk-waterfall-state.c
@@ -115,6 +121,8 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-mark-manager-change-label-dialog.c
 
              hyscan-gtk-gliko-minimal.c
+             hyscan-gtk-gliko-layer.c
+             hyscan-gtk-gliko-area.c
 
              hyscan-gui-style.c
              ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c

@@ -1,6 +1,6 @@
 /* hyscan-gtk-gliko_minimal.h
  *
- * Copyright 2017-2019 Screen LLC, Alexander Dmitriev <m1n7@yandex.ru>
+ * Copyright 2020-2021 Screen LLC, Vladimir Sharov <sharovv@mail.ru>
  *
  * This file is part of HyScanGui library.
  *

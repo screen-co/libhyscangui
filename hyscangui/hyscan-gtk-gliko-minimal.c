@@ -1,3 +1,5 @@
+#define GL_GLEXT_PROTOTYPES
+
 #include <gtk/gtk.h>
 #include <GL/gl.h>
 #include "hyscan-gtk-gliko-minimal.h"

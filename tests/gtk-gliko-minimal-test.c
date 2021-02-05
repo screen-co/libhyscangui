@@ -1,3 +1,5 @@
+#define GL_GLEXT_PROTOTYPES
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -6,7 +8,7 @@
 int main( int argc, char **argv )
 {
   GtkWidget *window;
-  HyScanGtkGlikoMinimal *minimal;
+  GtkWidget *minimal;
 
   if (!gtk_init_check(&argc, &argv))
   {
