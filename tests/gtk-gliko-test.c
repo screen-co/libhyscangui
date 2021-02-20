@@ -1,10 +1,10 @@
-#include <stdlib.h>
-#include <math.h>
-#include <string.h>
 #include <hyscan-acoustic-data.h>
-#include <hyscan-nmea-data.h>
 #include <hyscan-data-player.h>
 #include <hyscan-gtk-gliko.h>
+#include <hyscan-nmea-data.h>
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
 
 static GtkWidget *window;
 static GtkWidget *gliko;
@@ -26,117 +26,120 @@ static int center_move = 0;
 static gdouble sxc0 = 0.f, syc0 = 0.f;
 static gdouble mx0 = 0.f, my0 = 0.f;
 
-static void button_cb( GtkWidget *widget, GdkEventButton *event, void *w )
+static void
+button_cb (GtkWidget *widget, GdkEventButton *event, void *w)
 {
-  if( event->button == 1 )
-  {
-    if( event->type == GDK_BUTTON_PRESS )
+  if (event->button == 1)
     {
-      center_move = 1;
-      hyscan_gtk_gliko_get_center( HYSCAN_GTK_GLIKO( widget ), &sxc0, &syc0 );
-      mx0 = (gdouble)event->x;
-      my0 = (gdouble)event->y;
+      if (event->type == GDK_BUTTON_PRESS)
+        {
+          center_move = 1;
+          hyscan_gtk_gliko_get_center (HYSCAN_GTK_GLIKO (widget), &sxc0, &syc0);
+          mx0 = (gdouble) event->x;
+          my0 = (gdouble) event->y;
+        }
+      else if (event->type == GDK_BUTTON_RELEASE)
+        {
+          center_move = 0;
+        }
     }
-    else if( event->type == GDK_BUTTON_RELEASE )
+  else if (event->button == 2)
     {
-      center_move = 0;
+      if (event->state & GDK_CONTROL_MASK)
+        {
+          hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (widget), 0.0);
+          iko_update = 1;
+        }
+      else if (event->state & GDK_SHIFT_MASK)
+        {
+          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (widget), 0.0);
+          iko_update = 1;
+        }
+      else
+        {
+          hyscan_gtk_gliko_set_scale (HYSCAN_GTK_GLIKO (widget), 1.0);
+          hyscan_gtk_gliko_set_center (HYSCAN_GTK_GLIKO (widget), 0.0, 0.0);
+          grid_update = iko_update = 1;
+        }
     }
-  }
-  else if( event->button == 2 )
-  {
-    if( event->state & GDK_CONTROL_MASK )
-    {
-      hyscan_gtk_gliko_set_contrast( HYSCAN_GTK_GLIKO( widget ), 0.0 );
-      iko_update = 1;
-    }
-    else if( event->state & GDK_SHIFT_MASK )
-    {
-      hyscan_gtk_gliko_set_brightness( HYSCAN_GTK_GLIKO( widget ), 0.0 );
-      iko_update = 1;
-    }
-    else
-    {
-      hyscan_gtk_gliko_set_scale( HYSCAN_GTK_GLIKO( widget ), 1.0 );
-      hyscan_gtk_gliko_set_center( HYSCAN_GTK_GLIKO( widget ), 0.0, 0.0 );
-      grid_update = iko_update = 1;
-    }
-  }
 }
 
-static void motion_cb( GtkWidget *widget, GdkEventMotion *event, void *w )
+static void
+motion_cb (GtkWidget *widget, GdkEventMotion *event, void *w)
 {
   GtkAllocation allocation;
   int baseline;
   gdouble s, x, y;
 
-  gtk_widget_get_allocated_size( GTK_WIDGET( widget ), &allocation, &baseline );
+  gtk_widget_get_allocated_size (GTK_WIDGET (widget), &allocation, &baseline);
 
-  if( center_move )
-  {
-    s = hyscan_gtk_gliko_get_scale( HYSCAN_GTK_GLIKO( widget ) );
-    x = sxc0 - s * (mx0 - (gdouble)event->x) / allocation.height;
-    y = syc0 - s * ((gdouble)event->y - my0) / allocation.height;
-    hyscan_gtk_gliko_set_center( HYSCAN_GTK_GLIKO( widget ), x, y );
-    grid_update = iko_update = 1;
-  }
+  if (center_move)
+    {
+      s = hyscan_gtk_gliko_get_scale (HYSCAN_GTK_GLIKO (widget));
+      x = sxc0 - s * (mx0 - (gdouble) event->x) / allocation.height;
+      y = syc0 - s * ((gdouble) event->y - my0) / allocation.height;
+      hyscan_gtk_gliko_set_center (HYSCAN_GTK_GLIKO (widget), x, y);
+      grid_update = iko_update = 1;
+    }
 }
 
-static void scroll_cb(GtkWidget *widget, GdkEventScroll *event, void *w )
+static void
+scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
 {
   gdouble f;
 
-  if( event->direction == GDK_SCROLL_UP )
-  {
-    if( event->state & GDK_CONTROL_MASK )
+  if (event->direction == GDK_SCROLL_UP)
     {
-      f = hyscan_gtk_gliko_get_contrast( HYSCAN_GTK_GLIKO( widget ) );
-      f += 0.05;
-      if( f > 0.99 )
-        f = 0.99;
-      hyscan_gtk_gliko_set_contrast( HYSCAN_GTK_GLIKO( widget ), f );
-      iko_update = 1;
+      if (event->state & GDK_CONTROL_MASK)
+        {
+          f = hyscan_gtk_gliko_get_contrast (HYSCAN_GTK_GLIKO (widget));
+          f += 0.05;
+          if (f > 0.99)
+            f = 0.99;
+          hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (widget), f);
+          iko_update = 1;
+        }
+      else if (event->state & GDK_SHIFT_MASK)
+        {
+          f = hyscan_gtk_gliko_get_brightness (HYSCAN_GTK_GLIKO (widget));
+          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (widget), f + 0.05);
+          iko_update = 1;
+        }
+      else
+        {
+          f = hyscan_gtk_gliko_get_scale (HYSCAN_GTK_GLIKO (widget));
+          hyscan_gtk_gliko_set_scale (HYSCAN_GTK_GLIKO (widget), 0.875 * f);
+          grid_update = iko_update = 1;
+        }
     }
-    else if( event->state & GDK_SHIFT_MASK )
+  if (event->direction == GDK_SCROLL_DOWN)
     {
-      f = hyscan_gtk_gliko_get_brightness( HYSCAN_GTK_GLIKO( widget ) );
-      hyscan_gtk_gliko_set_brightness( HYSCAN_GTK_GLIKO( widget ), f + 0.05 );
-      iko_update = 1;
+      if (event->state & GDK_CONTROL_MASK)
+        {
+          f = hyscan_gtk_gliko_get_contrast (HYSCAN_GTK_GLIKO (widget));
+          f -= 0.05f;
+          if (f < -0.99f)
+            f = -0.99f;
+          hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (widget), f);
+          iko_update = 1;
+        }
+      else if (event->state & GDK_SHIFT_MASK)
+        {
+          f = hyscan_gtk_gliko_get_brightness (HYSCAN_GTK_GLIKO (widget));
+          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (widget), f - 0.05);
+          iko_update = 1;
+        }
+      else
+        {
+          f = hyscan_gtk_gliko_get_scale (HYSCAN_GTK_GLIKO (widget));
+          hyscan_gtk_gliko_set_scale (HYSCAN_GTK_GLIKO (widget), 1.125 * f);
+          grid_update = iko_update = 1;
+        }
     }
-    else
-    {
-      f = hyscan_gtk_gliko_get_scale( HYSCAN_GTK_GLIKO( widget ) );
-      hyscan_gtk_gliko_set_scale( HYSCAN_GTK_GLIKO( widget ), 0.875 * f );
-      grid_update = iko_update = 1;
-    }
-  }
-  if( event->direction == GDK_SCROLL_DOWN )
-  {
-    if( event->state & GDK_CONTROL_MASK )
-    {
-      f = hyscan_gtk_gliko_get_contrast( HYSCAN_GTK_GLIKO( widget ) );
-      f -= 0.05f;
-      if( f < -0.99f )
-        f = -0.99f;
-      hyscan_gtk_gliko_set_contrast( HYSCAN_GTK_GLIKO( widget ), f );
-      iko_update = 1;
-    }
-    else if( event->state & GDK_SHIFT_MASK )
-    {
-      f = hyscan_gtk_gliko_get_brightness( HYSCAN_GTK_GLIKO( widget ) );
-      hyscan_gtk_gliko_set_brightness( HYSCAN_GTK_GLIKO( widget ), f - 0.05 );
-      iko_update = 1;
-    }
-    else
-    {
-      f = hyscan_gtk_gliko_get_scale( HYSCAN_GTK_GLIKO( widget ) );
-      hyscan_gtk_gliko_set_scale( HYSCAN_GTK_GLIKO( widget ), 1.125 * f );
-      grid_update = iko_update = 1;
-    }
-  }
 }
 
 int
-main (int    argc,
+main (int argc,
       char **argv)
 {
   gchar *db_uri = NULL;
@@ -156,23 +159,23 @@ main (int    argc,
     GError *error = NULL;
     GOptionContext *context;
     GOptionEntry entries[] =
-      {
-        { "db", 'd', 0, G_OPTION_ARG_STRING, &db_uri, "DB uri", NULL },
-        { "project", 'p', 0, G_OPTION_ARG_STRING, &project_name, "Project name", NULL },
-        { "track", 't', 0, G_OPTION_ARG_STRING, &track_name, "Track name", NULL },
-        //{ "starboard", 's', 0, G_OPTION_ARG_STRING, &source_name, "Starboard name", NULL },
-        //{ "port", 'r', 0, G_OPTION_ARG_STRING, &source_name, "Port name", NULL },
-        { "output", 'o', 0, G_OPTION_ARG_STRING, &output_file, "Output image file name", NULL },
-        { "along-scale", 'l', 0, G_OPTION_ARG_DOUBLE, &along_scale, "Scale along track", NULL },
-        { "across-scale", 'c', 0, G_OPTION_ARG_DOUBLE, &across_scale, "Scale across track", NULL },
-        { "white-point", 'w', 0, G_OPTION_ARG_DOUBLE, &white_point, "White point", NULL },
-        { "black-point", 'b', 0, G_OPTION_ARG_DOUBLE, &black_point, "Black point", NULL },
-        { "gamma", 'g', 0, G_OPTION_ARG_DOUBLE, &gamma_value, "Gamma", NULL },
-        { "fps", 'f', 0, G_OPTION_ARG_INT, &fps, "Time between signaller calls", NULL},
-        { "speed", 'S', 0, G_OPTION_ARG_DOUBLE, &speed, "Play speed coeff", NULL },
-        { "num-azimuthes", 'n', 0, G_OPTION_ARG_INT, &num_azimuthes, "Number of azimuthes", NULL },
-        { NULL }
-      };
+        {
+          { "db", 'd', 0, G_OPTION_ARG_STRING, &db_uri, "DB uri", NULL },
+          { "project", 'p', 0, G_OPTION_ARG_STRING, &project_name, "Project name", NULL },
+          { "track", 't', 0, G_OPTION_ARG_STRING, &track_name, "Track name", NULL },
+          //{ "starboard", 's', 0, G_OPTION_ARG_STRING, &source_name, "Starboard name", NULL },
+          //{ "port", 'r', 0, G_OPTION_ARG_STRING, &source_name, "Port name", NULL },
+          { "output", 'o', 0, G_OPTION_ARG_STRING, &output_file, "Output image file name", NULL },
+          { "along-scale", 'l', 0, G_OPTION_ARG_DOUBLE, &along_scale, "Scale along track", NULL },
+          { "across-scale", 'c', 0, G_OPTION_ARG_DOUBLE, &across_scale, "Scale across track", NULL },
+          { "white-point", 'w', 0, G_OPTION_ARG_DOUBLE, &white_point, "White point", NULL },
+          { "black-point", 'b', 0, G_OPTION_ARG_DOUBLE, &black_point, "Black point", NULL },
+          { "gamma", 'g', 0, G_OPTION_ARG_DOUBLE, &gamma_value, "Gamma", NULL },
+          { "fps", 'f', 0, G_OPTION_ARG_INT, &fps, "Time between signaller calls", NULL },
+          { "speed", 'S', 0, G_OPTION_ARG_DOUBLE, &speed, "Play speed coeff", NULL },
+          { "num-azimuthes", 'n', 0, G_OPTION_ARG_INT, &num_azimuthes, "Number of azimuthes", NULL },
+          { NULL }
+        };
 
 #ifdef G_OS_WIN32
     args = g_win32_get_command_line ();
@@ -180,11 +183,11 @@ main (int    argc,
     args = g_strdupv (argv);
 #endif
 
-    if (!gtk_init_check(&argc, &argv))
-    {
-      fputs("Could not initialize GTK", stderr);
-      return EXIT_FAILURE;
-    }
+    if (!gtk_init_check (&argc, &argv))
+      {
+        fputs ("Could not initialize GTK", stderr);
+        return EXIT_FAILURE;
+      }
 
     context = g_option_context_new ("<db-uri>");
     g_option_context_set_help_enabled (context, TRUE);
@@ -225,22 +228,22 @@ main (int    argc,
   black_point = CLAMP (black_point, 0.0, 1.0);
   gamma_value = CLAMP (gamma_value, 0.0, 2.0);
 
-  window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-  gliko = hyscan_gtk_gliko_new();
-  gtk_container_add( GTK_CONTAINER(window), gliko );
+  window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+  gliko = hyscan_gtk_gliko_new ();
+  gtk_container_add (GTK_CONTAINER (window), gliko);
 
-  gtk_widget_set_events(gliko,
-                        GDK_EXPOSURE_MASK |
-                        GDK_BUTTON_PRESS_MASK |
-                        GDK_BUTTON_RELEASE_MASK |
-                        GDK_BUTTON_MOTION_MASK |
-                        GDK_SCROLL_MASK );
+  gtk_widget_set_events (gliko,
+                         GDK_EXPOSURE_MASK |
+                             GDK_BUTTON_PRESS_MASK |
+                             GDK_BUTTON_RELEASE_MASK |
+                             GDK_BUTTON_MOTION_MASK |
+                             GDK_SCROLL_MASK);
 
-  g_signal_connect(window, "destroy", G_CALLBACK(gtk_main_quit), NULL);
-  g_signal_connect(gliko, "button_press_event"  , G_CALLBACK(button_cb), NULL);
-  g_signal_connect(gliko, "button_release_event", G_CALLBACK(button_cb), NULL);
-  g_signal_connect(gliko, "motion_notify_event" , G_CALLBACK(motion_cb), NULL);
-  g_signal_connect(gliko, "scroll_event"        , G_CALLBACK(scroll_cb), NULL);
+  g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
+  g_signal_connect (gliko, "button_press_event", G_CALLBACK (button_cb), NULL);
+  g_signal_connect (gliko, "button_release_event", G_CALLBACK (button_cb), NULL);
+  g_signal_connect (gliko, "motion_notify_event", G_CALLBACK (motion_cb), NULL);
+  g_signal_connect (gliko, "scroll_event", G_CALLBACK (scroll_cb), NULL);
 
   /* Подключение к базе данных. */
   db = hyscan_db_new (db_uri);
@@ -252,20 +255,20 @@ main (int    argc,
 
   player = hyscan_data_player_new ();
 
-  hyscan_gtk_gliko_set_player (HYSCAN_GTK_GLIKO( gliko ), player);
+  hyscan_gtk_gliko_set_player (HYSCAN_GTK_GLIKO (gliko), player);
 
   hyscan_data_player_set_fps (player, fps);
   hyscan_data_player_set_track (player, db, project_name, track_name);
 
-  hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO( gliko ), 0), 1, HYSCAN_CHANNEL_DATA);
-  hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO( gliko ), 1), 2, HYSCAN_CHANNEL_DATA);
+  hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 0), 1, HYSCAN_CHANNEL_DATA);
+  hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 1), 2, HYSCAN_CHANNEL_DATA);
 
   hyscan_data_player_play (player, speed);
 
-  gtk_widget_show_all(window);
+  gtk_widget_show_all (window);
 
   // Enter GTK event loop:
-  gtk_main();
+  gtk_main ();
 
   //g_clear_object (&channel[0].acoustic_data);
   //g_clear_object (&channel[0].acoustic_data);
