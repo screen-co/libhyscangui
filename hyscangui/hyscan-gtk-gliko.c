@@ -1,3 +1,43 @@
+/* hyscan-gtk-gliko.с
+ *
+ * Copyright 2020-2021 Screen LLC, Vladimir Sharov <sharovv@mail.ru>
+ *
+ * This file is part of HyScanGui.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
+
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+/**
+ * SECTION: hyscan-gtk-gliko
+ * @Title HyScanGtkGliko
+ * @Short_description: виджет индикатора кругового обзора
+ */
+
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
@@ -80,11 +120,13 @@ struct _HyScanGtkGlikoPrivate
   HyScanDataPlayer *player;
 
   gint32 num_azimuthes;
+  float rotation;
   float scale;
   float cx;
   float cy;
   float contrast;
   float brightness;
+  float fade_coef;
 
   gdouble white_point;
   gdouble black_point;
@@ -141,11 +183,13 @@ static void hyscan_gtk_gliko_init( HyScanGtkGliko *instance )
   p->player = NULL;
 
   p->num_azimuthes = 1024;
+  p->rotation = 0.0f;
   p->scale = 1.0f;
   p->cx = 0.0f;
   p->cy = 0.0f;
   p->contrast = 0.0f;
   p->brightness = 0.0f;
+  p->fade_coef = 0.98f;
 
   p->white_point = 1.0;
   p->black_point = 0.0;
@@ -179,7 +223,6 @@ static void hyscan_gtk_gliko_init( HyScanGtkGliko *instance )
       return;
     }
 
-
   p->iko = hyscan_gtk_gliko_area_new();
   p->grid = hyscan_gtk_gliko_grid_new();
   hyscan_gtk_gliko_overlay_set_layer( HYSCAN_GTK_GLIKO_OVERLAY( instance ), 0, HYSCAN_GTK_GLIKO_LAYER( p->iko ) );
@@ -194,7 +237,7 @@ static void hyscan_gtk_gliko_init( HyScanGtkGliko *instance )
   g_object_set( p->iko, "gliko-background-rgb", "#404040", NULL );
   g_object_set( p->iko, "gliko-background-alpha", 0.25f, NULL );
 
-  g_object_set( p->iko, "gliko-fade-coef", 0.98f, NULL );
+  g_object_set( p->iko, "gliko-fade-coef", p->fade_coef, NULL );
   g_object_set( p->iko, "gliko-scale", p->scale, NULL );
   g_object_set( p->grid, "gliko-scale", p->scale, NULL );
 }
@@ -214,6 +257,19 @@ GtkWidget *hyscan_gtk_gliko_new( void )
   return GTK_WIDGET( g_object_new( hyscan_gtk_gliko_get_type(), NULL ) );
 }
 
+/**
+ * hyscan_gtk_gliko_set_num_azimuthes:
+ * @instance: указатель на объект индикатора кругового обзора
+ * @num_azimuthes: количество угловых дискрет
+ *
+ * Задает разрешающую способность по углу для индикатора кругового обзора,
+ * определяется количеством угловых дискрет на полный оборот 360 градусов.
+ * Количество угловых дискрет должно являться степенью 2.
+ * По умолчанию принимается количество угловых дискрет, равное 1024.
+ * Разрешающая способность по углу должна быть задана только один раз,
+ * перед подключением к проигрывателю
+ * гидроакустических данных.
+ */
 HYSCAN_API
 void            hyscan_gtk_gliko_set_num_azimuthes (HyScanGtkGliko *instance,
                                                 const guint num_azimuthes)
@@ -222,6 +278,12 @@ void            hyscan_gtk_gliko_set_num_azimuthes (HyScanGtkGliko *instance,
   p->num_azimuthes = num_azimuthes;
 }
 
+/**
+ * hyscan_gtk_gliko_get_num_azimuthes:
+ * @instance: указатель на объект индикатора кругового обзора
+ *
+ * Returns: заданное количество угловых дискрет индикатора кругового обзора.
+ */
 HYSCAN_API
 guint           hyscan_gtk_gliko_get_num_azimuthes (HyScanGtkGliko *instance)
 {
@@ -632,6 +694,14 @@ player_ready_callback (HyScanDataPlayer *player,
   channel_ready( p, 1, time );
 }
 
+/**
+ * hyscan_gtk_gliko_set_player:
+ * @instance: указатель на объект индикатора кругового обзора
+ * @player: указатель на объект проигрывателя гидроакустических данных
+ *
+ * Подключает индикатор кругового обзора к проигрывателю
+ * гидроакустических данных.
+ */
 HYSCAN_API
 void            hyscan_gtk_gliko_set_player (HyScanGtkGliko *instance,
                                          HyScanDataPlayer *player)
@@ -644,6 +714,13 @@ void            hyscan_gtk_gliko_set_player (HyScanGtkGliko *instance,
   g_signal_connect (p->player, "process", G_CALLBACK (player_process_callback), instance);
 }
 
+/**
+ * hyscan_gtk_gliko_get_player:
+ * @instance: указатель на объект индикатора кругового обзора
+ *
+ * Возвращает указатель на объект проигрывателя гидроакустических данных.
+ * Returns: указатель на объект проигрывателя гидроакустических данных
+ */
 HYSCAN_API
 HyScanDataPlayer *hyscan_gtk_gliko_get_player (HyScanGtkGliko *instance)
 {
@@ -651,6 +728,20 @@ HyScanDataPlayer *hyscan_gtk_gliko_get_player (HyScanGtkGliko *instance)
   return p->player;
 }
 
+/**
+ * hyscan_gtk_gliko_set_scale:
+ * @instance: указатель на объект индикатора кругового обзора
+ * @scale: коэффициент масштаба изображения
+ *
+ * Задает масштаб изображения на индикаторе кругового обзора.
+ * Коэффициент масштаба равен отношению диаметра круга к
+ * высоте области элемента диалогового интерфейса.
+ * Величина 1,0 (значение по умолчанию)
+ * соответствует случаю, когда диаметр круга,
+ * вписан в высоту области элемента диалогового интерфейса.
+ * Величина больше 1 соответствует уменьшению изображения кругового обзора.
+ * Величина меньше 1 соответствует увеличение изображения кругового обзора
+ */
 HYSCAN_API
 void           hyscan_gtk_gliko_set_scale (HyScanGtkGliko *instance,
                                        const gdouble scale)
@@ -662,6 +753,13 @@ void           hyscan_gtk_gliko_set_scale (HyScanGtkGliko *instance,
   g_object_set( p->grid, "gliko-scale", p->scale, NULL );
 }
 
+/**
+ * hyscan_gtk_gliko_get_scale:
+ * @instance: указатель на объект индикатора кругового обзора
+ *
+ * Получение текущего коэффициента масштаба изображения.
+ * Returns: коэффициент масштаба изображения
+ */
 HYSCAN_API
 gdouble        hyscan_gtk_gliko_get_scale (HyScanGtkGliko *instance)
 {
@@ -669,6 +767,17 @@ gdouble        hyscan_gtk_gliko_get_scale (HyScanGtkGliko *instance)
   return p->scale;
 }
 
+/**
+ * hyscan_gtk_gliko_set_center:
+ * @instance: указатель на объект индикатора кругового обзора
+ * @cx: смещение по оси X (направление оси слева направо)
+ * @cy: смещение по оси Y (направление оси снизу вверх)
+ *
+ * Задает смещение центра круговой развертки относительно
+ * центра области элемента диалогового интерфейса.
+ * Смещение задается в единицах относительно диаметра круга,
+ * в которых размер диаметра равен 1.
+ */
 HYSCAN_API
 void           hyscan_gtk_gliko_set_center (HyScanGtkGliko *instance,
                                         const gdouble cx,
@@ -682,6 +791,17 @@ void           hyscan_gtk_gliko_set_center (HyScanGtkGliko *instance,
   g_object_set( G_OBJECT( p->grid ), "gliko-cx", p->cx, "gliko-cy", p->cy, NULL );
 }
 
+/**
+ * hyscan_gtk_gliko_get_center:
+ * @instance: указатель на объект индикатора кругового обзора
+ * @cx: указатель переменную, в которой будет
+ * сохранено смещение по оси X
+ * @cy: указатель на переменную, в которой будет
+ * сохранено смещение по оси Y
+ *
+ * Получение смещения центра круговой развертки относительно
+ * центра области элемента диалогового интерфейса.
+ */
 HYSCAN_API
 void           hyscan_gtk_gliko_get_center (HyScanGtkGliko *instance,
                                         gdouble *cx,
@@ -693,6 +813,25 @@ void           hyscan_gtk_gliko_get_center (HyScanGtkGliko *instance,
   *cy = p->cy;
 }
 
+/**
+ * hyscan_gtk_gliko_set_contrast:
+ * @instance: указатель на объект индикатора кругового обзора
+ * @contrast: значение контрастности изображения
+ *
+ * Регулировка контрастности изображения.
+ * Значение контрастности изображения задается в диапазоне
+ * [-1;+1].
+ * Яркость отметки гидроакустического изображения
+ * вычисляется по следущей формуле:
+ * I = B + C * A,
+ * где A - нормированная амплитуда сигнала (0..255),
+ *     С - коэффициент контрастности,
+ *     B - постоянная составляющая яркости;
+ *     I - результирующая яркость отметки
+ * Коэффициент контрастности рассчитывается по формуле
+ * C = 1 / (1 - @contrast), при @contrast > 0
+ * C = 1 + @contrast, при @contrast <= 0
+ */
 HYSCAN_API
 void           hyscan_gtk_gliko_set_contrast (HyScanGtkGliko *instance,
                                           const gdouble contrast)
@@ -703,6 +842,13 @@ void           hyscan_gtk_gliko_set_contrast (HyScanGtkGliko *instance,
   g_object_set( p->iko, "gliko-contrast", p->contrast, NULL );
 }
 
+/**
+ * hyscan_gtk_gliko_get_contrast:
+ * @instance: указатель на объект индикатора кругового обзора
+ *
+ * Получение текущей контрастности гидроакустического изображения.
+ * Returns: значение контрастности гидроакустического изображения.
+ */
 HYSCAN_API
 gdouble        hyscan_gtk_gliko_get_contrast (HyScanGtkGliko *instance)
 {
@@ -710,6 +856,15 @@ gdouble        hyscan_gtk_gliko_get_contrast (HyScanGtkGliko *instance)
   return p->contrast;
 }
 
+/**
+ * hyscan_gtk_gliko_set_brightness:
+ * @instance: указатель на объект индикатора кругового обзора
+ * @contrast: значение яркости изображения
+ *
+ * Регулировка яркости изображения.
+ * Расчет яркости отметки гидроакустического изображения приведен
+ * в описании hyscan_gtk_gliko_set_contrast.
+ */
 HYSCAN_API
 void           hyscan_gtk_gliko_set_brightness (HyScanGtkGliko *instance,
                                           const gdouble brightness)
@@ -720,6 +875,13 @@ void           hyscan_gtk_gliko_set_brightness (HyScanGtkGliko *instance,
   g_object_set( p->iko, "gliko-bright", p->brightness, NULL );
 }
 
+/**
+ * hyscan_gtk_gliko_get_brightness:
+ * @instance: указатель на объект индикатора кругового обзора
+ *
+ * Получение текущей яркости гидроакустического изображения.
+ * Returns: значение яркости гидроакустического изображения.
+ */
 HYSCAN_API
 gdouble        hyscan_gtk_gliko_get_brightness (HyScanGtkGliko *instance)
 {
@@ -733,4 +895,76 @@ HyScanSourceType hyscan_gtk_gliko_get_source (HyScanGtkGliko *instance,
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
   return p->channel[c].source;
+}
+
+/**
+ * hyscan_gtk_gliko_set_fade_koeff:
+ * @instance: указатель на объект индикатора кругового обзора
+ * @koef: коэффициент гашения
+ *
+ * Задает коэффициент гашения kF для обеспечения послесвечениия
+ * гидроакустической информации.
+ * Яркость отметок гидроакустической информации изменяется
+ * при каждой итерации гашения по формуле
+ * A[i] = A[i-1] * kF
+ * Период итераций гашения задается вызовом hyscan_gtk_gliko_set_fade_period.
+ * По умолчанию используется значение kF равное 0,98.
+ */
+HYSCAN_API
+void           hyscan_gtk_gliko_set_fade_koeff (HyScanGtkGliko *instance,
+                                            const gdouble koef )
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+
+  p->fade_coef = (float)koef;
+  g_object_set( p->iko, "gliko-fade-coef", p->fade_coef, NULL );
+}
+
+/**
+ * hyscan_gtk_gliko_get_fade_koeff:
+ * @instance: указатель на объект индикатора кругового обзора
+ *
+ * Возвращает значение коэффициента гашения.
+ * Returns: коэффициент гашения.
+ */
+HYSCAN_API
+gdouble        hyscan_gtk_gliko_get_fade_koeff (HyScanGtkGliko *instance)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  return p->fade_coef;
+}
+
+/**
+ * hyscan_gtk_gliko_set_rotation:
+ * @instance: указатель на объект индикатора кругового обзора
+ * @alpha: угол поворота, градусы
+ *
+ * Задает поворот гидроакустического изображения от нулевого угла (направление вверх)
+ * относительно центра круга.
+ * Угол поворота задается в градусах,
+ * увеличение угла соответствует направлению поворота
+ * по часовой стрелке.
+ */
+HYSCAN_API
+void           hyscan_gtk_gliko_set_rotation (HyScanGtkGliko *instance,
+                                          const gdouble alpha)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+
+  p->rotation = (float)alpha;
+  g_object_set( p->iko, "gliko-rotate", p->rotation, NULL );
+}
+
+/**
+ * hyscan_gtk_gliko_get_rotation:
+ * @instance: указатель на объект индикатора кругового обзора
+ *
+ * Получение текущего угла поворота гидроакустического изображения.
+ * Returns: угол поворота, градусы.
+ */
+HYSCAN_API
+gdouble        hyscan_gtk_gliko_get_rotation (HyScanGtkGliko *instance)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  return p->rotation;
 }
