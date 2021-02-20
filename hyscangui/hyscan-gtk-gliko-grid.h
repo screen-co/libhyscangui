@@ -40,22 +40,22 @@
 
 G_BEGIN_DECLS
 
-#define HYSCAN_TYPE_GTK_GLIKO_GRID             (hyscan_gtk_gliko_grid_get_type ())
-#define HYSCAN_GTK_GLIKO_GRID(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_GLIKO_GRID, HyScanGtkGlikoGrid))
-#define HYSCAN_IS_GTK_GLIKO_GRID(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_GLIKO_GRID))
-#define HYSCAN_GTK_GLIKO_GRID_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_GLIKO_GRID, HyScanGtkGlikoGridClass))
-#define HYSCAN_IS_GTK_GLIKO_GRID_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_GLIKO_GRID))
-#define HYSCAN_GTK_GLIKO_GRID_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_GLIKO_GRID, HyScanGtkGlikoGridClass))
+#define HYSCAN_TYPE_GTK_GLIKO_GRID (hyscan_gtk_gliko_grid_get_type ())
+#define HYSCAN_GTK_GLIKO_GRID(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_GLIKO_GRID, HyScanGtkGlikoGrid))
+#define HYSCAN_IS_GTK_GLIKO_GRID(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_GLIKO_GRID))
+#define HYSCAN_GTK_GLIKO_GRID_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_GLIKO_GRID, HyScanGtkGlikoGridClass))
+#define HYSCAN_IS_GTK_GLIKO_GRID_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_GLIKO_GRID))
+#define HYSCAN_GTK_GLIKO_GRID_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_GLIKO_GRID, HyScanGtkGlikoGridClass))
 
 typedef struct _HyScanGtkGlikoGrid HyScanGtkGlikoGrid;
 typedef struct _HyScanGtkGlikoGridPrivate HyScanGtkGlikoGridPrivate;
 typedef struct _HyScanGtkGlikoGridClass HyScanGtkGlikoGridClass;
 
 HYSCAN_API
-GType                   hyscan_gtk_gliko_grid_get_type                   (void);
+GType hyscan_gtk_gliko_grid_get_type (void);
 
 HYSCAN_API
-HyScanGtkGlikoGrid *    hyscan_gtk_gliko_grid_new                        (void);
+HyScanGtkGlikoGrid *hyscan_gtk_gliko_grid_new (void);
 
 G_END_DECLS
 

@@ -35,17 +35,17 @@
 #ifndef __HYSCAN_GTK_GLIKO_OVERLAY_H__
 #define __HYSCAN_GTK_GLIKO_OVERLAY_H__
 
-#include <gtk/gtk.h>
 #include "hyscan-gtk-gliko-layer.h"
+#include <gtk/gtk.h>
 
 G_BEGIN_DECLS
 
-#define HYSCAN_TYPE_GTK_GLIKO_OVERLAY             (hyscan_gtk_gliko_overlay_get_type ())
-#define HYSCAN_GTK_GLIKO_OVERLAY(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_GLIKO_OVERLAY, HyScanGtkGlikoOverlay))
-#define HYSCAN_IS_GTK_GLIKO_OVERLAY(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_GLIKO_OVERLAY))
-#define HYSCAN_GTK_GLIKO_OVERLAY_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_GLIKO_OVERLAY, HyScanGtkGlikoOverlayClass))
-#define HYSCAN_IS_GTK_GLIKO_OVERLAY_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_GLIKO_OVERLAY))
-#define HYSCAN_GTK_GLIKO_OVERLAY_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_GLIKO_OVERLAY, HyScanGtkGlikoOverlayClass))
+#define HYSCAN_TYPE_GTK_GLIKO_OVERLAY (hyscan_gtk_gliko_overlay_get_type ())
+#define HYSCAN_GTK_GLIKO_OVERLAY(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_GLIKO_OVERLAY, HyScanGtkGlikoOverlay))
+#define HYSCAN_IS_GTK_GLIKO_OVERLAY(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_GLIKO_OVERLAY))
+#define HYSCAN_GTK_GLIKO_OVERLAY_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_GLIKO_OVERLAY, HyScanGtkGlikoOverlayClass))
+#define HYSCAN_IS_GTK_GLIKO_OVERLAY_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_GLIKO_OVERLAY))
+#define HYSCAN_GTK_GLIKO_OVERLAY_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_GLIKO_OVERLAY, HyScanGtkGlikoOverlayClass))
 
 typedef struct _HyScanGtkGlikoOverlay HyScanGtkGlikoOverlay;
 typedef struct _HyScanGtkGlikoOverlayPrivate HyScanGtkGlikoOverlayPrivate;
@@ -63,20 +63,20 @@ struct _HyScanGtkGlikoOverlayClass
 };
 
 HYSCAN_API
-GType                   hyscan_gtk_gliko_overlay_get_type                   (void);
+GType hyscan_gtk_gliko_overlay_get_type (void);
 
 HYSCAN_API
-GtkWidget *             hyscan_gtk_gliko_overlay_new                        (void);
+GtkWidget *hyscan_gtk_gliko_overlay_new (void);
 
 HYSCAN_API
-void                    hyscan_gtk_gliko_overlay_set_layer                  (HyScanGtkGlikoOverlay *instance,
-                                                                             const int index,
-                                                                             HyScanGtkGlikoLayer *layer);
+void hyscan_gtk_gliko_overlay_set_layer (HyScanGtkGlikoOverlay *instance,
+                                         const int index,
+                                         HyScanGtkGlikoLayer *layer);
 
 HYSCAN_API
-void                    hyscan_gtk_gliko_overlay_enable_layer               (HyScanGtkGlikoOverlay *instance,
-                                                                             const int index,
-                                                                             const int enable);
+void hyscan_gtk_gliko_overlay_enable_layer (HyScanGtkGlikoOverlay *instance,
+                                            const int index,
+                                            const int enable);
 
 G_END_DECLS
 

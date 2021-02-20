@@ -40,35 +40,35 @@
 
 G_BEGIN_DECLS
 
-#define HYSCAN_TYPE_GTK_GLIKO_AREA            (hyscan_gtk_gliko_area_get_type())
-#define HYSCAN_GTK_GLIKO_AREA(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_GLIKO_AREA, HyScanGtkGlikoArea))
-#define HYSCAN_GTK_GLIKO_AREA_CLASS(klass)    (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_GLIKO_AREA, HyScanGtkGlikoAreaClass))
-#define HYSCAN_IS_GTK_GLIKO_AREA(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_GLIKO_AREA))
+#define HYSCAN_TYPE_GTK_GLIKO_AREA (hyscan_gtk_gliko_area_get_type ())
+#define HYSCAN_GTK_GLIKO_AREA(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_GLIKO_AREA, HyScanGtkGlikoArea))
+#define HYSCAN_GTK_GLIKO_AREA_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_GLIKO_AREA, HyScanGtkGlikoAreaClass))
+#define HYSCAN_IS_GTK_GLIKO_AREA(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_GLIKO_AREA))
 #define HYSCAN_IS_GTK_GLIKO_AREA_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_GLIKO_AREA))
-#define HYSCAN_GTK_GLIKO_AREA_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_GLIKO_AREA, HyScanGtkGlikoAreaClass))
+#define HYSCAN_GTK_GLIKO_AREA_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_GLIKO_AREA, HyScanGtkGlikoAreaClass))
 
 typedef struct _HyScanGtkGlikoArea HyScanGtkGlikoArea;
 typedef struct _HyScanGtkGlikoAreaClass HyScanGtkGlikoAreaClass;
 
 HYSCAN_API
-GType                   hyscan_gtk_gliko_area_get_type                      (void);
+GType hyscan_gtk_gliko_area_get_type (void);
 
 HYSCAN_API
-HyScanGtkGlikoArea *    hyscan_gtk_gliko_area_new                           (void);
+HyScanGtkGlikoArea *hyscan_gtk_gliko_area_new (void);
 
 HYSCAN_API
-void                    hyscan_gtk_gliko_area_init_dimension                (HyScanGtkGlikoArea *instance,
-                                                                             const int na,
-                                                                             const int nd);
+void hyscan_gtk_gliko_area_init_dimension (HyScanGtkGlikoArea *instance,
+                                           const int na,
+                                           const int nd);
 
 HYSCAN_API
-void                    hyscan_gtk_gliko_area_set_data                      (HyScanGtkGlikoArea *instance,
-                                                                             const int channel,
-                                                                             const int azimuth,
-                                                                             const unsigned char *data);
+void hyscan_gtk_gliko_area_set_data (HyScanGtkGlikoArea *instance,
+                                     const int channel,
+                                     const int azimuth,
+                                     const unsigned char *data);
 
 HYSCAN_API
-void                    hyscan_gtk_gliko_area_fade                          (HyScanGtkGlikoArea *instance);
+void hyscan_gtk_gliko_area_fade (HyScanGtkGlikoArea *instance);
 
 G_END_DECLS
 

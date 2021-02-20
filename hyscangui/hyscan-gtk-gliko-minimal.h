@@ -40,22 +40,22 @@
 
 G_BEGIN_DECLS
 
-#define HYSCAN_TYPE_GTK_GLIKO_MINIMAL             (hyscan_gtk_gliko_minimal_get_type ())
-#define HYSCAN_GTK_GLIKO_MINIMAL(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_GLIKO_MINIMAL, HyScanGtkGlikoMinimal))
-#define HYSCAN_IS_GTK_GLIKO_MINIMAL(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_GLIKO_MINIMAL))
-#define HYSCAN_GTK_GLIKO_MINIMAL_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_GLIKO_MINIMAL, HyScanGtkGlikoMinimalClass))
-#define HYSCAN_IS_GTK_GLIKO_MINIMAL_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_GLIKO_MINIMAL))
-#define HYSCAN_GTK_GLIKO_MINIMAL_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_GLIKO_MINIMAL, HyScanGtkGlikoMinimalClass))
+#define HYSCAN_TYPE_GTK_GLIKO_MINIMAL (hyscan_gtk_gliko_minimal_get_type ())
+#define HYSCAN_GTK_GLIKO_MINIMAL(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_GLIKO_MINIMAL, HyScanGtkGlikoMinimal))
+#define HYSCAN_IS_GTK_GLIKO_MINIMAL(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_GLIKO_MINIMAL))
+#define HYSCAN_GTK_GLIKO_MINIMAL_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_GLIKO_MINIMAL, HyScanGtkGlikoMinimalClass))
+#define HYSCAN_IS_GTK_GLIKO_MINIMAL_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_GLIKO_MINIMAL))
+#define HYSCAN_GTK_GLIKO_MINIMAL_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_GLIKO_MINIMAL, HyScanGtkGlikoMinimalClass))
 
 typedef struct _HyScanGtkGlikoMinimal HyScanGtkGlikoMinimal;
 typedef struct _HyScanGtkGlikoMinimalPrivate HyScanGtkGlikoMinimalPrivate;
 typedef struct _HyScanGtkGlikoMinimalClass HyScanGtkGlikoMinimalClass;
 
 HYSCAN_API
-GType                   hyscan_gtk_gliko_minimal_get_type                   (void);
+GType hyscan_gtk_gliko_minimal_get_type (void);
 
 HYSCAN_API
-GtkWidget *             hyscan_gtk_gliko_minimal_new                        (void);
+GtkWidget *hyscan_gtk_gliko_minimal_new (void);
 
 G_END_DECLS
 

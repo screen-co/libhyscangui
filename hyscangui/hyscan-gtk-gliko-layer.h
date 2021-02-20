@@ -40,10 +40,10 @@
 
 G_BEGIN_DECLS
 
-#define HYSCAN_TYPE_GTK_GLIKO_LAYER                (hyscan_gtk_gliko_layer_get_type())
-#define HYSCAN_GTK_GLIKO_LAYER(obj)                (G_TYPE_CHECK_INSTANCE_CAST((obj),HYSCAN_TYPE_GTK_GLIKO_LAYER,HyScanGtkGlikoLayer))
-#define HYSCAN_IS_GTK_GLIKO_LAYER(obj)             (G_TYPE_CHECK_INSTANCE_TYPE((obj),HYSCAN_TYPE_GTK_GLIKO_LAYER))
-#define HYSCAN_GTK_GLIKO_LAYER_GET_INTERFACE(inst) (G_TYPE_INSTANCE_GET_INTERFACE((inst), HYSCAN_TYPE_GTK_GLIKO_LAYER, HyScanGtkGlikoLayerInterface))
+#define HYSCAN_TYPE_GTK_GLIKO_LAYER (hyscan_gtk_gliko_layer_get_type ())
+#define HYSCAN_GTK_GLIKO_LAYER(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_GLIKO_LAYER, HyScanGtkGlikoLayer))
+#define HYSCAN_IS_GTK_GLIKO_LAYER(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_GLIKO_LAYER))
+#define HYSCAN_GTK_GLIKO_LAYER_GET_INTERFACE(inst) (G_TYPE_INSTANCE_GET_INTERFACE ((inst), HYSCAN_TYPE_GTK_GLIKO_LAYER, HyScanGtkGlikoLayerInterface))
 
 typedef struct _HyScanGtkGlikoLayer HyScanGtkGlikoLayer;
 typedef struct _HyScanGtkGlikoLayerInterface HyScanGtkGlikoLayerInterface;
@@ -51,25 +51,25 @@ typedef struct _HyScanGtkGlikoLayerInterface HyScanGtkGlikoLayerInterface;
 struct _HyScanGtkGlikoLayerInterface
 {
   GTypeInterface parent_iface;
-  void (*realize)( HyScanGtkGlikoLayer *instance );
-  void (*render)( HyScanGtkGlikoLayer *instance, GdkGLContext *context );
-  void (*resize)( HyScanGtkGlikoLayer *instance, const int width, const int height );
+  void (*realize) (HyScanGtkGlikoLayer *instance);
+  void (*render) (HyScanGtkGlikoLayer *instance, GdkGLContext *context);
+  void (*resize) (HyScanGtkGlikoLayer *instance, const int width, const int height);
 };
 
 HYSCAN_API
-GType                   hyscan_gtk_gliko_layer_get_type                     (void);
+GType hyscan_gtk_gliko_layer_get_type (void);
 
 HYSCAN_API
-void                    hyscan_gtk_gliko_layer_realize                      (HyScanGtkGlikoLayer *instance);
+void hyscan_gtk_gliko_layer_realize (HyScanGtkGlikoLayer *instance);
 
 HYSCAN_API
-void                    hyscan_gtk_gliko_layer_render                       (HyScanGtkGlikoLayer *instance,
-                                                                             GdkGLContext *context);
+void hyscan_gtk_gliko_layer_render (HyScanGtkGlikoLayer *instance,
+                                    GdkGLContext *context);
 
 HYSCAN_API
-void                    hyscan_gtk_gliko_layer_resize                       (HyScanGtkGlikoLayer *instance,
-                                                                             const int width,
-                                                                             const int height);
+void hyscan_gtk_gliko_layer_resize (HyScanGtkGlikoLayer *instance,
+                                    const int width,
+                                    const int height);
 
 G_END_DECLS
 
