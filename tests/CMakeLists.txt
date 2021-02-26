@@ -22,6 +22,7 @@ add_executable (gtk-layer-list-test gtk-layer-list-test.c)
 add_executable (gtk-planner-editor-test gtk-planner-editor-test.c)
 add_executable (gen-gliko-test-data gen-gliko-test-data.c)
 add_executable (gtk-gliko-minimal-test gtk-gliko-minimal-test.c)
+add_executable (gtk-gliko-area-test gtk-gliko-area-test.c)
 add_executable (gtk-gliko-test gtk-gliko-test.c)
 
 target_link_libraries (gtk-area-test ${TEST_LIBRARIES})
@@ -38,6 +39,7 @@ target_link_libraries (gtk-layer-list-test ${TEST_LIBRARIES})
 target_link_libraries (gtk-planner-editor-test ${TEST_LIBRARIES})
 target_link_libraries (gen-gliko-test-data ${TEST_LIBRARIES})
 target_link_libraries (gtk-gliko-minimal-test ${TEST_LIBRARIES})
+target_link_libraries (gtk-gliko-area-test ${TEST_LIBRARIES})
 target_link_libraries (gtk-gliko-test ${TEST_LIBRARIES})
 
 add_test (NAME TileTest COMMAND tile-test
