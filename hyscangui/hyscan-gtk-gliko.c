@@ -84,7 +84,7 @@ typedef struct _channel_t
   gint64 process_time;
   gint64 alpha_time;
   gdouble alpha_value;
-  unsigned char *buffer;
+  float *buffer;
   guint32 max_length;
   guint32 allocated;
   int process_init;
@@ -128,9 +128,9 @@ struct _HyScanGtkGlikoPrivate
   float brightness;
   float fade_coef;
 
-  gdouble white_point;
-  gdouble black_point;
-  gdouble gamma_value;
+  float white;
+  float black;
+  float gamma;
 
   channel_t channel[2];
   guint32 iko_length;
@@ -191,9 +191,9 @@ static void hyscan_gtk_gliko_init( HyScanGtkGliko *instance )
   p->brightness = 0.0f;
   p->fade_coef = 0.98f;
 
-  p->white_point = 1.0;
-  p->black_point = 0.0;
-  p->gamma_value = 1.0;
+  p->white = 1.0f;
+  p->black = 0.0f;
+  p->gamma = 1.0f;
 
   p->iko_length = 0;
 
@@ -491,7 +491,7 @@ channel_ready( HyScanGtkGlikoPrivate *p,
   if( c->allocated == 0 )
   {
     for( c->allocated = (1 << 10); c->allocated < c->max_length; c->allocated <<= 1 );
-    c->buffer = g_malloc0( c->allocated * sizeof( unsigned char ) );
+    c->buffer = g_malloc0( c->allocated * sizeof( float ) );
   }
 
   // просматриваем очередь данных датчика угла
@@ -634,12 +634,14 @@ channel_ready( HyScanGtkGlikoPrivate *p,
       /* формируем строку амплитуд */
       for (k = 0; k < length; k++)
       {
+        /*
         gdouble amplitude;
 
         amplitude = (amplitudes[k] - p->black_point) / (p->white_point - p->black_point);
         amplitude = powf (amplitude, p->gamma_value);
         amplitude = CLAMP (amplitude, 0.0, 1.0);
-        c->buffer[k] = 255 * amplitude;
+        */
+        c->buffer[k] = amplitudes[k];
       }
 
       /* передаем строку в индикатор кругового обзора */
@@ -887,6 +889,57 @@ gdouble        hyscan_gtk_gliko_get_brightness (HyScanGtkGliko *instance)
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
   return p->brightness;
+}
+
+HYSCAN_API
+void           hyscan_gtk_gliko_set_black_point (HyScanGtkGliko *instance,
+                                                 const gdouble black)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+
+  p->black = (float)black;
+  g_object_set( p->iko, "gliko-black", p->black, NULL );
+}
+
+HYSCAN_API
+gdouble        hyscan_gtk_gliko_get_black_point (HyScanGtkGliko *instance)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  return p->black;
+}
+
+HYSCAN_API
+void           hyscan_gtk_gliko_set_white_point (HyScanGtkGliko *instance,
+                                                 const gdouble white)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+
+  p->white = (float)white;
+  g_object_set( p->iko, "gliko-white", p->white, NULL );
+}
+
+HYSCAN_API
+gdouble        hyscan_gtk_gliko_get_white_point (HyScanGtkGliko *instance)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  return p->white;
+}
+
+HYSCAN_API
+void           hyscan_gtk_gliko_set_gamma_value (HyScanGtkGliko *instance,
+                                                 const gdouble gamma)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+
+  p->gamma= (float)gamma;
+  g_object_set( p->iko, "gliko-gamma", p->gamma, NULL );
+}
+
+HYSCAN_API
+gdouble        hyscan_gtk_gliko_get_gamma_value (HyScanGtkGliko *instance)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  return p->gamma;
 }
 
 HYSCAN_API

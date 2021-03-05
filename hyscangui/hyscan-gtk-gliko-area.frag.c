@@ -8,8 +8,11 @@ uniform sampler2DArray data2;
 uniform sampler1DArray beam1;
 uniform sampler1DArray beam2;
 uniform sampler1DArray fade;
-uniform float contrast;
-uniform float bright;
+//uniform float contrast;
+//uniform float bright;
+uniform float white;
+uniform float black;
+uniform float gamma;
 uniform float rotate;
 uniform int tna;
 uniform int tnd;
@@ -56,11 +59,15 @@ main ()
   //q.x += fract(sin(dot(q ,vec2(12.9898,78.233))) * 43758.5453) * (1.0 - q.x) * diskreet;
   //q.y += (-noise + 2.0 * noise * fract(sin(dot(q ,vec2(12.9898,78.233))) * 43758.5453) * (1.0 - q.y));
 
-  r = bright + contrast * texture (data1, vec3 (x, y, z1)).r;
+  //r = bright + contrast * texture (data1, vec3 (x, y, z1)).r;
+  r = (texture (data1, vec3 (x, y, z1)).r - black) * (white - black);
+  r = pow( r, gamma );
   r *= texture (fade, vec2 (y, z2)).r;
   r += texture (beam1, vec2 (y, z2)).r;
 
-  g = bright + contrast * texture (data2, vec3 (x, y, z1)).r;
+  //g = bright + contrast * texture (data2, vec3 (x, y, z1)).r;
+  g = (texture (data2, vec3 (x, y, z1)).r - black) * (white - black);
+  g = pow( g, gamma );
   g *= texture (fade, vec2 (y, z2)).r;
   g += texture (beam2, vec2 (y, z2)).r;
 

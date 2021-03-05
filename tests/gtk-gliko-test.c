@@ -47,12 +47,18 @@ button_cb (GtkWidget *widget, GdkEventButton *event, void *w)
     {
       if (event->state & GDK_CONTROL_MASK)
         {
-          hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (widget), 0.0);
+          hyscan_gtk_gliko_set_white_point (HYSCAN_GTK_GLIKO (widget), 1.0);
           iko_update = 1;
         }
+      /*
       else if (event->state & GDK_SHIFT_MASK)
         {
-          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (widget), 0.0);
+          hyscan_gtk_gliko_set_black_point (HYSCAN_GTK_GLIKO (widget), 0.0);
+          iko_update = 1;
+        }*/
+      else if (event->state & GDK_SHIFT_MASK)
+        {
+          hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (widget), 1.0);
           iko_update = 1;
         }
       else
@@ -92,17 +98,20 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
     {
       if (event->state & GDK_CONTROL_MASK)
         {
-          f = hyscan_gtk_gliko_get_contrast (HYSCAN_GTK_GLIKO (widget));
-          f += 0.05;
-          if (f > 0.99)
-            f = 0.99;
-          hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (widget), f);
+          f = hyscan_gtk_gliko_get_white_point (HYSCAN_GTK_GLIKO (widget));
+          hyscan_gtk_gliko_set_white_point (HYSCAN_GTK_GLIKO (widget), f + 0.05);
           iko_update = 1;
         }
+      /*else if (event->state & GDK_SHIFT_MASK)
+        {
+          f = hyscan_gtk_gliko_get_black_point (HYSCAN_GTK_GLIKO (widget));
+          hyscan_gtk_gliko_set_black_point (HYSCAN_GTK_GLIKO (widget), f + 0.05);
+          iko_update = 1;
+        }*/
       else if (event->state & GDK_SHIFT_MASK)
         {
-          f = hyscan_gtk_gliko_get_brightness (HYSCAN_GTK_GLIKO (widget));
-          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (widget), f + 0.05);
+          f = hyscan_gtk_gliko_get_gamma_value (HYSCAN_GTK_GLIKO (widget));
+          hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (widget), f + 0.01);
           iko_update = 1;
         }
       else
@@ -116,17 +125,21 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
     {
       if (event->state & GDK_CONTROL_MASK)
         {
-          f = hyscan_gtk_gliko_get_contrast (HYSCAN_GTK_GLIKO (widget));
-          f -= 0.05f;
-          if (f < -0.99f)
-            f = -0.99f;
-          hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (widget), f);
+          f = hyscan_gtk_gliko_get_white_point (HYSCAN_GTK_GLIKO (widget));
+          hyscan_gtk_gliko_set_white_point (HYSCAN_GTK_GLIKO (widget), f - 0.05);
           iko_update = 1;
         }
+      /*else if (event->state & GDK_SHIFT_MASK)
+        {
+          f = hyscan_gtk_gliko_get_black_point (HYSCAN_GTK_GLIKO (widget));
+          hyscan_gtk_gliko_set_black_point (HYSCAN_GTK_GLIKO (widget), f - 0.05);
+          iko_update = 1;
+        }
+      */
       else if (event->state & GDK_SHIFT_MASK)
         {
-          f = hyscan_gtk_gliko_get_brightness (HYSCAN_GTK_GLIKO (widget));
-          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (widget), f - 0.05);
+          f = hyscan_gtk_gliko_get_gamma_value (HYSCAN_GTK_GLIKO (widget));
+          hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (widget), f - 0.01);
           iko_update = 1;
         }
       else

@@ -6,7 +6,7 @@
 #include <hyscan-gtk-gliko-area.h>
 #include <hyscan-gtk-gliko-grid.h>
 
-typedef unsigned char sample_t;
+typedef float sample_t;
 
 gint32 num_azimuthes;
 guint32 iko_length;
@@ -31,8 +31,11 @@ static gboolean update_timeout( gpointer iko )
   static int a = 0;
   static int d = 0;
 
-  fill_buffer (buffer, 0x80, iko_length);
-  buffer[d % iko_length] = 0xFF;
+  fill_buffer (buffer, 0.5f, iko_length);
+  buffer[(d+0) % iko_length] = 1.0f;
+  buffer[(d+1) % iko_length] = 1.0f;
+  buffer[(d+2) % iko_length] = 1.0f;
+  buffer[(d+3) % iko_length] = 1.0f;
   hyscan_gtk_gliko_area_set_data( HYSCAN_GTK_GLIKO_AREA( iko ), 0, a % num_azimuthes, buffer );
   if ((a & 0xF) == 0)
     {

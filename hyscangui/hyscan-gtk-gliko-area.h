@@ -65,7 +65,7 @@ HYSCAN_API
 void hyscan_gtk_gliko_area_set_data (HyScanGtkGlikoArea *instance,
                                      const int channel,
                                      const int azimuth,
-                                     const unsigned char *data);
+                                     const float *data);
 
 HYSCAN_API
 void hyscan_gtk_gliko_area_fade (HyScanGtkGlikoArea *instance);
