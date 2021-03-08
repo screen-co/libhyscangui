@@ -84,7 +84,7 @@ typedef struct _channel_t
   gint64 process_time;
   gint64 alpha_time;
   gdouble alpha_value;
-  float *buffer;
+  gfloat *buffer;
   guint32 max_length;
   guint32 allocated;
   int process_init;
@@ -478,7 +478,7 @@ channel_ready( HyScanGtkGlikoPrivate *p,
   data_que_t data;
   gdouble a, d, dm, dn, dp;
   const gfloat *amplitudes;
-  guint32 j, k, length;
+  guint32 j, length;
   gint64 t;
 
   // длина строки должна быть определена
@@ -491,7 +491,7 @@ channel_ready( HyScanGtkGlikoPrivate *p,
   if( c->allocated == 0 )
   {
     for( c->allocated = (1 << 10); c->allocated < c->max_length; c->allocated <<= 1 );
-    c->buffer = g_malloc0( c->allocated * sizeof( float ) );
+    c->buffer = g_malloc0( c->allocated * sizeof( gfloat ) );
   }
 
   // просматриваем очередь данных датчика угла
@@ -631,18 +631,19 @@ channel_ready( HyScanGtkGlikoPrivate *p,
         length = c->max_length;
       }
 
-      /* формируем строку амплитуд */
+      /* запоминаем строку амплитуд в буфере */
+      memcpy( c->buffer, amplitudes, length * sizeof( gfloat ) );
+      /*
       for (k = 0; k < length; k++)
       {
-        /*
         gdouble amplitude;
 
         amplitude = (amplitudes[k] - p->black_point) / (p->white_point - p->black_point);
         amplitude = powf (amplitude, p->gamma_value);
         amplitude = CLAMP (amplitude, 0.0, 1.0);
-        */
-        c->buffer[k] = amplitudes[k];
+        c->buffer[k] = amplitude;
       }
+      */
 
       /* передаем строку в индикатор кругового обзора */
       if( p->iko_length != 0 )
@@ -706,7 +707,7 @@ player_ready_callback (HyScanDataPlayer *player,
  */
 HYSCAN_API
 void            hyscan_gtk_gliko_set_player (HyScanGtkGliko *instance,
-                                         HyScanDataPlayer *player)
+                                             HyScanDataPlayer *player)
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
 

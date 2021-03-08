@@ -642,7 +642,7 @@ hyscan_gtk_gliko_area_init_dimension (HyScanGtkGlikoArea *instance, const int na
 }
 
 void
-hyscan_gtk_gliko_area_set_data (HyScanGtkGlikoArea *instance, const int channel, const int azimuth, const float *data)
+hyscan_gtk_gliko_area_set_data (HyScanGtkGlikoArea *instance, const int channel, const int azimuth, const gfloat *data)
 {
   HyScanGtkGlikoAreaPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO_AREA, HyScanGtkGlikoAreaPrivate);
   sample_t *dst, *dst_row;
