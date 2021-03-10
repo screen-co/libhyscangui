@@ -143,6 +143,8 @@ struct _HyScanGtkGlikoPrivate
   alpha_que_t alpha_que_buffer[128];
   que_t alpha_que;
 
+  int debug_alpha;
+  int debug_alpha_value;
 };
 
 /* Define type */
@@ -201,6 +203,9 @@ static void hyscan_gtk_gliko_init( HyScanGtkGliko *instance )
 
   p->nmea_index = 0;
   p->nmea_init = 0;
+
+  p->debug_alpha = 0;
+  p->debug_alpha_value = 0;
 
   p->channel[0].source_name = "ss-starboard";
   p->channel[1].source_name = "ss-port";
@@ -407,6 +412,19 @@ channel_process( HyScanGtkGlikoPrivate *p,
       {
         c->max_length = data.length;
       }
+      if( p->debug_alpha && channel_index == 0 )
+      {
+        alpha_que_t alpha;
+
+        alpha.time = data.time;
+        alpha.value = 360.0;
+        alpha.value = alpha.value * (p->debug_alpha_value % p->num_azimuthes) / p->num_azimuthes;
+
+        p->debug_alpha_value++;
+
+        // буферизуем считанное значение в очереди
+        enque( &p->alpha_que, &alpha, 1 );
+      }
     }
   }
 }
@@ -426,6 +444,11 @@ player_process_callback (HyScanDataPlayer *player,
   // обработка индексов строк данных для двух каналов
   channel_process( p, 0, time );
   channel_process( p, 1, time );
+
+  if( p->debug_alpha )
+  {
+    return;
+  }
 
   // запрашиваем индексы по текущему времени
   if( hyscan_nmea_data_find_data( p->nmea_data, time, &inleft, &inright, &tnleft, &tnright ) != HYSCAN_DB_FIND_OK )

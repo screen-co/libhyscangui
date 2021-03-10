@@ -111,7 +111,7 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
       else if (event->state & GDK_SHIFT_MASK)
         {
           f = hyscan_gtk_gliko_get_gamma_value (HYSCAN_GTK_GLIKO (widget));
-          hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (widget), f + 0.01);
+          hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (widget), f - 0.05);
           iko_update = 1;
         }
       else
@@ -139,7 +139,7 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
       else if (event->state & GDK_SHIFT_MASK)
         {
           f = hyscan_gtk_gliko_get_gamma_value (HYSCAN_GTK_GLIKO (widget));
-          hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (widget), f - 0.01);
+          hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (widget), f + 0.05);
           iko_update = 1;
         }
       else
@@ -269,6 +269,10 @@ main (int argc,
   player = hyscan_data_player_new ();
 
   hyscan_gtk_gliko_set_player (HYSCAN_GTK_GLIKO (gliko), player);
+
+  hyscan_gtk_gliko_set_black_point (HYSCAN_GTK_GLIKO (gliko), black_point);
+  hyscan_gtk_gliko_set_white_point (HYSCAN_GTK_GLIKO (gliko), white_point);
+  hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (gliko), gamma_value);
 
   hyscan_data_player_set_fps (player, fps);
   hyscan_data_player_set_track (player, db, project_name, track_name);
