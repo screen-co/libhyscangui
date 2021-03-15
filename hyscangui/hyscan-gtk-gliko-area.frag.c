@@ -7,9 +7,10 @@ uniform sampler2DArray data1;
 uniform sampler2DArray data2;
 uniform sampler1DArray beam1;
 uniform sampler1DArray beam2;
-uniform sampler1DArray fade;
-//uniform float contrast;
-//uniform float bright;
+uniform sampler1DArray fade1;
+uniform sampler1DArray fade2;
+uniform float contrast;
+uniform float bright;
 uniform float white;
 uniform float black;
 uniform float gamma;
@@ -59,37 +60,35 @@ main ()
   //q.x += fract(sin(dot(q ,vec2(12.9898,78.233))) * 43758.5453) * (1.0 - q.x) * diskreet;
   //q.y += (-noise + 2.0 * noise * fract(sin(dot(q ,vec2(12.9898,78.233))) * 43758.5453) * (1.0 - q.y));
 
+  // mix(x,y,a) = x*(1-a) + y*a
+
   //r = bright + contrast * texture (data1, vec3 (x, y, z1)).r;
   r = (texture (data1, vec3 (x, y, z1)).r - black) * (white - black);
   r = pow( r, gamma );
-  r *= texture (fade, vec2 (y, z2)).r;
-  r += texture (beam1, vec2 (y, z2)).r;
+  r = clamp( bright + contrast * r, 0.0, 1.0 );
+  c.r = texture (fade1, vec2 (y, z2)).r;
+  r *= c.r;
+  //r += texture (beam1, vec2 (y, z2)).r;
+  r = mix (r, 1.0, texture (beam1, vec2 (y, z2)).r);
 
   //g = bright + contrast * texture (data2, vec3 (x, y, z1)).r;
   g = (texture (data2, vec3 (x, y, z1)).r - black) * (white - black);
   g = pow( g, gamma );
-  g *= texture (fade, vec2 (y, z2)).r;
-  g += texture (beam2, vec2 (y, z2)).r;
+  g = clamp( bright + contrast * g, 0.0, 1.0 );;
+  c.g = texture (fade2, vec2 (y, z2)).r;
+  g *= c.g;
+  //g += texture (beam2, vec2 (y, z2)).r;
+  g = mix( g, 1.0, texture (beam2, vec2 (y, z2)).r);
 
-  // mix(x,y,a) = x*(1-a) + y*a
-
-  //x = (1 + r - g) * (1 + r + g);
-  if (r > 0.5 * g)
-    {
-      c = colorr;
-      x = r;
-    }
-  else if (g > 0.5 * r)
-    {
-      c = colorg;
-      x = g;
-    }
+  if( c.r > c.g )
+  {
+    c = colorr;
+    x = r;
+  }
   else
-    {
-      c = mix (colorr, colorg, 0.5);
-      x = max (r, g);
-    }
+  {
+    c = colorg;
+    x = g;
+  }
   FragColor = background + c * clamp (x, 0.0, 1.0 - background.a);
-
-  //FragColor = background + colorr * clamp( r, 0.0, 1.0 - background.a );
 }

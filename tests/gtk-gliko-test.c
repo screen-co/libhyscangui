@@ -45,18 +45,17 @@ button_cb (GtkWidget *widget, GdkEventButton *event, void *w)
     }
   else if (event->button == 2)
     {
-      if (event->state & GDK_CONTROL_MASK)
+      if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
         {
-          hyscan_gtk_gliko_set_white_point (HYSCAN_GTK_GLIKO (widget), 1.0);
+          hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (widget), 0.0);
           iko_update = 1;
         }
-      /*
-      else if (event->state & GDK_SHIFT_MASK)
+      else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_SHIFT_MASK)
         {
-          hyscan_gtk_gliko_set_black_point (HYSCAN_GTK_GLIKO (widget), 0.0);
+          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (widget), 0.0);
           iko_update = 1;
-        }*/
-      else if (event->state & GDK_SHIFT_MASK)
+        }
+      else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == (GDK_CONTROL_MASK | GDK_SHIFT_MASK))
         {
           hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (widget), 1.0);
           iko_update = 1;
@@ -96,22 +95,32 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
 
   if (event->direction == GDK_SCROLL_UP)
     {
-      if (event->state & GDK_CONTROL_MASK)
+      if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
         {
-          f = hyscan_gtk_gliko_get_white_point (HYSCAN_GTK_GLIKO (widget));
-          hyscan_gtk_gliko_set_white_point (HYSCAN_GTK_GLIKO (widget), f + 0.05);
+          f = hyscan_gtk_gliko_get_contrast (HYSCAN_GTK_GLIKO (widget));
+          f += 0.025;
+          if( f > 1.0 )
+          {
+            f = 1.0;
+          }
+          hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (widget), f );
           iko_update = 1;
         }
-      /*else if (event->state & GDK_SHIFT_MASK)
+      else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_SHIFT_MASK)
         {
-          f = hyscan_gtk_gliko_get_black_point (HYSCAN_GTK_GLIKO (widget));
-          hyscan_gtk_gliko_set_black_point (HYSCAN_GTK_GLIKO (widget), f + 0.05);
+          f = hyscan_gtk_gliko_get_brightness (HYSCAN_GTK_GLIKO (widget));
+          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (widget), f + 0.05);
           iko_update = 1;
-        }*/
-      else if (event->state & GDK_SHIFT_MASK)
+        }
+      else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == (GDK_CONTROL_MASK | GDK_SHIFT_MASK))
         {
           f = hyscan_gtk_gliko_get_gamma_value (HYSCAN_GTK_GLIKO (widget));
-          hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (widget), f - 0.05);
+          f -= 0.01;
+          if( f < 0.0 )
+          {
+            f = 0.0;
+          }
+          hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (widget), f );
           iko_update = 1;
         }
       else
@@ -123,23 +132,27 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
     }
   if (event->direction == GDK_SCROLL_DOWN)
     {
-      if (event->state & GDK_CONTROL_MASK)
+      if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
         {
-          f = hyscan_gtk_gliko_get_white_point (HYSCAN_GTK_GLIKO (widget));
-          hyscan_gtk_gliko_set_white_point (HYSCAN_GTK_GLIKO (widget), f - 0.05);
+          f = hyscan_gtk_gliko_get_contrast (HYSCAN_GTK_GLIKO (widget));
+          f -= 0.025;
+          if( f < -1.0 )
+          {
+            f = -1.0;
+          }
+          hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (widget), f );
           iko_update = 1;
         }
-      /*else if (event->state & GDK_SHIFT_MASK)
+      else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_SHIFT_MASK)
         {
-          f = hyscan_gtk_gliko_get_black_point (HYSCAN_GTK_GLIKO (widget));
-          hyscan_gtk_gliko_set_black_point (HYSCAN_GTK_GLIKO (widget), f - 0.05);
+          f = hyscan_gtk_gliko_get_brightness (HYSCAN_GTK_GLIKO (widget));
+          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (widget), f - 0.05);
           iko_update = 1;
         }
-      */
-      else if (event->state & GDK_SHIFT_MASK)
+      else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == (GDK_CONTROL_MASK | GDK_SHIFT_MASK))
         {
           f = hyscan_gtk_gliko_get_gamma_value (HYSCAN_GTK_GLIKO (widget));
-          hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (widget), f + 0.05);
+          hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (widget), f + 0.01);
           iko_update = 1;
         }
       else

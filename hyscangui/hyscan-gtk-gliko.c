@@ -145,6 +145,8 @@ struct _HyScanGtkGlikoPrivate
 
   int debug_alpha;
   int debug_alpha_value;
+
+  gint64 fade_time;
 };
 
 /* Define type */
@@ -191,7 +193,7 @@ static void hyscan_gtk_gliko_init( HyScanGtkGliko *instance )
   p->cy = 0.0f;
   p->contrast = 0.0f;
   p->brightness = 0.0f;
-  p->fade_coef = 0.98f;
+  p->fade_coef = 0.998f;
 
   p->white = 1.0f;
   p->black = 0.0f;
@@ -204,7 +206,7 @@ static void hyscan_gtk_gliko_init( HyScanGtkGliko *instance )
   p->nmea_index = 0;
   p->nmea_init = 0;
 
-  p->debug_alpha = 0;
+  p->debug_alpha = 1;
   p->debug_alpha_value = 0;
 
   p->channel[0].source_name = "ss-starboard";
@@ -675,7 +677,6 @@ channel_ready( HyScanGtkGlikoPrivate *p,
         c->azimuth = j;
         c->azimuth_displayed = 1;
       }
-
     } while( rd > 0 );
 
     // конец текущего временного интервала становится началом следущего
@@ -686,6 +687,7 @@ channel_ready( HyScanGtkGlikoPrivate *p,
     c->alpha_que_count++;
 
   } while( ra > 0 );
+
 }
 
 // обработчик сигнала ready
@@ -714,10 +716,15 @@ player_ready_callback (HyScanDataPlayer *player,
     hyscan_gtk_gliko_area_init_dimension( HYSCAN_GTK_GLIKO_AREA( p->iko ), p->num_azimuthes, p->iko_length );
     g_object_set( p->iko, "gliko-scale", p->scale, NULL );
     g_object_set( p->grid, "gliko-scale", p->scale, NULL );
+    p->fade_time = time;
   }
   // обрабатываем каналы левого и правого борта
   channel_ready( p, 0, time );
   channel_ready( p, 1, time );
+  if( (time - p->fade_time) > 1000000 )
+  {
+    hyscan_gtk_gliko_area_fade( HYSCAN_GTK_GLIKO_AREA( p->iko ) );
+  }
 }
 
 /**

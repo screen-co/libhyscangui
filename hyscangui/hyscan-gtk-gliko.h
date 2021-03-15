@@ -114,6 +114,20 @@ gdouble        hyscan_gtk_gliko_get_rotation          (HyScanGtkGliko *instance)
 
 
 HYSCAN_API
+gdouble        hyscan_gtk_gliko_get_contrast          (HyScanGtkGliko *instance);
+
+HYSCAN_API
+void           hyscan_gtk_gliko_set_brightness        (HyScanGtkGliko *instance,
+                                                       const gdouble brightness);
+
+HYSCAN_API
+void           hyscan_gtk_gliko_set_contrast          (HyScanGtkGliko *instance,
+                                                       const gdouble contrast);
+
+HYSCAN_API
+gdouble        hyscan_gtk_gliko_get_brightness        (HyScanGtkGliko *instance);
+
+HYSCAN_API
 void           hyscan_gtk_gliko_set_black_point       (HyScanGtkGliko *instance,
                                                        const gdouble black);
 HYSCAN_API
