@@ -60,35 +60,29 @@ main ()
   //q.x += fract(sin(dot(q ,vec2(12.9898,78.233))) * 43758.5453) * (1.0 - q.x) * diskreet;
   //q.y += (-noise + 2.0 * noise * fract(sin(dot(q ,vec2(12.9898,78.233))) * 43758.5453) * (1.0 - q.y));
 
-  // mix(x,y,a) = x*(1-a) + y*a
+  // note: mix(x,y,a) = x*(1-a) + y*a
 
-  //r = bright + contrast * texture (data1, vec3 (x, y, z1)).r;
-  r = (texture (data1, vec3 (x, y, z1)).r - black) * (white - black);
+  r = (texture (data1, vec3 (x, y, z1)).r - black) / (white - black);
   r = pow( r, gamma );
-  r = clamp( bright + contrast * r, 0.0, 1.0 );
+  r = bright + contrast * r;
   c.r = texture (fade1, vec2 (y, z2)).r;
-  r *= c.r;
-  //r += texture (beam1, vec2 (y, z2)).r;
-  r = mix (r, 1.0, texture (beam1, vec2 (y, z2)).r);
+  r = clamp( r * c.r, 0.0, 1.0 );
 
-  //g = bright + contrast * texture (data2, vec3 (x, y, z1)).r;
-  g = (texture (data2, vec3 (x, y, z1)).r - black) * (white - black);
+  g = (texture (data2, vec3 (x, y, z1)).r - black) / (white - black);
   g = pow( g, gamma );
-  g = clamp( bright + contrast * g, 0.0, 1.0 );;
+  g = bright + contrast * g;
   c.g = texture (fade2, vec2 (y, z2)).r;
-  g *= c.g;
-  //g += texture (beam2, vec2 (y, z2)).r;
-  g = mix( g, 1.0, texture (beam2, vec2 (y, z2)).r);
+  g = clamp( g * c.g, 0.0, 1.0 );
 
   if( c.r > c.g )
   {
-    c = colorr;
-    x = r;
+    c = mix (background, colorr, r);
   }
   else
   {
-    c = colorg;
-    x = g;
+    c = mix (background, colorg, g);
   }
-  FragColor = background + c * clamp (x, 0.0, 1.0 - background.a);
+  c = mix (c, colorr, texture (beam1, vec2 (y, z2)).r);
+  c = mix (c, colorg, texture (beam2, vec2 (y, z2)).r);
+  FragColor = c;
 }
