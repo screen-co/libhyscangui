@@ -178,8 +178,6 @@ main (int argc,
   //gchar *source_name1 = "ss-starboard";
   //gchar *source_name2 = "ss-port";
   gchar *output_file = NULL;
-  gdouble along_scale = 1.0;
-  gdouble across_scale = 0.04;
   gdouble speed = 1.0;
   gdouble white_point = 1.0;
   gdouble black_point = 0.0;
@@ -200,8 +198,6 @@ main (int argc,
           //{ "starboard", 's', 0, G_OPTION_ARG_STRING, &source_name, "Starboard name", NULL },
           //{ "port", 'r', 0, G_OPTION_ARG_STRING, &source_name, "Port name", NULL },
           { "output", 'o', 0, G_OPTION_ARG_STRING, &output_file, "Output image file name", NULL },
-          { "along-scale", 'l', 0, G_OPTION_ARG_DOUBLE, &along_scale, "Scale along track", NULL },
-          { "across-scale", 'c', 0, G_OPTION_ARG_DOUBLE, &across_scale, "Scale across track", NULL },
           { "white-point", 'w', 0, G_OPTION_ARG_DOUBLE, &white_point, "White point", NULL },
           { "black-point", 'b', 0, G_OPTION_ARG_DOUBLE, &black_point, "Black point", NULL },
           { "gamma", 'g', 0, G_OPTION_ARG_DOUBLE, &gamma_value, "Gamma", NULL },
@@ -243,21 +239,6 @@ main (int argc,
     g_strfreev (args);
   }
 
-  if (along_scale < 0.1)
-    {
-      along_scale = 0.1;
-      g_warning ("along scale clamped to %f", along_scale);
-    }
-
-  if (across_scale < 0.01)
-    {
-      across_scale = 0.1;
-      g_warning ("across scale clamped to %f", along_scale);
-    }
-
-  along_scale = CLAMP (along_scale, 0.1, 100.0);
-  across_scale = CLAMP (across_scale, 0.01, 1.0);
-
   white_point = CLAMP (white_point, 0.0, 1.0);
   black_point = CLAMP (black_point, 0.0, 1.0);
   gamma_value = CLAMP (gamma_value, 0.0, 2.0);
@@ -268,10 +249,10 @@ main (int argc,
 
   gtk_widget_set_events (gliko,
                          GDK_EXPOSURE_MASK |
-                             GDK_BUTTON_PRESS_MASK |
-                             GDK_BUTTON_RELEASE_MASK |
-                             GDK_BUTTON_MOTION_MASK |
-                             GDK_SCROLL_MASK);
+                         GDK_BUTTON_PRESS_MASK |
+                         GDK_BUTTON_RELEASE_MASK |
+                         GDK_BUTTON_MOTION_MASK |
+                         GDK_SCROLL_MASK);
 
   g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
   g_signal_connect (gliko, "button_press_event", G_CALLBACK (button_cb), NULL);

@@ -128,11 +128,6 @@ static const char *fragmentShaderSource =
     "}\n\0";
 */
 
-/*
-static const char *fragmentShaderSource =
-#include "hyscan-gtk-gliko-area.frag.h"
-    ;
-*/
 extern const char *fragmentShaderSource;
 
 static int
@@ -533,11 +528,10 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
   {
     contrast = 1.0f + contrast;
   }
-  //printf( "%lf %lf\n", p->contrast, contrast );
   set_uniform1f (p->program, "contrast", contrast);
   set_uniform1f (p->program, "bright", p->bright);
-  set_uniform1f (p->program, "black", p->black);
-  set_uniform1f (p->program, "white", p->white);
+  set_uniform1f (p->program, "ampoffset", p->black);
+  set_uniform1f (p->program, "amprange", 1.0f / (p->white - p->black) );
   set_uniform1f (p->program, "gamma", p->gamma);
 
   set_uniform1f (p->program, "rotate", p->rotate * 3.1415926536f / 180.f);
