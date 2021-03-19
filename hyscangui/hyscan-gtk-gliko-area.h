@@ -35,8 +35,7 @@
 #ifndef __HYSCAN_GTK_GLIKO_AREA_H__
 #define __HYSCAN_GTK_GLIKO_AREA_H__
 
-#include <gtk/gtk.h>
-#include <hyscan-api.h>
+#include "hyscan-gtk-gliko-layer.h"
 
 G_BEGIN_DECLS
 

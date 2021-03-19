@@ -41,14 +41,12 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+
 #include <hyscan-acoustic-data.h>
 #include <hyscan-nmea-data.h>
 #include <hyscan-data-player.h>
 
 #include "hyscan-gtk-gliko.h"
-
-#include <string.h>
-#include <GL/gl.h>
 
 #include "hyscan-gtk-gliko-overlay.h"
 #include "hyscan-gtk-gliko-area.h"
@@ -150,23 +148,24 @@ struct _HyScanGtkGlikoPrivate
 };
 
 /* Define type */
-G_DEFINE_TYPE( HyScanGtkGliko, hyscan_gtk_gliko, HYSCAN_TYPE_GTK_GLIKO_OVERLAY )
+G_DEFINE_TYPE (HyScanGtkGliko, hyscan_gtk_gliko, HYSCAN_TYPE_GTK_GLIKO_OVERLAY)
 
 /* Internal API */
-static void dispose( GObject *gobject );
-static void finalize( GObject *gobject );
+static void dispose (GObject *gobject);
+static void finalize (GObject *gobject);
 
 //static void get_preferred_width( GtkWidget *widget, gint *minimal_width, gint *natural_width );
 //static void get_preferred_height( GtkWidget *widget, gint *minimal_height, gint *natural_height );
 
 /* Initialization */
-static void hyscan_gtk_gliko_class_init( HyScanGtkGlikoClass *klass )
+static void
+hyscan_gtk_gliko_class_init (HyScanGtkGlikoClass *klass)
 {
-  GObjectClass *g_class = G_OBJECT_CLASS( klass );
+  GObjectClass *g_class = G_OBJECT_CLASS (klass);
   //GtkWidgetClass *w_class = GTK_WIDGET_CLASS( klass );
 
   /* Add private data */
-  g_type_class_add_private( klass, sizeof( HyScanGtkGlikoPrivate ) );
+  g_type_class_add_private (klass, sizeof (HyScanGtkGlikoPrivate));
 
   g_class->dispose = dispose;
   g_class->finalize = finalize;
@@ -175,9 +174,10 @@ static void hyscan_gtk_gliko_class_init( HyScanGtkGlikoClass *klass )
   //w_class->get_preferred_height = get_preferred_height;
 }
 
-static void hyscan_gtk_gliko_init( HyScanGtkGliko *instance )
+static void
+hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
   p->iko = NULL;
   p->grid = NULL;
@@ -230,38 +230,43 @@ static void hyscan_gtk_gliko_init( HyScanGtkGliko *instance )
       return;
     }
 
-  p->iko = hyscan_gtk_gliko_area_new();
-  p->grid = hyscan_gtk_gliko_grid_new();
-  hyscan_gtk_gliko_overlay_set_layer( HYSCAN_GTK_GLIKO_OVERLAY( instance ), 0, HYSCAN_GTK_GLIKO_LAYER( p->iko ) );
-  hyscan_gtk_gliko_overlay_enable_layer( HYSCAN_GTK_GLIKO_OVERLAY( instance ), 0, 1 );
-  hyscan_gtk_gliko_overlay_set_layer( HYSCAN_GTK_GLIKO_OVERLAY( instance ), 1, HYSCAN_GTK_GLIKO_LAYER( p->grid ) );
-  hyscan_gtk_gliko_overlay_enable_layer( HYSCAN_GTK_GLIKO_OVERLAY( instance ), 1, 1 );
+  p->iko = hyscan_gtk_gliko_area_new ();
+  p->grid = hyscan_gtk_gliko_grid_new ();
+  hyscan_gtk_gliko_overlay_set_layer (HYSCAN_GTK_GLIKO_OVERLAY (instance), 0, HYSCAN_GTK_GLIKO_LAYER (p->iko));
+  hyscan_gtk_gliko_overlay_enable_layer (HYSCAN_GTK_GLIKO_OVERLAY (instance), 0, 1);
+  hyscan_gtk_gliko_overlay_set_layer (HYSCAN_GTK_GLIKO_OVERLAY (instance), 1, HYSCAN_GTK_GLIKO_LAYER (p->grid));
+  hyscan_gtk_gliko_overlay_enable_layer (HYSCAN_GTK_GLIKO_OVERLAY (instance), 1, 1);
 
-  g_object_set( p->iko, "gliko-color1-rgb", "#00FF80", NULL );
-  g_object_set( p->iko, "gliko-color1-alpha", 1.0f, NULL );
-  g_object_set( p->iko, "gliko-color2-rgb", "#FF8000", NULL );
-  g_object_set( p->iko, "gliko-color2-alpha", 1.0f, NULL );
-  g_object_set( p->iko, "gliko-background-rgb", "#404040", NULL );
-  g_object_set( p->iko, "gliko-background-alpha", 0.25f, NULL );
+  g_object_set (p->iko, "gliko-color1-rgb", "#00FF80", NULL);
+  g_object_set (p->iko, "gliko-color1-alpha", 1.0f, NULL);
+  g_object_set (p->iko, "gliko-color2-rgb", "#FF8000", NULL);
+  g_object_set (p->iko, "gliko-color2-alpha", 1.0f, NULL);
+  g_object_set (p->iko, "gliko-background-rgb", "#404040", NULL);
+  g_object_set (p->iko, "gliko-background-alpha", 0.25f, NULL);
 
-  g_object_set( p->iko, "gliko-fade-coef", p->fade_coef, NULL );
-  g_object_set( p->iko, "gliko-scale", p->scale, NULL );
-  g_object_set( p->grid, "gliko-scale", p->scale, NULL );
+  g_object_set (p->iko, "gliko-fade-coef", p->fade_coef, NULL);
+  g_object_set (p->iko, "gliko-scale", p->scale, NULL);
+  g_object_set (p->grid, "gliko-scale", p->scale, NULL);
 }
 
-static void dispose( GObject *gobject )
+static void
+dispose (GObject *gobject)
 {
-  G_OBJECT_CLASS( hyscan_gtk_gliko_parent_class )->dispose( gobject );
+  G_OBJECT_CLASS (hyscan_gtk_gliko_parent_class)
+      ->dispose (gobject);
 }
 
-static void finalize( GObject *gobject )
+static void
+finalize (GObject *gobject)
 {
-  G_OBJECT_CLASS( hyscan_gtk_gliko_parent_class )->finalize( gobject );
+  G_OBJECT_CLASS (hyscan_gtk_gliko_parent_class)
+      ->finalize (gobject);
 }
 
-GtkWidget *hyscan_gtk_gliko_new( void )
+GtkWidget *
+hyscan_gtk_gliko_new (void)
 {
-  return GTK_WIDGET( g_object_new( hyscan_gtk_gliko_get_type(), NULL ) );
+  return GTK_WIDGET (g_object_new (hyscan_gtk_gliko_get_type (), NULL));
 }
 
 /**
@@ -278,10 +283,11 @@ GtkWidget *hyscan_gtk_gliko_new( void )
  * гидроакустических данных.
  */
 HYSCAN_API
-void            hyscan_gtk_gliko_set_num_azimuthes (HyScanGtkGliko *instance,
-                                                const guint num_azimuthes)
+void
+hyscan_gtk_gliko_set_num_azimuthes (HyScanGtkGliko *instance,
+                                    const guint num_azimuthes)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   p->num_azimuthes = num_azimuthes;
 }
 
@@ -292,20 +298,21 @@ void            hyscan_gtk_gliko_set_num_azimuthes (HyScanGtkGliko *instance,
  * Returns: заданное количество угловых дискрет индикатора кругового обзора.
  */
 HYSCAN_API
-guint           hyscan_gtk_gliko_get_num_azimuthes (HyScanGtkGliko *instance)
+guint
+hyscan_gtk_gliko_get_num_azimuthes (HyScanGtkGliko *instance)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   return p->num_azimuthes;
 }
 
 // открытие канала данных
 static void
-channel_open( HyScanGtkGlikoPrivate *p,
-              const int          channel_index,
-              HyScanDataPlayer   *player,
-              HyScanDB           *db,
-              const gchar        *project_name,
-              const gchar        *track_name)
+channel_open (HyScanGtkGlikoPrivate *p,
+              const int channel_index,
+              HyScanDataPlayer *player,
+              HyScanDB *db,
+              const gchar *project_name,
+              const gchar *track_name)
 {
   channel_t *c = p->channel + channel_index;
 
@@ -316,7 +323,7 @@ channel_open( HyScanGtkGlikoPrivate *p,
     }
 
   // инициализируем очередь строк данных
-  initque( &c->data_que, c->data_que_buffer, sizeof( data_que_t ), sizeof( c->data_que_buffer ) / sizeof( c->data_que_buffer[0] ) );
+  initque (&c->data_que, c->data_que_buffer, sizeof (data_que_t), sizeof (c->data_que_buffer) / sizeof (c->data_que_buffer[0]));
 
   // инициализируем индексы очередей
   c->alpha_que_count = p->alpha_que.count;
@@ -350,33 +357,34 @@ channel_open( HyScanGtkGlikoPrivate *p,
 // обработчик сигнала open
 static void
 player_open_callback (HyScanDataPlayer *player,
-                      HyScanDB         *db,
-                      const gchar      *project_name,
-                      const gchar      *track_name,
-                      gpointer          user_data)
+                      HyScanDB *db,
+                      const gchar *project_name,
+                      const gchar *track_name,
+                      gpointer user_data)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( user_data, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (user_data, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
-  if( ++p->player_open != 2 ) return;
+  if (++p->player_open != 2)
+    return;
 
-  initque( &p->alpha_que, p->alpha_que_buffer, sizeof( alpha_que_t ), sizeof( p->alpha_que_buffer ) / sizeof( p->alpha_que_buffer[0] ) );
+  initque (&p->alpha_que, p->alpha_que_buffer, sizeof (alpha_que_t), sizeof (p->alpha_que_buffer) / sizeof (p->alpha_que_buffer[0]));
 
-  p->nmea_data = hyscan_nmea_data_new( db, NULL, project_name, track_name, 1 );
+  p->nmea_data = hyscan_nmea_data_new (db, NULL, project_name, track_name, 1);
   if (p->nmea_data == NULL)
     {
       g_warning ("can't open nmea data\n");
       return;
     }
 
-  channel_open( p, 0, player, db, project_name, track_name );
-  channel_open( p, 1, player, db, project_name, track_name );
+  channel_open (p, 0, player, db, project_name, track_name);
+  channel_open (p, 1, player, db, project_name, track_name);
 }
 
 // обработка индексов принятых строк
 static void
-channel_process( HyScanGtkGlikoPrivate *p,
-                 const int          channel_index,
-                 gint64 time )
+channel_process (HyScanGtkGlikoPrivate *p,
+                 const int channel_index,
+                 gint64 time)
 {
   channel_t *c = p->channel + channel_index;
   guint32 ileft = 0, iright;
@@ -384,118 +392,118 @@ channel_process( HyScanGtkGlikoPrivate *p,
   gint64 tleft, tright;
   data_que_t data;
 
-  if( c->acoustic_data == NULL )
-  {
-    return;
-  }
+  if (c->acoustic_data == NULL)
+    {
+      return;
+    }
   // проверяем наличие акустических данных
-  if( hyscan_acoustic_data_find_data( c->acoustic_data, time, &ileft, &iright, &tleft, &tright ) != HYSCAN_DB_FIND_OK )
-  {
-    return;
-  }
-  if( !c->process_init )
-  {
-    c->process_time = time;
-    c->process_index = ileft;
-    c->process_init = 1;
-    return;
-  }
+  if (hyscan_acoustic_data_find_data (c->acoustic_data, time, &ileft, &iright, &tleft, &tright) != HYSCAN_DB_FIND_OK)
+    {
+      return;
+    }
+  if (!c->process_init)
+    {
+      c->process_time = time;
+      c->process_index = ileft;
+      c->process_init = 1;
+      return;
+    }
   // приращение индекса для акустических данных
-  idelta = ((ileft >= c->process_index) ? 1: -1);
+  idelta = ((ileft >= c->process_index) ? 1 : -1);
 
   // сохраняем в очереди данных индексы строк за время с момента последнего вызова
-  for( ; c->process_index != ileft; c->process_index += idelta )
-  {
-    if( hyscan_acoustic_data_get_size_time( c->acoustic_data, c->process_index, &data.length, &data.time ) )
+  for (; c->process_index != ileft; c->process_index += idelta)
     {
-      data.index = c->process_index;
-      enque( &c->data_que, &data, 1 );
-      if( data.length > c->max_length && p->iko_length == 0 )
-      {
-        c->max_length = data.length;
-      }
-      if( p->debug_alpha && channel_index == 0 )
-      {
-        alpha_que_t alpha;
+      if (hyscan_acoustic_data_get_size_time (c->acoustic_data, c->process_index, &data.length, &data.time))
+        {
+          data.index = c->process_index;
+          enque (&c->data_que, &data, 1);
+          if (data.length > c->max_length && p->iko_length == 0)
+            {
+              c->max_length = data.length;
+            }
+          if (p->debug_alpha && channel_index == 0)
+            {
+              alpha_que_t alpha;
 
-        alpha.time = data.time;
-        alpha.value = 360.0;
-        alpha.value = alpha.value * (p->debug_alpha_value % p->num_azimuthes) / p->num_azimuthes;
+              alpha.time = data.time;
+              alpha.value = 360.0;
+              alpha.value = alpha.value * (p->debug_alpha_value % p->num_azimuthes) / p->num_azimuthes;
 
-        p->debug_alpha_value++;
+              p->debug_alpha_value++;
 
-        // буферизуем считанное значение в очереди
-        enque( &p->alpha_que, &alpha, 1 );
-      }
+              // буферизуем считанное значение в очереди
+              enque (&p->alpha_que, &alpha, 1);
+            }
+        }
     }
-  }
 }
 
 // обработчик сигнала process
 void
 player_process_callback (HyScanDataPlayer *player,
-                  gint64            time,
-                  gpointer          user_data)
+                         gint64 time,
+                         gpointer user_data)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( user_data, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (user_data, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   guint32 inleft, inright;
   gint64 tnleft, tnright;
   int indelta;
   alpha_que_t alpha;
 
   // обработка индексов строк данных для двух каналов
-  channel_process( p, 0, time );
-  channel_process( p, 1, time );
+  channel_process (p, 0, time);
+  channel_process (p, 1, time);
 
-  if( p->debug_alpha )
-  {
-    return;
-  }
-
-  // запрашиваем индексы по текущему времени
-  if( hyscan_nmea_data_find_data( p->nmea_data, time, &inleft, &inright, &tnleft, &tnright ) != HYSCAN_DB_FIND_OK )
-  {
-    return;
-  }
-  // инициализации еще не было?
-  if( !p->nmea_init )
-  {
-    // запоминаем индексы
-    p->nmea_index = inleft;
-    p->nmea_init = 1;
-  }
-
-  // приращение индекса для данных nmea
-  indelta = ((inleft >= p->nmea_index) ? 1: -1);
-
-  // обрабатываем данные от датчика угла
-  for( ; p->nmea_index != inleft; p->nmea_index += indelta )
-  {
-    const gchar *nmea;
-    const char header[4] = { '$', 'R', 'A', ',' };
-
-    /* Считываем строку nmea */
-    nmea = hyscan_nmea_data_get( p->nmea_data, p->nmea_index, &alpha.time );
-
-    /* обрабатываем только датчик угла поворота */
-    if( memcmp( nmea, header, sizeof( header ) ) != 0 )
+  if (p->debug_alpha)
     {
-      continue;
+      return;
     }
 
-    /* текущий угол поворота, градусы 0..360 */
-    alpha.value = g_ascii_strtod( nmea + sizeof( header ), NULL );
+  // запрашиваем индексы по текущему времени
+  if (hyscan_nmea_data_find_data (p->nmea_data, time, &inleft, &inright, &tnleft, &tnright) != HYSCAN_DB_FIND_OK)
+    {
+      return;
+    }
+  // инициализации еще не было?
+  if (!p->nmea_init)
+    {
+      // запоминаем индексы
+      p->nmea_index = inleft;
+      p->nmea_init = 1;
+    }
 
-    // буферизуем считанное значение в очереди
-    enque( &p->alpha_que, &alpha, 1 );
-  }
+  // приращение индекса для данных nmea
+  indelta = ((inleft >= p->nmea_index) ? 1 : -1);
+
+  // обрабатываем данные от датчика угла
+  for (; p->nmea_index != inleft; p->nmea_index += indelta)
+    {
+      const gchar *nmea;
+      const char header[4] = { '$', 'R', 'A', ',' };
+
+      /* Считываем строку nmea */
+      nmea = hyscan_nmea_data_get (p->nmea_data, p->nmea_index, &alpha.time);
+
+      /* обрабатываем только датчик угла поворота */
+      if (memcmp (nmea, header, sizeof (header)) != 0)
+        {
+          continue;
+        }
+
+      /* текущий угол поворота, градусы 0..360 */
+      alpha.value = g_ascii_strtod (nmea + sizeof (header), NULL);
+
+      // буферизуем считанное значение в очереди
+      enque (&p->alpha_que, &alpha, 1);
+    }
 }
 
 // обработка готовых к индикации строк
 static void
-channel_ready( HyScanGtkGlikoPrivate *p,
-               const int          channel_index,
-               gint64 time )
+channel_ready (HyScanGtkGlikoPrivate *p,
+               const int channel_index,
+               gint64 time)
 {
   channel_t *c = p->channel + channel_index;
   int ra, rd;
@@ -507,158 +515,159 @@ channel_ready( HyScanGtkGlikoPrivate *p,
   gint64 t;
 
   // длина строки должна быть определена
-  if( c->max_length == 0 )
-  {
-    return;
-  }
+  if (c->max_length == 0)
+    {
+      return;
+    }
 
   // резервируем буфер для строки отсчетов
-  if( c->allocated == 0 )
-  {
-    for( c->allocated = (1 << 10); c->allocated < c->max_length; c->allocated <<= 1 );
-    c->buffer = g_malloc0( c->allocated * sizeof( gfloat ) );
-  }
+  if (c->allocated == 0)
+    {
+      for (c->allocated = (1 << 10); c->allocated < c->max_length; c->allocated <<= 1)
+        ;
+      c->buffer = g_malloc0 (c->allocated * sizeof (gfloat));
+    }
 
   // просматриваем очередь данных датчика угла
   do
-  {
-    // считываем один элемент из очереди
-    ra = deque( &p->alpha_que, &alpha, 1, c->alpha_que_count );
-
-    // если произошло переполнение буфера очереди
-    if( ra < 0 )
-    {
-      // начинаем чтение с текущей позиции
-      c->alpha_que_count = p->alpha_que.count;
-      return;
-    }
-    // если нового показания нет, выходим
-    if( ra == 0 )
-    {
-      return;
-    }
-
-    // если параметры датчика угла не были проинициализированы
-    if( !c->ready_alpha_init )
-    {
-      // запоминаем время получения замера угла
-      c->alpha_time = alpha.time;
-      // запоминаем значение угла
-      c->alpha_value = alpha.value;
-      // следующий в очереди
-      c->alpha_que_count++;
-      // инициализация выполнена
-      c->ready_alpha_init = 1;
-      continue;
-    }
-    // если вдруг время замера больше текущего времени, прекращаем работу
-    if( alpha.time >= time )
-    {
-      break;
-    }
-    // отсуствие разницы во времени тоже не допустимо
-    if( alpha.time == c->alpha_time )
-    {
-      // следующий элемент очереди
-      c->alpha_que_count++;
-      continue;
-    }
-    /* изменение угла, с учетом перехода через 0 */
-    dn = alpha.value - c->alpha_value;
-    dm = dn - 360.0;
-    dp = dn + 360.0;
-    d = dn;
-    if( fabs( dm ) < fabs( dn ) )
-    {
-      d = dm;
-    }
-    else if( fabs( dp ) < fabs( dn ) )
-    {
-      d = dp;
-    }
-
-    // у нас есть два замера угла,
-    // обрабатываем очередь данных,
-    // предполагая, что угол изменялся линейно
-    do
     {
       // считываем один элемент из очереди
-      rd = deque( &c->data_que, &data, 1, c->data_que_count );
+      ra = deque (&p->alpha_que, &alpha, 1, c->alpha_que_count);
 
       // если произошло переполнение буфера очереди
-      if( rd < 0 )
-      {
-        // начинаем обработку с текущего места
-        c->data_que_count = c->data_que.count;
-        // требуется инициализация данных
-        c->ready_data_init = 0;
-        // прекращаем работу до следующей итерации
-        return;
-      }
-      // если новых данных нет, выходим
-      if( rd == 0 )
-      {
-        return;
-      }
-      // если вышли за интервал замера угла
-      if( data.time >= alpha.time )
-      {
-        // переходим к следующему углу
-        break;
-      }
-
-      // следующая строка изображения
-      c->data_que_count++;
-
-      // значение угла
-      a = c->alpha_value + d * (data.time - c->alpha_time) / (alpha.time - c->alpha_time);
-
-      /* допустимый диапазон 0..360 */
-      while( a < 0.0 )
-      {
-        a += 360.0;
-      }
-      while( a >= 360.0 )
-      {
-        a -= 360.0;
-      }
-
-      /* номер углового дискрета */
-      j = (guint32)(a * p->num_azimuthes / 360.0);
-      j %= p->num_azimuthes;
-
-      // если уже есть отрисованный азимут
-      if( c->azimuth_displayed )
-      {
-        // если луч перепрыгнул через 1 азимутальный дискрет
-        if( j == ((c->azimuth + 2) % p->num_azimuthes) )
+      if (ra < 0)
         {
-          // дублируем предыдущий азимут
-          hyscan_gtk_gliko_area_set_data( HYSCAN_GTK_GLIKO_AREA( p->iko ), c->gliko_channel, (c->azimuth + 1) % p->num_azimuthes, c->buffer );
+          // начинаем чтение с текущей позиции
+          c->alpha_que_count = p->alpha_que.count;
+          return;
         }
-        else if( j == ((c->azimuth - 2) % p->num_azimuthes) )
+      // если нового показания нет, выходим
+      if (ra == 0)
         {
-          hyscan_gtk_gliko_area_set_data( HYSCAN_GTK_GLIKO_AREA( p->iko ), c->gliko_channel, (c->azimuth - 1) % p->num_azimuthes, c->buffer );
+          return;
         }
-      }
 
-      // считываем строку акустического изображения
-      amplitudes = hyscan_acoustic_data_get_amplitude (c->acoustic_data, NULL, data.index, &length, &t );
+      // если параметры датчика угла не были проинициализированы
+      if (!c->ready_alpha_init)
+        {
+          // запоминаем время получения замера угла
+          c->alpha_time = alpha.time;
+          // запоминаем значение угла
+          c->alpha_value = alpha.value;
+          // следующий в очереди
+          c->alpha_que_count++;
+          // инициализация выполнена
+          c->ready_alpha_init = 1;
+          continue;
+        }
+      // если вдруг время замера больше текущего времени, прекращаем работу
+      if (alpha.time >= time)
+        {
+          break;
+        }
+      // отсуствие разницы во времени тоже не допустимо
+      if (alpha.time == c->alpha_time)
+        {
+          // следующий элемент очереди
+          c->alpha_que_count++;
+          continue;
+        }
+      /* изменение угла, с учетом перехода через 0 */
+      dn = alpha.value - c->alpha_value;
+      dm = dn - 360.0;
+      dp = dn + 360.0;
+      d = dn;
+      if (fabs (dm) < fabs (dn))
+        {
+          d = dm;
+        }
+      else if (fabs (dp) < fabs (dn))
+        {
+          d = dp;
+        }
 
-      if (amplitudes == NULL)
-      {
-        g_warning ("can't read acoustic line %d", data.index);
-        break;
-      }
+      // у нас есть два замера угла,
+      // обрабатываем очередь данных,
+      // предполагая, что угол изменялся линейно
+      do
+        {
+          // считываем один элемент из очереди
+          rd = deque (&c->data_que, &data, 1, c->data_que_count);
 
-      if( length > c->max_length )
-      {
-        length = c->max_length;
-      }
+          // если произошло переполнение буфера очереди
+          if (rd < 0)
+            {
+              // начинаем обработку с текущего места
+              c->data_que_count = c->data_que.count;
+              // требуется инициализация данных
+              c->ready_data_init = 0;
+              // прекращаем работу до следующей итерации
+              return;
+            }
+          // если новых данных нет, выходим
+          if (rd == 0)
+            {
+              return;
+            }
+          // если вышли за интервал замера угла
+          if (data.time >= alpha.time)
+            {
+              // переходим к следующему углу
+              break;
+            }
 
-      /* запоминаем строку амплитуд в буфере */
-      memcpy( c->buffer, amplitudes, length * sizeof( gfloat ) );
-      /*
+          // следующая строка изображения
+          c->data_que_count++;
+
+          // значение угла
+          a = c->alpha_value + d * (data.time - c->alpha_time) / (alpha.time - c->alpha_time);
+
+          /* допустимый диапазон 0..360 */
+          while (a < 0.0)
+            {
+              a += 360.0;
+            }
+          while (a >= 360.0)
+            {
+              a -= 360.0;
+            }
+
+          /* номер углового дискрета */
+          j = (guint32) (a * p->num_azimuthes / 360.0);
+          j %= p->num_azimuthes;
+
+          // если уже есть отрисованный азимут
+          if (c->azimuth_displayed)
+            {
+              // если луч перепрыгнул через 1 азимутальный дискрет
+              if (j == ((c->azimuth + 2) % p->num_azimuthes))
+                {
+                  // дублируем предыдущий азимут
+                  hyscan_gtk_gliko_area_set_data (HYSCAN_GTK_GLIKO_AREA (p->iko), c->gliko_channel, (c->azimuth + 1) % p->num_azimuthes, c->buffer);
+                }
+              else if (j == ((c->azimuth - 2) % p->num_azimuthes))
+                {
+                  hyscan_gtk_gliko_area_set_data (HYSCAN_GTK_GLIKO_AREA (p->iko), c->gliko_channel, (c->azimuth - 1) % p->num_azimuthes, c->buffer);
+                }
+            }
+
+          // считываем строку акустического изображения
+          amplitudes = hyscan_acoustic_data_get_amplitude (c->acoustic_data, NULL, data.index, &length, &t);
+
+          if (amplitudes == NULL)
+            {
+              g_warning ("can't read acoustic line %d", data.index);
+              break;
+            }
+
+          if (length > c->max_length)
+            {
+              length = c->max_length;
+            }
+
+          /* запоминаем строку амплитуд в буфере */
+          memcpy (c->buffer, amplitudes, length * sizeof (gfloat));
+          /*
       for (k = 0; k < length; k++)
       {
         gdouble amplitude;
@@ -670,61 +679,62 @@ channel_ready( HyScanGtkGlikoPrivate *p,
       }
       */
 
-      /* передаем строку в индикатор кругового обзора */
-      if( p->iko_length != 0 )
-      {
-        hyscan_gtk_gliko_area_set_data( HYSCAN_GTK_GLIKO_AREA( p->iko ), c->gliko_channel, j, c->buffer );
-        c->azimuth = j;
-        c->azimuth_displayed = 1;
-      }
-    } while( rd > 0 );
+          /* передаем строку в индикатор кругового обзора */
+          if (p->iko_length != 0)
+            {
+              hyscan_gtk_gliko_area_set_data (HYSCAN_GTK_GLIKO_AREA (p->iko), c->gliko_channel, j, c->buffer);
+              c->azimuth = j;
+              c->azimuth_displayed = 1;
+            }
+        }
+      while (rd > 0);
 
-    // конец текущего временного интервала становится началом следущего
-    c->alpha_value = alpha.value;
-    c->alpha_time = alpha.time;
+      // конец текущего временного интервала становится началом следущего
+      c->alpha_value = alpha.value;
+      c->alpha_time = alpha.time;
 
-    // следующая угловая метка
-    c->alpha_que_count++;
-
-  } while( ra > 0 );
-
+      // следующая угловая метка
+      c->alpha_que_count++;
+    }
+  while (ra > 0);
 }
 
 // обработчик сигнала ready
 void
 player_ready_callback (HyScanDataPlayer *player,
-                gint64            time,
-                gpointer          user_data)
+                       gint64 time,
+                       gpointer user_data)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( user_data, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (user_data, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
   //g_print ("Ready time: %"G_GINT64_FORMAT" %d\n", g_get_monotonic_time (), misc_read);
 
   // если ни одна строка не была принята, выходим
-  if( p->channel[0].max_length == 0 && p->channel[1].max_length == 0 ) return;
+  if (p->channel[0].max_length == 0 && p->channel[1].max_length == 0)
+    return;
 
   // если индикатор кругового обзора не проинициализирован
-  if( p->iko_length == 0 )
-  {
-    // берем максимальную дальность из двух каналов
-    p->iko_length = p->channel[0].max_length;
-    if( p->channel[1].max_length > p->iko_length )
+  if (p->iko_length == 0)
     {
-      p->iko_length = p->channel[1].max_length;
+      // берем максимальную дальность из двух каналов
+      p->iko_length = p->channel[0].max_length;
+      if (p->channel[1].max_length > p->iko_length)
+        {
+          p->iko_length = p->channel[1].max_length;
+        }
+      // инициализируем индикатор
+      hyscan_gtk_gliko_area_init_dimension (HYSCAN_GTK_GLIKO_AREA (p->iko), p->num_azimuthes, p->iko_length);
+      g_object_set (p->iko, "gliko-scale", p->scale, NULL);
+      g_object_set (p->grid, "gliko-scale", p->scale, NULL);
+      p->fade_time = time;
     }
-    // инициализируем индикатор
-    hyscan_gtk_gliko_area_init_dimension( HYSCAN_GTK_GLIKO_AREA( p->iko ), p->num_azimuthes, p->iko_length );
-    g_object_set( p->iko, "gliko-scale", p->scale, NULL );
-    g_object_set( p->grid, "gliko-scale", p->scale, NULL );
-    p->fade_time = time;
-  }
   // обрабатываем каналы левого и правого борта
-  channel_ready( p, 0, time );
-  channel_ready( p, 1, time );
-  if( (time - p->fade_time) > 1000000 )
-  {
-    hyscan_gtk_gliko_area_fade( HYSCAN_GTK_GLIKO_AREA( p->iko ) );
-  }
+  channel_ready (p, 0, time);
+  channel_ready (p, 1, time);
+  if ((time - p->fade_time) > 1000000)
+    {
+      hyscan_gtk_gliko_area_fade (HYSCAN_GTK_GLIKO_AREA (p->iko));
+    }
 }
 
 /**
@@ -736,10 +746,11 @@ player_ready_callback (HyScanDataPlayer *player,
  * гидроакустических данных.
  */
 HYSCAN_API
-void            hyscan_gtk_gliko_set_player (HyScanGtkGliko *instance,
-                                             HyScanDataPlayer *player)
+void
+hyscan_gtk_gliko_set_player (HyScanGtkGliko *instance,
+                             HyScanDataPlayer *player)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
   p->player = player;
   g_signal_connect (p->player, "open", G_CALLBACK (player_open_callback), instance);
@@ -755,9 +766,10 @@ void            hyscan_gtk_gliko_set_player (HyScanGtkGliko *instance,
  * Returns: указатель на объект проигрывателя гидроакустических данных
  */
 HYSCAN_API
-HyScanDataPlayer *hyscan_gtk_gliko_get_player (HyScanGtkGliko *instance)
+HyScanDataPlayer *
+hyscan_gtk_gliko_get_player (HyScanGtkGliko *instance)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   return p->player;
 }
 
@@ -776,14 +788,15 @@ HyScanDataPlayer *hyscan_gtk_gliko_get_player (HyScanGtkGliko *instance)
  * Величина меньше 1 соответствует увеличение изображения кругового обзора
  */
 HYSCAN_API
-void           hyscan_gtk_gliko_set_scale (HyScanGtkGliko *instance,
-                                       const gdouble scale)
+void
+hyscan_gtk_gliko_set_scale (HyScanGtkGliko *instance,
+                            const gdouble scale)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
-  p->scale = (float)scale;
-  g_object_set( p->iko, "gliko-scale", p->scale, NULL );
-  g_object_set( p->grid, "gliko-scale", p->scale, NULL );
+  p->scale = (float) scale;
+  g_object_set (p->iko, "gliko-scale", p->scale, NULL);
+  g_object_set (p->grid, "gliko-scale", p->scale, NULL);
 }
 
 /**
@@ -794,9 +807,10 @@ void           hyscan_gtk_gliko_set_scale (HyScanGtkGliko *instance,
  * Returns: коэффициент масштаба изображения
  */
 HYSCAN_API
-gdouble        hyscan_gtk_gliko_get_scale (HyScanGtkGliko *instance)
+gdouble
+hyscan_gtk_gliko_get_scale (HyScanGtkGliko *instance)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   return p->scale;
 }
 
@@ -812,16 +826,17 @@ gdouble        hyscan_gtk_gliko_get_scale (HyScanGtkGliko *instance)
  * в которых размер диаметра равен 1.
  */
 HYSCAN_API
-void           hyscan_gtk_gliko_set_center (HyScanGtkGliko *instance,
-                                        const gdouble cx,
-                                        const gdouble cy)
+void
+hyscan_gtk_gliko_set_center (HyScanGtkGliko *instance,
+                             const gdouble cx,
+                             const gdouble cy)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
-  p->cx = (float)cx;
-  p->cy = (float)cy;
-  g_object_set( G_OBJECT( p->iko  ), "gliko-cx", p->cx, "gliko-cy", p->cy, NULL );
-  g_object_set( G_OBJECT( p->grid ), "gliko-cx", p->cx, "gliko-cy", p->cy, NULL );
+  p->cx = (float) cx;
+  p->cy = (float) cy;
+  g_object_set (G_OBJECT (p->iko), "gliko-cx", p->cx, "gliko-cy", p->cy, NULL);
+  g_object_set (G_OBJECT (p->grid), "gliko-cx", p->cx, "gliko-cy", p->cy, NULL);
 }
 
 /**
@@ -836,11 +851,12 @@ void           hyscan_gtk_gliko_set_center (HyScanGtkGliko *instance,
  * центра области элемента диалогового интерфейса.
  */
 HYSCAN_API
-void           hyscan_gtk_gliko_get_center (HyScanGtkGliko *instance,
-                                        gdouble *cx,
-                                        gdouble *cy)
+void
+hyscan_gtk_gliko_get_center (HyScanGtkGliko *instance,
+                             gdouble *cx,
+                             gdouble *cy)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
   *cx = p->cx;
   *cy = p->cy;
@@ -866,13 +882,14 @@ void           hyscan_gtk_gliko_get_center (HyScanGtkGliko *instance,
  * C = 1 + @contrast, при @contrast <= 0
  */
 HYSCAN_API
-void           hyscan_gtk_gliko_set_contrast (HyScanGtkGliko *instance,
-                                          const gdouble contrast)
+void
+hyscan_gtk_gliko_set_contrast (HyScanGtkGliko *instance,
+                               const gdouble contrast)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
-  p->contrast = (float)contrast;
-  g_object_set( p->iko, "gliko-contrast", p->contrast, NULL );
+  p->contrast = (float) contrast;
+  g_object_set (p->iko, "gliko-contrast", p->contrast, NULL);
 }
 
 /**
@@ -883,9 +900,10 @@ void           hyscan_gtk_gliko_set_contrast (HyScanGtkGliko *instance,
  * Returns: значение контрастности гидроакустического изображения.
  */
 HYSCAN_API
-gdouble        hyscan_gtk_gliko_get_contrast (HyScanGtkGliko *instance)
+gdouble
+hyscan_gtk_gliko_get_contrast (HyScanGtkGliko *instance)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   return p->contrast;
 }
 
@@ -899,13 +917,14 @@ gdouble        hyscan_gtk_gliko_get_contrast (HyScanGtkGliko *instance)
  * в описании hyscan_gtk_gliko_set_contrast.
  */
 HYSCAN_API
-void           hyscan_gtk_gliko_set_brightness (HyScanGtkGliko *instance,
-                                          const gdouble brightness)
+void
+hyscan_gtk_gliko_set_brightness (HyScanGtkGliko *instance,
+                                 const gdouble brightness)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
-  p->brightness = (float)brightness;
-  g_object_set( p->iko, "gliko-bright", p->brightness, NULL );
+  p->brightness = (float) brightness;
+  g_object_set (p->iko, "gliko-bright", p->brightness, NULL);
 }
 
 /**
@@ -916,68 +935,76 @@ void           hyscan_gtk_gliko_set_brightness (HyScanGtkGliko *instance,
  * Returns: значение яркости гидроакустического изображения.
  */
 HYSCAN_API
-gdouble        hyscan_gtk_gliko_get_brightness (HyScanGtkGliko *instance)
+gdouble
+hyscan_gtk_gliko_get_brightness (HyScanGtkGliko *instance)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   return p->brightness;
 }
 
 HYSCAN_API
-void           hyscan_gtk_gliko_set_black_point (HyScanGtkGliko *instance,
-                                                 const gdouble black)
+void
+hyscan_gtk_gliko_set_black_point (HyScanGtkGliko *instance,
+                                  const gdouble black)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
-  p->black = (float)black;
-  g_object_set( p->iko, "gliko-black", p->black, NULL );
+  p->black = (float) black;
+  g_object_set (p->iko, "gliko-black", p->black, NULL);
 }
 
 HYSCAN_API
-gdouble        hyscan_gtk_gliko_get_black_point (HyScanGtkGliko *instance)
+gdouble
+hyscan_gtk_gliko_get_black_point (HyScanGtkGliko *instance)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   return p->black;
 }
 
 HYSCAN_API
-void           hyscan_gtk_gliko_set_white_point (HyScanGtkGliko *instance,
-                                                 const gdouble white)
+void
+hyscan_gtk_gliko_set_white_point (HyScanGtkGliko *instance,
+                                  const gdouble white)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
-  p->white = (float)white;
-  g_object_set( p->iko, "gliko-white", p->white, NULL );
+  p->white = (float) white;
+  g_object_set (p->iko, "gliko-white", p->white, NULL);
 }
 
 HYSCAN_API
-gdouble        hyscan_gtk_gliko_get_white_point (HyScanGtkGliko *instance)
+gdouble
+hyscan_gtk_gliko_get_white_point (HyScanGtkGliko *instance)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   return p->white;
 }
 
 HYSCAN_API
-void           hyscan_gtk_gliko_set_gamma_value (HyScanGtkGliko *instance,
-                                                 const gdouble gamma)
+void
+hyscan_gtk_gliko_set_gamma_value (HyScanGtkGliko *instance,
+                                  const gdouble gamma)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
-  p->gamma= (float)gamma;
-  g_object_set( p->iko, "gliko-gamma", p->gamma, NULL );
+  p->gamma = (float) gamma;
+  g_object_set (p->iko, "gliko-gamma", p->gamma, NULL);
 }
 
 HYSCAN_API
-gdouble        hyscan_gtk_gliko_get_gamma_value (HyScanGtkGliko *instance)
+gdouble
+hyscan_gtk_gliko_get_gamma_value (HyScanGtkGliko *instance)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   return p->gamma;
 }
 
 HYSCAN_API
-HyScanSourceType hyscan_gtk_gliko_get_source (HyScanGtkGliko *instance,
-                                          const gint c)
+HyScanSourceType
+hyscan_gtk_gliko_get_source (HyScanGtkGliko *instance,
+                             const gint c)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   return p->channel[c].source;
 }
 
@@ -995,13 +1022,14 @@ HyScanSourceType hyscan_gtk_gliko_get_source (HyScanGtkGliko *instance,
  * По умолчанию используется значение kF равное 0,98.
  */
 HYSCAN_API
-void           hyscan_gtk_gliko_set_fade_koeff (HyScanGtkGliko *instance,
-                                            const gdouble koef )
+void
+hyscan_gtk_gliko_set_fade_koeff (HyScanGtkGliko *instance,
+                                 const gdouble koef)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
-  p->fade_coef = (float)koef;
-  g_object_set( p->iko, "gliko-fade-coef", p->fade_coef, NULL );
+  p->fade_coef = (float) koef;
+  g_object_set (p->iko, "gliko-fade-coef", p->fade_coef, NULL);
 }
 
 /**
@@ -1012,9 +1040,10 @@ void           hyscan_gtk_gliko_set_fade_koeff (HyScanGtkGliko *instance,
  * Returns: коэффициент гашения.
  */
 HYSCAN_API
-gdouble        hyscan_gtk_gliko_get_fade_koeff (HyScanGtkGliko *instance)
+gdouble
+hyscan_gtk_gliko_get_fade_koeff (HyScanGtkGliko *instance)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   return p->fade_coef;
 }
 
@@ -1030,13 +1059,14 @@ gdouble        hyscan_gtk_gliko_get_fade_koeff (HyScanGtkGliko *instance)
  * по часовой стрелке.
  */
 HYSCAN_API
-void           hyscan_gtk_gliko_set_rotation (HyScanGtkGliko *instance,
-                                          const gdouble alpha)
+void
+hyscan_gtk_gliko_set_rotation (HyScanGtkGliko *instance,
+                               const gdouble alpha)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
-  p->rotation = (float)alpha;
-  g_object_set( p->iko, "gliko-rotate", p->rotation, NULL );
+  p->rotation = (float) alpha;
+  g_object_set (p->iko, "gliko-rotate", p->rotation, NULL);
 }
 
 /**
@@ -1047,8 +1077,9 @@ void           hyscan_gtk_gliko_set_rotation (HyScanGtkGliko *instance,
  * Returns: угол поворота, градусы.
  */
 HYSCAN_API
-gdouble        hyscan_gtk_gliko_get_rotation (HyScanGtkGliko *instance)
+gdouble
+hyscan_gtk_gliko_get_rotation (HyScanGtkGliko *instance)
 {
-  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE( instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate );
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   return p->rotation;
 }

@@ -41,114 +41,110 @@
 
 G_BEGIN_DECLS
 
-
-#define HYSCAN_TYPE_GTK_GLIKO             (hyscan_gtk_gliko_get_type ())
-#define HYSCAN_GTK_GLIKO(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGliko))
-#define HYSCAN_IS_GTK_GLIKO(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_GLIKO))
-#define HYSCAN_GTK_GLIKO_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoClass))
-#define HYSCAN_IS_GTK_GLIKO_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_GLIKO))
-#define HYSCAN_GTK_GLIKO_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoClass))
+#define HYSCAN_TYPE_GTK_GLIKO (hyscan_gtk_gliko_get_type ())
+#define HYSCAN_GTK_GLIKO(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGliko))
+#define HYSCAN_IS_GTK_GLIKO(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_GLIKO))
+#define HYSCAN_GTK_GLIKO_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoClass))
+#define HYSCAN_IS_GTK_GLIKO_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_GLIKO))
+#define HYSCAN_GTK_GLIKO_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoClass))
 
 typedef struct _HyScanGtkGliko HyScanGtkGliko;
 typedef struct _HyScanGtkGlikoPrivate HyScanGtkGlikoPrivate;
 typedef struct _HyScanGtkGlikoClass HyScanGtkGlikoClass;
 
 HYSCAN_API
-GType          hyscan_gtk_gliko_get_type               (void);
+GType hyscan_gtk_gliko_get_type (void);
 
 HYSCAN_API
-GtkWidget *    hyscan_gtk_gliko_new                    (void);
+GtkWidget *hyscan_gtk_gliko_new (void);
 
 HYSCAN_API
-void           hyscan_gtk_gliko_set_num_azimuthes      (HyScanGtkGliko *instance,
-                                                        const guint num_azimuthes);
+void hyscan_gtk_gliko_set_num_azimuthes (HyScanGtkGliko *instance,
+                                         const guint num_azimuthes);
 
 HYSCAN_API
-guint          hyscan_gtk_gliko_get_num_azimuthes      (HyScanGtkGliko *instance);
+guint hyscan_gtk_gliko_get_num_azimuthes (HyScanGtkGliko *instance);
 
 HYSCAN_API
-void           hyscan_gtk_gliko_set_player             (HyScanGtkGliko *instance,
-                                                        HyScanDataPlayer *player);
+void hyscan_gtk_gliko_set_player (HyScanGtkGliko *instance,
+                                  HyScanDataPlayer *player);
 
 HYSCAN_API
-HyScanDataPlayer *hyscan_gtk_gliko_get_player          (HyScanGtkGliko *instance);
-
-
-HYSCAN_API
-void           hyscan_gtk_gliko_set_fade_period       (HyScanGtkGliko *instance,
-                                                       const gdouble seconds );
+HyScanDataPlayer *hyscan_gtk_gliko_get_player (HyScanGtkGliko *instance);
 
 HYSCAN_API
-gdouble        hyscan_gtk_gliko_get_fade_period       (HyScanGtkGliko *instance);
+void hyscan_gtk_gliko_set_fade_period (HyScanGtkGliko *instance,
+                                       const gdouble seconds);
 
 HYSCAN_API
-void           hyscan_gtk_gliko_set_fade_koeff        (HyScanGtkGliko *instance,
-                                                       const gdouble koef );
+gdouble hyscan_gtk_gliko_get_fade_period (HyScanGtkGliko *instance);
 
 HYSCAN_API
-gdouble        hyscan_gtk_gliko_get_fade_koeff        (HyScanGtkGliko *instance);
+void hyscan_gtk_gliko_set_fade_koeff (HyScanGtkGliko *instance,
+                                      const gdouble koef);
 
 HYSCAN_API
-void           hyscan_gtk_gliko_set_scale             (HyScanGtkGliko *instance,
-                                                       const gdouble scale);
+gdouble hyscan_gtk_gliko_get_fade_koeff (HyScanGtkGliko *instance);
 
 HYSCAN_API
-gdouble        hyscan_gtk_gliko_get_scale             (HyScanGtkGliko *instance);
+void hyscan_gtk_gliko_set_scale (HyScanGtkGliko *instance,
+                                 const gdouble scale);
 
 HYSCAN_API
-void           hyscan_gtk_gliko_set_center            (HyScanGtkGliko *instance,
-                                                       const gdouble cx,
-                                                       const gdouble cy);
+gdouble hyscan_gtk_gliko_get_scale (HyScanGtkGliko *instance);
 
 HYSCAN_API
-void           hyscan_gtk_gliko_get_center            (HyScanGtkGliko *instance,
-                                                       gdouble *cx,
-                                                       gdouble *cy);
+void hyscan_gtk_gliko_set_center (HyScanGtkGliko *instance,
+                                  const gdouble cx,
+                                  const gdouble cy);
 
 HYSCAN_API
-void           hyscan_gtk_gliko_set_rotation          (HyScanGtkGliko *instance,
-                                                       const gdouble alpha);
+void hyscan_gtk_gliko_get_center (HyScanGtkGliko *instance,
+                                  gdouble *cx,
+                                  gdouble *cy);
 
 HYSCAN_API
-gdouble        hyscan_gtk_gliko_get_rotation          (HyScanGtkGliko *instance);
-
-
-HYSCAN_API
-gdouble        hyscan_gtk_gliko_get_contrast          (HyScanGtkGliko *instance);
+void hyscan_gtk_gliko_set_rotation (HyScanGtkGliko *instance,
+                                    const gdouble alpha);
 
 HYSCAN_API
-void           hyscan_gtk_gliko_set_brightness        (HyScanGtkGliko *instance,
-                                                       const gdouble brightness);
+gdouble hyscan_gtk_gliko_get_rotation (HyScanGtkGliko *instance);
 
 HYSCAN_API
-void           hyscan_gtk_gliko_set_contrast          (HyScanGtkGliko *instance,
-                                                       const gdouble contrast);
+gdouble hyscan_gtk_gliko_get_contrast (HyScanGtkGliko *instance);
 
 HYSCAN_API
-gdouble        hyscan_gtk_gliko_get_brightness        (HyScanGtkGliko *instance);
+void hyscan_gtk_gliko_set_brightness (HyScanGtkGliko *instance,
+                                      const gdouble brightness);
 
 HYSCAN_API
-void           hyscan_gtk_gliko_set_black_point       (HyScanGtkGliko *instance,
-                                                       const gdouble black);
-HYSCAN_API
-gdouble        hyscan_gtk_gliko_get_black_point       (HyScanGtkGliko *instance);
+void hyscan_gtk_gliko_set_contrast (HyScanGtkGliko *instance,
+                                    const gdouble contrast);
 
 HYSCAN_API
-void           hyscan_gtk_gliko_set_white_point       (HyScanGtkGliko *instance,
-                                                       const gdouble white);
-HYSCAN_API
-gdouble        hyscan_gtk_gliko_get_white_point       (HyScanGtkGliko *instance);
+gdouble hyscan_gtk_gliko_get_brightness (HyScanGtkGliko *instance);
 
 HYSCAN_API
-void           hyscan_gtk_gliko_set_gamma_value       (HyScanGtkGliko *instance,
-                                                       const gdouble gamma);
+void hyscan_gtk_gliko_set_black_point (HyScanGtkGliko *instance,
+                                       const gdouble black);
 HYSCAN_API
-gdouble        hyscan_gtk_gliko_get_gamma_value       (HyScanGtkGliko *instance);
-
+gdouble hyscan_gtk_gliko_get_black_point (HyScanGtkGliko *instance);
 
 HYSCAN_API
-HyScanSourceType hyscan_gtk_gliko_get_source          (HyScanGtkGliko *instance,
-                                                       const gint channel);
+void hyscan_gtk_gliko_set_white_point (HyScanGtkGliko *instance,
+                                       const gdouble white);
+HYSCAN_API
+gdouble hyscan_gtk_gliko_get_white_point (HyScanGtkGliko *instance);
+
+HYSCAN_API
+void hyscan_gtk_gliko_set_gamma_value (HyScanGtkGliko *instance,
+                                       const gdouble gamma);
+HYSCAN_API
+gdouble hyscan_gtk_gliko_get_gamma_value (HyScanGtkGliko *instance);
+
+HYSCAN_API
+HyScanSourceType hyscan_gtk_gliko_get_source (HyScanGtkGliko *instance,
+                                              const gint channel);
 
 G_END_DECLS
 

@@ -63,25 +63,25 @@ main ()
   // note: mix(x,y,a) = x*(1-a) + y*a
 
   r = (texture (data1, vec3 (x, y, z1)).r - ampoffset) * amprange;
-  r = pow( r, gamma );
+  r = pow (r, gamma);
   r = bright + contrast * r;
   c.r = texture (fade1, vec2 (y, z2)).r;
-  r = clamp( r * c.r, 0.0, 1.0 );
+  r = clamp (r * c.r, 0.0, 1.0);
 
   g = (texture (data2, vec3 (x, y, z1)).r - ampoffset) * amprange;
-  g = pow( g, gamma );
+  g = pow (g, gamma);
   g = bright + contrast * g;
   c.g = texture (fade2, vec2 (y, z2)).r;
-  g = clamp( g * c.g, 0.0, 1.0 );
+  g = clamp (g * c.g, 0.0, 1.0);
 
-  if( c.r > c.g )
-  {
-    c = mix (background, colorr, r);
-  }
+  if (c.r > c.g)
+    {
+      c = mix (background, colorr, r);
+    }
   else
-  {
-    c = mix (background, colorg, g);
-  }
+    {
+      c = mix (background, colorg, g);
+    }
   c = mix (c, colorr, texture (beam1, vec2 (y, z2)).r);
   c = mix (c, colorg, texture (beam2, vec2 (y, z2)).r);
   FragColor = c;

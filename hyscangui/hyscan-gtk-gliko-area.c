@@ -1,12 +1,45 @@
-#define GL_GLEXT_PROTOTYPES
+/* hyscan-gtk-gliko-area.с
+ *
+ * Copyright 2020-2021 Screen LLC, Vladimir Sharov <sharovv@mail.ru>
+ *
+ * This file is part of HyScanGui.
+ *
+ * HyScanGui is dual-licensed: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * HyScanGui is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this library. If not, see <http://www.gnu.org/licenses/>.
+ *
+ * Alternatively, you can license this code under a commercial license.
+ * Contact the Screen LLC in this case - <info@screen-co.ru>.
+ */
 
-#include "hyscan-gtk-gliko-area.h"
-#include "hyscan-gtk-gliko-layer.h"
+/* HyScanGui имеет двойную лицензию.
+ *
+ * Во-первых, вы можете распространять HyScanGui на условиях Стандартной
+ * Общественной Лицензии GNU версии 3, либо по любой более поздней версии
+ * лицензии (по вашему выбору). Полные положения лицензии GNU приведены в
+ * <http://www.gnu.org/licenses/>.
+ *
+ * Во-вторых, этот программный код можно использовать по коммерческой
+ * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
+ */
+
+#define GL_GLEXT_PROTOTYPES
 #include <GL/gl.h>
-#include <gtk/gtk.h>
+
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
+
+#include "hyscan-gtk-gliko-area.h"
 
 /* Properties enum */
 enum
@@ -393,7 +426,7 @@ init_textures (HyScanGtkGlikoAreaPrivate *p)
           glTexParameteri (GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
           //glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP);
           //glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
-          glPixelStorei (GL_UNPACK_ROW_LENGTH, j * sizeof (sample_t) );
+          glPixelStorei (GL_UNPACK_ROW_LENGTH, j * sizeof (sample_t));
           for (ia = 0; ia < p->tna; ia++)
             {
               for (id = 0; id < p->tnd[i]; id++)
@@ -410,7 +443,7 @@ init_textures (HyScanGtkGlikoAreaPrivate *p)
         }
       glBindTexture (GL_TEXTURE_1D_ARRAY, p->tex_beam[k]);
       glTexStorage2D (GL_TEXTURE_1D_ARRAY, 1, GL_R32F, TEX_SIZE, p->tna);
-      glPixelStorei (GL_UNPACK_ROW_LENGTH, (1 << p->nd_bits) * sizeof (sample_t) );
+      glPixelStorei (GL_UNPACK_ROW_LENGTH, (1 << p->nd_bits) * sizeof (sample_t));
       for (ia = 0; ia < p->tna; ia++)
         {
           glTexSubImage2D (GL_TEXTURE_1D_ARRAY, 0, 0, ia, TEX_SIZE, 1, GL_RED, GL_FLOAT, p->beam[k] + ia * TEX_SIZE);
@@ -418,7 +451,7 @@ init_textures (HyScanGtkGlikoAreaPrivate *p)
       glTexParameteri (GL_TEXTURE_1D, GL_TEXTURE_MAX_LEVEL, 0);
       glBindTexture (GL_TEXTURE_1D_ARRAY, p->tex_fade[k]);
       glTexStorage2D (GL_TEXTURE_1D_ARRAY, 1, GL_R32F, TEX_SIZE, p->tna);
-      glPixelStorei (GL_UNPACK_ROW_LENGTH, (1 << p->nd_bits) * sizeof (sample_t) );
+      glPixelStorei (GL_UNPACK_ROW_LENGTH, (1 << p->nd_bits) * sizeof (sample_t));
       for (ia = 0; ia < p->tna; ia++)
         {
           glTexSubImage2D (GL_TEXTURE_1D_ARRAY, 0, 0, ia, TEX_SIZE, 1, GL_RED, GL_FLOAT, p->fade[k] + ia * TEX_SIZE);
@@ -512,26 +545,26 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
   set_uniform1i (p->program, "tnd", p->tnd[i]);
 
   contrast = p->contrast;
-  if( contrast > 1.0f )
-  {
-    contrast = 1.0f;
-  }
-  else if( contrast < -1.0f )
-  {
-    contrast = -1.0f;
-  }
-  if ( contrast > 0.0f )
-  {
-    contrast = 1.f / (1.0f - 0.9999f * sqrtf(sqrtf(contrast)));
-  }
+  if (contrast > 1.0f)
+    {
+      contrast = 1.0f;
+    }
+  else if (contrast < -1.0f)
+    {
+      contrast = -1.0f;
+    }
+  if (contrast > 0.0f)
+    {
+      contrast = 1.f / (1.0f - 0.9999f * sqrtf (sqrtf (contrast)));
+    }
   else
-  {
-    contrast = 1.0f + contrast;
-  }
+    {
+      contrast = 1.0f + contrast;
+    }
   set_uniform1f (p->program, "contrast", contrast);
   set_uniform1f (p->program, "bright", p->bright);
   set_uniform1f (p->program, "ampoffset", p->black);
-  set_uniform1f (p->program, "amprange", 1.0f / (p->white - p->black) );
+  set_uniform1f (p->program, "amprange", 1.0f / (p->white - p->black));
   set_uniform1f (p->program, "gamma", p->gamma);
 
   set_uniform1f (p->program, "rotate", p->rotate * 3.1415926536f / 180.f);
@@ -594,11 +627,13 @@ layer_realize (HyScanGtkGlikoLayer *layer)
   //model_init();
 }
 
-static void fill_buffer (sample_t *buffer, const sample_t value, const int length)
+static void
+fill_buffer (sample_t *buffer, const sample_t value, const int length)
 {
   int i;
 
-  for( i = 0; i < length; i++ ) buffer[i] = value;
+  for (i = 0; i < length; i++)
+    buffer[i] = value;
 }
 
 void
@@ -631,7 +666,7 @@ hyscan_gtk_gliko_area_init_dimension (HyScanGtkGlikoArea *instance, const int na
     ;
 
   k = (1 << p->nd_bits) * (1 << p->na_bits) * 2 + (1 << p->na_bits) + (1 << p->na_bits);
-  if ((p->buf[0][0] = malloc (k * 2 * sizeof(sample_t))) == NULL)
+  if ((p->buf[0][0] = malloc (k * 2 * sizeof (sample_t))) == NULL)
     return;
 
   p->buf[1][0] = p->buf[0][0] + k;
@@ -709,7 +744,7 @@ hyscan_gtk_gliko_area_set_data (HyScanGtkGlikoArea *instance, const int channel,
     }
 
   glBindTexture (GL_TEXTURE_2D_ARRAY, p->tex[channel][0]);
-  glPixelStorei (GL_UNPACK_ROW_LENGTH, j * sizeof (sample_t) );
+  glPixelStorei (GL_UNPACK_ROW_LENGTH, j * sizeof (sample_t));
   for (id = 0; id < p->tnd[0]; id++)
     {
       glTexSubImage3D (GL_TEXTURE_2D_ARRAY,
@@ -727,7 +762,7 @@ hyscan_gtk_gliko_area_set_data (HyScanGtkGlikoArea *instance, const int channel,
       j >>= 1;
       resample2 (p->buf[channel][i] + a * j, p->buf[channel][i - 1] + a * (j << 1), j);
       glBindTexture (GL_TEXTURE_2D_ARRAY, p->tex[channel][i]);
-      glPixelStorei (GL_UNPACK_ROW_LENGTH, j * sizeof (sample_t) );
+      glPixelStorei (GL_UNPACK_ROW_LENGTH, j * sizeof (sample_t));
       for (id = 0; id < p->tnd[i]; id++)
         {
           glTexSubImage3D (GL_TEXTURE_2D_ARRAY,
@@ -749,9 +784,9 @@ hyscan_gtk_gliko_area_set_data (HyScanGtkGlikoArea *instance, const int channel,
   for (i = 1; i < 4; i++)
     {
       p->beam[channel][(a + i) % p->na] =
-      p->beam[channel][(a + p->na - i) % p->na] = 1.0f / (1.0f + i);
+          p->beam[channel][(a + p->na - i) % p->na] = 1.0f / (1.0f + i);
     }
-  glPixelStorei (GL_UNPACK_ROW_LENGTH, (1 << p->na_bits) * sizeof (sample_t) );
+  glPixelStorei (GL_UNPACK_ROW_LENGTH, (1 << p->na_bits) * sizeof (sample_t));
 
   glBindTexture (GL_TEXTURE_1D_ARRAY, p->tex_beam[channel]);
   for (ia = 0; ia < p->tna; ia++)
@@ -780,10 +815,10 @@ hyscan_gtk_gliko_area_fade (HyScanGtkGlikoArea *instance)
 
   for (i = 0; i < p->na; i++)
     {
-    p->fade[0][i] = (p->fade_coef * p->fade[0][i]);
-    p->fade[1][i] = (p->fade_coef * p->fade[1][i]);
+      p->fade[0][i] = (p->fade_coef * p->fade[0][i]);
+      p->fade[1][i] = (p->fade_coef * p->fade[1][i]);
     }
-  glPixelStorei (GL_UNPACK_ROW_LENGTH, (1 << p->na_bits) * sizeof (sample_t) );
+  glPixelStorei (GL_UNPACK_ROW_LENGTH, (1 << p->na_bits) * sizeof (sample_t));
   glBindTexture (GL_TEXTURE_1D_ARRAY, p->tex_fade[0]);
   for (ia = 0; ia < p->tna; ia++)
     {

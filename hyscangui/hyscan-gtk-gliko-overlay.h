@@ -36,7 +36,6 @@
 #define __HYSCAN_GTK_GLIKO_OVERLAY_H__
 
 #include "hyscan-gtk-gliko-layer.h"
-#include <gtk/gtk.h>
 
 G_BEGIN_DECLS
 
