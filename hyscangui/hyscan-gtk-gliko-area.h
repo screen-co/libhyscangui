@@ -39,15 +39,28 @@
 
 G_BEGIN_DECLS
 
-#define HYSCAN_TYPE_GTK_GLIKO_AREA (hyscan_gtk_gliko_area_get_type ())
-#define HYSCAN_GTK_GLIKO_AREA(obj) (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_GLIKO_AREA, HyScanGtkGlikoArea))
-#define HYSCAN_GTK_GLIKO_AREA_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_GLIKO_AREA, HyScanGtkGlikoAreaClass))
-#define HYSCAN_IS_GTK_GLIKO_AREA(obj) (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_GLIKO_AREA))
-#define HYSCAN_IS_GTK_GLIKO_AREA_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_GLIKO_AREA))
-#define HYSCAN_GTK_GLIKO_AREA_GET_CLASS(obj) (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_GLIKO_AREA, HyScanGtkGlikoAreaClass))
+#define HYSCAN_TYPE_GTK_GLIKO_AREA             (hyscan_gtk_gliko_area_get_type ())
+#define HYSCAN_GTK_GLIKO_AREA(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_GLIKO_AREA, HyScanGtkGlikoArea))
+#define HYSCAN_IS_GTK_GLIKO_AREA(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_GLIKO_AREA))
+#define HYSCAN_GTK_GLIKO_AREA_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_GLIKO_AREA, HyScanGtkGlikoAreaClass))
+#define HYSCAN_IS_GTK_GLIKO_AREA_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_GLIKO_AREA))
+#define HYSCAN_GTK_GLIKO_AREA_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_GLIKO_AREA, HyScanGtkGlikoAreaClass))
 
 typedef struct _HyScanGtkGlikoArea HyScanGtkGlikoArea;
+typedef struct _HyScanGtkGlikoAreaPrivate HyScanGtkGlikoAreaPrivate;
 typedef struct _HyScanGtkGlikoAreaClass HyScanGtkGlikoAreaClass;
+
+struct _HyScanGtkGlikoArea
+{
+  GObject parent_instance;
+
+  HyScanGtkGlikoAreaPrivate *priv;
+};
+
+struct _HyScanGtkGlikoAreaClass
+{
+  GObjectClass parent_class;
+};
 
 HYSCAN_API
 GType hyscan_gtk_gliko_area_get_type (void);

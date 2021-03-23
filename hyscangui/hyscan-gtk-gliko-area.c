@@ -71,19 +71,6 @@ enum
 
 typedef float sample_t;
 
-typedef struct _HyScanGtkGlikoAreaPrivate HyScanGtkGlikoAreaPrivate;
-
-struct _HyScanGtkGlikoArea
-{
-  GObject parent;
-  HyScanGtkGlikoAreaPrivate *priv;
-};
-
-struct _HyScanGtkGlikoAreaClass
-{
-  GObjectClass parent_class;
-};
-
 struct _HyScanGtkGlikoAreaPrivate
 {
   gboolean panning;
@@ -126,17 +113,23 @@ struct _HyScanGtkGlikoAreaPrivate
   int data1_loc, data2_loc, beam1_loc, beam2_loc, fade1_loc, fade2_loc;
 };
 
-static void interface_init (HyScanGtkGlikoLayerInterface *iface);
+static void    hyscan_gtk_gliko_area_interface_init     (HyScanGtkGlikoLayerInterface *iface);
+static void    hyscan_gtk_gliko_area_set_property       (GObject                *object,
+                                                         guint                   prop_id,
+                                                         const GValue           *value,
+                                                         GParamSpec             *pspec);
+static void    hyscan_gtk_gliko_area_get_property       (GObject                *object,
+                                                         guint                   prop_id,
+                                                         GValue                 *value,
+                                                         GParamSpec             *pspec);
+static void    hyscan_gtk_gliko_area_object_constructed (GObject                *object);
+static void    hyscan_gtk_gliko_area_object_finalize    (GObject                *object);
 
-G_DEFINE_TYPE_WITH_CODE (HyScanGtkGlikoArea, hyscan_gtk_gliko_area, G_TYPE_OBJECT, G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_GLIKO_LAYER, interface_init))
+G_DEFINE_TYPE_WITH_CODE (HyScanGtkGlikoArea, hyscan_gtk_gliko_area, G_TYPE_OBJECT,
+                         G_ADD_PRIVATE (HyScanGtkGlikoArea)
+                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_GLIKO_LAYER, hyscan_gtk_gliko_area_interface_init))
 
 static GParamSpec *obj_properties[N_PROPERTIES] = { NULL };
-
-/* Internal API */
-static void set_property (GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec);
-static void get_property (GObject *object, guint prop_id, GValue *value, GParamSpec *pspec);
-static void dispose (GObject *gobject);
-static void finalize (GObject *gobject);
 
 static const char *vertexShaderSource =
     "#version 330 core\n"
@@ -836,16 +829,16 @@ hyscan_gtk_gliko_area_fade (HyScanGtkGlikoArea *instance)
 static void
 hyscan_gtk_gliko_area_class_init (HyScanGtkGlikoAreaClass *klass)
 {
-  GObjectClass *g_class = G_OBJECT_CLASS (klass);
+  GObjectClass *object_class = G_OBJECT_CLASS (klass);
   static const int rw = (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
   /* Add private data */
   g_type_class_add_private (klass, sizeof (HyScanGtkGlikoAreaPrivate));
 
-  g_class->set_property = set_property;
-  g_class->get_property = get_property;
-  g_class->dispose = dispose;
-  g_class->finalize = finalize;
+  object_class->set_property = hyscan_gtk_gliko_area_set_property;
+  object_class->get_property = hyscan_gtk_gliko_area_get_property;
+  object_class->constructed = hyscan_gtk_gliko_area_object_constructed;
+  object_class->finalize = hyscan_gtk_gliko_area_object_finalize;
 
   obj_properties[P_CX] = g_param_spec_float ("gliko-cx", "Center X", "Center point coordinate X", -G_MAXFLOAT, G_MAXFLOAT, 0.0, rw);
   obj_properties[P_CY] = g_param_spec_float ("gliko-cy", "Center Y", "Center point coordinate Y", -G_MAXFLOAT, G_MAXFLOAT, 0.0, rw);
@@ -865,7 +858,7 @@ hyscan_gtk_gliko_area_class_init (HyScanGtkGlikoAreaClass *klass)
   obj_properties[P_COLOR2] = g_param_spec_string ("gliko-color2-rgb", "Color2", "Color for channel 2 #RRGGBB", "#FFFFFF", rw);
   obj_properties[P_BACKGROUND] = g_param_spec_string ("gliko-background-rgb", "Background", "Background #RRGGBB", "#000000", rw);
 
-  g_object_class_install_properties (g_class, N_PROPERTIES, obj_properties);
+  g_object_class_install_properties (object_class, N_PROPERTIES, obj_properties);
 }
 
 static void
@@ -873,7 +866,8 @@ hyscan_gtk_gliko_area_init (HyScanGtkGlikoArea *area)
 {
   HyScanGtkGlikoAreaPrivate *p;
 
-  p = G_TYPE_INSTANCE_GET_PRIVATE (area, HYSCAN_TYPE_GTK_GLIKO_AREA, HyScanGtkGlikoAreaPrivate);
+  //p = G_TYPE_INSTANCE_GET_PRIVATE (area, HYSCAN_TYPE_GTK_GLIKO_AREA, HyScanGtkGlikoAreaPrivate);
+  p = hyscan_gtk_gliko_area_get_instance_private (area);
 
   /* Create cache for faster access */
   area->priv = p;
@@ -908,29 +902,22 @@ hyscan_gtk_gliko_area_init (HyScanGtkGlikoArea *area)
 }
 
 static void
-dispose (GObject *gobject)
+hyscan_gtk_gliko_area_object_finalize (GObject *object)
 {
-  G_OBJECT_CLASS (hyscan_gtk_gliko_area_parent_class)
-      ->dispose (gobject);
-}
-
-static void
-finalize (GObject *gobject)
-{
-  HyScanGtkGlikoAreaPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (gobject, HYSCAN_TYPE_GTK_GLIKO_AREA, HyScanGtkGlikoAreaPrivate);
+  HyScanGtkGlikoArea *gtk_gliko_area = HYSCAN_GTK_GLIKO_AREA (object);
+  HyScanGtkGlikoAreaPrivate *p = gtk_gliko_area->priv;
 
   glDeleteVertexArrays (1, &p->vao);
   glDeleteBuffers (1, &p->vbo);
   glDeleteBuffers (1, &p->ebo);
-
-  G_OBJECT_CLASS (hyscan_gtk_gliko_area_parent_class)
-      ->finalize (gobject);
 
   if (p->buf[0][0] != NULL)
     {
       free (p->buf[0][0]);
       p->buf[0][0] = NULL;
     }
+
+  G_OBJECT_CLASS (hyscan_gtk_gliko_area_parent_class)->finalize (object);
 }
 
 static float *
@@ -989,9 +976,10 @@ get_prgb (HyScanGtkGlikoAreaPrivate *p, const int id)
 
 /* Overriden g_object methods */
 static void
-set_property (GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec)
+hyscan_gtk_gliko_area_set_property (GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec)
 {
-  HyScanGtkGlikoAreaPrivate *p = HYSCAN_GTK_GLIKO_AREA (object)->priv;
+  HyScanGtkGlikoArea *gtk_gliko_area = HYSCAN_GTK_GLIKO_AREA (object);
+  HyScanGtkGlikoAreaPrivate *p = gtk_gliko_area->priv;
   float *pf;
 
   if ((pf = get_pfloat (p, prop_id)) != NULL)
@@ -1019,9 +1007,10 @@ set_property (GObject *object, guint prop_id, const GValue *value, GParamSpec *p
 }
 
 static void
-get_property (GObject *object, guint prop_id, GValue *value, GParamSpec *pspec)
+hyscan_gtk_gliko_area_get_property (GObject *object, guint prop_id, GValue *value, GParamSpec *pspec)
 {
-  HyScanGtkGlikoAreaPrivate *p = HYSCAN_GTK_GLIKO_AREA (object)->priv;
+  HyScanGtkGlikoArea *gtk_gliko_area = HYSCAN_GTK_GLIKO_AREA (object);
+  HyScanGtkGlikoAreaPrivate *p = gtk_gliko_area->priv;
   float *pf;
 
   if ((pf = get_pfloat (p, prop_id)) != NULL)
@@ -1042,7 +1031,16 @@ get_property (GObject *object, guint prop_id, GValue *value, GParamSpec *pspec)
 }
 
 static void
-interface_init (HyScanGtkGlikoLayerInterface *iface)
+hyscan_gtk_gliko_area_object_constructed (GObject *object)
+{
+  /*
+  HyScanGtkGlikoArea *gtk_gliko_area = HYSCAN_GTK_GLIKO_AREA (object);
+  HyScanGtkGlikoAreaPrivate *p = gtk_gliko_area->priv;
+  */
+}
+
+static void
+hyscan_gtk_gliko_area_interface_init (HyScanGtkGlikoLayerInterface *iface)
 {
   iface->realize = layer_realize;
   iface->render = layer_render;
