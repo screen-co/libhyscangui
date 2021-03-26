@@ -386,7 +386,11 @@ hyscan_gtk_map_mark_list_changed (HyScanGtkMapMarkList *mark_list)
       g_hash_table_unref (marks);
     }
 
-  if (priv->model_geomark != NULL && (marks = hyscan_object_model_get (priv->model_geomark)) != NULL)
+  marks = priv->model_geomark != NULL ?
+          hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->model_geomark), HYSCAN_TYPE_MARK_GEO) :
+          NULL;
+
+  if (marks != NULL)
     {
       HyScanMarkGeo *mark;
       GHashTable *gtk_iters;

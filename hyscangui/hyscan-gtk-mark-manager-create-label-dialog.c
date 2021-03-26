@@ -295,7 +295,7 @@ hyscan_gtk_mark_manager_create_label_dialog_response (GtkWidget *dialog,
     {
       HyScanLabel *label  = hyscan_label_new ();
       GdkPixbuf   *pixbuf = NULL;
-      GHashTable  *table  = hyscan_object_model_get (priv->label_model);
+      GHashTable  *table  = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model), HYSCAN_TYPE_LABEL);
       GList       *images;
       GDateTime   *dt     = g_date_time_new_now_local ();
       gint64       time   = g_date_time_to_unix (dt);
@@ -351,7 +351,7 @@ hyscan_gtk_mark_manager_create_label_dialog_response (GtkWidget *dialog,
           hyscan_label_set_ctime (label, time);
           hyscan_label_set_mtime (label, time);
           /* Добавляем группу в базу данных. */
-          hyscan_object_model_add (priv->label_model, (const HyScanObject*) label);
+          hyscan_object_store_add (HYSCAN_OBJECT_STORE (priv->label_model), (const HyScanObject*) label, NULL);
         }
 
       hyscan_label_free (label);

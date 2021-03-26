@@ -80,7 +80,7 @@ create_tracks (HyScanPlannerModel *model)
       track.plan.end.lat += 1e-4 * (i + 1);
       track.plan.end.lon += 1e-4 * (i + 1);
 
-      hyscan_object_model_add (HYSCAN_OBJECT_MODEL (model), (const HyScanObject *) &track);
+      hyscan_object_store_add (HYSCAN_OBJECT_STORE (model), (const HyScanObject *) &track, NULL);
     }
 }
 

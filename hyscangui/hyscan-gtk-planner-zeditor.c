@@ -393,7 +393,7 @@ hyscan_gtk_planner_zeditor_vertex_duplicate (HyScanGtkPlannerZeditor *zeditor)
   g_return_if_fail (HYSCAN_IS_PLANNER_ZONE (zone));
 
   hyscan_planner_zone_vertex_dup (zone, priv->vertex);
-  hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, (const HyScanObject *) zone);
+  hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->model), priv->zone_id, (const HyScanObject *) zone);
 }
 
 /* Удаляет текущую вершину. */
@@ -412,12 +412,12 @@ hyscan_gtk_planner_zeditor_vertex_delete (HyScanGtkPlannerZeditor *zeditor)
   if (zone->points_len > 3)
     {
       hyscan_planner_zone_vertex_remove (zone, priv->vertex);
-      hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, (const HyScanObject *) zone);
+      hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->model), priv->zone_id, (const HyScanObject *) zone);
       hyscan_planner_selection_set_zone (priv->selection, priv->zone_id, MAX (0, priv->vertex - 1));
     }
   else
     {
-      hyscan_object_model_remove (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id);
+      hyscan_object_store_remove (HYSCAN_OBJECT_STORE (priv->model), HYSCAN_TYPE_PLANNER_ZONE, priv->zone_id);
       g_clear_pointer (&priv->zone_id, g_free);
     }
 }
@@ -456,7 +456,7 @@ hyscan_gtk_planner_zeditor_model_changed (HyScanGtkPlannerZeditor *zeditor)
 
   g_clear_pointer (&priv->objects, g_hash_table_destroy);
   g_clear_object (&priv->geo);
-  priv->objects = hyscan_object_model_get (HYSCAN_OBJECT_MODEL (priv->model));
+  priv->objects = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->model), HYSCAN_TYPE_PLANNER_ZONE);
   priv->geo = hyscan_planner_model_get_geo (priv->model);
 
   hyscan_gtk_planner_zeditor_set_zone (zeditor);
@@ -513,7 +513,7 @@ hyscan_gtk_planner_zeditor_set_zone (HyScanGtkPlannerZeditor *zeditor)
     goto exit;
 
   zone = g_hash_table_lookup (priv->objects, priv->zone_id);
-  if (!HYSCAN_IS_PLANNER_ZONE (zone))
+  if (zone == NULL)
     {
       g_clear_pointer (&priv->zone_id, g_free);
       goto exit;
@@ -623,7 +623,7 @@ hyscan_gtk_planner_zeditor_edited (GtkCellRendererText *cell,
     return;
 
   zone = g_hash_table_lookup (priv->objects, priv->zone_id);
-  if (!HYSCAN_IS_PLANNER_ZONE (zone))
+  if (zone == NULL)
     return;
 
   gtk_tree_model_get_iter_from_string (GTK_TREE_MODEL (priv->store), &iter, path_string);
@@ -656,7 +656,7 @@ hyscan_gtk_planner_zeditor_edited (GtkCellRendererText *cell,
       hyscan_geo_topoXY2geo0 (priv->geo, vertex, cartesian);
     }
 
-  hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), priv->zone_id, (HyScanObject *) zone);
+  hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->model), priv->zone_id, (HyScanObject *) zone);
 }
 
 /**

@@ -129,7 +129,8 @@ main (int    argc,
   }
 
   open_db (&db, &db_uri, db_uri);
-  markmodel = hyscan_object_model_new (HYSCAN_TYPE_OBJECT_DATA_WFMARK);
+  markmodel = hyscan_object_model_new ();
+  hyscan_object_model_set_types (markmodel, 1, HYSCAN_TYPE_OBJECT_DATA_WFMARK);
 
   /* Основное окно программы. */
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);

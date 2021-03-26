@@ -146,7 +146,8 @@ struct _HyScanGtkPlannerListPrivate
   gulong                        hndl_tree_chgd;     /* Обработчик сигнала "changed" объекта tree_selection. */
   gulong                        hndl_tk_chgd;       /* Обработчик сигнала "tracks-changed" объекта selection. */
   gulong                        hndl_zn_chgd;       /* Обработчик сигнала "zone-changed" объекта selection. */
-  GHashTable                   *objects;            /* Объекты планировщика. */
+  GHashTable                   *track_objects;      /* Хэш таблица планов галсов. */
+  GHashTable                   *zone_objects;       /* Хэш таблица зон. */
   GHashTable                   *zone_stats;         /* Хэш таблица статистики схемы галсы. */
 
   struct
@@ -409,7 +410,8 @@ hyscan_gtk_planner_list_object_finalize (GObject *object)
   g_clear_object (&priv->viewer);
   g_clear_object (&priv->stats);
   g_clear_object (&priv->db_info);
-  g_clear_pointer (&priv->objects, g_hash_table_unref);
+  g_clear_pointer (&priv->track_objects, g_hash_table_unref);
+  g_clear_pointer (&priv->zone_objects, g_hash_table_unref);
   g_clear_pointer (&priv->tracks, g_strfreev);
   g_clear_pointer (&priv->records, g_strfreev);
   g_free (priv->zone_id);
@@ -553,12 +555,12 @@ hyscan_gtk_planner_list_menu_activate (GtkMenuItem          *button,
 {
   HyScanGtkPlannerListPrivate *priv = list->priv;
 
-  /* Удалени выбранных галсов. */
+  /* Удаление выбранных галсов. */
   if (button == GTK_MENU_ITEM (priv->menu.del))
     {
       gint i;
       for (i = 0; priv->tracks[i] != NULL; ++i)
-        hyscan_object_model_remove (HYSCAN_OBJECT_MODEL (priv->model), priv->tracks[i]);
+        hyscan_object_store_remove (HYSCAN_OBJECT_STORE (priv->model), HYSCAN_TYPE_PLANNER_TRACK, priv->tracks[i]);
     }
 
   else if (button == GTK_MENU_ITEM (priv->menu.nav))
@@ -580,16 +582,16 @@ hyscan_gtk_planner_list_menu_activate (GtkMenuItem          *button,
           HyScanPlannerTrack *track, *modified_track;
           HyScanPlannerZone *zone;
 
-          track = g_hash_table_lookup (priv->objects, priv->tracks[i]);
+          track = g_hash_table_lookup (priv->track_objects, priv->tracks[i]);
           if (track == NULL || track->zone_id == NULL)
             continue;
 
-          zone = g_hash_table_lookup (priv->objects, track->zone_id);
+          zone = g_hash_table_lookup (priv->zone_objects, track->zone_id);
           if (zone == NULL)
             continue;
 
           modified_track = hyscan_planner_track_extend (track, zone);
-          hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), priv->tracks[i],
+          hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->model), priv->tracks[i],
                                       (const HyScanObject *) modified_track);
           hyscan_planner_track_free (modified_track);
         }
@@ -603,7 +605,7 @@ hyscan_gtk_planner_list_menu_activate (GtkMenuItem          *button,
           HyScanPlannerTrack *track, *modified_track;
           HyScanGeoPoint swap;
 
-          track = g_hash_table_lookup (priv->objects, priv->tracks[i]);
+          track = g_hash_table_lookup (priv->track_objects, priv->tracks[i]);
           if (track == NULL)
             continue;
 
@@ -611,7 +613,7 @@ hyscan_gtk_planner_list_menu_activate (GtkMenuItem          *button,
           swap = modified_track->plan.start;
           modified_track->plan.start = modified_track->plan.end;
           modified_track->plan.end = swap;
-          hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), priv->tracks[i],
+          hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->model), priv->tracks[i],
                                       (const HyScanObject *) modified_track);
           hyscan_planner_track_free (modified_track);
         }
@@ -642,7 +644,7 @@ hyscan_gtk_planner_list_menu_activate (GtkMenuItem          *button,
 
                   track_object = hyscan_planner_track_copy (track->object);
                   track_object->plan = *record->info->plan;
-                  hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model),
+                  hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->model),
                                               track->id, (const HyScanObject *) track_object);
                   hyscan_planner_track_free (track_object);
 
@@ -814,13 +816,13 @@ hyscan_gtk_planner_list_title_edited (GtkCellRendererText *renderer,
   gtk_tree_model_get_value (GTK_TREE_MODEL (priv->store), &iter, ID_COLUMN, &value);
   zone_id = g_value_get_string (&value);
 
-  zone = hyscan_planner_zone_copy (g_hash_table_lookup (priv->objects, zone_id));
+  zone = hyscan_planner_zone_copy (g_hash_table_lookup (priv->zone_objects, zone_id));
   if (zone == NULL)
     goto exit;
 
   g_free (zone->name);
   zone->name = g_strdup (new_text);
-  hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), zone_id, (HyScanObject *) zone);
+  hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->model), zone_id, (HyScanObject *) zone);
   hyscan_planner_zone_free (zone);
 
 exit:
@@ -838,7 +840,7 @@ hyscan_gtk_planner_list_speed_edited (GtkCellRendererText *renderer,
   HyScanGtkPlannerListPrivate *priv = list->priv;
   gint type;
   GtkTreeIter iter;
-  const gchar *zone_id;
+  const gchar *track_id;
   GValue value = G_VALUE_INIT;
   HyScanPlannerTrack *track;
   gdouble speed;
@@ -855,14 +857,14 @@ hyscan_gtk_planner_list_speed_edited (GtkCellRendererText *renderer,
     return;
 
   gtk_tree_model_get_value (GTK_TREE_MODEL (priv->store), &iter, ID_COLUMN, &value);
-  zone_id = g_value_get_string (&value);
+  track_id = g_value_get_string (&value);
 
-  track = hyscan_planner_track_copy (g_hash_table_lookup (priv->objects, zone_id));
+  track = hyscan_planner_track_copy (g_hash_table_lookup (priv->track_objects, track_id));
   if (track == NULL)
     goto exit;
 
   track->plan.speed = speed;
-  hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), zone_id, (HyScanObject *) track);
+  hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->model), track_id, (HyScanObject *) track);
   hyscan_planner_track_free (track);
 
 exit:
@@ -1319,8 +1321,10 @@ hyscan_gtk_planner_list_changed (HyScanGtkPlannerList *list)
   HyScanGtkPlannerListPrivate *priv = list->priv;
 
   /* Устанавливаем новый список объектов в модель данных. */
-  g_clear_pointer (&priv->objects, g_hash_table_unref);
-  priv->objects = hyscan_object_model_get (HYSCAN_OBJECT_MODEL (priv->model));
+  g_clear_pointer (&priv->track_objects, g_hash_table_unref);
+  g_clear_pointer (&priv->zone_objects, g_hash_table_unref);
+  priv->track_objects = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->model), HYSCAN_TYPE_PLANNER_TRACK);
+  priv->zone_objects = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->model), HYSCAN_TYPE_PLANNER_ZONE);
 }
 
 /* Обработчик сигнала "changed" модели HyScanPlannerStats. */
@@ -1371,8 +1375,8 @@ hyscan_gtk_planner_list_bind_activate (GtkCheckMenuItem     *button,
   if (record_id == NULL)
     return;
 
-  plan_track = g_hash_table_lookup (priv->objects, plan_track_id);
-  if (!HYSCAN_IS_PLANNER_TRACK (plan_track))
+  plan_track = g_hash_table_lookup (priv->track_objects, plan_track_id);
+  if (plan_track == NULL)
     return;
 
   if (active)
@@ -1380,7 +1384,7 @@ hyscan_gtk_planner_list_bind_activate (GtkCheckMenuItem     *button,
   else
     hyscan_planner_track_record_delete (plan_track, record_id);
 
-  hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), plan_track_id, (const HyScanObject *) plan_track);
+  hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->model), plan_track_id, (const HyScanObject *) plan_track);
 }
 
 static gint
@@ -1404,15 +1408,12 @@ hyscan_gtk_planner_list_record_bound (HyScanGtkPlannerList *list,
   HyScanPlannerTrack *track;
   gchar *id;
 
-  if (priv->objects == NULL)
+  if (priv->track_objects == NULL)
     return FALSE;
 
-  g_hash_table_iter_init (&iter, priv->objects);
+  g_hash_table_iter_init (&iter, priv->track_objects);
   while (g_hash_table_iter_next (&iter, (gpointer *) &id, (gpointer *) &track))
     {
-      if (!HYSCAN_IS_PLANNER_TRACK (track))
-        continue;
-
       if (track->records != NULL && g_strv_contains ((const gchar *const *) track->records, record_id))
         return TRUE;
     }
@@ -1440,8 +1441,8 @@ hyscan_gtk_planner_list_bind_menu_update (HyScanGtkPlannerList *list,
   g_list_free (children);
 
   /* Определяем выбранный плановый галс. */
-  planner_track = g_hash_table_lookup (priv->objects, planner_track_id);
-  if (!HYSCAN_IS_PLANNER_TRACK (planner_track))
+  planner_track = g_hash_table_lookup (priv->track_objects, planner_track_id);
+  if (planner_track == NULL)
     return;
 
   /* Добавляем новые пункты. */
@@ -1642,8 +1643,8 @@ hyscan_gtk_planner_tree_store_drag_data_delete (GtkTreeDragSource *drag_source,
       gtk_tree_model_get (tree_model, &iter, ID_COLUMN, &track_id, -1);
       number++;
 
-      track = g_hash_table_lookup (priv->objects, track_id);
-      if (!HYSCAN_IS_PLANNER_TRACK (track))
+      track = g_hash_table_lookup (priv->track_objects, track_id);
+      if (track == NULL)
         goto next;
 
       if (track->number == number)
@@ -1651,7 +1652,7 @@ hyscan_gtk_planner_tree_store_drag_data_delete (GtkTreeDragSource *drag_source,
 
       modified_track = hyscan_planner_track_copy (track);
       modified_track->number = number;
-      hyscan_object_model_modify (HYSCAN_OBJECT_MODEL (priv->model), track_id, (HyScanObject *) modified_track);
+      hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->model), track_id, (HyScanObject *) modified_track);
       hyscan_planner_track_free (modified_track);
 
     next:
