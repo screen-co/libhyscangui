@@ -144,6 +144,8 @@ struct _HyScanGtkGlikoPrivate
   int debug_alpha;
   int debug_alpha_value;
 
+  gint nmea_angular_source;
+
   gint64 fade_time;
 };
 
@@ -206,15 +208,18 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
   p->nmea_index = 0;
   p->nmea_init = 0;
 
+  p->nmea_angular_source = 1;
+
   p->debug_alpha = 1;
   p->debug_alpha_value = 0;
 
-  p->channel[0].source_name = "ss-starboard";
-  p->channel[1].source_name = "ss-port";
+  p->channel[0].source_name = NULL;
+  p->channel[1].source_name = NULL;
 
   p->channel[0].gliko_channel = 0;
   p->channel[1].gliko_channel = 1;
 
+#if 0
   /* Определяем тип источника данных по его названию. */
   p->channel[0].source = hyscan_source_get_type_by_id (p->channel[0].source_name);
   if (p->channel[0].source == HYSCAN_SOURCE_INVALID)
@@ -229,6 +234,7 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
       g_error ("unknown source type %s", p->channel[1].source_name);
       return;
     }
+#endif
 
   p->iko = hyscan_gtk_gliko_area_new ();
   p->grid = hyscan_gtk_gliko_grid_new ();
@@ -369,7 +375,7 @@ player_open_callback (HyScanDataPlayer *player,
 
   initque (&p->alpha_que, p->alpha_que_buffer, sizeof (alpha_que_t), sizeof (p->alpha_que_buffer) / sizeof (p->alpha_que_buffer[0]));
 
-  p->nmea_data = hyscan_nmea_data_new (db, NULL, project_name, track_name, 1);
+  p->nmea_data = hyscan_nmea_data_new (db, NULL, project_name, track_name, p->nmea_angular_source);
   if (p->nmea_data == NULL)
     {
       g_warning ("can't open nmea data\n");
@@ -1083,3 +1089,49 @@ hyscan_gtk_gliko_get_rotation (HyScanGtkGliko *instance)
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   return p->rotation;
 }
+
+HYSCAN_API
+void
+hyscan_gtk_gliko_set_angular_source (HyScanGtkGliko *instance, const gint channel)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
+
+  p->nmea_angular_source = channel;
+}
+
+HYSCAN_API
+gint hyscan_gtk_gliko_get_angular_source (HyScanGtkGliko *instance)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
+
+  return p->nmea_angular_source;
+}
+
+HYSCAN_API
+void hyscan_gtk_gliko_set_source_name (HyScanGtkGliko *instance, const gint channel_index, const gchar *source_name)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
+  channel_t *c;
+  HyScanSourceType source;
+
+  if( (channel_index & 1) != channel_index )
+  {
+    g_error ("bad channel index %d", channel_index);
+    return;
+  }
+  source = hyscan_source_get_type_by_id (source_name);
+  if (source == HYSCAN_SOURCE_INVALID)
+    {
+      g_error ("unknown source type %s", source_name);
+      return;
+    }
+  c = p->channel + channel_index;
+  if( c->source_name != NULL )
+  {
+    g_free( c->source_name );
+    c->source_name = NULL;
+  }
+  c->source_name = g_strdup( source_name );
+  c->source = source;
+}
+

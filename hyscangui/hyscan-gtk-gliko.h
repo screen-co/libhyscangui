@@ -146,6 +146,15 @@ HYSCAN_API
 HyScanSourceType hyscan_gtk_gliko_get_source (HyScanGtkGliko *instance,
                                               const gint channel);
 
+HYSCAN_API
+void hyscan_gtk_gliko_set_angular_source (HyScanGtkGliko *instance, const gint channel);
+
+HYSCAN_API
+gint hyscan_gtk_gliko_get_angular_source (HyScanGtkGliko *instance);
+
+HYSCAN_API
+void hyscan_gtk_gliko_set_source_name (HyScanGtkGliko *instance, const gint channel, const gchar *source_name);
+
 G_END_DECLS
 
 #endif

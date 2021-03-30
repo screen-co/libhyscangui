@@ -176,8 +176,8 @@ main (int argc,
   gchar *db_uri = NULL;
   gchar *project_name = NULL;
   gchar *track_name = NULL;
-  //gchar *source_name1 = "ss-starboard";
-  //gchar *source_name2 = "ss-port";
+  gchar *source_name1 = "ss-starboard";
+  gchar *source_name2 = "ss-port";
   gchar *output_file = NULL;
   gdouble speed = 1.0;
   gdouble white_point = 1.0;
@@ -195,8 +195,8 @@ main (int argc,
           { "db", 'd', 0, G_OPTION_ARG_STRING, &db_uri, "DB uri", NULL },
           { "project", 'p', 0, G_OPTION_ARG_STRING, &project_name, "Project name", NULL },
           { "track", 't', 0, G_OPTION_ARG_STRING, &track_name, "Track name", NULL },
-          //{ "starboard", 's', 0, G_OPTION_ARG_STRING, &source_name, "Starboard name", NULL },
-          //{ "port", 'r', 0, G_OPTION_ARG_STRING, &source_name, "Port name", NULL },
+          { "starboard", 's', 0, G_OPTION_ARG_STRING, &source_name1, "Starboard name", NULL },
+          { "port", 'r', 0, G_OPTION_ARG_STRING, &source_name2, "Port name", NULL },
           { "output", 'o', 0, G_OPTION_ARG_STRING, &output_file, "Output image file name", NULL },
           { "white-point", 'w', 0, G_OPTION_ARG_DOUBLE, &white_point, "White point", NULL },
           { "black-point", 'b', 0, G_OPTION_ARG_DOUBLE, &black_point, "Black point", NULL },
@@ -267,6 +267,10 @@ main (int argc,
       g_error ("can't connect to db '%s'", db_uri);
       return EXIT_FAILURE;
     }
+
+  hyscan_gtk_gliko_set_source_name( HYSCAN_GTK_GLIKO (gliko), 0, source_name1 );
+  hyscan_gtk_gliko_set_source_name( HYSCAN_GTK_GLIKO (gliko), 1, source_name2 );
+  hyscan_gtk_gliko_set_rotation( HYSCAN_GTK_GLIKO (gliko), 0.0 );
 
   player = hyscan_data_player_new ();
 
