@@ -38,19 +38,19 @@
  * @Short_description: виджет индикатора кругового обзора
  */
 
-#include <stdlib.h>
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <hyscan-acoustic-data.h>
-#include <hyscan-nmea-data.h>
 #include <hyscan-data-player.h>
+#include <hyscan-nmea-data.h>
 
 #include "hyscan-gtk-gliko.h"
 
-#include "hyscan-gtk-gliko-overlay.h"
 #include "hyscan-gtk-gliko-area.h"
 #include "hyscan-gtk-gliko-grid.h"
+#include "hyscan-gtk-gliko-overlay.h"
 
 #include "hyscan-gtk-gliko-que.h"
 
@@ -1100,7 +1100,8 @@ hyscan_gtk_gliko_set_angular_source (HyScanGtkGliko *instance, const gint channe
 }
 
 HYSCAN_API
-gint hyscan_gtk_gliko_get_angular_source (HyScanGtkGliko *instance)
+gint
+hyscan_gtk_gliko_get_angular_source (HyScanGtkGliko *instance)
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
@@ -1108,17 +1109,18 @@ gint hyscan_gtk_gliko_get_angular_source (HyScanGtkGliko *instance)
 }
 
 HYSCAN_API
-void hyscan_gtk_gliko_set_source_name (HyScanGtkGliko *instance, const gint channel_index, const gchar *source_name)
+void
+hyscan_gtk_gliko_set_source_name (HyScanGtkGliko *instance, const gint channel_index, const gchar *source_name)
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   channel_t *c;
   HyScanSourceType source;
 
-  if( (channel_index & 1) != channel_index )
-  {
-    g_error ("bad channel index %d", channel_index);
-    return;
-  }
+  if ((channel_index & 1) != channel_index)
+    {
+      g_error ("bad channel index %d", channel_index);
+      return;
+    }
   source = hyscan_source_get_type_by_id (source_name);
   if (source == HYSCAN_SOURCE_INVALID)
     {
@@ -1126,12 +1128,63 @@ void hyscan_gtk_gliko_set_source_name (HyScanGtkGliko *instance, const gint chan
       return;
     }
   c = p->channel + channel_index;
-  if( c->source_name != NULL )
-  {
-    g_free( c->source_name );
-    c->source_name = NULL;
-  }
-  c->source_name = g_strdup( source_name );
+  if (c->source_name != NULL)
+    {
+      g_free (c->source_name);
+      c->source_name = NULL;
+    }
+  c->source_name = g_strdup (source_name);
   c->source = source;
 }
 
+static char *
+str_rgb (char *t, const guint32 c)
+{
+  sprintf (t, "#%02X%02X%02X", (c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF);
+  return t;
+}
+
+/**
+ *
+ * Функция устанавливает цветовую схему.
+ * Можно передать массив любого размера (больше нуля).
+ *
+ * \param color указатель на \link HyScanTileColor \endlink;
+ * \param source тип источника, к которому будут применены параметры;
+ * \param colormap значения цветов точек;
+ * \param length число элементов в цветовой схеме;
+ * \param background цвет фона.
+ *
+ * \return TRUE, если цвета успешно установлены.
+ */
+HYSCAN_API
+gboolean
+hyscan_gtk_gliko_set_colormap (HyScanGtkGliko *instance,
+                               const gint channel_index,
+                               guint32 *colormap,
+                               guint length,
+                               guint32 background)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
+  char t[64];
+  float a = 1.0f / 255.0f;
+  guint32 color = colormap[length - 1];
+
+  if (channel_index == 0)
+    {
+      g_object_set (p->iko, "gliko-color1-rgb", str_rgb (t, color), NULL);
+      g_object_set (p->iko, "gliko-color1-alpha", a * (color >> 24), NULL);
+    }
+  else if (channel_index == 1)
+    {
+      g_object_set (p->iko, "gliko-color2-rgb", str_rgb (t, color), NULL);
+      g_object_set (p->iko, "gliko-color2-alpha", a * (color >> 24), NULL);
+    }
+  else
+    {
+      return FALSE;
+    }
+  g_object_set (p->iko, "gliko-background-rgb", str_rgb (t, background), NULL);
+  g_object_set (p->iko, "gliko-background-alpha", a * (background >> 24), NULL);
+  return TRUE;
+}

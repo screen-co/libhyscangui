@@ -183,6 +183,9 @@ main (int argc,
   gdouble white_point = 1.0;
   gdouble black_point = 0.0;
   gdouble gamma_value = 1.0;
+  guint32 color1 = 0xFF00FF80;
+  guint32 color2 = 0xFFFF8000;
+  guint32 background = 0x00404040;
 
   guint32 fps = 25;
 
@@ -268,9 +271,12 @@ main (int argc,
       return EXIT_FAILURE;
     }
 
-  hyscan_gtk_gliko_set_source_name( HYSCAN_GTK_GLIKO (gliko), 0, source_name1 );
-  hyscan_gtk_gliko_set_source_name( HYSCAN_GTK_GLIKO (gliko), 1, source_name2 );
-  hyscan_gtk_gliko_set_rotation( HYSCAN_GTK_GLIKO (gliko), 0.0 );
+  hyscan_gtk_gliko_set_colormap (HYSCAN_GTK_GLIKO (gliko), 0, &color1, 1, background);
+  hyscan_gtk_gliko_set_colormap (HYSCAN_GTK_GLIKO (gliko), 1, &color2, 1, background);
+
+  hyscan_gtk_gliko_set_source_name (HYSCAN_GTK_GLIKO (gliko), 0, source_name1);
+  hyscan_gtk_gliko_set_source_name (HYSCAN_GTK_GLIKO (gliko), 1, source_name2);
+  hyscan_gtk_gliko_set_rotation (HYSCAN_GTK_GLIKO (gliko), 0.0);
 
   player = hyscan_data_player_new ();
 

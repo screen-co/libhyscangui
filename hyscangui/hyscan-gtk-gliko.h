@@ -155,6 +155,12 @@ gint hyscan_gtk_gliko_get_angular_source (HyScanGtkGliko *instance);
 HYSCAN_API
 void hyscan_gtk_gliko_set_source_name (HyScanGtkGliko *instance, const gint channel, const gchar *source_name);
 
+HYSCAN_API
+gboolean hyscan_gtk_gliko_set_colormap (HyScanGtkGliko *instance,
+                                        const gint channel_index,
+                                        guint32 *colormap,
+                                        guint length,
+                                        guint32 background);
 G_END_DECLS
 
 #endif
