@@ -50,7 +50,6 @@
 
 #include "hyscan-gtk-gliko-area.h"
 #include "hyscan-gtk-gliko-grid.h"
-#include "hyscan-gtk-gliko-overlay.h"
 
 #include "hyscan-gtk-gliko-que.h"
 

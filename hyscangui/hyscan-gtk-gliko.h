@@ -38,6 +38,7 @@
 #include <gtk/gtk.h>
 #include <hyscan-api.h>
 #include <hyscan-data-player.h>
+#include <hyscan-gtk-gliko-overlay.h>
 
 G_BEGIN_DECLS
 
@@ -51,6 +52,18 @@ G_BEGIN_DECLS
 typedef struct _HyScanGtkGliko HyScanGtkGliko;
 typedef struct _HyScanGtkGlikoPrivate HyScanGtkGlikoPrivate;
 typedef struct _HyScanGtkGlikoClass HyScanGtkGlikoClass;
+
+struct _HyScanGtkGliko
+{
+  HyScanGtkGlikoOverlay parent;
+  void *pv;
+};
+
+struct _HyScanGtkGlikoClass
+{
+  HyScanGtkGlikoOverlayClass parent_class;
+};
+
 
 HYSCAN_API
 GType hyscan_gtk_gliko_get_type (void);
