@@ -127,6 +127,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-gliko-grid.c
              hyscan-gtk-gliko-overlay.c
              hyscan-gtk-gliko.c
+             hyscan-gtk-gliko-control.c
 
              hyscan-gui-style.c
              ${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshallers.c

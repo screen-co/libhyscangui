@@ -94,19 +94,6 @@ typedef struct _channel_t
   gchar *source_name;
 } channel_t;
 
-typedef struct _HyScanGtkGlikoPrivate HyScanGtkGlikoPrivate;
-
-struct _HyScanGtkGliko
-{
-  HyScanGtkGlikoOverlay parent;
-  void *pv;
-};
-
-struct _HyScanGtkGlikoClass
-{
-  HyScanGtkGlikoOverlayClass parent_class;
-};
-
 struct _HyScanGtkGlikoPrivate
 {
   HyScanGtkGlikoArea *iko;

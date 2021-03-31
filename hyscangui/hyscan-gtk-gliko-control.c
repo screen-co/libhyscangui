@@ -55,30 +55,18 @@ struct _HyScanGtkGlikoControlPrivate
   gdouble  my0;
 };
 
-static void    hyscan_gtk_gliko_control_set_property             (GObject               *object,
-                                                                  guint                  prop_id,
-                                                                  const GValue          *value,
-                                                                  GParamSpec            *pspec);
-static void    hyscan_gtk_gliko_control_object_constructed       (GObject               *object);
-static void    hyscan_gtk_gliko_control_object_finalize          (GObject               *object);
+static void    hyscan_gtk_gliko_control_button   (HyScanGtkGlikoControl *self,
+                                                  GdkEventButton        *event);
+static void    hyscan_gtk_gliko_control_motion   (HyScanGtkGlikoControl *self,
+                                                  GdkEventMotion        *event);
+static void    hyscan_gtk_gliko_control_scroll   (HyScanGtkGlikoControl *self,
+                                                  GdkEventScroll        *event);
 
-static void    hyscan_gtk_gliko_control_button                   (HyScanGtkGlikoControl *self,
-                                                                  GdkEventButton        *event);
-static void    hyscan_gtk_gliko_control_motion                   (HyScanGtkGlikoControl *self,
-                                                                  GdkEventMotion        *event);
-static void    hyscan_gtk_gliko_control_scroll                   (HyScanGtkGlikoControl *self,
-                                                                  GdkEventScroll        *event);
-
-G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkGlikoControl, hyscan_gtk_gliko_control, G_TYPE_OBJECT);
+G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkGlikoControl, hyscan_gtk_gliko_control, HYSCAN_TYPE_GTK_GLIKO);
 
 static void
 hyscan_gtk_gliko_control_class_init (HyScanGtkGlikoControlClass *klass)
 {
-  GObjectClass *oclass = G_OBJECT_CLASS (klass);
-
-  oclass->set_property = hyscan_gtk_gliko_control_set_property;
-  oclass->constructed = hyscan_gtk_gliko_control_object_constructed;
-  oclass->finalize = hyscan_gtk_gliko_control_object_finalize;
 }
 
 static void
@@ -99,25 +87,6 @@ hyscan_gtk_gliko_control_init (HyScanGtkGlikoControl *self)
   g_signal_connect (self, "button_release_event", G_CALLBACK (hyscan_gtk_gliko_control_button), NULL);
   g_signal_connect (self, "motion_notify_event", G_CALLBACK (hyscan_gtk_gliko_control_motion), NULL);
   g_signal_connect (self, "scroll_event", G_CALLBACK (hyscan_gtk_gliko_control_scroll), NULL);
-}
-
-
-static void
-hyscan_gtk_gliko_control_object_constructed (GObject *object)
-{
-  HyScanGtkGlikoControl *self = HYSCAN_GTK_GLIKO_CONTROL (object);
-  HyScanGtkGlikoControlPrivate *priv = self->priv;
-
-  G_OBJECT_CLASS (hyscan_gtk_gliko_control_parent_class)->constructed (object);
-}
-
-static void
-hyscan_gtk_gliko_control_object_finalize (GObject *object)
-{
-  HyScanGtkGlikoControl *self = HYSCAN_GTK_GLIKO_CONTROL (object);
-  HyScanGtkGlikoControlPrivate *priv = self->priv;
-
-  G_OBJECT_CLASS (hyscan_gtk_gliko_control_parent_class)->finalize (object);
 }
 
 static void
