@@ -832,9 +832,6 @@ hyscan_gtk_gliko_area_class_init (HyScanGtkGlikoAreaClass *klass)
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
   static const int rw = (G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-  /* Add private data */
-  g_type_class_add_private (klass, sizeof (HyScanGtkGlikoAreaPrivate));
-
   object_class->set_property = hyscan_gtk_gliko_area_set_property;
   object_class->get_property = hyscan_gtk_gliko_area_get_property;
   object_class->constructed = hyscan_gtk_gliko_area_object_constructed;
