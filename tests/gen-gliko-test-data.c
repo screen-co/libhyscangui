@@ -1,15 +1,28 @@
+/*
+Программа генерации тестовых данных для проверки индикатора кругового обзора
+
+Для генерации данных проекта с тестовыми данными выполнить следующие команды:
+
+$ cd ~/hyscan/bin
+$ mkdir /tmp/ko
+$ ./gen-ko-data file:///tmp/ko
+
+*/
+
 #include <hyscan-nmea-data.h>
 #include <hyscan-data-writer.h>
 #include <hyscan-cached.h>
 #include <string.h>
+#include <math.h>
 #include <glib/gprintf.h>
 
 #define SENSOR_NAME    "rotation"
 #define SENSOR_CHANNEL 1
 
-#define DATA_SIZE (8192+4096)
+//#define DATA_SIZE (8192+4096)
+#define DATA_SIZE (22000)
 
-int rotation_code( const gint64 t, const gdouble rpm );
+gdouble rotation_value( const gint64 t, const gdouble speed, const gdouble range );
 void nmea_rotation( char *buf, size_t *size, const gdouble value, const char *name );
 void acoustic_get_info ( HyScanAcousticDataInfo *info, const guint n_channel);
 void acoustic_samples( guint16 *d, const size_t n, const guint n_channel, const gint64 t, const gdouble rpm, int *f );
@@ -31,11 +44,11 @@ int main (int argc, char **argv)
   gint i;
 
   /* Параметры формирования данных */
-  gdouble rpm = 2.0;                  /* скорость вращения, об/мин */
-  gdouble rotate_sensor_sample = 0.1; /* период выдачи данных датчика обзора, с */
-  gdouble scan_period = 0.015;         /* период зондирования, с */
-  gdouble full_time = 30.0;           /* длительность формирования тестовых данных, с */
-  gboolean counter_clock = FALSE;
+  gdouble degrees_per_sec = 5.0;      /* скорость вращения, градус/сек */
+  gdouble degrees_range = 90.0;       /* диапазон сканирования */
+  gdouble rotate_sensor_sample = 0.2; /* период выдачи данных датчика обзора, с */
+  gdouble scan_period = 0.100;        /* период зондирования, с */
+  gdouble full_time = 180.0;          /* длительность формирования тестовых данных, с */
   gboolean verbose = FALSE;
 
   gint64 time0;
@@ -50,11 +63,11 @@ int main (int argc, char **argv)
     error = NULL;
     GOptionContext *context;
     GOptionEntry entries[] = {
-      {"rpm", 0, 0, G_OPTION_ARG_DOUBLE, &rpm, "Rotation per minute (default 2)", NULL},
+      {"rotation", 0, 0, G_OPTION_ARG_DOUBLE, &degrees_per_sec, "Rotation speed, degrees per second (default 5)", NULL},
+      {"range", 0, 0, G_OPTION_ARG_DOUBLE, &degrees_range, "Scan from -range to +range, degrees (default 90)", NULL},
       {"rotate-sensor-sample", 0, 0, G_OPTION_ARG_DOUBLE, &rotate_sensor_sample, "Rotate sensor sample period, s (default 0.1)", NULL},
       {"scan-period", 0, 0, G_OPTION_ARG_DOUBLE, &scan_period, "Scan period, s (default 0.25)", NULL},
-      {"full-time", 0, 0, G_OPTION_ARG_DOUBLE, &full_time, "Full time of simulation, s (default 30)", NULL},
-      {"counter-clock", 0, 0, G_OPTION_ARG_NONE, &counter_clock, "Counter-clock rotation", NULL},
+      {"full-time", 0, 0, G_OPTION_ARG_DOUBLE, &full_time, "Full time of simulation, s (default 180)", NULL},
       {"verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose, "Be verbose", NULL},
       {NULL}
     };
@@ -147,7 +160,7 @@ int main (int argc, char **argv)
         char tmp[256];
         size_t s = sizeof( tmp );
 
-        nmea_rotation( tmp, &s, 360.0 * rotation_code( counter_clock ? -tcount: tcount, rpm ) / 4096.0, "RA" );
+        nmea_rotation( tmp, &s, rotation_value( tcount, degrees_per_sec, degrees_range ), "HYRA" );
 
         i++;
         rcount = 0;
@@ -172,14 +185,14 @@ int main (int argc, char **argv)
         scount = 0;
 
         acoustic_get_info ( &acoustic_info, 1 );
-        acoustic_samples( data_values, DATA_SIZE, 1, tcount, rpm, &f );
+        acoustic_samples( data_values, DATA_SIZE, 1, tcount, 10.0, &f );
         hyscan_buffer_wrap (sbuffer, HYSCAN_DATA_ADC14LE,
                             data_values, DATA_SIZE * sizeof (guint16));
         hyscan_data_writer_acoustic_add_data (writer, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, 1, FALSE,
                                                        time0 + tcount, &acoustic_info, sbuffer);
 
         acoustic_get_info ( &acoustic_info, 2 );
-        acoustic_samples( data_values, DATA_SIZE, 2, tcount, rpm, &f );
+        acoustic_samples( data_values, DATA_SIZE, 2, tcount, 10.0, &f );
         hyscan_buffer_wrap (pbuffer, HYSCAN_DATA_ADC14LE,
                             data_values, DATA_SIZE * sizeof (guint16));
         hyscan_data_writer_acoustic_add_data (writer, HYSCAN_SOURCE_SIDE_SCAN_PORT, 1, FALSE,
@@ -198,17 +211,30 @@ int main (int argc, char **argv)
   return 0;
 }
 
-int rotation_code( const gint64 t, const gdouble rpm )
+gdouble rotation_value( const gint64 t, const gdouble speed, const gdouble range )
 {
-  double a;
-  gint64 v;
+  double a, b, c, d;
 
-  a = 4096.0 * rpm;
-  a *= t;
-  a /= 60000000.0;
-  v = a;
-  v &= 4095;
-  return v;
+  // период качания привода, с
+  b = 4.0 * range / speed;
+
+  // фаза движения
+  c = fmod( 0.000001 * t + 0.25 * b, b );
+
+  // полупериод качания привода
+  d  = 0.5 * b;
+
+  // в первом полупериоде вращение по часовой стрелке
+  if( c < d )
+  {
+    a = -range + 2.0 * range * c / d;
+  }
+  else
+  {
+    // а во втором полупериоде вращение против часовой стрелки
+    a = range - 2.0 * range * (c - d) / d;
+  }
+  return a;
 }
 
 void nmea_rotation( char *buf, size_t *size, const gdouble value, const char *name )
@@ -217,7 +243,7 @@ void nmea_rotation( char *buf, size_t *size, const gdouble value, const char *na
   int s;
 
   bzero( buf, *size );
-  snprintf( buf, *size - 1, "$%s,%.6lf", name, value );
+  snprintf( buf, *size - 1, "$%s,%.3lf", name, value );
   if( buf[ *size ] != 0 ) return;
   k = strlen( buf + 1 );
   if( (k + 4) > *size ) return;
