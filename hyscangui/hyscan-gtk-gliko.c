@@ -196,7 +196,7 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
 
   p->nmea_angular_source = 1;
 
-  p->debug_alpha = 1;
+  p->debug_alpha = 0;
   p->debug_alpha_value = 0;
 
   p->channel[0].source_name = NULL;
@@ -472,7 +472,7 @@ player_process_callback (HyScanDataPlayer *player,
   for (; p->nmea_index != inleft; p->nmea_index += indelta)
     {
       const gchar *nmea;
-      const char header[4] = { '$', 'R', 'A', ',' };
+      const char header[6] = { '$', 'H', 'Y', 'R', 'A', ',' };
 
       /* Считываем строку nmea */
       nmea = hyscan_nmea_data_get (p->nmea_data, p->nmea_index, &alpha.time);
@@ -483,7 +483,7 @@ player_process_callback (HyScanDataPlayer *player,
           continue;
         }
 
-      /* текущий угол поворота, градусы 0..360 */
+      /* текущий угол поворота, градусы */
       alpha.value = g_ascii_strtod (nmea + sizeof (header), NULL);
 
       // буферизуем считанное значение в очереди
