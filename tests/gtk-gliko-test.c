@@ -8,7 +8,9 @@
 #include <hyscan-nmea-data.h>
 
 static GtkWidget *window;
+static GtkWidget *overlay;
 static GtkWidget *gliko;
+static GtkWidget *label;
 
 static HyScanDB *db = NULL;
 HyScanNMEAData *nmea_data = NULL;
@@ -25,6 +27,7 @@ update_title ()
 {
   gdouble b, c, g;
   gchar t[256];
+  gchar q[256];
 
   b = hyscan_gtk_gliko_get_brightness (HYSCAN_GTK_GLIKO (gliko));
   c = hyscan_gtk_gliko_get_contrast (HYSCAN_GTK_GLIKO (gliko));
@@ -32,6 +35,11 @@ update_title ()
 
   sprintf (t, "B%.2lf C%.2lf G%.2lf", b, c, g);
   gtk_window_set_title (GTK_WINDOW (window), t);
+
+  //sprintf( q, "<b><span font='20' background='#ffffff' foreground='#404040'>%s</span></b>", t );
+  sprintf (q, "<b><span font='20' foreground='#FFFFFF'>%s</span></b>", t);
+  gtk_label_set_text (GTK_LABEL (label), q);
+  gtk_label_set_use_markup (GTK_LABEL (label), TRUE);
 }
 
 static void
@@ -42,7 +50,7 @@ button_cb (GtkWidget *widget, GdkEventButton *event, void *w)
       if (event->type == GDK_BUTTON_PRESS)
         {
           center_move = 1;
-          hyscan_gtk_gliko_get_center (HYSCAN_GTK_GLIKO (widget), &sxc0, &syc0);
+          hyscan_gtk_gliko_get_center (HYSCAN_GTK_GLIKO (gliko), &sxc0, &syc0);
           mx0 = (gdouble) event->x;
           my0 = (gdouble) event->y;
         }
@@ -55,23 +63,23 @@ button_cb (GtkWidget *widget, GdkEventButton *event, void *w)
     {
       if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
         {
-          hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (widget), 0.0);
+          hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (gliko), 0.0);
           update_title ();
         }
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_SHIFT_MASK)
         {
-          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (widget), 0.0);
+          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (gliko), 0.0);
           update_title ();
         }
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == (GDK_CONTROL_MASK | GDK_SHIFT_MASK))
         {
-          hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (widget), 1.0);
+          hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (gliko), 1.0);
           update_title ();
         }
       else
         {
-          hyscan_gtk_gliko_set_scale (HYSCAN_GTK_GLIKO (widget), 1.0);
-          hyscan_gtk_gliko_set_center (HYSCAN_GTK_GLIKO (widget), 0.0, 0.0);
+          hyscan_gtk_gliko_set_scale (HYSCAN_GTK_GLIKO (gliko), 1.0);
+          hyscan_gtk_gliko_set_center (HYSCAN_GTK_GLIKO (gliko), 0.0, 0.0);
         }
     }
 }
@@ -83,14 +91,14 @@ motion_cb (GtkWidget *widget, GdkEventMotion *event, void *w)
   int baseline;
   gdouble s, x, y;
 
-  gtk_widget_get_allocated_size (GTK_WIDGET (widget), &allocation, &baseline);
+  gtk_widget_get_allocated_size (GTK_WIDGET (gliko), &allocation, &baseline);
 
   if (center_move)
     {
-      s = hyscan_gtk_gliko_get_scale (HYSCAN_GTK_GLIKO (widget));
+      s = hyscan_gtk_gliko_get_scale (HYSCAN_GTK_GLIKO (gliko));
       x = sxc0 - s * (mx0 - (gdouble) event->x) / allocation.height;
       y = syc0 - s * ((gdouble) event->y - my0) / allocation.height;
-      hyscan_gtk_gliko_set_center (HYSCAN_GTK_GLIKO (widget), x, y);
+      hyscan_gtk_gliko_set_center (HYSCAN_GTK_GLIKO (gliko), x, y);
     }
 }
 
@@ -103,67 +111,67 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
     {
       if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
         {
-          f = hyscan_gtk_gliko_get_contrast (HYSCAN_GTK_GLIKO (widget));
+          f = hyscan_gtk_gliko_get_contrast (HYSCAN_GTK_GLIKO (gliko));
           f += 0.01;
           if (f > 1.0)
             {
               f = 1.0;
             }
-          hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (widget), f);
+          hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (gliko), f);
           update_title ();
         }
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_SHIFT_MASK)
         {
-          f = hyscan_gtk_gliko_get_brightness (HYSCAN_GTK_GLIKO (widget));
-          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (widget), f + 0.05);
+          f = hyscan_gtk_gliko_get_brightness (HYSCAN_GTK_GLIKO (gliko));
+          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (gliko), f + 0.05);
           update_title ();
         }
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == (GDK_CONTROL_MASK | GDK_SHIFT_MASK))
         {
-          f = hyscan_gtk_gliko_get_gamma_value (HYSCAN_GTK_GLIKO (widget));
+          f = hyscan_gtk_gliko_get_gamma_value (HYSCAN_GTK_GLIKO (gliko));
           f -= 0.01;
           if (f < 0.0)
             {
               f = 0.0;
             }
-          hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (widget), f);
+          hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (gliko), f);
           update_title ();
         }
       else
         {
-          f = hyscan_gtk_gliko_get_scale (HYSCAN_GTK_GLIKO (widget));
-          hyscan_gtk_gliko_set_scale (HYSCAN_GTK_GLIKO (widget), 0.875 * f);
+          f = hyscan_gtk_gliko_get_scale (HYSCAN_GTK_GLIKO (gliko));
+          hyscan_gtk_gliko_set_scale (HYSCAN_GTK_GLIKO (gliko), 0.875 * f);
         }
     }
   if (event->direction == GDK_SCROLL_DOWN)
     {
       if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
         {
-          f = hyscan_gtk_gliko_get_contrast (HYSCAN_GTK_GLIKO (widget));
+          f = hyscan_gtk_gliko_get_contrast (HYSCAN_GTK_GLIKO (gliko));
           f -= 0.01;
           if (f < -1.0)
             {
               f = -1.0;
             }
-          hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (widget), f);
+          hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (gliko), f);
           update_title ();
         }
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_SHIFT_MASK)
         {
-          f = hyscan_gtk_gliko_get_brightness (HYSCAN_GTK_GLIKO (widget));
-          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (widget), f - 0.05);
+          f = hyscan_gtk_gliko_get_brightness (HYSCAN_GTK_GLIKO (gliko));
+          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (gliko), f - 0.05);
           update_title ();
         }
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == (GDK_CONTROL_MASK | GDK_SHIFT_MASK))
         {
-          f = hyscan_gtk_gliko_get_gamma_value (HYSCAN_GTK_GLIKO (widget));
-          hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (widget), f + 0.01);
+          f = hyscan_gtk_gliko_get_gamma_value (HYSCAN_GTK_GLIKO (gliko));
+          hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (gliko), f + 0.01);
           update_title ();
         }
       else
         {
-          f = hyscan_gtk_gliko_get_scale (HYSCAN_GTK_GLIKO (widget));
-          hyscan_gtk_gliko_set_scale (HYSCAN_GTK_GLIKO (widget), 1.125 * f);
+          f = hyscan_gtk_gliko_get_scale (HYSCAN_GTK_GLIKO (gliko));
+          hyscan_gtk_gliko_set_scale (HYSCAN_GTK_GLIKO (gliko), 1.125 * f);
           update_title ();
         }
     }
@@ -247,10 +255,15 @@ main (int argc,
   gamma_value = CLAMP (gamma_value, 0.0, 2.0);
 
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+  overlay = gtk_overlay_new ();
+  label = gtk_label_new ("");
   gliko = hyscan_gtk_gliko_new ();
-  gtk_container_add (GTK_CONTAINER (window), gliko);
 
-  gtk_widget_set_events (gliko,
+  gtk_container_add (GTK_CONTAINER (window), overlay);
+  gtk_overlay_add_overlay (GTK_OVERLAY (overlay), gliko);
+  gtk_overlay_add_overlay (GTK_OVERLAY (overlay), label);
+
+  gtk_widget_set_events (overlay,
                          GDK_EXPOSURE_MASK |
                              GDK_BUTTON_PRESS_MASK |
                              GDK_BUTTON_RELEASE_MASK |
@@ -258,10 +271,10 @@ main (int argc,
                              GDK_SCROLL_MASK);
 
   g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
-  g_signal_connect (gliko, "button_press_event", G_CALLBACK (button_cb), NULL);
-  g_signal_connect (gliko, "button_release_event", G_CALLBACK (button_cb), NULL);
-  g_signal_connect (gliko, "motion_notify_event", G_CALLBACK (motion_cb), NULL);
-  g_signal_connect (gliko, "scroll_event", G_CALLBACK (scroll_cb), NULL);
+  g_signal_connect (overlay, "button_press_event", G_CALLBACK (button_cb), NULL);
+  g_signal_connect (overlay, "button_release_event", G_CALLBACK (button_cb), NULL);
+  g_signal_connect (overlay, "motion_notify_event", G_CALLBACK (motion_cb), NULL);
+  g_signal_connect (overlay, "scroll_event", G_CALLBACK (scroll_cb), NULL);
 
   /* Подключение к базе данных. */
   db = hyscan_db_new (db_uri);
