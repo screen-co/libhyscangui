@@ -1,3 +1,25 @@
+/*
+Программа тестирования индикатора кругового обзора
+
+Параметры командной строки для просмотра данных, предварительно
+сгенерированных программой "gen-gliko-test-data":
+
+./gtk-gliko-test -d file:///tmp/ko -p testko -t testko -n 1024
+
+
+Управление параметрами просмотра в программе:
+
+- изменение масштаба - вращение колесика мыши;
+- исходный масштаб/центр - нажатие колесика мыши;
+- изменение центра - левая кнопка мыши + перемещение;
+- изменение контрастности - клавиша "Ctrl" + вращение колесика мыши;
+- исходная контрастность - клавиша "Ctrl" + нажатие колесика мыши
+- изменение яркости - клавиша "Shift" + вращение колесика мыши;
+- исходная яркость - клавиша "Shift" + нажатие колесика мыши.
+- изменение нелинейности - одновременное нажатие клавиш "Ctrl" и "Shift" + вращение колесика мыши;
+- сброс нелинейности - одновременное нажатие клавиш "Ctrl" и "Shift" + нажатие колесика мыши.
+*/
+
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -191,6 +213,7 @@ main (int argc,
   gdouble white_point = 1.0;
   gdouble black_point = 0.0;
   gdouble gamma_value = 1.0;
+  gint32 angular_source = 1;
   guint32 color1 = 0xFF00FF80;
   guint32 color2 = 0xFFFF8000;
   guint32 background = 0x00404040;
@@ -205,6 +228,7 @@ main (int argc,
         {
           { "db", 'd', 0, G_OPTION_ARG_STRING, &db_uri, "DB uri", NULL },
           { "project", 'p', 0, G_OPTION_ARG_STRING, &project_name, "Project name", NULL },
+          { "angular", 'a', 0, G_OPTION_ARG_INT, &angular_source, "Angular source channel's number (default 1)", NULL },
           { "track", 't', 0, G_OPTION_ARG_STRING, &track_name, "Track name", NULL },
           { "starboard", 's', 0, G_OPTION_ARG_STRING, &source_name1, "Starboard name", NULL },
           { "port", 'r', 0, G_OPTION_ARG_STRING, &source_name2, "Port name", NULL },
@@ -287,6 +311,7 @@ main (int argc,
   hyscan_gtk_gliko_set_colormap (HYSCAN_GTK_GLIKO (gliko), 0, &color1, 1, background);
   hyscan_gtk_gliko_set_colormap (HYSCAN_GTK_GLIKO (gliko), 1, &color2, 1, background);
 
+  hyscan_gtk_gliko_set_angular_source (HYSCAN_GTK_GLIKO (gliko), angular_source);
   hyscan_gtk_gliko_set_source_name (HYSCAN_GTK_GLIKO (gliko), 0, source_name1);
   hyscan_gtk_gliko_set_source_name (HYSCAN_GTK_GLIKO (gliko), 1, source_name2);
   hyscan_gtk_gliko_set_rotation (HYSCAN_GTK_GLIKO (gliko), 0.0);
