@@ -9,37 +9,38 @@ $ ./gen-ko-data file:///tmp/ko
 
 */
 
-#include <hyscan-nmea-data.h>
-#include <hyscan-data-writer.h>
-#include <hyscan-cached.h>
-#include <string.h>
-#include <math.h>
 #include <glib/gprintf.h>
+#include <hyscan-cached.h>
+#include <hyscan-data-writer.h>
+#include <hyscan-nmea-data.h>
+#include <math.h>
+#include <string.h>
 
-#define SENSOR_NAME    "rotation"
+#define SENSOR_NAME "rotation"
 #define SENSOR_CHANNEL 1
 
 //#define DATA_SIZE (8192+4096)
 #define DATA_SIZE (22000)
 
-gdouble rotation_value( const gint64 t, const gdouble speed, const gdouble range );
-void nmea_rotation( char *buf, size_t *size, const gdouble value, const char *name );
-void acoustic_get_info ( HyScanAcousticDataInfo *info, const guint n_channel);
-void acoustic_samples( guint16 *d, const size_t n, const guint n_channel, const gint64 t, const gdouble rpm, int *f );
+gdouble rotation_value (const gint64 t, const gdouble speed, const gdouble range);
+void nmea_rotation (char *buf, size_t *size, const gdouble value, const char *name);
+void acoustic_get_info (HyScanAcousticDataInfo *info, const guint n_channel);
+void acoustic_samples (guint16 *d, const size_t n, const guint n_channel, const gint64 t, const gdouble rpm, int *f);
 
-int main (int argc, char **argv)
+int
+main (int argc, char **argv)
 {
-  GError                 *error;
-  gchar                  *db_uri = "file:///tmp/";
-  gchar                  *name = "testko";
-  HyScanDB               *db;
+  GError *error;
+  gchar *db_uri = "file:///tmp/";
+  gchar *name = "testko";
+  HyScanDB *db;
 
   /* Запись данных. */
-  HyScanBuffer           *rbuffer;
-  HyScanBuffer           *sbuffer;
-  HyScanBuffer           *pbuffer;
-  HyScanDataWriter       *writer;
-  HyScanAntennaOffset     offset = {0};
+  HyScanBuffer *rbuffer;
+  HyScanBuffer *sbuffer;
+  HyScanBuffer *pbuffer;
+  HyScanDataWriter *writer;
+  HyScanAntennaOffset offset = { 0 };
 
   gint i;
 
@@ -63,13 +64,13 @@ int main (int argc, char **argv)
     error = NULL;
     GOptionContext *context;
     GOptionEntry entries[] = {
-      {"rotation", 0, 0, G_OPTION_ARG_DOUBLE, &degrees_per_sec, "Rotation speed, degrees per second (default 5)", NULL},
-      {"range", 0, 0, G_OPTION_ARG_DOUBLE, &degrees_range, "Scan from -range to +range, degrees (default 90)", NULL},
-      {"rotate-sensor-sample", 0, 0, G_OPTION_ARG_DOUBLE, &rotate_sensor_sample, "Rotate sensor sample period, s (default 0.1)", NULL},
-      {"scan-period", 0, 0, G_OPTION_ARG_DOUBLE, &scan_period, "Scan period, s (default 0.25)", NULL},
-      {"full-time", 0, 0, G_OPTION_ARG_DOUBLE, &full_time, "Full time of simulation, s (default 180)", NULL},
-      {"verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose, "Be verbose", NULL},
-      {NULL}
+      { "rotation", 0, 0, G_OPTION_ARG_DOUBLE, &degrees_per_sec, "Rotation speed, degrees per second (default 5)", NULL },
+      { "range", 0, 0, G_OPTION_ARG_DOUBLE, &degrees_range, "Scan from -range to +range, degrees (default 90)", NULL },
+      { "rotate-sensor-sample", 0, 0, G_OPTION_ARG_DOUBLE, &rotate_sensor_sample, "Rotate sensor sample period, s (default 0.1)", NULL },
+      { "scan-period", 0, 0, G_OPTION_ARG_DOUBLE, &scan_period, "Scan period, s (default 0.25)", NULL },
+      { "full-time", 0, 0, G_OPTION_ARG_DOUBLE, &full_time, "Full time of simulation, s (default 180)", NULL },
+      { "verbose", 'v', 0, G_OPTION_ARG_NONE, &verbose, "Be verbose", NULL },
+      { NULL }
     };
 
 #ifdef G_OS_WIN32
@@ -124,11 +125,11 @@ int main (int argc, char **argv)
   time0 = 0; //g_get_real_time();
 
   if (!hyscan_data_writer_start (writer, name, name, HYSCAN_TRACK_SURVEY, NULL, time0))
-  {
-    hyscan_db_project_remove( db, name );
-    if (!hyscan_data_writer_start (writer, name, name, HYSCAN_TRACK_SURVEY, NULL, time0))
-      g_error ("can't start write");
-  }
+    {
+      hyscan_db_project_remove (db, name);
+      if (!hyscan_data_writer_start (writer, name, name, HYSCAN_TRACK_SURVEY, NULL, time0))
+        g_error ("can't start write");
+    }
 
   /* Смещение приёмных антенн. */
   hyscan_data_writer_sensor_set_offset (writer, SENSOR_NAME, &offset);
@@ -144,74 +145,75 @@ int main (int argc, char **argv)
   data_values = g_new (guint16, DATA_SIZE);
 
   /* параметры формирования данных */
-  rlim = (gint64)( 1000000.0 * rotate_sensor_sample );
-  slim = (gint64)( 1000000.0 * scan_period );
-  tlim = (gint64)( 1000000.0 * full_time );
+  rlim = (gint64) (1000000.0 * rotate_sensor_sample);
+  slim = (gint64) (1000000.0 * scan_period);
+  tlim = (gint64) (1000000.0 * full_time);
 
   rcount = rlim;
   scount = slim;
 
   /* формирование данных с шагом 1 мкс */
-  for (i = 0, tcount = 0; tcount <= tlim; tcount++ )
+  for (i = 0, tcount = 0; tcount <= tlim; tcount++)
     {
       // период формирования данных от датчика поворота
-      if( rcount == rlim )
-      {
-        char tmp[256];
-        size_t s = sizeof( tmp );
-
-        nmea_rotation( tmp, &s, rotation_value( tcount, degrees_per_sec, degrees_range ), "HYRA" );
-
-        i++;
-        rcount = 0;
-
-        hyscan_buffer_wrap (rbuffer, HYSCAN_DATA_BLOB, tmp, strlen (tmp));
-        hyscan_data_writer_sensor_add_data (writer, SENSOR_NAME, HYSCAN_SOURCE_NMEA,
-                                                  SENSOR_CHANNEL, time0 + tcount, rbuffer);
-
-        if( verbose )
+      if (rcount == rlim)
         {
-          printf( "%d.%06d %s\n", (int)(tcount / 1000000), (int)(tcount % 1000000), tmp );
+          char tmp[256];
+          size_t s = sizeof (tmp);
+
+          nmea_rotation (tmp, &s, rotation_value (tcount, degrees_per_sec, degrees_range), "HYRA");
+
+          i++;
+          rcount = 0;
+
+          hyscan_buffer_wrap (rbuffer, HYSCAN_DATA_BLOB, tmp, strlen (tmp));
+          hyscan_data_writer_sensor_add_data (writer, SENSOR_NAME, HYSCAN_SOURCE_NMEA,
+                                              SENSOR_CHANNEL, time0 + tcount, rbuffer);
+
+          if (verbose)
+            {
+              printf ("%d.%06d %s\n", (int) (tcount / 1000000), (int) (tcount % 1000000), tmp);
+            }
         }
-      }
       rcount++;
 
       // период зондирования
-      if( scount == slim )
-      {
-        HyScanAcousticDataInfo acoustic_info;
-        int f;
-
-        scount = 0;
-
-        acoustic_get_info ( &acoustic_info, 1 );
-        acoustic_samples( data_values, DATA_SIZE, 1, tcount, 10.0, &f );
-        hyscan_buffer_wrap (sbuffer, HYSCAN_DATA_ADC14LE,
-                            data_values, DATA_SIZE * sizeof (guint16));
-        hyscan_data_writer_acoustic_add_data (writer, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, 1, FALSE,
-                                                       time0 + tcount, &acoustic_info, sbuffer);
-
-        acoustic_get_info ( &acoustic_info, 2 );
-        acoustic_samples( data_values, DATA_SIZE, 2, tcount, 10.0, &f );
-        hyscan_buffer_wrap (pbuffer, HYSCAN_DATA_ADC14LE,
-                            data_values, DATA_SIZE * sizeof (guint16));
-        hyscan_data_writer_acoustic_add_data (writer, HYSCAN_SOURCE_SIDE_SCAN_PORT, 1, FALSE,
-                                                       time0 + tcount, &acoustic_info, pbuffer);
-        if( verbose )
+      if (scount == slim)
         {
-          printf( "%d.%06d acoustic data %s\n", (int)(tcount / 1000000), (int)(tcount % 1000000), f ? "full": "" );
+          HyScanAcousticDataInfo acoustic_info;
+          int f;
+
+          scount = 0;
+
+          acoustic_get_info (&acoustic_info, 1);
+          acoustic_samples (data_values, DATA_SIZE, 1, tcount, 10.0, &f);
+          hyscan_buffer_wrap (sbuffer, HYSCAN_DATA_ADC14LE,
+                              data_values, DATA_SIZE * sizeof (guint16));
+          hyscan_data_writer_acoustic_add_data (writer, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, 1, FALSE,
+                                                time0 + tcount, &acoustic_info, sbuffer);
+
+          acoustic_get_info (&acoustic_info, 2);
+          acoustic_samples (data_values, DATA_SIZE, 2, tcount, 10.0, &f);
+          hyscan_buffer_wrap (pbuffer, HYSCAN_DATA_ADC14LE,
+                              data_values, DATA_SIZE * sizeof (guint16));
+          hyscan_data_writer_acoustic_add_data (writer, HYSCAN_SOURCE_SIDE_SCAN_PORT, 1, FALSE,
+                                                time0 + tcount, &acoustic_info, pbuffer);
+          if (verbose)
+            {
+              printf ("%d.%06d acoustic data %s\n", (int) (tcount / 1000000), (int) (tcount % 1000000), f ? "full" : "");
+            }
         }
-      }
       scount++;
     }
 
   /* останавливаем запись */
-  hyscan_data_writer_stop (writer);  
+  hyscan_data_writer_stop (writer);
 
   return 0;
 }
 
-gdouble rotation_value( const gint64 t, const gdouble speed, const gdouble range )
+gdouble
+rotation_value (const gint64 t, const gdouble speed, const gdouble range)
 {
   double a, b, c, d;
 
@@ -219,45 +221,49 @@ gdouble rotation_value( const gint64 t, const gdouble speed, const gdouble range
   b = 4.0 * range / speed;
 
   // фаза движения
-  c = fmod( 0.000001 * t + 0.25 * b, b );
+  c = fmod (0.000001 * t + 0.25 * b, b);
 
   // полупериод качания привода
-  d  = 0.5 * b;
+  d = 0.5 * b;
 
   // в первом полупериоде вращение по часовой стрелке
-  if( c < d )
-  {
-    a = -range + 2.0 * range * c / d;
-  }
+  if (c < d)
+    {
+      a = -range + 2.0 * range * c / d;
+    }
   else
-  {
-    // а во втором полупериоде вращение против часовой стрелки
-    a = range - 2.0 * range * (c - d) / d;
-  }
+    {
+      // а во втором полупериоде вращение против часовой стрелки
+      a = range - 2.0 * range * (c - d) / d;
+    }
   return a;
 }
 
-void nmea_rotation( char *buf, size_t *size, const gdouble value, const char *name )
+void
+nmea_rotation (char *buf, size_t *size, const gdouble value, const char *name)
 {
   size_t j, k;
   int s;
 
-  bzero( buf, *size );
-  snprintf( buf, *size - 1, "$%s,%.3lf", name, value );
-  if( buf[ *size ] != 0 ) return;
-  k = strlen( buf + 1 );
-  if( (k + 4) > *size ) return;
-  for( j = 0, s = 0; j < k; j++ )
-  {
-    s ^= buf[1+j];
-  }
-  snprintf( buf + k + 1, *size - k - 2, "*%02X", s & 0xFF );
-  *size = strlen( buf );
+  bzero (buf, *size);
+  snprintf (buf, *size - 1, "$%s,%.3lf", name, value);
+  if (buf[*size] != 0)
+    return;
+  k = strlen (buf + 1);
+  if ((k + 4) > *size)
+    return;
+  for (j = 0, s = 0; j < k; j++)
+    {
+      s ^= buf[1 + j];
+    }
+  snprintf (buf + k + 1, *size - k - 2, "*%02X", s & 0xFF);
+  *size = strlen (buf);
 }
 
-void acoustic_get_info ( HyScanAcousticDataInfo *info, const guint n_channel)
+void
+acoustic_get_info (HyScanAcousticDataInfo *info, const guint n_channel)
 {
-  info->data_type = HYSCAN_DATA_ADC14LE;// + ((n_channel-1) % 2);
+  info->data_type = HYSCAN_DATA_ADC14LE; // + ((n_channel-1) % 2);
   info->data_rate = 1000.0 * n_channel;
 
   info->signal_frequency = 1.0 * n_channel;
@@ -274,9 +280,10 @@ void acoustic_get_info ( HyScanAcousticDataInfo *info, const guint n_channel)
   info->adc_offset = 10 * n_channel;
 }
 
-void acoustic_samples( guint16 *d, const size_t n, const guint n_channel, const gint64 t, const gdouble rpm, int *f )
+void
+acoustic_samples (guint16 *d, const size_t n, const guint n_channel, const gint64 t, const gdouble rpm, int *f)
 {
-  static gint64 r = 0;     // прохождение 30 градусов
+  static gint64 r = 0; // прохождение 30 градусов
   static size_t k = 0;
   size_t i, j;
   const int z = (1 << 13);
@@ -288,32 +295,32 @@ void acoustic_samples( guint16 *d, const size_t n, const guint n_channel, const 
   *f = 0;
 
   // каждые 30 градусов засвечиваем всю строку
-  if( t >= r )
-  {
-    r += (gint64)(60000000.0 / (12.0 * rpm));
-    c += (a >> 2);
-    *f = 1;
-  }
+  if (t >= r)
+    {
+      r += (gint64) (60000000.0 / (12.0 * rpm));
+      c += (a >> 2);
+      *f = 1;
+    }
 
-  for( i = 0; i < n; i++ )
-  {
-    d[i] = c;
-  }
+  for (i = 0; i < n; i++)
+    {
+      d[i] = c;
+    }
   i = (n >> 1);
   j = (n >> 2);
-  d[ n - 1 ] = z + a;
+  d[n - 1] = z + a;
   d[i] = z + a;
-  d[i + 5 + (k&1) ] = z + a;
-  d[i-k] = z + a;
-  if( n_channel == 1 )
-  {
-    d[i-j-1] = z + a;
-    d[i-j+1] = z + a;
-  }
-  if( n_channel == 2 )
-  {
-    d[i+j-1] = z + a;
-    d[i+j+1] = z + a;
-  }
+  d[i + 5 + (k & 1)] = z + a;
+  d[i - k] = z + a;
+  if (n_channel == 1)
+    {
+      d[i - j - 1] = z + a;
+      d[i - j + 1] = z + a;
+    }
+  if (n_channel == 2)
+    {
+      d[i + j - 1] = z + a;
+      d[i + j + 1] = z + a;
+    }
   k++;
 }

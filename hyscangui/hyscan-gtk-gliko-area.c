@@ -113,21 +113,19 @@ struct _HyScanGtkGlikoAreaPrivate
   int data1_loc, data2_loc, beam1_loc, beam2_loc, fade1_loc, fade2_loc;
 };
 
-static void    hyscan_gtk_gliko_area_interface_init     (HyScanGtkGlikoLayerInterface *iface);
-static void    hyscan_gtk_gliko_area_set_property       (GObject                *object,
-                                                         guint                   prop_id,
-                                                         const GValue           *value,
-                                                         GParamSpec             *pspec);
-static void    hyscan_gtk_gliko_area_get_property       (GObject                *object,
-                                                         guint                   prop_id,
-                                                         GValue                 *value,
-                                                         GParamSpec             *pspec);
-static void    hyscan_gtk_gliko_area_object_constructed (GObject                *object);
-static void    hyscan_gtk_gliko_area_object_finalize    (GObject                *object);
+static void hyscan_gtk_gliko_area_interface_init (HyScanGtkGlikoLayerInterface *iface);
+static void hyscan_gtk_gliko_area_set_property (GObject *object,
+                                                guint prop_id,
+                                                const GValue *value,
+                                                GParamSpec *pspec);
+static void hyscan_gtk_gliko_area_get_property (GObject *object,
+                                                guint prop_id,
+                                                GValue *value,
+                                                GParamSpec *pspec);
+static void hyscan_gtk_gliko_area_object_constructed (GObject *object);
+static void hyscan_gtk_gliko_area_object_finalize (GObject *object);
 
-G_DEFINE_TYPE_WITH_CODE (HyScanGtkGlikoArea, hyscan_gtk_gliko_area, G_TYPE_OBJECT,
-                         G_ADD_PRIVATE (HyScanGtkGlikoArea)
-                         G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_GLIKO_LAYER, hyscan_gtk_gliko_area_interface_init))
+G_DEFINE_TYPE_WITH_CODE (HyScanGtkGlikoArea, hyscan_gtk_gliko_area, G_TYPE_OBJECT, G_ADD_PRIVATE (HyScanGtkGlikoArea) G_IMPLEMENT_INTERFACE (HYSCAN_TYPE_GTK_GLIKO_LAYER, hyscan_gtk_gliko_area_interface_init))
 
 static GParamSpec *obj_properties[N_PROPERTIES] = { NULL };
 
@@ -914,7 +912,8 @@ hyscan_gtk_gliko_area_object_finalize (GObject *object)
       p->buf[0][0] = NULL;
     }
 
-  G_OBJECT_CLASS (hyscan_gtk_gliko_area_parent_class)->finalize (object);
+  G_OBJECT_CLASS (hyscan_gtk_gliko_area_parent_class)
+      ->finalize (object);
 }
 
 static float *
