@@ -267,7 +267,7 @@ hyscan_gtk_map_profile_switch_param_apply (HyScanGtkMapProfileSwitch *profile_sw
 
   hyscan_gtk_param_apply (HYSCAN_GTK_PARAM (priv->profile_param));
 
-  user_dir = hyscan_config_get_user_files_dir ();
+  user_dir = hyscan_config_get_user_dir ();
   if (user_dir == NULL)
     return;
 
@@ -477,14 +477,14 @@ hyscan_gtk_map_profile_switch_new (HyScanGtkMap *map,
  * @profile_switch: указатель на #HyScanGtkMapProfileSwitch
  *
  * Функция загружает список профилей карты из каталогов для поиска профилей,
- * указанных в hyscan_config_get_profile_dirs().
+ * указанных в hyscan_config_get_user_dir().
  */
 void
 hyscan_gtk_map_profile_switch_load_config (HyScanGtkMapProfileSwitch *profile_switch)
 {
   HyScanGtkMapProfileSwitchPrivate *priv;
   HyScanProfileMap *default_profile;
-  const gchar **dirs;
+  gchar *dir;
   gint i;
 
   g_return_if_fail (HYSCAN_IS_GTK_MAP_PROFILE_SWITCH (profile_switch));
@@ -496,16 +496,10 @@ hyscan_gtk_map_profile_switch_load_config (HyScanGtkMapProfileSwitch *profile_sw
   g_object_unref (default_profile);
 
   /* Загружаем профили из папок для поиска профилей. */
-  dirs = hyscan_config_get_profile_dirs ();
-  for (i = 0; dirs[i] != NULL; i++)
-    {
-      gchar *profile_dir;
+  dir = g_build_filename (hyscan_config_get_user_dir (), PROFILE_DIR, NULL);
+  hyscan_gtk_map_profile_load_dir (profile_switch, dir);
 
-      profile_dir = g_build_filename (dirs[i], PROFILE_DIR, NULL);
-      hyscan_gtk_map_profile_load_dir (profile_switch, profile_dir);
-
-      g_free (profile_dir);
-    }
+  g_free (dir);
 
   hyscan_gtk_map_profile_switch_set_id (profile_switch, PROFILE_DEFAULT_ID);
 }
@@ -645,7 +639,7 @@ hyscan_gtk_map_profile_switch_set_cache_dir (HyScanGtkMapProfileSwitch *profile_
 
   g_return_if_fail (HYSCAN_IS_GTK_MAP_PROFILE_SWITCH (profile_switch));
   priv = profile_switch->priv;
-  
+
   g_free (priv->cache_dir);
   priv->cache_dir = g_strdup (cache_dir);
 
