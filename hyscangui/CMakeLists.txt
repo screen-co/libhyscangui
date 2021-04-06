@@ -139,7 +139,8 @@ target_link_libraries (${HYSCAN_GUI_LIBRARY}
                        ${GTKCIFROAREA_LIBRARIES}
                        ${LIBSOUP_LIBRARIES}
                        ${GDK_PIXBUF_LIBRARIES}
-                       ${GL_LIBRARIES})
+                       ${GL_LIBRARIES}
+                       ${MATH_LIBRARIES})
 
 target_link_libraries (${HYSCAN_GUI_LIBRARY} hyscan-gtk-gliko-area-files)
 

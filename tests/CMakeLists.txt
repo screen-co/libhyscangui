@@ -1,7 +1,8 @@
 set (TEST_LIBRARIES ${GTK3_LIBRARIES}
                     ${LIBXML2_LIBRARIES}
                     ${HYSCAN_LIBRARIES}
-                    ${HYSCAN_GUI_LIBRARY})
+                    ${HYSCAN_GUI_LIBRARY}
+                    ${MATH_LIBRARIES})
 
 add_executable (gtk-area-test gtk-area-test.c)
 add_executable (waterfall-plus waterfall-plus.c)
