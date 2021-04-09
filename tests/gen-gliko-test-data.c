@@ -14,6 +14,7 @@ $ ./gen-ko-data file:///tmp/ko
 #include <hyscan-data-writer.h>
 #include <hyscan-nmea-data.h>
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
 #if defined (_MSC_VER)

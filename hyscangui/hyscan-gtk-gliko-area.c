@@ -415,14 +415,15 @@ init_textures (HyScanGtkGlikoAreaPrivate *p)
 
           glBindTexture (GL_TEXTURE_2D_ARRAY, p->tex[k][i]);
           //glTexStorage3D (GL_TEXTURE_2D_ARRAY, 1, GL_R32F, TEX_SIZE, TEX_SIZE, p->tna * p->tnd[i]);
-		  glTexImage3D (GL_TEXTURE_2D_ARRAY, 0, GL_R32F, TEX_SIZE, TEX_SIZE, p->tna * p->tnd[i], 0, GL_RED, GL_FLOAT, NULL);
+          glPixelStorei (GL_UNPACK_ROW_LENGTH, j * sizeof (sample_t));
+          glTexImage3D (GL_TEXTURE_2D_ARRAY, 0, GL_R32F, TEX_SIZE, TEX_SIZE, p->tna * p->tnd[i], 0, GL_RED, GL_FLOAT, NULL);
           glTexParameteri (GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BASE_LEVEL, 0);
           glTexParameteri (GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, 0);
           glTexParameteri (GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
           glTexParameteri (GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
           //glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP);
           //glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_REPEAT);
-          glPixelStorei (GL_UNPACK_ROW_LENGTH, j * sizeof (sample_t));
+          //glPixelStorei (GL_UNPACK_ROW_LENGTH, j * sizeof (sample_t));
           for (ia = 0; ia < p->tna; ia++)
             {
               for (id = 0; id < p->tnd[i]; id++)
@@ -439,23 +440,29 @@ init_textures (HyScanGtkGlikoAreaPrivate *p)
         }
       glBindTexture (GL_TEXTURE_1D_ARRAY, p->tex_beam[k]);
       //glTexStorage2D (GL_TEXTURE_1D_ARRAY, 1, GL_R32F, TEX_SIZE, p->tna);
-	  glTexImage2D(GL_TEXTURE_1D_ARRAY, 0, GL_R32F, TEX_SIZE, p->tna, 0, GL_FLOAT, GL_RED, NULL);
       glPixelStorei (GL_UNPACK_ROW_LENGTH, (1 << p->nd_bits) * sizeof (sample_t));
+      glTexImage2D(GL_TEXTURE_1D_ARRAY, 0, GL_R32F, TEX_SIZE, p->tna, 0, GL_RED, GL_FLOAT, NULL);
+      glTexParameteri (GL_TEXTURE_1D_ARRAY, GL_TEXTURE_BASE_LEVEL, 0);
+      glTexParameteri (GL_TEXTURE_1D_ARRAY, GL_TEXTURE_MAX_LEVEL, 0);
+      glTexParameteri (GL_TEXTURE_1D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTexParameteri (GL_TEXTURE_1D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
       for (ia = 0; ia < p->tna; ia++)
         {
           glTexSubImage2D (GL_TEXTURE_1D_ARRAY, 0, 0, ia, TEX_SIZE, 1, GL_RED, GL_FLOAT, p->beam[k] + ia * TEX_SIZE);
         }
-      glTexParameteri (GL_TEXTURE_1D, GL_TEXTURE_MAX_LEVEL, 0);
       glBindTexture (GL_TEXTURE_1D_ARRAY, p->tex_fade[k]);
-      //glTexStorage2D (GL_TEXTURE_1D_ARRAY, 1, GL_R32F, TEX_SIZE, p->tna);
-	  glTexImage2D(GL_TEXTURE_1D_ARRAY, 0, GL_R32F, TEX_SIZE, p->tna, 0, GL_RED, GL_FLOAT, NULL);
       glPixelStorei (GL_UNPACK_ROW_LENGTH, (1 << p->nd_bits) * sizeof (sample_t));
+      //glTexStorage2D (GL_TEXTURE_1D_ARRAY, 1, GL_R32F, TEX_SIZE, p->tna);
+      glTexImage2D(GL_TEXTURE_1D_ARRAY, 0, GL_R32F, TEX_SIZE, p->tna, 0, GL_RED, GL_FLOAT, NULL);
+      glTexParameteri (GL_TEXTURE_1D_ARRAY, GL_TEXTURE_BASE_LEVEL, 0);
+      glTexParameteri (GL_TEXTURE_1D_ARRAY, GL_TEXTURE_MAX_LEVEL, 0);
+      glTexParameteri (GL_TEXTURE_1D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTexParameteri (GL_TEXTURE_1D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
       for (ia = 0; ia < p->tna; ia++)
         {
           glTexSubImage2D (GL_TEXTURE_1D_ARRAY, 0, 0, ia, TEX_SIZE, 1, GL_RED, GL_FLOAT, p->fade[k] + ia * TEX_SIZE);
         }
     }
-  glTexParameteri (GL_TEXTURE_1D, GL_TEXTURE_MAX_LEVEL, 0);
   glerr ();
 }
 
