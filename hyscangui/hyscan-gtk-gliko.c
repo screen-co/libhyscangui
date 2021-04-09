@@ -41,6 +41,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include <hyscan-acoustic-data.h>
 #include <hyscan-data-player.h>

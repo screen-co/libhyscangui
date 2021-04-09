@@ -32,8 +32,12 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
+#if defined (_MSC_VER)
+#include <glad/glad.h>
+#else
 #define GL_GLEXT_PROTOTYPES
 #include <GL/gl.h>
+#endif
 
 #include <math.h>
 #include <stdlib.h>
@@ -410,7 +414,8 @@ init_textures (HyScanGtkGlikoAreaPrivate *p)
           p->tnd[i] = j / TEX_SIZE;
 
           glBindTexture (GL_TEXTURE_2D_ARRAY, p->tex[k][i]);
-          glTexStorage3D (GL_TEXTURE_2D_ARRAY, 1, GL_R32F, TEX_SIZE, TEX_SIZE, p->tna * p->tnd[i]);
+          //glTexStorage3D (GL_TEXTURE_2D_ARRAY, 1, GL_R32F, TEX_SIZE, TEX_SIZE, p->tna * p->tnd[i]);
+		  glTexImage3D (GL_TEXTURE_2D_ARRAY, 0, GL_R32F, TEX_SIZE, TEX_SIZE, p->tna * p->tnd[i], 0, GL_RED, GL_FLOAT, NULL);
           glTexParameteri (GL_TEXTURE_2D_ARRAY, GL_TEXTURE_BASE_LEVEL, 0);
           glTexParameteri (GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, 0);
           glTexParameteri (GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -433,7 +438,8 @@ init_textures (HyScanGtkGlikoAreaPrivate *p)
             }
         }
       glBindTexture (GL_TEXTURE_1D_ARRAY, p->tex_beam[k]);
-      glTexStorage2D (GL_TEXTURE_1D_ARRAY, 1, GL_R32F, TEX_SIZE, p->tna);
+      //glTexStorage2D (GL_TEXTURE_1D_ARRAY, 1, GL_R32F, TEX_SIZE, p->tna);
+	  glTexImage2D(GL_TEXTURE_1D_ARRAY, 0, GL_R32F, TEX_SIZE, p->tna, 0, GL_FLOAT, GL_RED, NULL);
       glPixelStorei (GL_UNPACK_ROW_LENGTH, (1 << p->nd_bits) * sizeof (sample_t));
       for (ia = 0; ia < p->tna; ia++)
         {
@@ -441,7 +447,8 @@ init_textures (HyScanGtkGlikoAreaPrivate *p)
         }
       glTexParameteri (GL_TEXTURE_1D, GL_TEXTURE_MAX_LEVEL, 0);
       glBindTexture (GL_TEXTURE_1D_ARRAY, p->tex_fade[k]);
-      glTexStorage2D (GL_TEXTURE_1D_ARRAY, 1, GL_R32F, TEX_SIZE, p->tna);
+      //glTexStorage2D (GL_TEXTURE_1D_ARRAY, 1, GL_R32F, TEX_SIZE, p->tna);
+	  glTexImage2D(GL_TEXTURE_1D_ARRAY, 0, GL_R32F, TEX_SIZE, p->tna, 0, GL_RED, GL_FLOAT, NULL);
       glPixelStorei (GL_UNPACK_ROW_LENGTH, (1 << p->nd_bits) * sizeof (sample_t));
       for (ia = 0; ia < p->tna; ia++)
         {

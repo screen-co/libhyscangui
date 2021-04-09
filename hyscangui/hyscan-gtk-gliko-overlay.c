@@ -32,8 +32,12 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
+#if defined (_MSC_VER)
+#include <glad/glad.h>
+#else
 #define GL_GLEXT_PROTOTYPES
 #include <GL/gl.h>
+#endif
 
 #include "hyscan-gtk-gliko-overlay.h"
 
@@ -111,6 +115,14 @@ on_realize (GtkGLArea *area)
 
   // Make current:
   gtk_gl_area_make_current (area);
+
+#if defined (_MSC_VER)
+  if (!gladLoadGL())
+  {
+	  g_error("gladLoadGLLoader failed");
+	  exit(1);
+  }
+#endif
 
   // Print version info:
   const GLubyte *renderer = glGetString (GL_RENDERER);

@@ -16,6 +16,10 @@ $ ./gen-ko-data file:///tmp/ko
 #include <math.h>
 #include <string.h>
 
+#if defined (_MSC_VER)
+#define bzero(a,b) memset(a,0,b)
+#endif
+
 #define SENSOR_NAME "rotation"
 #define SENSOR_CHANNEL 1
 
@@ -244,9 +248,12 @@ nmea_rotation (char *buf, size_t *size, const gdouble value, const char *name)
 {
   size_t j, k;
   int s;
+  int d;
+
+  d = (int)(value * 1000);
 
   bzero (buf, *size);
-  snprintf (buf, *size - 1, "$%s,%.3lf", name, value);
+  g_snprintf (buf, *size - 1, "$%s,%d.%03d", name, d / 1000, abs (d % 1000));
   if (buf[*size] != 0)
     return;
   k = strlen (buf + 1);
@@ -256,7 +263,7 @@ nmea_rotation (char *buf, size_t *size, const gdouble value, const char *name)
     {
       s ^= buf[1 + j];
     }
-  snprintf (buf + k + 1, *size - k - 2, "*%02X", s & 0xFF);
+  g_snprintf (buf + k + 1, *size - k - 2, "*%02X", s & 0xFF);
   *size = strlen (buf);
 }
 

@@ -32,8 +32,12 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
+#if defined( _MSC_VER )
+#include <glad/glad.h>
+#else
 #define GL_GLEXT_PROTOTYPES
 #include <GL/gl.h>
+#endif
 
 #include <math.h>
 #include <stdlib.h>
@@ -281,7 +285,7 @@ hyscan_gtk_gliko_grid_init (HyScanGtkGlikoGrid *grid)
 {
   HyScanGtkGlikoGridPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (grid, HYSCAN_TYPE_GTK_GLIKO_GRID, HyScanGtkGlikoGridPrivate);
   int i;
-  const float a = M_PI / 180.0f;
+  const float a = 0.01745329251994329576923690768489; // M_PI / 180.0f;
   float *line_vertices;
 
   /* Create cache for faster access */

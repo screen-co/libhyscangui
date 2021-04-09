@@ -121,6 +121,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-mark-manager-create-label-dialog.c
              hyscan-gtk-mark-manager-change-label-dialog.c
 
+             glad.c
              hyscan-gtk-gliko-minimal.c
              hyscan-gtk-gliko-layer.c
              hyscan-gtk-gliko-area.c
