@@ -158,6 +158,16 @@ main (int argc, char **argv)
   scount = slim;
 
   /* формирование данных с шагом 1 мкс */
+  {
+    HyScanAcousticDataInfo acoustic_info;
+
+    acoustic_get_info (&acoustic_info, 1);
+    hyscan_data_writer_acoustic_create (writer, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, 1, NULL, NULL, &acoustic_info);
+
+    acoustic_get_info (&acoustic_info, 2);
+    hyscan_data_writer_acoustic_create (writer, HYSCAN_SOURCE_SIDE_SCAN_PORT, 1, NULL, NULL, &acoustic_info);
+  }
+
   for (i = 0, tcount = 0; tcount <= tlim; tcount++)
     {
       // период формирования данных от датчика поворота
@@ -185,24 +195,22 @@ main (int argc, char **argv)
       // период зондирования
       if (scount == slim)
         {
-          HyScanAcousticDataInfo acoustic_info;
+          ///HyScanAcousticDataInfo acoustic_info;
           int f;
 
           scount = 0;
 
-          acoustic_get_info (&acoustic_info, 1);
           acoustic_samples (data_values, DATA_SIZE, 1, tcount, 10.0, &f);
           hyscan_buffer_wrap (sbuffer, HYSCAN_DATA_ADC14LE,
                               data_values, DATA_SIZE * sizeof (guint16));
           hyscan_data_writer_acoustic_add_data (writer, HYSCAN_SOURCE_SIDE_SCAN_STARBOARD, 1, FALSE,
-                                                time0 + tcount, &acoustic_info, sbuffer);
+                                                time0 + tcount, sbuffer);
 
-          acoustic_get_info (&acoustic_info, 2);
           acoustic_samples (data_values, DATA_SIZE, 2, tcount, 10.0, &f);
           hyscan_buffer_wrap (pbuffer, HYSCAN_DATA_ADC14LE,
                               data_values, DATA_SIZE * sizeof (guint16));
           hyscan_data_writer_acoustic_add_data (writer, HYSCAN_SOURCE_SIDE_SCAN_PORT, 1, FALSE,
-                                                time0 + tcount, &acoustic_info, pbuffer);
+                                                time0 + tcount, pbuffer);
           if (verbose)
             {
               printf ("%d.%06d acoustic data %s\n", (int) (tcount / 1000000), (int) (tcount % 1000000), f ? "full" : "");
