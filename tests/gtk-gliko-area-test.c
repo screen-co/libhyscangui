@@ -50,12 +50,6 @@ update_timeout (gpointer iko)
 }
 
 static void
-destroy_timeout (GtkWidget *widget, gpointer pv)
-{
-  g_source_remove (*((guint *) pv));
-}
-
-static void
 destroy_cb(GtkWidget *widget, gpointer user_data)
 {
   g_source_remove( timer_id );
