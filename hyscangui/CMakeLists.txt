@@ -46,6 +46,10 @@ add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/hyscan-gtk-gliko-area.fra
                     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/hyscan-gtk-gliko-area.frag.c )
 add_library( hyscan-gtk-gliko-area-files ${CMAKE_CURRENT_BINARY_DIR}/hyscan-gtk-gliko-area.frag.content.c )
 
+if (MSVC)
+set (HYSCAN_GUI_GLAD_SOURCE glad.c)
+endif ()
+
 add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-area.c
              hyscan-gtk-waterfall-state.c
@@ -121,7 +125,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-mark-manager-create-label-dialog.c
              hyscan-gtk-mark-manager-change-label-dialog.c
 
-             glad.c
+             ${HYSCAN_GUI_GLAD_SOURCE}
              hyscan-gtk-gliko-minimal.c
              hyscan-gtk-gliko-layer.c
              hyscan-gtk-gliko-area.c

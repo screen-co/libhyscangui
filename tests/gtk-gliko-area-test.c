@@ -17,6 +17,7 @@ float contrast;
 float brightness;
 float fade_coef;
 sample_t *buffer;
+guint timer_id;
 
 static void
 fill_buffer (sample_t *buffer, const sample_t value, const int length)
@@ -54,6 +55,13 @@ destroy_timeout (GtkWidget *widget, gpointer pv)
   g_source_remove (*((guint *) pv));
 }
 
+static void
+destroy_cb(GtkWidget *widget, gpointer user_data)
+{
+  g_source_remove( timer_id );
+  gtk_main_quit();
+}
+
 int
 main (int argc, char **argv)
 {
@@ -61,7 +69,6 @@ main (int argc, char **argv)
   GtkWidget *overlay;
   HyScanGtkGlikoArea *iko;
   HyScanGtkGlikoGrid *grid;
-  guint timer_id;
 
   num_azimuthes = 1024;
   iko_length = 1024;
@@ -72,7 +79,7 @@ main (int argc, char **argv)
   contrast = 0.0f;
   brightness = 0.0f;
   fade_coef = 0.98f;
-  buffer = g_malloc0 (iko_length * sizeof (unsigned char));
+  buffer = g_malloc0 (iko_length * sizeof (float));
 
   if (!gtk_init_check (&argc, &argv))
     {
@@ -101,13 +108,14 @@ main (int argc, char **argv)
   g_object_set (grid, "gliko-scale", scale, NULL);
 
   hyscan_gtk_gliko_area_init_dimension (HYSCAN_GTK_GLIKO_AREA (iko), num_azimuthes, iko_length);
-
+	
   gtk_container_add (GTK_CONTAINER (window), overlay);
   gtk_widget_set_events (overlay, GDK_EXPOSURE_MASK);
   timer_id = g_timeout_add (10, update_timeout, iko);
-  g_signal_connect (window, "destroy", G_CALLBACK (destroy_timeout), &timer_id);
-  g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
-  gtk_widget_show_all (window);
+  g_signal_connect(window, "destroy", G_CALLBACK(destroy_cb), NULL);
+  gtk_widget_show_all(window);
   gtk_main ();
+  fill_buffer(buffer, 0.5f, iko_length);
+  g_free(buffer);
   return EXIT_SUCCESS;
 }

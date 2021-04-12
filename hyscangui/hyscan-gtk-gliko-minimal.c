@@ -197,16 +197,12 @@ on_render (GtkGLArea *area, GdkGLContext *context)
 
   p = G_TYPE_INSTANCE_GET_PRIVATE (area, HYSCAN_TYPE_GTK_GLIKO_MINIMAL, HyScanGtkGlikoMinimalPrivate);
 
+  glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
   glClearColor (0.2f, 0.3f, 0.3f, 1.0f);
   glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   // uncomment this call to draw in wireframe polygons.
   //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-  // render
-  // ------
-  glClearColor (0.2f, 0.3f, 0.3f, 1.0f);
-  glClear (GL_COLOR_BUFFER_BIT);
 
   if (p->program == -1)
     return TRUE;
@@ -216,6 +212,13 @@ on_render (GtkGLArea *area, GdkGLContext *context)
   //glDrawArrays( GL_TRIANGLES, 0, 3 );
   glDrawElements (GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
   // glBindVertexArray(0); // no need to unbind it every time
+
+  if (gtk_gl_area_get_has_alpha (area))
+    {
+      glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
+      glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+      glClear(GL_COLOR_BUFFER_BIT);
+    }
 
   return TRUE;
 }
@@ -237,8 +240,9 @@ on_realize (GtkGLArea *area)
   if (!gladLoadGL())
   {
 	  g_error("gladLoadGLLoader failed");
-	  exit(1);
   }
+  gtk_gl_area_set_has_alpha (area, TRUE);
+
 #endif
 
   // Print version info:

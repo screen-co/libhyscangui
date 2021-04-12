@@ -43,6 +43,7 @@ static gint32 num_azimuthes = 1024;
 static int center_move = 0;
 static gdouble sxc0 = 0.f, syc0 = 0.f;
 static gdouble mx0 = 0.f, my0 = 0.f;
+static gdouble delta = 0.01f;
 
 static void
 update_title ()
@@ -134,7 +135,7 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
       if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
         {
           f = hyscan_gtk_gliko_get_contrast (HYSCAN_GTK_GLIKO (gliko));
-          f += 0.01;
+          f += delta;
           if (f > 1.0)
             {
               f = 1.0;
@@ -145,7 +146,7 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_SHIFT_MASK)
         {
           f = hyscan_gtk_gliko_get_brightness (HYSCAN_GTK_GLIKO (gliko));
-          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (gliko), f + 0.05);
+          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (gliko), f + 5.0 * delta);
           update_title ();
         }
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == (GDK_CONTROL_MASK | GDK_SHIFT_MASK))
@@ -170,7 +171,7 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
       if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
         {
           f = hyscan_gtk_gliko_get_contrast (HYSCAN_GTK_GLIKO (gliko));
-          f -= 0.01;
+          f -= delta;
           if (f < -1.0)
             {
               f = -1.0;
@@ -181,7 +182,7 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_SHIFT_MASK)
         {
           f = hyscan_gtk_gliko_get_brightness (HYSCAN_GTK_GLIKO (gliko));
-          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (gliko), f - 0.05);
+          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (gliko), f - 5.0 * delta);
           update_title ();
         }
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == (GDK_CONTROL_MASK | GDK_SHIFT_MASK))
@@ -277,6 +278,8 @@ main (int argc,
   white_point = CLAMP (white_point, 0.0, 1.0);
   black_point = CLAMP (black_point, 0.0, 1.0);
   gamma_value = CLAMP (gamma_value, 0.0, 2.0);
+
+  //delta = 0.1 * (white_point - black_point);
 
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   overlay = gtk_overlay_new ();

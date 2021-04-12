@@ -560,7 +560,7 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
     }
   if (contrast > 0.0f)
     {
-      contrast = 1.f / (1.0f - 0.9999f * sqrtf (sqrtf (contrast)));
+      contrast = 1.f / (1.0f - 0.9999f * contrast);
     }
   else
     {
