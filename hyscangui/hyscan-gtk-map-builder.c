@@ -1002,6 +1002,13 @@ hyscan_gtk_map_builder_new (HyScanGtkModelManager *model_manager)
                        NULL);
 }
 
+HyScanMapTrackModel *
+hyscan_gtk_map_builder_get_track_model (HyScanGtkMapBuilder *builder)
+{
+  g_return_val_if_fail (HYSCAN_IS_GTK_MAP_BUILDER (builder), NULL);
+
+  return g_object_ref (builder->priv->track_model);
+}
 /**
  * hyscan_gtk_map_builder_set_offline:
  * @builder: указатель на #HyScanGtkMapBuilder

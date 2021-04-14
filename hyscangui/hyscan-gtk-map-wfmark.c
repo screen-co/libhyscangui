@@ -954,23 +954,24 @@ hyscan_gtk_map_wfmark_draw_mark (HyScanGtkMapWfmark         *wfm_layer,
       cairo_restore (cairo);
     }
 
-  {
-    /* Название метки. */
-    gint text_width, text_height;
+  if (location->mloc->mark->name != NULL)
+    {
+      /* Название метки. */
+      gint text_width, text_height;
 
-    pango_layout_set_text (priv->pango_layout, location->mloc->mark->name, -1);
-    pango_layout_get_size (priv->pango_layout, &text_width, &text_height);
-    text_width /= PANGO_SCALE;
-    text_height /= PANGO_SCALE;
+      pango_layout_set_text (priv->pango_layout, location->mloc->mark->name, -1);
+      pango_layout_get_size (priv->pango_layout, &text_width, &text_height);
+      text_width /= PANGO_SCALE;
+      text_height /= PANGO_SCALE;
 
-    cairo_rectangle (cairo, -text_width / 2.0, new_height + text_height / 2.0, text_width, text_height);
-    gdk_cairo_set_source_rgba (cairo, &priv->color_bg);
-    cairo_fill (cairo);
+      cairo_rectangle (cairo, -text_width / 2.0, new_height + text_height / 2.0, text_width, text_height);
+      gdk_cairo_set_source_rgba (cairo, &priv->color_bg);
+      cairo_fill (cairo);
 
-    cairo_move_to (cairo, -text_width / 2.0, new_height + text_height / 2.0);
-    gdk_cairo_set_source_rgba (cairo, color);
-    pango_cairo_show_layout (cairo, priv->pango_layout);
-  }
+      cairo_move_to (cairo, -text_width / 2.0, new_height + text_height / 2.0);
+      gdk_cairo_set_source_rgba (cairo, color);
+      pango_cairo_show_layout (cairo, priv->pango_layout);
+    }
 
   cairo_restore (cairo);
 }

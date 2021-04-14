@@ -38,6 +38,7 @@
 #include <hyscan-gtk-map.h>
 #include <hyscan-control-model.h>
 #include <hyscan-gtk-model-manager.h>
+#include <hyscan-map-track-model.h>
 
 G_BEGIN_DECLS
 
@@ -69,6 +70,9 @@ GType                  hyscan_gtk_map_builder_get_type           (void);
 
 HYSCAN_API
 HyScanGtkMapBuilder *  hyscan_gtk_map_builder_new                (HyScanGtkModelManager     *model_manager);
+
+HYSCAN_API
+HyScanMapTrackModel *  hyscan_gtk_map_builder_get_track_model  (HyScanGtkMapBuilder       *builder);
 
 HYSCAN_API
 void                   hyscan_gtk_map_builder_set_offline        (HyScanGtkMapBuilder       *builder,
