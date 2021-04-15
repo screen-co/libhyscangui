@@ -357,8 +357,8 @@ player_open_callback (HyScanDataPlayer *player,
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (user_data, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
-  if (++p->player_open != 2)
-    return;
+  // if (++p->player_open != 2)
+    // return;
 
   initque (&p->alpha_que, p->alpha_que_buffer, sizeof (alpha_que_t), sizeof (p->alpha_que_buffer) / sizeof (p->alpha_que_buffer[0]));
 
