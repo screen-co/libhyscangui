@@ -41,10 +41,10 @@ add_custom_command (OUTPUT "${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshalle
 
 include_directories( ${CMAKE_CURRENT_BINARY_DIR} )
 
-# add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/hyscan-gtk-gliko-area.frag.content.c
-                    # COMMAND awk -f ${CMAKE_CURRENT_SOURCE_DIR}/hyscan-gtk-gliko-literal.awk -- ${CMAKE_CURRENT_SOURCE_DIR}/hyscan-gtk-gliko-area.frag.c >${CMAKE_CURRENT_BINARY_DIR}/hyscan-gtk-gliko-area.frag.content.c
-                    # DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/hyscan-gtk-gliko-area.frag.c )
-add_library( hyscan-gtk-gliko-area-files ${CMAKE_CURRENT_SOURCE_DIR}/hyscan-gtk-gliko-area.frag.content.c )
+add_custom_command( OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/hyscan-gtk-gliko-area.frag.content.c
+                    COMMAND awk -f ${CMAKE_CURRENT_SOURCE_DIR}/hyscan-gtk-gliko-literal.awk -- ${CMAKE_CURRENT_SOURCE_DIR}/hyscan-gtk-gliko-area.frag.c >${CMAKE_CURRENT_BINARY_DIR}/hyscan-gtk-gliko-area.frag.content.c
+                    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/hyscan-gtk-gliko-area.frag.c )
+add_library( hyscan-gtk-gliko-area-files ${CMAKE_CURRENT_BINARY_DIR}/hyscan-gtk-gliko-area.frag.content.c )
 
 if (MSVC)
 set (HYSCAN_GUI_GLAD_SOURCE glad.c)
