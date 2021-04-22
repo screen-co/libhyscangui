@@ -61,6 +61,8 @@ enum
   P_GAMMA,     // степень нелинейности 1=линейно
   P_ROTATE,    // поворот оси, 0..360
   P_FADE_COEF, // коэффициент затухания 0..1
+  P_REMAIN,    // коэффициент при перезаписи
+  P_DEPTH,     // глубина (номер отсчета дна)
   P_COLOR1,
   P_COLOR2,
   P_BACKGROUND,
@@ -90,6 +92,7 @@ struct _HyScanGtkGlikoAreaPrivate
   int na_bits;
   int nd;
   int na;
+  int depth;
 
   GLuint tex[2][TEX_MAX], tex_fade[2], tex_beam[2];
   float center_x;
@@ -489,6 +492,8 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
   float tx0, ty0, tx1, ty1;
   float d;
   float contrast;
+  float real_distance;
+  float real_depth;
 
   switch (p->init_stage)
     {
@@ -523,9 +528,13 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
   glUniform1i (p->fade2_loc, 5);
 
   real_scale = p->scale * p->nd * 2.0f / (y1 - y0);
+  real_distance = p->nd;
+  real_distance /= (1 << p->nd_bits);
+  real_depth = p->depth;
+  real_depth /= (1 << p->nd_bits);
   //set_uniform1f( iko_prog, "noise", 0.f );//real_scale > 1.0f ? (0.375f / ND): 0.f );
 
-  for (i = 0; (i + 1) < p->n_tex && real_scale > 1.0f; i++, real_scale *= 0.5f)
+  for (i = 0; (i + 1) < p->n_tex && real_scale > 1.0f; i++, real_scale *= 0.5f )
     ;
 
   glActiveTexture (GL_TEXTURE0 + 0);
@@ -545,6 +554,9 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
 
   glActiveTexture (GL_TEXTURE0 + 5);
   glBindTexture (GL_TEXTURE_1D_ARRAY, p->tex_fade[1]);
+
+  set_uniform1f (p->program, "distance", real_distance);
+  set_uniform1f (p->program, "offset", real_depth);
 
   set_uniform1i (p->program, "tna", p->tna);
   set_uniform1i (p->program, "tnd", p->tnd[i]);
@@ -740,7 +752,7 @@ hyscan_gtk_gliko_area_set_data (HyScanGtkGlikoArea *instance, const int channel,
   k = p->remain * p->fade[channel][a];
   p->fade[channel][a] = 1.0f;
 
-  for (dst = dst_row + 4, src = data, i = p->nd - 4; i != 0; i--, dst++, src++)
+  for (dst = dst_row, src = data, i = p->nd; i != 0; i--, dst++, src++)
     {
       c = (k * (*dst)) + (*src);
       if (c > 1.0f)
@@ -859,6 +871,8 @@ hyscan_gtk_gliko_area_class_init (HyScanGtkGlikoAreaClass *klass)
   obj_properties[P_GAMMA] = g_param_spec_float ("gliko-gamma", "Gamma", "Gamma for non-linear", -G_MAXFLOAT, G_MAXFLOAT, 1.0, rw);
   obj_properties[P_ROTATE] = g_param_spec_float ("gliko-rotate", "Rotate", "Angle of rotation in degrees", -G_MAXFLOAT, G_MAXFLOAT, 0.0, rw);
   obj_properties[P_FADE_COEF] = g_param_spec_float ("gliko-fade-coef", "FadeCoef", "Fade coefficient", 0.0, 1.0, 0.98, rw);
+  obj_properties[P_REMAIN] = g_param_spec_float ("gliko-remain", "Remain", "Remain coefficient", 0.0, 1.0, 1.0, rw);
+  obj_properties[P_DEPTH] = g_param_spec_int ("gliko-depth", "Depth", "Depth (bottom's offset)", 0, G_MAXINT, 0, rw);
   obj_properties[P_COLOR1_ALPHA] = g_param_spec_float ("gliko-color1-alpha", "ColorAlpha", "Alpha channel of color", 0.0, 1.0, 1.0, rw);
   obj_properties[P_COLOR2_ALPHA] = g_param_spec_float ("gliko-color2-alpha", "ColorAlpha", "Alpha channel of color", 0.0, 1.0, 1.0, rw);
   obj_properties[P_BACKGROUND_ALPHA] = g_param_spec_float ("gliko-background-alpha", "BackgroundAlpha", "Alpha channel of background", 0.0, 1.0, 1.0, rw);
@@ -893,6 +907,7 @@ hyscan_gtk_gliko_area_init (HyScanGtkGlikoArea *area)
   p->na_bits = 0;
   p->nd = 0;
   p->na = 0;
+  p->depth = 0;
 
   p->center_x = 0.f;
   p->center_y = 0.f;
@@ -955,6 +970,8 @@ get_pfloat (HyScanGtkGlikoAreaPrivate *p, const int id)
       return &p->rotate;
     case P_FADE_COEF:
       return &p->fade_coef;
+    case P_REMAIN:
+      return &p->remain;
     case P_COLOR1_ALPHA:
       return &p->color[0][3];
     case P_COLOR2_ALPHA:
@@ -984,6 +1001,20 @@ get_prgb (HyScanGtkGlikoAreaPrivate *p, const int id)
   return NULL;
 }
 
+static int *
+get_pint (HyScanGtkGlikoAreaPrivate *p, const int id)
+{
+  switch (id)
+    {
+    case P_DEPTH:
+      return &p->depth;
+    default:
+      break;
+    }
+  return NULL;
+}
+
+
 /* Overriden g_object methods */
 static void
 hyscan_gtk_gliko_area_set_property (GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec)
@@ -991,8 +1022,13 @@ hyscan_gtk_gliko_area_set_property (GObject *object, guint prop_id, const GValue
   HyScanGtkGlikoArea *gtk_gliko_area = HYSCAN_GTK_GLIKO_AREA (object);
   HyScanGtkGlikoAreaPrivate *p = gtk_gliko_area->priv;
   float *pf;
+  int *pi;
 
-  if ((pf = get_pfloat (p, prop_id)) != NULL)
+  if ((pi = get_pint (p, prop_id)) != NULL)
+    {
+      *pi = g_value_get_int (value);
+    }
+  else if ((pf = get_pfloat (p, prop_id)) != NULL)
     {
       *pf = g_value_get_float (value);
     }
@@ -1022,8 +1058,13 @@ hyscan_gtk_gliko_area_get_property (GObject *object, guint prop_id, GValue *valu
   HyScanGtkGlikoArea *gtk_gliko_area = HYSCAN_GTK_GLIKO_AREA (object);
   HyScanGtkGlikoAreaPrivate *p = gtk_gliko_area->priv;
   float *pf;
+  int *pi;
 
-  if ((pf = get_pfloat (p, prop_id)) != NULL)
+  if ((pi = get_pint (p, prop_id)) != NULL)
+    {
+      g_value_set_int (value, *pi);
+    }
+  else if ((pf = get_pfloat (p, prop_id)) != NULL)
     {
       g_value_set_float (value, *pf);
     }

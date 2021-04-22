@@ -1175,3 +1175,15 @@ hyscan_gtk_gliko_set_colormap (HyScanGtkGliko *instance,
   g_object_set (p->iko, "gliko-background-alpha", a * (background >> 24), NULL);
   return TRUE;
 }
+
+HYSCAN_API
+void hyscan_gtk_gliko_set_bottom_offset (HyScanGtkGliko *instance,
+                                         const gdouble bottom )
+{
+//  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
+
+//  g_object_set (p->iko, "gliko-depth", p->rotation, NULL);
+}
+
+HYSCAN_API
+gdouble hyscan_gtk_gliko_get_bottom_offset (HyScanGtkGliko *instance);

@@ -15,6 +15,8 @@ uniform float amprange;
 uniform float ampoffset;
 uniform float gamma;
 uniform float rotate;
+uniform float offset;
+uniform float distance;
 uniform int tna;
 uniform int tnd;
 uniform vec4 background;
@@ -36,8 +38,6 @@ main ()
   p.y = TexCoord.y * 2.0 - 1.0;
 
   q.x = length (p);
-  if (q.x >= 1.0)
-    discard;
   if (abs (p.y) > abs (p.x))
     {
       q.y = 2.0 * atan (p.x / (q.x + p.y));
@@ -50,6 +50,9 @@ main ()
     {
       q.y = 0.0;
     }
+  q.x += offset;
+  if (q.x >= distance)
+    discard;
   q.y = mod ((q.y + rotate) / PIx2, 1.0) * tna;
   q.x = q.x * tnd;
   y = mod (q.y, 1.0);
