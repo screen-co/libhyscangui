@@ -16,4 +16,7 @@
     <file compressed="true">icons/scalable/actions/eye.svg</file>
     <file compressed="true">icons/scalable/actions/hidden.svg</file>
   </gresource>
+  <gresource prefix="/org/hyscan/gl">
+    <file compressed="true">hyscan-gtk-gliko-area-shader.c</file>
+  </gresource>
 </gresources>

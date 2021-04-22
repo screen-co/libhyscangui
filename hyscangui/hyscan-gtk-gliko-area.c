@@ -45,6 +45,8 @@
 
 #include "hyscan-gtk-gliko-area.h"
 
+#define SHADER_RESOURCE_PATH "/org/hyscan/gl/hyscan-gtk-gliko-area-shader.c"
+
 /* Properties enum */
 enum
 {
@@ -146,21 +148,11 @@ static const char *vertexShaderSource =
     "  TexCoord = vec2(aTexCoord.x, aTexCoord.y);\n"
     "}\n";
 
-/*
-static const char *fragmentShaderSource =
-    "#version 330 core\n"
-    "out vec4 FragColor;\n"
-    "void main()\n"
-    "{\n"
-    "   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-    "}\n\0";
-*/
-
-extern const char *fragmentShaderSource;
-
 static int
 create_shader_program ()
 {
+  GBytes * shader_bytes;
+  const gchar * shader_source;
   int vertexShader;
   int fragmentShader;
   int shaderProgram;
@@ -182,9 +174,17 @@ create_shader_program ()
       return -1;
     }
   // fragment shader
+  shader_bytes = g_resources_lookup_data (SHADER_RESOURCE_PATH,
+                                          G_RESOURCE_LOOKUP_FLAGS_NONE,
+                                          NULL);
+  shader_source = (gchar*) g_bytes_get_data (shader_bytes, NULL);
+
   fragmentShader = glCreateShader (GL_FRAGMENT_SHADER);
-  glShaderSource (fragmentShader, 1, &fragmentShaderSource, NULL);
+  glShaderSource (fragmentShader, 1, &shader_source, NULL);
   glCompileShader (fragmentShader);
+
+  g_bytes_unref (shader_bytes);
+
   // check for shader compile errors
   glGetShaderiv (fragmentShader, GL_COMPILE_STATUS, &success);
   if (!success)
