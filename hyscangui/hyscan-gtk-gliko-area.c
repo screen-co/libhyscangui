@@ -62,7 +62,7 @@ enum
   P_ROTATE,    // поворот оси, 0..360
   P_FADE_COEF, // коэффициент затухания 0..1
   P_REMAIN,    // коэффициент при перезаписи
-  P_DEPTH,     // глубина (номер отсчета дна)
+  P_BOTTOM,     // глубина (номер отсчета дна)
   P_COLOR1,
   P_COLOR2,
   P_BACKGROUND,
@@ -92,7 +92,7 @@ struct _HyScanGtkGlikoAreaPrivate
   int na_bits;
   int nd;
   int na;
-  int depth;
+  int bottom;
 
   GLuint tex[2][TEX_MAX], tex_fade[2], tex_beam[2];
   float center_x;
@@ -493,7 +493,7 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
   float d;
   float contrast;
   float real_distance;
-  float real_depth;
+  float real_bottom;
 
   switch (p->init_stage)
     {
@@ -530,8 +530,8 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
   real_scale = p->scale * p->nd * 2.0f / (y1 - y0);
   real_distance = p->nd;
   real_distance /= (1 << p->nd_bits);
-  real_depth = p->depth;
-  real_depth /= (1 << p->nd_bits);
+  real_bottom = p->bottom;
+  real_bottom /= (1 << p->nd_bits);
   //set_uniform1f( iko_prog, "noise", 0.f );//real_scale > 1.0f ? (0.375f / ND): 0.f );
 
   for (i = 0; (i + 1) < p->n_tex && real_scale > 1.0f; i++, real_scale *= 0.5f )
@@ -556,7 +556,7 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
   glBindTexture (GL_TEXTURE_1D_ARRAY, p->tex_fade[1]);
 
   set_uniform1f (p->program, "distance", real_distance);
-  set_uniform1f (p->program, "offset", real_depth);
+  set_uniform1f (p->program, "bottom", real_bottom);
 
   set_uniform1i (p->program, "tna", p->tna);
   set_uniform1i (p->program, "tnd", p->tnd[i]);
@@ -872,7 +872,7 @@ hyscan_gtk_gliko_area_class_init (HyScanGtkGlikoAreaClass *klass)
   obj_properties[P_ROTATE] = g_param_spec_float ("gliko-rotate", "Rotate", "Angle of rotation in degrees", -G_MAXFLOAT, G_MAXFLOAT, 0.0, rw);
   obj_properties[P_FADE_COEF] = g_param_spec_float ("gliko-fade-coef", "FadeCoef", "Fade coefficient", 0.0, 1.0, 0.98, rw);
   obj_properties[P_REMAIN] = g_param_spec_float ("gliko-remain", "Remain", "Remain coefficient", 0.0, 1.0, 1.0, rw);
-  obj_properties[P_DEPTH] = g_param_spec_int ("gliko-depth", "Depth", "Depth (bottom's offset)", 0, G_MAXINT, 0, rw);
+  obj_properties[P_BOTTOM] = g_param_spec_int ("gliko-bottom", "Bottom", "Depth (bottom's offset)", 0, G_MAXINT, 0, rw);
   obj_properties[P_COLOR1_ALPHA] = g_param_spec_float ("gliko-color1-alpha", "ColorAlpha", "Alpha channel of color", 0.0, 1.0, 1.0, rw);
   obj_properties[P_COLOR2_ALPHA] = g_param_spec_float ("gliko-color2-alpha", "ColorAlpha", "Alpha channel of color", 0.0, 1.0, 1.0, rw);
   obj_properties[P_BACKGROUND_ALPHA] = g_param_spec_float ("gliko-background-alpha", "BackgroundAlpha", "Alpha channel of background", 0.0, 1.0, 1.0, rw);
@@ -907,7 +907,7 @@ hyscan_gtk_gliko_area_init (HyScanGtkGlikoArea *area)
   p->na_bits = 0;
   p->nd = 0;
   p->na = 0;
-  p->depth = 0;
+  p->bottom = 0;
 
   p->center_x = 0.f;
   p->center_y = 0.f;
@@ -920,7 +920,7 @@ hyscan_gtk_gliko_area_init (HyScanGtkGlikoArea *area)
   p->rotate = 0.f;
   p->rotate1 = 270.0f;
   p->rotate2 = 90.0f;
-  p->remain = 1.f;
+  p->remain = 0.5f;
 
   p->buf[0][0] = NULL;
 }
@@ -1006,8 +1006,8 @@ get_pint (HyScanGtkGlikoAreaPrivate *p, const int id)
 {
   switch (id)
     {
-    case P_DEPTH:
-      return &p->depth;
+    case P_BOTTOM:
+      return &p->bottom;
     default:
       break;
     }

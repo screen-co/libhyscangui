@@ -210,6 +210,7 @@ main (int argc,
   gchar *source_name1 = "ss-starboard";
   gchar *source_name2 = "ss-port";
   gchar *output_file = NULL;
+  gdouble bottom = 0.0;
   gdouble speed = 1.0;
   gdouble white_point = 1.0;
   gdouble black_point = 0.0;
@@ -233,9 +234,10 @@ main (int argc,
           { "track", 't', 0, G_OPTION_ARG_STRING, &track_name, "Track name", NULL },
           { "starboard", 's', 0, G_OPTION_ARG_STRING, &source_name1, "Starboard name", NULL },
           { "port", 'r', 0, G_OPTION_ARG_STRING, &source_name2, "Port name", NULL },
+          { "bottom", 'b', 0, G_OPTION_ARG_DOUBLE, &bottom, "Bottom", NULL },
           { "output", 'o', 0, G_OPTION_ARG_STRING, &output_file, "Output image file name", NULL },
-          { "white-point", 'w', 0, G_OPTION_ARG_DOUBLE, &white_point, "White point", NULL },
-          { "black-point", 'b', 0, G_OPTION_ARG_DOUBLE, &black_point, "Black point", NULL },
+          { "white-point", 'W', 0, G_OPTION_ARG_DOUBLE, &white_point, "White point", NULL },
+          { "black-point", 'B', 0, G_OPTION_ARG_DOUBLE, &black_point, "Black point", NULL },
           { "gamma", 'g', 0, G_OPTION_ARG_DOUBLE, &gamma_value, "Gamma", NULL },
           { "fps", 'f', 0, G_OPTION_ARG_INT, &fps, "Time between signaller calls", NULL },
           { "speed", 'S', 0, G_OPTION_ARG_DOUBLE, &speed, "Play speed coeff", NULL },
@@ -318,6 +320,7 @@ main (int argc,
   hyscan_gtk_gliko_set_source_name (HYSCAN_GTK_GLIKO (gliko), 0, source_name1);
   hyscan_gtk_gliko_set_source_name (HYSCAN_GTK_GLIKO (gliko), 1, source_name2);
   hyscan_gtk_gliko_set_rotation (HYSCAN_GTK_GLIKO (gliko), 0.0);
+  hyscan_gtk_gliko_set_bottom (HYSCAN_GTK_GLIKO (gliko), bottom);
 
   player = hyscan_data_player_new ();
 

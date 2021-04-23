@@ -15,7 +15,7 @@ uniform float amprange;
 uniform float ampoffset;
 uniform float gamma;
 uniform float rotate;
-uniform float offset;
+uniform float bottom;
 uniform float distance;
 uniform int tna;
 uniform int tnd;
@@ -50,7 +50,7 @@ main ()
     {
       q.y = 0.0;
     }
-  q.x += offset;
+  q.x = sqrt (q.x * q.x + bottom * bottom);
   if (q.x >= distance)
     discard;
   q.y = mod ((q.y + rotate) / PIx2, 1.0) * tna;

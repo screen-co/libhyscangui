@@ -176,10 +176,10 @@ gboolean hyscan_gtk_gliko_set_colormap (HyScanGtkGliko *instance,
                                         guint32 background);
 
 HYSCAN_API
-void hyscan_gtk_gliko_set_bottom_offset (HyScanGtkGliko *instance,
+void hyscan_gtk_gliko_set_bottom (HyScanGtkGliko *instance,
                                        const gdouble bottom );
 HYSCAN_API
-gdouble hyscan_gtk_gliko_get_bottom_offset (HyScanGtkGliko *instance);
+gdouble hyscan_gtk_gliko_get_bottom (HyScanGtkGliko *instance);
 
 G_END_DECLS
 
