@@ -82,6 +82,7 @@ typedef struct _channel_t
   gint64 process_time;
   gint64 alpha_time;
   gdouble alpha_value;
+  gdouble data_rate;
   gfloat *buffer;
   guint32 max_length;
   guint32 allocated;
@@ -106,6 +107,8 @@ struct _HyScanGtkGlikoPrivate
 
   gint32 num_azimuthes;
   float rotation;
+  float bottom;
+  float sound_speed;
   float scale;
   float cx;
   float cy;
@@ -177,6 +180,8 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
 
   p->num_azimuthes = 1024;
   p->rotation = 0.0f;
+  p->bottom = 0.0f;
+  p->sound_speed = 1500.0f;
   p->scale = 1.0f;
   p->cx = 0.0f;
   p->cy = 0.0f;
@@ -345,6 +350,9 @@ channel_open (HyScanGtkGlikoPrivate *p,
     {
       g_warning ("can't open acoustic data source");
     }
+
+  /* частота дискретизации */
+  c->data_rate = hyscan_acoustic_data_get_info (c->acoustic_data).data_rate;
 }
 
 // обработчик сигнала open
@@ -443,6 +451,9 @@ player_process_callback (HyScanDataPlayer *player,
   gint64 tnleft, tnright;
   int indelta;
   alpha_que_t alpha;
+
+  if( p == NULL )
+    return;
 
   // обработка индексов строк данных для двух каналов
   channel_process (p, 0, time);
@@ -700,6 +711,8 @@ player_ready_callback (HyScanDataPlayer *player,
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (user_data, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
+  if( p == NULL )
+    return;
   //g_print ("Ready time: %"G_GINT64_FORMAT" %d\n", g_get_monotonic_time (), misc_read);
 
   // если ни одна строка не была принята, выходим
@@ -721,6 +734,9 @@ player_ready_callback (HyScanDataPlayer *player,
       g_object_set (p->grid, "gliko-scale", p->scale, NULL);
       p->fade_time = time;
     }
+
+  g_object_set (p->iko, "gliko-bottom", (int)(2.0f * p->bottom * p->channel[0].data_rate / p->sound_speed), NULL);
+
   // обрабатываем каналы левого и правого борта
   channel_ready (p, 0, time);
   channel_ready (p, 1, time);
@@ -1174,4 +1190,24 @@ hyscan_gtk_gliko_set_colormap (HyScanGtkGliko *instance,
   g_object_set (p->iko, "gliko-background-rgb", str_rgb (t, background), NULL);
   g_object_set (p->iko, "gliko-background-alpha", a * (background >> 24), NULL);
   return TRUE;
+}
+
+HYSCAN_API
+void hyscan_gtk_gliko_set_bottom (HyScanGtkGliko *instance,
+                                         const gdouble bottom )
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
+
+  p->bottom = (float)bottom;
+  if( p->iko_length != 0 )
+    {
+      g_object_set (p->iko, "gliko-bottom", (int)(2.0f * p->bottom * p->channel[0].data_rate / p->sound_speed), NULL);
+    }
+}
+
+HYSCAN_API
+gdouble hyscan_gtk_gliko_get_bottom (HyScanGtkGliko *instance)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
+  return p->bottom;
 }

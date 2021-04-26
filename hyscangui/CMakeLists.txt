@@ -21,6 +21,7 @@ add_custom_command (OUTPUT "${CMAKE_BINARY_DIR}/resources/hyscan-gui-resources.c
                     DEPENDS icons
                             hyscan-gtk-planner-origin.ui
                             hyscan-gtk-planner-editor.ui
+                            hyscan-gtk-gliko-area-shader.c
                     VERBATIM)
 
 file (MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/marshallers")
