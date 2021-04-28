@@ -48,15 +48,16 @@ static gdouble delta = 0.01f;
 static void
 update_title ()
 {
-  gdouble b, c, g;
+  gdouble b, c, g, s;
   gchar t[256];
   gchar q[256];
 
   b = hyscan_gtk_gliko_get_brightness (HYSCAN_GTK_GLIKO (gliko));
   c = hyscan_gtk_gliko_get_contrast (HYSCAN_GTK_GLIKO (gliko));
   g = hyscan_gtk_gliko_get_gamma_value (HYSCAN_GTK_GLIKO (gliko));
+  s = hyscan_gtk_gliko_get_step_distance (HYSCAN_GTK_GLIKO (gliko));
 
-  sprintf (t, "B%.2lf C%.2lf G%.2lf", b, c, g);
+  sprintf (t, "B%.2lf C%.2lf G%.2lf M%.1lf", b, c, g, s);
   gtk_window_set_title (GTK_WINDOW (window), t);
 
   //sprintf( q, "<b><span font='20' background='#ffffff' foreground='#404040'>%s</span></b>", t );
@@ -103,6 +104,7 @@ button_cb (GtkWidget *widget, GdkEventButton *event, void *w)
         {
           hyscan_gtk_gliko_set_scale (HYSCAN_GTK_GLIKO (gliko), 1.0);
           hyscan_gtk_gliko_set_center (HYSCAN_GTK_GLIKO (gliko), 0.0, 0.0);
+          update_title ();
         }
     }
 }
@@ -164,6 +166,7 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
         {
           f = hyscan_gtk_gliko_get_scale (HYSCAN_GTK_GLIKO (gliko));
           hyscan_gtk_gliko_set_scale (HYSCAN_GTK_GLIKO (gliko), 0.875 * f);
+          update_title ();
         }
     }
   if (event->direction == GDK_SCROLL_DOWN)

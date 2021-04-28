@@ -32,7 +32,7 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
-#if defined( _MSC_VER )
+#if defined(_MSC_VER)
 #include <glad/glad.h>
 #else
 #define GL_GLEXT_PROTOTYPES
@@ -49,13 +49,17 @@
 enum
 {
   P_RESERVED,
-  P_CX,    // координата X центра
-  P_CY,    // координата Y центра
-  P_SCALE, // масштаб
+  P_CX,     // координата X центра
+  P_CY,     // координата Y центра
+  P_SCALE,  // масштаб
+  P_RADIUS, // радиус развертки, м
+  P_STEP,   // текущий шаг разметки по дальности, м
   P_COLOR,
   P_COLOR_ALPHA,
   N_PROPERTIES
 };
+
+#define MAX_CIRCLES 64
 
 typedef struct _HyScanGtkGlikoGridPrivate HyScanGtkGlikoGridPrivate;
 
@@ -75,11 +79,17 @@ struct _HyScanGtkGlikoGridPrivate
   float cx;
   float cy;
   float scale;
+  float scale0;
+  float radius;
+  float radius0;
+  float step;
   int w, h;
+  int subcircles;   // количество малых делений разметки по дальности
   int program;      // shader program
   unsigned int vao; // vertex array object
   unsigned int vbo; // vertex buffer object
   float vertices[360 * 3 + 24 * 3];
+  float circles[MAX_CIRCLES];
   int num_circles; // количество окружностей в сетке
   float color[4];
 };
@@ -104,6 +114,8 @@ static GParamSpec *obj_properties[N_PROPERTIES] = { NULL };
 static void set_property (GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec);
 static void get_property (GObject *object, guint prop_id, GValue *value, GParamSpec *pspec);
 
+static void update_circles (HyScanGtkGlikoGridPrivate *p);
+
 static const char *vertexShaderSource =
     "#version 330 core\n"
     "layout (location = 0) in vec3 aPos;\n"
@@ -121,9 +133,10 @@ static const char *vertexShaderSource =
 static const char *fragmentShaderSource =
     "#version 330 core\n"
     "out vec4 FragColor;\n"
+    "uniform vec4 color;\n"
     "void main()\n"
     "{\n"
-    "   FragColor = vec4(0.0f, 0.0f, 0.0f, 0.25f);\n"
+    "   FragColor = color;\n"
     "}\n";
 
 static void
@@ -136,6 +149,18 @@ set_uniform1f (const unsigned int prog, const char *name, const float val)
       return;
     }
   glUniform1f (loc, val);
+}
+
+static void
+set_uniform4fv (const unsigned int prog, const char *name, const float *a)
+{
+  int loc = glGetUniformLocation (prog, name);
+  if (loc == -1)
+    {
+      glerr ();
+      return;
+    }
+  glUniform4fv (loc, 1, a);
 }
 
 static int
@@ -201,7 +226,7 @@ create_model (HyScanGtkGlikoGridPrivate *p)
   glBindBuffer (GL_ARRAY_BUFFER, p->vbo);
 
   // задаем размер буфера
-  glBufferData (GL_ARRAY_BUFFER, sizeof (p->vertices), p->vertices, GL_STATIC_DRAW);
+  glBufferData (GL_ARRAY_BUFFER, sizeof (p->vertices), p->vertices, GL_DYNAMIC_DRAW);
   // одна вершина хранится как вектор из 3х чисел с плавающей точкой
   glVertexAttribPointer (0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof (float), (void *) 0);
 
@@ -224,10 +249,15 @@ static void
 layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
 {
   HyScanGtkGlikoGridPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (layer, HYSCAN_TYPE_GTK_GLIKO_GRID, HyScanGtkGlikoGridPrivate);
-  int i;
+  int i, j;
+  float r = 0.0f, s, d;
+  static const float c1[4] = { 0.0f, 0.0f, 0.0f, 0.4f };
+  static const float c2[4] = { 0.0f, 0.0f, 0.0f, 0.2f };
 
   if (p->program == -1)
     return;
+
+  update_circles (p);
 
   // не требуется для рисования линиями
   //glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
@@ -250,10 +280,25 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
   glBindBuffer (GL_ARRAY_BUFFER, p->vbo);
   glBindVertexArray (p->vao);
 
+  glBufferSubData (GL_ARRAY_BUFFER, 360 * 3 * sizeof (float), 12 * 6 * sizeof (float), p->vertices + 360 * 3);
+
   // рисуем набор окружностей
   for (i = 0; i < p->num_circles; i++)
     {
-      set_uniform1f (p->program, "radius", (1.0f + i) / ((float) p->num_circles));
+      if (p->subcircles != 0)
+        {
+          d = p->step / p->radius;
+          s = d;
+          for (j = 1; j < p->subcircles && (r + s) < p->circles[i]; j++, s += d)
+            {
+              set_uniform1f (p->program, "radius", r + s);
+              set_uniform4fv (p->program, "color", c2);
+              glDrawArrays (GL_LINE_LOOP, 0, 360);
+            }
+        }
+      r = p->circles[i];
+      set_uniform1f (p->program, "radius", r);
+      set_uniform4fv (p->program, "color", c1);
       glDrawArrays (GL_LINE_LOOP, 0, 360);
     }
   // рисуем 30-градусные азимутальные линии
@@ -281,21 +326,50 @@ layer_interface_init (HyScanGtkGlikoLayerInterface *iface)
 }
 
 static void
-hyscan_gtk_gliko_grid_init (HyScanGtkGlikoGrid *grid)
+update_circles (HyScanGtkGlikoGridPrivate *p)
 {
-  HyScanGtkGlikoGridPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (grid, HYSCAN_TYPE_GTK_GLIKO_GRID, HyScanGtkGlikoGridPrivate);
+  float step, r0;
   int i;
+  const float x[3] = { 2.5f, 2.0f, 2.0f };
+  const int n = 10;
   const float a = 0.01745329251994329576923690768489; // M_PI / 180.0f;
   float *line_vertices;
 
-  /* Create cache for faster access */
-  grid->priv = p;
+  if (p->radius == p->radius0 && p->scale == p->scale0)
+    return;
 
-  p->program = -1;
-  p->cx = 0.0f;
-  p->cy = 0.0f;
-  p->scale = 1.0f;
-  p->num_circles = 5;
+  p->radius0 = p->radius;
+  p->scale0 = p->scale;
+
+  for (step = 1.0f, i = 0; (step * n) < p->radius; i++)
+    {
+      step *= x[i % 3];
+    }
+  for (i = 0; (step * (i + 1)) < p->radius && i < MAX_CIRCLES - 1; i++)
+    {
+      p->circles[i] = step * (i + 1) / p->radius;
+    }
+  p->circles[i++] = 1.0f;
+  p->num_circles = i;
+  p->step = step;
+
+  if (p->scale < 0.1)
+    {
+      p->subcircles = 10;
+      p->step *= 0.1f;
+      r0 = p->step / p->radius;
+    }
+  else if (p->scale < 0.5)
+    {
+      p->subcircles = 5;
+      p->step *= 0.2f;
+      r0 = p->step / p->radius;
+    }
+  else
+    {
+      p->subcircles = 0;
+      r0 = p->circles[0];
+    }
 
   // координаты точек окружности
   for (i = 0; i < 360; i++)
@@ -309,13 +383,32 @@ hyscan_gtk_gliko_grid_init (HyScanGtkGlikoGrid *grid)
   line_vertices = p->vertices + 360 * 3;
   for (i = 0; i < 12; i++)
     {
-      line_vertices[i * 6 + 0] = sinf (a * 30.0f * i) / ((float) p->num_circles);
-      line_vertices[i * 6 + 1] = cosf (a * 30.0f * i) / ((float) p->num_circles);
+      line_vertices[i * 6 + 0] = r0 * sinf (a * 30.0f * i);
+      line_vertices[i * 6 + 1] = r0 * cosf (a * 30.0f * i);
       line_vertices[i * 6 + 2] = 0.0f;
       line_vertices[i * 6 + 3] = sinf (a * 30.0f * i);
       line_vertices[i * 6 + 4] = cosf (a * 30.0f * i);
       line_vertices[i * 6 + 5] = 0.0f;
     }
+}
+
+static void
+hyscan_gtk_gliko_grid_init (HyScanGtkGlikoGrid *grid)
+{
+  HyScanGtkGlikoGridPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (grid, HYSCAN_TYPE_GTK_GLIKO_GRID, HyScanGtkGlikoGridPrivate);
+
+  /* Create cache for faster access */
+  grid->priv = p;
+
+  p->program = -1;
+  p->cx = 0.0f;
+  p->cy = 0.0f;
+  p->scale = 1.0f;
+  p->scale0 = 0.0f;
+  p->radius = 100.0f;
+  p->radius0 = 0.0f;
+
+  update_circles (p);
 }
 
 static void
@@ -331,6 +424,8 @@ hyscan_gtk_gliko_grid_class_init (HyScanGtkGlikoGridClass *klass)
   obj_properties[P_CX] = g_param_spec_float ("gliko-cx", "Center X", "Center point coordinate X", -G_MAXFLOAT, G_MAXFLOAT, 0.0, rw);
   obj_properties[P_CY] = g_param_spec_float ("gliko-cy", "Center Y", "Center point coordinate Y", -G_MAXFLOAT, G_MAXFLOAT, 0.0, rw);
   obj_properties[P_SCALE] = g_param_spec_float ("gliko-scale", "Scale", "Scale of image", -G_MAXFLOAT, G_MAXFLOAT, 0.0, rw);
+  obj_properties[P_RADIUS] = g_param_spec_float ("gliko-radius", "Radius", "Radius in meters", 0, G_MAXFLOAT, 100.0, rw);
+  obj_properties[P_STEP] = g_param_spec_float ("gliko-step-distance", "Step", "Grid step by distance in meters", 0, G_MAXFLOAT, 10.0, rw);
   obj_properties[P_COLOR_ALPHA] = g_param_spec_float ("gliko-color1-alpha", "ColorAlpha", "Alpha channel of color", 0.0, 1.0, 1.0, rw);
   obj_properties[P_COLOR] = g_param_spec_string ("gliko-color1-rgb", "Color1", "Color for channel 1 #RRGGBB", "#FFFFFF", rw);
 
@@ -348,6 +443,10 @@ get_pfloat (HyScanGtkGlikoGridPrivate *p, const int id)
       return &p->cy;
     case P_SCALE:
       return &p->scale;
+    case P_RADIUS:
+      return &p->radius;
+    case P_STEP:
+      return &p->step;
     case P_COLOR_ALPHA:
       return &p->color[3];
     default:
@@ -423,6 +522,7 @@ get_property (GObject *object, guint prop_id, GValue *value, GParamSpec *pspec)
     }
 }
 
+HYSCAN_API
 HyScanGtkGlikoGrid *
 hyscan_gtk_gliko_grid_new (void)
 {

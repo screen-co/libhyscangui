@@ -64,7 +64,6 @@ struct _HyScanGtkGlikoClass
   HyScanGtkGlikoOverlayClass parent_class;
 };
 
-
 HYSCAN_API
 GType hyscan_gtk_gliko_get_type (void);
 
@@ -177,9 +176,12 @@ gboolean hyscan_gtk_gliko_set_colormap (HyScanGtkGliko *instance,
 
 HYSCAN_API
 void hyscan_gtk_gliko_set_bottom (HyScanGtkGliko *instance,
-                                       const gdouble bottom );
+                                  const gdouble bottom);
 HYSCAN_API
 gdouble hyscan_gtk_gliko_get_bottom (HyScanGtkGliko *instance);
+
+HYSCAN_API
+gdouble hyscan_gtk_gliko_get_step_distance (HyScanGtkGliko *instance);
 
 G_END_DECLS
 

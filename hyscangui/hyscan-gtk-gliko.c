@@ -38,10 +38,10 @@
  * @Short_description: виджет индикатора кругового обзора
  */
 
+#include <inttypes.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#include <inttypes.h>
 
 #include <hyscan-acoustic-data.h>
 #include <hyscan-data-player.h>
@@ -366,7 +366,7 @@ player_open_callback (HyScanDataPlayer *player,
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (user_data, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
   // if (++p->player_open != 2)
-    // return;
+  // return;
 
   initque (&p->alpha_que, p->alpha_que_buffer, sizeof (alpha_que_t), sizeof (p->alpha_que_buffer) / sizeof (p->alpha_que_buffer[0]));
 
@@ -452,7 +452,7 @@ player_process_callback (HyScanDataPlayer *player,
   int indelta;
   alpha_que_t alpha;
 
-  if( p == NULL )
+  if (p == NULL)
     return;
 
   // обработка индексов строк данных для двух каналов
@@ -711,7 +711,7 @@ player_ready_callback (HyScanDataPlayer *player,
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (user_data, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
-  if( p == NULL )
+  if (p == NULL)
     return;
   //g_print ("Ready time: %"G_GINT64_FORMAT" %d\n", g_get_monotonic_time (), misc_read);
 
@@ -730,12 +730,16 @@ player_ready_callback (HyScanDataPlayer *player,
         }
       // инициализируем индикатор
       hyscan_gtk_gliko_area_init_dimension (HYSCAN_GTK_GLIKO_AREA (p->iko), p->num_azimuthes, p->iko_length);
+
+      g_object_set (p->grid, "gliko-radius", p->iko_length * p->sound_speed / p->channel[0].data_rate, NULL);
+
       g_object_set (p->iko, "gliko-scale", p->scale, NULL);
       g_object_set (p->grid, "gliko-scale", p->scale, NULL);
       p->fade_time = time;
     }
 
-  g_object_set (p->iko, "gliko-bottom", (int)(2.0f * p->bottom * p->channel[0].data_rate / p->sound_speed), NULL);
+  // номер отсчета глубины для корректировки геометрических искажений
+  g_object_set (p->iko, "gliko-bottom", (int) (2.0f * p->bottom * p->channel[0].data_rate / p->sound_speed), NULL);
 
   // обрабатываем каналы левого и правого борта
   channel_ready (p, 0, time);
@@ -1193,21 +1197,34 @@ hyscan_gtk_gliko_set_colormap (HyScanGtkGliko *instance,
 }
 
 HYSCAN_API
-void hyscan_gtk_gliko_set_bottom (HyScanGtkGliko *instance,
-                                         const gdouble bottom )
+void
+hyscan_gtk_gliko_set_bottom (HyScanGtkGliko *instance,
+                             const gdouble bottom)
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
-  p->bottom = (float)bottom;
-  if( p->iko_length != 0 )
+  p->bottom = (float) bottom;
+  if (p->iko_length != 0)
     {
-      g_object_set (p->iko, "gliko-bottom", (int)(2.0f * p->bottom * p->channel[0].data_rate / p->sound_speed), NULL);
+      g_object_set (p->iko, "gliko-bottom", (int) (2.0f * p->bottom * p->channel[0].data_rate / p->sound_speed), NULL);
     }
 }
 
 HYSCAN_API
-gdouble hyscan_gtk_gliko_get_bottom (HyScanGtkGliko *instance)
+gdouble
+hyscan_gtk_gliko_get_bottom (HyScanGtkGliko *instance)
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   return p->bottom;
+}
+
+HYSCAN_API
+gdouble
+hyscan_gtk_gliko_get_step_distance (HyScanGtkGliko *instance)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
+  float f = 0.0;
+
+  g_object_get (G_OBJECT (p->grid), "gliko-step-distance", &f, NULL);
+  return f;
 }
