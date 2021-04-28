@@ -1085,7 +1085,7 @@ hyscan_gtk_map_planner_origin_drag (HyScanGtkMapPlanner *planner,
   gtk_cifro_area_point_to_value (GTK_CIFRO_AREA (priv->map), event->x, event->y, &cursor.x, &cursor.y);
 
   angle = G_PI_2 - atan2 (cursor.y - cur_origin->origin.y, cursor.x - cur_origin->origin.x);
-  cur_origin->object->ox = angle / G_PI * 180.0;
+  cur_origin->object->azimuth = angle / G_PI * 180.0;
   gtk_widget_queue_draw (GTK_WIDGET (priv->map));
 
   return GDK_EVENT_PROPAGATE;
@@ -2056,7 +2056,7 @@ hyscan_gtk_map_planner_origin_draw (HyScanGtkMapPlanner     *planner,
 
   gtk_cifro_area_visible_value_to_point (GTK_CIFRO_AREA (priv->map), &x, &y, origin->origin.x, origin->origin.y);
 
-  angle = origin->object->ox / 180.0 * G_PI;
+  angle = origin->object->azimuth / 180.0 * G_PI;
 
   cairo_save (cairo);
   gdk_cairo_set_source_rgba (cairo, &priv->origin_style.color);
