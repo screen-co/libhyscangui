@@ -29,6 +29,8 @@
 #include <hyscan-gtk-gliko.h>
 #include <hyscan-nmea-data.h>
 
+//#define UI_RESOURCE_PATH "/org/hyscan/gtk/gtk-gliko-test.ui"
+
 static GtkWidget *window;
 static GtkWidget *overlay;
 static GtkWidget *gliko;
@@ -222,12 +224,14 @@ main (int argc,
   guint32 color1 = 0xFF00FF80;
   guint32 color2 = 0xFFFF8000;
   guint32 background = 0x00404040;
-
   guint32 fps = 25;
+
+  GtkWidget *area;
+  //GtkBuilder *builder;
+  GError *error = NULL;
 
   {
     gchar **args;
-    GError *error = NULL;
     GOptionContext *context;
     GOptionEntry entries[] =
         {
@@ -267,13 +271,13 @@ main (int argc,
     if (!g_option_context_parse_strv (context, &args, &error))
       {
         g_print ("%s\n", error->message);
-        return -1;
+        return EXIT_FAILURE;
       }
 
     if ((db_uri == NULL) || (project_name == NULL) || (track_name == NULL) /*|| (source_name == NULL)*/)
       {
         g_print ("%s", g_option_context_get_help (context, FALSE, NULL));
-        return 0;
+        return EXIT_SUCCESS;
       }
 
     g_option_context_free (context);
@@ -286,16 +290,32 @@ main (int argc,
 
   //delta = 0.1 * (white_point - black_point);
 
+  /*
+  GBytes *ui_bytes = g_resources_lookup_data (UI_RESOURCE_PATH, G_RESOURCE_LOOKUP_FLAGS_NONE, NULL);
+  builder = gtk_builder_new();
+  if( !gtk_builder_add_from_string( builder,
+                                    g_bytes_get_data (ui_bytes, NULL),
+                                    g_bytes_get_size (ui_bytes),
+                                    &error ) )
+  {
+    g_print ("%s\n", error->message);
+    return EXIT_FAILURE;
+  }
+  */
+
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
   overlay = gtk_overlay_new ();
   label = gtk_label_new ("");
   gliko = hyscan_gtk_gliko_new ();
 
-  gtk_container_add (GTK_CONTAINER (window), overlay);
+  gtk_container_add (GTK_CONTAINER (window), overlay);  //GTK_WIDGET (gtk_builder_get_object( builder, "window1")));
+  //gtk_container_add (GTK_CONTAINER (gtk_builder_get_object( builder, "box1")), gliko);
   gtk_overlay_add_overlay (GTK_OVERLAY (overlay), gliko);
   gtk_overlay_add_overlay (GTK_OVERLAY (overlay), label);
 
-  gtk_widget_set_events (overlay,
+  area = overlay;
+
+  gtk_widget_set_events (area,
                          GDK_EXPOSURE_MASK |
                              GDK_BUTTON_PRESS_MASK |
                              GDK_BUTTON_RELEASE_MASK |
@@ -303,10 +323,10 @@ main (int argc,
                              GDK_SCROLL_MASK);
 
   g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
-  g_signal_connect (overlay, "button_press_event", G_CALLBACK (button_cb), NULL);
-  g_signal_connect (overlay, "button_release_event", G_CALLBACK (button_cb), NULL);
-  g_signal_connect (overlay, "motion_notify_event", G_CALLBACK (motion_cb), NULL);
-  g_signal_connect (overlay, "scroll_event", G_CALLBACK (scroll_cb), NULL);
+  g_signal_connect (area, "button_press_event", G_CALLBACK (button_cb), NULL);
+  g_signal_connect (area, "button_release_event", G_CALLBACK (button_cb), NULL);
+  g_signal_connect (area, "motion_notify_event", G_CALLBACK (motion_cb), NULL);
+  g_signal_connect (area, "scroll_event", G_CALLBACK (scroll_cb), NULL);
 
   /* Подключение к базе данных. */
   db = hyscan_db_new (db_uri);

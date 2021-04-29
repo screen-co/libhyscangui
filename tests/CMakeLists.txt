@@ -25,6 +25,7 @@ add_executable (gen-gliko-test-data gen-gliko-test-data.c)
 add_executable (gtk-gliko-minimal-test gtk-gliko-minimal-test.c)
 add_executable (gtk-gliko-area-test gtk-gliko-area-test.c)
 add_executable (gtk-gliko-test gtk-gliko-test.c)
+add_executable (gtk-gliko-plus gtk-gliko-plus.c)
 
 target_link_libraries (gtk-area-test ${TEST_LIBRARIES})
 target_link_libraries (gtk-map-track-test ${TEST_LIBRARIES})
@@ -42,6 +43,7 @@ target_link_libraries (gen-gliko-test-data ${TEST_LIBRARIES})
 target_link_libraries (gtk-gliko-minimal-test ${TEST_LIBRARIES})
 target_link_libraries (gtk-gliko-area-test ${TEST_LIBRARIES})
 target_link_libraries (gtk-gliko-test ${TEST_LIBRARIES})
+target_link_libraries (gtk-gliko-plus ${TEST_LIBRARIES})
 
 add_test (NAME TileTest COMMAND tile-test
           WORKING_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
