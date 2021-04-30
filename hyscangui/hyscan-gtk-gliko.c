@@ -355,6 +355,8 @@ channel_open (HyScanGtkGlikoPrivate *p,
 
   /* частота дискретизации */
   c->data_rate = hyscan_acoustic_data_get_info (c->acoustic_data).data_rate;
+  c->process_init = 0;
+  c->ready_alpha_init = 0;
 }
 
 // обработчик сигнала open
@@ -370,6 +372,9 @@ player_open_callback (HyScanDataPlayer *player,
   // if (++p->player_open != 2)
   // return;
 
+  printf( "open %s %s\n", project_name, track_name );
+  fflush( stdout );
+
   initque (&p->alpha_que, p->alpha_que_buffer, sizeof (alpha_que_t), sizeof (p->alpha_que_buffer) / sizeof (p->alpha_que_buffer[0]));
 
   p->nmea_data = hyscan_nmea_data_new (db, NULL, project_name, track_name, p->nmea_angular_source);
@@ -381,6 +386,8 @@ player_open_callback (HyScanDataPlayer *player,
 
   channel_open (p, 0, player, db, project_name, track_name);
   channel_open (p, 1, player, db, project_name, track_name);
+  p->nmea_init = 0;
+  p->iko_length = 0;
 }
 
 // обработка индексов принятых строк
@@ -491,6 +498,11 @@ player_process_callback (HyScanDataPlayer *player,
       /* Считываем строку nmea */
       nmea = hyscan_nmea_data_get (p->nmea_data, p->nmea_index, &alpha.time);
 
+      if( nmea == NULL )
+        {
+          continue;
+        }
+
       /* обрабатываем только датчик угла поворота */
       if (memcmp (nmea, header, sizeof (header)) != 0)
         {
@@ -499,6 +511,9 @@ player_process_callback (HyScanDataPlayer *player,
 
       /* текущий угол поворота, градусы */
       alpha.value = g_ascii_strtod (nmea + sizeof (header), NULL);
+
+      printf( "process %s %"PRIu64" %.2lf\n", hyscan_data_player_get_track_name( player ), alpha.time, alpha.value );
+      fflush( stdout );
 
       // буферизуем считанное значение в очереди
       enque (&p->alpha_que, &alpha, 1);
@@ -1248,4 +1263,14 @@ hyscan_gtk_gliko_get_step_distance (HyScanGtkGliko *instance)
 
   g_object_get (G_OBJECT (p->grid), "gliko-step-distance", &f, NULL);
   return f;
+}
+
+HYSCAN_API
+void hyscan_gtk_gliko_pixel2polar (HyScanGtkGliko *instance,
+                                      const int x,
+                                      const int y,
+                                      gdouble *a,
+                                      gdouble *r)
+{
+
 }

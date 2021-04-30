@@ -65,7 +65,6 @@ static GtkWidget *scale_player;
 static HyScanDB                  *db;
 static gchar                     *db_uri;
 static gchar                     *project_dir;
-static HyScanObjectModel         *markmodel;
 static GtkWidget                 *window;
 
 static GtkWidget *window;
@@ -82,7 +81,7 @@ static gint32 num_azimuthes = 1024;
 static int center_move = 0;
 static gdouble sxc0 = 0.f, syc0 = 0.f;
 static gdouble mx0 = 0.f, my0 = 0.f;
-static gdouble delta = 0.01f;
+//static gdouble delta = 0.01f;
 
 int
 main (int    argc,
@@ -156,8 +155,6 @@ main (int    argc,
   }
 
   open_db (&db, &db_uri, db_uri);
-  markmodel = hyscan_object_model_new ();
-  hyscan_object_model_set_types (markmodel, 1, HYSCAN_TYPE_OBJECT_DATA_WFMARK);
 
   /* Основное окно программы. */
   window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
@@ -366,6 +363,7 @@ reopen_clicked (GtkButton *button,
   project = split[len - 2];
   track = split[len - 1];
 
+  hyscan_data_player_pause (player);
   hyscan_data_player_set_track (player, db, project, track);
   hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 0), 1, HYSCAN_CHANNEL_DATA);
   hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 1), 2, HYSCAN_CHANNEL_DATA);
@@ -373,7 +371,7 @@ reopen_clicked (GtkButton *button,
   hyscan_data_player_play (player, speed);
 
   {
-    gchar * title = g_strdup_printf ("Waterfall+ %s, %s", project, track);
+    gchar * title = g_strdup_printf ("Around+ %s, %s", project, track);
     gtk_window_set_title (GTK_WINDOW (window), title);
     g_free (title);
   }

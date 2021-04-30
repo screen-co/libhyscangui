@@ -93,6 +93,7 @@ struct _HyScanGtkGlikoAreaPrivate
   int nd;
   int na;
   int bottom;
+  int buf_len;
 
   GLuint tex[2][TEX_MAX], tex_fade[2], tex_beam[2];
   float center_x;
@@ -658,48 +659,62 @@ hyscan_gtk_gliko_area_init_dimension (HyScanGtkGlikoArea *instance, const int na
 {
   HyScanGtkGlikoAreaPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO_AREA, HyScanGtkGlikoAreaPrivate);
   int i, j, k;
+  int nd_bits;
+  int na_bits;
+  int n_tex;
 
   p->init_stage = 1;
 
-  if (p->n_tex != 0)
-    {
-      glDeleteTextures (p->n_tex, p->tex[0]);
-      glDeleteTextures (p->n_tex, p->tex[1]);
-    }
-
-  if (p->buf[0][0] != NULL)
-    {
-      free (p->buf[0][0]);
-      p->buf[0][0] = NULL;
-    }
-  p->na = na;
-  p->nd = nd;
-
-  for (p->nd_bits = 1; (1 << p->nd_bits) < nd; p->nd_bits++)
+  for (nd_bits = 1; (1 << nd_bits) < nd; nd_bits++)
     ;
-  for (p->na_bits = 1; (1 << p->na_bits) < na; p->na_bits++)
+  for (na_bits = 1; (1 << na_bits) < na; na_bits++)
     ;
-  for (p->n_tex = 0, j = (1 << p->nd_bits); p->n_tex < TEX_MAX && j > TEX_SIZE; p->n_tex++, j >>= 1)
+  for (n_tex = 0, j = (1 << nd_bits); n_tex < TEX_MAX && j > TEX_SIZE; n_tex++, j >>= 1)
     ;
 
-  k = (1 << p->nd_bits) * (1 << p->na_bits) * 2 + (1 << p->na_bits) + (1 << p->na_bits);
-  if ((p->buf[0][0] = malloc (k * 2 * sizeof (sample_t))) == NULL)
-    return;
+  if( nd_bits != p->nd_bits ||
+      na_bits != p->na_bits ||
+      n_tex != p->n_tex )
+  {
+    if (p->n_tex != 0)
+      {
+        glDeleteTextures (p->n_tex, p->tex[0]);
+        glDeleteTextures (p->n_tex, p->tex[1]);
+      }
 
-  p->buf[1][0] = p->buf[0][0] + k;
+    if (p->buf[0][0] != NULL)
+      {
+        free (p->buf[0][0]);
+        p->buf[0][0] = NULL;
+      }
 
-  for (i = 1, j = (1 << p->nd_bits); i < p->n_tex; i++, j >>= 1)
+    p->nd_bits = nd_bits;
+    p->na_bits = na_bits;
+    p->n_tex = n_tex;
+
+    k = (1 << p->nd_bits) * (1 << p->na_bits) * 2 + (1 << p->na_bits) + (1 << p->na_bits);
+    p->buf_len = k;
+    if ((p->buf[0][0] = malloc (k * 2 * sizeof (sample_t))) == NULL)
+      return;
+
+    p->buf[1][0] = p->buf[0][0] + k;
+
+    for (i = 1, j = (1 << p->nd_bits); i < p->n_tex; i++, j >>= 1)
     {
       p->buf[0][i] = p->buf[0][i - 1] + (1 << p->na_bits) * j;
       p->buf[1][i] = p->buf[1][i - 1] + (1 << p->na_bits) * j;
     }
 
-  p->fade[0] = p->buf[0][0] + k - (1 << p->na_bits) - (1 << p->na_bits);
-  p->fade[1] = p->buf[1][0] + k - (1 << p->na_bits) - (1 << p->na_bits);
-  p->beam[0] = p->buf[0][0] + k - (1 << p->na_bits);
-  p->beam[1] = p->buf[1][0] + k - (1 << p->na_bits);
+    p->fade[0] = p->buf[0][0] + k - (1 << p->na_bits) - (1 << p->na_bits);
+    p->fade[1] = p->buf[1][0] + k - (1 << p->na_bits) - (1 << p->na_bits);
+    p->beam[0] = p->buf[0][0] + k - (1 << p->na_bits);
+    p->beam[1] = p->buf[1][0] + k - (1 << p->na_bits);
+  }
 
-  fill_buffer (p->buf[0][0], 0.0f, k * 2);
+  p->na = na;
+  p->nd = nd;
+
+  fill_buffer (p->buf[0][0], 0.0f, p->buf_len * 2);
   //pattern( p );
 
   for (i = 0; i < (1 << p->na_bits); i++)

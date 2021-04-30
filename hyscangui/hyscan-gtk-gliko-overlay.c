@@ -140,6 +140,7 @@ on_realize (GtkGLArea *area)
   const GLubyte *version = glGetString (GL_VERSION);
   printf ("Renderer: %s\n", renderer);
   printf ("OpenGL version supported %s\n", version);
+  fflush (stdout);
 
   // check for alpha channel of destinantion
   p->has_alpha = (gtk_gl_area_get_has_alpha(area) ? 1 : 0);
