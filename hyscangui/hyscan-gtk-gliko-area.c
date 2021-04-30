@@ -584,7 +584,7 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
   set_uniform1f (p->program, "amprange", 1.0f / (p->white - p->black));
   set_uniform1f (p->program, "gamma", p->gamma);
 
-  set_uniform1f (p->program, "rotate", p->rotate * 3.1415926536f / 180.f);
+  set_uniform1f (p->program, "rotate", -p->rotate * 3.1415926536f / 180.f);
 
   set_uniform4fv (p->program, "colorr", p->color[0]);
   set_uniform4fv (p->program, "colorg", p->color[1]);

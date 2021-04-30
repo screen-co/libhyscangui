@@ -123,6 +123,13 @@ HYSCAN_API
 gdouble hyscan_gtk_gliko_get_rotation (HyScanGtkGliko *instance);
 
 HYSCAN_API
+void hyscan_gtk_gliko_set_full_rotation (HyScanGtkGliko *instance,
+                                         const gdouble alpha);
+
+HYSCAN_API
+gdouble hyscan_gtk_gliko_get_full_rotation (HyScanGtkGliko *instance);
+
+HYSCAN_API
 gdouble hyscan_gtk_gliko_get_contrast (HyScanGtkGliko *instance);
 
 HYSCAN_API

@@ -54,6 +54,7 @@ enum
   P_SCALE,  // масштаб
   P_RADIUS, // радиус развертки, м
   P_STEP,   // текущий шаг разметки по дальности, м
+  P_ALPHA,  // угол поворота, градусы
   P_COLOR,
   P_COLOR_ALPHA,
   N_PROPERTIES
@@ -83,6 +84,7 @@ struct _HyScanGtkGlikoGridPrivate
   float radius;
   float radius0;
   float step;
+  float alpha;
   int w, h;
   int subcircles;   // количество малых делений разметки по дальности
   int program;      // shader program
@@ -125,9 +127,13 @@ static const char *vertexShaderSource =
     "uniform float width;\n"
     "uniform float height;\n"
     "uniform float radius;\n"
+    "uniform float sin_alpha;\n"
+    "uniform float cos_alpha;\n"
     "void main()\n"
     "{\n"
-    "   gl_Position = vec4((2.0 * cx + aPos.x * radius) * scale * height / width, (2.0 * cy + aPos.y * radius) * scale, aPos.z, 1.0);\n"
+    "   float x = cos_alpha * aPos.x - sin_alpha * aPos.y;\n"
+    "   float y = sin_alpha * aPos.x + cos_alpha * aPos.y;\n"
+    "   gl_Position = vec4((2.0 * cx + x * radius) * scale * height / width, (2.0 * cy + y * radius) * scale, aPos.z, 1.0);\n"
     "}\n";
 
 static const char *fragmentShaderSource =
@@ -250,7 +256,7 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
 {
   HyScanGtkGlikoGridPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (layer, HYSCAN_TYPE_GTK_GLIKO_GRID, HyScanGtkGlikoGridPrivate);
   int i, j;
-  float r = 0.0f, s, d;
+  float r = 0.0f, s, d, a;
   static const float c1[4] = { 0.0f, 0.0f, 0.0f, 0.4f };
   static const float c2[4] = { 0.0f, 0.0f, 0.0f, 0.2f };
 
@@ -275,6 +281,11 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
   set_uniform1f (p->program, "scale", 1.0f / p->scale);
   set_uniform1f (p->program, "width", (float) p->w);
   set_uniform1f (p->program, "height", (float) p->h);
+
+  // угол вращения относительно центра
+  a = -p->alpha * M_PI / 180.0;
+  set_uniform1f (p->program, "sin_alpha", sinf( a ));
+  set_uniform1f (p->program, "cos_alpha", cosf( a ));
 
   // выбираем буфер с координатами вершин
   glBindBuffer (GL_ARRAY_BUFFER, p->vbo);
@@ -407,6 +418,7 @@ hyscan_gtk_gliko_grid_init (HyScanGtkGlikoGrid *grid)
   p->scale0 = 0.0f;
   p->radius = 100.0f;
   p->radius0 = 0.0f;
+  p->alpha = 0.0f;
 
   update_circles (p);
 }
@@ -426,6 +438,7 @@ hyscan_gtk_gliko_grid_class_init (HyScanGtkGlikoGridClass *klass)
   obj_properties[P_SCALE] = g_param_spec_float ("gliko-scale", "Scale", "Scale of image", -G_MAXFLOAT, G_MAXFLOAT, 0.0, rw);
   obj_properties[P_RADIUS] = g_param_spec_float ("gliko-radius", "Radius", "Radius in meters", 0, G_MAXFLOAT, 100.0, rw);
   obj_properties[P_STEP] = g_param_spec_float ("gliko-step-distance", "Step", "Grid step by distance in meters", 0, G_MAXFLOAT, 10.0, rw);
+  obj_properties[P_ALPHA] = g_param_spec_float ("gliko-rotate", "Rotate", "Grid rotate in degrees", -G_MAXFLOAT, G_MAXFLOAT, 0.0, rw);
   obj_properties[P_COLOR_ALPHA] = g_param_spec_float ("gliko-color1-alpha", "ColorAlpha", "Alpha channel of color", 0.0, 1.0, 1.0, rw);
   obj_properties[P_COLOR] = g_param_spec_string ("gliko-color1-rgb", "Color1", "Color for channel 1 #RRGGBB", "#FFFFFF", rw);
 
@@ -447,6 +460,8 @@ get_pfloat (HyScanGtkGlikoGridPrivate *p, const int id)
       return &p->radius;
     case P_STEP:
       return &p->step;
+    case P_ALPHA:
+      return &p->alpha;
     case P_COLOR_ALPHA:
       return &p->color[3];
     default:

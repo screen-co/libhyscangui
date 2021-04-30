@@ -107,6 +107,7 @@ struct _HyScanGtkGlikoPrivate
 
   gint32 num_azimuthes;
   float rotation;
+  float full_rotation;
   float bottom;
   float sound_speed;
   float scale;
@@ -180,6 +181,7 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
 
   p->num_azimuthes = 1024;
   p->rotation = 0.0f;
+  p->full_rotation = 0.0f;
   p->bottom = 0.0f;
   p->sound_speed = 1500.0f;
   p->scale = 1.0f;
@@ -1079,7 +1081,7 @@ hyscan_gtk_gliko_set_rotation (HyScanGtkGliko *instance,
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
   p->rotation = (float) alpha;
-  g_object_set (p->iko, "gliko-rotate", p->rotation, NULL);
+  g_object_set (p->iko, "gliko-rotate", p->full_rotation + p->rotation, NULL);
 }
 
 /**
@@ -1096,6 +1098,25 @@ hyscan_gtk_gliko_get_rotation (HyScanGtkGliko *instance)
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   return p->rotation;
 }
+
+HYSCAN_API
+void hyscan_gtk_gliko_set_full_rotation (HyScanGtkGliko *instance,
+                                         const gdouble alpha)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
+
+  p->full_rotation = (float) alpha;
+  g_object_set (p->iko, "gliko-rotate", p->full_rotation + p->rotation, NULL);
+  g_object_set (p->grid, "gliko-rotate", p->full_rotation, NULL);
+}
+
+HYSCAN_API
+gdouble hyscan_gtk_gliko_get_full_rotation (HyScanGtkGliko *instance)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
+  return p->full_rotation;
+}
+
 
 HYSCAN_API
 void
