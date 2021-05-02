@@ -132,6 +132,8 @@ struct _HyScanGtkGlikoPrivate
   alpha_que_t alpha_que_buffer[128];
   que_t alpha_que;
 
+  int width;
+  int height;
   int debug_alpha;
   int debug_alpha_value;
 
@@ -146,6 +148,7 @@ G_DEFINE_TYPE (HyScanGtkGliko, hyscan_gtk_gliko, HYSCAN_TYPE_GTK_GLIKO_OVERLAY)
 /* Internal API */
 static void dispose (GObject *gobject);
 static void finalize (GObject *gobject);
+static void on_resize (GtkGLArea *area, gint width, gint height, gpointer user_data);
 
 //static void get_preferred_width( GtkWidget *widget, gint *minimal_width, gint *natural_width );
 //static void get_preferred_height( GtkWidget *widget, gint *minimal_height, gint *natural_height );
@@ -247,6 +250,8 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
   g_object_set (p->iko, "gliko-fade-coef", p->fade_coef, NULL);
   g_object_set (p->iko, "gliko-scale", p->scale, NULL);
   g_object_set (p->grid, "gliko-scale", p->scale, NULL);
+
+  g_signal_connect (instance, "resize", G_CALLBACK (on_resize), NULL);
 }
 
 static void
@@ -267,6 +272,15 @@ GtkWidget *
 hyscan_gtk_gliko_new (void)
 {
   return GTK_WIDGET (g_object_new (hyscan_gtk_gliko_get_type (), NULL));
+}
+
+static void
+on_resize (GtkGLArea *area, gint width, gint height, gpointer user_data)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (area, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
+
+  p->width = width;
+  p->height = height;
 }
 
 /**
@@ -512,8 +526,8 @@ player_process_callback (HyScanDataPlayer *player,
       /* текущий угол поворота, градусы */
       alpha.value = g_ascii_strtod (nmea + sizeof (header), NULL);
 
-      printf( "process %s %"PRIu64" %.2lf\n", hyscan_data_player_get_track_name( player ), alpha.time, alpha.value );
-      fflush( stdout );
+      //printf( "process %s %"PRIu64" %.2lf\n", hyscan_data_player_get_track_name( player ), alpha.time, alpha.value );
+      //fflush( stdout );
 
       // буферизуем считанное значение в очереди
       enque (&p->alpha_que, &alpha, 1);
@@ -670,6 +684,8 @@ channel_ready (HyScanGtkGlikoPrivate *p,
                 {
                   hyscan_gtk_gliko_area_set_data (HYSCAN_GTK_GLIKO_AREA (p->iko), c->gliko_channel, (c->azimuth - 1) % p->num_azimuthes, c->buffer);
                 }
+              // можно дорисовать только один пропущенный азимутальный дискрет
+              c->azimuth_displayed = 0;
             }
 
           // считываем строку акустического изображения
@@ -688,17 +704,6 @@ channel_ready (HyScanGtkGlikoPrivate *p,
 
           /* запоминаем строку амплитуд в буфере */
           memcpy (c->buffer, amplitudes, length * sizeof (gfloat));
-          /*
-      for (k = 0; k < length; k++)
-      {
-        gdouble amplitude;
-
-        amplitude = (amplitudes[k] - p->black_point) / (p->white_point - p->black_point);
-        amplitude = powf (amplitude, p->gamma_value);
-        amplitude = CLAMP (amplitude, 0.0, 1.0);
-        c->buffer[k] = amplitude;
-      }
-      */
 
           /* передаем строку в индикатор кругового обзора */
           if (p->iko_length != 0)
@@ -1272,5 +1277,60 @@ void hyscan_gtk_gliko_pixel2polar (HyScanGtkGliko *instance,
                                       gdouble *a,
                                       gdouble *r)
 {
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
+  float w, h;
+  float px, py;
+  float pcx, pcy;
+  float real_scale;
+  float d;
 
+  if( p->height == 0 ) return;
+
+  // ширина и высота
+  w = p->width;
+  h = p->height;
+
+  // реальный масштаб изображения на экране
+  real_scale = p->scale * p->iko_length * 2.0f / h;
+
+  // пиксельные координаты точки относительно центра изображения
+  px = x;
+  px -= (0.5f * w);
+
+  py = 0.5f * h - y;
+
+  // пиксельные координаты центра развертки
+  pcx = p->cx * 2.0f * p->iko_length / real_scale;
+  pcy = p->cy * 2.0f * p->iko_length / real_scale;
+
+  // пиксельные координаты точки относительно центра развертки
+  px -= pcx;
+  py -= pcy;
+
+  // угол в градусах
+  d = atan2( px, py ) * 180.0f / M_PI;
+
+  // в диапазоне от 0 до 360
+  if (d < 0.0f)
+  {
+    d += 360.0f;
+  }
+  *a = d;
+
+  // дальность в пикселях
+  d = sqrtf( px * px + py * py );
+
+  // дальность в дискретах
+  d *= real_scale;
+
+  // дальность в метрах при наличии частоты дискретизации
+  if( p->channel[0].data_rate > 1.0f )
+  {
+    d = d * p->sound_speed / p->channel[0].data_rate;
+  }
+  else
+  {
+    d = 0.0f;
+  }
+  *r = d;
 }
