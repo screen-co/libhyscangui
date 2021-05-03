@@ -55,11 +55,16 @@ static void motion_cb (GtkWidget *widget, GdkEventMotion *event, void *w);
 static void scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w);
 
 static GtkWidget *scale_white;
+static GtkWidget *scale_bright;
+static GtkWidget *scale_contrast;
 static GtkWidget *scale_gamma;
 static GtkWidget *scale_bottom;
 static GtkWidget *scale_rotation;
 static GtkWidget *scale_turn;
 static GtkWidget *scale_player;
+
+static GtkWidget *label_azimuth;
+static GtkWidget *label_distance;
 
 static HyScanDB *db;
 static gchar *db_uri;
@@ -238,18 +243,23 @@ GtkWidget *
 make_menu (gdouble white,
            gdouble gamma)
 {
+  GtkWidget *w;
   // GtkWidget *overlay = gtk_overlay_new ();
   GtkWidget *box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
   GtkWidget *zoom_btn_in = gtk_button_new_from_icon_name ("zoom-in-symbolic", GTK_ICON_SIZE_BUTTON);
   GtkWidget *zoom_btn_out = gtk_button_new_from_icon_name ("zoom-out-symbolic", GTK_ICON_SIZE_BUTTON);
   GtkWidget *btn_reopen = gtk_button_new_from_icon_name ("folder-symbolic", GTK_ICON_SIZE_BUTTON);
   scale_white = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.001, 1.0, 0.001);
+  scale_bright = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -1.0, 1.0, 0.01);
+  scale_contrast = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -1.0, 1.0, 0.01);
   scale_gamma = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.1, 2.0, 0.005);
   scale_bottom = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.0, 50.0, 0.01);
   scale_rotation = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -180, 180.0, 1.0);
   scale_turn = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -180, 180.0, 1.0);
   scale_player = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -10.0, 10.0, 0.1);
 
+  GtkWidget *azimuth_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+  GtkWidget *distance_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
   GtkWidget *track_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
 
   /* Делаем симпатичные кнопки. */
@@ -263,12 +273,18 @@ make_menu (gdouble white,
 
   /* Настраиваем прокрутки. */
   gtk_scale_set_value_pos (GTK_SCALE (scale_white), GTK_POS_TOP);
+  gtk_scale_set_value_pos (GTK_SCALE (scale_bright), GTK_POS_TOP);
+  gtk_scale_set_value_pos (GTK_SCALE (scale_contrast), GTK_POS_TOP);
   gtk_scale_set_value_pos (GTK_SCALE (scale_gamma), GTK_POS_TOP);
   gtk_scale_set_value_pos (GTK_SCALE (scale_player), GTK_POS_TOP);
   gtk_widget_set_size_request (scale_white, 150, 1);
+  gtk_widget_set_size_request (scale_bright, 150, 1);
+  gtk_widget_set_size_request (scale_contrast, 150, 1);
   gtk_widget_set_size_request (scale_gamma, 150, 1);
   gtk_widget_set_size_request (scale_player, 150, 1);
   gtk_range_set_value (GTK_RANGE (scale_white), white);
+  gtk_range_set_value (GTK_RANGE (scale_bright), 0.0);
+  gtk_range_set_value (GTK_RANGE (scale_contrast), 0.0);
   gtk_range_set_value (GTK_RANGE (scale_gamma), gamma);
   gtk_range_set_value (GTK_RANGE (scale_rotation), 0.0);
   gtk_range_set_value (GTK_RANGE (scale_turn), 0.0);
@@ -276,6 +292,18 @@ make_menu (gdouble white,
 
   gtk_scale_add_mark (GTK_SCALE (scale_player), 0.0, GTK_POS_TOP, NULL);
   gtk_scale_set_has_origin (GTK_SCALE (scale_player), FALSE);
+
+  label_azimuth = gtk_label_new (NULL);
+  label_distance = gtk_label_new (NULL);
+
+  gtk_box_pack_start (GTK_BOX (azimuth_box), w = gtk_label_new ("Азимут, \302\260:"), TRUE, TRUE, 0);
+  gtk_widget_set_halign (w, GTK_ALIGN_START);
+  gtk_box_pack_start (GTK_BOX (azimuth_box), label_azimuth, TRUE, TRUE, 0);
+  gtk_widget_set_halign (label_azimuth, GTK_ALIGN_END);
+  gtk_box_pack_start (GTK_BOX (distance_box), w = gtk_label_new ("Дальность, м:"), TRUE, TRUE, 0);
+  gtk_widget_set_halign (w, GTK_ALIGN_START);
+  gtk_box_pack_start (GTK_BOX (distance_box), label_distance, TRUE, TRUE, 0);
+  gtk_widget_set_halign (label_distance, GTK_ALIGN_END);
 
   /* Кладём в коробку. */
   gtk_box_pack_start (GTK_BOX (track_box), zoom_btn_in, TRUE, TRUE, 0);
@@ -288,6 +316,10 @@ make_menu (gdouble white,
   gtk_box_pack_start (GTK_BOX (box), color_chooser, FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), gtk_label_new ("Диапазон"), FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), scale_white, FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), gtk_label_new ("Яркость (Shift+Scroll)"), FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), scale_bright, FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), gtk_label_new ("Контраст (Ctrl+Scroll)"), FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), scale_contrast, FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), gtk_label_new ("Нелинейность"), FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), scale_gamma, FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL), FALSE, TRUE, 0);
@@ -300,11 +332,17 @@ make_menu (gdouble white,
   gtk_box_pack_start (GTK_BOX (box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL), FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), gtk_label_new ("Плеер"), FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), scale_player, FALSE, TRUE, 0);
+  gtk_box_pack_end (GTK_BOX (box), distance_box, FALSE, TRUE, 0);
+  gtk_box_pack_end (GTK_BOX (box), azimuth_box, FALSE, TRUE, 0);
+  gtk_box_pack_end (GTK_BOX (box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL), FALSE, TRUE, 0);
+
 
   g_signal_connect (btn_reopen, "clicked", G_CALLBACK (reopen_clicked), NULL);
   g_signal_connect (zoom_btn_in, "clicked", G_CALLBACK (zoom_clicked), GINT_TO_POINTER (1));
   g_signal_connect (zoom_btn_out, "clicked", G_CALLBACK (zoom_clicked), GINT_TO_POINTER (0));
   g_signal_connect (scale_gamma, "value-changed", G_CALLBACK (scale_changed), NULL);
+  g_signal_connect (scale_bright, "value-changed", G_CALLBACK (scale_changed), NULL);
+  g_signal_connect (scale_contrast, "value-changed", G_CALLBACK (scale_changed), NULL);
   g_signal_connect (scale_white, "value-changed", G_CALLBACK (scale_changed), NULL);
   g_signal_connect (scale_bottom, "value-changed", G_CALLBACK (scale_changed), NULL);
   g_signal_connect (scale_rotation, "value-changed", G_CALLBACK (scale_changed), NULL);
@@ -394,6 +432,8 @@ void
 scale_changed (GtkRange *range, gpointer user_data)
 {
   hyscan_gtk_gliko_set_white_point (HYSCAN_GTK_GLIKO (gliko), gtk_range_get_value (GTK_RANGE (scale_white)));
+  hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (gliko), gtk_range_get_value (GTK_RANGE (scale_bright)));
+  hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (gliko), gtk_range_get_value (GTK_RANGE (scale_contrast)));
   hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (gliko), gtk_range_get_value (GTK_RANGE (scale_gamma)));
   hyscan_gtk_gliko_set_bottom (HYSCAN_GTK_GLIKO (gliko), gtk_range_get_value (GTK_RANGE (scale_bottom)));
   hyscan_gtk_gliko_set_rotation (HYSCAN_GTK_GLIKO (gliko), gtk_range_get_value (GTK_RANGE (scale_rotation)));
@@ -531,9 +571,12 @@ button_cb (GtkWidget *widget, GdkEventButton *event, void *w)
           else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
             {
               gdouble a, r;
+              gchar tmp[32];
               hyscan_gtk_gliko_pixel2polar (HYSCAN_GTK_GLIKO (gliko), event->x, event->y, &a, &r);
-              printf ("A%.1lf R%.1lf\n", a, r);
-              fflush (stdout);
+              g_ascii_formatd (tmp, 32, "%.1lf",a);
+              gtk_label_set_text (GTK_LABEL (label_azimuth), tmp);
+              g_ascii_formatd (tmp, 32, "%.1lf",r);
+              gtk_label_set_text (GTK_LABEL (label_distance), tmp);
             }
         }
       else if (event->type == GDK_BUTTON_RELEASE)
@@ -543,7 +586,7 @@ button_cb (GtkWidget *widget, GdkEventButton *event, void *w)
     }
   else if (event->button == 2)
     {
-      /*if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
+      if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
         {
           hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (gliko), 0.0);
           update_title ();
@@ -553,7 +596,7 @@ button_cb (GtkWidget *widget, GdkEventButton *event, void *w)
           hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (gliko), 0.0);
           update_title ();
         }
-      else*/ if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == (GDK_CONTROL_MASK | GDK_SHIFT_MASK))
+      else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == (GDK_CONTROL_MASK | GDK_SHIFT_MASK))
         {
           hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (gliko), 1.0);
           update_title ();
@@ -592,24 +635,26 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
 
   if (event->direction == GDK_SCROLL_UP)
     {
-      /*if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
+      if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
         {
           f = hyscan_gtk_gliko_get_contrast (HYSCAN_GTK_GLIKO (gliko));
-          f += delta;
+          f += 0.01;
           if (f > 1.0)
             {
               f = 1.0;
             }
           hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (gliko), f);
+          gtk_range_set_value (GTK_RANGE (scale_contrast), f);
           update_title ();
         }
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_SHIFT_MASK)
         {
           f = hyscan_gtk_gliko_get_brightness (HYSCAN_GTK_GLIKO (gliko));
-          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (gliko), f + 5.0 * delta);
+          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (gliko), f + 0.01);
+          gtk_range_set_value (GTK_RANGE (scale_bright), f);
           update_title ();
         }
-      else*/ if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == (GDK_CONTROL_MASK | GDK_SHIFT_MASK))
+      else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == (GDK_CONTROL_MASK | GDK_SHIFT_MASK))
         {
           f = hyscan_gtk_gliko_get_gamma_value (HYSCAN_GTK_GLIKO (gliko));
           f -= 0.01;
@@ -630,24 +675,26 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
     }
   if (event->direction == GDK_SCROLL_DOWN)
     {
-      /*if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
+      if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
         {
           f = hyscan_gtk_gliko_get_contrast (HYSCAN_GTK_GLIKO (gliko));
-          f -= delta;
+          f -= 0.01;
           if (f < -1.0)
             {
               f = -1.0;
             }
           hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (gliko), f);
+          gtk_range_set_value (GTK_RANGE (scale_contrast), f);
           update_title ();
         }
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_SHIFT_MASK)
         {
           f = hyscan_gtk_gliko_get_brightness (HYSCAN_GTK_GLIKO (gliko));
-          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (gliko), f - 5.0 * delta);
+          hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (gliko), f - 0.01);
+          gtk_range_set_value (GTK_RANGE (scale_bright), f);
           update_title ();
         }
-      else*/ if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == (GDK_CONTROL_MASK | GDK_SHIFT_MASK))
+      else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == (GDK_CONTROL_MASK | GDK_SHIFT_MASK))
         {
           f = hyscan_gtk_gliko_get_gamma_value (HYSCAN_GTK_GLIKO (gliko)) + 0.01;
           hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (gliko), f);
