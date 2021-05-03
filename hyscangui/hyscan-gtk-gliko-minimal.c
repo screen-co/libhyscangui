@@ -32,7 +32,7 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
-#if defined (_MSC_VER)
+#if defined(_MSC_VER)
 #include <glad/glad.h>
 #else
 #define GL_GLEXT_PROTOTYPES
@@ -41,29 +41,20 @@
 
 #include "hyscan-gtk-gliko-minimal.h"
 
-struct _HyScanGtkGlikoMinimal
-{
-  GtkGLArea parent;
-  HyScanGtkGlikoMinimalPrivate *priv;
-};
-
-struct _HyScanGtkGlikoMinimalClass
-{
-  GtkGLAreaClass parent_class;
-};
-
 struct _HyScanGtkGlikoMinimalPrivate
 {
   gboolean panning;
   int w, h;
   int program;                // shader program
   unsigned int vao, vbo, ebo; // vertex array object
+  int redraw_parent;
 };
 
 /* Define type */
-G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkGlikoMinimal, hyscan_gtk_gliko_minimal, GTK_TYPE_GL_AREA);
+G_DEFINE_TYPE_WITH_CODE (HyScanGtkGlikoMinimal, hyscan_gtk_gliko_minimal, GTK_TYPE_GL_AREA, G_ADD_PRIVATE (HyScanGtkGlikoMinimal))
 
 /* Internal API */
+static void constructed (GObject *object);
 static void finalize (GObject *gobject);
 
 static void get_preferred_width (GtkWidget *widget, gint *minimal_width, gint *natural_width);
@@ -193,11 +184,16 @@ on_resize (GtkGLArea *area, gint width, gint height)
 static gboolean
 on_render (GtkGLArea *area, GdkGLContext *context)
 {
-  HyScanGtkGlikoMinimalPrivate *p;
+  HyScanGtkGlikoMinimal *minimal = HYSCAN_GTK_GLIKO_MINIMAL (area);
+  HyScanGtkGlikoMinimalPrivate *p = minimal->priv;
 
-  p = G_TYPE_INSTANCE_GET_PRIVATE (area, HYSCAN_TYPE_GTK_GLIKO_MINIMAL, HyScanGtkGlikoMinimalPrivate);
+  if (p->redraw_parent)
+    {
+      p->redraw_parent = 0;
+      gtk_widget_queue_draw (gtk_widget_get_parent (GTK_WIDGET (area)));
+    }
 
-  glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+  glColorMask (GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
   glClearColor (0.2f, 0.3f, 0.3f, 1.0f);
   glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -215,32 +211,38 @@ on_render (GtkGLArea *area, GdkGLContext *context)
 
   if (gtk_gl_area_get_has_alpha (area))
     {
-      glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
-      glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-      glClear(GL_COLOR_BUFFER_BIT);
+      glColorMask (GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
+      glClearColor (0.0f, 0.0f, 0.0f, 1.0f);
+      glClear (GL_COLOR_BUFFER_BIT);
     }
-
   return TRUE;
+}
+
+static void
+on_update (GdkFrameClock *clock,
+           gpointer user_data)
+{
+  GtkGLArea *area = user_data;
+  gtk_gl_area_queue_render (area);
 }
 
 static void
 on_realize (GtkGLArea *area)
 {
-  HyScanGtkGlikoMinimalPrivate *p;
+  HyScanGtkGlikoMinimal *minimal = HYSCAN_GTK_GLIKO_MINIMAL (area);
+  HyScanGtkGlikoMinimalPrivate *p = minimal->priv;
   GdkGLContext *glcontext;
   GdkWindow *glwindow;
   GdkFrameClock *frame_clock;
 
-  p = G_TYPE_INSTANCE_GET_PRIVATE (area, HYSCAN_TYPE_GTK_GLIKO_MINIMAL, HyScanGtkGlikoMinimalPrivate);
-
   // Make current:
   gtk_gl_area_make_current (area);
 
-#if defined (_MSC_VER)
-  if (!gladLoadGL())
-  {
-	  g_error("gladLoadGLLoader failed");
-  }
+#if defined(_MSC_VER)
+  if (!gladLoadGL ())
+    {
+      g_error ("gladLoadGLLoader failed");
+    }
   gtk_gl_area_set_has_alpha (area, TRUE);
 
 #endif
@@ -268,7 +270,7 @@ on_realize (GtkGLArea *area)
   frame_clock = gdk_window_get_frame_clock (glwindow);
 
   // Connect update signal:
-  g_signal_connect_swapped (frame_clock, "update", G_CALLBACK (gtk_gl_area_queue_render), area);
+  g_signal_connect (frame_clock, "update", G_CALLBACK (on_update), area);
 
   // Start updating:
   gdk_frame_clock_begin_updating (frame_clock);
@@ -281,38 +283,46 @@ hyscan_gtk_gliko_minimal_class_init (HyScanGtkGlikoMinimalClass *klass)
   GObjectClass *g_class = G_OBJECT_CLASS (klass);
   GtkWidgetClass *w_class = GTK_WIDGET_CLASS (klass);
 
+  g_class->constructed = constructed;
   g_class->finalize = finalize;
   w_class->get_preferred_width = get_preferred_width;
   w_class->get_preferred_height = get_preferred_height;
 }
 
 static void
-hyscan_gtk_gliko_minimal_init (HyScanGtkGlikoMinimal *area)
+hyscan_gtk_gliko_minimal_init (HyScanGtkGlikoMinimal *minimal)
 {
-  HyScanGtkGlikoMinimalPrivate *p;
+  minimal->priv = hyscan_gtk_gliko_minimal_get_instance_private (minimal);
+}
 
-  p = G_TYPE_INSTANCE_GET_PRIVATE (area, HYSCAN_TYPE_GTK_GLIKO_MINIMAL, HyScanGtkGlikoMinimalPrivate);
+static void
+constructed (GObject *gobject)
+{
+  HyScanGtkGlikoMinimal *minimal = HYSCAN_GTK_GLIKO_MINIMAL (gobject);
+  HyScanGtkGlikoMinimalPrivate *p = minimal->priv;
 
-  /* Create cache for faster access */
-  area->priv = p;
+  /* Remove this call then class is derived from GObject.
+       This call is strongly needed then class is derived from GtkWidget. */
+  G_OBJECT_CLASS (hyscan_gtk_gliko_minimal_parent_class)
+      ->constructed (gobject);
 
   p->program = -1;
   p->vao = 0;
 
   p->w = 0;
   p->h = 0;
+  p->redraw_parent = 1;
 
-  g_signal_connect (area, "realize", G_CALLBACK (on_realize), NULL);
-  g_signal_connect (area, "render", G_CALLBACK (on_render), NULL);
-  g_signal_connect (area, "resize", G_CALLBACK (on_resize), NULL);
+  g_signal_connect (gobject, "realize", G_CALLBACK (on_realize), NULL);
+  g_signal_connect (gobject, "render", G_CALLBACK (on_render), NULL);
+  g_signal_connect (gobject, "resize", G_CALLBACK (on_resize), NULL);
 }
 
 static void
 finalize (GObject *gobject)
 {
-  HyScanGtkGlikoMinimalPrivate *p;
-
-  p = G_TYPE_INSTANCE_GET_PRIVATE (gobject, HYSCAN_TYPE_GTK_GLIKO_MINIMAL, HyScanGtkGlikoMinimalPrivate);
+  HyScanGtkGlikoMinimal *minimal = HYSCAN_GTK_GLIKO_MINIMAL (gobject);
+  HyScanGtkGlikoMinimalPrivate *p = minimal->priv;
 
   glDeleteVertexArrays (1, &p->vao);
   glDeleteBuffers (1, &p->vbo);

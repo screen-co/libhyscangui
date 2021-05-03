@@ -1,55 +1,54 @@
 #include <hyscan-gtk-area.h>
-#include <hyscan-object-model.h>
 #include <hyscan-tile-color.h>
-#include <hyscan-cached.h>
 
 #include <hyscan-acoustic-data.h>
 #include <hyscan-data-player.h>
+#include <hyscan-gtk-gliko-minimal.h>
 #include <hyscan-gtk-gliko.h>
 #include <hyscan-nmea-data.h>
 
+#include <glib.h>
 #include <gtk/gtk.h>
 #include <libxml/parser.h>
-#include <glib.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
 
 #ifdef G_OS_WIN32
-  #define PARSE_SEPARATOR "\\"
-  #define COMPOSE_FORMAT "%s\\"
+#define PARSE_SEPARATOR "\\"
+#define COMPOSE_FORMAT "%s\\"
 #else
-  #define PARSE_SEPARATOR "/"
-  #define COMPOSE_FORMAT "/%s"
+#define PARSE_SEPARATOR "/"
+#define COMPOSE_FORMAT "/%s"
 #endif
 
-void       reopen_clicked   (GtkButton *button,
-                             gpointer   user_data);
-void       zoom_clicked     (GtkButton *button,
-                             gpointer   user_data);
+void reopen_clicked (GtkButton *button,
+                     gpointer user_data);
+void zoom_clicked (GtkButton *button,
+                   gpointer user_data);
 void scale_changed (GtkRange *range, gpointer user_data);
 
-void       level_changed    (GtkScale  *white,
-                             GtkScale  *gamma);
+void level_changed (GtkScale *white,
+                    GtkScale *gamma);
 
-void       color_changed    (GtkColorButton  *chooser);
+void color_changed (GtkColorButton *chooser);
 // void       player_changed   (GtkScale                 *player_scale,
-                             // HyScanGtkWaterfallPlayer *player);
+// HyScanGtkWaterfallPlayer *player);
 // void       player_stop      (HyScanGtkWaterfallPlayer *player,
-                             // GtkScale                 *scale);*/
+// GtkScale                 *scale);*/
 
-gchar     *uri_composer     (gchar    **path,
-                             gchar     *prefix,
-                             guint      cut);
+gchar *uri_composer (gchar **path,
+                     gchar *prefix,
+                     guint cut);
 
-GtkWidget *make_menu        (gdouble             white,
-                             gdouble             gamma);
-gboolean   slant_ground     (GtkSwitch *widget,
-                             gboolean   state,
-                             gpointer   udata);
-void       open_db          (HyScanDB **db,
-                             gchar    **old_uri,
-                             gchar     *new_uri);
+GtkWidget *make_menu (gdouble white,
+                      gdouble gamma);
+gboolean slant_ground (GtkSwitch *widget,
+                       gboolean state,
+                       gpointer udata);
+void open_db (HyScanDB **db,
+              gchar **old_uri,
+              gchar *new_uri);
 
 static void button_cb (GtkWidget *widget, GdkEventButton *event, void *w);
 static void motion_cb (GtkWidget *widget, GdkEventMotion *event, void *w);
@@ -62,15 +61,15 @@ static GtkWidget *scale_rotation;
 static GtkWidget *scale_turn;
 static GtkWidget *scale_player;
 
-static HyScanDB                  *db;
-static gchar                     *db_uri;
-static gchar                     *project_dir;
-static GtkWidget                 *window;
+static HyScanDB *db;
+static gchar *db_uri;
+static gchar *project_dir;
+static GtkWidget *window;
 
 static GtkWidget *window;
-static GtkWidget *overlay;
 static GtkWidget *gliko;
-static GtkWidget *label;
+//static GtkWidget *overlay;
+//static GtkWidget *label;
 
 static HyScanDB *db = NULL;
 HyScanNMEAData *nmea_data = NULL;
@@ -82,12 +81,12 @@ static int center_move = 0;
 static gdouble sxc0 = 0.f, syc0 = 0.f;
 static gdouble mx0 = 0.f, my0 = 0.f;
 //static gdouble delta = 0.01f;
+GtkWidget *area;
 
 int
-main (int    argc,
+main (int argc,
       char **argv)
 {
-  GtkWidget *area;
   GtkWidget *left;
   GtkWidget *central;
 
@@ -105,8 +104,6 @@ main (int    argc,
   guint32 color2 = 0xFFFF8000;
   guint32 background = 0x00404040;
   guint32 fps = 25;
-
-  HyScanCache *cache = HYSCAN_CACHE (hyscan_cached_new (2048));
 
   gtk_init (&argc, &argv);
 
@@ -127,14 +124,14 @@ main (int    argc,
       { "fps", 'f', 0, G_OPTION_ARG_INT, &fps, "Time between signaller calls", NULL },
       { "speed", 'S', 0, G_OPTION_ARG_DOUBLE, &speed, "Play speed coeff", NULL },
       { "num-azimuthes", 'n', 0, G_OPTION_ARG_INT, &num_azimuthes, "Number of azimuthes", NULL },
-      {NULL}
+      { NULL }
     };
 
-    #ifdef G_OS_WIN32
-        args = g_win32_get_command_line ();
-    #else
-        args = g_strdupv (argv);
-    #endif
+#ifdef G_OS_WIN32
+    args = g_win32_get_command_line ();
+#else
+    args = g_strdupv (argv);
+#endif
 
     context = g_option_context_new ("<db-uri>");
     g_option_context_set_help_enabled (context, TRUE);
@@ -170,8 +167,9 @@ main (int    argc,
   hyscan_gtk_area_set_left (HYSCAN_GTK_AREA (area), left);
 
   //overlay = gtk_overlay_new ();
-  //label = gtk_label_new ("");
+  //label = gtk_gl_area_new();//gtk_label_new ("");
   gliko = hyscan_gtk_gliko_new ();
+  //label = hyscan_gtk_gliko_minimal_new ();
 
   //gtk_overlay_add_overlay (GTK_OVERLAY (overlay), gliko);
   //gtk_overlay_add_overlay (GTK_OVERLAY (overlay), label);
@@ -216,16 +214,15 @@ main (int    argc,
   gtk_widget_show_all (window);
 
   if (db != NULL && project_name != NULL && track_name != NULL)
-  {
-    hyscan_data_player_set_track (player, db, project_name, track_name);
-    hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 0), 1, HYSCAN_CHANNEL_DATA);
-    hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 1), 2, HYSCAN_CHANNEL_DATA);
-    hyscan_data_player_play (player, speed);
-  }
+    {
+      hyscan_data_player_set_track (player, db, project_name, track_name);
+      hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 0), 1, HYSCAN_CHANNEL_DATA);
+      hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 1), 2, HYSCAN_CHANNEL_DATA);
+      hyscan_data_player_play (player, speed);
+    }
 
   /* Начинаем работу. */
   gtk_main ();
-  g_clear_object (&cache);
   g_clear_object (&db);
 
   g_free (project_name);
@@ -237,9 +234,9 @@ main (int    argc,
   return 0;
 }
 
-GtkWidget*
-make_menu (gdouble             white,
-           gdouble             gamma)
+GtkWidget *
+make_menu (gdouble white,
+           gdouble gamma)
 {
   // GtkWidget *overlay = gtk_overlay_new ();
   GtkWidget *box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
@@ -259,7 +256,7 @@ make_menu (gdouble             white,
   gtk_style_context_add_class (gtk_widget_get_style_context (track_box), "linked");
 
   GtkWidget *color_chooser = gtk_color_button_new ();
-  GdkRGBA    rgba;
+  GdkRGBA rgba;
 
   gdk_rgba_parse (&rgba, "#00FFFF");
   gtk_color_chooser_set_rgba (GTK_COLOR_CHOOSER (color_chooser), &rgba);
@@ -281,26 +278,26 @@ make_menu (gdouble             white,
   gtk_scale_set_has_origin (GTK_SCALE (scale_player), FALSE);
 
   /* Кладём в коробку. */
-  gtk_box_pack_start (GTK_BOX (track_box), zoom_btn_in,  TRUE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (track_box), zoom_btn_in, TRUE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (track_box), zoom_btn_out, TRUE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (track_box), btn_reopen,   TRUE, TRUE, 2);
+  gtk_box_pack_start (GTK_BOX (track_box), btn_reopen, TRUE, TRUE, 2);
 
-  gtk_box_pack_start (GTK_BOX (box), track_box,    FALSE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (box), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL), FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), track_box, FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL), FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), gtk_label_new ("Цвет"), FALSE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (box), color_chooser,FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), color_chooser, FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), gtk_label_new ("Диапазон"), FALSE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (box), scale_white,  FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), scale_white, FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), gtk_label_new ("Нелинейность"), FALSE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (box), scale_gamma,  FALSE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (box), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL), FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), scale_gamma, FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL), FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), gtk_label_new ("Дно"), FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), scale_bottom, FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), gtk_label_new ("Поворот развертки"), FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), scale_rotation, FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), gtk_label_new ("Поворот изображения"), FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), scale_turn, FALSE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (box), gtk_separator_new(GTK_ORIENTATION_HORIZONTAL), FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL), FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), gtk_label_new ("Плеер"), FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), scale_player, FALSE, TRUE, 0);
 
@@ -325,7 +322,7 @@ make_menu (gdouble             white,
 
 void
 reopen_clicked (GtkButton *button,
-                gpointer   user_data)
+                gpointer user_data)
 {
   GtkWidget *dialog;
   gchar *path = NULL;
@@ -338,8 +335,8 @@ reopen_clicked (GtkButton *button,
 
   dialog = gtk_file_chooser_dialog_new ("Select track", GTK_WINDOW (window),
                                         GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
-                                        "Cancel",   GTK_RESPONSE_CANCEL,
-                                        "_Open",    GTK_RESPONSE_OK,
+                                        "Cancel", GTK_RESPONSE_CANCEL,
+                                        "_Open", GTK_RESPONSE_OK,
                                         NULL);
   if (project_dir != NULL)
     gtk_file_chooser_set_current_folder (GTK_FILE_CHOOSER (dialog), project_dir);
@@ -367,11 +364,11 @@ reopen_clicked (GtkButton *button,
   hyscan_data_player_set_track (player, db, project, track);
   hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 0), 1, HYSCAN_CHANNEL_DATA);
   hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 1), 2, HYSCAN_CHANNEL_DATA);
-  speed = 1.0;//gtk_range_get_value (GTK_RANGE (scale_player));
+  speed = 1.0; //gtk_range_get_value (GTK_RANGE (scale_player));
   hyscan_data_player_play (player, speed);
 
   {
-    gchar * title = g_strdup_printf ("Around+ %s, %s", project, track);
+    gchar *title = g_strdup_printf ("Around+ %s, %s", project, track);
     gtk_window_set_title (GTK_WINDOW (window), title);
     g_free (title);
   }
@@ -385,15 +382,16 @@ cleanup:
 
 void
 zoom_clicked (GtkButton *button,
-              gpointer   user_data)
+              gpointer user_data)
 {
   gint direction = GPOINTER_TO_INT (user_data);
   gboolean in = (direction == 1) ? TRUE : FALSE;
   gdouble f = hyscan_gtk_gliko_get_scale (HYSCAN_GTK_GLIKO (gliko));
-  hyscan_gtk_gliko_set_scale (HYSCAN_GTK_GLIKO (gliko), f * (in ? 0.875: 1.125));
+  hyscan_gtk_gliko_set_scale (HYSCAN_GTK_GLIKO (gliko), f * (in ? 0.875 : 1.125));
 }
 
-void scale_changed (GtkRange *range, gpointer user_data)
+void
+scale_changed (GtkRange *range, gpointer user_data)
 {
   hyscan_gtk_gliko_set_white_point (HYSCAN_GTK_GLIKO (gliko), gtk_range_get_value (GTK_RANGE (scale_white)));
   hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (gliko), gtk_range_get_value (GTK_RANGE (scale_gamma)));
@@ -402,8 +400,9 @@ void scale_changed (GtkRange *range, gpointer user_data)
   hyscan_gtk_gliko_set_full_rotation (HYSCAN_GTK_GLIKO (gliko), gtk_range_get_value (GTK_RANGE (scale_turn)));
 }
 
-void level_changed (GtkScale  *white_scale,
-               GtkScale  *gamma_scale)
+void
+level_changed (GtkScale *white_scale,
+               GtkScale *gamma_scale)
 {
   gdouble white = gtk_range_get_value (GTK_RANGE (white_scale));
   gdouble gamma = gtk_range_get_value (GTK_RANGE (gamma_scale));
@@ -443,10 +442,10 @@ color_changed (GtkColorButton *chooser)
     gtk_color_chooser_get_rgba (GTK_COLOR_CHOOSER (chooser), &rgba);
 
   background = hyscan_tile_color_converter_d2i (0.15, 0.15, 0.15, 1.0);
-  colors[0]  = hyscan_tile_color_converter_d2i (0.0, 0.0, 0.0, 1.0);
-  colors[1]  = hyscan_tile_color_converter_d2i (rgba.red, rgba.green, rgba.blue, 1.0);
+  colors[0] = hyscan_tile_color_converter_d2i (0.0, 0.0, 0.0, 1.0);
+  colors[1] = hyscan_tile_color_converter_d2i (rgba.red, rgba.green, rgba.blue, 1.0);
 
-  colormap   = hyscan_tile_color_compose_colormap (colors, 2, &cmap_len);
+  colormap = hyscan_tile_color_compose_colormap (colors, 2, &cmap_len);
 
   hyscan_gtk_gliko_set_colormap (HYSCAN_GTK_GLIKO (gliko), 0, colormap, cmap_len, background);
   hyscan_gtk_gliko_set_colormap (HYSCAN_GTK_GLIKO (gliko), 1, colormap, cmap_len, background);
@@ -454,10 +453,10 @@ color_changed (GtkColorButton *chooser)
   g_free (colormap);
 }
 
-gchar*
+gchar *
 uri_composer (gchar **path,
-              gchar  *prefix,
-              guint   cut)
+              gchar *prefix,
+              guint cut)
 {
   guint len = g_strv_length (path) - cut;
   gchar *uri, *puri;
@@ -488,8 +487,8 @@ uri_composer (gchar **path,
 
 void
 open_db (HyScanDB **db,
-         gchar    **old_uri,
-         gchar     *new_uri)
+         gchar **old_uri,
+         gchar *new_uri)
 {
   if (new_uri == NULL || old_uri == NULL)
     return;
@@ -508,7 +507,8 @@ open_db (HyScanDB **db,
   *old_uri = new_uri;
 }
 
-static void update_title ()
+static void
+update_title ()
 {
 }
 
@@ -519,10 +519,22 @@ button_cb (GtkWidget *widget, GdkEventButton *event, void *w)
     {
       if (event->type == GDK_BUTTON_PRESS)
         {
-          center_move = 1;
-          hyscan_gtk_gliko_get_center (HYSCAN_GTK_GLIKO (gliko), &sxc0, &syc0);
-          mx0 = (gdouble) event->x;
-          my0 = (gdouble) event->y;
+          gtk_widget_queue_draw (GTK_WIDGET (area));
+
+          if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == 0)
+            {
+              center_move = 1;
+              hyscan_gtk_gliko_get_center (HYSCAN_GTK_GLIKO (gliko), &sxc0, &syc0);
+              mx0 = (gdouble) event->x;
+              my0 = (gdouble) event->y;
+            }
+          else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
+            {
+              gdouble a, r;
+              hyscan_gtk_gliko_pixel2polar (HYSCAN_GTK_GLIKO (gliko), event->x, event->y, &a, &r);
+              printf ("A%.1lf R%.1lf\n", a, r);
+              fflush (stdout);
+            }
         }
       else if (event->type == GDK_BUTTON_RELEASE)
         {
@@ -562,10 +574,10 @@ motion_cb (GtkWidget *widget, GdkEventMotion *event, void *w)
   int baseline;
   gdouble s, x, y;
 
-  gtk_widget_get_allocated_size (GTK_WIDGET (gliko), &allocation, &baseline);
-
   if (center_move)
     {
+      gtk_widget_get_allocated_size (GTK_WIDGET (gliko), &allocation, &baseline);
+
       s = hyscan_gtk_gliko_get_scale (HYSCAN_GTK_GLIKO (gliko));
       x = sxc0 - s * (mx0 - (gdouble) event->x) / allocation.height;
       y = syc0 - s * ((gdouble) event->y - my0) / allocation.height;

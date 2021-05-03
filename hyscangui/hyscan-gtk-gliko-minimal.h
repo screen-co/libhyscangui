@@ -51,6 +51,17 @@ typedef struct _HyScanGtkGlikoMinimal HyScanGtkGlikoMinimal;
 typedef struct _HyScanGtkGlikoMinimalPrivate HyScanGtkGlikoMinimalPrivate;
 typedef struct _HyScanGtkGlikoMinimalClass HyScanGtkGlikoMinimalClass;
 
+struct _HyScanGtkGlikoMinimal
+{
+  GtkGLArea parent;
+  HyScanGtkGlikoMinimalPrivate *priv;
+};
+
+struct _HyScanGtkGlikoMinimalClass
+{
+  GtkGLAreaClass parent_class;
+};
+
 HYSCAN_API
 GType hyscan_gtk_gliko_minimal_get_type (void);
 

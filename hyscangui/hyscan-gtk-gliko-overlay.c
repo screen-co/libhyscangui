@@ -32,7 +32,7 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
-#if defined (_MSC_VER)
+#if defined(_MSC_VER)
 #include <glad/glad.h>
 #else
 #define GL_GLEXT_PROTOTYPES
@@ -51,6 +51,7 @@ struct _HyScanGtkGlikoOverlayPrivate
   unsigned int enable;
   int width, height;
   int has_alpha;
+  int redraw_parent;
 };
 
 /* Define type */
@@ -64,7 +65,7 @@ static void get_preferred_width (GtkWidget *widget, gint *minimal_width, gint *n
 static void get_preferred_height (GtkWidget *widget, gint *minimal_height, gint *natural_height);
 
 static void
-on_resize (GtkGLArea *area, gint width, gint height)
+on_resize (GtkGLArea *area, gint width, gint height, gpointer user_data)
 {
   HyScanGtkGlikoOverlayPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (area, HYSCAN_TYPE_GTK_GLIKO_OVERLAY, HyScanGtkGlikoOverlayPrivate);
   int i;
@@ -87,9 +88,13 @@ on_render (GtkGLArea *area, GdkGLContext *context)
   HyScanGtkGlikoOverlayPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (area, HYSCAN_TYPE_GTK_GLIKO_OVERLAY, HyScanGtkGlikoOverlayPrivate);
   int i;
 
-  gtk_gl_area_make_current (area);
+  if (p->redraw_parent)
+    {
+      p->redraw_parent = 0;
+      gtk_widget_queue_draw (gtk_widget_get_parent (GTK_WIDGET (area)));
+    }
 
-  glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+  glColorMask (GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
   glClearColor (0.2f, 0.3f, 0.3f, 1.0f);
   glClear (GL_COLOR_BUFFER_BIT);
   glEnable (GL_BLEND);
@@ -107,13 +112,21 @@ on_render (GtkGLArea *area, GdkGLContext *context)
 
   // если отрисовка выполняется с альфа-каналом
   if (p->has_alpha)
-  {
-    // прописываем альфа канал в 1, отрисовываем без наложения
-    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-  }
+    {
+      // прописываем альфа канал в 1, отрисовываем без наложения
+      glColorMask (GL_FALSE, GL_FALSE, GL_FALSE, GL_TRUE);
+      glClearColor (0.0f, 0.0f, 0.0f, 1.0f);
+      glClear (GL_COLOR_BUFFER_BIT);
+    }
   return TRUE;
+}
+
+static void
+on_update (GdkFrameClock *clock,
+           gpointer user_data)
+{
+  GtkGLArea *area = user_data;
+  gtk_gl_area_queue_render (area);
 }
 
 static void
@@ -127,12 +140,12 @@ on_realize (GtkGLArea *area)
   // Make current:
   gtk_gl_area_make_current (area);
 
-#if defined (_MSC_VER)
-  if (!gladLoadGL())
-  {
-	  g_error("gladLoadGLLoader failed");
-  }
-  gtk_gl_area_set_has_alpha(area, TRUE);
+#if defined(_MSC_VER)
+  if (!gladLoadGL ())
+    {
+      g_error ("gladLoadGLLoader failed");
+    }
+  gtk_gl_area_set_has_alpha (area, TRUE);
 #endif
 
   // Print version info:
@@ -143,7 +156,7 @@ on_realize (GtkGLArea *area)
   fflush (stdout);
 
   // check for alpha channel of destinantion
-  p->has_alpha = (gtk_gl_area_get_has_alpha(area) ? 1 : 0);
+  p->has_alpha = (gtk_gl_area_get_has_alpha (area) ? 1 : 0);
 
   // Disable depth buffer:
   gtk_gl_area_set_has_depth_buffer (area, FALSE);
@@ -162,7 +175,8 @@ on_realize (GtkGLArea *area)
   GdkFrameClock *frame_clock = gdk_window_get_frame_clock (glwindow);
 
   // Connect update signal:
-  g_signal_connect_swapped (frame_clock, "update", G_CALLBACK (gtk_gl_area_queue_render), area);
+  //g_signal_connect_swapped (frame_clock, "update", G_CALLBACK (gtk_gl_area_queue_render), area);
+  g_signal_connect (frame_clock, "update", G_CALLBACK (on_update), area);
 
   // Start updating:
   gdk_frame_clock_begin_updating (frame_clock);
@@ -202,6 +216,7 @@ hyscan_gtk_gliko_overlay_init (HyScanGtkGlikoOverlay *overlay)
     }
   p->enable = 0;
   p->has_alpha = 0;
+  p->redraw_parent = 1;
 
   g_signal_connect (overlay, "realize", G_CALLBACK (on_realize), NULL);
   g_signal_connect (overlay, "render", G_CALLBACK (on_render), NULL);
@@ -218,17 +233,18 @@ dispose (GObject *gobject)
 static void
 finalize (GObject *instance)
 {
-  HyScanGtkGlikoOverlayPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE(instance, HYSCAN_TYPE_GTK_GLIKO_OVERLAY, HyScanGtkGlikoOverlayPrivate);
+  HyScanGtkGlikoOverlayPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO_OVERLAY, HyScanGtkGlikoOverlayPrivate);
   int i;
 
   for (i = 0; i < N; i++)
-  {
-    if (p->layer[i] != NULL)
     {
-      g_object_unref(G_OBJECT(p->layer[i]));
+      if (p->layer[i] != NULL)
+        {
+          g_object_unref (G_OBJECT (p->layer[i]));
+        }
     }
-  }
-  G_OBJECT_CLASS(hyscan_gtk_gliko_overlay_parent_class)->finalize (instance);
+  G_OBJECT_CLASS (hyscan_gtk_gliko_overlay_parent_class)
+      ->finalize (instance);
 }
 
 static void
