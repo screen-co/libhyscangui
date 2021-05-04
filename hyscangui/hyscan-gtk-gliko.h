@@ -199,8 +199,8 @@ void hyscan_gtk_gliko_pixel2polar (HyScanGtkGliko *instance,
 
 HYSCAN_API
 void hyscan_gtk_gliko_polar2pixel (HyScanGtkGliko *instance,
-                                   const gdouble *a,
-                                   const gdouble *r,
+                                   const gdouble a,
+                                   const gdouble r,
                                    int *x,
                                    int *y);
 

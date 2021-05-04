@@ -257,7 +257,7 @@ dispose (GObject *gobject)
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (gobject, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
-  g_clear_object( &p->player );
+  g_clear_object (&p->player);
 
   G_OBJECT_CLASS (hyscan_gtk_gliko_parent_class)
       ->dispose (gobject);
@@ -268,9 +268,9 @@ finalize (GObject *gobject)
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (gobject, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
-  g_clear_object( &p->iko );
-  g_clear_object( &p->grid );
-  g_clear_object( &p->nmea_data );
+  g_clear_object (&p->iko);
+  g_clear_object (&p->grid);
+  g_clear_object (&p->nmea_data);
 
   G_OBJECT_CLASS (hyscan_gtk_gliko_parent_class)
       ->finalize (gobject);
@@ -394,8 +394,8 @@ player_open_callback (HyScanDataPlayer *player,
   // if (++p->player_open != 2)
   // return;
 
-  printf( "open %s %s\n", project_name, track_name );
-  fflush( stdout );
+  printf ("open %s %s\n", project_name, track_name);
+  fflush (stdout);
 
   initque (&p->alpha_que, p->alpha_que_buffer, sizeof (alpha_que_t), sizeof (p->alpha_que_buffer) / sizeof (p->alpha_que_buffer[0]));
 
@@ -520,7 +520,7 @@ player_process_callback (HyScanDataPlayer *player,
       /* Считываем строку nmea */
       nmea = hyscan_nmea_data_get (p->nmea_data, p->nmea_index, &alpha.time);
 
-      if( nmea == NULL )
+      if (nmea == NULL)
         {
           continue;
         }
@@ -1129,8 +1129,9 @@ hyscan_gtk_gliko_get_rotation (HyScanGtkGliko *instance)
 }
 
 HYSCAN_API
-void hyscan_gtk_gliko_set_full_rotation (HyScanGtkGliko *instance,
-                                         const gdouble alpha)
+void
+hyscan_gtk_gliko_set_full_rotation (HyScanGtkGliko *instance,
+                                    const gdouble alpha)
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
@@ -1140,12 +1141,12 @@ void hyscan_gtk_gliko_set_full_rotation (HyScanGtkGliko *instance,
 }
 
 HYSCAN_API
-gdouble hyscan_gtk_gliko_get_full_rotation (HyScanGtkGliko *instance)
+gdouble
+hyscan_gtk_gliko_get_full_rotation (HyScanGtkGliko *instance)
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   return p->full_rotation;
 }
-
 
 HYSCAN_API
 void
@@ -1280,11 +1281,12 @@ hyscan_gtk_gliko_get_step_distance (HyScanGtkGliko *instance)
 }
 
 HYSCAN_API
-void hyscan_gtk_gliko_pixel2polar (HyScanGtkGliko *instance,
-                                      const int x,
-                                      const int y,
-                                      gdouble *a,
-                                      gdouble *r)
+void
+hyscan_gtk_gliko_pixel2polar (HyScanGtkGliko *instance,
+                              const int x,
+                              const int y,
+                              gdouble *a,
+                              gdouble *r)
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   float w, h;
@@ -1294,7 +1296,8 @@ void hyscan_gtk_gliko_pixel2polar (HyScanGtkGliko *instance,
   float d;
   const float radians_to_degrees = 180.0f / G_PI;
 
-  if( p->height == 0 ) return;
+  if (p->height == 0)
+    return;
 
   // ширина и высота
   w = p->width;
@@ -1318,29 +1321,80 @@ void hyscan_gtk_gliko_pixel2polar (HyScanGtkGliko *instance,
   py -= pcy;
 
   // угол в градусах
-  d = atan2( px, py ) * radians_to_degrees;
+  d = atan2 (px, py) * radians_to_degrees;
 
   // в диапазоне от 0 до 360
   if (d < 0.0f)
-  {
-    d += 360.0f;
-  }
+    {
+      d += 360.0f;
+    }
   *a = d;
 
   // дальность в пикселях
-  d = sqrtf( px * px + py * py );
+  d = sqrtf (px * px + py * py);
 
   // дальность в дискретах
   d *= real_scale;
 
   // дальность в метрах при наличии частоты дискретизации
-  if( p->channel[0].data_rate > 1.0f )
-  {
-    d = d * p->sound_speed / p->channel[0].data_rate;
-  }
+  if (p->channel[0].data_rate > 1.0f)
+    {
+      d = d * p->sound_speed / p->channel[0].data_rate;
+    }
   else
-  {
-    d = 0.0f;
-  }
+    {
+      d = 0.0f;
+    }
   *r = d;
+}
+
+HYSCAN_API
+void
+hyscan_gtk_gliko_polar2pixel (HyScanGtkGliko *instance,
+                              const gdouble a,
+                              const gdouble r,
+                              int *x,
+                              int *y)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
+  float w, h;
+  float px, py;
+  float pcx, pcy;
+  float real_scale;
+  float d;
+  const float degrees_to_radians = G_PI / 180.0f;
+
+  if (p->height == 0)
+    return;
+
+  // ширина и высота
+  w = p->width;
+  h = p->height;
+
+  // реальный масштаб изображения на экране
+  real_scale = p->scale * p->iko_length * 2.0f / h;
+
+  // пиксельные координаты центра развертки
+  pcx = p->cx * 2.0f * p->iko_length / real_scale;
+  pcy = p->cy * 2.0f * p->iko_length / real_scale;
+
+  // дальность в дискретах
+  d = r * p->channel[0].data_rate / p->sound_speed;
+
+  // дальность в пикселях
+  d = d / real_scale;
+
+  // пискельные координаты точки
+  px = d * sinf (a * degrees_to_radians);
+  py = d * cosf (a * degrees_to_radians);
+
+  // координаты пикселя на экране
+  px += pcx;
+  py += pcy;
+
+  px += (0.5f * w);
+  py = 0.5f * h - py;
+
+  *x = (int) px;
+  *y = (int) py;
 }

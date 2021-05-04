@@ -338,7 +338,6 @@ make_menu (gdouble white,
   gtk_box_pack_end (GTK_BOX (box), azimuth_box, FALSE, TRUE, 0);
   gtk_box_pack_end (GTK_BOX (box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL), FALSE, TRUE, 0);
 
-
   g_signal_connect (btn_reopen, "clicked", G_CALLBACK (reopen_clicked), NULL);
   g_signal_connect (zoom_btn_in, "clicked", G_CALLBACK (zoom_clicked), GINT_TO_POINTER (1));
   g_signal_connect (zoom_btn_out, "clicked", G_CALLBACK (zoom_clicked), GINT_TO_POINTER (0));
@@ -564,14 +563,17 @@ button_cb (GtkWidget *widget, GdkEventButton *event, void *w)
           else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
             {
               gdouble a, r;
+              int x, y;
               gchar tmp[32];
               hyscan_gtk_gliko_pixel2polar (HYSCAN_GTK_GLIKO (gliko), event->x, event->y, &a, &r);
-              g_ascii_formatd (tmp, 32, "%.1lf",a);
+              g_ascii_formatd (tmp, 32, "%.1lf", a);
               gtk_label_set_text (GTK_LABEL (label_azimuth), tmp);
               gtk_widget_queue_draw (GTK_WIDGET (label_azimuth));
-              g_ascii_formatd (tmp, 32, "%.1lf",r);
+              g_ascii_formatd (tmp, 32, "%.1lf", r);
               gtk_label_set_text (GTK_LABEL (label_distance), tmp);
               gtk_widget_queue_draw (GTK_WIDGET (label_distance));
+              hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), a, r, &x, &y);
+              //printf( "(%d,%d) - (%.0lf,%.0lf)\n", x, y, event->x, event->y ); fflush( stdout );
             }
         }
       else if (event->type == GDK_BUTTON_RELEASE)
