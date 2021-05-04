@@ -1292,7 +1292,7 @@ void hyscan_gtk_gliko_pixel2polar (HyScanGtkGliko *instance,
   float pcx, pcy;
   float real_scale;
   float d;
-  const float radians_to_degrees = 180.0f / M_PI;
+  const float radians_to_degrees = 180.0f / G_PI;
 
   if( p->height == 0 ) return;
 

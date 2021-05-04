@@ -283,7 +283,7 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
   set_uniform1f (p->program, "height", (float) p->h);
 
   // угол вращения относительно центра
-  a = -p->alpha * M_PI / 180.0;
+  a = -p->alpha * G_PI / 180.0;
   set_uniform1f (p->program, "sin_alpha", sinf( a ));
   set_uniform1f (p->program, "cos_alpha", cosf( a ));
 
