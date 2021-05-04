@@ -192,8 +192,8 @@ gdouble hyscan_gtk_gliko_get_step_distance (HyScanGtkGliko *instance);
 
 HYSCAN_API
 void hyscan_gtk_gliko_pixel2polar (HyScanGtkGliko *instance,
-                                   const int x,
-                                   const int y,
+                                   const gdouble x,
+                                   const gdouble y,
                                    gdouble *a,
                                    gdouble *r);
 
@@ -201,8 +201,8 @@ HYSCAN_API
 void hyscan_gtk_gliko_polar2pixel (HyScanGtkGliko *instance,
                                    const gdouble a,
                                    const gdouble r,
-                                   int *x,
-                                   int *y);
+                                   gdouble *x,
+                                   gdouble *y);
 
 G_END_DECLS
 

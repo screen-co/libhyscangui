@@ -22,6 +22,15 @@
 #define COMPOSE_FORMAT "/%s"
 #endif
 
+enum
+{
+  POINTER_NONE = 0,
+  POINTER_CENTER,
+  POINTER_RULER_FROM,
+  POINTER_RULER_TO,
+  POINTER_RULER_LINE
+};
+
 void reopen_clicked (GtkButton *button,
                      gpointer user_data);
 void zoom_clicked (GtkButton *button,
@@ -50,6 +59,8 @@ void open_db (HyScanDB **db,
 static void button_cb (GtkWidget *widget, GdkEventButton *event, void *w);
 static void motion_cb (GtkWidget *widget, GdkEventMotion *event, void *w);
 static void scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w);
+static gboolean draw_ruler_cb (GtkWidget *widget, cairo_t *cr, gpointer data);
+static void update_ruler ();
 
 static GtkWidget *scale_white;
 static GtkWidget *scale_bright;
@@ -60,8 +71,10 @@ static GtkWidget *scale_rotation;
 static GtkWidget *scale_turn;
 static GtkWidget *scale_player;
 
-static GtkWidget *label_azimuth;
-static GtkWidget *label_distance;
+static GtkWidget *label_a;
+static GtkWidget *label_b;
+static GtkWidget *label_ab;
+static GtkWidget *label_ba;
 
 static HyScanDB *db;
 static gchar *db_uri;
@@ -70,7 +83,7 @@ static GtkWidget *window;
 
 static GtkWidget *window;
 static GtkWidget *gliko;
-//static GtkWidget *overlay;
+static GtkWidget *overlay;
 //static GtkWidget *label;
 
 static HyScanDB *db = NULL;
@@ -79,11 +92,19 @@ static HyScanDataPlayer *player;
 
 static gint32 num_azimuthes = 1024;
 
-static int center_move = 0;
+static int pointer_move = POINTER_NONE;
 static gdouble sxc0 = 0.f, syc0 = 0.f;
 static gdouble mx0 = 0.f, my0 = 0.f;
+static gdouble mx1, my1, mx2, my2;
 //static gdouble delta = 0.01f;
-GtkWidget *area;
+static GtkWidget *area;
+static GtkWidget *ruler;
+
+static const int ruler_size = 3;
+gdouble point_a_z = 30.0f;
+gdouble point_a_r = 75.0f;
+gdouble point_b_z = 60.0f;
+gdouble point_b_r = 50.0f;
 
 int
 main (int argc,
@@ -168,16 +189,19 @@ main (int argc,
   left = make_menu (white, gamma);
   hyscan_gtk_area_set_left (HYSCAN_GTK_AREA (area), left);
 
-  //overlay = gtk_overlay_new ();
+  overlay = gtk_overlay_new ();
+  ruler = gtk_drawing_area_new ();
   //label = gtk_gl_area_new();//gtk_label_new ("");
   gliko = hyscan_gtk_gliko_new ();
   //label = hyscan_gtk_gliko_minimal_new ();
 
-  //gtk_overlay_add_overlay (GTK_OVERLAY (overlay), gliko);
-  //gtk_overlay_add_overlay (GTK_OVERLAY (overlay), label);
+  g_signal_connect (G_OBJECT (ruler), "draw", G_CALLBACK (draw_ruler_cb), NULL);
 
-  //central = overlay;
-  central = gliko;
+  gtk_overlay_add_overlay (GTK_OVERLAY (overlay), gliko);
+  gtk_overlay_add_overlay (GTK_OVERLAY (overlay), ruler);
+
+  central = overlay;
+  //central = gliko;
 
   gtk_widget_set_events (central,
                          GDK_EXPOSURE_MASK |
@@ -224,6 +248,8 @@ main (int argc,
       hyscan_data_player_play (player, speed);
     }
 
+  update_ruler ();
+
   /* Начинаем работу. */
   gtk_main ();
 
@@ -260,8 +286,6 @@ make_menu (gdouble white,
   scale_turn = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -180, 180.0, 1.0);
   scale_player = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -10.0, 10.0, 0.1);
 
-  GtkWidget *azimuth_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
-  GtkWidget *distance_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
   GtkWidget *track_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
 
   /* Делаем симпатичные кнопки. */
@@ -295,17 +319,25 @@ make_menu (gdouble white,
   gtk_scale_add_mark (GTK_SCALE (scale_player), 0.0, GTK_POS_TOP, NULL);
   gtk_scale_set_has_origin (GTK_SCALE (scale_player), FALSE);
 
-  label_azimuth = gtk_label_new (NULL);
-  label_distance = gtk_label_new (NULL);
-
-  gtk_box_pack_start (GTK_BOX (azimuth_box), w = gtk_label_new ("Азимут, \302\260:"), TRUE, TRUE, 0);
+  GtkWidget *ruler_grid = gtk_grid_new ();
+  gtk_grid_set_column_spacing (GTK_GRID (ruler_grid), 4);
+  gtk_grid_attach (GTK_GRID (ruler_grid), gtk_label_new ("Измерение"), 0, 0, 2, 1);
+  gtk_grid_attach (GTK_GRID (ruler_grid), w = gtk_label_new ("A"), 0, 1, 1, 1);
   gtk_widget_set_halign (w, GTK_ALIGN_START);
-  gtk_box_pack_start (GTK_BOX (azimuth_box), label_azimuth, TRUE, TRUE, 0);
-  gtk_widget_set_halign (label_azimuth, GTK_ALIGN_END);
-  gtk_box_pack_start (GTK_BOX (distance_box), w = gtk_label_new ("Дальность, м:"), TRUE, TRUE, 0);
+  gtk_grid_attach (GTK_GRID (ruler_grid), label_a = gtk_label_new (""), 1, 1, 1, 1);
+  gtk_widget_set_halign (label_a, GTK_ALIGN_END);
+  gtk_grid_attach (GTK_GRID (ruler_grid), w = gtk_label_new ("B"), 0, 2, 1, 1);
   gtk_widget_set_halign (w, GTK_ALIGN_START);
-  gtk_box_pack_start (GTK_BOX (distance_box), label_distance, TRUE, TRUE, 0);
-  gtk_widget_set_halign (label_distance, GTK_ALIGN_END);
+  gtk_grid_attach (GTK_GRID (ruler_grid), label_b = gtk_label_new (""), 1, 2, 1, 1);
+  gtk_widget_set_halign (label_b, GTK_ALIGN_END);
+  gtk_grid_attach (GTK_GRID (ruler_grid), w = gtk_label_new ("A→B"), 0, 3, 1, 1);
+  gtk_widget_set_halign (w, GTK_ALIGN_START);
+  gtk_grid_attach (GTK_GRID (ruler_grid), label_ab = gtk_label_new (""), 1, 3, 1, 1);
+  gtk_widget_set_halign (label_b, GTK_ALIGN_END);
+  gtk_grid_attach (GTK_GRID (ruler_grid), w = gtk_label_new ("B→A"), 0, 4, 1, 1);
+  gtk_widget_set_halign (w, GTK_ALIGN_START);
+  gtk_grid_attach (GTK_GRID (ruler_grid), label_ba = gtk_label_new (""), 1, 4, 1, 1);
+  gtk_widget_set_halign (label_b, GTK_ALIGN_END);
 
   /* Кладём в коробку. */
   gtk_box_pack_start (GTK_BOX (track_box), zoom_btn_in, TRUE, TRUE, 0);
@@ -334,8 +366,8 @@ make_menu (gdouble white,
   gtk_box_pack_start (GTK_BOX (box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL), FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), gtk_label_new ("Плеер"), FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), scale_player, FALSE, TRUE, 0);
-  gtk_box_pack_end (GTK_BOX (box), distance_box, FALSE, TRUE, 0);
-  gtk_box_pack_end (GTK_BOX (box), azimuth_box, FALSE, TRUE, 0);
+
+  gtk_box_pack_end (GTK_BOX (box), ruler_grid, FALSE, TRUE, 0);
   gtk_box_pack_end (GTK_BOX (box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL), FALSE, TRUE, 0);
 
   g_signal_connect (btn_reopen, "clicked", G_CALLBACK (reopen_clicked), NULL);
@@ -439,8 +471,6 @@ scale_changed (GtkRange *range, gpointer user_data)
   hyscan_gtk_gliko_set_bottom (HYSCAN_GTK_GLIKO (gliko), gtk_range_get_value (GTK_RANGE (scale_bottom)));
   hyscan_gtk_gliko_set_rotation (HYSCAN_GTK_GLIKO (gliko), gtk_range_get_value (GTK_RANGE (scale_rotation)));
   hyscan_gtk_gliko_set_full_rotation (HYSCAN_GTK_GLIKO (gliko), gtk_range_get_value (GTK_RANGE (scale_turn)));
-
-  gtk_widget_queue_draw (gtk_widget_get_parent (GTK_WIDGET (scale_turn)));
 }
 
 /*
@@ -545,40 +575,133 @@ update_title ()
 }
 
 static void
+update_ruler ()
+{
+  gchar tmpz[32], tmpr[32], tmp[64];
+  gdouble x1, y1, x2, y2, z1, z2, d;
+  const gdouble radians_to_degrees = 180.0 / G_PI;
+  const gdouble degrees_to_radians = G_PI / 180.0;
+
+  hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), point_a_z, point_a_r, &x1, &y1);
+  hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), point_b_z, point_b_r, &x2, &y2);
+
+  gtk_widget_queue_draw (ruler);
+
+  z1 = atan2 (x2 - x1, y1 - y2) * radians_to_degrees;
+  if (z1 < 0.0)
+    {
+      z1 += 360.0;
+    }
+
+  z2 = atan2 (x1 - x2, y2 - y1) * radians_to_degrees;
+  if (z2 < 0.0)
+    {
+      z2 += 360.0;
+    }
+
+  x1 = point_a_r * sin (point_a_z * degrees_to_radians);
+  y1 = point_a_r * cos (point_a_z * degrees_to_radians);
+
+  x2 = point_b_r * sin (point_b_z * degrees_to_radians);
+  y2 = point_b_r * cos (point_b_z * degrees_to_radians);
+
+  d = sqrt ((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
+
+  g_ascii_formatd (tmpz, 32, "%.0lf", point_a_z);
+  g_ascii_formatd (tmpr, 32, "%.1lf", point_a_r);
+  sprintf (tmp, "%s\302\260/%s м", tmpz, tmpr);
+  gtk_label_set_text (GTK_LABEL (label_a), tmp);
+
+  g_ascii_formatd (tmpz, 32, "%.0lf", point_b_z);
+  g_ascii_formatd (tmpr, 32, "%.1lf", point_b_r);
+  sprintf (tmp, "%s\302\260/%s м", tmpz, tmpr);
+  gtk_label_set_text (GTK_LABEL (label_b), tmp);
+
+  g_ascii_formatd (tmpz, 32, "%.0lf", z1);
+  g_ascii_formatd (tmpr, 32, "%.1lf", d);
+  sprintf (tmp, "%s\302\260/%s м", tmpz, tmpr);
+  gtk_label_set_text (GTK_LABEL (label_ab), tmp);
+
+  g_ascii_formatd (tmpz, 32, "%.0lf", z2);
+  sprintf (tmp, "%s\302\260/%s м", tmpz, tmpr);
+  gtk_label_set_text (GTK_LABEL (label_ba), tmp);
+}
+
+static int
+ruler_node_catch (const gdouble a, const gdouble r, const gdouble x, const gdouble y)
+{
+  gdouble xn, yn;
+
+  hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), a, r, &xn, &yn);
+  if (x >= (xn - ruler_size) &&
+      x < (xn + ruler_size) &&
+      y >= (yn - ruler_size) &&
+      y < (yn + ruler_size))
+    {
+      return 1;
+    }
+  return 0;
+}
+
+static int
+ruler_line_catch (const gdouble x, const gdouble y)
+{
+  gdouble x1, y1, x2, y2, d1, d2, d;
+
+  hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), point_a_z, point_a_r, &x1, &y1);
+  hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), point_b_z, point_b_r, &x2, &y2);
+
+  d = sqrt ((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+  d1 = sqrt ((x - x1) * (x - x1) + (y - y1) * (y - y1));
+  d2 = sqrt ((x - x2) * (x - x2) + (y - y2) * (y - y2));
+
+  if (d1 > d || d2 > d || d < 1.0f)
+    return 0;
+
+  // расстояние от точки до отразка
+  d = fabs ((y2 - y1) * x - (x2 - x1) * y + x2 * y1 - y2 * x1) / d;
+  if (d >= 2.0f)
+    return 0;
+  return 1;
+}
+
+static void
 button_cb (GtkWidget *widget, GdkEventButton *event, void *w)
 {
   if (event->button == 1)
     {
       if (event->type == GDK_BUTTON_PRESS)
         {
-          gtk_widget_queue_draw (GTK_WIDGET (area));
-
           if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == 0)
             {
-              center_move = 1;
-              hyscan_gtk_gliko_get_center (HYSCAN_GTK_GLIKO (gliko), &sxc0, &syc0);
-              mx0 = (gdouble) event->x;
-              my0 = (gdouble) event->y;
-            }
-          else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
-            {
-              gdouble a, r;
-              int x, y;
-              gchar tmp[32];
-              hyscan_gtk_gliko_pixel2polar (HYSCAN_GTK_GLIKO (gliko), event->x, event->y, &a, &r);
-              g_ascii_formatd (tmp, 32, "%.1lf", a);
-              gtk_label_set_text (GTK_LABEL (label_azimuth), tmp);
-              gtk_widget_queue_draw (GTK_WIDGET (label_azimuth));
-              g_ascii_formatd (tmp, 32, "%.1lf", r);
-              gtk_label_set_text (GTK_LABEL (label_distance), tmp);
-              gtk_widget_queue_draw (GTK_WIDGET (label_distance));
-              hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), a, r, &x, &y);
-              //printf( "(%d,%d) - (%.0lf,%.0lf)\n", x, y, event->x, event->y ); fflush( stdout );
+              if (ruler_node_catch (point_a_z, point_a_r, event->x, event->y))
+                {
+                  pointer_move = POINTER_RULER_FROM;
+                }
+              else if (ruler_node_catch (point_b_z, point_b_r, event->x, event->y))
+                {
+                  pointer_move = POINTER_RULER_TO;
+                }
+              else if (ruler_line_catch (event->x, event->y))
+                {
+                  pointer_move = POINTER_RULER_LINE;
+                  hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), point_a_z, point_a_r, &mx1, &my1);
+                  hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), point_b_z, point_b_r, &mx2, &my2);
+                  mx0 = event->x;
+                  my0 = event->y;
+                }
+              else
+                {
+                  pointer_move = POINTER_CENTER;
+                  hyscan_gtk_gliko_get_center (HYSCAN_GTK_GLIKO (gliko), &sxc0, &syc0);
+                  mx0 = event->x;
+                  my0 = event->y;
+                }
             }
         }
       else if (event->type == GDK_BUTTON_RELEASE)
         {
-          center_move = 0;
+          pointer_move = 0;
         }
     }
   else if (event->button == 2)
@@ -617,7 +740,7 @@ motion_cb (GtkWidget *widget, GdkEventMotion *event, void *w)
   int baseline;
   gdouble s, x, y;
 
-  if (center_move)
+  if (pointer_move == POINTER_CENTER)
     {
       gtk_widget_get_allocated_size (GTK_WIDGET (gliko), &allocation, &baseline);
 
@@ -625,6 +748,22 @@ motion_cb (GtkWidget *widget, GdkEventMotion *event, void *w)
       x = sxc0 - s * (mx0 - (gdouble) event->x) / allocation.height;
       y = syc0 - s * ((gdouble) event->y - my0) / allocation.height;
       hyscan_gtk_gliko_set_center (HYSCAN_GTK_GLIKO (gliko), x, y);
+    }
+  else if (pointer_move == POINTER_RULER_FROM)
+    {
+      hyscan_gtk_gliko_pixel2polar (HYSCAN_GTK_GLIKO (gliko), event->x, event->y, &point_a_z, &point_a_r);
+      update_ruler ();
+    }
+  else if (pointer_move == POINTER_RULER_TO)
+    {
+      hyscan_gtk_gliko_pixel2polar (HYSCAN_GTK_GLIKO (gliko), event->x, event->y, &point_b_z, &point_b_r);
+      update_ruler ();
+    }
+  else if (pointer_move == POINTER_RULER_LINE)
+    {
+      hyscan_gtk_gliko_pixel2polar (HYSCAN_GTK_GLIKO (gliko), mx1 + (event->x - mx0), my1 + (event->y - my0), &point_a_z, &point_a_r);
+      hyscan_gtk_gliko_pixel2polar (HYSCAN_GTK_GLIKO (gliko), mx2 + (event->x - mx0), my2 + (event->y - my0), &point_b_z, &point_b_r);
+      update_ruler ();
     }
 }
 
@@ -708,4 +847,55 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
           update_title ();
         }
     }
+}
+
+static gboolean
+draw_ruler_cb (GtkWidget *widget, cairo_t *cr, gpointer data)
+{
+  guint width, height;
+  //GdkRGBA color;
+  GtkStyleContext *context;
+  gdouble x1, y1, x2, y2;
+
+  context = gtk_widget_get_style_context (widget);
+  width = gtk_widget_get_allocated_width (widget);
+  height = gtk_widget_get_allocated_height (widget);
+
+  gtk_render_background (context, cr, 0, 0, width, height);
+
+  hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), point_a_z, point_a_r, &x1, &y1);
+  hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), point_b_z, point_b_r, &x2, &y2);
+
+  cairo_set_source_rgba (cr, 1, 1, 1, 0.5);
+
+  cairo_set_line_width (cr, 2.0);
+  cairo_move_to (cr, x1, y1);
+  cairo_line_to (cr, x2, y2);
+  cairo_stroke (cr);
+
+  cairo_rectangle (cr, x1 - ruler_size, y1 - ruler_size, ruler_size + ruler_size, ruler_size + ruler_size);
+  cairo_fill (cr);
+  cairo_stroke (cr);
+
+  cairo_rectangle (cr, x2 - ruler_size, y2 - ruler_size, ruler_size + ruler_size, ruler_size + ruler_size);
+  cairo_fill (cr);
+  cairo_stroke (cr);
+
+  /*
+
+  cairo_arc (cr,
+             width / 2.0, height / 2.0,
+             MIN (width, height) / 2.0,
+             0, 2 * G_PI);
+  */
+
+  /*
+
+  gtk_style_context_get_color (context,
+                               gtk_style_context_get_state (context),
+                               &color);
+  gdk_cairo_set_source_rgba (cr, &color);
+  */
+
+  return FALSE;
 }

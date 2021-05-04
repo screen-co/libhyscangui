@@ -1283,18 +1283,18 @@ hyscan_gtk_gliko_get_step_distance (HyScanGtkGliko *instance)
 HYSCAN_API
 void
 hyscan_gtk_gliko_pixel2polar (HyScanGtkGliko *instance,
-                              const int x,
-                              const int y,
+                              const gdouble x,
+                              const gdouble y,
                               gdouble *a,
                               gdouble *r)
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
-  float w, h;
-  float px, py;
-  float pcx, pcy;
-  float real_scale;
-  float d;
-  const float radians_to_degrees = 180.0f / G_PI;
+  gdouble w, h;
+  gdouble px, py;
+  gdouble pcx, pcy;
+  gdouble real_scale;
+  gdouble d;
+  const gdouble radians_to_degrees = 180.0 / G_PI;
 
   if (p->height == 0)
     return;
@@ -1304,17 +1304,17 @@ hyscan_gtk_gliko_pixel2polar (HyScanGtkGliko *instance,
   h = p->height;
 
   // реальный масштаб изображения на экране
-  real_scale = p->scale * p->iko_length * 2.0f / h;
+  real_scale = p->scale * p->iko_length * 2.0 / h;
 
   // пиксельные координаты точки относительно центра изображения
   px = x;
-  px -= (0.5f * w);
+  px -= (0.5 * w);
 
-  py = 0.5f * h - y;
+  py = 0.5 * h - y;
 
   // пиксельные координаты центра развертки
-  pcx = p->cx * 2.0f * p->iko_length / real_scale;
-  pcy = p->cy * 2.0f * p->iko_length / real_scale;
+  pcx = p->cx * 2.0 * p->iko_length / real_scale;
+  pcy = p->cy * 2.0 * p->iko_length / real_scale;
 
   // пиксельные координаты точки относительно центра развертки
   px -= pcx;
@@ -1324,26 +1324,26 @@ hyscan_gtk_gliko_pixel2polar (HyScanGtkGliko *instance,
   d = atan2 (px, py) * radians_to_degrees;
 
   // в диапазоне от 0 до 360
-  if (d < 0.0f)
+  if (d < 0.0)
     {
-      d += 360.0f;
+      d += 360.0;
     }
   *a = d;
 
   // дальность в пикселях
-  d = sqrtf (px * px + py * py);
+  d = sqrt (px * px + py * py);
 
   // дальность в дискретах
   d *= real_scale;
 
   // дальность в метрах при наличии частоты дискретизации
-  if (p->channel[0].data_rate > 1.0f)
+  if (p->channel[0].data_rate > 1.0)
     {
-      d = d * p->sound_speed / p->channel[0].data_rate;
+      d = d * 0.5 * p->sound_speed / p->channel[0].data_rate;
     }
   else
     {
-      d = 0.0f;
+      d = 0.0;
     }
   *r = d;
 }
@@ -1353,16 +1353,16 @@ void
 hyscan_gtk_gliko_polar2pixel (HyScanGtkGliko *instance,
                               const gdouble a,
                               const gdouble r,
-                              int *x,
-                              int *y)
+                              gdouble *x,
+                              gdouble *y)
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
-  float w, h;
-  float px, py;
-  float pcx, pcy;
-  float real_scale;
-  float d;
-  const float degrees_to_radians = G_PI / 180.0f;
+  gdouble w, h;
+  gdouble px, py;
+  gdouble pcx, pcy;
+  gdouble real_scale;
+  gdouble d;
+  const gdouble degrees_to_radians = G_PI / 180.0;
 
   if (p->height == 0)
     return;
@@ -1372,14 +1372,14 @@ hyscan_gtk_gliko_polar2pixel (HyScanGtkGliko *instance,
   h = p->height;
 
   // реальный масштаб изображения на экране
-  real_scale = p->scale * p->iko_length * 2.0f / h;
+  real_scale = p->scale * p->iko_length * 2.0 / h;
 
   // пиксельные координаты центра развертки
-  pcx = p->cx * 2.0f * p->iko_length / real_scale;
-  pcy = p->cy * 2.0f * p->iko_length / real_scale;
+  pcx = p->cx * 2.0 * p->iko_length / real_scale;
+  pcy = p->cy * 2.0 * p->iko_length / real_scale;
 
   // дальность в дискретах
-  d = r * p->channel[0].data_rate / p->sound_speed;
+  d = r * 2.0 * p->channel[0].data_rate / p->sound_speed;
 
   // дальность в пикселях
   d = d / real_scale;
@@ -1392,9 +1392,9 @@ hyscan_gtk_gliko_polar2pixel (HyScanGtkGliko *instance,
   px += pcx;
   py += pcy;
 
-  px += (0.5f * w);
-  py = 0.5f * h - py;
+  px += (0.5 * w);
+  py = 0.5 * h - py;
 
-  *x = (int) px;
-  *y = (int) py;
+  *x = px;
+  *y = py;
 }
