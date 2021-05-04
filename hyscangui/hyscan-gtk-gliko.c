@@ -101,7 +101,6 @@ struct _HyScanGtkGlikoPrivate
   HyScanGtkGlikoArea *iko;
   HyScanGtkGlikoGrid *grid;
 
-  HyScanDB *db;
   HyScanNMEAData *nmea_data;
   HyScanDataPlayer *player;
 
@@ -178,7 +177,6 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
   p->iko = NULL;
   p->grid = NULL;
 
-  p->db = NULL;
   p->nmea_data = NULL;
   p->player = NULL;
 
@@ -257,6 +255,10 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
 static void
 dispose (GObject *gobject)
 {
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (gobject, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
+
+  g_clear_object( &p->player );
+
   G_OBJECT_CLASS (hyscan_gtk_gliko_parent_class)
       ->dispose (gobject);
 }
@@ -264,6 +266,12 @@ dispose (GObject *gobject)
 static void
 finalize (GObject *gobject)
 {
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (gobject, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
+
+  g_clear_object( &p->iko );
+  g_clear_object( &p->grid );
+  g_clear_object( &p->nmea_data );
+
   G_OBJECT_CLASS (hyscan_gtk_gliko_parent_class)
       ->finalize (gobject);
 }
@@ -787,6 +795,7 @@ hyscan_gtk_gliko_set_player (HyScanGtkGliko *instance,
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
+  g_object_ref (G_OBJECT (player));
   p->player = player;
   g_signal_connect (p->player, "open", G_CALLBACK (player_open_callback), instance);
   g_signal_connect (p->player, "ready", G_CALLBACK (player_ready_callback), instance);
@@ -1283,6 +1292,7 @@ void hyscan_gtk_gliko_pixel2polar (HyScanGtkGliko *instance,
   float pcx, pcy;
   float real_scale;
   float d;
+  const float radians_to_degrees = 180.0f / M_PI;
 
   if( p->height == 0 ) return;
 
@@ -1308,7 +1318,7 @@ void hyscan_gtk_gliko_pixel2polar (HyScanGtkGliko *instance,
   py -= pcy;
 
   // угол в градусах
-  d = atan2( px, py ) * 180.0f / M_PI;
+  d = atan2( px, py ) * radians_to_degrees;
 
   // в диапазоне от 0 до 360
   if (d < 0.0f)

@@ -28,9 +28,6 @@ void zoom_clicked (GtkButton *button,
                    gpointer user_data);
 void scale_changed (GtkRange *range, gpointer user_data);
 
-void level_changed (GtkScale *white,
-                    GtkScale *gamma);
-
 void color_changed (GtkColorButton *chooser);
 // void       player_changed   (GtkScale                 *player_scale,
 // HyScanGtkWaterfallPlayer *player);
@@ -209,6 +206,7 @@ main (int argc,
 
   player = hyscan_data_player_new ();
 
+  g_object_ref (G_OBJECT (gliko));
   hyscan_gtk_gliko_set_player (HYSCAN_GTK_GLIKO (gliko), player);
 
   hyscan_gtk_gliko_set_white_point (HYSCAN_GTK_GLIKO (gliko), white);
@@ -228,6 +226,10 @@ main (int argc,
 
   /* Начинаем работу. */
   gtk_main ();
+
+  hyscan_data_player_shutdown (player);
+  g_object_unref (G_OBJECT (gliko));
+  g_object_unref (G_OBJECT (player));
   g_clear_object (&db);
 
   g_free (project_name);
@@ -438,17 +440,8 @@ scale_changed (GtkRange *range, gpointer user_data)
   hyscan_gtk_gliko_set_bottom (HYSCAN_GTK_GLIKO (gliko), gtk_range_get_value (GTK_RANGE (scale_bottom)));
   hyscan_gtk_gliko_set_rotation (HYSCAN_GTK_GLIKO (gliko), gtk_range_get_value (GTK_RANGE (scale_rotation)));
   hyscan_gtk_gliko_set_full_rotation (HYSCAN_GTK_GLIKO (gliko), gtk_range_get_value (GTK_RANGE (scale_turn)));
-}
 
-void
-level_changed (GtkScale *white_scale,
-               GtkScale *gamma_scale)
-{
-  gdouble white = gtk_range_get_value (GTK_RANGE (white_scale));
-  gdouble gamma = gtk_range_get_value (GTK_RANGE (gamma_scale));
-
-  hyscan_gtk_gliko_set_white_point (HYSCAN_GTK_GLIKO (gliko), white);
-  hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (gliko), gamma);
+  gtk_widget_queue_draw (gtk_widget_get_parent (GTK_WIDGET (scale_turn)));
 }
 
 /*
@@ -575,8 +568,10 @@ button_cb (GtkWidget *widget, GdkEventButton *event, void *w)
               hyscan_gtk_gliko_pixel2polar (HYSCAN_GTK_GLIKO (gliko), event->x, event->y, &a, &r);
               g_ascii_formatd (tmp, 32, "%.1lf",a);
               gtk_label_set_text (GTK_LABEL (label_azimuth), tmp);
+              gtk_widget_queue_draw (GTK_WIDGET (label_azimuth));
               g_ascii_formatd (tmp, 32, "%.1lf",r);
               gtk_label_set_text (GTK_LABEL (label_distance), tmp);
+              gtk_widget_queue_draw (GTK_WIDGET (label_distance));
             }
         }
       else if (event->type == GDK_BUTTON_RELEASE)
@@ -589,16 +584,19 @@ button_cb (GtkWidget *widget, GdkEventButton *event, void *w)
       if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_CONTROL_MASK)
         {
           hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (gliko), 0.0);
+          gtk_range_set_value (GTK_RANGE (scale_contrast), 0.0);
           update_title ();
         }
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_SHIFT_MASK)
         {
           hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (gliko), 0.0);
+          gtk_range_set_value (GTK_RANGE (scale_bright), 0.0);
           update_title ();
         }
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == (GDK_CONTROL_MASK | GDK_SHIFT_MASK))
         {
           hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (gliko), 1.0);
+          gtk_range_set_value (GTK_RANGE (scale_gamma), 1.0);
           update_title ();
         }
       else

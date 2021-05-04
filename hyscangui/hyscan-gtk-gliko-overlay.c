@@ -226,14 +226,7 @@ hyscan_gtk_gliko_overlay_init (HyScanGtkGlikoOverlay *overlay)
 static void
 dispose (GObject *gobject)
 {
-  G_OBJECT_CLASS (hyscan_gtk_gliko_overlay_parent_class)
-      ->dispose (gobject);
-}
-
-static void
-finalize (GObject *instance)
-{
-  HyScanGtkGlikoOverlayPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO_OVERLAY, HyScanGtkGlikoOverlayPrivate);
+  HyScanGtkGlikoOverlayPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (gobject, HYSCAN_TYPE_GTK_GLIKO_OVERLAY, HyScanGtkGlikoOverlayPrivate);
   int i;
 
   for (i = 0; i < N; i++)
@@ -241,10 +234,18 @@ finalize (GObject *instance)
       if (p->layer[i] != NULL)
         {
           g_object_unref (G_OBJECT (p->layer[i]));
+          p->layer[i] = NULL;
         }
     }
   G_OBJECT_CLASS (hyscan_gtk_gliko_overlay_parent_class)
-      ->finalize (instance);
+      ->dispose (gobject);
+}
+
+static void
+finalize (GObject *gobject)
+{
+  G_OBJECT_CLASS (hyscan_gtk_gliko_overlay_parent_class)
+      ->finalize (gobject);
 }
 
 static void
@@ -278,6 +279,7 @@ hyscan_gtk_gliko_overlay_set_layer (HyScanGtkGlikoOverlay *instance, const int i
 
   if (index >= 0 && index < N)
     {
+      g_object_ref (G_OBJECT (layer));
       p->layer[index] = layer;
     }
 }
