@@ -32,7 +32,7 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
-#if defined (_MSC_VER)
+#if defined(_MSC_VER)
 #include <glad/glad.h>
 #else
 #define GL_GLEXT_PROTOTYPES
@@ -62,7 +62,7 @@ enum
   P_ROTATE,    // поворот оси, 0..360
   P_FADE_COEF, // коэффициент затухания 0..1
   P_REMAIN,    // коэффициент при перезаписи
-  P_BOTTOM,     // глубина (номер отсчета дна)
+  P_BOTTOM,    // глубина (номер отсчета дна)
   P_COLOR1,
   P_COLOR2,
   P_BACKGROUND,
@@ -155,8 +155,8 @@ static const char *vertexShaderSource =
 static int
 create_shader_program ()
 {
-  GBytes * shader_bytes;
-  const gchar * shader_source;
+  GBytes *shader_bytes;
+  const gchar *shader_source;
   int vertexShader;
   int fragmentShader;
   int shaderProgram;
@@ -181,7 +181,7 @@ create_shader_program ()
   shader_bytes = g_resources_lookup_data (SHADER_RESOURCE_PATH,
                                           G_RESOURCE_LOOKUP_FLAGS_NONE,
                                           NULL);
-  shader_source = (gchar*) g_bytes_get_data (shader_bytes, NULL);
+  shader_source = (gchar *) g_bytes_get_data (shader_bytes, NULL);
 
   fragmentShader = glCreateShader (GL_FRAGMENT_SHADER);
   glShaderSource (fragmentShader, 1, &shader_source, NULL);
@@ -445,7 +445,7 @@ init_textures (HyScanGtkGlikoAreaPrivate *p)
       glBindTexture (GL_TEXTURE_1D_ARRAY, p->tex_beam[k]);
       //glTexStorage2D (GL_TEXTURE_1D_ARRAY, 1, GL_R32F, TEX_SIZE, p->tna);
       glPixelStorei (GL_UNPACK_ROW_LENGTH, (1 << p->nd_bits) * sizeof (sample_t));
-      glTexImage2D(GL_TEXTURE_1D_ARRAY, 0, GL_R32F, TEX_SIZE, p->tna, 0, GL_RED, GL_FLOAT, NULL);
+      glTexImage2D (GL_TEXTURE_1D_ARRAY, 0, GL_R32F, TEX_SIZE, p->tna, 0, GL_RED, GL_FLOAT, NULL);
       glTexParameteri (GL_TEXTURE_1D_ARRAY, GL_TEXTURE_BASE_LEVEL, 0);
       glTexParameteri (GL_TEXTURE_1D_ARRAY, GL_TEXTURE_MAX_LEVEL, 0);
       glTexParameteri (GL_TEXTURE_1D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -457,7 +457,7 @@ init_textures (HyScanGtkGlikoAreaPrivate *p)
       glBindTexture (GL_TEXTURE_1D_ARRAY, p->tex_fade[k]);
       glPixelStorei (GL_UNPACK_ROW_LENGTH, (1 << p->nd_bits) * sizeof (sample_t));
       //glTexStorage2D (GL_TEXTURE_1D_ARRAY, 1, GL_R32F, TEX_SIZE, p->tna);
-      glTexImage2D(GL_TEXTURE_1D_ARRAY, 0, GL_R32F, TEX_SIZE, p->tna, 0, GL_RED, GL_FLOAT, NULL);
+      glTexImage2D (GL_TEXTURE_1D_ARRAY, 0, GL_R32F, TEX_SIZE, p->tna, 0, GL_RED, GL_FLOAT, NULL);
       glTexParameteri (GL_TEXTURE_1D_ARRAY, GL_TEXTURE_BASE_LEVEL, 0);
       glTexParameteri (GL_TEXTURE_1D_ARRAY, GL_TEXTURE_MAX_LEVEL, 0);
       glTexParameteri (GL_TEXTURE_1D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -535,7 +535,7 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
   real_bottom /= (1 << p->nd_bits);
   //set_uniform1f( iko_prog, "noise", 0.f );//real_scale > 1.0f ? (0.375f / ND): 0.f );
 
-  for (i = 0; (i + 1) < p->n_tex && real_scale > 1.0f; i++, real_scale *= 0.5f )
+  for (i = 0; (i + 1) < p->n_tex && real_scale > 1.0f; i++, real_scale *= 0.5f)
     ;
 
   glActiveTexture (GL_TEXTURE0 + 0);
@@ -672,44 +672,44 @@ hyscan_gtk_gliko_area_init_dimension (HyScanGtkGlikoArea *instance, const int na
   for (n_tex = 0, j = (1 << nd_bits); n_tex < TEX_MAX && j > TEX_SIZE; n_tex++, j >>= 1)
     ;
 
-  if( nd_bits != p->nd_bits ||
+  if (nd_bits != p->nd_bits ||
       na_bits != p->na_bits ||
-      n_tex != p->n_tex )
-  {
-    if (p->n_tex != 0)
-      {
-        glDeleteTextures (p->n_tex, p->tex[0]);
-        glDeleteTextures (p->n_tex, p->tex[1]);
-      }
-
-    if (p->buf[0][0] != NULL)
-      {
-        free (p->buf[0][0]);
-        p->buf[0][0] = NULL;
-      }
-
-    p->nd_bits = nd_bits;
-    p->na_bits = na_bits;
-    p->n_tex = n_tex;
-
-    k = (1 << p->nd_bits) * (1 << p->na_bits) * 2 + (1 << p->na_bits) + (1 << p->na_bits);
-    p->buf_len = k;
-    if ((p->buf[0][0] = malloc (k * 2 * sizeof (sample_t))) == NULL)
-      return;
-
-    p->buf[1][0] = p->buf[0][0] + k;
-
-    for (i = 1, j = (1 << p->nd_bits); i < p->n_tex; i++, j >>= 1)
+      n_tex != p->n_tex)
     {
-      p->buf[0][i] = p->buf[0][i - 1] + (1 << p->na_bits) * j;
-      p->buf[1][i] = p->buf[1][i - 1] + (1 << p->na_bits) * j;
-    }
+      if (p->n_tex != 0)
+        {
+          glDeleteTextures (p->n_tex, p->tex[0]);
+          glDeleteTextures (p->n_tex, p->tex[1]);
+        }
 
-    p->fade[0] = p->buf[0][0] + k - (1 << p->na_bits) - (1 << p->na_bits);
-    p->fade[1] = p->buf[1][0] + k - (1 << p->na_bits) - (1 << p->na_bits);
-    p->beam[0] = p->buf[0][0] + k - (1 << p->na_bits);
-    p->beam[1] = p->buf[1][0] + k - (1 << p->na_bits);
-  }
+      if (p->buf[0][0] != NULL)
+        {
+          free (p->buf[0][0]);
+          p->buf[0][0] = NULL;
+        }
+
+      p->nd_bits = nd_bits;
+      p->na_bits = na_bits;
+      p->n_tex = n_tex;
+
+      k = (1 << p->nd_bits) * (1 << p->na_bits) * 2 + (1 << p->na_bits) + (1 << p->na_bits);
+      p->buf_len = k;
+      if ((p->buf[0][0] = malloc (k * 2 * sizeof (sample_t))) == NULL)
+        return;
+
+      p->buf[1][0] = p->buf[0][0] + k;
+
+      for (i = 1, j = (1 << p->nd_bits); i < p->n_tex; i++, j >>= 1)
+        {
+          p->buf[0][i] = p->buf[0][i - 1] + (1 << p->na_bits) * j;
+          p->buf[1][i] = p->buf[1][i - 1] + (1 << p->na_bits) * j;
+        }
+
+      p->fade[0] = p->buf[0][0] + k - (1 << p->na_bits) - (1 << p->na_bits);
+      p->fade[1] = p->buf[1][0] + k - (1 << p->na_bits) - (1 << p->na_bits);
+      p->beam[0] = p->buf[0][0] + k - (1 << p->na_bits);
+      p->beam[1] = p->buf[1][0] + k - (1 << p->na_bits);
+    }
 
   p->na = na;
   p->nd = nd;
@@ -1028,7 +1028,6 @@ get_pint (HyScanGtkGlikoAreaPrivate *p, const int id)
     }
   return NULL;
 }
-
 
 /* Overriden g_object methods */
 static void
