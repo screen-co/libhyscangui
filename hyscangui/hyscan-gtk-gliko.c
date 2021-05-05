@@ -761,7 +761,7 @@ player_ready_callback (HyScanDataPlayer *player,
       // инициализируем индикатор
       hyscan_gtk_gliko_area_init_dimension (HYSCAN_GTK_GLIKO_AREA (p->iko), p->num_azimuthes, p->iko_length);
 
-      g_object_set (p->grid, "gliko-radius", p->iko_length * p->sound_speed / p->channel[0].data_rate, NULL);
+      g_object_set (p->grid, "gliko-radius", p->iko_length * 0.5f * p->sound_speed / p->channel[0].data_rate, NULL);
 
       g_object_set (p->iko, "gliko-scale", p->scale, NULL);
       g_object_set (p->grid, "gliko-scale", p->scale, NULL);

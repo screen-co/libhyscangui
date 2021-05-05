@@ -86,7 +86,7 @@ struct _HyScanGtkGlikoGridPrivate
   float step;
   float alpha;
   int w, h;
-  int subcircles;   // количество малых делений разметки по дальности
+  int bold;         // количество малых делений разметки по дальности
   int program;      // shader program
   unsigned int vao; // vertex array object
   unsigned int vbo; // vertex buffer object
@@ -256,7 +256,7 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
 {
   HyScanGtkGlikoGridPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (layer, HYSCAN_TYPE_GTK_GLIKO_GRID, HyScanGtkGlikoGridPrivate);
   int i, j;
-  float r = 0.0f, s, d, a;
+  float a;
   static const float c1[4] = { 0.0f, 0.0f, 0.0f, 0.4f };
   static const float c2[4] = { 0.0f, 0.0f, 0.0f, 0.2f };
 
@@ -294,22 +294,19 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
   glBufferSubData (GL_ARRAY_BUFFER, 360 * 3 * sizeof (float), 12 * 6 * sizeof (float), p->vertices + 360 * 3);
 
   // рисуем набор окружностей
-  for (i = 0; i < p->num_circles; i++)
+  for (i = 0, j = 0; i < p->num_circles; i++)
     {
-      if (p->subcircles != 0)
-        {
-          d = p->step / p->radius;
-          s = d;
-          for (j = 1; j < p->subcircles && (r + s) < p->circles[i]; j++, s += d)
-            {
-              set_uniform1f (p->program, "radius", r + s);
-              set_uniform4fv (p->program, "color", c2);
-              glDrawArrays (GL_LINE_LOOP, 0, 360);
-            }
-        }
-      r = p->circles[i];
-      set_uniform1f (p->program, "radius", r);
-      set_uniform4fv (p->program, "color", c1);
+      j++;
+      if (j == p->bold || i == (p->num_circles - 1))
+      {
+        j = 0;
+        set_uniform4fv (p->program, "color", c1);
+      }
+      else
+      {
+        set_uniform4fv (p->program, "color", c2);
+      }
+      set_uniform1f (p->program, "radius", p->circles[i]);
       glDrawArrays (GL_LINE_LOOP, 0, 360);
     }
   // рисуем 30-градусные азимутальные линии
@@ -340,10 +337,11 @@ static void
 update_circles (HyScanGtkGlikoGridPrivate *p)
 {
   float step, r0;
-  int i;
+  int i, k;
   const float x[3] = { 2.5f, 2.0f, 2.0f };
+  const int num[3] = { 4, 5, 5 };
   const int n = 10;
-  const float a = 0.01745329251994329576923690768489; // M_PI / 180.0f;
+  const float a = G_PI / 180.0f;
   float *line_vertices;
 
   if (p->radius == p->radius0 && p->scale == p->scale0)
@@ -352,9 +350,10 @@ update_circles (HyScanGtkGlikoGridPrivate *p)
   p->radius0 = p->radius;
   p->scale0 = p->scale;
 
-  for (step = 1.0f, i = 0; (step * n) < p->radius; i++)
+  for (step = 0.1f, i = 0, k = num[0]; (step * n / p->scale) < p->radius; i++)
     {
       step *= x[i % 3];
+      k = num[i % 3];
     }
   for (i = 0; (step * (i + 1)) < p->radius && i < MAX_CIRCLES - 1; i++)
     {
@@ -363,24 +362,8 @@ update_circles (HyScanGtkGlikoGridPrivate *p)
   p->circles[i++] = 1.0f;
   p->num_circles = i;
   p->step = step;
-
-  if (p->scale < 0.1)
-    {
-      p->subcircles = 10;
-      p->step *= 0.1f;
-      r0 = p->step / p->radius;
-    }
-  else if (p->scale < 0.5)
-    {
-      p->subcircles = 5;
-      p->step *= 0.2f;
-      r0 = p->step / p->radius;
-    }
-  else
-    {
-      p->subcircles = 0;
-      r0 = p->circles[0];
-    }
+  p->bold = k;
+  r0 = p->step / p->radius;
 
   // координаты точек окружности
   for (i = 0; i < 360; i++)
