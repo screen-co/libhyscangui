@@ -1321,9 +1321,13 @@ hyscan_gtk_gliko_pixel2polar (HyScanGtkGliko *instance,
   py -= pcy;
 
   // угол в градусах
-  d = atan2 (px, py) * radians_to_degrees;
+  d = atan2 (px, py) * radians_to_degrees - p->full_rotation;
 
   // в диапазоне от 0 до 360
+  if( d > 360.0 )
+    {
+      d -= 360.0;
+    }
   if (d < 0.0)
     {
       d += 360.0;
@@ -1385,8 +1389,8 @@ hyscan_gtk_gliko_polar2pixel (HyScanGtkGliko *instance,
   d = d / real_scale;
 
   // пискельные координаты точки
-  px = d * sinf (a * degrees_to_radians);
-  py = d * cosf (a * degrees_to_radians);
+  px = d * sinf ((a + p->full_rotation) * degrees_to_radians);
+  py = d * cosf ((a + p->full_rotation) * degrees_to_radians);
 
   // координаты пикселя на экране
   px += pcx;

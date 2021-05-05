@@ -60,6 +60,7 @@ static void button_cb (GtkWidget *widget, GdkEventButton *event, void *w);
 static void motion_cb (GtkWidget *widget, GdkEventMotion *event, void *w);
 static void scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w);
 static gboolean draw_ruler_cb (GtkWidget *widget, cairo_t *cr, gpointer data);
+
 static void update_ruler ();
 
 static GtkWidget *scale_white;
@@ -101,10 +102,14 @@ static GtkWidget *area;
 static GtkWidget *ruler;
 
 static const int ruler_size = 6;
-gdouble point_a_z = 30.0f;
-gdouble point_a_r = 75.0f;
-gdouble point_b_z = 60.0f;
-gdouble point_b_r = 50.0f;
+gdouble point_a_z = 30.0;
+gdouble point_a_r = 75.0;
+gdouble point_b_z = 60.0;
+gdouble point_b_r = 50.0;
+gdouble point_ab_z = 0.0;
+gdouble point_ba_z = 0.0;
+
+PangoLayout *pango_layout = NULL;
 
 int
 main (int argc,
@@ -196,6 +201,8 @@ main (int argc,
   //label = hyscan_gtk_gliko_minimal_new ();
 
   g_signal_connect (G_OBJECT (ruler), "draw", G_CALLBACK (draw_ruler_cb), NULL);
+  //g_signal_connect_swapped (G_OBJECT (ruler), "configure-event", G_CALLBACK (configure_cb), NULL);
+  pango_layout = gtk_widget_create_pango_layout (GTK_WIDGET (ruler), "A");
 
   gtk_overlay_add_overlay (GTK_OVERLAY (overlay), gliko);
   gtk_overlay_add_overlay (GTK_OVERLAY (overlay), ruler);
@@ -574,30 +581,33 @@ update_title ()
 {
 }
 
+static gdouble range360( const gdouble a )
+{
+  guint i;
+  gdouble d;
+
+  d = a * 65536.0 / 360.0;
+  i = (int)d;
+  d = (i & 0xFFFF);
+  return d * 360.0 / 65536.0;
+}
+
 static void
 update_ruler ()
 {
   gchar tmpz[32], tmpr[32], tmp[64];
-  gdouble x1, y1, x2, y2, z1, z2, d;
+  gdouble x1, y1, x2, y2, d;
   const gdouble radians_to_degrees = 180.0 / G_PI;
   const gdouble degrees_to_radians = G_PI / 180.0;
+  gdouble a = hyscan_gtk_gliko_get_full_rotation (HYSCAN_GTK_GLIKO (gliko));
 
   hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), point_a_z, point_a_r, &x1, &y1);
   hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), point_b_z, point_b_r, &x2, &y2);
 
   gtk_widget_queue_draw (ruler);
 
-  z1 = atan2 (x2 - x1, y1 - y2) * radians_to_degrees;
-  if (z1 < 0.0)
-    {
-      z1 += 360.0;
-    }
-
-  z2 = atan2 (x1 - x2, y2 - y1) * radians_to_degrees;
-  if (z2 < 0.0)
-    {
-      z2 += 360.0;
-    }
+  point_ab_z = range360 (atan2 (x2 - x1, y1 - y2) * radians_to_degrees - a);
+  point_ba_z = range360 (atan2 (x1 - x2, y2 - y1) * radians_to_degrees - a);
 
   x1 = point_a_r * sin (point_a_z * degrees_to_radians);
   y1 = point_a_r * cos (point_a_z * degrees_to_radians);
@@ -617,12 +627,12 @@ update_ruler ()
   sprintf (tmp, "%s\302\260/%s м", tmpz, tmpr);
   gtk_label_set_text (GTK_LABEL (label_b), tmp);
 
-  g_ascii_formatd (tmpz, 32, "%.0lf", z1);
+  g_ascii_formatd (tmpz, 32, "%.0lf", point_ab_z);
   g_ascii_formatd (tmpr, 32, "%.1lf", d);
   sprintf (tmp, "%s\302\260/%s м", tmpz, tmpr);
   gtk_label_set_text (GTK_LABEL (label_ab), tmp);
 
-  g_ascii_formatd (tmpz, 32, "%.0lf", z2);
+  g_ascii_formatd (tmpz, 32, "%.0lf", point_ba_z);
   sprintf (tmp, "%s\302\260/%s м", tmpz, tmpr);
   gtk_label_set_text (GTK_LABEL (label_ba), tmp);
 }
@@ -849,6 +859,50 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
     }
 }
 
+static void ruler_caption ( cairo_t *cr, const double x1, const double y1, const double a, const char *caption, const int length )
+{
+  double z, w, h, x, y;
+  PangoRectangle inc_rect, logical_rect;
+  const double margin = 4;
+  gdouble b = hyscan_gtk_gliko_get_full_rotation (HYSCAN_GTK_GLIKO (gliko));
+
+  pango_layout_set_text (pango_layout, caption, length);
+  pango_layout_get_pixel_extents (pango_layout, &inc_rect, &logical_rect);
+  w = logical_rect.width;
+  h = logical_rect.height;
+
+  z = range360 (a - 45.0 + b);
+
+  switch( (int)(z / 90.0) )
+  {
+  case 0: // угол 45-135, надпись слева
+    x = x1 - ruler_size - w - margin;
+    y = y1 - 0.5 * h;
+    break;
+  case 1: // угол 135-225, надпись сверху
+    x = x1 - 0.5 * w;
+    y = y1 - ruler_size - h - margin;
+    break;
+  case 2: // угол 225-315, надпись справа
+    x = x1 + ruler_size + margin;
+    y = y1 - 0.5 * h;
+    break;
+  default: // угол 315-45, надпись снизу
+    x = x1 - 0.5 * w;
+    y = y1 + ruler_size + margin;
+    break;
+  }
+  cairo_move_to (cr, x, y);
+  cairo_set_source_rgba (cr, 0, 0, 0, 0.25);
+  cairo_rectangle (cr, x, y, w, h);
+  cairo_fill (cr);
+  cairo_stroke (cr);
+  cairo_move_to (cr, x, y);
+  cairo_set_source_rgba (cr, 1, 1, 1, 1);
+  pango_cairo_show_layout (cr, pango_layout);
+  cairo_stroke (cr);
+}
+
 static gboolean
 draw_ruler_cb (GtkWidget *widget, cairo_t *cr, gpointer data)
 {
@@ -898,6 +952,9 @@ draw_ruler_cb (GtkWidget *widget, cairo_t *cr, gpointer data)
   cairo_rectangle (cr, x2 - b, y2 - b, b + b, b + b);
   cairo_fill (cr);
   cairo_stroke (cr);
+
+  ruler_caption (cr, x1, y1, point_ab_z, "A", 1);
+  ruler_caption (cr, x2, y2, point_ba_z, "B", 1);
 
   /*
 
