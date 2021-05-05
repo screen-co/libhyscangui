@@ -100,7 +100,7 @@ static gdouble mx1, my1, mx2, my2;
 static GtkWidget *area;
 static GtkWidget *ruler;
 
-static const int ruler_size = 3;
+static const int ruler_size = 6;
 gdouble point_a_z = 30.0f;
 gdouble point_a_r = 75.0f;
 gdouble point_b_z = 60.0f;
@@ -660,7 +660,7 @@ ruler_line_catch (const gdouble x, const gdouble y)
 
   // расстояние от точки до отразка
   d = fabs ((y2 - y1) * x - (x2 - x1) * y + x2 * y1 - y2 * x1) / d;
-  if (d >= 2.0f)
+  if (d >= (0.5f * ruler_size))
     return 0;
   return 1;
 }
@@ -853,6 +853,7 @@ static gboolean
 draw_ruler_cb (GtkWidget *widget, cairo_t *cr, gpointer data)
 {
   guint width, height;
+  gint b = ruler_size * 2 / 3;
   //GdkRGBA color;
   GtkStyleContext *context;
   gdouble x1, y1, x2, y2;
@@ -866,9 +867,10 @@ draw_ruler_cb (GtkWidget *widget, cairo_t *cr, gpointer data)
   hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), point_a_z, point_a_r, &x1, &y1);
   hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), point_b_z, point_b_r, &x2, &y2);
 
-  cairo_set_source_rgba (cr, 1, 1, 1, 0.5);
+  // рисуем затенение
+  cairo_set_source_rgba (cr, 0, 0, 0, 0.25);
 
-  cairo_set_line_width (cr, 2.0);
+  cairo_set_line_width (cr, 4.0);
   cairo_move_to (cr, x1, y1);
   cairo_line_to (cr, x2, y2);
   cairo_stroke (cr);
@@ -881,13 +883,21 @@ draw_ruler_cb (GtkWidget *widget, cairo_t *cr, gpointer data)
   cairo_fill (cr);
   cairo_stroke (cr);
 
-  /*
+  // рисуем отрезок
+  cairo_set_source_rgba (cr, 1, 1, 1, 0.5);
 
-  cairo_arc (cr,
-             width / 2.0, height / 2.0,
-             MIN (width, height) / 2.0,
-             0, 2 * G_PI);
-  */
+  cairo_set_line_width (cr, 2.0);
+  cairo_move_to (cr, x1, y1);
+  cairo_line_to (cr, x2, y2);
+  cairo_stroke (cr);
+
+  cairo_rectangle (cr, x1 - b, y1 - b, b + b, b + b);
+  cairo_fill (cr);
+  cairo_stroke (cr);
+
+  cairo_rectangle (cr, x2 - b, y2 - b, b + b, b + b);
+  cairo_fill (cr);
+  cairo_stroke (cr);
 
   /*
 
