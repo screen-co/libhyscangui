@@ -195,7 +195,7 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
   p->cy = 0.0f;
   p->contrast = 0.0f;
   p->brightness = 0.0f;
-  p->fade_coef = 0.998f;
+  p->fade_coef = 1.0f;
 
   p->white = 1.0f;
   p->black = 0.0f;
@@ -219,6 +219,9 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
 
   p->channel[0].gliko_channel = 0;
   p->channel[1].gliko_channel = 1;
+
+  p->channel[0].acoustic_data = NULL;
+  p->channel[1].acoustic_data = NULL;
 
   p->channel[0].data_rate = 250000.0;
 
@@ -284,6 +287,8 @@ finalize (GObject *gobject)
   g_clear_object (&p->iko);
   g_clear_object (&p->grid);
   g_clear_object (&p->nmea_data);
+  g_clear_object (&p->channel[0].acoustic_data);
+  g_clear_object (&p->channel[1].acoustic_data);
 
   if( p->project_name != NULL )
   {
@@ -386,6 +391,7 @@ channel_open (HyScanGtkGlikoPrivate *p,
   c->azimuth = 0;
 
   /* Объект обработки акустических данных. */
+  g_clear_object (&c->acoustic_data);
   c->acoustic_data = hyscan_acoustic_data_new (hyscan_data_player_get_db (p->player), NULL, p->project_name, p->track_name, c->source, 1, FALSE);
   if (c->acoustic_data == NULL)
     {
@@ -507,6 +513,7 @@ player_process_callback (HyScanDataPlayer *player,
 
     initque (&p->alpha_que, p->alpha_que_buffer, sizeof (alpha_que_t), sizeof (p->alpha_que_buffer) / sizeof (p->alpha_que_buffer[0]));
 
+    g_clear_object (&p->nmea_data);
     p->nmea_data = hyscan_nmea_data_new (hyscan_data_player_get_db (p->player), NULL, p->project_name, p->track_name, p->nmea_angular_source);
     if (p->nmea_data == NULL)
       {
