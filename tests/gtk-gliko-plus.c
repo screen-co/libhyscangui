@@ -60,7 +60,7 @@ static void button_cb (GtkWidget *widget, GdkEventButton *event, void *w);
 static void motion_cb (GtkWidget *widget, GdkEventMotion *event, void *w);
 static void scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w);
 static gboolean draw_ruler_cb (GtkWidget *widget, cairo_t *cr, gpointer data);
-
+static gboolean configure_cb (GtkWidget *widget, GdkEvent *event, gpointer user_data);
 static void update_ruler ();
 
 static GtkWidget *scale_white;
@@ -102,12 +102,12 @@ static GtkWidget *area;
 static GtkWidget *ruler;
 
 static const int ruler_size = 6;
-gdouble point_a_z = 30.0;
-gdouble point_a_r = 75.0;
-gdouble point_b_z = 60.0;
-gdouble point_b_r = 50.0;
+gdouble point_a_z = 0.0;
+gdouble point_a_r = 0.0;
+gdouble point_b_z = 0.0;
+gdouble point_b_r = 10.0;
 gdouble point_ab_z = 0.0;
-gdouble point_ba_z = 0.0;
+gdouble point_ba_z = 180.0;
 
 PangoLayout *pango_layout = NULL;
 
@@ -121,13 +121,13 @@ main (int argc,
   gchar *project_name = NULL;
   gchar *track_name = NULL;
 
-  gchar *source_name1 = "ss-starboard";
-  gchar *source_name2 = "ss-port";
+  gchar *source_name1 = "around-starboard";
+  gchar *source_name2 = "around-port";
   gdouble white = 0.2;
   gdouble gamma = 1.0;
   gdouble bottom = 0.0;
   gdouble speed = 1.0;
-  gint32 angular_source = 1;
+  gint32 angular_source = 3;
   guint32 color1 = 0xFF00FF80;
   guint32 color2 = 0xFFFF8000;
   guint32 background = 0x00404040;
@@ -143,7 +143,7 @@ main (int argc,
     GOptionEntry entries[] = {
       { "project", 'p', 0, G_OPTION_ARG_STRING, &project_name, "Project name", NULL },
       { "track", 't', 0, G_OPTION_ARG_STRING, &track_name, "Track name", NULL },
-      { "angular", 'a', 0, G_OPTION_ARG_INT, &angular_source, "Angular source channel's number (default 1)", NULL },
+      { "angular", 'a', 0, G_OPTION_ARG_INT, &angular_source, "Angular source channel's number (default 3)", NULL },
       { "starboard", 's', 0, G_OPTION_ARG_STRING, &source_name1, "Starboard name", NULL },
       { "port", 'r', 0, G_OPTION_ARG_STRING, &source_name2, "Port name", NULL },
       { "bottom", 'b', 0, G_OPTION_ARG_DOUBLE, &bottom, "Bottom", NULL },
@@ -221,6 +221,7 @@ main (int argc,
   g_signal_connect (central, "button_release_event", G_CALLBACK (button_cb), NULL);
   g_signal_connect (central, "motion_notify_event", G_CALLBACK (motion_cb), NULL);
   g_signal_connect (central, "scroll_event", G_CALLBACK (scroll_cb), NULL);
+  g_signal_connect (central, "configure_event", G_CALLBACK (configure_cb), NULL);
 
   hyscan_gtk_area_set_central (HYSCAN_GTK_AREA (area), central);
 
@@ -254,8 +255,6 @@ main (int argc,
       hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 1), 2, HYSCAN_CHANNEL_DATA);
       hyscan_data_player_play (player, speed);
     }
-
-  update_ruler ();
 
   /* Начинаем работу. */
   gtk_main ();
@@ -438,7 +437,10 @@ reopen_clicked (GtkButton *button,
   project = split[len - 2];
   track = split[len - 1];
 
-  hyscan_data_player_pause (player);
+  printf ("db_uri \"%s\" project \"%s\" track \"%s\"\n", db_uri, project, track);
+
+  hyscan_data_player_stop (player);
+  hyscan_data_player_clear_channels (player);
   hyscan_data_player_set_track (player, db, project, track);
   hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 0), 1, HYSCAN_CHANNEL_DATA);
   hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 1), 2, HYSCAN_CHANNEL_DATA);
@@ -581,13 +583,14 @@ update_title ()
 {
 }
 
-static gdouble range360( const gdouble a )
+static gdouble
+range360 (const gdouble a)
 {
   guint i;
   gdouble d;
 
   d = a * 65536.0 / 360.0;
-  i = (int)d;
+  i = (int) d;
   d = (i & 0xFFFF);
   return d * 360.0 / 65536.0;
 }
@@ -604,10 +607,10 @@ update_ruler ()
   hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), point_a_z, point_a_r, &x1, &y1);
   hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), point_b_z, point_b_r, &x2, &y2);
 
-  gtk_widget_queue_draw (ruler);
-
   point_ab_z = range360 (atan2 (x2 - x1, y1 - y2) * radians_to_degrees - a);
   point_ba_z = range360 (atan2 (x1 - x2, y2 - y1) * radians_to_degrees - a);
+
+  gtk_widget_queue_draw (ruler);
 
   x1 = point_a_r * sin (point_a_z * degrees_to_radians);
   y1 = point_a_r * cos (point_a_z * degrees_to_radians);
@@ -859,7 +862,8 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
     }
 }
 
-static void ruler_caption ( cairo_t *cr, const double x1, const double y1, const double a, const char *caption, const int length )
+static void
+ruler_caption (cairo_t *cr, const double x1, const double y1, const double a, const char *caption, const int length)
 {
   double z, w, h, x, y;
   PangoRectangle inc_rect, logical_rect;
@@ -873,28 +877,28 @@ static void ruler_caption ( cairo_t *cr, const double x1, const double y1, const
 
   z = range360 (a - 45.0 + b);
 
-  switch( (int)(z / 90.0) )
-  {
-  case 0: // угол 45-135, надпись слева
-    x = x1 - ruler_size - w - margin;
-    y = y1 - 0.5 * h;
-    break;
-  case 1: // угол 135-225, надпись сверху
-    x = x1 - 0.5 * w;
-    y = y1 - ruler_size - h - margin;
-    break;
-  case 2: // угол 225-315, надпись справа
-    x = x1 + ruler_size + margin;
-    y = y1 - 0.5 * h;
-    break;
-  default: // угол 315-45, надпись снизу
-    x = x1 - 0.5 * w;
-    y = y1 + ruler_size + margin;
-    break;
-  }
+  switch ((int) (z / 90.0))
+    {
+    case 0: // угол 45-135, надпись слева
+      x = x1 - ruler_size - w - margin;
+      y = y1 - 0.5 * h;
+      break;
+    case 1: // угол 135-225, надпись сверху
+      x = x1 - 0.5 * w;
+      y = y1 - ruler_size - h - margin;
+      break;
+    case 2: // угол 225-315, надпись справа
+      x = x1 + ruler_size + margin;
+      y = y1 - 0.5 * h;
+      break;
+    default: // угол 315-45, надпись снизу
+      x = x1 - 0.5 * w;
+      y = y1 + ruler_size + margin;
+      break;
+    }
   cairo_move_to (cr, x, y);
   cairo_set_source_rgba (cr, 0, 0, 0, 0.25);
-  cairo_rectangle (cr, x, y, w, h);
+  cairo_rectangle (cr, x - 2, y, w + 4, h);
   cairo_fill (cr);
   cairo_stroke (cr);
   cairo_move_to (cr, x, y);
@@ -964,5 +968,12 @@ draw_ruler_cb (GtkWidget *widget, cairo_t *cr, gpointer data)
   gdk_cairo_set_source_rgba (cr, &color);
   */
 
+  return FALSE;
+}
+
+static gboolean
+configure_cb (GtkWidget *widget, GdkEvent *event, gpointer user_data)
+{
+  update_ruler ();
   return FALSE;
 }

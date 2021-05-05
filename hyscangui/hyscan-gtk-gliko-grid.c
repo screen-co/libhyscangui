@@ -284,8 +284,8 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
 
   // угол вращения относительно центра
   a = -p->alpha * G_PI / 180.0;
-  set_uniform1f (p->program, "sin_alpha", sinf( a ));
-  set_uniform1f (p->program, "cos_alpha", cosf( a ));
+  set_uniform1f (p->program, "sin_alpha", sinf (a));
+  set_uniform1f (p->program, "cos_alpha", cosf (a));
 
   // выбираем буфер с координатами вершин
   glBindBuffer (GL_ARRAY_BUFFER, p->vbo);
@@ -298,14 +298,14 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
     {
       j++;
       if (j == p->bold || i == (p->num_circles - 1))
-      {
-        j = 0;
-        set_uniform4fv (p->program, "color", c1);
-      }
+        {
+          j = 0;
+          set_uniform4fv (p->program, "color", c1);
+        }
       else
-      {
-        set_uniform4fv (p->program, "color", c2);
-      }
+        {
+          set_uniform4fv (p->program, "color", c2);
+        }
       set_uniform1f (p->program, "radius", p->circles[i]);
       glDrawArrays (GL_LINE_LOOP, 0, 360);
     }
@@ -338,8 +338,8 @@ update_circles (HyScanGtkGlikoGridPrivate *p)
 {
   float step, r0;
   int i, k;
-  const float x[3] = { 2.5f, 2.0f, 2.0f };
-  const int num[3] = { 4, 5, 5 };
+  const float x[3] = { 2.0f, 2.5f, 2.0f };
+  const int num[3] = { 5, 5, 5 };
   const int n = 10;
   const float a = G_PI / 180.0f;
   float *line_vertices;

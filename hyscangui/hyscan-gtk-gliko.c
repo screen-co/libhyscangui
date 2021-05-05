@@ -122,6 +122,7 @@ struct _HyScanGtkGlikoPrivate
 
   channel_t channel[2];
   guint32 iko_length;
+  int iko_length_initialized;
 
   int player_open;
 
@@ -139,6 +140,10 @@ struct _HyScanGtkGlikoPrivate
   gint nmea_angular_source;
 
   gint64 fade_time;
+
+  int track_changed;
+  gchar *project_name;
+  gchar *track_name;
 };
 
 /* Define type */
@@ -196,7 +201,8 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
   p->black = 0.0f;
   p->gamma = 1.0f;
 
-  p->iko_length = 0;
+  p->iko_length = 1024;
+  p->iko_length_initialized = 0;
 
   p->player_open = 0;
 
@@ -213,6 +219,13 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
 
   p->channel[0].gliko_channel = 0;
   p->channel[1].gliko_channel = 1;
+
+  p->channel[0].data_rate = 250000.0;
+
+  p->track_changed = 0;
+  p->project_name = NULL;
+  p->track_name = NULL;
+
 
 #if 0
   /* Определяем тип источника данных по его названию. */
@@ -272,6 +285,14 @@ finalize (GObject *gobject)
   g_clear_object (&p->grid);
   g_clear_object (&p->nmea_data);
 
+  if( p->project_name != NULL )
+  {
+    g_free( p->project_name );
+  }
+  if( p->track_name != NULL )
+  {
+    g_free( p->track_name );
+  }
   G_OBJECT_CLASS (hyscan_gtk_gliko_parent_class)
       ->finalize (gobject);
 }
@@ -330,11 +351,7 @@ hyscan_gtk_gliko_get_num_azimuthes (HyScanGtkGliko *instance)
 // открытие канала данных
 static void
 channel_open (HyScanGtkGlikoPrivate *p,
-              const int channel_index,
-              HyScanDataPlayer *player,
-              HyScanDB *db,
-              const gchar *project_name,
-              const gchar *track_name)
+              const int channel_index)
 {
   channel_t *c = p->channel + channel_index;
 
@@ -369,7 +386,7 @@ channel_open (HyScanGtkGlikoPrivate *p,
   c->azimuth = 0;
 
   /* Объект обработки акустических данных. */
-  c->acoustic_data = hyscan_acoustic_data_new (db, NULL, project_name, track_name, c->source, 1, FALSE);
+  c->acoustic_data = hyscan_acoustic_data_new (hyscan_data_player_get_db (p->player), NULL, p->project_name, p->track_name, c->source, 1, FALSE);
   if (c->acoustic_data == NULL)
     {
       g_warning ("can't open acoustic data source");
@@ -391,25 +408,20 @@ player_open_callback (HyScanDataPlayer *player,
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (user_data, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
-  // if (++p->player_open != 2)
-  // return;
+  if( p->project_name != NULL )
+  {
+    g_free( p->project_name );
+  }
+  if( p->track_name != NULL )
+  {
+    g_free( p->track_name );
+  }
+  p->project_name = g_strdup( project_name );
+  p->track_name = g_strdup( track_name );
+  p->track_changed = 1;
 
-  printf ("open %s %s\n", project_name, track_name);
-  fflush (stdout);
-
-  initque (&p->alpha_que, p->alpha_que_buffer, sizeof (alpha_que_t), sizeof (p->alpha_que_buffer) / sizeof (p->alpha_que_buffer[0]));
-
-  p->nmea_data = hyscan_nmea_data_new (db, NULL, project_name, track_name, p->nmea_angular_source);
-  if (p->nmea_data == NULL)
-    {
-      g_warning ("can't open nmea data\n");
-      return;
-    }
-
-  channel_open (p, 0, player, db, project_name, track_name);
-  channel_open (p, 1, player, db, project_name, track_name);
-  p->nmea_init = 0;
-  p->iko_length = 0;
+  //printf ("open %s %s\n", project_name, track_name);
+  //fflush (stdout);
 }
 
 // обработка индексов принятых строк
@@ -450,7 +462,7 @@ channel_process (HyScanGtkGlikoPrivate *p,
         {
           data.index = c->process_index;
           enque (&c->data_que, &data, 1);
-          if (data.length > c->max_length && p->iko_length == 0)
+          if (data.length > c->max_length && p->iko_length_initialized == 0)
             {
               c->max_length = data.length;
             }
@@ -485,6 +497,27 @@ player_process_callback (HyScanDataPlayer *player,
 
   if (p == NULL)
     return;
+
+  //printf ("process %"PRId64"\n", time );
+  //fflush (stdout);
+
+  if( p->track_changed )
+  {
+    p->track_changed = 0;
+
+    initque (&p->alpha_que, p->alpha_que_buffer, sizeof (alpha_que_t), sizeof (p->alpha_que_buffer) / sizeof (p->alpha_que_buffer[0]));
+
+    p->nmea_data = hyscan_nmea_data_new (hyscan_data_player_get_db (p->player), NULL, p->project_name, p->track_name, p->nmea_angular_source);
+    if (p->nmea_data == NULL)
+      {
+        g_warning ("can't open nmea data\n");
+        return;
+      }
+    channel_open (p, 0);
+    channel_open (p, 1);
+    p->nmea_init = 0;
+    p->iko_length_initialized = 0;
+  }
 
   // обработка индексов строк данных для двух каналов
   channel_process (p, 0, time);
@@ -714,7 +747,7 @@ channel_ready (HyScanGtkGlikoPrivate *p,
           memcpy (c->buffer, amplitudes, length * sizeof (gfloat));
 
           /* передаем строку в индикатор кругового обзора */
-          if (p->iko_length != 0)
+          if (p->iko_length_initialized != 0)
             {
               hyscan_gtk_gliko_area_set_data (HYSCAN_GTK_GLIKO_AREA (p->iko), c->gliko_channel, j, c->buffer);
               c->azimuth = j;
@@ -750,8 +783,9 @@ player_ready_callback (HyScanDataPlayer *player,
     return;
 
   // если индикатор кругового обзора не проинициализирован
-  if (p->iko_length == 0)
+  if (p->iko_length_initialized == 0)
     {
+      p->iko_length_initialized = 1;
       // берем максимальную дальность из двух каналов
       p->iko_length = p->channel[0].max_length;
       if (p->channel[1].max_length > p->iko_length)
