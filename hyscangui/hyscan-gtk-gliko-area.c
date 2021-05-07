@@ -63,6 +63,8 @@ enum
   P_FADE_COEF, // коэффициент затухания 0..1
   P_REMAIN,    // коэффициент при перезаписи
   P_BOTTOM,    // глубина (номер отсчета дна)
+  P_FREQ1,     // коэффициент коррекции дальности в канале 1 в зависимости от частоты дискретизации
+  P_FREQ2,     // коэффициент коррекции дальности в канале 2 в зависимости от частоты дискретизации
   P_COLOR1,
   P_COLOR2,
   P_BACKGROUND,
@@ -106,6 +108,8 @@ struct _HyScanGtkGlikoAreaPrivate
   float rotate2;
   float fade_coef;
   float remain;
+  float freq1;
+  float freq2;
   int tna;
   int tnd[TEX_MAX];
   int beam_pos[2];
@@ -561,6 +565,8 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
 
   set_uniform1i (p->program, "tna", p->tna);
   set_uniform1i (p->program, "tnd", p->tnd[i]);
+  set_uniform1f (p->program, "freq1", p->freq1);
+  set_uniform1f (p->program, "freq2", p->freq2);
 
   contrast = p->contrast;
   if (contrast > 1.0f)
@@ -887,6 +893,8 @@ hyscan_gtk_gliko_area_class_init (HyScanGtkGlikoAreaClass *klass)
   obj_properties[P_ROTATE] = g_param_spec_float ("gliko-rotate", "Rotate", "Angle of rotation in degrees", -G_MAXFLOAT, G_MAXFLOAT, 0.0, rw);
   obj_properties[P_FADE_COEF] = g_param_spec_float ("gliko-fade-coef", "FadeCoef", "Fade coefficient", 0.0, 1.0, 0.98, rw);
   obj_properties[P_REMAIN] = g_param_spec_float ("gliko-remain", "Remain", "Remain coefficient", 0.0, 1.0, 1.0, rw);
+  obj_properties[P_FREQ1] = g_param_spec_float ("gliko-freq1", "Frequency1", "Frequency coeff for channel 1", 0.0, G_MAXFLOAT, 1.0, rw);
+  obj_properties[P_FREQ2] = g_param_spec_float ("gliko-freq2", "Frequency2", "Frequency coeff for channel 2", 0.0, G_MAXFLOAT, 1.0, rw);
   obj_properties[P_BOTTOM] = g_param_spec_int ("gliko-bottom", "Bottom", "Depth (bottom's offset)", 0, G_MAXINT, 0, rw);
   obj_properties[P_COLOR1_ALPHA] = g_param_spec_float ("gliko-color1-alpha", "ColorAlpha", "Alpha channel of color", 0.0, 1.0, 1.0, rw);
   obj_properties[P_COLOR2_ALPHA] = g_param_spec_float ("gliko-color2-alpha", "ColorAlpha", "Alpha channel of color", 0.0, 1.0, 1.0, rw);
@@ -936,6 +944,8 @@ hyscan_gtk_gliko_area_init (HyScanGtkGlikoArea *area)
   p->rotate1 = 270.0f;
   p->rotate2 = 90.0f;
   p->remain = 0.5f;
+  p->freq1 = 1.0f;
+  p->freq2 = 1.0f;
 
   p->buf[0][0] = NULL;
 }
@@ -987,6 +997,10 @@ get_pfloat (HyScanGtkGlikoAreaPrivate *p, const int id)
       return &p->fade_coef;
     case P_REMAIN:
       return &p->remain;
+    case P_FREQ1:
+      return &p->freq1;
+    case P_FREQ2:
+      return &p->freq2;
     case P_COLOR1_ALPHA:
       return &p->color[0][3];
     case P_COLOR2_ALPHA:

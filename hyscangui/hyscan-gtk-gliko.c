@@ -84,7 +84,7 @@ typedef struct _channel_t
   gdouble alpha_value;
   gdouble data_rate;
   gfloat *buffer;
-  guint32 max_length;
+  guint32 iko_length;
   guint32 allocated;
   int process_init;
   int ready_init;
@@ -92,8 +92,10 @@ typedef struct _channel_t
   int ready_alpha_init;
   int ready_data_init;
   int azimuth_displayed;
+  int iko_length_initialized;
   guint32 azimuth;
   gchar *source_name;
+  gfloat freq;
 } channel_t;
 
 struct _HyScanGtkGlikoPrivate
@@ -115,6 +117,8 @@ struct _HyScanGtkGlikoPrivate
   float contrast;
   float brightness;
   float fade_coef;
+  float freq;
+  gdouble data_rate;
 
   float white;
   float black;
@@ -214,6 +218,12 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
   p->debug_alpha = 0;
   p->debug_alpha_value = 0;
 
+  p->channel[0].allocated = 0;
+  p->channel[0].buffer = NULL;
+
+  p->channel[1].allocated = 0;
+  p->channel[1].buffer = NULL;
+
   p->channel[0].source_name = NULL;
   p->channel[1].source_name = NULL;
 
@@ -223,12 +233,11 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
   p->channel[0].acoustic_data = NULL;
   p->channel[1].acoustic_data = NULL;
 
-  p->channel[0].data_rate = 250000.0;
+  p->data_rate = 250000.0;
 
   p->track_changed = 0;
   p->project_name = NULL;
   p->track_name = NULL;
-
 
 #if 0
   /* Определяем тип источника данных по его названию. */
@@ -290,14 +299,14 @@ finalize (GObject *gobject)
   g_clear_object (&p->channel[0].acoustic_data);
   g_clear_object (&p->channel[1].acoustic_data);
 
-  if( p->project_name != NULL )
-  {
-    g_free( p->project_name );
-  }
-  if( p->track_name != NULL )
-  {
-    g_free( p->track_name );
-  }
+  if (p->project_name != NULL)
+    {
+      g_free (p->project_name);
+    }
+  if (p->track_name != NULL)
+    {
+      g_free (p->track_name);
+    }
   G_OBJECT_CLASS (hyscan_gtk_gliko_parent_class)
       ->finalize (gobject);
 }
@@ -377,8 +386,8 @@ channel_open (HyScanGtkGlikoPrivate *p,
   c->process_init = 0;
   c->ready_init = 0;
 
-  // размер считываемой строки
-  c->max_length = 0;
+  // размер считываемой строки пока не известен
+  c->iko_length_initialized = 0;
 
   // размер зарезервированного буфера
   c->allocated = 0;
@@ -414,16 +423,16 @@ player_open_callback (HyScanDataPlayer *player,
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (user_data, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
-  if( p->project_name != NULL )
-  {
-    g_free( p->project_name );
-  }
-  if( p->track_name != NULL )
-  {
-    g_free( p->track_name );
-  }
-  p->project_name = g_strdup( project_name );
-  p->track_name = g_strdup( track_name );
+  if (p->project_name != NULL)
+    {
+      g_free (p->project_name);
+    }
+  if (p->track_name != NULL)
+    {
+      g_free (p->track_name);
+    }
+  p->project_name = g_strdup (project_name);
+  p->track_name = g_strdup (track_name);
   p->track_changed = 1;
 
   //printf ("open %s %s\n", project_name, track_name);
@@ -468,9 +477,10 @@ channel_process (HyScanGtkGlikoPrivate *p,
         {
           data.index = c->process_index;
           enque (&c->data_que, &data, 1);
-          if (data.length > c->max_length && p->iko_length_initialized == 0)
+          if (c->iko_length_initialized == 0)
             {
-              c->max_length = data.length;
+              c->iko_length = data.length;
+              c->iko_length_initialized = 1;
             }
           if (p->debug_alpha && channel_index == 0)
             {
@@ -507,24 +517,24 @@ player_process_callback (HyScanDataPlayer *player,
   //printf ("process %"PRId64"\n", time );
   //fflush (stdout);
 
-  if( p->track_changed )
-  {
-    p->track_changed = 0;
+  if (p->track_changed)
+    {
+      p->track_changed = 0;
 
-    initque (&p->alpha_que, p->alpha_que_buffer, sizeof (alpha_que_t), sizeof (p->alpha_que_buffer) / sizeof (p->alpha_que_buffer[0]));
+      initque (&p->alpha_que, p->alpha_que_buffer, sizeof (alpha_que_t), sizeof (p->alpha_que_buffer) / sizeof (p->alpha_que_buffer[0]));
 
-    g_clear_object (&p->nmea_data);
-    p->nmea_data = hyscan_nmea_data_new (hyscan_data_player_get_db (p->player), NULL, p->project_name, p->track_name, p->nmea_angular_source);
-    if (p->nmea_data == NULL)
-      {
-        g_warning ("can't open nmea data\n");
-        return;
-      }
-    channel_open (p, 0);
-    channel_open (p, 1);
-    p->nmea_init = 0;
-    p->iko_length_initialized = 0;
-  }
+      g_clear_object (&p->nmea_data);
+      p->nmea_data = hyscan_nmea_data_new (hyscan_data_player_get_db (p->player), NULL, p->project_name, p->track_name, p->nmea_angular_source);
+      if (p->nmea_data == NULL)
+        {
+          g_warning ("can't open nmea data\n");
+          return;
+        }
+      channel_open (p, 0);
+      channel_open (p, 1);
+      p->nmea_init = 0;
+      p->iko_length_initialized = 0;
+    }
 
   // обработка индексов строк данных для двух каналов
   channel_process (p, 0, time);
@@ -594,19 +604,18 @@ channel_ready (HyScanGtkGlikoPrivate *p,
   data_que_t data;
   gdouble a, d, dm, dn, dp;
   const gfloat *amplitudes;
-  guint32 j, length;
+  guint32 i, j, length;
   gint64 t;
-
-  // длина строки должна быть определена
-  if (c->max_length == 0)
-    {
-      return;
-    }
 
   // резервируем буфер для строки отсчетов
   if (c->allocated == 0)
     {
-      for (c->allocated = (1 << 10); c->allocated < c->max_length; c->allocated <<= 1)
+      if (c->buffer != NULL)
+        {
+          g_free (c->buffer);
+          c->buffer = NULL;
+        }
+      for (c->allocated = (1 << 10); c->allocated < p->iko_length; c->allocated <<= 1)
         ;
       c->buffer = g_malloc0 (c->allocated * sizeof (gfloat));
     }
@@ -745,21 +754,27 @@ channel_ready (HyScanGtkGlikoPrivate *p,
               break;
             }
 
-          if (length > c->max_length)
+          if (length > p->iko_length)
             {
-              length = c->max_length;
+              length = p->iko_length;
             }
 
           /* запоминаем строку амплитуд в буфере */
           memcpy (c->buffer, amplitudes, length * sizeof (gfloat));
 
-          /* передаем строку в индикатор кругового обзора */
-          if (p->iko_length_initialized != 0)
+          /* если есть остаток, обнуляем его */
+          if (length < p->iko_length)
             {
-              hyscan_gtk_gliko_area_set_data (HYSCAN_GTK_GLIKO_AREA (p->iko), c->gliko_channel, j, c->buffer);
-              c->azimuth = j;
-              c->azimuth_displayed = 1;
+              for (i = length; i < p->iko_length; i++)
+                {
+                  c->buffer[i] = 0.0f;
+                }
             }
+
+          /* передаем строку в индикатор кругового обзора */
+          hyscan_gtk_gliko_area_set_data (HYSCAN_GTK_GLIKO_AREA (p->iko), c->gliko_channel, j, c->buffer);
+          c->azimuth = j;
+          c->azimuth_displayed = 1;
         }
       while (rd > 0);
 
@@ -785,32 +800,48 @@ player_ready_callback (HyScanDataPlayer *player,
     return;
   //g_print ("Ready time: %"G_GINT64_FORMAT" %d\n", g_get_monotonic_time (), misc_read);
 
-  // если ни одна строка не была принята, выходим
-  if (p->channel[0].max_length == 0 && p->channel[1].max_length == 0)
-    return;
-
   // если индикатор кругового обзора не проинициализирован
-  if (p->iko_length_initialized == 0)
+  if (p->iko_length_initialized == 0 &&
+      p->channel[0].iko_length_initialized != 0 &&
+      p->channel[1].iko_length_initialized != 0)
     {
       p->iko_length_initialized = 1;
-      // берем максимальную дальность из двух каналов
-      p->iko_length = p->channel[0].max_length;
-      if (p->channel[1].max_length > p->iko_length)
+      // привязка к каналу с максимальной дальностью
+      if (p->channel[0].iko_length >= p->channel[1].iko_length)
         {
-          p->iko_length = p->channel[1].max_length;
+          p->iko_length = p->channel[0].iko_length;
+          p->data_rate = p->channel[0].data_rate;
+          p->channel[0].freq = 1.0;
+          p->channel[1].freq = p->channel[0].data_rate / p->channel[1].data_rate;
+        }
+      else
+        {
+          p->iko_length = p->channel[1].iko_length;
+          p->data_rate = p->channel[1].data_rate;
+          p->channel[1].freq = 1.0;
+          p->channel[0].freq = p->channel[1].data_rate / p->channel[0].data_rate;
         }
       // инициализируем индикатор
       hyscan_gtk_gliko_area_init_dimension (HYSCAN_GTK_GLIKO_AREA (p->iko), p->num_azimuthes, p->iko_length);
 
-      g_object_set (p->grid, "gliko-radius", p->iko_length * 0.5f * p->sound_speed / p->channel[0].data_rate, NULL);
+      g_object_set (p->grid, "gliko-radius", p->iko_length * 0.5f * p->sound_speed / p->data_rate, NULL);
 
       g_object_set (p->iko, "gliko-scale", p->scale, NULL);
       g_object_set (p->grid, "gliko-scale", p->scale, NULL);
+
+      g_object_set (p->iko, "gliko-freq1", p->channel[0].freq, NULL);
+      g_object_set (p->iko, "gliko-freq2", p->channel[1].freq, NULL);
+
+      // номер отсчета глубины для корректировки геометрических искажений
+      g_object_set (p->iko, "gliko-bottom", (int) (2.0f * p->bottom * p->data_rate / p->sound_speed), NULL);
+
       p->fade_time = time;
     }
 
-  // номер отсчета глубины для корректировки геометрических искажений
-  g_object_set (p->iko, "gliko-bottom", (int) (2.0f * p->bottom * p->channel[0].data_rate / p->sound_speed), NULL);
+  if (p->iko_length_initialized == 0)
+    {
+      return;
+    }
 
   // обрабатываем каналы левого и правого борта
   channel_ready (p, 0, time);
@@ -1298,7 +1329,7 @@ hyscan_gtk_gliko_set_bottom (HyScanGtkGliko *instance,
   p->bottom = (float) bottom;
   if (p->iko_length != 0)
     {
-      g_object_set (p->iko, "gliko-bottom", (int) (2.0f * p->bottom * p->channel[0].data_rate / p->sound_speed), NULL);
+      g_object_set (p->iko, "gliko-bottom", (int) (2.0f * p->bottom * p->data_rate / p->sound_speed), NULL);
     }
 }
 
@@ -1365,7 +1396,7 @@ hyscan_gtk_gliko_pixel2polar (HyScanGtkGliko *instance,
   d = atan2 (px, py) * radians_to_degrees - p->full_rotation;
 
   // в диапазоне от 0 до 360
-  if( d > 360.0 )
+  if (d > 360.0)
     {
       d -= 360.0;
     }
@@ -1382,9 +1413,9 @@ hyscan_gtk_gliko_pixel2polar (HyScanGtkGliko *instance,
   d *= real_scale;
 
   // дальность в метрах при наличии частоты дискретизации
-  if (p->channel[0].data_rate > 1.0)
+  if (p->data_rate > 1.0)
     {
-      d = d * 0.5 * p->sound_speed / p->channel[0].data_rate;
+      d = d * 0.5 * p->sound_speed / p->data_rate;
     }
   else
     {
@@ -1424,7 +1455,7 @@ hyscan_gtk_gliko_polar2pixel (HyScanGtkGliko *instance,
   pcy = p->cy * 2.0 * p->iko_length / real_scale;
 
   // дальность в дискретах
-  d = r * 2.0 * p->channel[0].data_rate / p->sound_speed;
+  d = r * 2.0 * p->data_rate / p->sound_speed;
 
   // дальность в пикселях
   d = d / real_scale;

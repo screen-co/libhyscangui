@@ -17,6 +17,8 @@ uniform float gamma;
 uniform float rotate;
 uniform float bottom;
 uniform float distance;
+uniform float freq1;
+uniform float freq2;
 uniform int tna;
 uniform int tnd;
 uniform vec4 background;
@@ -31,7 +33,7 @@ void
 main ()
 {
   vec2 p, q = vec2 (0.0, 0.0);
-  float r, g, x, y, z1, z2;
+  float r, g, dr, dg, x, y, zr1, zg1, z2;
   vec4 c;
 
   p.x = TexCoord.x * 2.0 - 1.0;
@@ -51,27 +53,39 @@ main ()
       q.y = 0.0;
     }
   q.x = sqrt (q.x * q.x + bottom * bottom);
-  if (q.x >= distance)
+
+  dr = q.x * freq1;
+  if (dr >= distance)
     discard;
+  dr = dr * tnd;
+
+  dg = q.x * freq2;
+  if (dg >= distance)
+    discard;
+  dg = dg * tnd;
+
   q.y = mod ((q.y + rotate) / PIx2, 1.0) * tna;
-  q.x = q.x * tnd;
   y = mod (q.y, 1.0);
   z2 = floor (q.y);
-  z1 = z2 * tnd + floor (q.x);
-  x = mod (q.x, 1.0);
+
+  zr1 = z2 * tnd + floor (dr);
+  r = mod (dr, 1.0);
+
+  zg1 = z2 * tnd + floor (dg);
+  g = mod (dg, 1.0);
 
   //q.x += fract(sin(dot(q ,vec2(12.9898,78.233))) * 43758.5453) * (1.0 - q.x) * diskreet;
   //q.y += (-noise + 2.0 * noise * fract(sin(dot(q ,vec2(12.9898,78.233))) * 43758.5453) * (1.0 - q.y));
 
   // note: mix(x,y,a) = x*(1-a) + y*a
 
-  r = (texture (data1, vec3 (x, y, z1)).r - ampoffset) * amprange;
+  r = (texture (data1, vec3 (r, y, zr1)).r - ampoffset) * amprange;
   r = pow (r, gamma);
   r = bright + contrast * r;
   c.r = texture (fade1, vec2 (y, z2)).r;
   r = clamp (r * c.r, 0.0, 1.0);
 
-  g = (texture (data2, vec3 (x, y, z1)).r - ampoffset) * amprange;
+  g = (texture (data2, vec3 (g, y, zg1)).r - ampoffset) * amprange;
   g = pow (g, gamma);
   g = bright + contrast * g;
   c.g = texture (fade2, vec2 (y, z2)).r;
