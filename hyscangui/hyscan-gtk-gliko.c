@@ -74,7 +74,7 @@ typedef struct _channel_t
 {
   HyScanAcousticData *acoustic_data;
   HyScanSourceType source;
-  data_que_t data_que_buffer[128];
+  data_que_t *data_que_buffer;
   que_t data_que;
   int64_t alpha_que_count;
   int64_t data_que_count;
@@ -133,7 +133,7 @@ struct _HyScanGtkGlikoPrivate
   guint32 nmea_index;
   int nmea_init;
 
-  alpha_que_t alpha_que_buffer[128];
+  alpha_que_t *alpha_que_buffer;
   que_t alpha_que;
 
   int width;
@@ -218,11 +218,15 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
   p->debug_alpha = 0;
   p->debug_alpha_value = 0;
 
+  p->alpha_que_buffer = NULL;
+
   p->channel[0].allocated = 0;
   p->channel[0].buffer = NULL;
+  p->channel[0].data_que_buffer = NULL;
 
   p->channel[1].allocated = 0;
   p->channel[1].buffer = NULL;
+  p->channel[1].data_que_buffer = NULL;
 
   p->channel[0].source_name = NULL;
   p->channel[1].source_name = NULL;
@@ -375,8 +379,13 @@ channel_open (HyScanGtkGlikoPrivate *p,
       g_error ("unknown source type %s", c->source_name);
     }
 
+  if (c->data_que_buffer == NULL)
+    {
+      c->data_que_buffer = g_malloc (p->num_azimuthes * sizeof (data_que_t));
+    }
+
   // инициализируем очередь строк данных
-  initque (&c->data_que, c->data_que_buffer, sizeof (data_que_t), sizeof (c->data_que_buffer) / sizeof (c->data_que_buffer[0]));
+  initque (&c->data_que, c->data_que_buffer, sizeof (data_que_t), p->num_azimuthes);
 
   // инициализируем индексы очередей
   c->alpha_que_count = p->alpha_que.count;
@@ -521,7 +530,12 @@ player_process_callback (HyScanDataPlayer *player,
     {
       p->track_changed = 0;
 
-      initque (&p->alpha_que, p->alpha_que_buffer, sizeof (alpha_que_t), sizeof (p->alpha_que_buffer) / sizeof (p->alpha_que_buffer[0]));
+      if (p->alpha_que_buffer == NULL)
+        {
+          p->alpha_que_buffer = g_malloc (p->num_azimuthes * sizeof (alpha_que_t));
+        }
+
+      initque (&p->alpha_que, p->alpha_que_buffer, sizeof (alpha_que_t), p->num_azimuthes);
 
       g_clear_object (&p->nmea_data);
       p->nmea_data = hyscan_nmea_data_new (hyscan_data_player_get_db (p->player), NULL, p->project_name, p->track_name, p->nmea_angular_source);
