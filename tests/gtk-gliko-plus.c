@@ -595,6 +595,10 @@ range360 (const gdouble a)
   return d * 360.0 / 65536.0;
 }
 
+#if defined( _MSC_VER )
+#define g_ascii_formatd g_snprintf
+#endif
+
 static void
 update_ruler ()
 {
