@@ -595,10 +595,6 @@ range360 (const gdouble a)
   return d * 360.0 / 65536.0;
 }
 
-#if defined( _MSC_VER )
-#define g_ascii_formatd g_snprintf
-#endif
-
 static void
 update_ruler ()
 {
@@ -624,23 +620,23 @@ update_ruler ()
 
   d = sqrt ((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
 
-  g_ascii_formatd (tmpz, 32, "%.0lf", point_a_z);
-  g_ascii_formatd (tmpr, 32, "%.1lf", point_a_r);
-  sprintf (tmp, "%s\302\260/%s м", tmpz, tmpr);
+  g_ascii_formatd (tmpz, sizeof (tmpz), "%.0f", point_a_z);
+  g_ascii_formatd (tmpr, sizeof (tmpr), "%.1f", point_a_r);
+  g_snprintf (tmp, sizeof (tmp), "%s\302\260/%s м", tmpz, tmpr);
   gtk_label_set_text (GTK_LABEL (label_a), tmp);
 
-  g_ascii_formatd (tmpz, 32, "%.0lf", point_b_z);
-  g_ascii_formatd (tmpr, 32, "%.1lf", point_b_r);
-  sprintf (tmp, "%s\302\260/%s м", tmpz, tmpr);
+  g_ascii_formatd (tmpz, sizeof (tmpz), "%.0f", point_b_z);
+  g_ascii_formatd (tmpr, sizeof (tmpr), "%.1f", point_b_r);
+  g_snprintf (tmp, sizeof (tmp), "%s\302\260/%s м", tmpz, tmpr);
   gtk_label_set_text (GTK_LABEL (label_b), tmp);
 
-  g_ascii_formatd (tmpz, 32, "%.0lf", point_ab_z);
-  g_ascii_formatd (tmpr, 32, "%.1lf", d);
-  sprintf (tmp, "%s\302\260/%s м", tmpz, tmpr);
+  g_ascii_formatd (tmpz, sizeof (tmpz), "%.0f", point_ab_z);
+  g_ascii_formatd (tmpr, sizeof (tmpr), "%.1f", d);
+  g_snprintf (tmp, sizeof (tmp), "%s\302\260/%s м", tmpz, tmpr);
   gtk_label_set_text (GTK_LABEL (label_ab), tmp);
 
-  g_ascii_formatd (tmpz, 32, "%.0lf", point_ba_z);
-  sprintf (tmp, "%s\302\260/%s м", tmpz, tmpr);
+  g_ascii_formatd (tmpz, sizeof (tmpz), "%.0f", point_ba_z);
+  g_snprintf (tmp, sizeof (tmp), "%s\302\260/%s м", tmpz, tmpr);
   gtk_label_set_text (GTK_LABEL (label_ba), tmp);
 }
 
