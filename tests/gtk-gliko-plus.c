@@ -251,8 +251,9 @@ main (int argc,
   if (db != NULL && project_name != NULL && track_name != NULL)
     {
       hyscan_data_player_set_track (player, db, project_name, track_name);
-      hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 0), 1, HYSCAN_CHANNEL_DATA);
-      hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 1), 2, HYSCAN_CHANNEL_DATA);
+      hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_angular_source (HYSCAN_GTK_GLIKO (gliko)), 1, 0);
+      //hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 0), 1, HYSCAN_CHANNEL_DATA);
+      //hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 1), 2, HYSCAN_CHANNEL_DATA);
       hyscan_data_player_play (player, speed);
     }
 
@@ -442,8 +443,9 @@ reopen_clicked (GtkButton *button,
   hyscan_data_player_stop (player);
   hyscan_data_player_clear_channels (player);
   hyscan_data_player_set_track (player, db, project, track);
-  hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 0), 1, HYSCAN_CHANNEL_DATA);
-  hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 1), 2, HYSCAN_CHANNEL_DATA);
+  hyscan_data_player_add_channel (player, HYSCAN_SOURCE_NMEA, hyscan_gtk_gliko_get_angular_source (HYSCAN_GTK_GLIKO (gliko)), HYSCAN_CHANNEL_DATA);
+  //hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 0), 1, HYSCAN_CHANNEL_DATA);
+  //hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 1), 2, HYSCAN_CHANNEL_DATA);
   speed = 1.0; //gtk_range_get_value (GTK_RANGE (scale_player));
   hyscan_data_player_play (player, speed);
 
