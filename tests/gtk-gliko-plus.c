@@ -9,7 +9,7 @@
 
 #include <glib.h>
 #include <gtk/gtk.h>
-#include <libxml/parser.h>
+//#include <libxml/parser.h>
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,11 +31,15 @@ enum
   POINTER_RULER_LINE
 };
 
+static void destroy_cb (GtkWidget *object, gpointer user_data);
 void reopen_clicked (GtkButton *button,
                      gpointer user_data);
 void zoom_clicked (GtkButton *button,
                    gpointer user_data);
 void scale_changed (GtkRange *range, gpointer user_data);
+void player_changed (GtkRange *range, gpointer user_data);
+
+static void pause_cb (GtkToggleButton *togglebutton, gpointer user_data);
 
 void color_changed (GtkColorButton *chooser);
 // void       player_changed   (GtkScale                 *player_scale,
@@ -62,6 +66,9 @@ static void scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w);
 static gboolean draw_ruler_cb (GtkWidget *widget, cairo_t *cr, gpointer data);
 static gboolean configure_cb (GtkWidget *widget, GdkEvent *event, gpointer user_data);
 static void update_ruler ();
+
+static void player_ready_cb (HyScanDataPlayer *player, gint64 time, gpointer user_data);
+static void player_range_cb (HyScanDataPlayer *player, gint64 min, gint64 max, gpointer user_data);
 
 static GtkWidget *scale_white;
 static GtkWidget *scale_bright;
@@ -108,6 +115,8 @@ gdouble point_b_z = 0.0;
 gdouble point_b_r = 10.0;
 gdouble point_ab_z = 0.0;
 gdouble point_ba_z = 180.0;
+
+gint64 player_min = 0;
 
 PangoLayout *pango_layout = NULL;
 
@@ -245,6 +254,10 @@ main (int argc,
   hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (gliko), gamma);
 
   hyscan_data_player_set_fps (player, fps);
+  g_signal_connect (player, "range", G_CALLBACK (player_range_cb), NULL);
+  g_signal_connect (player, "ready", G_CALLBACK (player_ready_cb), NULL);
+
+  g_signal_connect (window, "destroy", G_CALLBACK (destroy_cb), NULL);
 
   gtk_widget_show_all (window);
 
@@ -260,18 +273,21 @@ main (int argc,
   /* Начинаем работу. */
   gtk_main ();
 
-  hyscan_data_player_shutdown (player);
-  g_object_unref (G_OBJECT (gliko));
-  g_object_unref (G_OBJECT (player));
-  g_clear_object (&db);
-
   g_free (project_name);
   g_free (track_name);
   g_free (db_uri);
 
-  xmlCleanupParser ();
+  //xmlCleanupParser ();
 
   return 0;
+}
+
+static void destroy_cb (GtkWidget *object, gpointer user_data)
+{
+  hyscan_data_player_shutdown (player);
+  g_object_unref (G_OBJECT (gliko));
+  g_object_unref (G_OBJECT (player));
+  g_clear_object (&db);
 }
 
 GtkWidget *
@@ -284,6 +300,9 @@ make_menu (gdouble white,
   GtkWidget *zoom_btn_in = gtk_button_new_from_icon_name ("zoom-in-symbolic", GTK_ICON_SIZE_BUTTON);
   GtkWidget *zoom_btn_out = gtk_button_new_from_icon_name ("zoom-out-symbolic", GTK_ICON_SIZE_BUTTON);
   GtkWidget *btn_reopen = gtk_button_new_from_icon_name ("folder-symbolic", GTK_ICON_SIZE_BUTTON);
+  GtkWidget *pause = gtk_toggle_button_new ();
+  gtk_button_set_image (GTK_BUTTON (pause), gtk_image_new_from_icon_name( "media-playback-pause", GTK_ICON_SIZE_BUTTON));
+
   scale_white = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.001, 1.0, 0.001);
   scale_bright = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -1.0, 1.0, 0.01);
   scale_contrast = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -1.0, 1.0, 0.01);
@@ -291,9 +310,10 @@ make_menu (gdouble white,
   scale_bottom = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.0, 50.0, 0.01);
   scale_rotation = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -180, 180.0, 1.0);
   scale_turn = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -180, 180.0, 1.0);
-  scale_player = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -10.0, 10.0, 0.1);
+  scale_player = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.0, 100.0, 1.0);
 
   GtkWidget *track_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+  GtkWidget *player_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
 
   /* Делаем симпатичные кнопки. */
   gtk_style_context_add_class (gtk_widget_get_style_context (track_box), "linked");
@@ -372,7 +392,10 @@ make_menu (gdouble white,
   gtk_box_pack_start (GTK_BOX (box), scale_turn, FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL), FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), gtk_label_new ("Плеер"), FALSE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (box), scale_player, FALSE, TRUE, 0);
+
+  gtk_box_pack_start (GTK_BOX (player_box), pause, FALSE, FALSE, 0);
+  gtk_box_pack_end (GTK_BOX (player_box), scale_player, FALSE, TRUE, 0);
+  gtk_box_pack_start (GTK_BOX (box), player_box, FALSE, TRUE, 0 );
 
   gtk_box_pack_end (GTK_BOX (box), ruler_grid, FALSE, TRUE, 0);
   gtk_box_pack_end (GTK_BOX (box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL), FALSE, TRUE, 0);
@@ -388,8 +411,10 @@ make_menu (gdouble white,
   g_signal_connect (scale_rotation, "value-changed", G_CALLBACK (scale_changed), NULL);
   g_signal_connect (scale_turn, "value-changed", G_CALLBACK (scale_changed), NULL);
   g_signal_connect (color_chooser, "color-set", G_CALLBACK (color_changed), NULL);
+  //g_signal_connect (scale_player, "value-changed", G_CALLBACK (player_changed), NULL);
 
   // g_signal_connect (wf_play, "player-stop", G_CALLBACK (player_stop), scale_player);
+  g_signal_connect (pause, "toggled", G_CALLBACK (pause_cb), NULL);
 
   gtk_widget_set_margin_top (box, 12);
   gtk_widget_set_margin_bottom (box, 12);
@@ -397,6 +422,8 @@ make_menu (gdouble white,
 
   return box;
 }
+
+
 
 void
 reopen_clicked (GtkButton *button,
@@ -978,4 +1005,29 @@ configure_cb (GtkWidget *widget, GdkEvent *event, gpointer user_data)
 {
   update_ruler ();
   return FALSE;
+}
+
+static void
+player_range_cb (HyScanDataPlayer *player, gint64 min, gint64 max, gpointer user_data)
+{
+  player_min = min;
+  gtk_range_set_range (GTK_RANGE (scale_player), 0.0, 0.000001 * (max - min));
+}
+
+static void
+player_ready_cb (HyScanDataPlayer *player, gint64 time, gpointer user_data)
+{
+  gtk_range_set_value (GTK_RANGE (scale_player), 0.000001 * (time - player_min));
+}
+
+static void pause_cb (GtkToggleButton *togglebutton, gpointer user_data)
+{
+  if (gtk_toggle_button_get_active (togglebutton))
+  {
+    hyscan_data_player_pause (player);
+  }
+  else
+  {
+    hyscan_data_player_play (player, 1.0);
+  }
 }
