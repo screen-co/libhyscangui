@@ -106,7 +106,7 @@ struct _HyScanGtkGlikoPrivate
   HyScanNMEAData *nmea_data;
   HyScanDataPlayer *player;
 
-  gint32 num_azimuthes;
+  guint num_azimuthes;
   float rotation;
   float full_rotation;
   float bottom;
@@ -154,6 +154,7 @@ struct _HyScanGtkGlikoPrivate
 G_DEFINE_TYPE (HyScanGtkGliko, hyscan_gtk_gliko, HYSCAN_TYPE_GTK_GLIKO_OVERLAY)
 
 /* Internal API */
+static void init_queues (HyScanGtkGlikoPrivate *p);
 static void dispose (GObject *gobject);
 static void finalize (GObject *gobject);
 static void on_resize (GtkGLArea *area, gint width, gint height, gpointer user_data);
@@ -243,6 +244,7 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
   p->project_name = NULL;
   p->track_name = NULL;
 
+  init_queues (p);
 #if 0
   /* Определяем тип источника данных по его названию. */
   p->channel[0].source = hyscan_source_get_type_by_id (p->channel[0].source_name);
@@ -279,6 +281,30 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
   g_object_set (p->grid, "gliko-scale", p->scale, NULL);
 
   g_signal_connect (instance, "resize", G_CALLBACK (on_resize), NULL);
+}
+
+static void
+init_queues (HyScanGtkGlikoPrivate *p)
+{
+  if (p->alpha_que_buffer == NULL)
+    {
+      // резервируем буфер для очереди угловых меток
+      p->alpha_que_buffer = g_malloc (p->num_azimuthes * sizeof (alpha_que_t));
+    }
+  // инициализируем очередь угловых меток
+  initque (&p->alpha_que, p->alpha_que_buffer, sizeof (alpha_que_t), p->num_azimuthes);
+
+  if (p->channel[0].data_que_buffer == NULL)
+    {
+      p->channel[0].data_que_buffer = g_malloc (p->num_azimuthes * sizeof (data_que_t));
+    }
+  if (p->channel[1].data_que_buffer == NULL)
+    {
+      p->channel[1].data_que_buffer = g_malloc (p->num_azimuthes * sizeof (data_que_t));
+    }
+  // инициализируем очереди строк данных
+  initque (&p->channel[0].data_que, p->channel[0].data_que_buffer, sizeof (data_que_t), p->num_azimuthes);
+  initque (&p->channel[1].data_que, p->channel[1].data_que_buffer, sizeof (data_que_t), p->num_azimuthes);
 }
 
 static void
@@ -349,7 +375,21 @@ hyscan_gtk_gliko_set_num_azimuthes (HyScanGtkGliko *instance,
                                     const guint num_azimuthes)
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
-  p->num_azimuthes = num_azimuthes;
+
+  if (num_azimuthes != p->num_azimuthes)
+    {
+      g_free (p->alpha_que_buffer);
+      p->alpha_que_buffer = NULL;
+
+      g_free (p->channel[0].data_que_buffer);
+      p->channel[0].data_que_buffer = NULL;
+
+      g_free (p->channel[1].data_que_buffer);
+      p->channel[1].data_que_buffer = NULL;
+
+      p->num_azimuthes = num_azimuthes;
+      init_queues (p);
+    }
 }
 
 /**
@@ -378,14 +418,6 @@ channel_open (HyScanGtkGlikoPrivate *p,
     {
       g_error ("unknown source type %s", c->source_name);
     }
-
-  if (c->data_que_buffer == NULL)
-    {
-      c->data_que_buffer = g_malloc (p->num_azimuthes * sizeof (data_que_t));
-    }
-
-  // инициализируем очередь строк данных
-  initque (&c->data_que, c->data_que_buffer, sizeof (data_que_t), p->num_azimuthes);
 
   // инициализируем индексы очередей
   c->alpha_que_count = p->alpha_que.count;
@@ -530,12 +562,7 @@ player_process_callback (HyScanDataPlayer *player,
     {
       p->track_changed = 0;
 
-      if (p->alpha_que_buffer == NULL)
-        {
-          p->alpha_que_buffer = g_malloc (p->num_azimuthes * sizeof (alpha_que_t));
-        }
-
-      initque (&p->alpha_que, p->alpha_que_buffer, sizeof (alpha_que_t), p->num_azimuthes);
+      init_queues (p);
 
       g_clear_object (&p->nmea_data);
       p->nmea_data = hyscan_nmea_data_new (hyscan_data_player_get_db (p->player), NULL, p->project_name, p->track_name, p->nmea_angular_source);
