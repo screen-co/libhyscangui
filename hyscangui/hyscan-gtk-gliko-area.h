@@ -82,6 +82,9 @@ void hyscan_gtk_gliko_area_set_data (HyScanGtkGlikoArea *instance,
 HYSCAN_API
 void hyscan_gtk_gliko_area_fade (HyScanGtkGlikoArea *instance);
 
+HYSCAN_API
+void hyscan_gtk_gliko_area_clear (HyScanGtkGlikoArea *instance);
+
 G_END_DECLS
 
 #endif

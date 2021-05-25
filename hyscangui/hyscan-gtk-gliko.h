@@ -204,6 +204,9 @@ void hyscan_gtk_gliko_polar2pixel (HyScanGtkGliko *instance,
                                    gdouble *x,
                                    gdouble *y);
 
+HYSCAN_API
+guint hyscan_gtk_gliko_set_playback (HyScanGtkGliko *instance, const int enable_playback);
+
 G_END_DECLS
 
 #endif

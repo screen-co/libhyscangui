@@ -870,6 +870,35 @@ hyscan_gtk_gliko_area_fade (HyScanGtkGlikoArea *instance)
   glerr ();
 }
 
+void
+hyscan_gtk_gliko_area_clear (HyScanGtkGlikoArea *instance)
+{
+  HyScanGtkGlikoAreaPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO_AREA, HyScanGtkGlikoAreaPrivate);
+  int i, ia;
+
+  if (p->init_stage != 2)
+    return;
+
+  for (i = 0; i < p->na; i++)
+    {
+      p->fade[0][i] = 0.0f;
+      p->fade[1][i] = 0.0f;
+    }
+  glPixelStorei (GL_UNPACK_ROW_LENGTH, (1 << p->na_bits) * sizeof (sample_t));
+  glBindTexture (GL_TEXTURE_1D_ARRAY, p->tex_fade[0]);
+  for (ia = 0; ia < p->tna; ia++)
+    {
+      glTexSubImage2D (GL_TEXTURE_1D_ARRAY, 0, 0, ia, TEX_SIZE, 1, GL_RED, GL_FLOAT, p->fade[0] + ia * TEX_SIZE);
+    }
+  glBindTexture (GL_TEXTURE_1D_ARRAY, p->tex_fade[1]);
+  for (ia = 0; ia < p->tna; ia++)
+    {
+      glTexSubImage2D (GL_TEXTURE_1D_ARRAY, 0, 0, ia, TEX_SIZE, 1, GL_RED, GL_FLOAT, p->fade[1] + ia * TEX_SIZE);
+    }
+  glerr ();
+}
+
+
 /* Initialization */
 static void
 hyscan_gtk_gliko_area_class_init (HyScanGtkGlikoAreaClass *klass)

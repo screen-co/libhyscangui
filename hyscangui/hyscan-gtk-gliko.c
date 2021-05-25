@@ -87,7 +87,6 @@ typedef struct _channel_t
   guint32 iko_length;
   guint32 allocated;
   int process_init;
-  int ready_init;
   int gliko_channel;
   int ready_alpha_init;
   int ready_data_init;
@@ -138,8 +137,6 @@ struct _HyScanGtkGlikoPrivate
 
   int width;
   int height;
-  int debug_alpha;
-  int debug_alpha_value;
 
   gint nmea_angular_source;
 
@@ -148,6 +145,8 @@ struct _HyScanGtkGlikoPrivate
   int track_changed;
   gchar *project_name;
   gchar *track_name;
+
+  int playback;
 };
 
 /* Define type */
@@ -200,7 +199,7 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
   p->cy = 0.0f;
   p->contrast = 0.0f;
   p->brightness = 0.0f;
-  p->fade_coef = 1.0f;
+  p->fade_coef = 0.99999f;
 
   p->white = 1.0f;
   p->black = 0.0f;
@@ -215,9 +214,6 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
   p->nmea_init = 0;
 
   p->nmea_angular_source = 1;
-
-  p->debug_alpha = 0;
-  p->debug_alpha_value = 0;
 
   p->alpha_que_buffer = NULL;
 
@@ -243,6 +239,8 @@ hyscan_gtk_gliko_init (HyScanGtkGliko *instance)
   p->track_changed = 0;
   p->project_name = NULL;
   p->track_name = NULL;
+
+  p->playback = 1;
 
   init_queues (p);
 #if 0
@@ -406,6 +404,52 @@ hyscan_gtk_gliko_get_num_azimuthes (HyScanGtkGliko *instance)
   return p->num_azimuthes;
 }
 
+static void
+channel_reset_playback (HyScanGtkGlikoPrivate *p,
+              const int channel_index)
+{
+  channel_t *c = p->channel + channel_index;
+
+  // инициализируем индексы очередей
+  c->alpha_que_count = p->alpha_que.count;
+  c->data_que_count = c->data_que.count;
+
+  // обнуляем признак инициализации обработки
+  c->process_init = 0;
+
+  // последний выданный на индикатор азимутальный дискрет
+  c->azimuth_displayed = 0;
+  c->azimuth = 0;
+
+  c->ready_alpha_init = 0;
+  c->ready_data_init = 0;
+
+}
+
+HYSCAN_API
+guint
+hyscan_gtk_gliko_set_playback (HyScanGtkGliko *instance, const int enable_playback )
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
+
+  if( p->playback == 0 && enable_playback != 0 )
+  {
+    if( enable_playback > 1 )
+    {
+      channel_reset_playback (p, 0);
+      channel_reset_playback (p, 1);
+      hyscan_gtk_gliko_area_clear (HYSCAN_GTK_GLIKO_AREA (p->iko));
+    }
+    p->playback = 1;
+  }
+  else if( p->playback != 0 && enable_playback == 0 )
+  {
+    p->playback = 0;
+  }
+  return TRUE;
+}
+
+
 // открытие канала данных
 static void
 channel_open (HyScanGtkGlikoPrivate *p,
@@ -419,14 +463,6 @@ channel_open (HyScanGtkGlikoPrivate *p,
       g_error ("unknown source type %s", c->source_name);
     }
 
-  // инициализируем индексы очередей
-  c->alpha_que_count = p->alpha_que.count;
-  c->data_que_count = c->data_que.count;
-
-  // обнуляем признак инициализации обработки
-  c->process_init = 0;
-  c->ready_init = 0;
-
   // размер считываемой строки пока не известен
   c->iko_length_initialized = 0;
 
@@ -435,10 +471,6 @@ channel_open (HyScanGtkGlikoPrivate *p,
 
   // указатель на буфер
   c->buffer = NULL;
-
-  // последний выданный на индикатор азимутальный дискрет
-  c->azimuth_displayed = 0;
-  c->azimuth = 0;
 
   /* Объект обработки акустических данных. */
   g_clear_object (&c->acoustic_data);
@@ -450,8 +482,9 @@ channel_open (HyScanGtkGlikoPrivate *p,
 
   /* частота дискретизации */
   c->data_rate = hyscan_acoustic_data_get_info (c->acoustic_data).data_rate;
-  c->process_init = 0;
-  c->ready_alpha_init = 0;
+
+  // воспроизведение с чистого листа
+  channel_reset_playback (p, channel_index);
 }
 
 // обработчик сигнала open
@@ -523,21 +556,20 @@ channel_process (HyScanGtkGlikoPrivate *p,
               c->iko_length = data.length;
               c->iko_length_initialized = 1;
             }
-          if (p->debug_alpha && channel_index == 0)
-            {
-              alpha_que_t alpha;
-
-              alpha.time = data.time;
-              alpha.value = 360.0;
-              alpha.value = alpha.value * (p->debug_alpha_value % p->num_azimuthes) / p->num_azimuthes;
-
-              p->debug_alpha_value++;
-
-              // буферизуем считанное значение в очереди
-              enque (&p->alpha_que, &alpha, 1);
-            }
         }
     }
+}
+
+static gdouble
+range360 (const gdouble a)
+{
+  guint i;
+  gdouble d;
+
+  d = a * 65536.0 / 360.0;
+  i = (int) d;
+  d = (i & 0xFFFF);
+  return d * 360.0 / 65536.0;
 }
 
 // обработчик сигнала process
@@ -554,6 +586,11 @@ player_process_callback (HyScanDataPlayer *player,
 
   if (p == NULL)
     return;
+
+  if( !p->playback )
+  {
+    return;
+  }
 
   //printf ("process %"PRId64"\n", time );
   //fflush (stdout);
@@ -580,11 +617,6 @@ player_process_callback (HyScanDataPlayer *player,
   // обработка индексов строк данных для двух каналов
   channel_process (p, 0, time);
   channel_process (p, 1, time);
-
-  if (p->debug_alpha)
-    {
-      return;
-    }
 
   // запрашиваем индексы по текущему времени
   if (hyscan_nmea_data_find_data (p->nmea_data, time, &inleft, &inright, &tnleft, &tnright) != HYSCAN_DB_FIND_OK)
@@ -623,10 +655,10 @@ player_process_callback (HyScanDataPlayer *player,
         }
 
       /* текущий угол поворота, градусы */
-      alpha.value = g_ascii_strtod (nmea + sizeof (header), NULL);
+      alpha.value = range360 (g_ascii_strtod (nmea + sizeof (header), NULL));
 
-      //printf( "process %s %"PRIu64" %.2lf\n", hyscan_data_player_get_track_name( player ), alpha.time, alpha.value );
-      //fflush( stdout );
+      printf( "process %s %"PRIu64" %.2lf\n", hyscan_data_player_get_track_name( player ), alpha.time, alpha.value );
+      fflush( stdout );
 
       // буферизуем считанное значение в очереди
       enque (&p->alpha_que, &alpha, 1);
@@ -694,15 +726,16 @@ channel_ready (HyScanGtkGlikoPrivate *p,
           continue;
         }
       // если вдруг время замера больше текущего времени, прекращаем работу
+      /*
       if (alpha.time >= time)
         {
           break;
         }
+        */
       // отсуствие разницы во времени тоже не допустимо
-      if (alpha.time == c->alpha_time)
+      if (alpha.time <= c->alpha_time)
         {
-          // следующий элемент очереди
-          c->alpha_que_count++;
+          c->ready_alpha_init = 0;
           continue;
         }
       /* изменение угла, с учетом перехода через 0 */
@@ -742,28 +775,24 @@ channel_ready (HyScanGtkGlikoPrivate *p,
             {
               return;
             }
+
           // если вышли за интервал замера угла
           if (data.time >= alpha.time)
-            {
-              // переходим к следующему углу
-              break;
-            }
+          {
+            // переходим к следующему углу
+            break;
+          }
+          // значение угла
+          a = c->alpha_value + d * (data.time - c->alpha_time) / (alpha.time - c->alpha_time);
 
           // следующая строка изображения
           c->data_que_count++;
 
-          // значение угла
-          a = c->alpha_value + d * (data.time - c->alpha_time) / (alpha.time - c->alpha_time);
-
           /* допустимый диапазон 0..360 */
-          while (a < 0.0)
-            {
-              a += 360.0;
-            }
-          while (a >= 360.0)
-            {
-              a -= 360.0;
-            }
+          a = range360 (a);
+
+          printf( "ready %d %"PRIu64" %.2lf\n", channel_index, data.time, a );
+          fflush( stdout );
 
           /* номер углового дискрета */
           j = (guint32) (a * p->num_azimuthes / 360.0);
@@ -839,6 +868,12 @@ player_ready_callback (HyScanDataPlayer *player,
 
   if (p == NULL)
     return;
+
+  if( !hyscan_data_player_is_played (player) )
+  {
+    return;
+  }
+
   //g_print ("Ready time: %"G_GINT64_FORMAT" %d\n", g_get_monotonic_time (), misc_read);
 
   // если индикатор кругового обзора не проинициализирован
