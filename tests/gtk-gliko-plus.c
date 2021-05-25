@@ -40,6 +40,7 @@ void scale_changed (GtkRange *range, gpointer user_data);
 void player_changed (GtkRange *range, gpointer user_data);
 
 static void pause_cb (GtkToggleButton *togglebutton, gpointer user_data);
+static void x10_cb (GtkToggleButton *togglebutton, gpointer user_data);
 
 void color_changed (GtkColorButton *chooser);
 // void       player_changed   (GtkScale                 *player_scale,
@@ -79,6 +80,7 @@ static GtkWidget *scale_rotation;
 static GtkWidget *scale_turn;
 static GtkWidget *scale_player;
 static GtkWidget *pause_button;
+static GtkWidget *x10_button;
 
 static GtkWidget *label_a;
 static GtkWidget *label_b;
@@ -116,6 +118,8 @@ gdouble point_b_z = 0.0;
 gdouble point_b_r = 10.0;
 gdouble point_ab_z = 0.0;
 gdouble point_ba_z = 180.0;
+
+gdouble speed = 1.0;
 
 gint64 player_min = 0;
 int player_position_changed = 0;
@@ -303,6 +307,7 @@ make_menu (gdouble white,
   GtkWidget *zoom_btn_out = gtk_button_new_from_icon_name ("zoom-out-symbolic", GTK_ICON_SIZE_BUTTON);
   GtkWidget *btn_reopen = gtk_button_new_from_icon_name ("folder-symbolic", GTK_ICON_SIZE_BUTTON);
   pause_button = gtk_toggle_button_new ();
+  x10_button = gtk_toggle_button_new_with_label ("x10");
   gtk_button_set_image (GTK_BUTTON (pause_button), gtk_image_new_from_icon_name( "media-playback-pause", GTK_ICON_SIZE_BUTTON));
 
   scale_white = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.001, 1.0, 0.001);
@@ -396,6 +401,7 @@ make_menu (gdouble white,
   gtk_box_pack_start (GTK_BOX (box), gtk_label_new ("Плеер"), FALSE, TRUE, 0);
 
   gtk_box_pack_start (GTK_BOX (player_box), pause_button, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (player_box), x10_button, FALSE, FALSE, 0);
   gtk_box_pack_end (GTK_BOX (player_box), scale_player, FALSE, TRUE, 0);
   gtk_box_pack_start (GTK_BOX (box), player_box, FALSE, TRUE, 0 );
 
@@ -417,6 +423,7 @@ make_menu (gdouble white,
 
   // g_signal_connect (wf_play, "player-stop", G_CALLBACK (player_stop), scale_player);
   g_signal_connect (pause_button, "toggled", G_CALLBACK (pause_cb), NULL);
+  g_signal_connect (x10_button, "toggled", G_CALLBACK (x10_cb), NULL);
 
   gtk_widget_set_margin_top (box, 12);
   gtk_widget_set_margin_bottom (box, 12);
@@ -438,7 +445,6 @@ reopen_clicked (GtkButton *button,
   gchar **split = NULL;
   guint len;
   gint res;
-  gdouble speed;
 
   dialog = gtk_file_chooser_dialog_new ("Select track", GTK_WINDOW (window),
                                         GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
@@ -475,7 +481,6 @@ reopen_clicked (GtkButton *button,
   hyscan_data_player_add_channel (player, HYSCAN_SOURCE_NMEA, hyscan_gtk_gliko_get_angular_source (HYSCAN_GTK_GLIKO (gliko)), HYSCAN_CHANNEL_DATA);
   //hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 0), 1, HYSCAN_CHANNEL_DATA);
   //hyscan_data_player_add_channel (player, hyscan_gtk_gliko_get_source (HYSCAN_GTK_GLIKO (gliko), 1), 2, HYSCAN_CHANNEL_DATA);
-  speed = 1.0; //gtk_range_get_value (GTK_RANGE (scale_player));
   hyscan_data_player_play (player, speed);
 
   {
@@ -1047,7 +1052,20 @@ static void pause_cb (GtkToggleButton *togglebutton, gpointer user_data)
   {
     hyscan_gtk_gliko_set_playback (HYSCAN_GTK_GLIKO (gliko), player_position_changed ? 2: 1);
     player_position_changed = 0;
-    hyscan_data_player_play (player, 1.0);
+    hyscan_data_player_play (player, speed);
     gtk_widget_set_sensitive (GTK_WIDGET (scale_player), FALSE);
   }
+}
+
+static void x10_cb (GtkToggleButton *togglebutton, gpointer user_data)
+{
+  if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (x10_button)))
+  {
+    speed = 10.0;
+  }
+  else
+  {
+    speed = 1.0;
+  }
+  hyscan_data_player_play (player, speed);
 }
