@@ -487,13 +487,13 @@ channel_open (HyScanGtkGlikoPrivate *p,
   channel_reset_playback (p, channel_index);
 }
 
-// обработчик сигнала open
+// обработчик сигнала track-changed
 static void
-player_open_callback (HyScanDataPlayer *player,
-                      HyScanDB *db,
-                      const gchar *project_name,
-                      const gchar *track_name,
-                      gpointer user_data)
+player_track_changed_callback (HyScanDataPlayer *player,
+                               HyScanDB *db,
+                               const gchar *project_name,
+                               const gchar *track_name,
+                               gpointer user_data)
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (user_data, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
@@ -945,7 +945,7 @@ hyscan_gtk_gliko_set_player (HyScanGtkGliko *instance,
 
   g_object_ref (G_OBJECT (player));
   p->player = player;
-  g_signal_connect (p->player, "open", G_CALLBACK (player_open_callback), instance);
+  g_signal_connect (p->player, "track-changed", G_CALLBACK (player_track_changed_callback), instance);
   g_signal_connect (p->player, "ready", G_CALLBACK (player_ready_callback), instance);
   g_signal_connect (p->player, "process", G_CALLBACK (player_process_callback), instance);
 }
