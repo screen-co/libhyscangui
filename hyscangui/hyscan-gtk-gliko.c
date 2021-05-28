@@ -584,6 +584,9 @@ player_process_callback (HyScanDataPlayer *player,
   int indelta;
   alpha_que_t alpha;
 
+  //printf ("process %"PRId64"\n", time );
+  //fflush (stdout);
+
   if (p == NULL)
     return;
 
@@ -591,9 +594,6 @@ player_process_callback (HyScanDataPlayer *player,
   {
     return;
   }
-
-  //printf ("process %"PRId64"\n", time );
-  //fflush (stdout);
 
   if (p->track_changed)
     {
@@ -657,8 +657,8 @@ player_process_callback (HyScanDataPlayer *player,
       /* текущий угол поворота, градусы */
       alpha.value = range360 (g_ascii_strtod (nmea + sizeof (header), NULL));
 
-      printf( "process %s %"PRIu64" %.2lf\n", hyscan_data_player_get_track_name( player ), alpha.time, alpha.value );
-      fflush( stdout );
+      //printf( "process %s %"PRIu64" %.2lf\n", hyscan_data_player_get_track_name( player ), alpha.time, alpha.value );
+      //fflush( stdout );
 
       // буферизуем считанное значение в очереди
       enque (&p->alpha_que, &alpha, 1);
@@ -791,8 +791,8 @@ channel_ready (HyScanGtkGlikoPrivate *p,
           /* допустимый диапазон 0..360 */
           a = range360 (a);
 
-          printf( "ready %d %"PRIu64" %.2lf\n", channel_index, data.time, a );
-          fflush( stdout );
+          //printf( "ready %d %"PRIu64" %.2lf\n", channel_index, data.time, a );
+          //fflush( stdout );
 
           /* номер углового дискрета */
           j = (guint32) (a * p->num_azimuthes / 360.0);
