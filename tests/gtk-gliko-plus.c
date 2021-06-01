@@ -136,8 +136,8 @@ main (int argc,
   gchar *project_name = NULL;
   gchar *track_name = NULL;
 
-  gchar *source_name1 = "around-starboard";
-  gchar *source_name2 = "around-port";
+  gchar *source_name1 = "around-port";      // левый борт
+  gchar *source_name2 = "around-starboard"; // правый борт
   gdouble white = 0.2;
   gdouble gamma = 1.0;
   gdouble bottom = 0.0;
@@ -159,8 +159,8 @@ main (int argc,
       { "project", 'p', 0, G_OPTION_ARG_STRING, &project_name, "Project name", NULL },
       { "track", 't', 0, G_OPTION_ARG_STRING, &track_name, "Track name", NULL },
       { "angular", 'a', 0, G_OPTION_ARG_INT, &angular_source, "Angular source channel's number (default 3)", NULL },
-      { "starboard", 's', 0, G_OPTION_ARG_STRING, &source_name1, "Starboard name", NULL },
-      { "port", 'r', 0, G_OPTION_ARG_STRING, &source_name2, "Port name", NULL },
+      { "port", 'r', 0, G_OPTION_ARG_STRING, &source_name1, "Port data channel", NULL },
+      { "starboard", 's', 0, G_OPTION_ARG_STRING, &source_name2, "Starboard data channel", NULL },
       { "bottom", 'b', 0, G_OPTION_ARG_DOUBLE, &bottom, "Bottom", NULL },
       { "white-point", 'W', 0, G_OPTION_ARG_DOUBLE, &white, "White point", NULL },
       { "gamma", 'g', 0, G_OPTION_ARG_DOUBLE, &gamma, "Gamma", NULL },
