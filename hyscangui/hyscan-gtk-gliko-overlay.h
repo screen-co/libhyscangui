@@ -77,6 +77,11 @@ void hyscan_gtk_gliko_overlay_enable_layer (HyScanGtkGlikoOverlay *instance,
                                             const int index,
                                             const int enable);
 
+HYSCAN_API
+void hyscan_gtk_gliko_overlay_set_background (HyScanGtkGlikoOverlay *instance,
+                                              const guint32 background);
+
+
 G_END_DECLS
 
 #endif

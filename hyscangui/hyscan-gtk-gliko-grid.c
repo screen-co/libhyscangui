@@ -257,11 +257,21 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
   HyScanGtkGlikoGridPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (layer, HYSCAN_TYPE_GTK_GLIKO_GRID, HyScanGtkGlikoGridPrivate);
   int i, j;
   float a;
-  static const float c1[4] = { 0.0f, 0.0f, 0.0f, 0.4f };
-  static const float c2[4] = { 0.0f, 0.0f, 0.0f, 0.2f };
+  float c1[4];
+  float c2[4];
 
   if (p->program == -1)
     return;
+
+  c1[0] = p->color[0];
+  c1[1] = p->color[1];
+  c1[2] = p->color[2];
+  c1[3] = p->color[3];
+
+  c2[0] = c1[0];
+  c2[1] = c1[1];
+  c2[2] = c1[2];
+  c2[3] = 0.5f * c1[3];
 
   update_circles (p);
 
@@ -403,6 +413,11 @@ hyscan_gtk_gliko_grid_init (HyScanGtkGlikoGrid *grid)
   p->radius0 = 0.0f;
   p->alpha = 0.0f;
 
+  p->color[0] = 0.0f;
+  p->color[1] = 0.0f;
+  p->color[2] = 0.0f;
+  p->color[3] = 0.4f;
+
   update_circles (p);
 }
 
@@ -422,8 +437,8 @@ hyscan_gtk_gliko_grid_class_init (HyScanGtkGlikoGridClass *klass)
   obj_properties[P_RADIUS] = g_param_spec_float ("gliko-radius", "Radius", "Radius in meters", 0, G_MAXFLOAT, 100.0, rw);
   obj_properties[P_STEP] = g_param_spec_float ("gliko-step-distance", "Step", "Grid step by distance in meters", 0, G_MAXFLOAT, 10.0, rw);
   obj_properties[P_ALPHA] = g_param_spec_float ("gliko-rotate", "Rotate", "Grid rotate in degrees", -G_MAXFLOAT, G_MAXFLOAT, 0.0, rw);
-  obj_properties[P_COLOR_ALPHA] = g_param_spec_float ("gliko-color1-alpha", "ColorAlpha", "Alpha channel of color", 0.0, 1.0, 1.0, rw);
-  obj_properties[P_COLOR] = g_param_spec_string ("gliko-color1-rgb", "Color1", "Color for channel 1 #RRGGBB", "#FFFFFF", rw);
+  obj_properties[P_COLOR_ALPHA] = g_param_spec_float ("gliko-color-alpha", "ColorAlpha", "Alpha channel of color", 0.0, 1.0, 1.0, rw);
+  obj_properties[P_COLOR] = g_param_spec_string ("gliko-color-rgb", "Color", "Color for grid #RRGGBB", "#FFFFFF", rw);
 
   g_object_class_install_properties (g_class, N_PROPERTIES, obj_properties);
 }

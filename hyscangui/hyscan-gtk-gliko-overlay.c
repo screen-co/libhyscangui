@@ -52,6 +52,7 @@ struct _HyScanGtkGlikoOverlayPrivate
   int width, height;
   int has_alpha;
   int redraw_parent;
+  float background[4];
 };
 
 /* Define type */
@@ -95,7 +96,7 @@ on_render (GtkGLArea *area, GdkGLContext *context)
     }
 
   glColorMask (GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-  glClearColor (0.2f, 0.3f, 0.3f, 1.0f);
+  glClearColor (p->background[0], p->background[1], p->background[2], p->background[3]);
   glClear (GL_COLOR_BUFFER_BIT);
   glEnable (GL_BLEND);
   glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -218,6 +219,11 @@ hyscan_gtk_gliko_overlay_init (HyScanGtkGlikoOverlay *overlay)
   p->has_alpha = 0;
   p->redraw_parent = 1;
 
+  p->background[0] = 0.2f;
+  p->background[1] = 0.3f;
+  p->background[2] = 0.3f;
+  p->background[3] = 1.0f;
+
   g_signal_connect (overlay, "realize", G_CALLBACK (on_realize), NULL);
   g_signal_connect (overlay, "render", G_CALLBACK (on_render), NULL);
   g_signal_connect (overlay, "resize", G_CALLBACK (on_resize), NULL);
@@ -300,4 +306,17 @@ hyscan_gtk_gliko_overlay_enable_layer (HyScanGtkGlikoOverlay *instance, const in
           p->enable &= ~(1 << index);
         }
     }
+}
+
+void
+hyscan_gtk_gliko_overlay_set_background (HyScanGtkGlikoOverlay *instance,
+                                         const guint32 background)
+{
+  HyScanGtkGlikoOverlayPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO_OVERLAY, HyScanGtkGlikoOverlayPrivate);
+  float a = 1.0f / 255.0f;
+
+  p->background[0] = a * ((background >> 16) & 0xFF);
+  p->background[1] = a * ((background >>  8) & 0xFF);
+  p->background[2] = a * ((background      ) & 0xFF);
+  p->background[3] = a * ((background >> 24) & 0xFF);
 }

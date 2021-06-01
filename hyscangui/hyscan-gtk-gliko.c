@@ -1375,6 +1375,7 @@ hyscan_gtk_gliko_set_colormap (HyScanGtkGliko *instance,
   char t[64];
   float a = 1.0f / 255.0f;
   guint32 color = colormap[length - 1];
+  int i;
 
   if (channel_index == 0)
     {
@@ -1392,6 +1393,17 @@ hyscan_gtk_gliko_set_colormap (HyScanGtkGliko *instance,
     }
   g_object_set (p->iko, "gliko-background-rgb", str_rgb (t, background), NULL);
   g_object_set (p->iko, "gliko-background-alpha", a * (background >> 24), NULL);
+  hyscan_gtk_gliko_overlay_set_background (HYSCAN_GTK_GLIKO_OVERLAY (instance), background);
+
+  i = (((background >> 16) & 0xFF) + ((background >> 8) & 0xFF) + (background & 0xFF)) / 3;
+  if (i >= 0x40)
+    {
+      g_object_set (p->grid, "gliko-color-rgb", "#000000", NULL);
+    }
+  else
+    {
+      g_object_set (p->grid, "gliko-color-rgb", "#FFFFFF", NULL);
+    }
   return TRUE;
 }
 
