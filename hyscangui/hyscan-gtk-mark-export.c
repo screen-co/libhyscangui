@@ -386,7 +386,7 @@ hyscan_gtk_mark_export_save_tile (HyScanMarkLocation *location,     /* Метк�
                   gboolean echo = (location->direction == HYSCAN_MARK_LOCATION_BOTTOM)? TRUE : FALSE;
                   gdouble width = hyscan_gtk_mark_export_get_wfmark_width (location);
                   GDateTime *local = NULL;
-                  gchar *lat, *lon, *name, *description, *comment, *notes,
+                  gchar *lat, *lon, *name, *description, *comment, *notes, *depth,
                         *date, *time, *content, *file_name, *board, *format,
                         *track_time = (track_ctime == NULL)? g_strdup (_(empty)) : g_date_time_format (track_ctime, time_stamp);
                   if (echo)
@@ -402,7 +402,7 @@ hyscan_gtk_mark_export_save_tile (HyScanMarkLocation *location,     /* Метк�
                                            "\t\t\t\tTrack: %s<br>\n"
                                            "\t\t\t\tTrack creation date: %s<br>\n"
                                            "\t\t\t\tBoard: %s<br>\n"
-                                           "\t\t\t\tDepth: %.2f m<br>\n"
+                                           "\t\t\t\tDepth: %s<br>\n"
                                            "\t\t\t\tProject: %s<br>\n"
                                            "\t\t\t\t%s</p>\n"
                                            "\t\t\t<br style=\"page-break-before: always\"/>\n"));
@@ -420,7 +420,7 @@ hyscan_gtk_mark_export_save_tile (HyScanMarkLocation *location,     /* Метк�
                                            "\t\t\t\tTrack: %s<br>\n"
                                            "\t\t\t\tTrack creation date: %s<br>\n"
                                            "\t\t\t\tBoard: %s<br>\n"
-                                           "\t\t\t\tDepth: %.2f m<br>\n"
+                                           "\t\t\t\tDepth: %s<br>\n"
                                            "\t\t\t\tWidth: %.2f m<br>\n"
                                            "\t\t\t\tSlant range: %.2f m<br>\n"
                                            "\t\t\t\tProject: %s<br>\n"
@@ -463,6 +463,11 @@ hyscan_gtk_mark_export_save_tile (HyScanMarkLocation *location,     /* Метк�
                       break;
                     }
 
+                  if (location->depth < 0)
+                    depth = g_strdup (_("Empty"));
+                  else
+                    depth = g_strdup_printf ("%.2f m", location->depth);
+
                   if (echo)
                     {
                       /* location->across - глубина до ценра тайла.*/
@@ -471,7 +476,7 @@ hyscan_gtk_mark_export_save_tile (HyScanMarkLocation *location,     /* Метк�
                       content = g_strdup_printf (format, id, name, media, id, name, name,
                                                  date, time, lat, lon, sys_coord, description,
                                                  comment, notes, location->track_name,
-                                                 track_time, board, location->depth,
+                                                 track_time, board, depth,
                                                  project_name, _(link_to_site));
                     }
                   else
@@ -479,7 +484,7 @@ hyscan_gtk_mark_export_save_tile (HyScanMarkLocation *location,     /* Метк�
                       content = g_strdup_printf (format, id, name, media, id, name, name,
                                                  date, time, lat, lon, sys_coord, description,
                                                  comment, notes, location->track_name,
-                                                 track_time, board,location->depth, width,
+                                                 track_time, board, depth, width,
                                                  location->across, project_name, _(link_to_site));
                     }
 
@@ -493,6 +498,7 @@ hyscan_gtk_mark_export_save_tile (HyScanMarkLocation *location,     /* Метк�
                   g_free (description);
                   g_free (comment);
                   g_free (notes);
+                  g_free (depth);
                   g_free (track_time);
                   g_free (date);
                   g_free (time);
@@ -708,7 +714,7 @@ hyscan_gtk_mark_export_init_tile (HyScanTile          *tile,
   tile->info.ppi      = ppi;
   tile->info.upsample = 2;
   tile->info.rotate   = FALSE;
-  tile->info.flags    = HYSCAN_TILE_GROUND;
+  tile->info.flags    = location->has_course ? HYSCAN_TILE_PROFILER : HYSCAN_TILE_GROUND;
 
   if (tile->info.source == HYSCAN_SOURCE_ECHOSOUNDER)
     {

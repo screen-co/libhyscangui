@@ -864,7 +864,8 @@ hyscan_gtk_model_manager_set_view_model (HyScanGtkModelManager *self)
                                                                location->mark_geo.lat,
                                                                location->mark_geo.lon),
                                   *board = g_strdup (_(unknown)),
-                                  *depth = g_strdup_printf (_(distance_stamp), location->depth),
+                                  *depth = (location->depth < 0) ? g_strdup (_("Empty")) :
+                                           g_strdup_printf (_(distance_stamp), location->depth),
                                   *width = g_strdup_printf (_(distance_stamp), 2.0 * location->mark->width),
                                   *slant_range = NULL,
                                   *creation_time = g_date_time_format (ctime, date_time_stamp),
@@ -1474,7 +1475,8 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (GtkTreeStore *store,
                                                  location->mark_geo.lon),
                     *board,
                     *board_icon = g_strdup (attr_icon[BOARD]),
-                    *depth = g_strdup_printf (_(distance_stamp), location->depth),
+                    *depth = (location->depth < 0) ? g_strdup (_("Empty")) :
+                             g_strdup_printf (_(distance_stamp), location->depth),
                     *creation_time     = g_date_time_format (ctime, date_time_stamp),
                     *modification_time = g_date_time_format (mtime, date_time_stamp);
               gboolean toggled = active;
@@ -1741,7 +1743,8 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_labels (GtkTreeStore *store,
                                                  location->mark_geo.lon),
                     *board,
                     *board_icon = g_strdup (attr_icon[BOARD]),
-                    *depth = g_strdup_printf (_(distance_stamp), location->depth),
+                    *depth = (location->depth < 0) ? g_strdup (_("Empty")) :
+                             g_strdup_printf (_(distance_stamp), location->depth),
                     *creation_time     = g_date_time_format (ctime, date_time_stamp),
                     *modification_time = g_date_time_format (mtime, date_time_stamp);
               gboolean toggled = FALSE;

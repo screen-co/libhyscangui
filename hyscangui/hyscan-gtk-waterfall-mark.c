@@ -895,7 +895,8 @@ hyscan_gtk_waterfall_mark_processing (gpointer data)
               mark =  hyscan_mark_waterfall_new ();
 
               hyscan_mark_set_text   ((HyScanMark*)mark, label, "", "");
-              hyscan_mark_set_labels ((HyScanMark*)mark, HYSCAN_GTK_WATERFALL_MARKS_ALL);
+              /* Новая метка не входит ни в одну группу. Поле labels оставляем нулевое.
+              hyscan_mark_set_labels ((HyScanMark*)mark, HYSCAN_GTK_WATERFALL_MARKS_ALL); */
               hyscan_mark_set_ctime  ((HyScanMark*)mark, mtime);
               hyscan_mark_set_mtime  ((HyScanMark*)mark, mtime);
               hyscan_mark_set_size   ((HyScanMark*)mark, mw, mh);

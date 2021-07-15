@@ -694,7 +694,7 @@ hyscan_gtk_map_wfmark_draw_mark (HyScanGtkMapWfmark         *wfm_layer,
           tile->info.ppi      = ppi;
           tile->info.upsample = 2;
           tile->info.rotate   = FALSE;
-          tile->info.flags    = HYSCAN_TILE_GROUND;
+          tile->info.flags    = location->mloc->has_course ? HYSCAN_TILE_PROFILER : HYSCAN_TILE_GROUND;
 
           tile_cacheable.w =      /* Будет заполнено генератором. */
           tile_cacheable.h = 0;   /* Будет заполнено генератором. */
@@ -1265,10 +1265,10 @@ hyscan_gtk_map_wfmark_hint_find (HyScanGtkLayer *layer,
 
   depth = mloc->depth;
 
-  if (depth != -1.0)
-    g_string_append_printf (hint_string, "%s: %.f %s.\n", _("Depth"), depth, _("m"));
-  else
+  if (depth < 0)
     g_string_append_printf (hint_string, "%s: %s.\n", _("Depth"), _("Empty"));
+  else
+    g_string_append_printf (hint_string, "%s: %.f %s.\n", _("Depth"), depth, _("m"));
 
   g_string_append_printf (hint_string, "%s: %s.", _("Track"), mloc->track_name);
 
