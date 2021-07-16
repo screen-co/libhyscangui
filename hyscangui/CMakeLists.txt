@@ -42,10 +42,6 @@ add_custom_command (OUTPUT "${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshalle
 
 include_directories( ${CMAKE_CURRENT_BINARY_DIR} )
 
-if (MSVC)
-set (HYSCAN_GUI_GLAD_SOURCE glad.c)
-endif ()
-
 add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-area.c
              hyscan-gtk-waterfall-state.c
@@ -121,7 +117,6 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-mark-manager-create-label-dialog.c
              hyscan-gtk-mark-manager-change-label-dialog.c
 
-             ${HYSCAN_GUI_GLAD_SOURCE}
              hyscan-gtk-gliko-minimal.c
              hyscan-gtk-gliko-layer.c
              hyscan-gtk-gliko-area.c
@@ -140,7 +135,7 @@ target_link_libraries (${HYSCAN_GUI_LIBRARY}
                        ${GTKCIFROAREA_LIBRARIES}
                        ${LIBSOUP_LIBRARIES}
                        ${GDK_PIXBUF_LIBRARIES}
-                       ${GL_LIBRARIES}
+                       ${EPOXY_LIBRARIES}
                        ${MATH_LIBRARIES})
 
 set_target_properties (${HYSCAN_GUI_LIBRARY} PROPERTIES DEFINE_SYMBOL "HYSCAN_API_EXPORTS")

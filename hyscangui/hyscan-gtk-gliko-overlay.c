@@ -32,12 +32,8 @@
  * лицензии. Для этого свяжитесь с ООО Экран - <info@screen-co.ru>.
  */
 
-#if defined(_MSC_VER)
-#include <glad/glad.h>
-#else
-#define GL_GLEXT_PROTOTYPES
-#include <GL/gl.h>
-#endif
+#include <epoxy/gl.h>
+#include <epoxy/glx.h>
 
 #include "hyscan-gtk-gliko-overlay.h"
 
