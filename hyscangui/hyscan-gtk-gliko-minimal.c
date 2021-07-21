@@ -33,7 +33,6 @@
  */
 
 #include <epoxy/gl.h>
-#include <epoxy/glx.h>
 
 #include "hyscan-gtk-gliko-minimal.h"
 
@@ -235,12 +234,7 @@ on_realize (GtkGLArea *area)
   gtk_gl_area_make_current (area);
 
 #if defined(_MSC_VER)
-  if (!gladLoadGL ())
-    {
-      g_error ("gladLoadGLLoader failed");
-    }
   gtk_gl_area_set_has_alpha (area, TRUE);
-
 #endif
 
   // Print version info:

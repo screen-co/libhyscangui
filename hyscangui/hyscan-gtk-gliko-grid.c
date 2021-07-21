@@ -33,7 +33,6 @@
  */
 
 #include <epoxy/gl.h>
-#include <epoxy/glx.h>
 
 #include <math.h>
 #include <stdlib.h>
