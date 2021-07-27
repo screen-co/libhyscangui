@@ -65,6 +65,7 @@ static void button_cb (GtkWidget *widget, GdkEventButton *event, void *w);
 static void motion_cb (GtkWidget *widget, GdkEventMotion *event, void *w);
 static void scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w);
 static gboolean draw_ruler_cb (GtkWidget *widget, cairo_t *cr, gpointer data);
+static gboolean draw_step_distance_cb (GtkWidget *widget, cairo_t *cr, gpointer data);
 static gboolean configure_cb (GtkWidget *widget, GdkEvent *event, gpointer user_data);
 static void update_ruler ();
 
@@ -1012,6 +1013,77 @@ draw_ruler_cb (GtkWidget *widget, cairo_t *cr, gpointer data)
                                &color);
   gdk_cairo_set_source_rgba (cr, &color);
   */
+
+  draw_step_distance_cb (widget, cr, data);
+  return FALSE;
+}
+
+static gboolean draw_step_distance_cb (GtkWidget *widget, cairo_t *cr, gpointer data)
+{
+  gdouble step;
+  guint width, height;
+  gdouble x1, y1, x2, y2, d;
+  double w, h, x, y;
+  const double margin = 4;
+  PangoRectangle inc_rect, logical_rect;
+  char t[32];
+
+  step = hyscan_gtk_gliko_get_step_distance (HYSCAN_GTK_GLIKO (gliko));
+
+  width = gtk_widget_get_allocated_width (widget);
+  height = gtk_widget_get_allocated_height (widget);
+
+  hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), 90.0, 0.0, &x1, &y1);
+  hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), 90.0, step, &x2, &y2);
+
+  d = x2 - x1;
+
+  sprintf( t, "%.3f", step );
+
+  pango_layout_set_text (pango_layout, t, strlen (t));
+  pango_layout_get_pixel_extents (pango_layout, &inc_rect, &logical_rect);
+  w = logical_rect.width;
+  h = logical_rect.height;
+
+  x2 = width - margin;
+  x1 = x2 - d;
+  y1 = height - margin - margin;
+
+
+  x = x1 + 0.5 * (d - w);
+  y = y1 - margin - h;
+
+
+  // рисуем затенение
+  cairo_set_source_rgba (cr, 0, 0, 0, 0.25);
+
+  cairo_set_line_width (cr, 4.0);
+  cairo_move_to (cr, x1, y1 - margin);
+  cairo_line_to (cr, x1, y1);
+  cairo_line_to (cr, x2, y1);
+  cairo_line_to (cr, x2, y1 - margin);
+  cairo_stroke (cr);
+
+  // рисуем отрезок
+  cairo_set_source_rgba (cr, 1, 1, 1, 0.5);
+
+  cairo_set_line_width (cr, 2.0);
+  cairo_move_to (cr, x1, y1 - margin);
+  cairo_line_to (cr, x1, y1);
+  cairo_line_to (cr, x2, y1);
+  cairo_line_to (cr, x2, y1 - margin);
+  cairo_stroke (cr);
+
+  // рисуем текст
+  cairo_move_to (cr, x, y);
+  cairo_set_source_rgba (cr, 0, 0, 0, 0.25);
+  cairo_rectangle (cr, x - 2, y, w + 4, h);
+  cairo_fill (cr);
+  cairo_stroke (cr);
+  cairo_move_to (cr, x, y);
+  cairo_set_source_rgba (cr, 1, 1, 1, 1);
+  pango_cairo_show_layout (cr, pango_layout);
+  cairo_stroke (cr);
 
   return FALSE;
 }
