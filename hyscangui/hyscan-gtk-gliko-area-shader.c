@@ -11,6 +11,7 @@ uniform sampler1DArray fade1;
 uniform sampler1DArray fade2;
 uniform float contrast;
 uniform float bright;
+uniform float balance;
 uniform float amprange;
 uniform float ampoffset;
 uniform float gamma;
@@ -82,12 +83,14 @@ main ()
   r = (texture (data1, vec3 (r, y, zr1)).r - ampoffset) * amprange;
   r = pow (r, gamma);
   r = bright + contrast * r;
+  r = 2.0 * r * balance;
   c.r = texture (fade1, vec2 (y, z2)).r;
   r = clamp (r * c.r, 0.0, 1.0);
 
   g = (texture (data2, vec3 (g, y, zg1)).r - ampoffset) * amprange;
   g = pow (g, gamma);
   g = bright + contrast * g;
+  g = 2.0 * g * (1.0 - balance);
   c.g = texture (fade2, vec2 (y, z2)).r;
   g = clamp (g * c.g, 0.0, 1.0);
 

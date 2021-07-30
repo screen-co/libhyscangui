@@ -144,6 +144,13 @@ HYSCAN_API
 gdouble hyscan_gtk_gliko_get_brightness (HyScanGtkGliko *instance);
 
 HYSCAN_API
+void hyscan_gtk_gliko_set_balance (HyScanGtkGliko *instance,
+                                    const gdouble balance);
+
+HYSCAN_API
+gdouble hyscan_gtk_gliko_get_balance (HyScanGtkGliko *instance);
+
+HYSCAN_API
 void hyscan_gtk_gliko_set_black_point (HyScanGtkGliko *instance,
                                        const gdouble black);
 HYSCAN_API

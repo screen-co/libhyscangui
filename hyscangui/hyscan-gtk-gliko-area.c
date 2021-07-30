@@ -51,6 +51,7 @@ enum
   P_SCALE,     // масштаб
   P_BRIGHT,    // яркость
   P_CONTRAST,  // контраст
+  P_BALANCE,   // баланс левого/правого канала
   P_BLACK,     // уровень черного 0..1
   P_WHITE,     // уровень белого 0..1
   P_GAMMA,     // степень нелинейности 1=линейно
@@ -98,6 +99,7 @@ struct _HyScanGtkGlikoAreaPrivate
   float scale;
   float bright;
   float contrast;
+  float balance;
   float rotate;
   float rotate1;
   float rotate2;
@@ -582,6 +584,7 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
     }
   set_uniform1f (p->program, "contrast", contrast);
   set_uniform1f (p->program, "bright", p->bright);
+  set_uniform1f (p->program, "balance", 0.5f * (1.0f + p->balance));
   set_uniform1f (p->program, "ampoffset", p->black);
   set_uniform1f (p->program, "amprange", 1.0f / (p->white - p->black));
   set_uniform1f (p->program, "gamma", p->gamma);
@@ -911,6 +914,7 @@ hyscan_gtk_gliko_area_class_init (HyScanGtkGlikoAreaClass *klass)
   obj_properties[P_SCALE] = g_param_spec_float ("gliko-scale", "Scale", "Scale of image", -G_MAXFLOAT, G_MAXFLOAT, 0.0, rw);
   obj_properties[P_BRIGHT] = g_param_spec_float ("gliko-bright", "Bright", "Bright of image", -G_MAXFLOAT, G_MAXFLOAT, 0.0, rw);
   obj_properties[P_CONTRAST] = g_param_spec_float ("gliko-contrast", "Contrast", "Contrast of image", -G_MAXFLOAT, G_MAXFLOAT, 0.0, rw);
+  obj_properties[P_BALANCE] = g_param_spec_float ("gliko-balance", "Balance", "Balance between channels", -G_MAXFLOAT, G_MAXFLOAT, 0.0, rw);
   obj_properties[P_BLACK] = g_param_spec_float ("gliko-black", "Black", "Black level", -G_MAXFLOAT, G_MAXFLOAT, 0.0, rw);
   obj_properties[P_WHITE] = g_param_spec_float ("gliko-white", "White", "White level", -G_MAXFLOAT, G_MAXFLOAT, 1.0, rw);
   obj_properties[P_GAMMA] = g_param_spec_float ("gliko-gamma", "Gamma", "Gamma for non-linear", -G_MAXFLOAT, G_MAXFLOAT, 1.0, rw);
@@ -961,6 +965,7 @@ hyscan_gtk_gliko_area_init (HyScanGtkGlikoArea *area)
   p->scale = 1.0f;
   p->bright = 0.f;
   p->contrast = 0.f;
+  p->balance = 0.f;
   p->black = 0.0f;
   p->white = 1.0f;
   p->gamma = 1.0f;
@@ -1015,6 +1020,8 @@ get_pfloat (HyScanGtkGlikoAreaPrivate *p, const int id)
       return &p->bright;
     case P_CONTRAST:
       return &p->contrast;
+    case P_BALANCE:
+      return &p->balance;
     case P_ROTATE:
       return &p->rotate;
     case P_FADE_COEF:

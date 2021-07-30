@@ -115,6 +115,7 @@ struct _HyScanGtkGlikoPrivate
   float cy;
   float contrast;
   float brightness;
+  float balance;
   float fade_coef;
   float freq;
   gdouble data_rate;
@@ -1562,3 +1563,22 @@ hyscan_gtk_gliko_polar2pixel (HyScanGtkGliko *instance,
   *x = px;
   *y = py;
 }
+
+HYSCAN_API
+void hyscan_gtk_gliko_set_balance (HyScanGtkGliko *instance,
+                                    const gdouble balance)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
+
+  p->balance = (float) balance;
+  g_object_set (p->iko, "gliko-balance", p->balance, NULL);
+
+}
+
+HYSCAN_API
+gdouble hyscan_gtk_gliko_get_balance (HyScanGtkGliko *instance)
+{
+  HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
+  return p->balance;
+}
+
