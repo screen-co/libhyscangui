@@ -54,6 +54,12 @@
 
 #include "hyscan-gtk-gliko-que.h"
 
+enum
+{
+  SIGNAL_PARAMETERS_CHANGED,
+  SIGNAL_LAST,
+};
+
 // очередь угловых меток
 typedef struct _alpha_que_t
 {
@@ -162,6 +168,8 @@ static void on_resize (GtkGLArea *area, gint width, gint height, gpointer user_d
 //static void get_preferred_width( GtkWidget *widget, gint *minimal_width, gint *natural_width );
 //static void get_preferred_height( GtkWidget *widget, gint *minimal_height, gint *natural_height );
 
+static guint gliko_signal[SIGNAL_LAST] = { 0 };
+
 /* Initialization */
 static void
 hyscan_gtk_gliko_class_init (HyScanGtkGlikoClass *klass)
@@ -177,6 +185,12 @@ hyscan_gtk_gliko_class_init (HyScanGtkGlikoClass *klass)
 
   //w_class->get_preferred_width  = get_preferred_width;
   //w_class->get_preferred_height = get_preferred_height;
+
+  gliko_signal[SIGNAL_PARAMETERS_CHANGED] =
+      g_signal_new ("parameters-changed", HYSCAN_TYPE_GTK_GLIKO, G_SIGNAL_RUN_LAST, 0,
+                    NULL, NULL,
+                    g_cclosure_marshal_VOID__VOID,
+                    G_TYPE_NONE, 0);
 }
 
 static void
@@ -407,7 +421,7 @@ hyscan_gtk_gliko_get_num_azimuthes (HyScanGtkGliko *instance)
 
 static void
 channel_reset_playback (HyScanGtkGlikoPrivate *p,
-              const int channel_index)
+                        const int channel_index)
 {
   channel_t *c = p->channel + channel_index;
 
@@ -424,32 +438,30 @@ channel_reset_playback (HyScanGtkGlikoPrivate *p,
 
   c->ready_alpha_init = 0;
   c->ready_data_init = 0;
-
 }
 
 HYSCAN_API
 guint
-hyscan_gtk_gliko_set_playback (HyScanGtkGliko *instance, const int enable_playback )
+hyscan_gtk_gliko_set_playback (HyScanGtkGliko *instance, const int enable_playback)
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
-  if( p->playback == 0 && enable_playback != 0 )
-  {
-    if( enable_playback > 1 )
+  if (p->playback == 0 && enable_playback != 0)
     {
-      channel_reset_playback (p, 0);
-      channel_reset_playback (p, 1);
-      hyscan_gtk_gliko_area_clear (HYSCAN_GTK_GLIKO_AREA (p->iko));
+      if (enable_playback > 1)
+        {
+          channel_reset_playback (p, 0);
+          channel_reset_playback (p, 1);
+          hyscan_gtk_gliko_area_clear (HYSCAN_GTK_GLIKO_AREA (p->iko));
+        }
+      p->playback = 1;
     }
-    p->playback = 1;
-  }
-  else if( p->playback != 0 && enable_playback == 0 )
-  {
-    p->playback = 0;
-  }
+  else if (p->playback != 0 && enable_playback == 0)
+    {
+      p->playback = 0;
+    }
   return TRUE;
 }
-
 
 // открытие канала данных
 static void
@@ -591,10 +603,10 @@ player_process_callback (HyScanDataPlayer *player,
   if (p == NULL)
     return;
 
-  if( !p->playback )
-  {
-    return;
-  }
+  if (!p->playback)
+    {
+      return;
+    }
 
   if (p->track_changed)
     {
@@ -779,10 +791,10 @@ channel_ready (HyScanGtkGlikoPrivate *p,
 
           // если вышли за интервал замера угла
           if (data.time >= alpha.time)
-          {
-            // переходим к следующему углу
-            break;
-          }
+            {
+              // переходим к следующему углу
+              break;
+            }
           // значение угла
           a = c->alpha_value + d * (data.time - c->alpha_time) / (alpha.time - c->alpha_time);
 
@@ -870,10 +882,10 @@ player_ready_callback (HyScanDataPlayer *player,
   if (p == NULL)
     return;
 
-  if( !hyscan_data_player_is_played (player) )
-  {
-    return;
-  }
+  if (!hyscan_data_player_is_played (player))
+    {
+      return;
+    }
 
   //g_print ("Ready time: %"G_GINT64_FORMAT" %d\n", g_get_monotonic_time (), misc_read);
 
@@ -911,6 +923,8 @@ player_ready_callback (HyScanDataPlayer *player,
 
       // номер отсчета глубины для корректировки геометрических искажений
       g_object_set (p->iko, "gliko-bottom", (int) (2.0f * p->bottom * p->data_rate / p->sound_speed), NULL);
+
+      g_signal_emit (G_OBJECT (user_data), gliko_signal[SIGNAL_PARAMETERS_CHANGED], 0);
 
       p->fade_time = time;
     }
@@ -990,6 +1004,7 @@ hyscan_gtk_gliko_set_scale (HyScanGtkGliko *instance,
   p->scale = (float) scale;
   g_object_set (p->iko, "gliko-scale", p->scale, NULL);
   g_object_set (p->grid, "gliko-scale", p->scale, NULL);
+  g_signal_emit (instance, gliko_signal[SIGNAL_PARAMETERS_CHANGED], 0);
 }
 
 /**
@@ -1030,6 +1045,7 @@ hyscan_gtk_gliko_set_center (HyScanGtkGliko *instance,
   p->cy = (float) cy;
   g_object_set (G_OBJECT (p->iko), "gliko-cx", p->cx, "gliko-cy", p->cy, NULL);
   g_object_set (G_OBJECT (p->grid), "gliko-cx", p->cx, "gliko-cy", p->cy, NULL);
+  g_signal_emit (instance, gliko_signal[SIGNAL_PARAMETERS_CHANGED], 0);
 }
 
 /**
@@ -1260,6 +1276,7 @@ hyscan_gtk_gliko_set_rotation (HyScanGtkGliko *instance,
 
   p->rotation = (float) alpha;
   g_object_set (p->iko, "gliko-rotate", p->full_rotation + p->rotation, NULL);
+  g_signal_emit (instance, gliko_signal[SIGNAL_PARAMETERS_CHANGED], 0);
 }
 
 /**
@@ -1287,6 +1304,7 @@ hyscan_gtk_gliko_set_full_rotation (HyScanGtkGliko *instance,
   p->full_rotation = (float) alpha;
   g_object_set (p->iko, "gliko-rotate", p->full_rotation + p->rotation, NULL);
   g_object_set (p->grid, "gliko-rotate", p->full_rotation, NULL);
+  g_signal_emit (instance, gliko_signal[SIGNAL_PARAMETERS_CHANGED], 0);
 }
 
 HYSCAN_API
@@ -1419,6 +1437,7 @@ hyscan_gtk_gliko_set_bottom (HyScanGtkGliko *instance,
   if (p->iko_length != 0)
     {
       g_object_set (p->iko, "gliko-bottom", (int) (2.0f * p->bottom * p->data_rate / p->sound_speed), NULL);
+      g_signal_emit (instance, gliko_signal[SIGNAL_PARAMETERS_CHANGED], 0);
     }
 }
 
@@ -1565,20 +1584,20 @@ hyscan_gtk_gliko_polar2pixel (HyScanGtkGliko *instance,
 }
 
 HYSCAN_API
-void hyscan_gtk_gliko_set_balance (HyScanGtkGliko *instance,
-                                    const gdouble balance)
+void
+hyscan_gtk_gliko_set_balance (HyScanGtkGliko *instance,
+                              const gdouble balance)
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
 
   p->balance = (float) balance;
   g_object_set (p->iko, "gliko-balance", p->balance, NULL);
-
 }
 
 HYSCAN_API
-gdouble hyscan_gtk_gliko_get_balance (HyScanGtkGliko *instance)
+gdouble
+hyscan_gtk_gliko_get_balance (HyScanGtkGliko *instance)
 {
   HyScanGtkGlikoPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO, HyScanGtkGlikoPrivate);
   return p->balance;
 }
-
