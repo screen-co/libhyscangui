@@ -35,8 +35,8 @@
 #ifndef __HYSCAN_GTK_GLIKO_DRAWING_H__
 #define __HYSCAN_GTK_GLIKO_DRAWING_H__
 
-#include <cairo.h>
 #include "hyscan-gtk-gliko-layer.h"
+#include <cairo.h>
 
 G_BEGIN_DECLS
 

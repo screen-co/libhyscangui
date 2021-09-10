@@ -615,6 +615,8 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
 
   glBindVertexArray (p->vao); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
   glBindBuffer (GL_ARRAY_BUFFER, p->vbo);
+  glBindBuffer (GL_ELEMENT_ARRAY_BUFFER, p->ebo);
+
   glBufferSubData (GL_ARRAY_BUFFER, 0, sizeof (vertices), vertices);
 
   glDrawElements (GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -895,7 +897,6 @@ hyscan_gtk_gliko_area_clear (HyScanGtkGlikoArea *instance)
     }
   glerr ();
 }
-
 
 /* Initialization */
 static void

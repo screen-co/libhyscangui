@@ -61,6 +61,8 @@ struct _HyScanGtkGlikoOverlayClass
   GtkGLAreaClass parent_class;
 };
 
+#define HYSCAN_GTK_GLIKO_LAYER_MAX 32
+
 HYSCAN_API
 GType hyscan_gtk_gliko_overlay_get_type (void);
 
@@ -73,6 +75,11 @@ void hyscan_gtk_gliko_overlay_set_layer (HyScanGtkGlikoOverlay *instance,
                                          HyScanGtkGlikoLayer *layer);
 
 HYSCAN_API
+int hyscan_gtk_gliko_overlay_get_layer (HyScanGtkGlikoOverlay *instance,
+                                        const int index,
+                                        HyScanGtkGlikoLayer **layer);
+
+HYSCAN_API
 void hyscan_gtk_gliko_overlay_enable_layer (HyScanGtkGlikoOverlay *instance,
                                             const int index,
                                             const int enable);
@@ -80,7 +87,6 @@ void hyscan_gtk_gliko_overlay_enable_layer (HyScanGtkGlikoOverlay *instance,
 HYSCAN_API
 void hyscan_gtk_gliko_overlay_set_background (HyScanGtkGlikoOverlay *instance,
                                               const guint32 background);
-
 
 G_END_DECLS
 

@@ -121,6 +121,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-gliko-layer.c
              hyscan-gtk-gliko-area.c
              hyscan-gtk-gliko-grid.c
+             hyscan-gtk-gliko-drawing.c
              hyscan-gtk-gliko-overlay.c
              hyscan-gtk-gliko.c
              hyscan-gtk-gliko-control.c

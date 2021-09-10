@@ -36,7 +36,7 @@
 
 #include "hyscan-gtk-gliko-overlay.h"
 
-#define N 16
+#define N HYSCAN_GTK_GLIKO_LAYER_MAX
 
 typedef struct _HyScanGtkGlikoOverlayPrivate HyScanGtkGlikoOverlayPrivate;
 
@@ -126,7 +126,7 @@ on_update (GdkFrameClock *clock,
 }
 
 static void
-on_realize (GtkGLArea *area)
+on_realize (GtkGLArea *area, gpointer user_data)
 {
   HyScanGtkGlikoOverlayPrivate *p;
   int i;
@@ -276,9 +276,31 @@ hyscan_gtk_gliko_overlay_set_layer (HyScanGtkGlikoOverlay *instance, const int i
 
   if (index >= 0 && index < N)
     {
-      g_object_ref (G_OBJECT (layer));
+      if (p->layer[index] != NULL)
+        {
+          g_object_unref (G_OBJECT (p->layer[index]));
+          p->layer[index] = NULL;
+        }
+      if (layer != NULL)
+        {
+          g_object_ref (G_OBJECT (layer));
+        }
       p->layer[index] = layer;
     }
+}
+
+HYSCAN_API
+int
+hyscan_gtk_gliko_overlay_get_layer (HyScanGtkGlikoOverlay *instance, const int index, HyScanGtkGlikoLayer **layer)
+{
+  HyScanGtkGlikoOverlayPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO_OVERLAY, HyScanGtkGlikoOverlayPrivate);
+
+  if (index >= 0 && index < N)
+    {
+      *layer = p->layer[index];
+      return 1;
+    }
+  return 0;
 }
 
 void
@@ -307,7 +329,7 @@ hyscan_gtk_gliko_overlay_set_background (HyScanGtkGlikoOverlay *instance,
   float a = 1.0f / 255.0f;
 
   p->background[0] = a * ((background >> 16) & 0xFF);
-  p->background[1] = a * ((background >>  8) & 0xFF);
-  p->background[2] = a * ((background      ) & 0xFF);
+  p->background[1] = a * ((background >> 8) & 0xFF);
+  p->background[2] = a * ((background) &0xFF);
   p->background[3] = a * ((background >> 24) & 0xFF);
 }

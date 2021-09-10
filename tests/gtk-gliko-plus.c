@@ -3,7 +3,9 @@
 
 #include <hyscan-acoustic-data.h>
 #include <hyscan-data-player.h>
-#include <hyscan-gtk-gliko-minimal.h>
+#include <hyscan-gtk-gliko-drawing.h>
+#include <hyscan-gtk-gliko-layer.h>
+#include <hyscan-gtk-gliko-overlay.h>
 #include <hyscan-gtk-gliko.h>
 #include <hyscan-nmea-data.h>
 
@@ -64,10 +66,10 @@ void open_db (HyScanDB **db,
 static void button_cb (GtkWidget *widget, GdkEventButton *event, void *w);
 static void motion_cb (GtkWidget *widget, GdkEventMotion *event, void *w);
 static void scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w);
-static gboolean draw_ruler_cb (GtkWidget *widget, cairo_t *cr, gpointer data);
-static gboolean draw_step_distance_cb (GtkWidget *widget, cairo_t *cr, gpointer data);
-static gboolean configure_cb (GtkWidget *widget, GdkEvent *event, gpointer user_data);
+static void draw_ruler (cairo_t *cr);
+static void draw_step_distance (cairo_t *cr);
 static void update_ruler ();
+static void resize_cb (GtkWidget *widget, gint width, gint height, gpointer user_data);
 
 static void player_ready_cb (HyScanDataPlayer *player, gint64 time, gpointer user_data);
 static void player_range_cb (HyScanDataPlayer *player, gint64 min, gint64 max, gpointer user_data);
@@ -96,8 +98,6 @@ static GtkWidget *window;
 
 static GtkWidget *window;
 static GtkWidget *gliko;
-static GtkWidget *overlay;
-//static GtkWidget *label;
 
 static HyScanDB *db = NULL;
 HyScanNMEAData *nmea_data = NULL;
@@ -111,7 +111,6 @@ static gdouble mx0 = 0.f, my0 = 0.f;
 static gdouble mx1, my1, mx2, my2;
 //static gdouble delta = 0.01f;
 static GtkWidget *area;
-static GtkWidget *ruler;
 
 static const int ruler_size = 6;
 gdouble point_a_z = 0.0;
@@ -127,6 +126,10 @@ gint64 player_min = 0;
 int player_position_changed = 0;
 
 PangoLayout *pango_layout = NULL;
+
+HyScanGtkGlikoDrawing *drawing_layer = NULL;
+
+static gint drawing_width = -1, drawing_height = -1;
 
 int
 main (int argc,
@@ -149,6 +152,7 @@ main (int argc,
   guint32 color2 = 0xFFFF8000;
   guint32 background = 0x00404040;
   guint32 fps = 25;
+  int i;
 
   gtk_init (&argc, &argv);
 
@@ -211,24 +215,32 @@ main (int argc,
   left = make_menu (white, gamma);
   hyscan_gtk_area_set_left (HYSCAN_GTK_AREA (area), left);
 
-  overlay = gtk_overlay_new ();
-  ruler = gtk_drawing_area_new ();
-  //label = gtk_gl_area_new();//gtk_label_new ("");
   gliko = hyscan_gtk_gliko_new ();
-  //label = hyscan_gtk_gliko_minimal_new ();
+  central = gliko;
 
-  g_signal_connect (G_OBJECT (ruler), "draw", G_CALLBACK (draw_ruler_cb), NULL);
-  //g_signal_connect_swapped (G_OBJECT (ruler), "configure-event", G_CALLBACK (configure_cb), NULL);
-  pango_layout = gtk_widget_create_pango_layout (GTK_WIDGET (ruler), "A");
+  /* ищем доступный слой для отрисовки линейки */
+  for (i = 0; i < HYSCAN_GTK_GLIKO_LAYER_MAX; i++)
+    {
+      HyScanGtkGlikoLayer *layer = NULL;
 
-  gtk_overlay_add_overlay (GTK_OVERLAY (overlay), gliko);
-  gtk_overlay_add_overlay (GTK_OVERLAY (overlay), ruler);
+      if (hyscan_gtk_gliko_overlay_get_layer (HYSCAN_GTK_GLIKO_OVERLAY (gliko), i, &layer))
+        {
+          if (layer == NULL)
+            {
+              drawing_layer = hyscan_gtk_gliko_drawing_new ();
 
-  central = overlay;
-  //central = gliko;
+              hyscan_gtk_gliko_overlay_set_layer (HYSCAN_GTK_GLIKO_OVERLAY (gliko), i, HYSCAN_GTK_GLIKO_LAYER (drawing_layer));
+              hyscan_gtk_gliko_overlay_enable_layer (HYSCAN_GTK_GLIKO_OVERLAY (gliko), i, 1);
+
+              pango_layout = gtk_widget_create_pango_layout (GTK_WIDGET (gliko), "A");
+              break;
+            }
+        }
+    }
 
   gtk_widget_set_events (central,
                          GDK_EXPOSURE_MASK |
+                             GDK_STRUCTURE_MASK |
                              GDK_BUTTON_PRESS_MASK |
                              GDK_BUTTON_RELEASE_MASK |
                              GDK_BUTTON_MOTION_MASK |
@@ -238,7 +250,7 @@ main (int argc,
   g_signal_connect (central, "button_release_event", G_CALLBACK (button_cb), NULL);
   g_signal_connect (central, "motion_notify_event", G_CALLBACK (motion_cb), NULL);
   g_signal_connect (central, "scroll_event", G_CALLBACK (scroll_cb), NULL);
-  g_signal_connect (central, "configure_event", G_CALLBACK (configure_cb), NULL);
+  g_signal_connect (central, "resize", G_CALLBACK (resize_cb), NULL);
 
   hyscan_gtk_area_set_central (HYSCAN_GTK_AREA (area), central);
 
@@ -290,7 +302,8 @@ main (int argc,
   return 0;
 }
 
-static void destroy_cb (GtkWidget *object, gpointer user_data)
+static void
+destroy_cb (GtkWidget *object, gpointer user_data)
 {
   hyscan_data_player_shutdown (player);
   g_object_unref (G_OBJECT (gliko));
@@ -310,7 +323,7 @@ make_menu (gdouble white,
   GtkWidget *btn_reopen = gtk_button_new_from_icon_name ("folder-symbolic", GTK_ICON_SIZE_BUTTON);
   pause_button = gtk_toggle_button_new ();
   x10_button = gtk_toggle_button_new_with_label ("x10");
-  gtk_button_set_image (GTK_BUTTON (pause_button), gtk_image_new_from_icon_name( "media-playback-pause", GTK_ICON_SIZE_BUTTON));
+  gtk_button_set_image (GTK_BUTTON (pause_button), gtk_image_new_from_icon_name ("media-playback-pause", GTK_ICON_SIZE_BUTTON));
 
   scale_white = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, 0.001, 1.0, 0.001);
   scale_bright = gtk_scale_new_with_range (GTK_ORIENTATION_HORIZONTAL, -1.0, 1.0, 0.01);
@@ -411,7 +424,7 @@ make_menu (gdouble white,
   gtk_box_pack_start (GTK_BOX (player_box), pause_button, FALSE, FALSE, 0);
   gtk_box_pack_start (GTK_BOX (player_box), x10_button, FALSE, FALSE, 0);
   gtk_box_pack_end (GTK_BOX (player_box), scale_player, FALSE, TRUE, 0);
-  gtk_box_pack_start (GTK_BOX (box), player_box, FALSE, TRUE, 0 );
+  gtk_box_pack_start (GTK_BOX (box), player_box, FALSE, TRUE, 0);
 
   gtk_box_pack_end (GTK_BOX (box), ruler_grid, FALSE, TRUE, 0);
   gtk_box_pack_end (GTK_BOX (box), gtk_separator_new (GTK_ORIENTATION_HORIZONTAL), FALSE, TRUE, 0);
@@ -440,8 +453,6 @@ make_menu (gdouble white,
 
   return box;
 }
-
-
 
 void
 reopen_clicked (GtkButton *button,
@@ -513,6 +524,7 @@ zoom_clicked (GtkButton *button,
   gboolean in = (direction == 1) ? TRUE : FALSE;
   gdouble f = hyscan_gtk_gliko_get_scale (HYSCAN_GTK_GLIKO (gliko));
   hyscan_gtk_gliko_set_scale (HYSCAN_GTK_GLIKO (gliko), f * (in ? 0.875 : 1.125));
+  update_ruler ();
 }
 
 void
@@ -526,15 +538,18 @@ scale_changed (GtkRange *range, gpointer user_data)
   hyscan_gtk_gliko_set_bottom (HYSCAN_GTK_GLIKO (gliko), gtk_range_get_value (GTK_RANGE (scale_bottom)));
   hyscan_gtk_gliko_set_rotation (HYSCAN_GTK_GLIKO (gliko), gtk_range_get_value (GTK_RANGE (scale_rotation)));
   hyscan_gtk_gliko_set_full_rotation (HYSCAN_GTK_GLIKO (gliko), gtk_range_get_value (GTK_RANGE (scale_turn)));
+  update_ruler ();
 }
 
-void player_changed (GtkRange *range, gpointer user_data)
+void
+player_changed (GtkRange *range, gpointer user_data)
 {
-  if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(pause_button)))
-  {
-    hyscan_data_player_seek (player, player_min + (gint64)(1000000 * gtk_range_get_value (range)) );
-    player_position_changed = 1;
-  }
+  if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (pause_button)))
+    {
+      hyscan_data_player_seek (player, player_min + (gint64) (1000000 * gtk_range_get_value (range)));
+      player_position_changed = 1;
+      update_ruler ();
+    }
 }
 
 /*
@@ -633,11 +648,6 @@ open_db (HyScanDB **db,
   *old_uri = new_uri;
 }
 
-static void
-update_title ()
-{
-}
-
 static gdouble
 range360 (const gdouble a)
 {
@@ -653,6 +663,7 @@ range360 (const gdouble a)
 static void
 update_ruler ()
 {
+  cairo_t *cr;
   gchar tmpz[32], tmpr[32], tmp[64];
   gdouble x1, y1, x2, y2, d;
   const gdouble radians_to_degrees = 180.0 / G_PI;
@@ -665,7 +676,12 @@ update_ruler ()
   point_ab_z = range360 (atan2 (x2 - x1, y1 - y2) * radians_to_degrees - a);
   point_ba_z = range360 (atan2 (x1 - x2, y2 - y1) * radians_to_degrees - a);
 
-  gtk_widget_queue_draw (ruler);
+  if (drawing_layer != NULL)
+    {
+      cr = hyscan_gtk_gliko_drawing_begin (drawing_layer);
+      draw_ruler (cr);
+      hyscan_gtk_gliko_drawing_end (drawing_layer);
+    }
 
   x1 = point_a_r * sin (point_a_z * degrees_to_radians);
   y1 = point_a_r * cos (point_a_z * degrees_to_radians);
@@ -693,6 +709,8 @@ update_ruler ()
   g_ascii_formatd (tmpz, sizeof (tmpz), "%.0f", point_ba_z);
   g_snprintf (tmp, sizeof (tmp), "%s\302\260/%s м", tmpz, tmpr);
   gtk_label_set_text (GTK_LABEL (label_ba), tmp);
+
+  gtk_widget_queue_draw (gliko);
 }
 
 static int
@@ -778,25 +796,25 @@ button_cb (GtkWidget *widget, GdkEventButton *event, void *w)
         {
           hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (gliko), 0.0);
           gtk_range_set_value (GTK_RANGE (scale_contrast), 0.0);
-          update_title ();
+          update_ruler ();
         }
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_SHIFT_MASK)
         {
           hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (gliko), 0.0);
           gtk_range_set_value (GTK_RANGE (scale_bright), 0.0);
-          update_title ();
+          update_ruler ();
         }
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == (GDK_CONTROL_MASK | GDK_SHIFT_MASK))
         {
           hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (gliko), 1.0);
           gtk_range_set_value (GTK_RANGE (scale_gamma), 1.0);
-          update_title ();
+          update_ruler ();
         }
       else
         {
           hyscan_gtk_gliko_set_scale (HYSCAN_GTK_GLIKO (gliko), 1.0);
           hyscan_gtk_gliko_set_center (HYSCAN_GTK_GLIKO (gliko), 0.0, 0.0);
-          update_title ();
+          update_ruler ();
         }
     }
 }
@@ -816,6 +834,7 @@ motion_cb (GtkWidget *widget, GdkEventMotion *event, void *w)
       x = sxc0 - s * (mx0 - (gdouble) event->x) / allocation.height;
       y = syc0 - s * ((gdouble) event->y - my0) / allocation.height;
       hyscan_gtk_gliko_set_center (HYSCAN_GTK_GLIKO (gliko), x, y);
+      update_ruler ();
     }
   else if (pointer_move == POINTER_RULER_FROM)
     {
@@ -852,14 +871,12 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
             }
           hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (gliko), f);
           gtk_range_set_value (GTK_RANGE (scale_contrast), f);
-          update_title ();
         }
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_SHIFT_MASK)
         {
           f = hyscan_gtk_gliko_get_brightness (HYSCAN_GTK_GLIKO (gliko));
           hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (gliko), f + 0.01);
           gtk_range_set_value (GTK_RANGE (scale_bright), f);
-          update_title ();
         }
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == (GDK_CONTROL_MASK | GDK_SHIFT_MASK))
         {
@@ -871,13 +888,12 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
             }
           hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (gliko), f);
           gtk_range_set_value (GTK_RANGE (scale_gamma), f);
-          update_title ();
         }
       else
         {
           f = hyscan_gtk_gliko_get_scale (HYSCAN_GTK_GLIKO (gliko));
           hyscan_gtk_gliko_set_scale (HYSCAN_GTK_GLIKO (gliko), 0.875 * f);
-          update_title ();
+          update_ruler ();
         }
     }
   if (event->direction == GDK_SCROLL_DOWN)
@@ -892,27 +908,24 @@ scroll_cb (GtkWidget *widget, GdkEventScroll *event, void *w)
             }
           hyscan_gtk_gliko_set_contrast (HYSCAN_GTK_GLIKO (gliko), f);
           gtk_range_set_value (GTK_RANGE (scale_contrast), f);
-          update_title ();
         }
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == GDK_SHIFT_MASK)
         {
           f = hyscan_gtk_gliko_get_brightness (HYSCAN_GTK_GLIKO (gliko));
           hyscan_gtk_gliko_set_brightness (HYSCAN_GTK_GLIKO (gliko), f - 0.01);
           gtk_range_set_value (GTK_RANGE (scale_bright), f);
-          update_title ();
         }
       else if ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) == (GDK_CONTROL_MASK | GDK_SHIFT_MASK))
         {
           f = hyscan_gtk_gliko_get_gamma_value (HYSCAN_GTK_GLIKO (gliko)) + 0.01;
           hyscan_gtk_gliko_set_gamma_value (HYSCAN_GTK_GLIKO (gliko), f);
           gtk_range_set_value (GTK_RANGE (scale_gamma), f);
-          update_title ();
         }
       else
         {
           f = hyscan_gtk_gliko_get_scale (HYSCAN_GTK_GLIKO (gliko));
           hyscan_gtk_gliko_set_scale (HYSCAN_GTK_GLIKO (gliko), 1.125 * f);
-          update_title ();
+          update_ruler ();
         }
     }
 }
@@ -962,20 +975,11 @@ ruler_caption (cairo_t *cr, const double x1, const double y1, const double a, co
   cairo_stroke (cr);
 }
 
-static gboolean
-draw_ruler_cb (GtkWidget *widget, cairo_t *cr, gpointer data)
+static void
+draw_ruler (cairo_t *cr)
 {
-  guint width, height;
   gint b = ruler_size * 2 / 3;
-  //GdkRGBA color;
-  GtkStyleContext *context;
   gdouble x1, y1, x2, y2;
-
-  context = gtk_widget_get_style_context (widget);
-  width = gtk_widget_get_allocated_width (widget);
-  height = gtk_widget_get_allocated_height (widget);
-
-  gtk_render_background (context, cr, 0, 0, width, height);
 
   hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), point_a_z, point_a_r, &x1, &y1);
   hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), point_b_z, point_b_r, &x2, &y2);
@@ -1015,19 +1019,11 @@ draw_ruler_cb (GtkWidget *widget, cairo_t *cr, gpointer data)
   ruler_caption (cr, x1, y1, point_ab_z, "A", 1);
   ruler_caption (cr, x2, y2, point_ba_z, "B", 1);
 
-  /*
-
-  gtk_style_context_get_color (context,
-                               gtk_style_context_get_state (context),
-                               &color);
-  gdk_cairo_set_source_rgba (cr, &color);
-  */
-
-  draw_step_distance_cb (widget, cr, data);
-  return FALSE;
+  draw_step_distance (cr);
 }
 
-static gboolean draw_step_distance_cb (GtkWidget *widget, cairo_t *cr, gpointer data)
+static void
+draw_step_distance (cairo_t *cr)
 {
   gdouble step;
   guint width, height;
@@ -1039,15 +1035,22 @@ static gboolean draw_step_distance_cb (GtkWidget *widget, cairo_t *cr, gpointer 
 
   step = hyscan_gtk_gliko_get_step_distance (HYSCAN_GTK_GLIKO (gliko));
 
-  width = gtk_widget_get_allocated_width (widget);
-  height = gtk_widget_get_allocated_height (widget);
+  width = gtk_widget_get_allocated_width (GTK_WIDGET (gliko));
+  height = gtk_widget_get_allocated_height (GTK_WIDGET (gliko));
 
   hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), 90.0, 0.0, &x1, &y1);
   hyscan_gtk_gliko_polar2pixel (HYSCAN_GTK_GLIKO (gliko), 90.0, step, &x2, &y2);
 
   d = x2 - x1;
 
-  sprintf( t, "%.3f", step );
+  if (step < 1.0)
+    {
+      sprintf (t, "%.1f", step);
+    }
+  else
+    {
+      sprintf (t, "%.0f", step);
+    }
 
   pango_layout_set_text (pango_layout, t, strlen (t));
   pango_layout_get_pixel_extents (pango_layout, &inc_rect, &logical_rect);
@@ -1058,10 +1061,8 @@ static gboolean draw_step_distance_cb (GtkWidget *widget, cairo_t *cr, gpointer 
   x1 = x2 - d;
   y1 = height - margin - margin;
 
-
   x = x1 + 0.5 * (d - w);
   y = y1 - margin - h;
-
 
   // рисуем затенение
   cairo_set_source_rgba (cr, 0, 0, 0, 0.25);
@@ -1093,15 +1094,16 @@ static gboolean draw_step_distance_cb (GtkWidget *widget, cairo_t *cr, gpointer 
   cairo_set_source_rgba (cr, 1, 1, 1, 1);
   pango_cairo_show_layout (cr, pango_layout);
   cairo_stroke (cr);
-
-  return FALSE;
 }
 
-static gboolean
-configure_cb (GtkWidget *widget, GdkEvent *event, gpointer user_data)
+static void
+resize_cb (GtkWidget *widget, gint width, gint height, gpointer user_data)
 {
+  if (width == drawing_width && height == drawing_height)
+    return;
+  drawing_width = width;
+  drawing_height = height;
   update_ruler ();
-  return FALSE;
 }
 
 static void
@@ -1114,39 +1116,41 @@ player_range_cb (HyScanDataPlayer *player, gint64 min, gint64 max, gpointer user
 static void
 player_ready_cb (HyScanDataPlayer *player, gint64 time, gpointer user_data)
 {
-  if( !gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (pause_button) ) )
-  {
-    gtk_range_set_value (GTK_RANGE (scale_player), 0.000001 * (time - player_min));
-  }
+  if (!gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (pause_button)))
+    {
+      gtk_range_set_value (GTK_RANGE (scale_player), 0.000001 * (time - player_min));
+    }
 }
 
-static void pause_cb (GtkToggleButton *togglebutton, gpointer user_data)
+static void
+pause_cb (GtkToggleButton *togglebutton, gpointer user_data)
 {
   if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (pause_button)))
-  {
-    hyscan_data_player_pause (player);
-    gtk_widget_set_sensitive (GTK_WIDGET (scale_player), TRUE);
-    hyscan_gtk_gliko_set_playback (HYSCAN_GTK_GLIKO (gliko), 0);
-    player_position_changed = 0;
-  }
+    {
+      hyscan_data_player_pause (player);
+      gtk_widget_set_sensitive (GTK_WIDGET (scale_player), TRUE);
+      hyscan_gtk_gliko_set_playback (HYSCAN_GTK_GLIKO (gliko), 0);
+      player_position_changed = 0;
+    }
   else
-  {
-    hyscan_gtk_gliko_set_playback (HYSCAN_GTK_GLIKO (gliko), player_position_changed ? 2: 1);
-    player_position_changed = 0;
-    hyscan_data_player_play (player, speed);
-    gtk_widget_set_sensitive (GTK_WIDGET (scale_player), FALSE);
-  }
+    {
+      hyscan_gtk_gliko_set_playback (HYSCAN_GTK_GLIKO (gliko), player_position_changed ? 2 : 1);
+      player_position_changed = 0;
+      hyscan_data_player_play (player, speed);
+      gtk_widget_set_sensitive (GTK_WIDGET (scale_player), FALSE);
+    }
 }
 
-static void x10_cb (GtkToggleButton *togglebutton, gpointer user_data)
+static void
+x10_cb (GtkToggleButton *togglebutton, gpointer user_data)
 {
   if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (x10_button)))
-  {
-    speed = 10.0;
-  }
+    {
+      speed = 10.0;
+    }
   else
-  {
-    speed = 1.0;
-  }
+    {
+      speed = 1.0;
+    }
   hyscan_data_player_play (player, speed);
 }

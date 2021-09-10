@@ -170,10 +170,10 @@ create_model (HyScanGtkGlikoDrawingPrivate *p)
   static const float vertices[] =
       {
         // positions          // texture coords
-        1.0f, -1.0f, 0.0f, 1.0f, 1.0f,   // top right
+        1.0f, -1.0f, 0.0f, 1.0f, 1.0f, // top right
         1.0f, 1.0f, 0.0f, 1.0f, 0.0f,  // bottom right
         -1.0f, 1.0f, 0.0f, 0.0f, 0.0f, // bottom left
-        -1.0f, -1.0f, 0.0f, 0.0f, 1.0f   // top left
+        -1.0f, -1.0f, 0.0f, 0.0f, 1.0f // top left
       };
   static const unsigned int indices[] =
       {
@@ -208,14 +208,15 @@ create_model (HyScanGtkGlikoDrawingPrivate *p)
   glBindVertexArray (0);
 }
 
-static void draw_example( cairo_t *cr )
+static void
+draw_example (cairo_t *cr)
 {
-#if defined( DRAW_EXAMPLE )
+#if defined(DRAW_EXAMPLE)
   double xc = 128.0;
   double yc = 128.0;
   double radius = 100.0;
-  double angle1 = 45.0  * (M_PI/180.0);  /* angles are specified */
-  double angle2 = 180.0 * (M_PI/180.0);  /* in radians           */
+  double angle1 = 45.0 * (M_PI / 180.0);  /* angles are specified */
+  double angle2 = 180.0 * (M_PI / 180.0); /* in radians           */
 
   cairo_set_line_width (cr, 10.0);
   cairo_arc (cr, xc, yc, radius, angle1, angle2);
@@ -225,7 +226,7 @@ static void draw_example( cairo_t *cr )
   cairo_set_source_rgba (cr, 1, 0.2, 0.2, 0.6);
   cairo_set_line_width (cr, 6.0);
 
-  cairo_arc (cr, xc, yc, 10.0, 0, 2*M_PI);
+  cairo_arc (cr, xc, yc, 10.0, 0, 2 * M_PI);
   cairo_fill (cr);
 
   cairo_arc (cr, xc, yc, radius, angle1, angle1);
@@ -241,47 +242,47 @@ layer_resize (HyScanGtkGlikoLayer *layer, gint width, gint height)
 {
   HyScanGtkGlikoDrawingPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (layer, HYSCAN_TYPE_GTK_GLIKO_DRAWING, HyScanGtkGlikoDrawingPrivate);
 
-  if( width == p->width && height == p->height )
+  if (width == p->width && height == p->height)
     return;
 
   p->width = width;
   p->height = height;
 
-  if( p->pixeldata != NULL )
-  {
-    free( p->pixeldata );
-    p->pixeldata = NULL;
-  }
-  p->stride = cairo_format_stride_for_width( CAIRO_FORMAT_ARGB32, p->width );
-  p->pixeldata = malloc( p->stride * p->height );
-  memset( p->pixeldata, 0, p->stride * p->height );
+  if (p->pixeldata != NULL)
+    {
+      free (p->pixeldata);
+      p->pixeldata = NULL;
+    }
+  p->stride = cairo_format_stride_for_width (CAIRO_FORMAT_ARGB32, p->width);
+  p->pixeldata = malloc (p->stride * p->height);
+  memset (p->pixeldata, 0, p->stride * p->height);
 
-  if( p->context != NULL )
-  {
-    cairo_destroy( p->context );
-    p->context = NULL;
-  }
-  if( p->surface != NULL )
-  {
-    cairo_surface_destroy( p->surface );
-    p->surface = NULL;
-  }
-  p->surface = cairo_image_surface_create_for_data( p->pixeldata, CAIRO_FORMAT_ARGB32, p->width, p->height, p->stride );
-  p->context = cairo_create( p->surface );
+  if (p->context != NULL)
+    {
+      cairo_destroy (p->context);
+      p->context = NULL;
+    }
+  if (p->surface != NULL)
+    {
+      cairo_surface_destroy (p->surface);
+      p->surface = NULL;
+    }
+  p->surface = cairo_image_surface_create_for_data (p->pixeldata, CAIRO_FORMAT_ARGB32, p->width, p->height, p->stride);
+  p->context = cairo_create (p->surface);
 
-  draw_example( p->context );
-  cairo_surface_flush( p->surface );
+  draw_example (p->context);
+  cairo_surface_flush (p->surface);
 
-  if( p->tex_valid )
-  {
-    glDeleteTextures( 1, &p->tex );
-    p->tex_valid = 0;
-  }
-  glGenTextures( 1, &p->tex );
+  if (p->tex_valid)
+    {
+      glDeleteTextures (1, &p->tex);
+      p->tex_valid = 0;
+    }
+  glGenTextures (1, &p->tex);
   p->tex_valid = 1;
-  glBindTexture( GL_TEXTURE_2D, p->tex );
+  glBindTexture (GL_TEXTURE_2D, p->tex);
   glPixelStorei (GL_UNPACK_ROW_LENGTH, p->stride >> 2);
-  glTexImage2D( GL_TEXTURE_2D,
+  glTexImage2D (GL_TEXTURE_2D,
                 0,
                 GL_RGBA8,
                 p->width,
@@ -289,7 +290,7 @@ layer_resize (HyScanGtkGlikoLayer *layer, gint width, gint height)
                 0,
                 GL_BGRA,
                 GL_UNSIGNED_BYTE,
-                p->pixeldata );
+                p->pixeldata);
   glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0);
   glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
   glTexParameteri (GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -305,28 +306,28 @@ layer_render (HyScanGtkGlikoLayer *layer, GdkGLContext *context)
   if (p->program_valid == 0)
     return;
 
-  if( p->tex_update )
-  {
-    glBindTexture( GL_TEXTURE_2D, p->tex );
-    glPixelStorei (GL_UNPACK_ROW_LENGTH, p->stride >> 2);
-    glTexSubImage2D( GL_TEXTURE_2D,
-                     0,
-                     0,
-                     0,
-                     p->width,
-                     p->height,
-                     GL_BGRA,
-                     GL_UNSIGNED_BYTE,
-                     p->pixeldata );
-    p->tex_update = 0;
-  }
+  if (p->tex_update)
+    {
+      glBindTexture (GL_TEXTURE_2D, p->tex);
+      glPixelStorei (GL_UNPACK_ROW_LENGTH, p->stride >> 2);
+      glTexSubImage2D (GL_TEXTURE_2D,
+                       0,
+                       0,
+                       0,
+                       p->width,
+                       p->height,
+                       GL_BGRA,
+                       GL_UNSIGNED_BYTE,
+                       p->pixeldata);
+      p->tex_update = 0;
+    }
 
   glPolygonMode (GL_FRONT_AND_BACK, GL_FILL);
   glUseProgram (p->program);
   glUniform1i (p->data1_loc, 0);
 
   glActiveTexture (GL_TEXTURE0 + 0);
-  glBindTexture( GL_TEXTURE_2D, p->tex );
+  glBindTexture (GL_TEXTURE_2D, p->tex);
 
   glBindVertexArray (p->vao); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
   glBindBuffer (GL_ARRAY_BUFFER, p->vbo);
@@ -396,19 +397,21 @@ hyscan_gtk_gliko_drawing_new (void)
 }
 
 HYSCAN_API
-cairo_t *hyscan_gtk_gliko_drawing_begin (HyScanGtkGlikoDrawing *instance)
+cairo_t *
+hyscan_gtk_gliko_drawing_begin (HyScanGtkGlikoDrawing *instance)
 {
   HyScanGtkGlikoDrawingPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO_DRAWING, HyScanGtkGlikoDrawingPrivate);
 
-  memset( p->pixeldata, 0, p->stride * p->height );
+  memset (p->pixeldata, 0, p->stride * p->height);
   return p->context;
 }
 
 HYSCAN_API
-void hyscan_gtk_gliko_drawing_end (HyScanGtkGlikoDrawing *instance)
+void
+hyscan_gtk_gliko_drawing_end (HyScanGtkGlikoDrawing *instance)
 {
   HyScanGtkGlikoDrawingPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (instance, HYSCAN_TYPE_GTK_GLIKO_DRAWING, HyScanGtkGlikoDrawingPrivate);
 
-  cairo_surface_flush( p->surface );
+  cairo_surface_flush (p->surface);
   p->tex_update = 1;
 }
