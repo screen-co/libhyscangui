@@ -40,8 +40,6 @@
 
 #include "hyscan-gtk-gliko-drawing.h"
 
-#define DRAW_EXAMPLE 0
-
 typedef struct _HyScanGtkGlikoDrawingPrivate HyScanGtkGlikoDrawingPrivate;
 
 struct _HyScanGtkGlikoDrawing
@@ -211,7 +209,7 @@ create_model (HyScanGtkGlikoDrawingPrivate *p)
 static void
 draw_example (cairo_t *cr)
 {
-#if defined(DRAW_EXAMPLE)
+#if 0
   double xc = 128.0;
   double yc = 128.0;
   double radius = 100.0;
