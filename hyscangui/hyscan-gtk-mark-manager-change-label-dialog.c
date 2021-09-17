@@ -45,6 +45,7 @@
  */
 #include <hyscan-gtk-mark-manager-change-label-dialog.h>
 #include <hyscan-object-data-label.h>
+#include <hyscan-gui-marshallers.h>
 #include <glib/gi18n-lib.h>
 
 enum
@@ -65,6 +66,7 @@ enum
 /* Колонки для модели с данными групп. */
 enum
 {
+  COLUMN_ACTIVE,       /* Колонка с чек-боксом. */
   COLUMN_ICON,         /* Колонка с иконкой. */
   COLUMN_NAME,         /* Колонка с названием группы. */
   COLUMN_ID,           /* Идентификатор в базе данных. */
@@ -72,21 +74,23 @@ enum
   COLUMN_OPERATOR,     /* Оператор. */
   COLUMN_CTIME,        /* Дата и время создания. */
   COLUMN_MTIME,        /* Дата и время изменения. */
+  COLUMN_MASK,         /* Битовая маска группы.*/
   N_COLUMNS            /* Количество колонок. */
 };
 
 /* Сигнал. */
 enum
 {
-  SIGNAL_CHANGE_LABEL,  /* Выбрана группа. */
-  SIGNAL_LAST           /* Количество сигналов. */
+  SIGNAL_CHANGE_LABEL, /* Выбрана группа. */
+  SIGNAL_SET_LABELS,   /* Установка групп. */
+  SIGNAL_LAST          /* Количество сигналов. */
 };
 
 struct _HyScanGtkMarkManagerChangeLabelDialogPrivate
 {
-  GtkWidget         *tree_view;      /* Виджет для отображения иконок. */
-  GtkTreeModel      *model;          /* Модель с группами. */
-  HyScanObjectModel *label_model;    /* Модель с данныим о группах. */
+  GtkWidget         *tree_view;   /* Виджет для отображения иконок. */
+  GtkTreeModel      *model;       /* Модель с группами. */
+  HyScanObjectModel *label_model; /* Модель с данныим о группах. */
 };
 
 static void       hyscan_gtk_mark_manager_change_label_dialog_set_property   (GObject      *object,
@@ -101,6 +105,9 @@ static void       hyscan_gtk_mark_manager_change_label_dialog_finalize       (GO
 static void       hyscan_gtk_mark_manager_change_label_dialog_response       (GtkWidget   *dialog,
                                                                               gint         response,
                                                                               gpointer     user_data);
+static void       hyscan_gtk_mark_manager_change_label_on_toggle             (GtkCellRendererToggle *cell_renderer,
+                                                                              gchar                 *path,
+                                                                              gpointer               user_data);
 
 static guint      hyscan_gtk_mark_manager_change_label_dialog_signals[SIGNAL_LAST] = { 0 };
 
@@ -133,6 +140,19 @@ hyscan_gtk_mark_manager_change_label_dialog_class_init (HyScanGtkMarkManagerChan
                            0, NULL, NULL,
                            g_cclosure_marshal_VOID__STRING,
                            G_TYPE_NONE, 1, G_TYPE_STRING);
+  /**
+   * HyScanGtkMarkManagerChangeLabelDialog::set-label:
+   * @self: указатель на #HyScanGtkMarkManager
+   *
+   * Сигнал посылается при изменении групп.
+   */
+  hyscan_gtk_mark_manager_change_label_dialog_signals[SIGNAL_SET_LABELS] =
+             g_signal_new ("set-labels",
+                           HYSCAN_TYPE_GTK_MARK_MANAGER_CHANGE_LABEL_DIALOG,
+                           G_SIGNAL_RUN_LAST,
+                           0, NULL, NULL,
+                           hyscan_gui_marshal_VOID__INT64,
+                           G_TYPE_NONE, 1, G_TYPE_INT64);
 }
 
 static void
@@ -188,13 +208,15 @@ hyscan_gtk_mark_manager_change_label_dialog_constructed (GObject *object)
       GHashTableIter  table_iter;
       GtkTreeIter     store_iter;
       GtkListStore   *store = gtk_list_store_new (N_COLUMNS,
+                                                  G_TYPE_BOOLEAN,  /* Статус чек-бокса. */
                                                   GDK_TYPE_PIXBUF, /* Иконки. */
                                                   G_TYPE_STRING,   /* Название группы. */
                                                   G_TYPE_STRING,   /* Идентификатор в базе данных. */
                                                   G_TYPE_STRING,   /* Описание группы. */
                                                   G_TYPE_STRING,   /* Оператор. */
                                                   G_TYPE_STRING,   /* Дата и время создания. */
-                                                  G_TYPE_STRING);  /* Дата и время изменения. */
+                                                  G_TYPE_STRING,   /* Дата и время изменения. */
+                                                  G_TYPE_INT64);   /* Битовая маска. */
       HyScanLabel    *object;
       gchar          *id;
 
@@ -221,6 +243,7 @@ hyscan_gtk_mark_manager_change_label_dialog_constructed (GObject *object)
                 {
                   gtk_list_store_append (store,           &store_iter);
                   gtk_list_store_set (store,              &store_iter,
+                                      COLUMN_ACTIVE,       FALSE,
                                       COLUMN_ICON,         icon,                  /* Иконки. */
                                       COLUMN_NAME,         object->name,          /* Название группы. */
                                       COLUMN_ID,           id,                    /* Идентификатор в базе данных. */
@@ -230,6 +253,7 @@ hyscan_gtk_mark_manager_change_label_dialog_constructed (GObject *object)
                                       COLUMN_CTIME,        g_date_time_format (ctime, "%d.%m.%Y %H:%M:%S"),
                                       /* Дата и время изменения. */
                                       COLUMN_MTIME,        g_date_time_format (mtime, "%d.%m.%Y %H:%M:%S"),
+                                      COLUMN_MASK,         object->label,
                                       -1);
                   g_object_unref (icon);
                 }
@@ -245,11 +269,23 @@ hyscan_gtk_mark_manager_change_label_dialog_constructed (GObject *object)
 
       if (priv->tree_view != NULL)
         {
-          GtkWidget         *scroll        = gtk_scrolled_window_new (NULL, NULL);
-          GtkCellRenderer   *renderer      = gtk_cell_renderer_text_new (),
-                            *icon_renderer = gtk_cell_renderer_pixbuf_new ();
-          GtkTreeView       *tree_view     = GTK_TREE_VIEW (priv->tree_view);
+          GtkWidget         *scroll          = gtk_scrolled_window_new (NULL, NULL);
+          GtkCellRenderer   *toggle_renderer = gtk_cell_renderer_toggle_new (),      /* Чек-бокс. */
+                            *renderer        = gtk_cell_renderer_text_new (),
+                            *icon_renderer   = gtk_cell_renderer_pixbuf_new ();
+          GtkTreeView       *tree_view       = GTK_TREE_VIEW (priv->tree_view);
 
+          /* Полключаем сигнал для обработки клика по чек-боксам. */
+          g_signal_connect (toggle_renderer,
+                            "toggled",
+                            G_CALLBACK (hyscan_gtk_mark_manager_change_label_on_toggle),
+                            self);
+
+          gtk_tree_view_insert_column_with_attributes (tree_view,
+                                                       COLUMN_ACTIVE,
+                                                       _("Active"), toggle_renderer,
+                                                       "active", COLUMN_ACTIVE,
+                                                       NULL);
           gtk_tree_view_insert_column_with_attributes (tree_view,
                                                        COLUMN_ICON,
                                                        _("Icon"), icon_renderer,
@@ -282,7 +318,8 @@ hyscan_gtk_mark_manager_change_label_dialog_constructed (GObject *object)
                                                        NULL);
           gtk_tree_view_set_headers_visible (tree_view, TRUE);
           gtk_tree_view_set_enable_tree_lines (tree_view, FALSE);
-          gtk_tree_selection_set_mode (gtk_tree_view_get_selection (tree_view), GTK_SELECTION_BROWSE);
+          /*gtk_tree_selection_set_mode (gtk_tree_view_get_selection (tree_view), GTK_SELECTION_BROWSE);*/
+         gtk_tree_selection_set_mode (gtk_tree_view_get_selection (tree_view), GTK_SELECTION_NONE);
 
           gtk_container_add (GTK_CONTAINER (scroll), priv->tree_view);
           gtk_box_pack_start (GTK_BOX (content), scroll, TRUE, TRUE, 0);
@@ -332,6 +369,7 @@ hyscan_gtk_mark_manager_change_label_dialog_response (GtkWidget *dialog,
 
   if (response == GTK_RESPONSE_OK)
     {
+/*
       GtkTreeSelection *selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->tree_view));
       GtkTreeIter iter;
 
@@ -342,11 +380,67 @@ hyscan_gtk_mark_manager_change_label_dialog_response (GtkWidget *dialog,
           g_signal_emit (self, hyscan_gtk_mark_manager_change_label_dialog_signals[SIGNAL_CHANGE_LABEL], 0, id);
           g_free (id);
         }
+*/
+      GtkTreeIter iter;
+      gint64 labels = 0;
+
+      if (gtk_tree_model_get_iter_first (priv->model, &iter))
+        {
+          do
+            {
+              gboolean active;
+              gint64   mask;
+              gchar   *id = NULL;
+
+              gtk_tree_model_get (priv->model,   &iter,
+                                  COLUMN_ACTIVE, &active,
+                                  COLUMN_ID,     &id,
+                                  COLUMN_MASK,   &mask,
+                                  -1);
+
+              if (active)
+                labels |= mask;  /* Устанавливаем бит. */
+              else
+                labels &= ~mask; /* Снимаем бит. */
+            }
+          while (gtk_tree_model_iter_next (priv->model, &iter));
+
+          g_signal_emit (self, hyscan_gtk_mark_manager_change_label_dialog_signals[SIGNAL_SET_LABELS], 0, labels);
+        }
     }
 
   gtk_widget_destroy (dialog);
 }
+/* Обработчик клика по чек-боксу. */
+static void
+hyscan_gtk_mark_manager_change_label_on_toggle (GtkCellRendererToggle *cell_renderer,
+                                                gchar                 *path,
+                                                gpointer               user_data)
+{
+  HyScanGtkMarkManagerChangeLabelDialog *self;
+  HyScanGtkMarkManagerChangeLabelDialogPrivate *priv;
+  GtkTreeModel     *model;
+  GtkTreeIter       iter;
 
+  g_return_if_fail (HYSCAN_IS_GTK_MARK_MANAGER_CHANGE_LABEL_DIALOG (user_data));
+
+  self = HYSCAN_GTK_MARK_MANAGER_CHANGE_LABEL_DIALOG (user_data);
+  priv = self->priv;
+
+  model = gtk_tree_view_get_model (GTK_TREE_VIEW (priv->tree_view));
+
+  if (gtk_tree_model_get_iter_from_string (model, &iter, path))
+    {
+      gboolean active;
+
+      gtk_tree_model_get (model,         &iter,
+                          COLUMN_ACTIVE, &active,
+                          -1);
+      gtk_list_store_set (GTK_LIST_STORE (model), &iter,
+                          COLUMN_ACTIVE, !active,
+                          -1);
+    }
+}
 /**
  * hyscan_gtk_mark_manager_change_label_dialog_new:
  * @parent: родительское окно

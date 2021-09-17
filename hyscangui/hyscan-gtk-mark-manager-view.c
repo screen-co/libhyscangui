@@ -1058,7 +1058,6 @@ hyscan_gtk_mark_manager_view_toggle_all (HyScanGtkMarkManagerView *self,
           hyscan_gtk_mark_manager_view_toggle (self, model, &iter, active);
         }
       while (gtk_tree_model_iter_next (model, &iter));
-
     }
 }
 

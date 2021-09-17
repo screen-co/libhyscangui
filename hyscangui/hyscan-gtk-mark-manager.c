@@ -167,6 +167,9 @@ static void         hyscan_gtk_mark_manager_release_change_label_dialog (GtkWidg
 static void         hyscan_gtk_mark_manager_toggled_iteml_change_label  (HyScanGtkMarkManager *self,
                                                                          gchar                *id);
 
+static void         hyscan_gtk_mark_manager_toggled_items_set_labels    (HyScanGtkMarkManager *self,
+                                                                         gint64                labels);
+
 static void         hyscan_gtk_mark_manager_item_selected               (HyScanGtkMarkManager *self,
                                                                          gchar                *id);
 
@@ -773,6 +776,11 @@ hyscan_gtk_mark_manager_toggled_items_change_label (GtkMenuItem          *item,
                                 "change-label",
                                 G_CALLBACK (hyscan_gtk_mark_manager_toggled_iteml_change_label),
                                 self);
+      /* Подключаем сигнал установки групп. */
+      g_signal_connect_swapped (priv->change_label_dialog,
+                                      "set-labels",
+                                      G_CALLBACK (hyscan_gtk_mark_manager_toggled_items_set_labels),
+                                      self);
       /* Освобождаем указатель на модель с данными о группах. */
       g_object_unref (label_model);
     }
@@ -809,6 +817,18 @@ hyscan_gtk_mark_manager_toggled_iteml_change_label (HyScanGtkMarkManager  *self,
   HyScanGtkMarkManagerPrivate *priv = self->priv;
 
   hyscan_gtk_model_manager_toggled_iteml_change_label (priv->model_manager, id);
+}
+
+/* Функция-обработчик сигнала установки групп.
+ * Устанавливает группы у выбранных объектов.
+ * */
+void
+hyscan_gtk_mark_manager_toggled_items_set_labels   (HyScanGtkMarkManager  *self,
+                                                    gint64                labels)
+{
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
+
+  hyscan_gtk_model_manager_toggled_items_set_labels (priv->model_manager, labels);
 }
 
 /* Функция-обработчик выделения объектов MarkManagerView. */
