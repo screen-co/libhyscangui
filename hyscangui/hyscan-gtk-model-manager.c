@@ -3542,13 +3542,15 @@ hyscan_gtk_model_manager_has_toggled (HyScanGtkModelManager *self)
 /**
  * hyscan_gtk_model_manager_toggled_items_set_labels:
  * @self: указатель на Менеджер Моделей
- * @labels: битовая маска групп в которые нужно перенести выделенные объекты.
+ * @labels: битовая маска групп в которые нужно перенести выделенные объекты
+ * @inconsistents: битовая маска групп, состояние которых нужно изменить
  *
  * Присваивает выделенным объектам битовую маску групп и обновляет дату и время сделанных изменений.
  */
 void
-hyscan_gtk_model_manager_toggled_items_set_labels (HyScanGtkModelManager     *self,
-                                                   gint64                     labels)
+hyscan_gtk_model_manager_toggled_items_set_labels (HyScanGtkModelManager *self,
+                                                   gint64                 labels,
+                                                   gint64                 inconsistents)
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
   GHashTable *table = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model), HYSCAN_TYPE_LABEL);
@@ -3615,13 +3617,13 @@ hyscan_gtk_model_manager_toggled_items_set_labels (HyScanGtkModelManager     *se
                              }
 
                            if (priv->signal_geo_marks_changed != 0)
-                             {hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->label_model),
-                                                          tmp,
-                                                          (const HyScanObject*)label);
+                             {
+                               gint64 old = object->labels &  inconsistents,
+                                      new = labels         & ~inconsistents;
                                /* Отключаем сигнал. */
                                g_signal_handler_block (priv->geo_mark_model, priv->signal_geo_marks_changed);
                                /* Заменяем группу полученому объекту. */
-                               object->labels = labels;
+                               object->labels = old | new;
                                /* Устанавливаем время изменения. */
                                object->mtime  = G_TIME_SPAN_SECOND * current_time;
                                /* Сохраняем измения в базе данных. */
@@ -3656,11 +3658,13 @@ hyscan_gtk_model_manager_toggled_items_set_labels (HyScanGtkModelManager     *se
 
                           if (priv->signal_acoustic_marks_changed != 0)
                             {
+                              gint64 old = object->labels &  inconsistents,
+                                     new = labels         & ~inconsistents;
                               /* Отключаем сигнал. */
                               g_signal_handler_block (priv->acoustic_marks_model, priv->signal_acoustic_marks_changed);
 
                               /* Заменяем группу полученому объекту. */
-                              object->labels = labels;
+                              object->labels = old | new;
                               /* Устанавливаем время изменения. */
                               object->mtime  = G_TIME_SPAN_SECOND * current_time;
                               /* Сохраняем измения в базе данных. */
@@ -3700,11 +3704,14 @@ hyscan_gtk_model_manager_toggled_items_set_labels (HyScanGtkModelManager     *se
 
                           if (priv->signal_tracks_changed != 0)
                             {
+                              gint64 old = object->labels &  inconsistents,
+                                     new = labels         & ~inconsistents;
                               /* Отключаем сигнал. */
                               g_signal_handler_block (priv->track_model, priv->signal_tracks_changed);
 
                               /* Заменяем группу полученому объекту. */
-                              object->labels = labels;
+                              /*object->labels = labels;*/
+                              object->labels = old | new;
                               /* Устанавливаем время изменения. */
                               object->mtime  = g_date_time_ref (now_local);
                               /* Сохраняем измения в базе данных. */

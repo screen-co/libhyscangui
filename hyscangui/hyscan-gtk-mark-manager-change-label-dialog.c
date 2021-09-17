@@ -399,7 +399,7 @@ hyscan_gtk_mark_manager_change_label_dialog_response (GtkWidget *dialog,
                                   COLUMN_ACTIVE,       &active,
                                   COLUMN_ID,           &id,
                                   COLUMN_MASK,         &mask,
-                                  COLUMN_INCONSISTENT, &inconsistent
+                                  COLUMN_INCONSISTENT, &inconsistent,
                                   -1);
               /* Маска отмеченных чек-боксов. */
               if (active)
@@ -508,14 +508,14 @@ hyscan_gtk_mark_manager_change_label_dialog_new (GtkWindow         *parent,
                                    NULL));
 }
 
-/** hyscan_gtk_mark_manager_change_label_dialog_get_data:
+/** hyscan_gtk_mark_manager_change_label_dialog_get_inconsistents:
  * @dialog: виджет диалога
  *
  * Returns: значение поля inconsistent приватной секции
  */
 
 gint64
-hyscan_gtk_mark_manager_change_label_dialog_get_data (GtkWidget *dialog)
+hyscan_gtk_mark_manager_change_label_dialog_get_inconsistents (GtkWidget *dialog)
 {
   HyScanGtkMarkManagerChangeLabelDialog *self = HYSCAN_GTK_MARK_MANAGER_CHANGE_LABEL_DIALOG (dialog);
   HyScanGtkMarkManagerChangeLabelDialogPrivate *priv = self->priv;

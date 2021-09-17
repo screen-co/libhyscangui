@@ -63,14 +63,14 @@ struct _HyScanGtkMarkManagerChangeLabelDialogClass
   GtkDialogClass parent_class;
 };
 
-GType      hyscan_gtk_mark_manager_change_label_dialog_get_type (void);
+GType      hyscan_gtk_mark_manager_change_label_dialog_get_type          (void);
 
-GtkWidget* hyscan_gtk_mark_manager_change_label_dialog_new      (GtkWindow         *parent,
-                                                                 HyScanObjectModel *model,
-                                                                 gint64             labels,
-                                                                 gint64             inconsistents);
+GtkWidget* hyscan_gtk_mark_manager_change_label_dialog_new               (GtkWindow         *parent,
+                                                                          HyScanObjectModel *model,
+                                                                          gint64             labels,
+                                                                          gint64             inconsistents);
 
-gint64     hyscan_gtk_mark_manager_change_label_dialog_get_data (GtkWidget         *dialog);
+gint64     hyscan_gtk_mark_manager_change_label_dialog_get_inconsistents (GtkWidget         *dialog);
 
 G_END_DECLS
 
