@@ -1294,8 +1294,8 @@ hyscan_gtk_mark_export_save_as_html (HyScanGtkModelManager *model_manager,
   data = g_malloc0 (sizeof (DataForHTML));
   if (toggled)
     {
-      gchar **geo_mark_list = hyscan_gtk_model_manager_get_toggled_items (model_manager, GEO_MARK),
-            **acoustic_mark_list  = hyscan_gtk_model_manager_get_toggled_items (model_manager, ACOUSTIC_MARK);
+      gchar **geo_mark_list      = hyscan_gtk_model_manager_get_toggled_items (model_manager, GEO_MARK),
+            **acoustic_mark_list = hyscan_gtk_model_manager_get_toggled_items (model_manager, ACOUSTIC_MARK);
       gint i;
 
       if (geo_mark_list != NULL)

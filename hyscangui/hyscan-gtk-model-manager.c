@@ -152,7 +152,8 @@ struct _HyScanGtkModelManagerPrivate
                        *current_id;           /* Идентифифкатор объекта, используется для разворачивания
                                                * и сворачивания узлов. */
   gboolean              clear_model_flag,     /* Флаг очистки модели. */
-                        constructed_flag;     /* Флаг инициализации всех моделей. */
+                        constructed_flag,     /* Флаг инициализации всех моделей. */
+                        update_model_flag;    /* Флаг обновления модели представления данных. */
 };
 
 /* Названия сигналов.
@@ -340,6 +341,8 @@ static void          hyscan_gtk_model_manager_track_change_label               (
                                                                                 GHashTable              *table,
                                                                                 GDateTime               *now_local,
                                                                                 guint64                  current_time);
+
+static gboolean     hyscan_gtk_model_manager_view_model_loop                   (gpointer                 user_data);
 
 static guint         hyscan_model_manager_signals[SIGNAL_MODEL_MANAGER_LAST] = { 0 };
 
@@ -532,6 +535,8 @@ hyscan_gtk_model_manager_constructed (GObject *object)
   priv->view_model = hyscan_gtk_model_manager_update_view_model (self);
   /* Устанавливаем флаг инициализации всех моделей. */
   priv->constructed_flag = TRUE;
+  /* Запускам циклическую проверку для обновдения модели данных представления. */
+  g_timeout_add (100, hyscan_gtk_model_manager_view_model_loop, self);
 }
 /* Деструктор. */
 void
@@ -596,7 +601,9 @@ void
 hyscan_gtk_model_manager_track_model_changed (HyScanDBInfo          *model,
                                               HyScanGtkModelManager *self)
 {
-  hyscan_gtk_model_manager_update_view_model (self);
+  HyScanGtkModelManagerPrivate *priv = self->priv;
+  /* Устанавливаем флаг для обновления модели представления данных. */
+  priv->update_model_flag = TRUE;
   g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_TRACKS_CHANGED], 0);
 }
 
@@ -605,7 +612,9 @@ void
 hyscan_gtk_model_manager_acoustic_marks_model_changed (HyScanObjectModel     *model,
                                                        HyScanGtkModelManager *self)
 {
-  hyscan_gtk_model_manager_update_view_model (self);
+  HyScanGtkModelManagerPrivate *priv = self->priv;
+  /* Устанавливаем флаг для обновления модели представления данных. */
+  priv->update_model_flag = TRUE;
   g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_ACOUSTIC_MARKS_CHANGED], 0);
 }
 
@@ -614,25 +623,31 @@ void
 hyscan_gtk_model_manager_acoustic_marks_loc_model_changed (HyScanMarkLocModel    *model,
                                                            HyScanGtkModelManager *self)
 {
-  hyscan_gtk_model_manager_update_view_model (self);
+  HyScanGtkModelManagerPrivate *priv = self->priv;
+  /* Устанавливаем флаг для обновления модели представления данных. */
+  priv->update_model_flag = TRUE;
   g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_ACOUSTIC_MARKS_LOC_CHANGED], 0);
 }
 
 /* Обработчик сигнала изменения данных в модели гео-меток. */
 void
-hyscan_gtk_model_manager_geo_mark_model_changed (HyScanObjectModel  *model,
+hyscan_gtk_model_manager_geo_mark_model_changed (HyScanObjectModel     *model,
                                                  HyScanGtkModelManager *self)
 {
-  hyscan_gtk_model_manager_update_view_model (self);
+  HyScanGtkModelManagerPrivate *priv = self->priv;
+  /* Устанавливаем флаг для обновления модели представления данных. */
+  priv->update_model_flag = TRUE;
   g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_GEO_MARKS_CHANGED], 0);
 }
 
 /* Обработчик сигнала изменения данных в модели групп. */
 void
-hyscan_gtk_model_manager_label_model_changed (HyScanObjectModel  *model,
+hyscan_gtk_model_manager_label_model_changed (HyScanObjectModel     *model,
                                               HyScanGtkModelManager *self)
 {
-  hyscan_gtk_model_manager_update_view_model (self);
+  HyScanGtkModelManagerPrivate *priv = self->priv;
+  /* Устанавливаем флаг для обновления модели представления данных. */
+  priv->update_model_flag = TRUE;
   g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_LABELS_CHANGED], 0);
 }
 
@@ -2811,6 +2826,26 @@ hyscan_gtk_model_manager_extension_free (gpointer data)
     }
 }
 
+/* Функция циклической проверки и обновления модели представления данных. */
+static gboolean
+hyscan_gtk_model_manager_view_model_loop (gpointer user_data)
+{
+  HyScanGtkModelManager *self;
+  HyScanGtkModelManagerPrivate *priv;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_MODEL_MANAGER (user_data), TRUE);
+
+  self = HYSCAN_GTK_MODEL_MANAGER (user_data);
+  priv = self->priv;
+
+  if (priv->update_model_flag)
+    {
+      hyscan_gtk_model_manager_update_view_model (self);
+      priv->update_model_flag = FALSE;
+    }
+
+  return TRUE;
+}
 /**
  * hyscan_gtk_model_manager_new:
  * @project_name: название проекта
@@ -3091,7 +3126,8 @@ hyscan_gtk_model_manager_set_grouping (HyScanGtkModelManager   *self,
   if (priv->grouping != grouping)
     {
       priv->grouping = grouping;
-      hyscan_gtk_model_manager_update_view_model (self);
+      /* Устанавливаем флаг для обновления модели представления данных. */
+      priv->update_model_flag = TRUE;
 
       g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_GROUPING_CHANGED ], 0);
     }
@@ -3312,7 +3348,8 @@ hyscan_gtk_model_manager_toggle_item (HyScanGtkModelManager *self,
 
   g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_ITEM_TOGGLED], 0, id, active);
 
-  hyscan_gtk_model_manager_update_view_model (self);
+  /* Устанавливаем флаг для обновления модели представления данных. */
+  priv->update_model_flag = TRUE;
 }
 
 /**
@@ -3695,5 +3732,6 @@ hyscan_gtk_model_manager_toggled_items_set_labels (HyScanGtkModelManager     *se
   g_hash_table_destroy (table);
   g_date_time_unref (now_local);
 
-  hyscan_gtk_model_manager_update_view_model (self);
+  /* Устанавливаем флаг для обновления модели представления данных. */
+  priv->update_model_flag = TRUE;
 }
