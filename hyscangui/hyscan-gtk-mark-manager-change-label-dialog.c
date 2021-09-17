@@ -51,6 +51,8 @@
 enum
 {
   PROP_MODEL = 1,      /* Модель с данныим о группах. */
+  PROP_LABELS,         /* Битовая маска общих групп. */
+  PROP_INCONSISTENTS,  /* Битовая маска групп с неопределённым статусом. */
   N_PROPERTIES
 };
 
@@ -67,6 +69,7 @@ enum
 enum
 {
   COLUMN_ACTIVE,       /* Колонка с чек-боксом. */
+  COLUMN_INCONSISTENT, /* Для установки свойства "inconsistent". */
   COLUMN_ICON,         /* Колонка с иконкой. */
   COLUMN_NAME,         /* Колонка с названием группы. */
   COLUMN_ID,           /* Идентификатор в базе данных. */
@@ -85,11 +88,21 @@ enum
   SIGNAL_LAST          /* Количество сигналов. */
 };
 
+/* Статус чек-бокса. */
+enum
+{
+  INCONSISTENT,
+  NOT_ACTIVE,
+  ACTIVE
+};
+
 struct _HyScanGtkMarkManagerChangeLabelDialogPrivate
 {
-  GtkWidget         *tree_view;   /* Виджет для отображения иконок. */
-  GtkTreeModel      *model;       /* Модель с группами. */
-  HyScanObjectModel *label_model; /* Модель с данныим о группах. */
+  GtkWidget         *tree_view;     /* Виджет для отображения иконок. */
+  GtkTreeModel      *model;         /* Модель с группами. */
+  HyScanObjectModel *label_model;   /* Модель с данныим о группах. */
+  gint64             labels,        /* Битовая маска общих групп. */
+                     inconsistents; /* Битовая маска групп с неопределённым статусом. */
 };
 
 static void       hyscan_gtk_mark_manager_change_label_dialog_set_property   (GObject      *object,
@@ -125,6 +138,14 @@ hyscan_gtk_mark_manager_change_label_dialog_class_init (HyScanGtkMarkManagerChan
     g_param_spec_object ("model", "Model", "Model with data about labels",
                          HYSCAN_TYPE_OBJECT_MODEL,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+  g_object_class_install_property (object_class, PROP_LABELS,
+      g_param_spec_int64 ("labels", "Labels", "Bit mask with united labels of objects",
+                          G_MININT64, G_MAXINT64, 0,
+                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+  g_object_class_install_property (object_class, PROP_INCONSISTENTS,
+      g_param_spec_int64 ("inconsistents", "Inconsistents", "Bit mask of groups by objects with undefined status",
+                          G_MININT64, G_MAXINT64, 0,
+                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   /**
    * HyScanGtkMarkManagerChangeLabelDialog::set-label:
    * @self: указатель на #HyScanGtkMarkManager
@@ -160,6 +181,12 @@ hyscan_gtk_mark_manager_change_label_dialog_set_property (GObject      *object,
     case PROP_MODEL:
       priv->label_model = g_value_dup_object (value);
       break;
+    case PROP_LABELS:
+      priv->labels = g_value_get_int64 (value);
+      break;
+    case PROP_INCONSISTENTS:
+      priv->inconsistents = g_value_get_int64 (value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -194,6 +221,7 @@ hyscan_gtk_mark_manager_change_label_dialog_constructed (GObject *object)
       GtkTreeIter     store_iter;
       GtkListStore   *store = gtk_list_store_new (N_COLUMNS,
                                                   G_TYPE_BOOLEAN,  /* Статус чек-бокса. */
+                                                  G_TYPE_BOOLEAN,  /* Свойство "inconsistent". */
                                                   GDK_TYPE_PIXBUF, /* Иконки. */
                                                   G_TYPE_STRING,   /* Название группы. */
                                                   G_TYPE_STRING,   /* Идентификатор в базе данных. */
@@ -228,7 +256,8 @@ hyscan_gtk_mark_manager_change_label_dialog_constructed (GObject *object)
                 {
                   gtk_list_store_append (store,           &store_iter);
                   gtk_list_store_set (store,              &store_iter,
-                                      COLUMN_ACTIVE,       FALSE,
+                                      COLUMN_ACTIVE,       (object->label & priv->labels) == object->label,
+                                      COLUMN_INCONSISTENT, (object->label & priv->inconsistents) == object->label,
                                       COLUMN_ICON,         icon,                  /* Иконки. */
                                       COLUMN_NAME,         object->name,          /* Название группы. */
                                       COLUMN_ID,           id,                    /* Идентификатор в базе данных. */
@@ -268,38 +297,39 @@ hyscan_gtk_mark_manager_change_label_dialog_constructed (GObject *object)
 
           gtk_tree_view_insert_column_with_attributes (tree_view,
                                                        COLUMN_ACTIVE,
-                                                       _("Active"), toggle_renderer,
-                                                       "active", COLUMN_ACTIVE,
+                                                       _("Active"),    toggle_renderer,
+                                                       "active",       COLUMN_ACTIVE,
+                                                       "inconsistent", COLUMN_INCONSISTENT,
                                                        NULL);
           gtk_tree_view_insert_column_with_attributes (tree_view,
                                                        COLUMN_ICON,
                                                        _("Icon"), icon_renderer,
-                                                       "pixbuf", COLUMN_ICON,
+                                                       "pixbuf",  COLUMN_ICON,
                                                        NULL);
           gtk_tree_view_insert_column_with_attributes (tree_view,
                                                        COLUMN_NAME,
                                                        _("Title"), renderer,
-                                                       "text", COLUMN_NAME,
+                                                       "text",     COLUMN_NAME,
                                                        NULL);
           gtk_tree_view_insert_column_with_attributes (tree_view,
                                                        COLUMN_DESCRIPTION,
                                                        _("Description"), renderer,
-                                                       "text", COLUMN_DESCRIPTION,
+                                                       "text",           COLUMN_DESCRIPTION,
                                                        NULL);
           gtk_tree_view_insert_column_with_attributes (tree_view,
                                                        COLUMN_OPERATOR,
                                                        _("Operator"), renderer,
-                                                       "text", COLUMN_OPERATOR,
+                                                       "text",        COLUMN_OPERATOR,
                                                        NULL);
           gtk_tree_view_insert_column_with_attributes (tree_view,
                                                        COLUMN_CTIME,
                                                        _("Created"), renderer,
-                                                       "text", COLUMN_CTIME,
+                                                       "text",       COLUMN_CTIME,
                                                        NULL);
           gtk_tree_view_insert_column_with_attributes (tree_view,
                                                        COLUMN_MTIME,
                                                        _("Modified"), renderer,
-                                                       "text", COLUMN_MTIME,
+                                                       "text",        COLUMN_MTIME,
                                                        NULL);
           gtk_tree_view_set_headers_visible (tree_view, TRUE);
           gtk_tree_view_set_enable_tree_lines (tree_view, FALSE);
@@ -360,22 +390,31 @@ hyscan_gtk_mark_manager_change_label_dialog_response (GtkWidget *dialog,
         {
           do
             {
-              gboolean active;
+              gboolean active,
+                       inconsistent;
               gint64   mask;
               gchar   *id = NULL;
 
-              gtk_tree_model_get (priv->model,   &iter,
-                                  COLUMN_ACTIVE, &active,
-                                  COLUMN_ID,     &id,
-                                  COLUMN_MASK,   &mask,
+              gtk_tree_model_get (priv->model,         &iter,
+                                  COLUMN_ACTIVE,       &active,
+                                  COLUMN_ID,           &id,
+                                  COLUMN_MASK,         &mask,
+                                  COLUMN_INCONSISTENT, &inconsistent
                                   -1);
-
+              /* Маска отмеченных чек-боксов. */
               if (active)
                 labels |= mask;  /* Устанавливаем бит. */
               else
                 labels &= ~mask; /* Снимаем бит. */
+              /* Маска чек-боксов с неопределённым состоянием. */
+              if (inconsistent)
+                priv->inconsistents |= mask;  /* Устанавливаем бит. */
+              else
+                priv->inconsistents &= ~mask; /* Снимаем бит. */
             }
           while (gtk_tree_model_iter_next (priv->model, &iter));
+
+          /*if (priv->labels == labels)*/
 
           g_signal_emit (self, hyscan_gtk_mark_manager_change_label_dialog_signals[SIGNAL_SET_LABELS], 0, labels);
         }
@@ -403,29 +442,82 @@ hyscan_gtk_mark_manager_change_label_on_toggle (GtkCellRendererToggle *cell_rend
 
   if (gtk_tree_model_get_iter_from_string (model, &iter, path))
     {
-      gboolean active;
+      static guint status = NOT_ACTIVE;
+      gboolean active, inconsistent;
 
-      gtk_tree_model_get (model,         &iter,
-                          COLUMN_ACTIVE, &active,
+      gtk_tree_model_get (priv->model,         &iter,
+                          COLUMN_ACTIVE,       &active,
+                          COLUMN_INCONSISTENT, &inconsistent,
                           -1);
-      gtk_list_store_set (GTK_LIST_STORE (model), &iter,
-                          COLUMN_ACTIVE, !active,
-                          -1);
+      if (!inconsistent)
+        {
+          status = ACTIVE;
+          if (active)
+            status = INCONSISTENT;
+        }
+
+      switch (status++)
+        {
+        /* Неопределённое состояние чек-бокса. */
+        case INCONSISTENT:
+          gtk_list_store_set (GTK_LIST_STORE (model), &iter,
+                              COLUMN_INCONSISTENT,     TRUE,
+                              -1);
+          break;
+        /* Чек-бокс не отмечен. */
+        case NOT_ACTIVE:
+          gtk_list_store_set (GTK_LIST_STORE (model), &iter,
+                              COLUMN_ACTIVE,           FALSE,
+                              COLUMN_INCONSISTENT,     FALSE,
+                              -1);
+          break;
+        /* Чек-бокс отмечен. */
+        case ACTIVE:
+          gtk_list_store_set (GTK_LIST_STORE (model), &iter,
+                              COLUMN_ACTIVE,           TRUE,
+                              COLUMN_INCONSISTENT,     FALSE,
+                              -1);
+          /* Нет break-а чтобы в default-е установилось неопределённое состояние чек-бокса. */
+        /* Устанавливаем неопределённое состояние чек-бокса. */
+        default:
+          status = INCONSISTENT;
+          break;
+        }
     }
 }
 /**
  * hyscan_gtk_mark_manager_change_label_dialog_new:
  * @parent: родительское окно
  * @model: модель с данныим о группах
+ * @labels: битовая маска общих групп
+ * @inconsistent: битовая маска групп с неопределённым статусом
  *
  * Returns: cоздаёт новый объект #HyScanGtkMarkManagerChangeLabelDialog
  */
 GtkWidget*
 hyscan_gtk_mark_manager_change_label_dialog_new (GtkWindow         *parent,
-                                                 HyScanObjectModel *model)
+                                                 HyScanObjectModel *model,
+                                                 gint64             labels,
+                                                 gint64             inconsistents)
 {
   return GTK_WIDGET (g_object_new (HYSCAN_TYPE_GTK_MARK_MANAGER_CHANGE_LABEL_DIALOG,
                                    "transient-for", parent,
                                    "model",         model,
+                                   "labels",        labels,
+                                   "inconsistents", inconsistents,
                                    NULL));
+}
+
+/** hyscan_gtk_mark_manager_change_label_dialog_get_data:
+ * @dialog: виджет диалога
+ *
+ * Returns: значение поля inconsistent приватной секции
+ */
+
+gint64
+hyscan_gtk_mark_manager_change_label_dialog_get_data (GtkWidget *dialog)
+{
+  HyScanGtkMarkManagerChangeLabelDialog *self = HYSCAN_GTK_MARK_MANAGER_CHANGE_LABEL_DIALOG (dialog);
+  HyScanGtkMarkManagerChangeLabelDialogPrivate *priv = self->priv;
+  return priv->inconsistents;
 }

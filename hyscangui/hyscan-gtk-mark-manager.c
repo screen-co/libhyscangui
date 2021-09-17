@@ -762,9 +762,16 @@ hyscan_gtk_mark_manager_toggled_items_change_label (GtkMenuItem          *item,
     {
       HyScanObjectModel *label_model = hyscan_gtk_model_manager_get_label_model (priv->model_manager);
       GtkWindow *parent = GTK_WINDOW (gtk_widget_get_toplevel (GTK_WIDGET (self)));
+      gint64 labels,        /* Битовая маска общих групп. */
+             inconsistents; /* Битовая маска групп с неопределённым статусом. */
+
+      /* Получаем необходимые битовые макси. */
+      hyscan_gtk_model_manager_toggled_items_get_bit_masks (priv->model_manager, &labels, &inconsistents);
       /* Создаём немодальный диалог для переноса объектов в другую группу. */
       priv->change_label_dialog = hyscan_gtk_mark_manager_change_label_dialog_new (parent,
-                                                                                   label_model);
+                                                                                   label_model,
+                                                                                   labels,
+                                                                                   inconsistents);
       /* Подключаем сигналу закрытия диалога, чтобы обнулить указатель. */
       g_signal_connect (priv->change_label_dialog,
                         "destroy",
@@ -805,10 +812,11 @@ hyscan_gtk_mark_manager_release_change_label_dialog (GtkWidget *dialog,
  * Устанавливает группы у выбранных объектов.
  * */
 void
-hyscan_gtk_mark_manager_toggled_items_set_labels   (HyScanGtkMarkManager  *self,
-                                                    gint64                labels)
+hyscan_gtk_mark_manager_toggled_items_set_labels (HyScanGtkMarkManager *self,
+                                                  gint64               labels)
 {
   HyScanGtkMarkManagerPrivate *priv = self->priv;
+  gint64 inconsistents = hyscan_gtk_mark_manager_change_label_dialog_get_data (priv->change_label_dialog);
 
   hyscan_gtk_model_manager_toggled_items_set_labels (priv->model_manager, labels);
 }
@@ -1067,7 +1075,7 @@ hyscan_gtk_mark_manager_find_item (GtkTreeModel *model,
 
 /* Обработчик выбора пункта меню "Сохранить как HTML". */
 void
-hyscan_gtk_mark_manager_toggled_items_save_as_html (GtkMenuItem       *item,
+hyscan_gtk_mark_manager_toggled_items_save_as_html (GtkMenuItem          *item,
                                                     HyScanGtkMarkManager *self)
 {
   HyScanGtkMarkManagerPrivate *priv = self->priv;

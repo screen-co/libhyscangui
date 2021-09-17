@@ -255,6 +255,12 @@ gboolean               hyscan_gtk_model_manager_has_toggled                 (HyS
 HYSCAN_API
 void                   hyscan_gtk_model_manager_toggled_items_set_labels    (HyScanGtkModelManager     *self,
                                                                              gint64                     labels);
+
+HYSCAN_API
+void                  hyscan_gtk_model_manager_toggled_items_get_bit_masks  (HyScanGtkModelManager     *self,
+                                                                             gint64                    *labels,
+                                                                             gint64                    *inconsistents);
+
 G_END_DECLS
 
 #endif /* __HYSCAN_GTK_MODEL_MANAGER_H__ */

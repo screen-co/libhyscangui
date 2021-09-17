@@ -3735,3 +3735,91 @@ hyscan_gtk_model_manager_toggled_items_set_labels (HyScanGtkModelManager     *se
   /* Устанавливаем флаг для обновления модели представления данных. */
   priv->update_model_flag = TRUE;
 }
+
+/**
+ * hyscan_gtk_model_manager_toggled_items_get_bite_masks:
+ * @self: указатель на Менеджер Моделей
+ * @labels: указатель на битовую маску общих групп
+ * @inconsistents: указатель на битовую маску групп с неопределённым статусом
+ */
+void
+hyscan_gtk_model_manager_toggled_items_get_bit_masks (HyScanGtkModelManager     *self,
+                                                      gint64                    *labels,
+                                                      gint64                    *inconsistents)
+{
+  HyScanGtkModelManagerPrivate *priv = self->priv;
+
+  *inconsistents = 0;
+  *labels        = 0;
+
+  for (ModelManagerObjectType type = GEO_MARK; type < TYPES; type++)
+    {
+       gchar** list = hyscan_gtk_model_manager_get_toggled_items (self, type);
+
+       if (list == NULL)
+         continue;
+
+       for (gint i = 0; list[i] != NULL; i++)
+         {
+           gint64 mask = 0;
+
+           switch (type)
+             {
+             case GEO_MARK:
+               {
+                 /* Получаем объект из базы данных по идентификатору. */
+                 HyScanMarkGeo *object = (HyScanMarkGeo*)hyscan_object_store_get (HYSCAN_OBJECT_STORE (priv->geo_mark_model),
+                                                                                  HYSCAN_TYPE_MARK_GEO,
+                                                                                  list[i]);
+
+                 if (object != NULL)
+                   mask = object->labels;
+               }
+               break;
+             case ACOUSTIC_MARK:
+               {
+                 /* Получаем объект из базы данных по идентификатору. */
+                 HyScanMarkWaterfall *object = (HyScanMarkWaterfall*)hyscan_object_store_get (HYSCAN_OBJECT_STORE (priv->acoustic_marks_model),
+                                                                                              HYSCAN_TYPE_MARK_WATERFALL,
+                                                                                              list[i]);
+                 if (object != NULL)
+                   mask = object->labels;
+               }
+               break;
+             case TRACK:
+               {
+                 HyScanTrackInfo *object;
+                 gint32 project_id = hyscan_db_project_open (priv->db, priv->project_name);
+
+                 if (project_id <= 0)
+                   break;
+
+                 /* Получаем объект из базы данных по идентификатору. */
+                 object = hyscan_db_info_get_track_info (priv->db, project_id, list[i]);
+
+                 if (object != NULL)
+                   mask = object->labels;
+
+                 hyscan_db_close (priv->db, project_id);
+               }
+               break;
+             default: break;
+             }
+
+           if (*labels != 0)
+             {
+               /* Следующие объекты. */
+                gint64 data[2] = {*labels | mask,  /* 0 */
+                                  *labels & mask}; /* 1 */
+               /* Сохраняем какие биты изменились. */
+               *inconsistents |= data[0] ^ data[1];
+               /* Сохраняем общую маску для всех объектов. */
+               *labels |= mask;
+               continue;
+             }
+           /* Первый объект, просто сохраняем маску. */
+           *labels = mask;
+         }
+       g_strfreev (list);
+    }
+}
