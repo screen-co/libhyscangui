@@ -253,10 +253,6 @@ HYSCAN_API
 gboolean               hyscan_gtk_model_manager_has_toggled                 (HyScanGtkModelManager     *self);
 
 HYSCAN_API
-void                   hyscan_gtk_model_manager_toggled_iteml_change_label  (HyScanGtkModelManager     *self,
-                                                                             gchar                     *id);
-
-HYSCAN_API
 void                   hyscan_gtk_model_manager_toggled_items_set_labels    (HyScanGtkModelManager     *self,
                                                                              gint64                     labels);
 G_END_DECLS

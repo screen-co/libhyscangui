@@ -81,7 +81,6 @@ enum
 /* Сигнал. */
 enum
 {
-  SIGNAL_CHANGE_LABEL, /* Выбрана группа. */
   SIGNAL_SET_LABELS,   /* Установка групп. */
   SIGNAL_LAST          /* Количество сигналов. */
 };
@@ -126,20 +125,6 @@ hyscan_gtk_mark_manager_change_label_dialog_class_init (HyScanGtkMarkManagerChan
     g_param_spec_object ("model", "Model", "Model with data about labels",
                          HYSCAN_TYPE_OBJECT_MODEL,
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
-  /**
-   * HyScanGtkMarkManagerChangeLabelDialog::change-label:
-   * @self: указатель на #HyScanMarkManager
-   * @id: идентификатор группы в базе данных
-   *
-   * Сигнал посылается при выборе группы для переноса объектов Журнала Меток.
-   */
-  hyscan_gtk_mark_manager_change_label_dialog_signals[SIGNAL_CHANGE_LABEL] =
-             g_signal_new ("change-label",
-                           HYSCAN_TYPE_GTK_MARK_MANAGER_CHANGE_LABEL_DIALOG,
-                           G_SIGNAL_RUN_LAST,
-                           0, NULL, NULL,
-                           g_cclosure_marshal_VOID__STRING,
-                           G_TYPE_NONE, 1, G_TYPE_STRING);
   /**
    * HyScanGtkMarkManagerChangeLabelDialog::set-label:
    * @self: указатель на #HyScanGtkMarkManager
@@ -318,8 +303,7 @@ hyscan_gtk_mark_manager_change_label_dialog_constructed (GObject *object)
                                                        NULL);
           gtk_tree_view_set_headers_visible (tree_view, TRUE);
           gtk_tree_view_set_enable_tree_lines (tree_view, FALSE);
-          /*gtk_tree_selection_set_mode (gtk_tree_view_get_selection (tree_view), GTK_SELECTION_BROWSE);*/
-         gtk_tree_selection_set_mode (gtk_tree_view_get_selection (tree_view), GTK_SELECTION_NONE);
+          gtk_tree_selection_set_mode (gtk_tree_view_get_selection (tree_view), GTK_SELECTION_NONE);
 
           gtk_container_add (GTK_CONTAINER (scroll), priv->tree_view);
           gtk_box_pack_start (GTK_BOX (content), scroll, TRUE, TRUE, 0);
@@ -369,18 +353,6 @@ hyscan_gtk_mark_manager_change_label_dialog_response (GtkWidget *dialog,
 
   if (response == GTK_RESPONSE_OK)
     {
-/*
-      GtkTreeSelection *selection = gtk_tree_view_get_selection (GTK_TREE_VIEW (priv->tree_view));
-      GtkTreeIter iter;
-
-      if (gtk_tree_selection_get_selected (selection, &priv->model, &iter))
-        {
-          gchar *id = NULL;
-          gtk_tree_model_get (priv->model, &iter, COLUMN_ID, &id, -1);
-          g_signal_emit (self, hyscan_gtk_mark_manager_change_label_dialog_signals[SIGNAL_CHANGE_LABEL], 0, id);
-          g_free (id);
-        }
-*/
       GtkTreeIter iter;
       gint64 labels = 0;
 

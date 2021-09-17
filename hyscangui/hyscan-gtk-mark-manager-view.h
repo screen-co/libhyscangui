@@ -93,6 +93,10 @@ gboolean            hyscan_gtk_mark_manager_view_find_item_by_id   (GtkTreeModel
                                                                     GtkTreeIter               *iter,
                                                                     const gchar               *id);
 
+void                hyscan_gtk_mark_manager_view_toggle_item       (HyScanGtkMarkManagerView  *self,
+                                                                    gchar                     *id,
+                                                                    gboolean                   active);
+
 G_END_DECLS
 
 #endif /* __HYSCAN_GTK_MARK_MANAGER_VIEW_H__ */

@@ -74,10 +74,11 @@
  * - hyscan_gtk_model_manager_get_current_id () - идентифифкатор объекта;
  * - hyscan_gtk_model_manager_delete_toggled_items () - удаление объектов с активированным чек-боксом из базы данных;
  * - hyscan_gtk_model_manager_has_toggled () - наличие объектов с активированным чек-боксом;
- * - hyscan_gtk_model_manager_toggled_iteml_change_label () - перенос объектов с активированным чек-боксом в другую группу.
+ * - hyscan_gtk_model_manager_toggled_items_set_labels () - назначение групп объектам с активированным чек-боксом.
  */
 
 #include <hyscan-gtk-model-manager.h>
+#include <hyscan-gui-marshallers.h>
 #include <glib/gi18n-lib.h>
 
 enum
@@ -380,13 +381,24 @@ hyscan_gtk_model_manager_class_init (HyScanGtkModelManagerClass *klass)
   /* Создание сигналов. */
   for (index = 0; index < SIGNAL_MODEL_MANAGER_LAST; index++)
     {
-       hyscan_model_manager_signals[index] =
-                    g_signal_new (signals[index],
-                                  HYSCAN_TYPE_GTK_MODEL_MANAGER,
-                                  G_SIGNAL_RUN_LAST,
-                                  0, NULL, NULL,
-                                  g_cclosure_marshal_VOID__VOID,
-                                  G_TYPE_NONE, 0);
+      /* Сигнал изменения состояния чек-бокса. */
+       if (index == SIGNAL_ITEM_TOGGLED)
+         hyscan_model_manager_signals[index] =
+                      g_signal_new (signals[index],
+                                    HYSCAN_TYPE_GTK_MODEL_MANAGER,
+                                    G_SIGNAL_RUN_LAST,
+                                    0, NULL, NULL,
+                                    hyscan_gui_marshal_VOID__STRING_BOOLEAN,
+                                    G_TYPE_NONE, 2, G_TYPE_STRING, G_TYPE_BOOLEAN);
+       else
+         /* Остальные сигналы. */
+         hyscan_model_manager_signals[index] =
+                      g_signal_new (signals[index],
+                                    HYSCAN_TYPE_GTK_MODEL_MANAGER,
+                                    G_SIGNAL_RUN_LAST,
+                                    0, NULL, NULL,
+                                    g_cclosure_marshal_VOID__VOID,
+                                    G_TYPE_NONE, 0);
     }
 }
 
@@ -3298,7 +3310,9 @@ hyscan_gtk_model_manager_toggle_item (HyScanGtkModelManager *self,
         }
     }
 
-  g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_ITEM_TOGGLED], 0);
+  g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_ITEM_TOGGLED], 0, id, active);
+
+  hyscan_gtk_model_manager_update_view_model (self);
 }
 
 /**
@@ -3489,72 +3503,6 @@ hyscan_gtk_model_manager_has_toggled (HyScanGtkModelManager *self)
 }
 
 /**
- * hyscan_gtk_model_manager_toggled_iteml_change_label:
- * @self: указатель на Менеджер Моделей
- * @id: группа в которую нужно перенести выделенные объекты.
- *
- * Присваивает выделенным объектам заданную группу и обновляет дату и время сделанных изменений.
- */
-void
-hyscan_gtk_model_manager_toggled_iteml_change_label (HyScanGtkModelManager *self,
-                                                     gchar                 *id)
-{
-  HyScanGtkModelManagerPrivate *priv = self->priv;
-  ModelManagerObjectType  type;
-  HyScanLabel *label = (HyScanLabel*)hyscan_object_store_get (HYSCAN_OBJECT_STORE (priv->label_model), HYSCAN_TYPE_LABEL, id);
-  GHashTable *table = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model), HYSCAN_TYPE_LABEL);
-  /* Текущие дата и время. */
-  GDateTime *now_local = g_date_time_new_now_local ();
-  guint64 current_time = g_date_time_to_unix (now_local);
-
-  /* Отключаем сигнал. */
-  if (priv->signal_labels_changed != 0)
-    g_signal_handler_block (priv->label_model, priv->signal_labels_changed);
-
-  for (type = GEO_MARK; type < TYPES; type++)
-    {
-      gchar** list = hyscan_gtk_model_manager_get_toggled_items (self, type);
-
-      if (list != NULL)
-        {
-          /* Разворачиваем родительский узел. */
-          if (priv->grouping == BY_LABELS)
-            {
-              hyscan_gtk_model_manager_expand_item (self, id, TRUE);
-            }
-
-          switch (type)
-            {
-            case GEO_MARK:
-              hyscan_gtk_model_manager_geo_mark_change_label (self, list, label, table, current_time);
-              break;
-            case ACOUSTIC_MARK:
-              hyscan_gtk_model_manager_acoustic_mark_change_label (self, list, label, table, current_time);
-              break;
-            case TRACK:
-              hyscan_gtk_model_manager_track_change_label (self, list, label, table, now_local, current_time);
-              break;
-            default: break;
-            }
-          g_strfreev (list);
-        }
-    }
-  /* Удаляем хэш-таблицу с группами. */
-  g_hash_table_destroy (table);
-  /* Устанавливаем время изменения для группы. */
-  label->mtime = current_time;
-  /* Сохраняем измения в базе данных. */
-  hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->label_model), id, (const HyScanObject*)label);
-  /* Освобождаем полученный из базы данных объект. */
-  hyscan_label_free (label);
-  /* Включаем сигнал. */
-  if (priv->signal_labels_changed != 0)
-    g_signal_handler_unblock (priv->label_model, priv->signal_labels_changed);
-
-  hyscan_gtk_model_manager_update_view_model (self);
-}
-
-/**
  * hyscan_gtk_model_manager_toggled_items_set_labels:
  * @self: указатель на Менеджер Моделей
  * @labels: битовая маска групп в которые нужно перенести выделенные объекты.
@@ -3565,10 +3513,6 @@ void
 hyscan_gtk_model_manager_toggled_items_set_labels (HyScanGtkModelManager     *self,
                                                    gint64                     labels)
 {
-  /*
-  g_print ("!!! hyscan_gtk_model_manager_toggled_items_set_labels !!!\n");
-  g_print ("labels: %lu\n", labels);
-  */
   HyScanGtkModelManagerPrivate *priv = self->priv;
   GHashTable *table = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model), HYSCAN_TYPE_LABEL);
   GHashTableIter iter;
@@ -3749,6 +3693,7 @@ hyscan_gtk_model_manager_toggled_items_set_labels (HyScanGtkModelManager     *se
     g_signal_handler_unblock (priv->label_model, priv->signal_labels_changed);
 
   g_hash_table_destroy (table);
+  g_date_time_unref (now_local);
 
   hyscan_gtk_model_manager_update_view_model (self);
 }

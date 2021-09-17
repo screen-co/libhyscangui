@@ -164,9 +164,6 @@ static void         hyscan_gtk_mark_manager_toggled_items_change_label  (GtkMenu
 static void         hyscan_gtk_mark_manager_release_change_label_dialog (GtkWidget            *dialog,
                                                                          gpointer              user_data);
 
-static void         hyscan_gtk_mark_manager_toggled_iteml_change_label  (HyScanGtkMarkManager *self,
-                                                                         gchar                *id);
-
 static void         hyscan_gtk_mark_manager_toggled_items_set_labels    (HyScanGtkMarkManager *self,
                                                                          gint64                labels);
 
@@ -185,7 +182,9 @@ static void         hyscan_gtk_mark_manager_item_toggled                (HyScanG
                                                                          gchar                *id,
                                                                          gboolean              active);
 
-static void         hyscan_gtk_mark_manager_toggle_item                 (HyScanGtkMarkManager *self);
+static void         hyscan_gtk_mark_manager_toggle_item                 (HyScanGtkMarkManager *self,
+                                                                         gchar                *id,
+                                                                         gboolean              active);
 
 static void         hyscan_gtk_mark_manager_view_scrolled_horizontal    (HyScanGtkMarkManager *self);
 
@@ -771,11 +770,6 @@ hyscan_gtk_mark_manager_toggled_items_change_label (GtkMenuItem          *item,
                         "destroy",
                         G_CALLBACK (hyscan_gtk_mark_manager_release_change_label_dialog),
                         self);
-      /* Подключаем сигнал выбора группы. */
-      g_signal_connect_swapped (priv->change_label_dialog,
-                                "change-label",
-                                G_CALLBACK (hyscan_gtk_mark_manager_toggled_iteml_change_label),
-                                self);
       /* Подключаем сигнал установки групп. */
       g_signal_connect_swapped (priv->change_label_dialog,
                                       "set-labels",
@@ -805,18 +799,6 @@ hyscan_gtk_mark_manager_release_change_label_dialog (GtkWidget *dialog,
   priv = self->priv;
   /* Обнуляем указатель на диалог переноса объектов в другую группу. */
   priv->change_label_dialog = NULL;
-}
-
-/* Функция-обработчик сигнала выбора группы.
- * Меняет группу у выбранных объектов.
- * */
-void
-hyscan_gtk_mark_manager_toggled_iteml_change_label (HyScanGtkMarkManager  *self,
-                                                    gchar                 *id)
-{
-  HyScanGtkMarkManagerPrivate *priv = self->priv;
-
-  hyscan_gtk_model_manager_toggled_iteml_change_label (priv->model_manager, id);
 }
 
 /* Функция-обработчик сигнала установки групп.
@@ -906,14 +888,20 @@ hyscan_gtk_mark_manager_item_toggled (HyScanGtkMarkManager *self,
 /* Функция-обработчик сигнала об изменении состояния чек-бокса.
  * Приходит из Model Manager-а. */
 void
-hyscan_gtk_mark_manager_toggle_item (HyScanGtkMarkManager *self)
+hyscan_gtk_mark_manager_toggle_item (HyScanGtkMarkManager *self,
+                                     gchar                *id,
+                                     gboolean              active)
 {
   HyScanGtkMarkManagerPrivate *priv = self->priv;
   gboolean has_toggled = hyscan_gtk_model_manager_has_toggled (priv->model_manager);
+  /* Устанавливаем состояние чек бокса. */
+  /*hyscan_gtk_mark_manager_view_toggle_item (HYSCAN_GTK_MARK_MANAGER_VIEW (priv->view),
+                                              id,
+                                              active);*/
 
   /* Переключаем состояние кнопки "Удалить выбранное". */
   gtk_widget_set_sensitive (priv->delete_icon, has_toggled);
-  /* Переключаем состояние кнопки "снять все отметки". */
+  /* Переключаем состояние кнопки "Снять все отметки". */
   gtk_widget_set_sensitive (priv->untoggle_all_item, has_toggled);
   /* Переключаем состояние кнопки "Перенести в группу". */
   gtk_widget_set_sensitive (priv->change_label, has_toggled);
