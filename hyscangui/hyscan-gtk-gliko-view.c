@@ -82,6 +82,9 @@ struct _HyScanGtkGlikoViewPrivate
   gdouble mx0;
   gdouble my0;
   gdouble mx1, my1, mx2, my2;
+
+  int ruler_update;
+  guint timer_id;
 };
 
 static void dispose (GObject *gobject);
@@ -99,6 +102,7 @@ static void resize_callback (GtkWidget *widget,
                              gint width,
                              gint height,
                              gpointer user_data);
+static gboolean timer_callback (gpointer pv);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkGlikoView, hyscan_gtk_gliko_view, HYSCAN_TYPE_GTK_GLIKO);
 
@@ -185,6 +189,9 @@ hyscan_gtk_gliko_view_init (HyScanGtkGlikoView *self)
   g_signal_connect (self, "resize", G_CALLBACK (resize_callback), NULL);
 
   g_signal_connect (HYSCAN_GTK_GLIKO (self), "parameters-changed", G_CALLBACK (parameters_changed_callback), self);
+
+  p->ruler_update = 0;
+  p->timer_id = g_timeout_add (100, timer_callback, self);
 }
 
 static int
@@ -296,20 +303,20 @@ hyscan_gtk_gliko_view_motion (HyScanGtkGlikoView *self,
     {
       hyscan_gtk_gliko_pixel2polar (HYSCAN_GTK_GLIKO (self), event->x, event->y, &p->point_a_z, &p->point_a_r);
       draw_view (self);
-      g_signal_emit (self, gliko_view_signal[SIGNAL_RULER_CHANGED], 0, p->point_a_z, p->point_a_r, p->point_b_z, p->point_b_r);
+      p->ruler_update = 1;
     }
   else if (p->pointer_move == POINTER_RULER_TO)
     {
       hyscan_gtk_gliko_pixel2polar (HYSCAN_GTK_GLIKO (self), event->x, event->y, &p->point_b_z, &p->point_b_r);
       draw_view (self);
-      g_signal_emit (self, gliko_view_signal[SIGNAL_RULER_CHANGED], 0, p->point_a_z, p->point_a_r, p->point_b_z, p->point_b_r);
+      p->ruler_update = 1;
     }
   else if (p->pointer_move == POINTER_RULER_LINE)
     {
       hyscan_gtk_gliko_pixel2polar (HYSCAN_GTK_GLIKO (self), p->mx1 + (event->x - p->mx0), p->my1 + (event->y - p->my0), &p->point_a_z, &p->point_a_r);
       hyscan_gtk_gliko_pixel2polar (HYSCAN_GTK_GLIKO (self), p->mx2 + (event->x - p->mx0), p->my2 + (event->y - p->my0), &p->point_b_z, &p->point_b_r);
       draw_view (self);
-      g_signal_emit (self, gliko_view_signal[SIGNAL_RULER_CHANGED], 0, p->point_a_z, p->point_a_r, p->point_b_z, p->point_b_r);
+      p->ruler_update = 1;
     }
 }
 
@@ -558,7 +565,20 @@ resize_callback (GtkWidget *widget, gint width, gint height, gpointer user_data)
   p->drawing_height = height;
 
   draw_view (self);
-  g_signal_emit (self, gliko_view_signal[SIGNAL_RULER_CHANGED], 0, p->point_a_z, p->point_a_r, p->point_b_z, p->point_b_r);
+  p->ruler_update = 1;
+}
+
+static gboolean timer_callback (gpointer pv)
+{
+  HyScanGtkGlikoView *self = pv;
+  HyScanGtkGlikoViewPrivate *p = self->priv;
+
+  if (p->ruler_update)
+  {
+    g_signal_emit (self, gliko_view_signal[SIGNAL_RULER_CHANGED], 0, p->point_a_z, p->point_a_r, p->point_b_z, p->point_b_r);
+    p->ruler_update = 0;
+  }
+  return TRUE;
 }
 
 HYSCAN_API
@@ -589,6 +609,7 @@ finalize (GObject *gobject)
 {
   HyScanGtkGlikoViewPrivate *p = G_TYPE_INSTANCE_GET_PRIVATE (gobject, HYSCAN_TYPE_GTK_GLIKO_VIEW, HyScanGtkGlikoViewPrivate);
 
+  g_source_remove (p->timer_id);
   g_clear_object (&p->drawing_layer);
 
   G_OBJECT_CLASS (hyscan_gtk_gliko_view_parent_class)
