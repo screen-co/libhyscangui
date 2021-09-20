@@ -843,7 +843,8 @@ hyscan_gtk_mark_manager_toggled_items_set_labels (HyScanGtkMarkManager *self,
                                                   gint64                labels)
 {
   HyScanGtkMarkManagerPrivate *priv = self->priv;
-  gint64 inconsistents = hyscan_gtk_mark_manager_set_labels_dialog_get_inconsistents (priv->set_labels_dialog);
+  gint64 inconsistents =
+         hyscan_gtk_mark_manager_set_labels_dialog_get_inconsistents (priv->set_labels_dialog);
 
   hyscan_gtk_model_manager_toggled_items_set_labels (priv->model_manager,
                                                      labels,
@@ -1114,12 +1115,8 @@ hyscan_gtk_mark_manager_find_item (GtkTreeModel *model,
   if (gtk_tree_model_get_iter_first (model, &iter))
     {
       do
-        {
-          if (hyscan_gtk_mark_manager_view_find_item_by_id (model, &iter, id))
-            {
-              return gtk_tree_iter_copy (&iter);
-            }
-        }
+        if (hyscan_gtk_mark_manager_view_find_item_by_id (model, &iter, id))
+          return gtk_tree_iter_copy (&iter);
       while (gtk_tree_model_iter_next (model, &iter));
     }
   return NULL;

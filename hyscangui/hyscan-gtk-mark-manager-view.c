@@ -1027,11 +1027,8 @@ hyscan_gtk_mark_manager_view_select_func (GtkTreeSelection *selection,
       priv->toggle_flag = FALSE;
       return FALSE;
     }
-  else
-    {
-      /*return !priv->focus_start;*/
-      return TRUE;
-    }
+
+  return TRUE;
 }
 
 /* Установка фокуса для снятия выделения по умолчанию. */
@@ -1257,10 +1254,25 @@ hyscan_gtk_mark_manager_view_get_toggled (HyScanGtkMarkManagerView *self,
                                   -1);
               if (current_type == type && active)
                 {
-                  guint i = (list != NULL)? g_strv_length (list) : 0;
-                  list = (gchar**)g_realloc ( (gpointer)list, (i + 2) * sizeof (gchar*));
-                  list[i++] = g_strdup (id);
-                  list[i++] = NULL;
+                  guint i = (list != NULL)? g_strv_length (list) : 0,
+                        index = 0;
+                  gboolean result = FALSE;
+
+                  while (index < i)
+                    {
+                      if (IS_NOT_EQUAL (list[index++], id))
+                        continue;
+
+                      result = TRUE;
+                      break;
+                    }
+
+                  if (!result)
+                    {
+                      list = (gchar**)g_realloc ( (gpointer)list, (i + 2) * sizeof (gchar*));
+                      list[i++] = g_strdup (id);
+                      list[i++] = NULL;
+                    }
                 }
               if (id != NULL)
                 g_free (id);
@@ -1286,10 +1298,25 @@ hyscan_gtk_mark_manager_view_get_toggled (HyScanGtkMarkManagerView *self,
                                   -1);
               if (active)
                 {
-                  guint i = (list != NULL)? g_strv_length (list) : 0;
-                  list = (gchar**)g_realloc ( (gpointer)list, (i + 2) * sizeof (gchar*));
-                  list[i++] = g_strdup (id);
-                  list[i++] = NULL;
+                  guint i = (list != NULL)? g_strv_length (list) : 0,
+                        index = 0;
+                  gboolean result = FALSE;
+
+                  while (index < i)
+                    {
+                      if (IS_NOT_EQUAL (list[index++], id))
+                        continue;
+
+                      result = TRUE;
+                      break;
+                    }
+
+                  if (!result)
+                    {
+                      list = (gchar**)g_realloc ( (gpointer)list, (i + 2) * sizeof (gchar*));
+                      list[i++] = g_strdup (id);
+                      list[i++] = NULL;
+                    }
                 }
               if (id != NULL)
                 g_free (id);
