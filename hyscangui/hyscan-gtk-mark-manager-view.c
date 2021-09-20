@@ -59,6 +59,9 @@
 #include <hyscan-db-info.h>
 #include <hyscan-gui-marshallers.h>
 #include <glib/gi18n-lib.h>
+/* Макросы для cравнения двух строк. */
+#define IS_EQUAL(a, b)     (0 == g_strcmp0 (a, b)) /* Одинаковые строки. */
+#define IS_NOT_EQUAL(a, b) (0 == g_strrstr (a, b)) /* Разные строки. */
 
 enum
 {
@@ -382,6 +385,9 @@ hyscan_gtk_mark_manager_view_update (HyScanGtkMarkManagerView *self)
           hyscan_gtk_mark_manager_view_set_tree_model (self);
 
           selection = gtk_tree_view_get_selection (priv->tree_view);
+
+          /*gtk_tree_selection_set_mode (selection, GTK_SELECTION_SINGLE);*/
+          gtk_tree_selection_set_mode (selection, GTK_SELECTION_MULTIPLE);
 
           gtk_tree_selection_set_select_function (selection,
                                                   hyscan_gtk_mark_manager_view_select_func,
@@ -1249,35 +1255,49 @@ hyscan_gtk_mark_manager_view_select_item (HyScanGtkMarkManagerView *self,
 
       if (gtk_tree_model_get_iter_first (model, &iter))
         {
-          GtkTreePath *path;
+          guint index = 0;
+          GtkTreeIter *array = (GtkTreeIter*)g_realloc (NULL, sizeof (GtkTreeIter));
 
           do
             {
-              if (hyscan_gtk_mark_manager_view_find_item_by_id (model, &iter, id))
-                {
-                   break;
-                }
+              array = hyscan_gtk_mark_manager_view_find_items_by_id (model, &iter, array, &index, id);
             }
           while (gtk_tree_model_iter_next (model, &iter));
 
-          if (GTK_IS_TREE_STORE (model))
-            g_return_if_fail (gtk_tree_store_iter_is_valid (GTK_TREE_STORE (model), &iter));
-          else
-            g_return_if_fail (gtk_list_store_iter_is_valid (GTK_LIST_STORE (model), &iter));
+          if (index != 0)
+            {
+              /* Отключаем сигнал о выделении. */
+              g_signal_handler_block (G_OBJECT (selection), priv->signal_selected);
 
-          /* Если нужно, разворачиваем узел. */
-          path = gtk_tree_model_get_path (model, &iter);
-          gtk_tree_path_up (path);
-          gtk_tree_view_expand_to_path (priv->tree_view, path);
-          gtk_tree_path_free (path);
-          /* Отключаем сигнал о выделении. */
-          g_signal_handler_block (G_OBJECT (selection), priv->signal_selected);
-          /* Снимаем выделение со всего списка. */
-          gtk_tree_selection_unselect_all (selection);
-          /* Выделяем выбранное. */
-          gtk_tree_selection_select_iter (selection, &iter);
-          /* Включаем сигнал об изменении выбранных объектов. */
-          g_signal_handler_unblock (G_OBJECT (selection), priv->signal_selected);
+              while (index != 0)
+                {
+                  GtkTreePath *path;
+                  gboolean valid;
+
+                  index--;
+
+                  valid = GTK_IS_TREE_STORE (model) ?
+                          gtk_tree_store_iter_is_valid (GTK_TREE_STORE (model), &array[index]) :
+                          gtk_list_store_iter_is_valid (GTK_LIST_STORE (model), &array[index]);
+
+                  if (!valid)
+                    continue;
+
+                  /* Если нужно, разворачиваем узел. */
+                  path = gtk_tree_model_get_path (model, &array[index]);
+                  gtk_tree_path_up (path);
+                  gtk_tree_view_expand_to_path (priv->tree_view, path);
+                  gtk_tree_path_free (path);
+                  /* Снимаем выделение со всего списка. */
+                  gtk_tree_selection_unselect_all (selection);
+                  /* Выделяем выбранное. */
+                  gtk_tree_selection_select_iter (selection, &array[index]);
+                }
+              /* Включаем сигнал об изменении выбранных объектов. */
+              g_signal_handler_unblock (G_OBJECT (selection), priv->signal_selected);
+            }
+          /* Освобождаем массив итераторов. */
+          g_free (array);
         }
     }
 }
@@ -1305,6 +1325,7 @@ hyscan_gtk_mark_manager_view_find_item_by_id (GtkTreeModel *model,
                       -1);
   if (str == NULL)
     return FALSE;
+
   if (0 == g_strcmp0 (id, str))
     {
       g_free (str);
@@ -1327,6 +1348,56 @@ hyscan_gtk_mark_manager_view_find_item_by_id (GtkTreeModel *model,
   return FALSE;
 }
 
+/**
+ * hyscan_gtk_mark_manager_view_find_items_by_id:
+ * @model: указатель на модель с данными
+ * @iter: начальный итератор
+ * @array: указатель на массив итераторов для хранения результатов поиска
+ * @index: указатель на количество элементов (итераторов) в массиве
+ * @id: идентификатор
+ *
+ * Функция для рекурсивного обхода модели и поиска записей по заданному идентификтору.
+ * Returns: указатель на массив итераторов с результатами поиска
+ */
+GtkTreeIter*
+hyscan_gtk_mark_manager_view_find_items_by_id  (GtkTreeModel              *model,
+                                                GtkTreeIter               *iter,
+                                                GtkTreeIter               *array,
+                                                guint                     *index,
+                                                const gchar               *id)
+{
+  GtkTreeIter child_iter;
+  gchar *str;
+
+  gtk_tree_model_get (model,     iter,
+                      COLUMN_ID, &str,
+                      -1);
+
+  if (str == NULL)
+    return array;
+
+  if (IS_EQUAL (id, str))
+    {
+      GtkTreeIter *tmp = (GtkTreeIter*)g_realloc (array, ((++(*index)) * sizeof (GtkTreeIter)));
+
+      if ((tmp != NULL) && (tmp != array))
+        array = tmp;
+
+      array[(*index) - 1] = *iter;
+
+    }
+
+  g_free (str);
+
+  if (gtk_tree_model_iter_children (model, &child_iter, iter))
+    {
+      do
+        array = hyscan_gtk_mark_manager_view_find_items_by_id (model, &child_iter, array, index, id);
+      while (gtk_tree_model_iter_next (model, &child_iter));
+    }
+
+  return array;
+}
 /**
  * hyscan_gtk_mark_manager_view_toggle_item:
  * @self: указатель на структуру #HyScanGtkMarkManagerView

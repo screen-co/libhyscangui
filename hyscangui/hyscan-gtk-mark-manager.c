@@ -767,7 +767,8 @@ hyscan_gtk_mark_manager_set_labels_dialog_create (GtkMenuItem          *item,
 
       /* Получаем необходимые битовые макси. */
       hyscan_gtk_model_manager_toggled_items_get_bit_masks (priv->model_manager, &labels, &inconsistents);
-      /* Создаём немодальный диалог для переноса объектов в другую группу. */
+      /* Создаём немодальный диалог для переноса объектов в другие группы
+       * и передаём необходимые битовые маски. */
       priv->set_labels_dialog = hyscan_gtk_mark_manager_set_labels_dialog_new (parent,
                                                                                label_model,
                                                                                labels,
@@ -992,6 +993,7 @@ hyscan_gtk_mark_manager_expand_current_item (HyScanGtkMarkManager *self,
     }
 
   g_object_unref (model);
+
   if (iter != NULL)
     gtk_tree_iter_free (iter);
 }
