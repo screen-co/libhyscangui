@@ -2247,18 +2247,15 @@ gboolean
 hyscan_gtk_model_manager_init_extensions (HyScanGtkModelManager *self)
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
-  ModelManagerObjectType type;
   gint counter = 0;
 
-  for (type = LABEL; type < TYPES; type++)
+  for (ModelManagerObjectType type = LABEL; type < TYPES; type++)
     {
       GHashTable *tmp;
       /* Создаём пустую таблицу. */
       if (priv->extensions[type] == NULL)
-        {
           priv->extensions[type] = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
                                           (GDestroyNotify)hyscan_gtk_model_manager_extension_free);
-        }
       /* Сохраняем указатель на таблицу со старыми данными. */
       tmp = priv->extensions[type];
       /* Заполняем таблицу новыми данными. */
@@ -2276,9 +2273,7 @@ hyscan_gtk_model_manager_init_extensions (HyScanGtkModelManager *self)
               Extension *ext = g_hash_table_lookup (tmp, type_id[type]);
 
               if (ext != NULL)
-                {
-                  priv->node[type] = hyscan_gtk_model_manager_extension_copy (ext);
-                }
+                priv->node[type] = hyscan_gtk_model_manager_extension_copy (ext);
             }
 
           /* Добавляем в общую таблицу с соответствующим идентификатором. */
@@ -2298,15 +2293,11 @@ void
 hyscan_gtk_model_manager_refresh_all_items_by_types (HyScanGtkModelManager *self)
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
-  ModelManagerObjectType type;
 
-  /*for (type = LABEL; type < TYPES; type++)*/
-  for (type = GEO_MARK; type < TYPES; type++)
+  for (ModelManagerObjectType type = GEO_MARK; type < TYPES; type++)
     {
       if (priv->extensions[type] != NULL)
-        {
-          hyscan_gtk_model_manager_refresh_items_by_types (self, type);
-        }
+        hyscan_gtk_model_manager_refresh_items_by_types (self, type);
     }
 }
 
@@ -2535,33 +2526,24 @@ hyscan_gtk_model_manager_is_all_toggled (GHashTable  *table,
   Extension *ext;
   gchar     *id;
   guint total   = g_hash_table_size (table),
-        counter = 0;
+        counter = 1;
 
-  if (total > 1)
+  g_hash_table_iter_init (&iter, table);
+  while (g_hash_table_iter_next (&iter, (gpointer*)&id, (gpointer*)&ext))
     {
-      g_hash_table_iter_init (&iter, table);
-      while (g_hash_table_iter_next (&iter, (gpointer*)&id, (gpointer*)&ext))
-        {
-          if (0 == g_strcmp0 (id, node_id))
-            {
-              counter++;
-            }
-          if (ext->active)
-            counter++;
-        }
+      if (IS_EQUAL (id, node_id))
+        continue;
 
-      if (counter >= total)
-        {
-          ext = g_hash_table_lookup (table, node_id);
-          if (ext != NULL)
-            {
-              ext->active = TRUE;
-            }
-          return TRUE;
-        }
+      if (ext->active)
+        counter++;
     }
 
-  return FALSE;
+  ext = g_hash_table_lookup (table, node_id);
+
+  if (ext != NULL)
+    ext->active = counter >= total;
+
+  return ext->active;
 }
 
 /* Удаляет объект из базы данных. */
@@ -3007,7 +2989,7 @@ hyscan_gtk_model_manager_set_project_name (HyScanGtkModelManager *self,
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
 
-  if (0 != g_strcmp0 (priv->project_name, project_name))
+  if (IS_NOT_EQUAL (priv->project_name, project_name))
     {
       g_free (priv->project_name);
 
@@ -3099,9 +3081,7 @@ hyscan_gtk_model_manager_get_all_tracks_id (HyScanGtkModelManager *self)
       list = g_new0 (gchar*, count + 1);
       g_hash_table_iter_init (&table_iter, tracks);
       while (g_hash_table_iter_next (&table_iter, (gpointer *) &id, (gpointer *) &object))
-        {
-          list[i++] = g_strdup (id);
-        }
+        list[i++] = g_strdup (id);
     }
 
   g_hash_table_destroy (tracks);
@@ -3122,14 +3102,14 @@ hyscan_gtk_model_manager_set_grouping (HyScanGtkModelManager   *self,
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
 
-  if (priv->grouping != grouping)
-    {
-      priv->grouping = grouping;
-      /* Устанавливаем флаг для обновления модели представления данных. */
-      priv->update_model_flag = TRUE;
+  if (priv->grouping == grouping)
+    return;
 
-      g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_GROUPING_CHANGED ], 0);
-    }
+  priv->grouping = grouping;
+  /* Устанавливаем флаг для обновления модели представления данных. */
+  priv->update_model_flag = TRUE;
+
+  g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_GROUPING_CHANGED ], 0);
 }
 
 /**
@@ -3176,9 +3156,8 @@ hyscan_gtk_model_manager_set_selected_item (HyScanGtkModelManager *self,
     return;                    /* у GtkTreeSelection при очистке GtkTreeModel.   */
 
   if (priv->selected_item_id != NULL)
-    {
-      g_free (priv->selected_item_id);
-    }
+    g_free (priv->selected_item_id);
+
   priv->selected_item_id = g_strdup (id);
 
   g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_ITEM_SELECTED], 0);
@@ -3211,12 +3190,11 @@ hyscan_gtk_model_manager_get_selected_track (HyScanGtkModelManager *self)
   HyScanGtkModelManagerPrivate *priv = self->priv;
   GHashTable *tracks = hyscan_db_info_get_tracks (priv->track_model);
   HyScanTrackInfo *info = g_hash_table_lookup (tracks, priv->selected_item_id);
-  gchar *result = NULL;
-  if (info != NULL)
-    {
-       result = g_strdup (info->name);
-    }
-  return result;
+
+  if (info == NULL)
+    return NULL;
+
+  return g_strdup (info->name);
 }
 
 /**
@@ -3229,12 +3207,11 @@ void
 hyscan_gtk_model_manager_unselect_all (HyScanGtkModelManager *self)
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
-  ModelManagerObjectType type;
 
   if (priv->selected_item_id != NULL)
     {
       /* Сворачиваем узел. */
-      for (type = LABEL; type < TYPES; type++)
+      for (ModelManagerObjectType type = LABEL; type < TYPES; type++)
         {
           if (priv->extensions[type] != NULL)
             {
@@ -3329,26 +3306,25 @@ hyscan_gtk_model_manager_toggle_item (HyScanGtkModelManager *self,
                                       gboolean               active)
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
-  ModelManagerObjectType type;
 
-  for (type = LABEL; type < TYPES; type++)
+  for (ModelManagerObjectType type = LABEL; type < TYPES; type++)
     {
       if (priv->extensions[type] != NULL && id != NULL)
         {
           Extension *ext = g_hash_table_lookup (priv->extensions[type], id);
 
-          if (ext != NULL)
-            {
-              ext->active = active;
-              break;
-            }
+          if (ext == NULL)
+            continue;
+
+          ext->active = active;
+          /* Устанавливаем статус родительского чек-бокса. */
+          hyscan_gtk_model_manager_is_all_toggled (priv->extensions[type], type_id[type]);
+
+          break;
         }
     }
 
   g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_ITEM_TOGGLED], 0, id, active);
-
-  /* Устанавливаем флаг для обновления модели представления данных. */
-  priv->update_model_flag = TRUE;
 }
 
 /**
@@ -3401,9 +3377,8 @@ hyscan_gtk_model_manager_expand_item (HyScanGtkModelManager *self,
                                       gboolean               expanded)
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
-  ModelManagerObjectType type;
 
-  for (type = LABEL; type < TYPES; type++)
+  for (ModelManagerObjectType type = LABEL; type < TYPES; type++)
     {
       if (priv->extensions[type] != NULL && id != NULL)
         {
@@ -3487,21 +3462,17 @@ hyscan_gtk_model_manager_get_current_id (HyScanGtkModelManager *self)
 void
 hyscan_gtk_model_manager_delete_toggled_items (HyScanGtkModelManager *self)
 {
-  ModelManagerObjectType type;
-
-  for (type = LABEL; type < TYPES; type++)
+  for (ModelManagerObjectType type = LABEL; type < TYPES; type++)
     {
       gchar **list = hyscan_gtk_model_manager_get_toggled_items (self, type);
 
-      if (list != NULL)
-        {
-          for (gint i = 0; list[i] != NULL; i++)
-            {
-              /* Удаляем выделенные объекты. */
-              hyscan_gtk_model_manager_delete_item (self, type, list[i]);
-            }
-          g_strfreev (list);
-        }
+      if (list == NULL)
+        continue;
+      /* Удаляем выделенные объекты. */
+      for (gint i = 0; list[i] != NULL; i++)
+        hyscan_gtk_model_manager_delete_item (self, type, list[i]);
+
+      g_strfreev (list);
     }
 }
 
@@ -3518,9 +3489,8 @@ gboolean
 hyscan_gtk_model_manager_has_toggled (HyScanGtkModelManager *self)
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
-  ModelManagerObjectType type;
 
-  for (type = LABEL; type < TYPES; type++)
+  for (ModelManagerObjectType type = LABEL; type < TYPES; type++)
     {
       GHashTableIter iter;
       Extension *ext;
@@ -3530,9 +3500,7 @@ hyscan_gtk_model_manager_has_toggled (HyScanGtkModelManager *self)
       while (g_hash_table_iter_next (&iter, (gpointer*)&id, (gpointer*)&ext))
         {
           if (ext->active == TRUE)
-            {
-              return TRUE;
-            }
+            return TRUE;
         }
     }
   return FALSE;
@@ -3578,6 +3546,9 @@ hyscan_gtk_model_manager_toggled_items_set_labels (HyScanGtkModelManager *self,
           hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->label_model),
                                       tmp,
                                       (const HyScanObject*)label);
+          /* При группировке по группам разворачиваем родительский узел. */
+          if (priv->grouping == BY_LABELS)
+            hyscan_gtk_model_manager_expand_item (self, tmp, TRUE);
         }
 
       for (ModelManagerObjectType type = GEO_MARK; type < TYPES; type++)
@@ -3588,12 +3559,6 @@ hyscan_gtk_model_manager_toggled_items_set_labels (HyScanGtkModelManager *self,
             {
               for (gint i = 0; list[i] != NULL; i++)
                 {
-                  /* Разворачиваем родительский узел. */
-                  if (priv->grouping == BY_LABELS)
-                    {
-                      hyscan_gtk_model_manager_expand_item (self, list[i], TRUE);
-                    }
-
                   switch (type)
                   {
                   case GEO_MARK:

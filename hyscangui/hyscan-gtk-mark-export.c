@@ -438,10 +438,10 @@ hyscan_gtk_mark_export_save_tile (HyScanMarkLocation *location,     /* Метк�
                   time = g_date_time_format (local, "%H:%M:%S");
 
                   name = (location->mark->name == NULL ||
-                         0 == g_strcmp0 (location->mark->name, "")) ?
-                         g_strdup (_(unknown)) : g_strdup (location->mark->name);
+                          IS_EMPTY (location->mark->name)) ?
+                          g_strdup (_(unknown)) : g_strdup (location->mark->name);
                   description = (location->mark->description == NULL ||
-                                 0 == g_strcmp0 (location->mark->description, "")) ?
+                                 IS_EMPTY (location->mark->description)) ?
                                  g_strdup (_(empty)) : g_strdup (location->mark->description);
 
                   comment = g_strdup (_(empty));
@@ -780,7 +780,7 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
             *project   = g_strdup_printf (_("Project: %s"), data->project_name),
             *prj_desc  = g_strdup_printf (_("Project description: %s"),
                                           (project_info->description == NULL ||
-                                           0 == g_strcmp0 (project_info->description, "")) ?
+                                           IS_EMPTY (project_info->description)) ?
                                            _(empty) : project_info->description),
             *crtime    = g_strdup_printf (_("Project creation date: %s"),
                                          (project_info->ctime == NULL)? _(empty) :
@@ -837,7 +837,7 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
               gchar *link_to_mark = g_strdup_printf ("\t\t\t<a href=\"#%s\">%s</a><br>\n",
                                                      mark_id,
                                                      (geo_mark->name == NULL ||
-                                                      0 == g_strcmp0 (geo_mark->name, "") ?
+                                                      IS_EMPTY (geo_mark->name) ?
                                                       _(unknown) : geo_mark->name));
               list = g_strconcat (list, link_to_mark, (gchar*) NULL);
               g_free (link_to_mark);
@@ -860,7 +860,7 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
               gchar *link_to_mark = g_strdup_printf ("\t\t\t<a href=\"#%s\">%s</a><br>\n",
                                                      mark_id,
                                                      (location->mark->name == NULL ||
-                                                      0 == g_strcmp0 (location->mark->name, "") ?
+                                                      IS_EMPTY (location->mark->name) ?
                                                       _(unknown) : location->mark->name));
               list = g_strconcat (list, link_to_mark, (gchar*) NULL);
               g_free (link_to_mark);
@@ -948,11 +948,11 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
                 }
 
               name = (geo_mark->name == NULL ||
-                      0 == g_strcmp0 (geo_mark->name, "")) ?
+                      IS_EMPTY (geo_mark->name)) ?
                       g_strdup (_(unknown)) : g_strdup (geo_mark->name);
 
               description = (geo_mark->description != NULL ||
-                             0 == g_strcmp0 (geo_mark->description, "")) ?
+                             IS_EMPTY (geo_mark->description)) ?
                              g_strdup (_(empty)) : g_strdup (geo_mark->description);
 
               comment = g_strdup (_(empty));

@@ -43,6 +43,13 @@
 #include <hyscan-units.h>
 #include <hyscan-planner-model.h>
 
+/* Макросы для cравнения двух строк. */
+#define IS_EQUAL(a, b)     (0 == g_strcmp0 ((a), (b))) /* Одинаковые строки. */
+#define IS_NOT_EQUAL(a, b) (0 != g_strcmp0 ((a), (b))) /* Разные строки. */
+/* Макросы для проверки строки. */
+#define IS_EMPTY(str)      IS_EQUAL ((str), "")        /* Пустая строка. */
+#define IS_NOT_EMPTY(str)  IS_NOT_EQUAL ((str), "")    /* Не пустая строка. */
+
 G_BEGIN_DECLS
 
 #define HYSCAN_TYPE_GTK_MODEL_MANAGER             (hyscan_gtk_model_manager_get_type ())
