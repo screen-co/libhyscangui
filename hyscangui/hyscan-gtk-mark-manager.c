@@ -907,9 +907,9 @@ hyscan_gtk_mark_manager_toggle_item (HyScanGtkMarkManager *self,
   HyScanGtkMarkManagerPrivate *priv = self->priv;
   gboolean has_toggled = hyscan_gtk_model_manager_has_toggled (priv->model_manager);
   /* Устанавливаем состояние чек бокса. */
-  /*hyscan_gtk_mark_manager_view_toggle_item (HYSCAN_GTK_MARK_MANAGER_VIEW (priv->view),
+  hyscan_gtk_mark_manager_view_toggle_item (HYSCAN_GTK_MARK_MANAGER_VIEW (priv->view),
                                               id,
-                                              active);*/
+                                              active);
 
   /* Переключаем состояние кнопки "Удалить выбранное". */
   gtk_widget_set_sensitive (priv->delete_icon, has_toggled);
@@ -980,22 +980,34 @@ hyscan_gtk_mark_manager_expand_current_item (HyScanGtkMarkManager *self,
 {
   HyScanGtkMarkManagerPrivate *priv = self->priv;
   GtkTreeModel *model = hyscan_gtk_model_manager_get_view_model (priv->model_manager);
+  GtkTreeIter   iter;
   gchar        *id    = hyscan_gtk_model_manager_get_current_id (priv->model_manager);
-  GtkTreeIter  *iter  = hyscan_gtk_mark_manager_find_item (model, id);
 
-  if (iter != NULL)
+  if (gtk_tree_model_get_iter_first (model, &iter))
     {
-      GtkTreePath *path = gtk_tree_model_get_path (model, iter);
+      guint index = 0;
+      GtkTreeIter *array = (GtkTreeIter*)g_realloc (NULL, sizeof (GtkTreeIter));
 
-      hyscan_gtk_mark_manager_view_expand_path (HYSCAN_GTK_MARK_MANAGER_VIEW (priv->view), path, expanded);
+      do
+        array = hyscan_gtk_mark_manager_view_find_items_by_id (model, &iter, array, &index, id);
+      while (gtk_tree_model_iter_next (model, &iter));
 
-      gtk_tree_path_free (path);
+      while (index != 0)
+        {
+          GtkTreePath *path = NULL;
+
+          index--;
+
+          path = gtk_tree_model_get_path (model, &array[index]);
+
+          hyscan_gtk_mark_manager_view_expand_path (HYSCAN_GTK_MARK_MANAGER_VIEW (priv->view), path, expanded);
+
+          gtk_tree_path_free (path);
+        }
+      /* Освобождаем массив итераторов. */
+      g_free (array);
     }
-
   g_object_unref (model);
-
-  if (iter != NULL)
-    gtk_tree_iter_free (iter);
 }
 
 /* Обновляет состояние всех узлов древовидного представления.
@@ -1020,38 +1032,50 @@ hyscan_gtk_mark_manager_expand_items (HyScanGtkMarkManager *self,
                                       gboolean              expanded)
 {
   HyScanGtkMarkManagerPrivate *priv = self->priv;
-  ModelManagerObjectType type;
+  GtkTreeModel *model = hyscan_gtk_model_manager_get_view_model (priv->model_manager);
 
-  for (type = LABEL; type < TYPES; type++)
+  for (ModelManagerObjectType type = LABEL; type < TYPES; type++)
     {
       gchar **list = hyscan_gtk_model_manager_get_expanded_items (priv->model_manager, type, expanded);
 
-      if (list != NULL)
+      if (list == NULL)
+        continue;
+
+      for (gint i = 0; list[i] != NULL; i++)
         {
-          gint i;
+          GtkTreeIter  iter;
 
-          for (i = 0; list[i] != NULL; i++)
+          if (gtk_tree_model_get_iter_first (model, &iter))
             {
-              GtkTreeModel *model = hyscan_gtk_model_manager_get_view_model (priv->model_manager);
-              GtkTreeIter  *iter  = hyscan_gtk_mark_manager_find_item (model, list[i]);
+              guint index = 0;
+              GtkTreeIter *array = (GtkTreeIter*)g_realloc (NULL, sizeof (GtkTreeIter));
 
-              if (iter != NULL)
+              do
+                array = hyscan_gtk_mark_manager_view_find_items_by_id (model, &iter, array, &index, list[i]);
+              while (gtk_tree_model_iter_next (model, &iter));
+
+              while (index != 0)
                 {
-                  GtkTreePath *path = gtk_tree_model_get_path (model, iter);
+                  GtkTreePath *path = NULL;
+
+                  index--;
+
+                  path = gtk_tree_model_get_path (model, &array[index]);
 
                   hyscan_gtk_mark_manager_view_expand_path (HYSCAN_GTK_MARK_MANAGER_VIEW (priv->view), path, expanded);
 
                   gtk_tree_path_free (path);
                 }
 
-              g_object_unref (model);
-              if (iter != NULL)
-                gtk_tree_iter_free (iter);
+              /* Освобождаем массив итераторов. */
+              g_free (array);
             }
 
-          g_strfreev (list);
         }
+      /* Освобождаем список. */
+      g_strfreev (list);
     }
+  g_object_unref (model);
 }
 
 /* Функция ищет в модели запись по заданному идентификатору и

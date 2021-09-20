@@ -352,7 +352,6 @@ void
 hyscan_gtk_model_manager_class_init (HyScanGtkModelManagerClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
-  guint index;
 
   object_class->set_property = hyscan_gtk_model_manager_set_property;
   object_class->get_property = hyscan_gtk_model_manager_get_property;
@@ -382,7 +381,7 @@ hyscan_gtk_model_manager_class_init (HyScanGtkModelManagerClass *klass)
                            "",
                            G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   /* Создание сигналов. */
-  for (index = 0; index < SIGNAL_MODEL_MANAGER_LAST; index++)
+  for (guint index = 0; index < SIGNAL_MODEL_MANAGER_LAST; index++)
     {
       /* Сигнал изменения состояния чек-бокса. */
        if (index == SIGNAL_ITEM_TOGGLED)
