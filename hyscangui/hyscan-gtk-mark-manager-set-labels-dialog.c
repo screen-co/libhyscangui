@@ -1,4 +1,4 @@
-/* hyscan-gtk-mark-manager-change-label-dialog.с
+/* hyscan-gtk-mark-manager-set-labels-dialog.с
  *
  * Copyright 2020 Screen LLC, Andrey Zakharov <zaharov@screen-co.ru>
  *
@@ -33,17 +33,17 @@
  */
 
 /**
- * SECTION: hyscan-gtk-mark-manager-change-label-dialog
- * @Short_description: Класс диалога для переноса объектов в выбранную группы.
- * @Title: HyScanGtkMarkManagerChangeLabelDialog
+ * SECTION: hyscan-gtk-mark-manager-set-labels-dialog
+ * @Short_description: Класс диалога для переноса объектов в выбранные группы.
+ * @Title: HyScanGtkMarkManagerSetLabelsDialog
  * @See_also: #HyScanGtkMarkManagerCreateLabelDialog, #HyScanGtkMarkManager, #HyScanGtkMarkManagerView, #HyScanGtkModelManager
  *
- * Диалог #HyScanGtkMarkManagerChangeLabelDialog позволяет выбрать группу в Журнале Меток и перенести в неё выбранные объекты.
+ * Диалог #HyScanGtkMarkManagerSetLabelsDialog позволяет выбирать группы в Журнале Меток чтобы переносить в них выбранные объекты.
  *
- * - hyscan_gtk_mark_manager_change_label_dialog_new () - создание экземпляра диалога;
+ * - hyscan_gtk_mark_manager_set_labels_dialog_new () - создание экземпляра диалога;
  *
  */
-#include <hyscan-gtk-mark-manager-change-label-dialog.h>
+#include <hyscan-gtk-mark-manager-set-labels-dialog.h>
 #include <hyscan-object-data-label.h>
 #include <hyscan-gui-marshallers.h>
 #include <glib/gi18n-lib.h>
@@ -96,7 +96,7 @@ enum
   ACTIVE
 };
 
-struct _HyScanGtkMarkManagerChangeLabelDialogPrivate
+struct _HyScanGtkMarkManagerSetLabelsDialogPrivate
 {
   GtkWidget         *tree_view;     /* Виджет для отображения иконок. */
   GtkTreeModel      *model;         /* Модель с группами. */
@@ -105,34 +105,35 @@ struct _HyScanGtkMarkManagerChangeLabelDialogPrivate
                      inconsistents; /* Битовая маска групп с неопределённым статусом. */
 };
 
-static void       hyscan_gtk_mark_manager_change_label_dialog_set_property   (GObject      *object,
-                                                                              guint         prop_id,
-                                                                              const GValue *value,
-                                                                              GParamSpec   *pspec);
+static void       hyscan_gtk_mark_manager_set_labels_dialog_set_property   (GObject               *object,
+                                                                            guint                  prop_id,
+                                                                            const GValue          *value,
+                                                                            GParamSpec            *pspec);
 
-static void       hyscan_gtk_mark_manager_change_label_dialog_constructed    (GObject      *object);
+static void       hyscan_gtk_mark_manager_set_labels_dialog_constructed    (GObject               *object);
 
-static void       hyscan_gtk_mark_manager_change_label_dialog_finalize       (GObject      *object);
+static void       hyscan_gtk_mark_manager_set_labels_dialog_finalize       (GObject               *object);
 
-static void       hyscan_gtk_mark_manager_change_label_dialog_response       (GtkWidget   *dialog,
-                                                                              gint         response,
-                                                                              gpointer     user_data);
-static void       hyscan_gtk_mark_manager_change_label_on_toggle             (GtkCellRendererToggle *cell_renderer,
-                                                                              gchar                 *path,
-                                                                              gpointer               user_data);
+static void       hyscan_gtk_mark_manager_set_labels_dialog_response       (GtkWidget             *dialog,
+                                                                            gint                   response,
+                                                                            gpointer               user_data);
 
-static guint      hyscan_gtk_mark_manager_change_label_dialog_signals[SIGNAL_LAST] = { 0 };
+static void       hyscan_gtk_mark_manager_set_labels_on_toggle             (GtkCellRendererToggle *cell_renderer,
+                                                                            gchar                 *path,
+                                                                            gpointer               user_data);
 
-G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMarkManagerChangeLabelDialog, hyscan_gtk_mark_manager_change_label_dialog, GTK_TYPE_DIALOG)
+static guint      hyscan_gtk_mark_manager_set_labels_dialog_signals[SIGNAL_LAST] = { 0 };
+
+G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMarkManagerSetLabelsDialog, hyscan_gtk_mark_manager_set_labels_dialog, GTK_TYPE_DIALOG)
 
 static void
-hyscan_gtk_mark_manager_change_label_dialog_class_init (HyScanGtkMarkManagerChangeLabelDialogClass *klass)
+hyscan_gtk_mark_manager_set_labels_dialog_class_init (HyScanGtkMarkManagerSetLabelsDialogClass *klass)
 {
   GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
-  object_class->set_property = hyscan_gtk_mark_manager_change_label_dialog_set_property;
-  object_class->constructed  = hyscan_gtk_mark_manager_change_label_dialog_constructed;
-  object_class->finalize     = hyscan_gtk_mark_manager_change_label_dialog_finalize;
+  object_class->set_property = hyscan_gtk_mark_manager_set_labels_dialog_set_property;
+  object_class->constructed  = hyscan_gtk_mark_manager_set_labels_dialog_constructed;
+  object_class->finalize     = hyscan_gtk_mark_manager_set_labels_dialog_finalize;
 
   g_object_class_install_property (object_class, PROP_MODEL,
     g_param_spec_object ("model", "Model", "Model with data about labels",
@@ -147,14 +148,14 @@ hyscan_gtk_mark_manager_change_label_dialog_class_init (HyScanGtkMarkManagerChan
                           G_MININT64, G_MAXINT64, 0,
                           G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   /**
-   * HyScanGtkMarkManagerChangeLabelDialog::set-label:
+   * HyScanGtkMarkManagerSetLabelsDialog::set-label:
    * @self: указатель на #HyScanGtkMarkManager
    *
    * Сигнал посылается при изменении групп.
    */
-  hyscan_gtk_mark_manager_change_label_dialog_signals[SIGNAL_SET_LABELS] =
+  hyscan_gtk_mark_manager_set_labels_dialog_signals[SIGNAL_SET_LABELS] =
              g_signal_new ("set-labels",
-                           HYSCAN_TYPE_GTK_MARK_MANAGER_CHANGE_LABEL_DIALOG,
+                           HYSCAN_TYPE_GTK_MARK_MANAGER_SET_LABELS_DIALOG,
                            G_SIGNAL_RUN_LAST,
                            0, NULL, NULL,
                            hyscan_gui_marshal_VOID__INT64,
@@ -162,19 +163,19 @@ hyscan_gtk_mark_manager_change_label_dialog_class_init (HyScanGtkMarkManagerChan
 }
 
 static void
-hyscan_gtk_mark_manager_change_label_dialog_init (HyScanGtkMarkManagerChangeLabelDialog *self)
+hyscan_gtk_mark_manager_set_labels_dialog_init (HyScanGtkMarkManagerSetLabelsDialog *self)
 {
-  self->priv = hyscan_gtk_mark_manager_change_label_dialog_get_instance_private (self);
+  self->priv = hyscan_gtk_mark_manager_set_labels_dialog_get_instance_private (self);
 }
 
 static void
-hyscan_gtk_mark_manager_change_label_dialog_set_property (GObject      *object,
-                                                          guint         prop_id,
-                                                          const GValue *value,
-                                                          GParamSpec   *pspec)
+hyscan_gtk_mark_manager_set_labels_dialog_set_property (GObject      *object,
+                                                        guint         prop_id,
+                                                        const GValue *value,
+                                                        GParamSpec   *pspec)
 {
-  HyScanGtkMarkManagerChangeLabelDialog *self = HYSCAN_GTK_MARK_MANAGER_CHANGE_LABEL_DIALOG (object);
-  HyScanGtkMarkManagerChangeLabelDialogPrivate *priv = self->priv;
+  HyScanGtkMarkManagerSetLabelsDialog *self = HYSCAN_GTK_MARK_MANAGER_SET_LABELS_DIALOG (object);
+  HyScanGtkMarkManagerSetLabelsDialogPrivate *priv = self->priv;
 
   switch (prop_id)
     {
@@ -194,18 +195,18 @@ hyscan_gtk_mark_manager_change_label_dialog_set_property (GObject      *object,
 }
 
 static void
-hyscan_gtk_mark_manager_change_label_dialog_constructed (GObject *object)
+hyscan_gtk_mark_manager_set_labels_dialog_constructed (GObject *object)
 {
-  HyScanGtkMarkManagerChangeLabelDialog *self = HYSCAN_GTK_MARK_MANAGER_CHANGE_LABEL_DIALOG (object);
-  HyScanGtkMarkManagerChangeLabelDialogPrivate *priv = self->priv;
+  HyScanGtkMarkManagerSetLabelsDialog *self = HYSCAN_GTK_MARK_MANAGER_SET_LABELS_DIALOG (object);
+  HyScanGtkMarkManagerSetLabelsDialogPrivate *priv = self->priv;
   GtkDialog  *dialog  = GTK_DIALOG (object);
   GtkWindow  *window  = GTK_WINDOW (dialog);
   GtkWidget  *content = gtk_dialog_get_content_area (dialog);
   GHashTable *table   = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model), HYSCAN_TYPE_LABEL);
 
-  G_OBJECT_CLASS (hyscan_gtk_mark_manager_change_label_dialog_parent_class)->constructed (object);
+  G_OBJECT_CLASS (hyscan_gtk_mark_manager_set_labels_dialog_parent_class)->constructed (object);
 
-  gtk_window_set_title (window, _("Choose label"));
+  gtk_window_set_title (window, _("Set label"));
   gtk_window_set_modal (window, FALSE);
   gtk_window_set_destroy_with_parent (window, TRUE);
 
@@ -256,7 +257,7 @@ hyscan_gtk_mark_manager_change_label_dialog_constructed (GObject *object)
                 {
                   gtk_list_store_append (store,           &store_iter);
                   gtk_list_store_set (store,              &store_iter,
-                                      COLUMN_ACTIVE,       (object->label & priv->labels) == object->label,
+                                      COLUMN_ACTIVE,       (object->label & priv->labels)        == object->label,
                                       COLUMN_INCONSISTENT, (object->label & priv->inconsistents) == object->label,
                                       COLUMN_ICON,         icon,                  /* Иконки. */
                                       COLUMN_NAME,         object->name,          /* Название группы. */
@@ -292,12 +293,12 @@ hyscan_gtk_mark_manager_change_label_dialog_constructed (GObject *object)
           /* Полключаем сигнал для обработки клика по чек-боксам. */
           g_signal_connect (toggle_renderer,
                             "toggled",
-                            G_CALLBACK (hyscan_gtk_mark_manager_change_label_on_toggle),
+                            G_CALLBACK (hyscan_gtk_mark_manager_set_labels_on_toggle),
                             self);
 
           gtk_tree_view_insert_column_with_attributes (tree_view,
                                                        COLUMN_ACTIVE,
-                                                       _("Active"),    toggle_renderer,
+                                                       _("Status"),    toggle_renderer,
                                                        "active",       COLUMN_ACTIVE,
                                                        "inconsistent", COLUMN_INCONSISTENT,
                                                        NULL);
@@ -349,36 +350,36 @@ hyscan_gtk_mark_manager_change_label_dialog_constructed (GObject *object)
 
   g_signal_connect (dialog,
                     "response",
-                    G_CALLBACK (hyscan_gtk_mark_manager_change_label_dialog_response),
+                    G_CALLBACK (hyscan_gtk_mark_manager_set_labels_dialog_response),
                     self);
 
   gtk_widget_show_all (GTK_WIDGET (dialog));
 }
 
 static void
-hyscan_gtk_mark_manager_change_label_dialog_finalize (GObject *object)
+hyscan_gtk_mark_manager_set_labels_dialog_finalize (GObject *object)
 {
-  HyScanGtkMarkManagerChangeLabelDialog *self = HYSCAN_GTK_MARK_MANAGER_CHANGE_LABEL_DIALOG (object);
-  HyScanGtkMarkManagerChangeLabelDialogPrivate *priv = self->priv;
+  HyScanGtkMarkManagerSetLabelsDialog *self = HYSCAN_GTK_MARK_MANAGER_SET_LABELS_DIALOG (object);
+  HyScanGtkMarkManagerSetLabelsDialogPrivate *priv = self->priv;
 
   g_object_unref (priv->label_model);
   g_object_unref (priv->model);
 
-  G_OBJECT_CLASS (hyscan_gtk_mark_manager_change_label_dialog_parent_class)->finalize (object);
+  G_OBJECT_CLASS (hyscan_gtk_mark_manager_set_labels_dialog_parent_class)->finalize (object);
 }
 
 /* Функция-обработчик результата диалога создания новой группы. */
 static void
-hyscan_gtk_mark_manager_change_label_dialog_response (GtkWidget *dialog,
-                                                      gint       response,
-                                                      gpointer   user_data)
+hyscan_gtk_mark_manager_set_labels_dialog_response (GtkWidget *dialog,
+                                                    gint       response,
+                                                    gpointer   user_data)
 {
-  HyScanGtkMarkManagerChangeLabelDialog *self;
-  HyScanGtkMarkManagerChangeLabelDialogPrivate *priv;
+  HyScanGtkMarkManagerSetLabelsDialog *self;
+  HyScanGtkMarkManagerSetLabelsDialogPrivate *priv;
 
-  g_return_if_fail (HYSCAN_IS_GTK_MARK_MANAGER_CHANGE_LABEL_DIALOG (user_data));
+  g_return_if_fail (HYSCAN_IS_GTK_MARK_MANAGER_SET_LABELS_DIALOG (user_data));
 
-  self = HYSCAN_GTK_MARK_MANAGER_CHANGE_LABEL_DIALOG (user_data);
+  self = HYSCAN_GTK_MARK_MANAGER_SET_LABELS_DIALOG (user_data);
   priv = self->priv;
 
   if (response == GTK_RESPONSE_OK)
@@ -416,7 +417,7 @@ hyscan_gtk_mark_manager_change_label_dialog_response (GtkWidget *dialog,
 
           /*if (priv->labels == labels)*/
 
-          g_signal_emit (self, hyscan_gtk_mark_manager_change_label_dialog_signals[SIGNAL_SET_LABELS], 0, labels);
+          g_signal_emit (self, hyscan_gtk_mark_manager_set_labels_dialog_signals[SIGNAL_SET_LABELS], 0, labels);
         }
     }
 
@@ -424,18 +425,18 @@ hyscan_gtk_mark_manager_change_label_dialog_response (GtkWidget *dialog,
 }
 /* Обработчик клика по чек-боксу. */
 static void
-hyscan_gtk_mark_manager_change_label_on_toggle (GtkCellRendererToggle *cell_renderer,
-                                                gchar                 *path,
-                                                gpointer               user_data)
+hyscan_gtk_mark_manager_set_labels_on_toggle (GtkCellRendererToggle *cell_renderer,
+                                              gchar                 *path,
+                                              gpointer               user_data)
 {
-  HyScanGtkMarkManagerChangeLabelDialog *self;
-  HyScanGtkMarkManagerChangeLabelDialogPrivate *priv;
+  HyScanGtkMarkManagerSetLabelsDialog *self;
+  HyScanGtkMarkManagerSetLabelsDialogPrivate *priv;
   GtkTreeModel     *model;
   GtkTreeIter       iter;
 
-  g_return_if_fail (HYSCAN_IS_GTK_MARK_MANAGER_CHANGE_LABEL_DIALOG (user_data));
+  g_return_if_fail (HYSCAN_IS_GTK_MARK_MANAGER_SET_LABELS_DIALOG (user_data));
 
-  self = HYSCAN_GTK_MARK_MANAGER_CHANGE_LABEL_DIALOG (user_data);
+  self = HYSCAN_GTK_MARK_MANAGER_SET_LABELS_DIALOG (user_data);
   priv = self->priv;
 
   model = gtk_tree_view_get_model (GTK_TREE_VIEW (priv->tree_view));
@@ -486,21 +487,21 @@ hyscan_gtk_mark_manager_change_label_on_toggle (GtkCellRendererToggle *cell_rend
     }
 }
 /**
- * hyscan_gtk_mark_manager_change_label_dialog_new:
+ * hyscan_gtk_mark_manager_set_labels_dialog_new:
  * @parent: родительское окно
  * @model: модель с данныим о группах
  * @labels: битовая маска общих групп
  * @inconsistent: битовая маска групп с неопределённым статусом
  *
- * Returns: cоздаёт новый объект #HyScanGtkMarkManagerChangeLabelDialog
+ * Returns: cоздаёт новый объект #HyScanGtkMarkManagerSetLabelsDialog
  */
 GtkWidget*
-hyscan_gtk_mark_manager_change_label_dialog_new (GtkWindow         *parent,
-                                                 HyScanObjectModel *model,
-                                                 gint64             labels,
-                                                 gint64             inconsistents)
+hyscan_gtk_mark_manager_set_labels_dialog_new (GtkWindow         *parent,
+                                               HyScanObjectModel *model,
+                                               gint64             labels,
+                                               gint64             inconsistents)
 {
-  return GTK_WIDGET (g_object_new (HYSCAN_TYPE_GTK_MARK_MANAGER_CHANGE_LABEL_DIALOG,
+  return GTK_WIDGET (g_object_new (HYSCAN_TYPE_GTK_MARK_MANAGER_SET_LABELS_DIALOG,
                                    "transient-for", parent,
                                    "model",         model,
                                    "labels",        labels,
@@ -508,16 +509,16 @@ hyscan_gtk_mark_manager_change_label_dialog_new (GtkWindow         *parent,
                                    NULL));
 }
 
-/** hyscan_gtk_mark_manager_change_label_dialog_get_inconsistents:
+/** hyscan_gtk_mark_manager_set_labels_dialog_get_inconsistents:
  * @dialog: виджет диалога
  *
- * Returns: значение поля inconsistent приватной секции
+ * Returns: значение поля inconsistents приватной секции
  */
 
 gint64
-hyscan_gtk_mark_manager_change_label_dialog_get_inconsistents (GtkWidget *dialog)
+hyscan_gtk_mark_manager_set_labels_dialog_get_inconsistents (GtkWidget *dialog)
 {
-  HyScanGtkMarkManagerChangeLabelDialog *self = HYSCAN_GTK_MARK_MANAGER_CHANGE_LABEL_DIALOG (dialog);
-  HyScanGtkMarkManagerChangeLabelDialogPrivate *priv = self->priv;
+  HyScanGtkMarkManagerSetLabelsDialog *self = HYSCAN_GTK_MARK_MANAGER_SET_LABELS_DIALOG (dialog);
+  HyScanGtkMarkManagerSetLabelsDialogPrivate *priv = self->priv;
   return priv->inconsistents;
 }

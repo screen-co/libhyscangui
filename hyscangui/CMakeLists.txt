@@ -115,7 +115,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-mark-manager-view.c
              # [[Диалоги]]
              hyscan-gtk-mark-manager-create-label-dialog.c
-             hyscan-gtk-mark-manager-change-label-dialog.c
+             hyscan-gtk-mark-manager-set-labels-dialog.c
 
              hyscan-gtk-gliko-minimal.c
              hyscan-gtk-gliko-layer.c
@@ -216,7 +216,7 @@ install (FILES hyscan-gtk-area.h
                hyscan-gtk-mark-manager.h
                hyscan-gtk-mark-manager-view.h
                hyscan-gtk-mark-manager-create-label-dialog.h
-               hyscan-gtk-mark-manager-change-label-dialog.h
+               hyscan-gtk-mark-manager-set-labels-dialog.h
          COMPONENT development
          DESTINATION "include/hyscan-${HYSCAN_MAJOR_VERSION}/hyscangui"
          PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
