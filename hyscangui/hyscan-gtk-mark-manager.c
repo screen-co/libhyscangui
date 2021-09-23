@@ -645,15 +645,51 @@ hyscan_gtk_mark_manager_delete_toggled (GtkToolButton        *button,
                                         HyScanGtkMarkManager *self)
 {
   HyScanGtkMarkManagerPrivate *priv = self->priv;
-
-  GtkWidget *box, *image, *label, *dialog;
+  GtkWidget *hbox, *image, *label, *delete = NULL, *dialog;
+  gboolean has_toggled_tracks;
 
   if (!gtk_widget_get_sensitive (priv->delete_icon))
     return;
 
-  box    = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 10);
+  has_toggled_tracks = hyscan_gtk_model_manager_has_toggled_items(priv->model_manager, TRACK);
+
+  hbox   = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 10);
   image  = gtk_image_new_from_icon_name ("dialog-question", GTK_ICON_SIZE_DIALOG);
-  label  = gtk_label_new (_("Toggled objects will delete irrevocably.\nContunue?"));
+  gtk_box_pack_start (GTK_BOX (hbox), image, FALSE, FALSE, 10);
+
+  if (has_toggled_tracks)
+    {
+      GtkWidget *vbox, *convert;
+      GSList *group = NULL;
+
+      vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 10);
+
+      label = gtk_label_new (_("Toggled objects will delete irrevocably.\n"
+                               "Some tracks could associate with acoustic marks.\n"
+                               "Continue?"));
+
+      gtk_box_pack_start (GTK_BOX (vbox), label, TRUE, TRUE, 0);
+
+      delete  = gtk_radio_button_new_with_label (group, _("Delete acoustic marks."));
+
+      convert = gtk_radio_button_new_with_label (group, _("Convert to geo marks."));
+
+      gtk_radio_button_join_group (GTK_RADIO_BUTTON (delete), GTK_RADIO_BUTTON (convert));
+
+      gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (delete), TRUE);
+
+      gtk_box_pack_start (GTK_BOX (vbox), delete, TRUE, TRUE, 0);
+      gtk_box_pack_start (GTK_BOX (vbox), convert, TRUE, TRUE, 0);
+
+      gtk_box_pack_start (GTK_BOX (hbox), vbox, FALSE, FALSE, 10);
+    }
+  else
+    {
+      label = gtk_label_new (_("Toggled objects will delete irrevocably.\n"
+                               "Continue?"));
+      gtk_box_pack_start (GTK_BOX (hbox), label, TRUE, TRUE, 10);
+    }
+
   dialog = gtk_dialog_new_with_buttons (_("Delete toggled"),
                                         GTK_WINDOW (gtk_widget_get_toplevel (GTK_WIDGET (self))),
                                         GTK_DIALOG_DESTROY_WITH_PARENT,
@@ -661,15 +697,15 @@ hyscan_gtk_mark_manager_delete_toggled (GtkToolButton        *button,
                                         _("Ok"),     GTK_RESPONSE_OK,
                                         NULL);
 
-  gtk_box_pack_start (GTK_BOX (box), image, FALSE, FALSE, 10);
-  gtk_box_pack_start (GTK_BOX (box), label, TRUE, TRUE, 10);
-  gtk_container_add (GTK_CONTAINER (gtk_dialog_get_content_area (GTK_DIALOG (dialog))), box);
+  gtk_container_add (GTK_CONTAINER (gtk_dialog_get_content_area (GTK_DIALOG (dialog))), hbox);
   gtk_widget_show_all (dialog);
 
   if (GTK_RESPONSE_OK == gtk_dialog_run (GTK_DIALOG (dialog)))
     {
+      gboolean delete_acoustic_marks = (delete == NULL) ? TRUE :
+                                       gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(delete));
       /* Удаляем объект из базы данных. */
-      hyscan_gtk_model_manager_delete_toggled_items (priv->model_manager);
+      hyscan_gtk_model_manager_delete_toggled_items (priv->model_manager, delete_acoustic_marks);
 
       gtk_widget_set_sensitive (priv->delete_icon,       FALSE);
       gtk_widget_set_sensitive (priv->untoggle_all_item, FALSE);

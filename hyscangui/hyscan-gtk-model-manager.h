@@ -241,6 +241,10 @@ gchar**                hyscan_gtk_model_manager_get_toggled_items           (HyS
                                                                              ModelManagerObjectType     type);
 
 HYSCAN_API
+gboolean               hyscan_gtk_model_manager_has_toggled_items           (HyScanGtkModelManager     *self,
+                                                                             ModelManagerObjectType     type);
+
+HYSCAN_API
 void                   hyscan_gtk_model_manager_expand_item                 (HyScanGtkModelManager     *self,
                                                                              gchar                     *id,
                                                                              gboolean                   expanded);
@@ -254,7 +258,8 @@ HYSCAN_API
 gchar*                 hyscan_gtk_model_manager_get_current_id              (HyScanGtkModelManager     *self);
 
 HYSCAN_API
-void                   hyscan_gtk_model_manager_delete_toggled_items        (HyScanGtkModelManager     *self);
+void                   hyscan_gtk_model_manager_delete_toggled_items        (HyScanGtkModelManager     *self,
+                                                                             gboolean                   flag);
 
 HYSCAN_API
 gboolean               hyscan_gtk_model_manager_has_toggled                 (HyScanGtkModelManager     *self);
