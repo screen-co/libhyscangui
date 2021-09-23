@@ -36,12 +36,13 @@
  * SECTION: hyscan-gtk-mark-manager-create-label-dialog
  * @Short_description: Класс диалога для создания новой группы в Журнале Меток.
  * @Title: HyScanGtkMarkManagerCreateLabelDialog
- * @See_also: #HyScanGtkMarkManagerChangeLabelDialog, #HyScanGtkMarkManager, #HyScanGtkMarkManagerView, #HyScanGtkModelManager
+ * @See_also: #HyScanGtkMarkManagerSetLabelsDialog, #HyScanGtkMarkManager,
+ *            #HyScanGtkMarkManagerView, #HyScanGtkModelManager
  *
- * Диалог #HyScanGtkMarkManagerCreateLabelDialog позволяет создать новую группу в Журнале Меток, проверяет введённые пользователем данные.
+ * Диалог #HyScanGtkMarkManagerCreateLabelDialog позволяет создать новую группу в Журнале Меток,
+ * проверяет введённые пользователем данные.
  *
- * - hyscan_gtk_mark_manager_create_label_dialog_new () - создание экземпляра диалога;
- *
+ * - hyscan_gtk_mark_manager_create_label_dialog_new () - создание экземпляра диалога.
  */
 
 #include <hyscan-gtk-mark-manager-create-label-dialog.h>
@@ -173,7 +174,6 @@ hyscan_gtk_mark_manager_create_label_dialog_constructed (GObject *object)
   GtkTreeIter   iter;
   GList        *images  = NULL,
                *ptr     = NULL;
-  EntryType     type;
 
   G_OBJECT_CLASS (hyscan_gtk_mark_manager_create_label_dialog_parent_class)->constructed (object);
 
@@ -186,8 +186,7 @@ hyscan_gtk_mark_manager_create_label_dialog_constructed (GObject *object)
   gtk_dialog_add_button (dialog, _("OK"),     GTK_RESPONSE_OK);
   gtk_dialog_add_button (dialog, _("Cancel"), GTK_RESPONSE_CANCEL);
 
-  /* Создаём и размещаем текстовые метки и поля ввода. */
-  for (type = TITLE; type < N_ENTRY; type++)
+  for (EntryType type = TITLE; type < N_ENTRY; type++)
     {
       label[type] = gtk_label_new (_(label_text[type]));
       gtk_widget_set_halign (label[type], GTK_ALIGN_START);
@@ -218,7 +217,7 @@ hyscan_gtk_mark_manager_create_label_dialog_constructed (GObject *object)
 
   priv->icon_model = GTK_TREE_MODEL (gtk_list_store_new (N_COLUMNS, GDK_TYPE_PIXBUF));
 
-  do
+  while (ptr != NULL)
     {
       GError      *error     = NULL;
       const gchar *icon_name = (const gchar*)ptr->data;
@@ -239,7 +238,6 @@ hyscan_gtk_mark_manager_create_label_dialog_constructed (GObject *object)
         }
       ptr = g_list_next (ptr);
     }
-  while (ptr != NULL);
 
   g_list_free (images);
 
@@ -313,6 +311,7 @@ hyscan_gtk_mark_manager_create_label_dialog_response (GtkWidget *dialog,
       if (g_list_length (images) == 0)
         {
           GtkWidget *image = gtk_image_new_from_resource ("/org/hyscan/icons/emblem-default.png");
+
           pixbuf = gtk_image_get_pixbuf (GTK_IMAGE (image));
           gtk_widget_destroy (image);
         }
@@ -321,12 +320,10 @@ hyscan_gtk_mark_manager_create_label_dialog_response (GtkWidget *dialog,
           GList *ptr = g_list_first (images);
           GtkTreeIter iter;
           if (gtk_tree_model_get_iter (priv->icon_model, &iter, (GtkTreePath*)ptr->data))
-            {
-              gtk_tree_model_get (priv->icon_model, &iter, COLUMN_ICON, &pixbuf, -1);
-            }
+            gtk_tree_model_get (priv->icon_model, &iter, COLUMN_ICON, &pixbuf, -1);
         }
 
-      g_list_free (images);
+      g_list_free_full (images, (GDestroyNotify) gtk_tree_path_free);
 
       if (pixbuf != NULL)
         {
@@ -336,8 +333,8 @@ hyscan_gtk_mark_manager_create_label_dialog_response (GtkWidget *dialog,
             {
               gpointer data = g_memory_output_stream_get_data (G_MEMORY_OUTPUT_STREAM (stream));
 
-              gsize length = g_memory_output_stream_get_size (G_MEMORY_OUTPUT_STREAM (stream));
-              gchar *str = g_base64_encode ((const guchar*)data, length);
+              gsize  length = g_memory_output_stream_get_size (G_MEMORY_OUTPUT_STREAM (stream));
+              gchar    *str = g_base64_encode ( (const guchar*)data, length);
 
               hyscan_label_set_icon_data (label, (const gchar*)str);
 
@@ -362,8 +359,8 @@ hyscan_gtk_mark_manager_create_label_dialog_response (GtkWidget *dialog,
 
 /* Проверка ввода. */
 static void
-hyscan_gtk_mark_manager_create_label_dialog_check_entry (GtkEntry  *entry,
-                                                         gpointer   user_data)
+hyscan_gtk_mark_manager_create_label_dialog_check_entry (GtkEntry *entry,
+                                                         gpointer  user_data)
 {
   HyScanGtkMarkManagerCreateLabelDialog *self;
   HyScanGtkMarkManagerCreateLabelDialogPrivate *priv;
@@ -387,9 +384,8 @@ hyscan_gtk_mark_manager_create_label_dialog_generate_label (GHashTable *table)
 {
   guint64 label = 0x1;
   while (!hyscan_gtk_mark_manager_create_label_dialog_validate_label (table, label))
-    {
-      label = (label << 1);
-    }
+    label = (label << 1);
+
   return label;
 }
 
@@ -407,9 +403,11 @@ hyscan_gtk_mark_manager_create_label_dialog_validate_label (GHashTable *table,
     {
       if (object == NULL)
         continue;
+
       if (object->label == label)
         return FALSE;
     }
+
   return TRUE;
 }
 

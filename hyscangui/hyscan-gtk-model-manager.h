@@ -52,12 +52,12 @@
 
 G_BEGIN_DECLS
 
-#define HYSCAN_TYPE_GTK_MODEL_MANAGER             (hyscan_gtk_model_manager_get_type ())
-#define HYSCAN_GTK_MODEL_MANAGER(obj)             (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_MODEL_MANAGER, HyScanGtkModelManager))
-#define HYSCAN_IS_GTK_MODEL_MANAGER(obj)          (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_MODEL_MANAGER))
-#define HYSCAN_GTK_MODEL_MANAGER_CLASS(klass)     (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_MODEL_MANAGER, HyScanGtkModelManagerClass))
-#define HYSCAN_IS_GTK_MODEL_MANAGER_CLASS(klass)  (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_MODEL_MANAGER))
-#define HYSCAN_GTK_MODEL_MANAGER_GET_CLASS(obj)   (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_MODEL_MANAGER, HyScanGtkModelManagerClass))
+#define HYSCAN_TYPE_GTK_MODEL_MANAGER            (hyscan_gtk_model_manager_get_type ())
+#define HYSCAN_GTK_MODEL_MANAGER(obj)            (G_TYPE_CHECK_INSTANCE_CAST ((obj), HYSCAN_TYPE_GTK_MODEL_MANAGER, HyScanGtkModelManager))
+#define HYSCAN_IS_GTK_MODEL_MANAGER(obj)         (G_TYPE_CHECK_INSTANCE_TYPE ((obj), HYSCAN_TYPE_GTK_MODEL_MANAGER))
+#define HYSCAN_GTK_MODEL_MANAGER_CLASS(klass)    (G_TYPE_CHECK_CLASS_CAST ((klass), HYSCAN_TYPE_GTK_MODEL_MANAGER, HyScanGtkModelManagerClass))
+#define HYSCAN_IS_GTK_MODEL_MANAGER_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE ((klass), HYSCAN_TYPE_GTK_MODEL_MANAGER))
+#define HYSCAN_GTK_MODEL_MANAGER_GET_CLASS(obj)  (G_TYPE_INSTANCE_GET_CLASS ((obj), HYSCAN_TYPE_GTK_MODEL_MANAGER, HyScanGtkModelManagerClass))
 
 typedef struct _HyScanGtkModelManager        HyScanGtkModelManager;
 typedef struct _HyScanGtkModelManagerPrivate HyScanGtkModelManagerPrivate;
@@ -151,7 +151,7 @@ HyScanGtkModelManager* hyscan_gtk_model_manager_new                         (con
                                                                              gchar                     *export_folder);
 
 HYSCAN_API
-HyScanUnits *          hyscan_gtk_model_manager_get_units                  (HyScanGtkModelManager     *self);
+HyScanUnits *          hyscan_gtk_model_manager_get_units                   (HyScanGtkModelManager     *self);
 
 HYSCAN_API
 HyScanDBInfo*          hyscan_gtk_model_manager_get_track_model             (HyScanGtkModelManager     *self);
@@ -261,13 +261,13 @@ gboolean               hyscan_gtk_model_manager_has_toggled                 (HyS
 
 HYSCAN_API
 void                   hyscan_gtk_model_manager_toggled_items_set_labels    (HyScanGtkModelManager     *self,
-                                                                             gint64                     labels,
-                                                                             gint64                     inconsistents);
+                                                                             guint64                    labels,
+                                                                             guint64                    inconsistents);
 
 HYSCAN_API
 void                  hyscan_gtk_model_manager_toggled_items_get_bit_masks  (HyScanGtkModelManager     *self,
-                                                                             gint64                    *labels,
-                                                                             gint64                    *inconsistents);
+                                                                             guint64                   *labels,
+                                                                             guint64                   *inconsistents);
 
 G_END_DECLS
 

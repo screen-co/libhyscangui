@@ -95,10 +95,10 @@ typedef struct _DataForHTML
 /* Структура для передачи данных для сохранения тайла после генерации. */
 typedef struct _package
 {
-  GMutex       mutex;           /* Мьютекс для защиты данных во сохранения тайла. */
-  HyScanCache *cache;           /* Указатель на кэш. */
-  GdkRGBA      color;           /* Цветовая схема. */
-  guint        counter;         /* Счётчик тайлов. */
+  GMutex          mutex;        /* Мьютекс для защиты счётчика при генерации тайла. */
+  HyScanCache    *cache;        /* Указатель на кэш. */
+  GdkRGBA         color;        /* Цветовая схема. */
+  volatile guint  counter;      /* Счётчик тайлов. */
 
 }Package;
 
@@ -132,7 +132,7 @@ static void          hyscan_gtk_mark_export_save_tile_as_png    (HyScanTile     
 
 static void          hyscan_gtk_mark_export_generate_tile       (HyScanMarkLocation  *location,
                                                                  HyScanTileQueue     *tile_queue,
-                                                                 guint               *counter);
+                                                                 volatile guint      *counter);
 
 static void          hyscan_gtk_mark_export_save_tile           (HyScanMarkLocation  *location,
                                                                  GDateTime           *track_ctime,
@@ -314,7 +314,13 @@ hyscan_gtk_mark_export_tile_loaded (Package    *package, /* Пакет допо�
                                     gint        size,    /* Размер акустического изображения в байтах. */
                                     gulong      hash)    /* Хэш состояния тайла. */
 {
+  g_mutex_lock (&package->mutex);
+#ifndef NDEBUG
+    g_print ("%u tiles should be generated.\n", --package->counter);
+#else
   package->counter--;
+#endif
+  g_mutex_unlock (&package->mutex);
 }
 
 /*
@@ -324,32 +330,35 @@ void
 hyscan_gtk_mark_export_generate_tile (HyScanMarkLocation *location,   /* Метка. */
                                       HyScanTileQueue    *tile_queue, /* Очередь для работы с акустическими
                                                                        * изображениями. */
-                                      guint              *counter)    /* Счётчик генерируемых тайлов. */
+                                      volatile guint     *counter)    /* Счётчик генерируемых тайлов. */
 {
-  if (location->mark->type == HYSCAN_TYPE_MARK_WATERFALL)
-    {
-      HyScanTile *tile = NULL;
-      HyScanTileCacheable tile_cacheable;
+  HyScanTile *tile = NULL;
+  HyScanCancellable *cancellable;
+  HyScanTileCacheable tile_cacheable;
 
-      tile = hyscan_tile_new (location->track_name);
-      tile->info.source = hyscan_source_get_type_by_id (location->mark->source);
-      if (tile->info.source != HYSCAN_SOURCE_INVALID)
-        {
-          hyscan_gtk_mark_export_init_tile (tile, &tile_cacheable, location);
+  if (location->mark->type != HYSCAN_TYPE_MARK_WATERFALL)
+    return;
 
-          if (hyscan_tile_queue_check (tile_queue, tile, &tile_cacheable, NULL) == FALSE)
-            {
-              HyScanCancellable *cancellable;
-              cancellable = hyscan_cancellable_new ();
-              /* Добавляем тайл в очередь на генерацию. */
-              hyscan_tile_queue_add (tile_queue, tile, cancellable);
-              /* Увеличиваем счётчик тайлов. */
-              (*counter)++;
-              g_object_unref (cancellable);
-            }
-        }
-      g_object_unref (tile);
-    }
+  tile = hyscan_tile_new (location->track_name);
+  tile->info.source = hyscan_source_get_type_by_id (location->mark->source);
+
+  if (tile->info.source == HYSCAN_SOURCE_INVALID)
+    goto terminate;
+
+  hyscan_gtk_mark_export_init_tile (tile, &tile_cacheable, location);
+
+  if (!hyscan_tile_queue_check (tile_queue, tile, &tile_cacheable, NULL) == FALSE)
+    goto terminate;
+
+  cancellable = hyscan_cancellable_new ();
+  /* Добавляем тайл в очередь на генерацию. */
+  hyscan_tile_queue_add (tile_queue, tile, cancellable);
+  /* Увеличиваем счётчик тайлов. */
+  (*counter)++;
+  g_object_unref (cancellable);
+
+terminate:
+  g_clear_object (&tile);
 }
 
 /*
@@ -366,163 +375,150 @@ hyscan_gtk_mark_export_save_tile (HyScanMarkLocation *location,     /* Метк�
                                   FILE               *file,         /* Дескриптор файла для записи данных в index.html. */
                                   Package            *package)      /* Пакет дополнительных данных. */
 {
-  if (location->mark->type == HYSCAN_TYPE_MARK_WATERFALL)
+  HyScanTile *tile = NULL;
+  HyScanTileCacheable tile_cacheable;
+  GDateTime *local;
+  gdouble width;
+  gfloat *image;
+  guint32 size;
+  gchar *lat, *lon, *name, *description, *comment, *notes, *date, *time, *content, *file_name, *board, *track_time, *format;
+  gboolean echo;
+
+  if (location->mark->type != HYSCAN_TYPE_MARK_WATERFALL)
+    return;
+
+  tile = hyscan_tile_new (location->track_name);
+  tile->info.source = hyscan_source_get_type_by_id (location->mark->source);
+
+  if (tile->info.source == HYSCAN_SOURCE_INVALID)
+    goto terminate;
+
+  hyscan_gtk_mark_export_init_tile (tile, &tile_cacheable, location);
+
+  if (!hyscan_tile_queue_check (tile_queue, tile, &tile_cacheable, NULL))
+    goto terminate;
+
+  image = NULL;
+  size = 0;
+
+  if (!hyscan_tile_queue_get (tile_queue, tile, &tile_cacheable, &image, &size))
+    goto terminate;
+
+  echo  = (location->direction == HYSCAN_MARK_LOCATION_BOTTOM)? TRUE : FALSE;
+  width = hyscan_gtk_mark_export_get_wfmark_width (location);
+  local = NULL;
+  track_time = (track_ctime == NULL)? g_strdup (_(empty)) : g_date_time_format (track_ctime, time_stamp),
+  format = (echo) ? g_strdup (_("\t\t\t<p><a name=\"%s\"><strong>%s</strong></a></p>\n"
+                                "\t\t\t\t<img src=\"%s/%s.png\" alt=\"%s\" title=\"%s\">\n"
+                                "\t\t\t\t<p>Date: %s<br>\n"
+                                "\t\t\t\tTime: %s<br>\n"
+                                "\t\t\t\tLocation: %s, %s (%s)<br>\n"
+                                "\t\t\t\tDescription: %s<br>\n"
+                                "\t\t\t\tComment: %s<br>\n"
+                                "\t\t\t\tNotes: %s<br>\n"
+                                "\t\t\t\tTrack: %s<br>\n"
+                                "\t\t\t\tTrack creation date: %s<br>\n"
+                                "\t\t\t\tBoard: %s<br>\n"
+                                "\t\t\t\tDepth: %.2f m<br>\n"
+                                "\t\t\t\tProject: %s<br>\n"
+                                "\t\t\t\t%s</p>\n"
+                                "\t\t\t<br style=\"page-break-before: always\"/>\n"))
+                  : g_strdup (_("\t\t\t<p><a name=\"%s\"><strong>%s</strong></a></p>\n"
+                                "\t\t\t\t<img src=\"%s/%s.png\" alt=\"%s\" title=\"%s\">\n"
+                                "\t\t\t\t<p>Date: %s<br>\n"
+                                "\t\t\t\tTime: %s<br>\n"
+                                "\t\t\t\tLocation: %s, %s (%s)<br>\n"
+                                "\t\t\t\tDescription: %s<br>\n"
+                                "\t\t\t\tComment: %s<br>\n"
+                                "\t\t\t\tNotes: %s<br>\n"
+                                "\t\t\t\tTrack: %s<br>\n"
+                                "\t\t\t\tTrack creation date: %s<br>\n"
+                                "\t\t\t\tBoard: %s<br>\n"
+                                "\t\t\t\tDepth: %.2f m<br>\n"
+                                "\t\t\t\tWidth: %.2f m<br>\n"
+                                "\t\t\t\tSlant range: %.2f m<br>\n"
+                                "\t\t\t\tProject: %s<br>\n"
+                                "\t\t\t\t%s</p>\n"
+                                "\t\t\t<br style=\"page-break-before: always\"/>\n"));
+
+  lat = g_strdup_printf ("%.6f°", location->mark_geo.lat);
+  lon = g_strdup_printf ("%.6f°", location->mark_geo.lon);
+
+  local  = g_date_time_new_from_unix_local (1e-6 * location->mark->ctime);
+
+  if (local == NULL)
+    goto terminate;
+
+  date = g_date_time_format (local, "%m/%d/%Y");
+  time = g_date_time_format (local, "%H:%M:%S");
+
+  name = (location->mark->name == NULL ||
+          IS_EMPTY (location->mark->name)) ?
+          g_strdup (_(unknown)) : g_strdup (location->mark->name);
+
+  description = (location->mark->description == NULL ||
+                 IS_EMPTY (location->mark->description)) ?
+                 g_strdup (_(empty)) : g_strdup (location->mark->description);
+
+  comment = g_strdup (_(empty));
+  notes   = g_strdup (_(empty));
+
+  switch (location->direction)
     {
-      HyScanTile *tile = NULL;
-      HyScanTileCacheable tile_cacheable;
-
-      tile = hyscan_tile_new (location->track_name);
-      tile->info.source = hyscan_source_get_type_by_id (location->mark->source);
-      if (tile->info.source != HYSCAN_SOURCE_INVALID)
-        {
-          hyscan_gtk_mark_export_init_tile (tile, &tile_cacheable, location);
-
-          if (hyscan_tile_queue_check (tile_queue, tile, &tile_cacheable, NULL))
-            {
-              gfloat *image = NULL;
-              guint32 size = 0;
-              if (hyscan_tile_queue_get (tile_queue, tile, &tile_cacheable, &image, &size))
-                {
-                  gboolean echo = (location->direction == HYSCAN_MARK_LOCATION_BOTTOM)? TRUE : FALSE;
-                  gdouble width = hyscan_gtk_mark_export_get_wfmark_width (location);
-                  GDateTime *local = NULL;
-                  gchar *lat, *lon, *name, *description, *comment, *notes, *depth,
-                        *date, *time, *content, *file_name, *board, *format,
-                        *track_time = (track_ctime == NULL)? g_strdup (_(empty)) : g_date_time_format (track_ctime, time_stamp);
-                  if (echo)
-                    {
-                      format = g_strdup (_("\t\t\t<p><a name=\"%s\"><strong>%s</strong></a></p>\n"
-                                           "\t\t\t\t<img src=\"%s/%s.png\" alt=\"%s\" title=\"%s\">\n"
-                                           "\t\t\t\t<p>Date: %s<br>\n"
-                                           "\t\t\t\tTime: %s<br>\n"
-                                           "\t\t\t\tLocation: %s, %s (%s)<br>\n"
-                                           "\t\t\t\tDescription: %s<br>\n"
-                                           "\t\t\t\tComment: %s<br>\n"
-                                           "\t\t\t\tNotes: %s<br>\n"
-                                           "\t\t\t\tTrack: %s<br>\n"
-                                           "\t\t\t\tTrack creation date: %s<br>\n"
-                                           "\t\t\t\tBoard: %s<br>\n"
-                                           "\t\t\t\tDepth: %s<br>\n"
-                                           "\t\t\t\tProject: %s<br>\n"
-                                           "\t\t\t\t%s</p>\n"
-                                           "\t\t\t<br style=\"page-break-before: always\"/>\n"));
-                    }
-                  else
-                    {
-                      format = g_strdup (_("\t\t\t<p><a name=\"%s\"><strong>%s</strong></a></p>\n"
-                                           "\t\t\t\t<img src=\"%s/%s.png\" alt=\"%s\" title=\"%s\">\n"
-                                           "\t\t\t\t<p>Date: %s<br>\n"
-                                           "\t\t\t\tTime: %s<br>\n"
-                                           "\t\t\t\tLocation: %s, %s (%s)<br>\n"
-                                           "\t\t\t\tDescription: %s<br>\n"
-                                           "\t\t\t\tComment: %s<br>\n"
-                                           "\t\t\t\tNotes: %s<br>\n"
-                                           "\t\t\t\tTrack: %s<br>\n"
-                                           "\t\t\t\tTrack creation date: %s<br>\n"
-                                           "\t\t\t\tBoard: %s<br>\n"
-                                           "\t\t\t\tDepth: %s<br>\n"
-                                           "\t\t\t\tWidth: %.2f m<br>\n"
-                                           "\t\t\t\tSlant range: %.2f m<br>\n"
-                                           "\t\t\t\tProject: %s<br>\n"
-                                           "\t\t\t\t%s</p>\n"
-                                           "\t\t\t<br style=\"page-break-before: always\"/>\n"));
-                    }
-                  lat = g_strdup_printf ("%.6f°", location->mark_geo.lat);
-                  lon = g_strdup_printf ("%.6f°", location->mark_geo.lon);
-
-                  local  = g_date_time_new_from_unix_local (1e-6 * location->mark->ctime);
-                  if (local == NULL)
-                    return;
-
-                  date = g_date_time_format (local, "%m/%d/%Y");
-                  time = g_date_time_format (local, "%H:%M:%S");
-
-                  name = (location->mark->name == NULL ||
-                          IS_EMPTY (location->mark->name)) ?
-                          g_strdup (_(unknown)) : g_strdup (location->mark->name);
-                  description = (location->mark->description == NULL ||
-                                 IS_EMPTY (location->mark->description)) ?
-                                 g_strdup (_(empty)) : g_strdup (location->mark->description);
-
-                  comment = g_strdup (_(empty));
-                  notes   = g_strdup (_(empty));
-
-                  switch (location->direction)
-                    {
-                    case HYSCAN_MARK_LOCATION_PORT:
-                      board = g_strdup (_("Port"));
-                      break;
-                    case HYSCAN_MARK_LOCATION_STARBOARD:
-                      board = g_strdup (_("Starboard"));
-                      break;
-                    case HYSCAN_MARK_LOCATION_BOTTOM:
-                      board = g_strdup (_("Bottom"));
-                      break;
-                    default:
-                      board = g_strdup (_(unknown));
-                      break;
-                    }
-
-                  if (location->depth < 0)
-                    depth = g_strdup (_("Empty"));
-                  else
-                    depth = g_strdup_printf ("%.2f m", location->depth);
-
-                  if (echo)
-                    {
-                      /* location->across - глубина до ценра тайла.*/
-                      /* location->depth - расстояние от поверхности
-                       * до линии дна по центральной вертикальной линии тайла. */
-                      content = g_strdup_printf (format, id, name, media, id, name, name,
-                                                 date, time, lat, lon, sys_coord, description,
-                                                 comment, notes, location->track_name,
-                                                 track_time, board, depth,
-                                                 project_name, _(link_to_site));
-                    }
-                  else
-                    {
-                      content = g_strdup_printf (format, id, name, media, id, name, name,
-                                                 date, time, lat, lon, sys_coord, description,
-                                                 comment, notes, location->track_name,
-                                                 track_time, board, depth, width,
-                                                 location->across, project_name, _(link_to_site));
-                    }
-
-                  fwrite (content, sizeof (gchar), strlen (content), file);
-
-                  g_free (format);
-                  g_free (content);
-                  g_free (lat);
-                  g_free (lon);
-                  g_free (name);
-                  g_free (description);
-                  g_free (comment);
-                  g_free (notes);
-                  g_free (depth);
-                  g_free (track_time);
-                  g_free (date);
-                  g_free (time);
-                  g_free (board);
-
-                  lat = lon = name = description = comment = notes = date = time = NULL;
-
-                  g_date_time_unref (local);
-
-                  tile->cacheable = tile_cacheable;
-                  file_name = g_strdup_printf ("%s/%s.png", image_folder, id);
-
-                  hyscan_gtk_mark_export_save_tile_as_png (tile,
-                                                           package,
-                                                           image,
-                                                           size,
-                                                           file_name,
-                                                           echo);
-                  g_free (file_name);
-                }
-            }
-        }
-      g_object_unref (tile);
+    case HYSCAN_MARK_LOCATION_PORT:
+      board = g_strdup (_("Port"));
+      break;
+    case HYSCAN_MARK_LOCATION_STARBOARD:
+      board = g_strdup (_("Starboard"));
+      break;
+    case HYSCAN_MARK_LOCATION_BOTTOM:
+      board = g_strdup (_("Bottom"));
+      break;
+    default:
+      board = g_strdup (_(unknown));
+      break;
     }
+  /* location->across - глубина до ценра тайла.*/
+  /* location->depth - расстояние от поверхности
+   * до линии дна по центральной вертикальной линии тайла. */
+  content = (echo) ? g_strdup_printf (format, id, name, media, id, name, name,
+                                      date, time, lat, lon, sys_coord, description,
+                                      comment, notes, location->track_name,
+                                      track_time, board, location->depth,
+                                      project_name, _(link_to_site))
+                   : g_strdup_printf (format, id, name, media, id, name, name,
+                                      date, time, lat, lon, sys_coord, description,
+                                      comment, notes, location->track_name,
+                                      track_time, board,location->depth, width,
+                                      location->across, project_name, _(link_to_site));
+
+  fwrite (content, sizeof (gchar), strlen (content), file);
+
+  g_free (format);
+  g_free (content);
+  g_free (lat);
+  g_free (lon);
+  g_free (name);
+  g_free (description);
+  g_free (comment);
+  g_free (notes);
+  g_free (track_time);
+  g_free (date);
+  g_free (time);
+  g_free (board);
+
+  lat = lon = name = description = comment = notes = date = time = NULL;
+
+  g_date_time_unref (local);
+
+  tile->cacheable = tile_cacheable;
+  file_name = g_strdup_printf ("%s/%s.png", image_folder, id);
+
+  hyscan_gtk_mark_export_save_tile_as_png (tile, package, image, size, file_name, echo);
+  g_free (file_name);
+
+terminate:
+  g_clear_object (&tile);
 }
 
 /* Функция сохраняет тайл в формате PNG. */
@@ -539,104 +535,106 @@ hyscan_gtk_mark_export_save_tile_as_png (HyScanTile  *tile,       /* Тайл. *
   cairo_surface_t   *surface    = NULL;
   HyScanTileSurface  tile_surface;
   HyScanTileColor   *tile_color = NULL;
+  gpointer           buffer;
   guint32            background,
                      colors[2],
                     *colormap   = NULL;
   guint              cmap_len;
 
-  if (file_name != NULL)
+  if (file_name == NULL)
+    return;
+
+  tile_color = hyscan_tile_color_new (package->cache);
+
+  background = hyscan_tile_color_converter_d2i (0.15, 0.15, 0.15, 1.0);
+  colors[0]  = hyscan_tile_color_converter_d2i (0.0, 0.0, 0.0, 1.0);
+  colors[1]  = hyscan_tile_color_converter_d2i (package->color.red,
+                                                package->color.green,
+                                                package->color.blue,
+                                                1.0);
+
+  colormap   = hyscan_tile_color_compose_colormap (colors, 2, &cmap_len);
+
+  hyscan_tile_color_set_colormap_for_all (tile_color, colormap, cmap_len, background);
+
+  /* 1.0 / 2.2 = 0.454545... */
+  hyscan_tile_color_set_levels (tile_color, tile->info.source, 0.0, 0.454545, 1.0);
+
+  tile_surface.width  = tile->cacheable.w;
+  tile_surface.height = tile->cacheable.h;
+  tile_surface.stride = cairo_format_stride_for_width (CAIRO_FORMAT_ARGB32,
+                                                       tile_surface.width);
+  tile_surface.data   = g_malloc0 (tile_surface.height * tile_surface.stride);
+
+  hyscan_tile_color_add (tile_color, tile, img, size, &tile_surface);
+
+  if (!hyscan_tile_color_check (tile_color, tile, &tile->cacheable))
+    goto terminate;
+
+  buffer = NULL;
+
+  if (echo)
     {
-      tile_color = hyscan_tile_color_new (package->cache);
+      gint   height = tile_surface.width,
+             width  = tile_surface.height,
+             stride = cairo_format_stride_for_width (CAIRO_FORMAT_ARGB32, width);
+      guint *dest,
+            *src;
 
-      background = hyscan_tile_color_converter_d2i (0.15, 0.15, 0.15, 1.0);
-      colors[0]  = hyscan_tile_color_converter_d2i (0.0, 0.0, 0.0, 1.0);
-      colors[1]  = hyscan_tile_color_converter_d2i (package->color.red,
-                                                    package->color.green,
-                                                    package->color.blue,
-                                                    1.0);
+      buffer = g_malloc0 (tile_surface.height * tile_surface.stride);
 
-      colormap   = hyscan_tile_color_compose_colormap (colors, 2, &cmap_len);
+      hyscan_tile_color_get (tile_color, tile, &tile->cacheable, &tile_surface);
 
-      hyscan_tile_color_set_colormap_for_all (tile_color, colormap, cmap_len, background);
-
-      /* 1.0 / 2.2 = 0.454545... */
-      hyscan_tile_color_set_levels (tile_color, tile->info.source, 0.0, 0.454545, 1.0);
-
-      tile_surface.width  = tile->cacheable.w;
-      tile_surface.height = tile->cacheable.h;
-      tile_surface.stride = cairo_format_stride_for_width (CAIRO_FORMAT_ARGB32,
-                                                           tile_surface.width);
-      tile_surface.data   = g_malloc0 (tile_surface.height * tile_surface.stride);
-
-      hyscan_tile_color_add (tile_color, tile, img, size, &tile_surface);
-
-      if (hyscan_tile_color_check (tile_color, tile, &tile->cacheable))
+      dest = (guint*)buffer,
+      src  = (guint*)tile_surface.data;
+      /* Поворот на 90 градусов */
+      for (gint j = 0; j < tile_surface.height; j++)
         {
-          gpointer buffer = NULL;
-
-          if (echo == TRUE)
-            {
-              gint   i, j,
-                     height = tile_surface.width,
-                     width  = tile_surface.height,
-                     stride = cairo_format_stride_for_width (CAIRO_FORMAT_ARGB32, width);
-              guint *dest,
-                    *src;
-
-              buffer = g_malloc0 (tile_surface.height * tile_surface.stride);
-
-              hyscan_tile_color_get (tile_color, tile, &tile->cacheable, &tile_surface);
-
-              dest = (guint*)buffer,
-              src  = (guint*)tile_surface.data;
-              /* Поворот на 90 градусов */
-              for (j = 0; j < tile_surface.height; j++)
-                {
-                  for (i = 0; i < tile_surface.width; i++)
-                    {
-                      dest[i * tile_surface.height + j] = src[j * tile_surface.width + i];
-                    }
-                }
-              /* Отражение по горизонтали. */
-              for (j = 0; j <= (height - 1); j++)
-                {
-                  for (i = 0; i <= (width >> 1); i++)
-                    {
-                      gint  from = j * width + i,
-                            to   = j * width + width - 1 - i;
-                      guint tmp  = dest[from];
-
-                      dest[from] = dest[to];
-                      dest[to]   = tmp;
-                   }
-                }
-
-              surface = cairo_image_surface_create_for_data ( (guchar*)buffer,
-                                                              CAIRO_FORMAT_ARGB32,
-                                                              width,
-                                                              height,
-                                                              stride);
-            }
-          else
-            {
-              hyscan_tile_color_get (tile_color, tile, &tile->cacheable, &tile_surface);
-              surface = cairo_image_surface_create_for_data ( (guchar*)tile_surface.data,
-                                                              CAIRO_FORMAT_ARGB32,
-                                                              tile_surface.width,
-                                                              tile_surface.height,
-                                                              tile_surface.stride);
-            }
-          cairo_surface_write_to_png (surface, file_name);
-          if (buffer != NULL)
-            g_free (buffer);
+          for (gint i = 0; i < tile_surface.width; i++)
+            dest[i * tile_surface.height + j] = src[j * tile_surface.width + i];
         }
-      if (tile_surface.data != NULL)
-        g_free (tile_surface.data);
-      if (tile_color != NULL)
-        g_object_unref (tile_color);
-      if (surface != NULL)
-        cairo_surface_destroy (surface);
+      /* Отражение по горизонтали. */
+      for (gint j = 0; j <= (height - 1); j++)
+        {
+          for (gint i = 0; i <= (width >> 1); i++)
+            {
+              gint  from = j * width + i,
+                    to   = j * width + width - 1 - i;
+              guint tmp  = dest[from];
+
+              dest[from] = dest[to];
+              dest[to]   = tmp;
+            }
+        }
+      surface = cairo_image_surface_create_for_data ( (guchar*)buffer,
+                                                      CAIRO_FORMAT_ARGB32,
+                                                      width,
+                                                      height,
+                                                      stride);
     }
+  else
+    {
+      hyscan_tile_color_get (tile_color, tile, &tile->cacheable, &tile_surface);
+      surface = cairo_image_surface_create_for_data ( (guchar*)tile_surface.data,
+                                                      CAIRO_FORMAT_ARGB32,
+                                                      tile_surface.width,
+                                                      tile_surface.height,
+                                                      tile_surface.stride);
+    }
+  cairo_surface_write_to_png (surface, file_name);
+
+  if (buffer != NULL)
+    g_free (buffer);
+
+terminate:
+  if (tile_surface.data != NULL)
+    g_free (tile_surface.data);
+
+  if (tile_color != NULL)
+    g_object_unref (tile_color);
+
+  if (surface != NULL)
+    cairo_surface_destroy (surface);
 }
 
 /*
@@ -800,13 +798,13 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
       if (wf_mark_size > 0 || geo_mark_size > 0)
         {
           gchar *tmp = _("%s<br>\n"
-                       "\t\t%s<br>\n"
-                       "\t\t%s<br>\n"
-                       "\t\t%s</p>\n"
-                       "\t\t<p>Statistics<br>\n"
-                       "\t\tGeo marks: %i<br>\n"
-                       "\t\tAcoustic marks: %i<br>\n"
-                       "\t\tTotal: %i");
+                         "\t\t%s<br>\n"
+                         "\t\t%s<br>\n"
+                         "\t\t%s</p>\n"
+                         "\t\t<p>Statistics<br>\n"
+                         "\t\tGeo marks: %i<br>\n"
+                         "\t\tAcoustic marks: %i<br>\n"
+                         "\t\tTotal: %i");
           txt_title = g_strdup_printf (tmp,
                                        title, project, crtime, prj_desc,
                                        geo_mark_size, wf_mark_size,
@@ -834,11 +832,15 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
 
           while (g_hash_table_iter_next (&hash_iter, (gpointer *) &mark_id, (gpointer *) &geo_mark))
             {
-              gchar *link_to_mark = g_strdup_printf ("\t\t\t<a href=\"#%s\">%s</a><br>\n",
-                                                     mark_id,
-                                                     (geo_mark->name == NULL ||
-                                                      IS_EMPTY (geo_mark->name) ?
-                                                      _(unknown) : geo_mark->name));
+              gchar *link_to_mark;
+
+              if (geo_mark == NULL)
+                continue;
+
+              link_to_mark = g_strdup_printf ("\t\t\t<a href=\"#%s\">%s</a><br>\n",
+                                              mark_id,
+                                              (geo_mark->name == NULL ||
+                                              IS_EMPTY (geo_mark->name) ? _(unknown) : geo_mark->name));
               list = g_strconcat (list, link_to_mark, (gchar*) NULL);
               g_free (link_to_mark);
             }
@@ -857,11 +859,15 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
 
           while (g_hash_table_iter_next (&hash_iter, (gpointer *) &mark_id, (gpointer *) &location))
             {
-              gchar *link_to_mark = g_strdup_printf ("\t\t\t<a href=\"#%s\">%s</a><br>\n",
-                                                     mark_id,
-                                                     (location->mark->name == NULL ||
-                                                      IS_EMPTY (location->mark->name) ?
-                                                      _(unknown) : location->mark->name));
+              gchar *link_to_mark;
+
+              if (location == NULL)
+                continue;
+
+              link_to_mark = g_strdup_printf ("\t\t\t<a href=\"#%s\">%s</a><br>\n",
+                                              mark_id,
+                                              (location->mark->name == NULL ||
+                                              IS_EMPTY (location->mark->name) ? _(unknown) : location->mark->name));
               list = g_strconcat (list, link_to_mark, (gchar*) NULL);
               g_free (link_to_mark);
             }
@@ -912,9 +918,7 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
           g_hash_table_iter_init (&hash_iter, data->acoustic_marks);
 
           while (g_hash_table_iter_next (&hash_iter, (gpointer *) &mark_id, (gpointer *) &location))
-            {
-              hyscan_gtk_mark_export_generate_tile (location, tile_queue, &package.counter);
-            }
+            hyscan_gtk_mark_export_generate_tile (location, tile_queue, &package.counter);
         }
       if (data->geo_marks != NULL)
         {
@@ -936,16 +940,9 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
               lon = g_strdup_printf ("%.6f°", geo_mark->center.lon);
 
               local  = g_date_time_new_from_unix_local (1e-6 * geo_mark->ctime);
-              if (local == NULL)
-                {
-                  date = g_strdup (_(empty));
-                  time = g_strdup (_(empty));
-                }
-              else
-                {
-                  date = g_date_time_format (local, "%m/%d/%Y");
-                  time = g_date_time_format (local, "%H:%M:%S");
-                }
+
+              date = (local == NULL) ? g_strdup (_(empty)) : g_date_time_format (local, "%m/%d/%Y");
+              time = (local == NULL) ? g_strdup (_(empty)) : g_date_time_format (local, "%H:%M:%S");
 
               name = (geo_mark->name == NULL ||
                       IS_EMPTY (geo_mark->name)) ?
@@ -1001,13 +998,11 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
           g_timeout_add (0, hyscan_gtk_mark_export_set_watch_cursor, data->toplevel);
           g_free (rand);
         }
-      while (package.counter > 0)
-        {
-          /* Ждём пока сгенерируются и сохранятся все тайлы. */
-          /* g_usleep (1000); */
-          g_print ("Waiting...\n");
-        }
-      g_print ("Done.\n");
+      /* Ждём пока сгенерируются и сохранятся все тайлы. */
+      while (package.counter > 0) {}
+#ifndef NDEBUG
+      g_print ("Done! All tiles generated seccessfully.\n");
+#endif
       if (data->acoustic_marks != NULL)
         {
           HyScanMarkLocation *location   = NULL;
@@ -1061,6 +1056,7 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
   g_free (file_name);
   g_timeout_add (0, hyscan_gtk_mark_export_set_default_cursor, data->toplevel);
   g_free (data);
+
   return NULL;
 }
 
@@ -1078,6 +1074,7 @@ hyscan_gtk_mark_export_set_watch_cursor (gpointer user_data)
   display      = gdk_display_get_default ();
   cursor_watch = gdk_cursor_new_for_display (display, GDK_WATCH);
   gdk_window_set_cursor (gtk_widget_get_window (window), cursor_watch);
+
   return FALSE;
 }
 
@@ -1096,7 +1093,7 @@ hyscan_gtk_mark_export_set_default_cursor (gpointer user_data)
 
 /* функция возвращает ширину метки с учётом выхода за пределы "борта". */
 gdouble
-hyscan_gtk_mark_export_get_wfmark_width (HyScanMarkLocation  *location)
+hyscan_gtk_mark_export_get_wfmark_width (HyScanMarkLocation *location)
 {
   gdouble width = 2.0 * location->mark->width;
   /* "Эхолотная" метка. */
@@ -1112,20 +1109,18 @@ hyscan_gtk_mark_export_get_wfmark_width (HyScanMarkLocation  *location)
       /* Поэтому значения отрицательные, и start и end меняются местами. */
       gdouble across_start = -location->mark->width - location->across;
       gdouble across_end   =  location->mark->width - location->across;
+
       if (across_start < 0 && across_end > 0)
-        {
-          width = -across_start;
-        }
+        width = -across_start;
     }
   /* Правый борт. */
   else
     {
       gdouble across_start = location->across - location->mark->width;
       gdouble across_end   = location->across + location->mark->width;
+
       if (across_start < 0 && across_end > 0)
-        {
-          width = across_end;
-        }
+        width = across_end;
     }
   return width;
 }
@@ -1296,7 +1291,6 @@ hyscan_gtk_mark_export_save_as_html (HyScanGtkModelManager *model_manager,
     {
       gchar **geo_mark_list      = hyscan_gtk_model_manager_get_toggled_items (model_manager, GEO_MARK),
             **acoustic_mark_list = hyscan_gtk_model_manager_get_toggled_items (model_manager, ACOUSTIC_MARK);
-      gint i;
 
       if (geo_mark_list != NULL)
         {
@@ -1304,18 +1298,18 @@ hyscan_gtk_mark_export_save_as_html (HyScanGtkModelManager *model_manager,
                                                    g_str_equal,
                                                    g_free,
                                                    (GDestroyNotify) hyscan_mark_geo_free);
-          for (i = 0; geo_mark_list[i] != NULL; i++)
+          for (gint i = 0; geo_mark_list[i] != NULL; i++)
             {
               HyScanMarkGeo *geo_mark = (HyScanMarkGeo*) hyscan_object_store_get (HYSCAN_OBJECT_STORE (geo_mark_model),
                                                                                   HYSCAN_TYPE_MARK_GEO,
                                                                                   geo_mark_list[i]);
-              if (geo_mark != NULL)
-                {
-                  g_hash_table_insert (data->geo_marks,
-                                       g_strdup (geo_mark_list[i]),
-                                       hyscan_mark_geo_copy (geo_mark));
-                  hyscan_mark_geo_free (geo_mark);
-                }
+              if (geo_mark == NULL)
+                continue;
+
+              g_hash_table_insert (data->geo_marks,
+                                   g_strdup (geo_mark_list[i]),
+                                   hyscan_mark_geo_copy (geo_mark));
+              hyscan_mark_geo_free (geo_mark);
             }
         }
 
@@ -1326,16 +1320,16 @@ hyscan_gtk_mark_export_save_as_html (HyScanGtkModelManager *model_manager,
                                                         g_str_equal,
                                                         g_free,
                                                         (GDestroyNotify) hyscan_mark_location_free);
-          for (i = 0; acoustic_mark_list[i] != NULL; i++)
+          for (gint i = 0; acoustic_mark_list[i] != NULL; i++)
             {
               HyScanMarkLocation *location = g_hash_table_lookup (table, acoustic_mark_list[i]);
 
-              if (location != NULL)
-                {
-                  g_hash_table_insert (data->acoustic_marks,
-                                       g_strdup (acoustic_mark_list[i]),
-                                       hyscan_mark_location_copy (location));
-                }
+              if (location == NULL)
+                continue;
+
+              g_hash_table_insert (data->acoustic_marks,
+                                   g_strdup (acoustic_mark_list[i]),
+                                   hyscan_mark_location_copy (location));
             }
           g_hash_table_unref (table);
         }
@@ -1344,8 +1338,9 @@ hyscan_gtk_mark_export_save_as_html (HyScanGtkModelManager *model_manager,
     }
   else
     {
-      data->geo_marks = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (geo_mark_model), HYSCAN_TYPE_MARK_GEO);
       data->acoustic_marks = hyscan_mark_loc_model_get (acoustic_mark_model);
+      data->geo_marks      = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (geo_mark_model),
+                                                          HYSCAN_TYPE_MARK_GEO);
     }
 
   g_object_unref (geo_mark_model);
@@ -1358,10 +1353,10 @@ hyscan_gtk_mark_export_save_as_html (HyScanGtkModelManager *model_manager,
     }
 
   data->project_name = hyscan_gtk_model_manager_get_project_name (model_manager);
-  data->db = hyscan_gtk_model_manager_get_db (model_manager);
-  data->cache = hyscan_gtk_model_manager_get_cache (model_manager);
-  data->toplevel = toplevel;
-  data->folder = gtk_file_chooser_get_current_folder (GTK_FILE_CHOOSER (dialog));
+  data->db           = hyscan_gtk_model_manager_get_db (model_manager);
+  data->cache        = hyscan_gtk_model_manager_get_cache (model_manager);
+  data->toplevel     = toplevel;
+  data->folder       = gtk_file_chooser_get_current_folder (GTK_FILE_CHOOSER (dialog));
   gdk_rgba_parse (&data->color, "#FFFF00");
 
   thread = g_thread_new ("save_as_html", hyscan_gtk_mark_export_save_as_html_thread, (gpointer)data);

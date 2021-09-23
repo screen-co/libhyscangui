@@ -34,14 +34,16 @@
 
 /**
  * SECTION: hyscan-gtk-mark-manager-set-labels-dialog
- * @Short_description: Класс диалога для переноса объектов в выбранные группы.
+ * @Short_description: Класс диалога для группировки объектов.
  * @Title: HyScanGtkMarkManagerSetLabelsDialog
- * @See_also: #HyScanGtkMarkManagerCreateLabelDialog, #HyScanGtkMarkManager, #HyScanGtkMarkManagerView, #HyScanGtkModelManager
+ * @See_also: #HyScanGtkMarkManagerCreateLabelDialog, #HyScanGtkMarkManager,
+ *            #HyScanGtkMarkManagerView, #HyScanGtkModelManager
  *
- * Диалог #HyScanGtkMarkManagerSetLabelsDialog позволяет выбирать группы в Журнале Меток чтобы переносить в них выбранные объекты.
+ * Диалог #HyScanGtkMarkManagerSetLabelsDialog позволяет назначать объектам группы.
  *
  * - hyscan_gtk_mark_manager_set_labels_dialog_new () - создание экземпляра диалога;
- *
+ * - hyscan_gtk_mark_manager_set_labels_dialog_get_inconsistents () - возвращает
+ * битовую маску групп с неопределённым статусом.
  */
 #include <hyscan-gtk-mark-manager-set-labels-dialog.h>
 #include <hyscan-object-data-label.h>
@@ -91,9 +93,9 @@ enum
 /* Статус чек-бокса. */
 enum
 {
-  INCONSISTENT,
-  NOT_ACTIVE,
-  ACTIVE
+  INCONSISTENT,        /* Неопределённое состояние чек-бокса. */
+  NOT_ACTIVE,          /* Чек-бокс не отмечен. */
+  ACTIVE               /* Чек-бокс отмечен. */
 };
 
 struct _HyScanGtkMarkManagerSetLabelsDialogPrivate
@@ -150,6 +152,7 @@ hyscan_gtk_mark_manager_set_labels_dialog_class_init (HyScanGtkMarkManagerSetLab
   /**
    * HyScanGtkMarkManagerSetLabelsDialog::set-label:
    * @self: указатель на #HyScanGtkMarkManager
+   * @labels: битовая маска соответствующая выбранным группам.
    *
    * Сигнал посылается при изменении групп.
    */
@@ -182,12 +185,15 @@ hyscan_gtk_mark_manager_set_labels_dialog_set_property (GObject      *object,
     case PROP_MODEL:
       priv->label_model = g_value_dup_object (value);
       break;
+
     case PROP_LABELS:
       priv->labels = g_value_get_int64 (value);
       break;
+
     case PROP_INCONSISTENTS:
       priv->inconsistents = g_value_get_int64 (value);
       break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -215,11 +221,8 @@ hyscan_gtk_mark_manager_set_labels_dialog_constructed (GObject *object)
   gtk_dialog_add_button (dialog, _("OK"),     GTK_RESPONSE_OK);
   gtk_dialog_add_button (dialog, _("Cancel"), GTK_RESPONSE_CANCEL);
 
-  /* Заполняем модель данными. */
   if (table != NULL)
     {
-      GHashTableIter  table_iter;
-      GtkTreeIter     store_iter;
       GtkListStore   *store = gtk_list_store_new (N_COLUMNS,
                                                   G_TYPE_BOOLEAN,  /* Статус чек-бокса. */
                                                   G_TYPE_BOOLEAN,  /* Свойство "inconsistent". */
@@ -231,50 +234,56 @@ hyscan_gtk_mark_manager_set_labels_dialog_constructed (GObject *object)
                                                   G_TYPE_STRING,   /* Дата и время создания. */
                                                   G_TYPE_STRING,   /* Дата и время изменения. */
                                                   G_TYPE_INT64);   /* Битовая маска. */
+      GtkTreeIter     store_iter;
+      GHashTableIter  table_iter;
       HyScanLabel    *object;
       gchar          *id;
 
       g_hash_table_iter_init (&table_iter, table);
       while (g_hash_table_iter_next (&table_iter, (gpointer*)&id, (gpointer*)&object))
         {
-          if (object != NULL)
-            {
-              GdkPixbuf *icon = NULL;
-              GInputStream *stream;
-              GDateTime *ctime = g_date_time_new_from_unix_local (object->ctime),
-                        *mtime = g_date_time_new_from_unix_local (object->mtime);
-              GError *error = NULL;
-              guchar *buf;
-              gsize length;
+          GdkPixbuf *icon = NULL;
+          GInputStream *stream;
+          GDateTime *ctime, *mtime;
+          GError *error = NULL;
+          guchar *buf;
+          gsize length;
 
-              buf = g_base64_decode ((const gchar*)object->icon_data, &length);
-              stream = g_memory_input_stream_new_from_data ((const void*)buf, (gssize)length, g_free);
-              icon = gdk_pixbuf_new_from_stream (stream, NULL, &error);
-              g_input_stream_close (stream, NULL, NULL);
-              g_free (buf);
+          if (object == NULL)
+            continue;
 
-              if (icon != NULL)
-                {
-                  gtk_list_store_append (store,           &store_iter);
-                  gtk_list_store_set (store,              &store_iter,
-                                      COLUMN_ACTIVE,       (object->label & priv->labels)        == object->label,
-                                      COLUMN_INCONSISTENT, (object->label & priv->inconsistents) == object->label,
-                                      COLUMN_ICON,         icon,                  /* Иконки. */
-                                      COLUMN_NAME,         object->name,          /* Название группы. */
-                                      COLUMN_ID,           id,                    /* Идентификатор в базе данных. */
-                                      COLUMN_DESCRIPTION,  object->description,   /* Описание группы. */
-                                      COLUMN_OPERATOR,     object->operator_name, /* Оператор. */
-                                      /* Дата и время создания. */
-                                      COLUMN_CTIME,        g_date_time_format (ctime, "%d.%m.%Y %H:%M:%S"),
-                                      /* Дата и время изменения. */
-                                      COLUMN_MTIME,        g_date_time_format (mtime, "%d.%m.%Y %H:%M:%S"),
-                                      COLUMN_MASK,         object->label,
-                                      -1);
-                  g_object_unref (icon);
-                }
-              g_date_time_unref (ctime);
-              g_date_time_unref (mtime);
-            }
+          buf = g_base64_decode ( (const gchar*)object->icon_data, &length);
+          stream = g_memory_input_stream_new_from_data ( (const void*)buf, (gssize)length, g_free);
+          icon = gdk_pixbuf_new_from_stream (stream, NULL, &error);
+          g_input_stream_close (stream, NULL, NULL);
+          g_free (buf);
+
+          if (icon == NULL)
+            continue;
+
+          ctime = g_date_time_new_from_unix_local (object->ctime);
+          mtime = g_date_time_new_from_unix_local (object->mtime);
+
+          gtk_list_store_append (store,            &store_iter);
+          gtk_list_store_set (store,               &store_iter,
+                              /* TRUE - общая группа для объектов, FALSE - есть объекты, не входящие в группу. */
+                              COLUMN_ACTIVE,        (object->label & priv->labels) == object->label,
+                              /* Неопределённое состояние. */
+                              COLUMN_INCONSISTENT,  (object->label & priv->inconsistents) == object->label,
+                              COLUMN_ICON,          icon,                  /* Иконки. */
+                              COLUMN_NAME,          object->name,          /* Название группы. */
+                              COLUMN_ID,            id,                    /* Идентификатор в базе данных. */
+                              COLUMN_DESCRIPTION,   object->description,   /* Описание группы. */
+                              COLUMN_OPERATOR,      object->operator_name, /* Оператор. */
+                              /* Дата и время создания. */
+                              COLUMN_CTIME,         g_date_time_format (ctime, "%d.%m.%Y %H:%M:%S"),
+                              /* Дата и время изменения. */
+                              COLUMN_MTIME,         g_date_time_format (mtime, "%d.%m.%Y %H:%M:%S"),
+                              COLUMN_MASK,          object->label,
+                              -1);
+          g_object_unref (icon);
+          g_date_time_unref (ctime);
+          g_date_time_unref (mtime);
         }
 
       priv->model = GTK_TREE_MODEL (store);
@@ -285,12 +294,11 @@ hyscan_gtk_mark_manager_set_labels_dialog_constructed (GObject *object)
       if (priv->tree_view != NULL)
         {
           GtkWidget         *scroll          = gtk_scrolled_window_new (NULL, NULL);
-          GtkCellRenderer   *toggle_renderer = gtk_cell_renderer_toggle_new (),      /* Чек-бокс. */
+          GtkCellRenderer   *toggle_renderer = gtk_cell_renderer_toggle_new (),
                             *renderer        = gtk_cell_renderer_text_new (),
                             *icon_renderer   = gtk_cell_renderer_pixbuf_new ();
           GtkTreeView       *tree_view       = GTK_TREE_VIEW (priv->tree_view);
 
-          /* Полключаем сигнал для обработки клика по чек-боксам. */
           g_signal_connect (toggle_renderer,
                             "toggled",
                             G_CALLBACK (hyscan_gtk_mark_manager_set_labels_on_toggle),
@@ -402,20 +410,10 @@ hyscan_gtk_mark_manager_set_labels_dialog_response (GtkWidget *dialog,
                                   COLUMN_MASK,         &mask,
                                   COLUMN_INCONSISTENT, &inconsistent,
                                   -1);
-              /* Маска отмеченных чек-боксов. */
-              if (active)
-                labels |= mask;  /* Устанавливаем бит. */
-              else
-                labels &= ~mask; /* Снимаем бит. */
-              /* Маска чек-боксов с неопределённым состоянием. */
-              if (inconsistent)
-                priv->inconsistents |= mask;  /* Устанавливаем бит. */
-              else
-                priv->inconsistents &= ~mask; /* Снимаем бит. */
+              labels = (active) ? labels | mask : labels & (~mask);
+              priv->inconsistents = (inconsistent) ? priv->inconsistents | mask : priv->inconsistents & (~mask);
             }
           while (gtk_tree_model_iter_next (priv->model, &iter));
-
-          /*if (priv->labels == labels)*/
 
           g_signal_emit (self, hyscan_gtk_mark_manager_set_labels_dialog_signals[SIGNAL_SET_LABELS], 0, labels);
         }
@@ -433,6 +431,8 @@ hyscan_gtk_mark_manager_set_labels_on_toggle (GtkCellRendererToggle *cell_render
   HyScanGtkMarkManagerSetLabelsDialogPrivate *priv;
   GtkTreeModel     *model;
   GtkTreeIter       iter;
+  static guint status = NOT_ACTIVE;
+  gboolean active, inconsistent;
 
   g_return_if_fail (HYSCAN_IS_GTK_MARK_MANAGER_SET_LABELS_DIALOG (user_data));
 
@@ -441,49 +441,44 @@ hyscan_gtk_mark_manager_set_labels_on_toggle (GtkCellRendererToggle *cell_render
 
   model = gtk_tree_view_get_model (GTK_TREE_VIEW (priv->tree_view));
 
-  if (gtk_tree_model_get_iter_from_string (model, &iter, path))
+  if (!gtk_tree_model_get_iter_from_string (model, &iter, path))
+    return;
+
+  gtk_tree_model_get (priv->model,         &iter,
+                      COLUMN_ACTIVE,       &active,
+                      COLUMN_INCONSISTENT, &inconsistent,
+                      -1);
+
+  if (!inconsistent)
     {
-      static guint status = NOT_ACTIVE;
-      gboolean active, inconsistent;
-
-      gtk_tree_model_get (priv->model,         &iter,
-                          COLUMN_ACTIVE,       &active,
-                          COLUMN_INCONSISTENT, &inconsistent,
+      status = ACTIVE;
+      if (active)
+        status = INCONSISTENT;
+    }
+  switch (status++)
+    {
+    case INCONSISTENT:
+      gtk_list_store_set (GTK_LIST_STORE (model), &iter,
+                          COLUMN_INCONSISTENT,     TRUE,
                           -1);
-      if (!inconsistent)
-        {
-          status = ACTIVE;
-          if (active)
-            status = INCONSISTENT;
-        }
+      break;
 
-      switch (status++)
-        {
-        /* Неопределённое состояние чек-бокса. */
-        case INCONSISTENT:
-          gtk_list_store_set (GTK_LIST_STORE (model), &iter,
-                              COLUMN_INCONSISTENT,     TRUE,
-                              -1);
-          break;
-        /* Чек-бокс не отмечен. */
-        case NOT_ACTIVE:
-          gtk_list_store_set (GTK_LIST_STORE (model), &iter,
-                              COLUMN_ACTIVE,           FALSE,
-                              COLUMN_INCONSISTENT,     FALSE,
-                              -1);
-          break;
-        /* Чек-бокс отмечен. */
-        case ACTIVE:
-          gtk_list_store_set (GTK_LIST_STORE (model), &iter,
-                              COLUMN_ACTIVE,           TRUE,
-                              COLUMN_INCONSISTENT,     FALSE,
-                              -1);
-          /* Нет break-а чтобы в default-е установилось неопределённое состояние чек-бокса. */
-        /* Устанавливаем неопределённое состояние чек-бокса. */
-        default:
-          status = INCONSISTENT;
-          break;
-        }
+    case NOT_ACTIVE:
+      gtk_list_store_set (GTK_LIST_STORE (model), &iter,
+                          COLUMN_ACTIVE,           FALSE,
+                          COLUMN_INCONSISTENT,     FALSE,
+                          -1);
+      break;
+
+    case ACTIVE:
+      gtk_list_store_set (GTK_LIST_STORE (model), &iter,
+                          COLUMN_ACTIVE,           TRUE,
+                          COLUMN_INCONSISTENT,     FALSE,
+                          -1);
+      /* Нет break-а чтобы в default-е установилось неопределённое состояние чек-бокса. */
+    default:
+      status = INCONSISTENT;
+      break;
     }
 }
 /**
@@ -520,5 +515,6 @@ hyscan_gtk_mark_manager_set_labels_dialog_get_inconsistents (GtkWidget *dialog)
 {
   HyScanGtkMarkManagerSetLabelsDialog *self = HYSCAN_GTK_MARK_MANAGER_SET_LABELS_DIALOG (dialog);
   HyScanGtkMarkManagerSetLabelsDialogPrivate *priv = self->priv;
+
   return priv->inconsistents;
 }
