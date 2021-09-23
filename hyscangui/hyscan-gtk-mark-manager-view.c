@@ -1497,6 +1497,7 @@ hyscan_gtk_mark_manager_view_toggle_item (HyScanGtkMarkManagerView *self,
 /**
  * hyscan_gtk_mark_manager_view_block_signal_selected:
  * @self: указатель на структуру #HyScanGtkMarkManagerView
+ * @block: TRUE - блокировать, FALSE - разблокировать
  *
  * Функция блокирует или разблокирует сигнал выбора строки.
  */
