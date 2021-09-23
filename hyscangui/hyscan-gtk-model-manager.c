@@ -2970,7 +2970,7 @@ hyscan_gtk_model_manager_get_view_model (HyScanGtkModelManager *self)
 /**
  * hyscan_gtk_model_manager_set_selected_item:
  * @self: указатель на Менеджер Моделей
- * @selection: указатель на выделенные объекты
+ * @id: идентификатор выделенного объекта
  *
  * Устанавливает выделенную строку.
  */

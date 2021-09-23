@@ -1231,7 +1231,7 @@ hyscan_gtk_mark_manager_view_get_toggled (HyScanGtkMarkManagerView *self,
 
 /**
  * hyscan_gtk_mark_manager_view_new:
- * @model: модель представления данных
+ * @store: модель представления данных
  *
  * Returns: cоздаёт новый экземпляр #HyScanGtkMarkManageView
  */
@@ -1246,7 +1246,7 @@ hyscan_gtk_mark_manager_view_new (GtkTreeModel *store)
 /**
  * hyscan_gtk_mark_manager_view_set_store:
  * @self: указатель на структуру #HyScanGtkMarkManagerView
- * @model: указатель на модель с данными
+ * @store: указатель на модель с данными
  *
  * Устанавливает модель представления данных. */
 void
@@ -1285,9 +1285,6 @@ hyscan_gtk_mark_manager_view_select_item (HyScanGtkMarkManagerView *self,
   GtkTreeIter  *array = NULL, iter;
   guint         index;
 
-  if (priv->signal_selected == 0)
-    return;
-
   if (selection == NULL)
     return;
 
@@ -1309,7 +1306,8 @@ hyscan_gtk_mark_manager_view_select_item (HyScanGtkMarkManagerView *self,
       return;
     }
 
-  g_signal_handler_block (G_OBJECT (selection), priv->signal_selected);
+  if (priv->signal_selected != 0)
+    g_signal_handler_block (G_OBJECT (selection), priv->signal_selected);
 
   gtk_tree_selection_unselect_all (selection);
 
@@ -1336,7 +1334,8 @@ hyscan_gtk_mark_manager_view_select_item (HyScanGtkMarkManagerView *self,
         gtk_tree_selection_select_iter (selection, &array[index]);
     }
 
-  g_signal_handler_unblock (G_OBJECT (selection), priv->signal_selected);
+  if (priv->signal_selected != 0)
+    g_signal_handler_unblock (G_OBJECT (selection), priv->signal_selected);
 
   g_free (array);
 }
