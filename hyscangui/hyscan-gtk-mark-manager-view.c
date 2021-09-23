@@ -977,18 +977,29 @@ hyscan_gtk_mark_manager_view_select_func (GtkTreeSelection *selection,
 {
   HyScanGtkMarkManagerView *self;
   HyScanGtkMarkManagerViewPrivate *priv;
+  /* Флаг повторного вызова функции. */
+  static gboolean flag = FALSE;
 
   g_return_val_if_fail (HYSCAN_IS_GTK_MARK_MANAGER_VIEW (data), FALSE);
 
   self = HYSCAN_GTK_MARK_MANAGER_VIEW (data);
   priv = self->priv;
 
-  if (priv->toggle_flag)
+  /* Прерываем выполнение при повторном вызове. */
+  if (flag)
     {
       priv->toggle_flag = FALSE;
+      flag = FALSE;
       return FALSE;
     }
 
+  /* Прерываем при обработке изменения статуса чек-бокса. */
+  if (priv->toggle_flag)
+    {
+      flag = TRUE;
+      return FALSE;
+    }
+  /* Выполняем обработчик выделения объекта. */
   return TRUE;
 }
 
