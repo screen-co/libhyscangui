@@ -310,10 +310,7 @@ hyscan_gtk_mark_manager_create_label_dialog_response (GtkWidget *dialog,
 
       if (g_list_length (images) == 0)
         {
-          GtkWidget *image = gtk_image_new_from_resource ("/org/hyscan/icons/emblem-default.png");
-
-          pixbuf = gtk_image_get_pixbuf (GTK_IMAGE (image));
-          gtk_widget_destroy (image);
+          pixbuf = gdk_pixbuf_new_from_resource ("/org/hyscan/icons/emblem-default.png", NULL);
         }
       else
         {
