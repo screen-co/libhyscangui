@@ -2618,6 +2618,7 @@ hyscan_gtk_model_manager_delete_item (HyScanGtkModelManager  *self,
                     /* Конвертируем в акустическую метку в гео метку. */
                     HyScanMarkGeo *geo_mark = hyscan_mark_geo_new ();
                     GDateTime     *dt       = g_date_time_new_now_local ();
+                    gdouble radius = sqrt ( (location->mark->width * location->mark->height) / G_PI);
 
                     geo_mark->name          = g_strdup (location->mark->name);
                     geo_mark->description   = g_strdup (location->mark->description);
@@ -2626,8 +2627,9 @@ hyscan_gtk_model_manager_delete_item (HyScanGtkModelManager  *self,
                     geo_mark->ctime  = location->mark->ctime;
                     geo_mark->mtime  = G_TIME_SPAN_SECOND * g_date_time_to_unix (dt);
                     g_date_time_unref (dt);
-                    geo_mark->width  = location->mark->width;
-                    geo_mark->height = location->mark->height;
+                    /* Размеры гео-метки пересчитываются сохраняя площадь акустической метки. */
+                    geo_mark->width  = 2.0 * radius;
+                    geo_mark->height = geo_mark->width;
                     geo_mark->center = location->mark_geo;
 
                     /*hyscan_object_model_add (priv->geo_mark_model, (const HyScanObject*)geo_mark);*/

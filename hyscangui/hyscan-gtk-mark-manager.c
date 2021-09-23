@@ -704,7 +704,7 @@ hyscan_gtk_mark_manager_delete_toggled (GtkToolButton        *button,
     {
       gboolean delete_acoustic_marks = (delete == NULL) ? TRUE :
                                        gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON(delete));
-      /* Удаляем объект из базы данных. */
+      /* Удаляем объекты из базы данных. */
       hyscan_gtk_model_manager_delete_toggled_items (priv->model_manager, delete_acoustic_marks);
 
       gtk_widget_set_sensitive (priv->delete_icon,       FALSE);
