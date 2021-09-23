@@ -2582,7 +2582,34 @@ hyscan_gtk_model_manager_delete_item (HyScanGtkModelManager  *self,
         if (project_id <= 0)
           break;
 
-        hyscan_db_track_remove (priv->db, project_id, id);
+        /* Функция hyscan_db_info_get_tracks возвращает таблицу
+         * с объектами HyScanDBTrackInfo ключами в которой являются
+         * названия галсов. Поэтому в hyscan_db_track_remove передаём id
+         * и для поиска акустических меток связанных с галсом тоже используем id.
+         * */
+        if (hyscan_db_track_remove (priv->db, project_id, id))
+          {
+            GHashTable         *acoustic_marks = hyscan_mark_loc_model_get (priv->acoustic_loc_model);
+            GHashTableIter      table_iter;
+            HyScanMarkLocation *location;
+            gchar              *loc_id;
+
+            g_hash_table_iter_init (&table_iter, acoustic_marks);
+            while (g_hash_table_iter_next (&table_iter, (gpointer*)&loc_id, (gpointer*)&location))
+              {
+                if (location == NULL)
+                  continue;
+                if (IS_NOT_EQUAL (id, location->track_name))
+                  continue;
+
+                /* Удаляем акустическую метку вместе с галсом с которым она связана. */
+                /*hyscan_object_model_remove (priv->acoustic_mark_model, loc_id);*/
+                hyscan_object_store_remove (HYSCAN_OBJECT_STORE (priv->acoustic_mark_model),
+                                            HYSCAN_TYPE_MARK_WATERFALL,
+                                            loc_id);
+              }
+            g_hash_table_destroy (acoustic_marks);
+          }
         hyscan_db_close (priv->db, project_id);
       }
       break;
