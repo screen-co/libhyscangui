@@ -322,7 +322,7 @@ static gboolean      hyscan_gtk_model_manager_is_all_toggled                   (
 static void          hyscan_gtk_model_manager_delete_item                      (HyScanGtkModelManager   *self,
                                                                                 ModelManagerObjectType   type,
                                                                                 gchar                   *id,
-                                                                                gboolean                 flag);
+                                                                                gboolean                 convert);
 
 static gboolean      hyscan_gtk_model_manager_view_model_loop                  (gpointer                 user_data);
 
@@ -2553,7 +2553,7 @@ static void
 hyscan_gtk_model_manager_delete_item (HyScanGtkModelManager  *self,
                                       ModelManagerObjectType  type,
                                       gchar                  *id,
-                                      gboolean                flag)
+                                      gboolean                convert)
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
 
@@ -2605,20 +2605,12 @@ hyscan_gtk_model_manager_delete_item (HyScanGtkModelManager  *self,
                 if (IS_NOT_EQUAL (id, location->track_name))
                   continue;
 
-                if (flag)
-                  {
-                    /* Удаляем акустическую метку вместе с галсом с которым она связана. */
-                    /*hyscan_object_model_remove (priv->acoustic_mark_model, loc_id);*/
-                    hyscan_object_store_remove (HYSCAN_OBJECT_STORE (priv->acoustic_mark_model),
-                                                                HYSCAN_TYPE_MARK_WATERFALL,
-                                                                loc_id);
-                  }
-                else
+                if (convert)
                   {
                     /* Конвертируем в акустическую метку в гео метку. */
                     HyScanMarkGeo *geo_mark = hyscan_mark_geo_new ();
                     GDateTime     *dt       = g_date_time_new_now_local ();
-                    gdouble radius = sqrt ( (location->mark->width * location->mark->height) / G_PI);
+                    gdouble radius = sqrt ( (location->mark->width * location->mark->height) / G_PI_2);
 
                     geo_mark->name          = g_strdup (location->mark->name);
                     geo_mark->description   = g_strdup (location->mark->description);
@@ -2628,8 +2620,7 @@ hyscan_gtk_model_manager_delete_item (HyScanGtkModelManager  *self,
                     geo_mark->mtime  = G_TIME_SPAN_SECOND * g_date_time_to_unix (dt);
                     g_date_time_unref (dt);
                     /* Размеры гео-метки пересчитываются сохраняя площадь акустической метки. */
-                    geo_mark->width  = 2.0 * radius;
-                    geo_mark->height = geo_mark->width;
+                    geo_mark->height = geo_mark->width = 2.0 * radius;
                     geo_mark->center = location->mark_geo;
 
                     /*hyscan_object_model_add (priv->geo_mark_model, (const HyScanObject*)geo_mark);*/
@@ -2639,6 +2630,11 @@ hyscan_gtk_model_manager_delete_item (HyScanGtkModelManager  *self,
 
                     hyscan_mark_geo_free (geo_mark);
                   }
+                /* Удаляем акустическую метку вместе с галсом с которым она связана. */
+                /*hyscan_object_model_remove (priv->acoustic_mark_model, loc_id);*/
+                hyscan_object_store_remove (HYSCAN_OBJECT_STORE (priv->acoustic_mark_model),
+                                                                 HYSCAN_TYPE_MARK_WATERFALL,
+                                                                 loc_id);
               }
             g_hash_table_destroy (acoustic_marks);
           }
@@ -3381,14 +3377,14 @@ hyscan_gtk_model_manager_get_current_id (HyScanGtkModelManager *self)
 /**
  * hyscan_gtk_model_manager_delete_toggled_items:
  * @self: указатель на Менеджер Моделей
- * @flag: TRUE  - удалить акустические метки вместе с галсом,
- *        FALSE - конвертировать акустические метки в гео-метки
+ * @convert: TRUE  - конвертировать акустические метки в гео-метки,
+ *           FALSE - удалить акустические метки вместе с галсом
  *
  * Удаляет выбранные объекты из базы данных.
  */
 void
 hyscan_gtk_model_manager_delete_toggled_items (HyScanGtkModelManager *self,
-                                               gboolean               flag)
+                                               gboolean               convert)
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
 
@@ -3415,7 +3411,7 @@ hyscan_gtk_model_manager_delete_toggled_items (HyScanGtkModelManager *self,
         continue;
       /* Удаляем выделенные объекты. */
       for (gint i = 0; list[i] != NULL; i++)
-        hyscan_gtk_model_manager_delete_item (self, type, list[i], flag);
+        hyscan_gtk_model_manager_delete_item (self, type, list[i], convert);
 
       g_strfreev (list);
     }
