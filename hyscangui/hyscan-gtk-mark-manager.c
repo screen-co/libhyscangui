@@ -415,8 +415,8 @@ hyscan_gtk_mark_manager_constructed (GObject *object)
                     G_CALLBACK (hyscan_gtk_mark_manager_toggle_all),     self);
   g_signal_connect (G_OBJECT (priv->untoggle_all_item), "activate",
                     G_CALLBACK (hyscan_gtk_mark_manager_untoggle_all),   self);
-  g_signal_connect (G_OBJECT (priv->set_labels),      "activate",
-                    G_CALLBACK (hyscan_gtk_mark_manager_set_labels_dialog_create), self);
+  g_signal_connect (G_OBJECT (priv->set_labels),        "activate",
+                    G_CALLBACK (hyscan_gtk_mark_manager_set_labels_dialog_create),   self);
   g_signal_connect (G_OBJECT (priv->save_as_html),      "activate",
                     G_CALLBACK (hyscan_gtk_mark_manager_toggled_items_save_as_html), self);
 

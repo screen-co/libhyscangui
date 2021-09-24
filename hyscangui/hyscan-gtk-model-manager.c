@@ -77,11 +77,18 @@
  * - hyscan_gtk_model_manager_toggled_items_set_labels () - назначение групп объектам с активированным чек-боксом.
  */
 
-#include <math.h>
-
 #include <hyscan-gtk-model-manager.h>
 #include <hyscan-gui-marshallers.h>
 #include <glib/gi18n-lib.h>
+#include <math.h>
+/* Макрос для освобождения ресурсов модели. */
+#define RELEASE_MODEL(model, object)\
+if ((model) != NULL)\
+  {\
+    g_signal_handlers_disconnect_by_data ((model), (object));\
+    g_object_unref ((model));\
+    (model) = NULL;\
+  }
 
 enum
 {
@@ -518,48 +525,40 @@ hyscan_gtk_model_manager_finalize (GObject *object)
   HyScanGtkModelManager *self = HYSCAN_GTK_MODEL_MANAGER (object);
   HyScanGtkModelManagerPrivate *priv = self->priv;
 
-  if (priv->track_model != NULL)
-    {
-      g_signal_handlers_disconnect_by_data (priv->track_model, object);
-      g_object_unref (priv->track_model);
-    }
-
-  if (priv->acoustic_loc_model != NULL)
-    {
-      g_signal_handlers_disconnect_by_data (priv->acoustic_loc_model, object);
-      g_object_unref (priv->acoustic_loc_model);
-    }
-
-  if (priv->acoustic_mark_model != NULL)
-    {
-      g_signal_handlers_disconnect_by_data (priv->acoustic_mark_model, object);
-      g_object_unref (priv->acoustic_mark_model);
-    }
-
-  if (priv->geo_mark_model != NULL)
-    {
-      g_signal_handlers_disconnect_by_data (priv->geo_mark_model, object);
-      g_object_unref (priv->geo_mark_model);
-    }
-
-  if (priv->planner_model != NULL)
-    {
-      g_signal_handlers_disconnect_by_data (priv->planner_model, object);
-      g_object_unref (priv->planner_model);
-    }
-  if (priv->label_model != NULL)
-    {
-      g_signal_handlers_disconnect_by_data (priv->label_model, object);
-      g_object_unref (priv->label_model);
-    }
+  RELEASE_MODEL (priv->track_model,         object);
+  RELEASE_MODEL (priv->label_model,         object);
+  RELEASE_MODEL (priv->planner_model,       object);
+  RELEASE_MODEL (priv->geo_mark_model,      object);
+  RELEASE_MODEL (priv->acoustic_loc_model,  object);
+  RELEASE_MODEL (priv->acoustic_mark_model, object);
 
   g_clear_object (&priv->view_model);
   g_clear_object (&priv->units);
 
+  for (ModelManagerObjectType type = LABEL; type < TYPES; type++)
+    {
+      if (priv->extensions[type] != NULL)
+        {
+          g_hash_table_destroy (priv->extensions[type]);
+          priv->extensions[type] = NULL;
+        }
+
+      if (priv->node[type] != NULL)
+        {
+          priv->node[type] = NULL;
+        }
+    }
+
+  g_free (priv->current_id);
   g_free (priv->project_name);
-  priv->project_name = NULL;
   g_free (priv->export_folder);
-  priv->export_folder = NULL;
+  g_free (priv->selected_item_id);
+
+  priv->current_id       =
+  priv->project_name     =
+  priv->export_folder    =
+  priv->selected_item_id = NULL;
+
   g_object_unref (priv->cache);
   priv->cache = NULL;
   g_object_unref (priv->db);
@@ -2869,6 +2868,7 @@ hyscan_gtk_model_manager_extension_free (gpointer data)
       ext->type      = PARENT;
       ext->active    =
       ext->expanded  = FALSE;
+      g_free (ext);
     }
 }
 
@@ -2960,14 +2960,14 @@ hyscan_gtk_model_manager_get_icon_from_base64 (const gchar *str)
   GdkPixbuf    *pixbuf;
   GInputStream *stream;
   gsize         length;
-  guchar       *buf;
+  guchar       *data;
 
-  buf    = g_base64_decode (str, &length);
-  stream = g_memory_input_stream_new_from_data ( (const void*)buf, (gssize)length, g_free);
+  data   = g_base64_decode (str, &length);
+  stream = g_memory_input_stream_new_from_data ( (const void*)data, (gssize)length, g_free);
   pixbuf = gdk_pixbuf_new_from_stream (stream, NULL, NULL);
-  g_input_stream_close (stream, NULL, NULL);
 
-  g_free (buf);
+  g_input_stream_close (stream, NULL, NULL);
+  g_free (data);
 
   return pixbuf;
 }

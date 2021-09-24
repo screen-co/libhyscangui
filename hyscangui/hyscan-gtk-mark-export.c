@@ -743,6 +743,7 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
   /* Создаём папку для сохранения тайлов. */
   image_folder = g_strdup_printf ("%s/%s", current_folder, media);
   g_mkdir (image_folder, 0777);
+  g_free (current_folder);
 
 #ifdef G_OS_WIN32
   fopen_s (&file, file_name, "w");
@@ -760,8 +761,8 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
       guint wf_mark_size  = g_hash_table_size (data->acoustic_marks),
             geo_mark_size = g_hash_table_size (data->geo_marks);
       GDateTime *local = g_date_time_new_now_local ();
-      gchar *header    = "<!DOCTYPE html>\n"
-                         "<html lang=\"ru\">\n"
+      gchar *header    = _("<!DOCTYPE html>\n"
+                         "<html lang=\"en\">\n"
                          "\t<head>\n"
                          "\t\t<meta charset=\"utf-8\">\n"
                          "\t\t<meta name=\"generator\" content=\"HyScan5\">\n"
@@ -773,7 +774,7 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
                          "\t<body>\n"
                          "\t\t<p>%s</p>\n"
                          "\t\t<p>%s<br>\n\t\t%s</p>\n"
-                         "%s",
+                         "%s"),
             *title     = _("Marks report"),
             *project   = g_strdup_printf (_("Project: %s"), data->project_name),
             *prj_desc  = g_strdup_printf (_("Project description: %s"),
@@ -874,7 +875,7 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
           list = g_strconcat (list, "\t\t<br style=\"page-break-before: always\"/>\n", (gchar*) NULL);
         }
 
-      str   = g_strdup_printf (header, title, title, txt_title, _(link_to_site), gntime, list);
+      str = g_strdup_printf (header, title, title, txt_title, _(link_to_site), gntime, list);
       fwrite (str, sizeof (gchar), strlen (str), file);
 
       g_free (str);
@@ -1056,6 +1057,7 @@ hyscan_gtk_mark_export_save_as_html_thread (gpointer user_data)
   g_free (file_name);
   g_timeout_add (0, hyscan_gtk_mark_export_set_default_cursor, data->toplevel);
   g_free (data);
+  g_free (image_folder);
 
   return NULL;
 }

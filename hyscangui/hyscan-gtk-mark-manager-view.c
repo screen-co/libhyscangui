@@ -452,6 +452,7 @@ hyscan_gtk_mark_manager_view_emit_selected (GtkTreeSelection         *selection,
             }
           ptr = g_list_next (ptr);
         }
+      g_list_free_full (list, (GDestroyNotify) gtk_tree_path_free);
     }
    else if (gtk_tree_selection_get_mode (selection) == GTK_SELECTION_SINGLE)
     {
