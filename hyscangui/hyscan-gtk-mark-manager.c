@@ -657,7 +657,6 @@ hyscan_gtk_mark_manager_delete_toggled (GtkToolButton        *button,
   if (hyscan_gtk_model_manager_has_toggled_items (priv->model_manager, TRACK))
     {
       GtkWidget *vbox;
-      GSList *group = NULL;
 
       vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 10);
 

@@ -179,6 +179,9 @@ static gboolean   hyscan_gtk_mark_manager_view_select_func        (GtkTreeSelect
 static void       hyscan_gtk_mark_manager_view_on_show            (GtkWidget                *widget,
                                                                    gpointer                  user_data);
 
+static gboolean   hyscan_gtk_mark_manager_view_on_mouse_move      (GtkWidget                *widget,
+                                                                   GdkEventMotion           *event,
+                                                                   gpointer                  user_data);
 static guint      hyscan_gtk_mark_manager_view_signals[SIGNAL_LAST] = { 0 };
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMarkManagerView, hyscan_gtk_mark_manager_view, GTK_TYPE_SCROLLED_WINDOW)
@@ -322,6 +325,10 @@ hyscan_gtk_mark_manager_view_constructed (GObject *object)
   /* * * * * * * * * * * * * * * * * * * * * * * */
   /* Костыль для правильного выделения объектов. */
   /* * * * * * * * * * * * * * * * * * * * * * * */
+
+  /* Сигнал о перемещении мыши. */
+  /*g_signal_connect (priv->tree_view, "motion-notify-event",
+                      G_CALLBACK (hyscan_gtk_mark_manager_view_on_mouse_move), NULL);*/
 }
 
 static void
@@ -610,25 +617,55 @@ hyscan_gtk_mark_manager_view_show_tooltip (GtkWidget  *widget,
 
       if (!gtk_tree_view_get_path_at_pos (view, bin_x, bin_y, &path, &column, NULL, NULL))
         return FALSE;
+
+      x = bin_x;
+      y = bin_y;
     }
 
   if (gtk_tree_model_get_iter (model, &iter, path))
     {
-      gchar *str = NULL;
+      GStrv list;
 
       gtk_tree_view_set_tooltip_cell (view, tooltip, path, column, NULL);
-      gtk_tree_model_get (model, &iter, COLUMN_TOOLTIP, &str, -1);
+      gtk_tree_model_get (model, &iter, COLUMN_TOOLTIP, &list, -1);
 
-      if (str != NULL && IS_NOT_EMPTY (str))
+      if (list != NULL)
         {
-          gtk_tooltip_set_text (tooltip, str);
+          GdkRectangle  rect;
+          gchar *ptr = list[0];
 
+          gtk_tree_view_get_cell_area (view, path, column, &rect);
+
+          if (gtk_tree_path_get_depth (path) > 2)
+            {
+              GdkPixbuf *pixbuf;
+
+              gtk_tree_model_get (model, &iter, COLUMN_ICON, &pixbuf, -1);
+
+              if (pixbuf != NULL)
+                {
+                  gint width  = gdk_pixbuf_get_width  (pixbuf),
+                       cell_x = x - rect.x;
+
+                  if (cell_x >=0 && cell_x < width)
+                    {
+                      gint index  = (cell_x / gdk_pixbuf_get_height (pixbuf)) + 1;
+
+                      if (list[index] != NULL)
+                        ptr = list[index];
+                    }
+
+                  g_object_unref (pixbuf);
+                }
+            }
+
+          gtk_tooltip_set_text (tooltip, ptr);
+
+          g_strfreev (list);
           gtk_tree_path_free (path);
-          g_free (str);
 
           return TRUE;
         }
-      g_free (str);
     }
 
   gtk_tree_path_free (path);
@@ -784,10 +821,11 @@ void
 hyscan_gtk_mark_manager_view_set_tree_model (HyScanGtkMarkManagerView *self)
 {
   HyScanGtkMarkManagerViewPrivate *priv = self->priv;
-  GtkTreeViewColumn *column        = gtk_tree_view_column_new ();                 /* Колонка для картинки, чек-бокса и текста. */
+  GtkCellArea       *area          = gtk_cell_area_box_new ();                    /* Контейнер. */
   GtkCellRenderer   *renderer      = gtk_cell_renderer_text_new (),               /* Текст. */
                     *icon_renderer = gtk_cell_renderer_pixbuf_new ();             /* Картинка. */
   GList             *list          = gtk_tree_view_get_columns (priv->tree_view); /* Список колонок. */
+  GtkTreeViewColumn *column; /* Колонка для картинки, чек-бокса и текста. */
 
   g_list_foreach (list, hyscan_gtk_mark_manager_view_remove_column, priv->tree_view);
   g_list_free (list);
@@ -798,25 +836,27 @@ hyscan_gtk_mark_manager_view_set_tree_model (HyScanGtkMarkManagerView *self)
                                            G_CALLBACK (hyscan_gtk_mark_manager_view_on_toggle),
                                            self);
 
+  gtk_cell_area_box_pack_start (GTK_CELL_AREA_BOX (area), priv->toggle_renderer, FALSE, FALSE, FALSE);
+  gtk_cell_area_box_pack_start (GTK_CELL_AREA_BOX (area), icon_renderer, FALSE, FALSE, FALSE);
+  gtk_cell_area_box_pack_start (GTK_CELL_AREA_BOX (area), renderer, FALSE, FALSE, FALSE);
+
+  column = gtk_tree_view_column_new_with_area (area);
   gtk_tree_view_column_set_title (column, _("Objects"));
   gtk_tree_view_column_set_cell_data_func (column,
                                            priv->toggle_renderer,
                                            hyscan_gtk_mark_manager_view_set_func_toggle,
                                            NULL,
                                            NULL);
-  gtk_tree_view_column_pack_start (column, priv->toggle_renderer, FALSE);
   gtk_tree_view_column_set_cell_data_func (column,
                                            icon_renderer,
                                            hyscan_gtk_mark_manager_view_set_func_icon,
                                            NULL,
                                            NULL);
-  gtk_tree_view_column_pack_start (column, icon_renderer, FALSE);
   gtk_tree_view_column_set_cell_data_func (column,
                                            renderer,
                                            hyscan_gtk_mark_manager_view_set_func_text,
                                            NULL,
                                            NULL);
-  gtk_tree_view_column_pack_start (column, renderer, FALSE);
   gtk_tree_view_append_column (priv->tree_view, column);
 
   gtk_tree_view_column_add_attribute (column, priv->toggle_renderer, "visible", COLUMN_VISIBLE);
@@ -845,7 +885,9 @@ hyscan_gtk_mark_manager_view_set_func_icon (GtkTreeViewColumn *tree_column,
 {
   GdkPixbuf *pixbuf = NULL;
   gtk_tree_model_get (model, iter, COLUMN_ICON,  &pixbuf, -1);
-  g_object_set (GTK_CELL_RENDERER (cell), "pixbuf", pixbuf, NULL);
+  g_object_set (GTK_CELL_RENDERER (cell),
+                "pixbuf", pixbuf,
+                NULL);
 
   g_clear_object (&pixbuf);
 }
@@ -1011,6 +1053,38 @@ hyscan_gtk_mark_manager_view_on_show (GtkWidget *widget,
   /* Возможно, чтобы не обрабатывать сигналы о фокусе,
    * нужно проверить получение фокуса первый раз и здесь. */
   gtk_widget_grab_focus (widget);
+}
+
+/* Обработчик перемещения мыши.
+ * Возвращает : TRUE  для предотвращения вызова других обработчиков события.
+ *              FALSE для распространения события дальше.
+ * */
+static gboolean
+hyscan_gtk_mark_manager_view_on_mouse_move (GtkWidget      *widget,
+                                            GdkEventMotion *event,
+                                            gpointer        user_data)
+{
+  GtkTreeView       *view   = GTK_TREE_VIEW (widget);
+  GtkTreePath       *path   = NULL;
+  GtkTreeViewColumn *column = NULL;
+  GdkRectangle       rect;
+  gint               bin_x,
+                     bin_y;
+
+  g_print ("Coordinates\nx: %f, y: %f\n", event->x, event->y);
+
+  gtk_tree_view_convert_widget_to_bin_window_coords (view, event->x, event->y, &bin_x, &bin_y);
+
+  g_print ("x: %i, y: %i\n", bin_x, bin_y);
+
+  if (!gtk_tree_view_get_path_at_pos (view, bin_x, bin_y, &path, &column, NULL, NULL))
+    return TRUE;
+
+  gtk_tree_view_get_cell_area (view, path, column, &rect);
+  g_print ("Rect\nx: %i, y: %i\nwidth: %i, height: %i\n", rect.x, rect.y, rect.width, rect.height);
+  g_print ("Position\nx : %i, y: %i\n", bin_x - rect.x, bin_y - rect.y);
+
+  return FALSE; /* Чтобы TreeView реагировал на клик нужно отправить сигнал дальше. */
 }
 
 /**
