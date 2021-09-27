@@ -42,6 +42,7 @@
 #include <hyscan-object-data-label.h>
 #include <hyscan-units.h>
 #include <hyscan-planner-model.h>
+#include <hyscan-gtk-mark-manager-icon.h>
 
 /* Макросы для cравнения двух строк. */
 #define IS_EQUAL(a, b)     (0 == g_strcmp0 ((a), (b))) /* Одинаковые строки. */
@@ -111,9 +112,8 @@ enum
   COLUMN_NAME,        /* Название объекта. */
   COLUMN_DESCRIPTION, /* Описание объекта. */
   COLUMN_OPERATOR,    /* Оператор, создавший объект. */
-  COLUMN_TOOLTIP,     /* Текст подсказки. */
   COLUMN_TYPE,        /* Тип объекта: группа, гео-метка, "водопадная" метка или галс. */
-  COLUMN_ICON,        /* Название картинки. */
+  COLUMN_ICON,        /* Иконка. */
   COLUMN_ACTIVE,      /* Статус чек-бокса. */
   COLUMN_VISIBLE,     /* Видимость чек-бокса. У атрибутов чек-бокс скрыт.*/
   COLUMN_LABEL,       /* Метки групп к которым принадлежит объект. */

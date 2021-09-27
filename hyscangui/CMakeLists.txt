@@ -113,6 +113,7 @@ add_library (${HYSCAN_GUI_LIBRARY} SHARED
              # [[ Журнал меток ]]
              hyscan-gtk-mark-manager.c
              hyscan-gtk-mark-manager-view.c
+             hyscan-gtk-mark-manager-icon.c
              # [[Диалоги]]
              hyscan-gtk-mark-manager-create-label-dialog.c
              hyscan-gtk-mark-manager-set-labels-dialog.c
@@ -215,6 +216,7 @@ install (FILES hyscan-gtk-area.h
                hyscan-gtk-model-manager.h
                hyscan-gtk-mark-manager.h
                hyscan-gtk-mark-manager-view.h
+               hyscan-gtk-mark-manager-icon.h
                hyscan-gtk-mark-manager-create-label-dialog.h
                hyscan-gtk-mark-manager-set-labels-dialog.h
          COMPONENT development

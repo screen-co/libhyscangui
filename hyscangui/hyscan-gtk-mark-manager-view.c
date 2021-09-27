@@ -574,8 +574,8 @@ hyscan_gtk_mark_manager_view_toggle_parent (HyScanGtkMarkManagerView *self,
    * FALSE - есть неотмеченные дочерние узлы. */
   flag = (counter == total) ? TRUE : FALSE;
 
-  gtk_tree_model_get (model,         &parent_iter,
-                      COLUMN_ID,     &id,
+  gtk_tree_model_get (model,     &parent_iter,
+                      COLUMN_ID, &id,
                       -1);
   gtk_tree_store_set (GTK_TREE_STORE (model), &parent_iter, COLUMN_ACTIVE, flag, -1);
 
@@ -625,48 +625,57 @@ hyscan_gtk_mark_manager_view_show_tooltip (GtkWidget  *widget,
 
   if (gtk_tree_model_get_iter (model, &iter, path))
     {
-      GStrv list;
+      GdkPixbuf *pixbuf = NULL;
+      GdkRectangle  rect;
+      GStrv tooltips = NULL;
+      HyScanGtkMarkManagerIcon *icon;
+      gchar *ptr, *str;
 
       gtk_tree_view_set_tooltip_cell (view, tooltip, path, column, NULL);
-      gtk_tree_model_get (model, &iter, COLUMN_TOOLTIP, &list, -1);
+      gtk_tree_model_get (model, &iter, COLUMN_ICON, &icon, -1);
 
-      if (list != NULL)
+      tooltips = hyscan_gtk_mark_manager_icon_get_tooltips (icon);
+
+      if (tooltips == NULL)
         {
-          GdkRectangle  rect;
-          gchar *ptr = list[0];
-
-          gtk_tree_view_get_cell_area (view, path, column, &rect);
-
-          if (gtk_tree_path_get_depth (path) > 2)
-            {
-              GdkPixbuf *pixbuf;
-
-              gtk_tree_model_get (model, &iter, COLUMN_ICON, &pixbuf, -1);
-
-              if (pixbuf != NULL)
-                {
-                  gint width  = gdk_pixbuf_get_width  (pixbuf),
-                       cell_x = x - rect.x;
-
-                  if (cell_x >=0 && cell_x < width)
-                    {
-                      gint index  = (cell_x / gdk_pixbuf_get_height (pixbuf)) + 1;
-
-                      if (list[index] != NULL)
-                        ptr = list[index];
-                    }
-
-                  g_object_unref (pixbuf);
-                }
-            }
-
-          gtk_tooltip_set_text (tooltip, ptr);
-
-          g_strfreev (list);
+          hyscan_gtk_mark_manager_icon_free (icon);
           gtk_tree_path_free (path);
 
-          return TRUE;
+          return FALSE;
         }
+
+      ptr = tooltips[0];
+      str = HAS_MANY_ICONS (icon) ? _("Labels") : tooltips[0];
+
+      gtk_tree_view_get_cell_area (view, path, column, &rect);
+      pixbuf = hyscan_gtk_mark_manager_icon_get_icon (icon);
+
+      if (HAS_MANY_ICONS (icon) && pixbuf != NULL)
+        {
+          gint width  = gdk_pixbuf_get_width (pixbuf),
+               cell_x = x - rect.x;
+
+          if (cell_x >= 0 && cell_x < width)
+            {
+              gint index = (cell_x / gdk_pixbuf_get_height (pixbuf));
+
+              if (tooltips[index] != NULL)
+                ptr = tooltips[index];
+            }
+          else
+            {
+              ptr = str;
+            }
+         }
+
+       gtk_tooltip_set_text (tooltip, ptr);
+
+       g_strfreev (tooltips);
+       gtk_tree_path_free (path);
+       g_clear_object (&pixbuf);
+       hyscan_gtk_mark_manager_icon_free (icon);
+
+       return TRUE;
     }
 
   gtk_tree_path_free (path);
@@ -884,11 +893,14 @@ hyscan_gtk_mark_manager_view_set_func_icon (GtkTreeViewColumn *tree_column,
                                             GtkTreeIter       *iter,
                                             gpointer           data)
 {
+  HyScanGtkMarkManagerIcon *icon;
   GdkPixbuf *pixbuf = NULL;
-  gtk_tree_model_get (model, iter, COLUMN_ICON,  &pixbuf, -1);
-  g_object_set (GTK_CELL_RENDERER (cell),
-                "pixbuf", pixbuf,
-                NULL);
+
+  gtk_tree_model_get (model, iter, COLUMN_ICON,  &icon, -1);
+  pixbuf = hyscan_gtk_mark_manager_icon_get_icon (icon);
+  hyscan_gtk_mark_manager_icon_free (icon);
+
+  g_object_set (GTK_CELL_RENDERER (cell), "pixbuf", pixbuf, NULL);
 
   g_clear_object (&pixbuf);
 }
