@@ -75,7 +75,8 @@
  * - hyscan_gtk_model_manager_delete_toggled_items () - удаление объектов с активированным чек-боксом из базы данных;
  * - hyscan_gtk_model_manager_has_toggled () - наличие объектов с активированным чек-боксом;
  * - hyscan_gtk_model_manager_toggled_items_set_labels () - назначение групп объектам с активированным чек-боксом;
- * - hyscan_gtk_model_manager_toggled_items_get_bit_masks () - наполнение битовых масок в соответствии с группами выбранных объектов.
+ * - hyscan_gtk_model_manager_toggled_items_get_bit_masks () - наполнение битовых масок в соответствии с группами выбранных объектов;
+ * - hyscan_gtk_model_manager_show_object () - отображение объекта на карте.
  */
 
 #include <hyscan-gtk-model-manager.h>
@@ -216,7 +217,8 @@ static const gchar *signals[] = {"wf-marks-changed",     /* Изменение �
                                  "item-collapsed",       /* Сворачивание узла древовидного представления. */
                                  "scrolled-horizontal",  /* Изменение положения горизонтальной прокрутки представления. */
                                  "scrolled-vertical",    /* Изменение положения вертикальной прокрутки представления. */
-                                 "unselect"};            /* Снятие выделения. */
+                                 "unselect",             /* Снятие выделения. */
+                                 "show-object"};         /* Показать объект на карте. */
 
 /* Форматированная строка для вывода времени и даты. */
 static const gchar *date_time_stamp = "%d.%m.%Y %H:%M:%S";
@@ -409,22 +411,37 @@ hyscan_gtk_model_manager_class_init (HyScanGtkModelManagerClass *klass)
     {
       /* Сигнал изменения состояния чек-бокса. */
        if (index == SIGNAL_ITEM_TOGGLED)
-         hyscan_model_manager_signals[index] =
-                g_signal_new (signals[index],
-                              HYSCAN_TYPE_GTK_MODEL_MANAGER,
-                              G_SIGNAL_RUN_LAST,
-                              0, NULL, NULL,
-                              hyscan_gui_marshal_VOID__STRING_BOOLEAN,
-                              G_TYPE_NONE, 2, G_TYPE_STRING, G_TYPE_BOOLEAN);
+         {
+           hyscan_model_manager_signals[index] =
+                  g_signal_new (signals[index],
+                                HYSCAN_TYPE_GTK_MODEL_MANAGER,
+                                G_SIGNAL_RUN_LAST,
+                                0, NULL, NULL,
+                                hyscan_gui_marshal_VOID__STRING_BOOLEAN,
+                                G_TYPE_NONE, 2, G_TYPE_STRING, G_TYPE_BOOLEAN);
+         }
+       else if (index == SIGNAL_SHOW_OBJECT)
+         {
+           /* Сигнал показать объект на карте. */
+           hyscan_model_manager_signals[index] =
+                  g_signal_new (signals[index],
+                                HYSCAN_TYPE_GTK_MODEL_MANAGER,
+                                G_SIGNAL_RUN_LAST,
+                                0, NULL, NULL,
+                                hyscan_gui_marshal_VOID__STRING_UINT,
+                                G_TYPE_NONE, 2, G_TYPE_STRING, G_TYPE_UINT);
+         }
        else
-         /* Остальные сигналы. */
-         hyscan_model_manager_signals[index] =
-                g_signal_new (signals[index],
-                              HYSCAN_TYPE_GTK_MODEL_MANAGER,
-                              G_SIGNAL_RUN_LAST,
-                              0, NULL, NULL,
-                              g_cclosure_marshal_VOID__VOID,
-                              G_TYPE_NONE, 0);
+         {
+           /* Остальные сигналы. */
+           hyscan_model_manager_signals[index] =
+                  g_signal_new (signals[index],
+                                HYSCAN_TYPE_GTK_MODEL_MANAGER,
+                                G_SIGNAL_RUN_LAST,
+                                0, NULL, NULL,
+                                g_cclosure_marshal_VOID__VOID,
+                                G_TYPE_NONE, 0);
+         }
     }
 }
 
@@ -3707,4 +3724,19 @@ hyscan_gtk_model_manager_toggled_items_get_bit_masks (HyScanGtkModelManager *sel
          }
        g_strfreev (list);
     }
+}
+
+/**
+ * hyscan_gtk_model_manager_show_object:
+ * @self: указатель на Менеджер Моделей
+ * @id: идентификатор объекта в базе данных.
+ *
+ * Показывает объект на карте.
+ */
+void
+hyscan_gtk_model_manager_show_object (HyScanGtkModelManager *self,
+                                      gchar                 *id,
+                                      guint                  type)
+{
+  g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_SHOW_OBJECT], 0, id, type);
 }

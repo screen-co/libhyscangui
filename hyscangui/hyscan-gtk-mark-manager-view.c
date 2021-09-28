@@ -55,7 +55,8 @@
  * - hyscan_gtk_mark_manager_view_find_items_by_id () - множественный поиск объекта по идентификатору;
  * - hyscan_gtk_mark_manager_view_toggle_item () - устанавливает состояние чек-бокса объектам по заданному
  * идентификатору;
- * - hyscan_gtk_mark_manager_view_block_signal_selected () - блокирует или разблокирует сигнал выбора строки.
+ * - hyscan_gtk_mark_manager_view_block_signal_selected () - блокирует или разблокирует сигнал выбора строки;
+ * - hyscan_gtk_mark_manager_view_show_object () - отправляет сигнал о двойном клике по объекту.
  */
 #include <hyscan-gtk-mark-manager-view.h>
 #include <hyscan-mark.h>
@@ -66,17 +67,18 @@
 
 enum
 {
-  PROP_STORE = 1,  /* Модель представления данных. */
+  PROP_STORE = 1,      /* Модель представления данных. */
   N_PROPERTIES
 };
 
 /* Сигналы. */
 enum
 {
-  SIGNAL_SELECTED, /* Выделение строки. */
-  SIGNAL_UNSELECT, /* Снять выделение. */
-  SIGNAL_TOGGLED,  /* Изменение состояня чек-бокса. */
-  SIGNAL_EXPANDED, /* Разворачивание узла древовидного представления. */
+  SIGNAL_SELECTED,     /* Выделение строки. */
+  SIGNAL_UNSELECT,     /* Снять выделение. */
+  SIGNAL_TOGGLED,      /* Изменение состояня чек-бокса. */
+  SIGNAL_EXPANDED,     /* Разворачивание узла древовидного представления. */
+  SIGNAL_DOUBLE_CLICK, /* Двойной клик по объекту. */
   SIGNAL_LAST
 };
 
@@ -182,6 +184,12 @@ static void       hyscan_gtk_mark_manager_view_on_show            (GtkWidget    
 static gboolean   hyscan_gtk_mark_manager_view_on_mouse_move      (GtkWidget                *widget,
                                                                    GdkEventMotion           *event,
                                                                    gpointer                  user_data);
+
+static void       hyscan_gtk_mark_manager_view_on_double_click    (GtkTreeView              *tree_view,
+                                                                   GtkTreePath              *path,
+                                                                   GtkTreeViewColumn        *column,
+                                                                   gpointer                  user_data);
+
 static guint      hyscan_gtk_mark_manager_view_signals[SIGNAL_LAST] = { 0 };
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMarkManagerView, hyscan_gtk_mark_manager_view, GTK_TYPE_SCROLLED_WINDOW)
@@ -250,6 +258,18 @@ hyscan_gtk_mark_manager_view_class_init (HyScanGtkMarkManagerViewClass *klass)
                   G_SIGNAL_RUN_LAST, 0, NULL, NULL,
                   hyscan_gui_marshal_VOID__STRING_BOOLEAN,
                   G_TYPE_NONE, 2, G_TYPE_STRING, G_TYPE_BOOLEAN);
+
+  /**
+   * HyScanGtkMarkManagerView::double-click:
+   * @self: указатель на #HyScanGtkMarkManagerView
+   *
+   * Сигнал посылается при двойном клике по объекту.
+   */
+  hyscan_gtk_mark_manager_view_signals[SIGNAL_DOUBLE_CLICK] =
+    g_signal_new ("double-click", HYSCAN_TYPE_GTK_MARK_MANAGER_VIEW,
+                  G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+                  hyscan_gui_marshal_VOID__STRING_UINT,
+                  G_TYPE_NONE, 2, G_TYPE_STRING, G_TYPE_UINT);
 }
 
 static void
@@ -329,6 +349,9 @@ hyscan_gtk_mark_manager_view_constructed (GObject *object)
   /* Сигнал о перемещении мыши. */
   /*g_signal_connect (priv->tree_view, "motion-notify-event",
                       G_CALLBACK (hyscan_gtk_mark_manager_view_on_mouse_move), NULL);*/
+  /* Сигнал двойного клика мыши по объекту. */
+  g_signal_connect (priv->tree_view, "row-activated",
+                    G_CALLBACK (hyscan_gtk_mark_manager_view_on_double_click), self);
 }
 
 static void
@@ -1098,6 +1121,42 @@ hyscan_gtk_mark_manager_view_on_mouse_move (GtkWidget      *widget,
   g_print ("Position\nx : %i, y: %i\n", bin_x - rect.x, bin_y - rect.y);
 
   return FALSE; /* Чтобы TreeView реагировал на клик нужно отправить сигнал дальше. */
+}
+
+/* Отправляет сигнал о двойном клике по объекту*/
+static void
+hyscan_gtk_mark_manager_view_on_double_click (GtkTreeView       *tree_view,
+                                              GtkTreePath       *path,
+                                              GtkTreeViewColumn *column,
+                                              gpointer           user_data)
+{
+  HyScanGtkMarkManagerView *self;
+  HyScanGtkMarkManagerViewPrivate *priv;
+  ModelManagerObjectType type;
+  GtkTreeIter iter;
+  gchar *id;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MARK_MANAGER_VIEW (user_data));
+
+  self = HYSCAN_GTK_MARK_MANAGER_VIEW (user_data);
+  priv = self->priv;
+
+  if (!gtk_tree_model_get_iter (priv->store, &iter, path))
+    return;
+
+  gtk_tree_model_get (priv->store, &iter,
+                      COLUMN_ID,   &id,
+                      COLUMN_TYPE, &type,
+                      -1);
+  if (id == NULL)
+    return;
+
+  g_signal_emit (HYSCAN_GTK_MARK_MANAGER_VIEW (user_data),
+                 hyscan_gtk_mark_manager_view_signals[SIGNAL_DOUBLE_CLICK],
+                 0,
+                 id,
+                 type);
+  g_free (id);
 }
 
 /**

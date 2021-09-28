@@ -54,6 +54,12 @@
 
 #define MAX_LABELS 32 /* Максимальное количество групп. */
 
+/* Макрос соединяет сигнал с функцией-обработчиком. */
+#define CONNECTION(signal_id, function)\
+g_signal_connect_swapped (priv->model_manager,\
+GET_SIGNAL_TITLE((signal_id)),\
+G_CALLBACK ((function)), self);
+
 enum
 {
   PROP_MODEL_MANAGER = 1, /* Менеджер Моделей. */
@@ -169,6 +175,10 @@ static void         hyscan_gtk_mark_manager_toggled_items_set_labels    (HyScanG
 
 static void         hyscan_gtk_mark_manager_item_selected               (HyScanGtkMarkManager *self,
                                                                          gchar                *id);
+
+static void         hyscan_gtk_mark_manager_show_object                 (HyScanGtkMarkManager *self,
+                                                                         gchar                *id,
+                                                                         guint                 type);
 
 static void         hyscan_gtk_mark_manager_select_item                 (HyScanGtkMarkManager *self);
 
@@ -289,56 +299,16 @@ hyscan_gtk_mark_manager_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_gtk_mark_manager_parent_class)->constructed (object);
 
-  g_signal_connect_swapped (priv->model_manager,
-                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
-                                                                       SIGNAL_GROUPING_CHANGED),
-                            G_CALLBACK (hyscan_gtk_mark_manager_grouping_changed),
-                            self);
-  g_signal_connect_swapped (priv->model_manager,
-                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
-                                                                       SIGNAL_VIEW_MODEL_UPDATED),
-                            G_CALLBACK (hyscan_gtk_mark_manager_view_model_updated),
-                            self);
-  g_signal_connect_swapped (priv->model_manager,
-                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
-                                                                       SIGNAL_ITEM_SELECTED),
-                            G_CALLBACK (hyscan_gtk_mark_manager_select_item),
-                            self);
-  g_signal_connect_swapped (priv->model_manager,
-                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
-                                                                       SIGNAL_ITEM_TOGGLED),
-                            G_CALLBACK (hyscan_gtk_mark_manager_toggle_item),
-                            self);
-  g_signal_connect_swapped (priv->model_manager,
-                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
-                                                                       SIGNAL_ITEM_EXPANDED),
-                            G_CALLBACK (hyscan_gtk_mark_manager_expand_item),
-                            self);
-  g_signal_connect_swapped (priv->model_manager,
-                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
-                                                                       SIGNAL_ITEM_COLLAPSED),
-                            G_CALLBACK (hyscan_gtk_mark_manager_collapse_item),
-                            self);
-  g_signal_connect_swapped (priv->model_manager,
-                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
-                                                                       SIGNAL_VIEW_SCROLLED_HORIZONTAL),
-                            G_CALLBACK (hyscan_gtk_mark_manager_view_scrolled_horizontal),
-                            self);
-  g_signal_connect_swapped (priv->model_manager,
-                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
-                                                                       SIGNAL_VIEW_SCROLLED_VERTICAL),
-                            G_CALLBACK (hyscan_gtk_mark_manager_view_scrolled_vertical),
-                            self);
-  g_signal_connect_swapped (priv->model_manager,
-                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
-                                                                       SIGNAL_UNSELECT_ALL),
-                            G_CALLBACK (hyscan_gtk_mark_manager_unselect_all),
-                            self);
-  g_signal_connect_swapped (priv->model_manager,
-                            hyscan_gtk_model_manager_get_signal_title (priv->model_manager,
-                                                                       SIGNAL_LABELS_CHANGED),
-                            G_CALLBACK (hyscan_gtk_mark_manager_labels_changed),
-                            self);
+  CONNECTION (SIGNAL_GROUPING_CHANGED,         hyscan_gtk_mark_manager_grouping_changed);
+  CONNECTION (SIGNAL_VIEW_MODEL_UPDATED,       hyscan_gtk_mark_manager_view_model_updated);
+  CONNECTION (SIGNAL_ITEM_SELECTED,            hyscan_gtk_mark_manager_select_item);
+  CONNECTION (SIGNAL_ITEM_TOGGLED,             hyscan_gtk_mark_manager_toggle_item);
+  CONNECTION (SIGNAL_ITEM_EXPANDED,            hyscan_gtk_mark_manager_expand_item);
+  CONNECTION (SIGNAL_ITEM_COLLAPSED,           hyscan_gtk_mark_manager_collapse_item);
+  CONNECTION (SIGNAL_VIEW_SCROLLED_HORIZONTAL, hyscan_gtk_mark_manager_view_scrolled_horizontal);
+  CONNECTION (SIGNAL_VIEW_SCROLLED_VERTICAL,   hyscan_gtk_mark_manager_view_scrolled_vertical);
+  CONNECTION (SIGNAL_UNSELECT_ALL,             hyscan_gtk_mark_manager_unselect_all);
+  CONNECTION (SIGNAL_LABELS_CHANGED,           hyscan_gtk_mark_manager_labels_changed);
 
   priv->view = hyscan_gtk_mark_manager_view_new (model);
   g_object_unref (model);
@@ -346,11 +316,13 @@ hyscan_gtk_mark_manager_constructed (GObject *object)
   g_signal_connect_swapped (G_OBJECT (priv->view), "selected",
                             G_CALLBACK (hyscan_gtk_mark_manager_item_selected), self);
   g_signal_connect_swapped (G_OBJECT (priv->view), "unselect",
-                            G_CALLBACK (hyscan_gtk_mark_manager_unselect), self);
+                            G_CALLBACK (hyscan_gtk_mark_manager_unselect),      self);
   g_signal_connect_swapped (G_OBJECT (priv->view), "toggled",
-                            G_CALLBACK (hyscan_gtk_mark_manager_item_toggled), self);
+                            G_CALLBACK (hyscan_gtk_mark_manager_item_toggled),  self);
   g_signal_connect_swapped (G_OBJECT (priv->view), "expanded",
                             G_CALLBACK (hyscan_gtk_mark_manager_item_expanded), self);
+  g_signal_connect_swapped (G_OBJECT (priv->view), "double-click",
+                            G_CALLBACK (hyscan_gtk_mark_manager_show_object),   self);
 
   priv->new_label_item = gtk_tool_button_new (NULL, _(tooltips_text[CREATE_NEW_GROUP]));
   gtk_tool_button_set_icon_name (GTK_TOOL_BUTTON (priv->new_label_item), "insert-object");
@@ -814,6 +786,17 @@ hyscan_gtk_mark_manager_item_selected (HyScanGtkMarkManager *self,
   HyScanGtkMarkManagerPrivate *priv = self->priv;
 
   hyscan_gtk_model_manager_set_selected_item (priv->model_manager, id);
+}
+
+/* Функция-обработчик двойного клика по объекту. */
+static void
+hyscan_gtk_mark_manager_show_object (HyScanGtkMarkManager *self,
+                                     gchar                *id,
+                                     guint                 type)
+{
+  HyScanGtkMarkManagerPrivate *priv = self->priv;
+
+  hyscan_gtk_model_manager_show_object (priv->model_manager, id, type);
 }
 
 /* Функция-обработчик выделения cтроки. Сигнал отправляет ModelManager. */

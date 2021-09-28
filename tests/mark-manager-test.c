@@ -47,14 +47,14 @@ typedef enum
   INSTANCES   /* Количество экземпляров. */
 }MarkManagerInstance;
 /* Функция-обработчик сигнала о двойном клике по объекту Журнала Меток. */
-/*static void
+static void
 on_double_click (HyScanGtkModelManager *model_manager,
                  gchar                 *id,
                  guint                  type,
                  gpointer              *user_data)
 {
   g_print ("Double click on object [id: %s, type: %u].\n", id, type);
-}*/
+}
 /* Главная функция.*/
 int
 main (int    argc,
@@ -144,11 +144,11 @@ main (int    argc,
   gtk_container_add (GTK_CONTAINER (widget), layer);
 
   g_signal_connect (G_OBJECT (widget), "destroy", G_CALLBACK (gtk_main_quit), NULL);
-/*  g_signal_connect (model_manager,
+  g_signal_connect (model_manager,
                     hyscan_gtk_model_manager_get_signal_title (model_manager, SIGNAL_SHOW_OBJECT),
                     G_CALLBACK (on_double_click),
                     NULL);
-*/
+
   gtk_widget_show_all (widget);
 
   gtk_main ();

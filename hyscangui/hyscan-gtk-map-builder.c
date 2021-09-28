@@ -215,6 +215,9 @@ static void        hyscan_gtk_map_builder_add_layer                (HyScanGtkMap
                                                                     gboolean                   visible,
                                                                     const gchar               *key,
                                                                     const gchar               *title);
+static void        hyscan_gtk_map_builder_show_object              (HyScanGtkMapBuilder       *builder,
+                                                                    gchar                     *id,
+                                                                    guint                      type);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMapBuilder, hyscan_gtk_map_builder, G_TYPE_OBJECT)
 
@@ -355,6 +358,11 @@ hyscan_gtk_map_builder_object_constructed (GObject *object)
   g_signal_connect_swapped (priv->model_manager,
                             "notify::project-name",
                             G_CALLBACK (hyscan_gtk_map_builder_project_changed),
+                            builder);
+
+  g_signal_connect_swapped (priv->model_manager,
+                            GET_SIGNAL_TITLE (SIGNAL_SHOW_OBJECT),
+                            G_CALLBACK (hyscan_gtk_map_builder_show_object),
                             builder);
 }
 
@@ -984,6 +992,21 @@ hyscan_gtk_map_builder_add_layer (HyScanGtkMapBuilder *builder,
 
   /* Применяем профиль, чтобы загрузить его параметры. */
   hyscan_gtk_map_profile_switch_set_id (HYSCAN_GTK_MAP_PROFILE_SWITCH (priv->profile_switch), NULL);
+}
+
+/* Показывает объект на карте. */
+static void
+hyscan_gtk_map_builder_show_object (HyScanGtkMapBuilder *builder,
+                                    gchar               *id,
+                                    guint                type)
+{
+  HyScanGtkMapBuilderPrivate *priv = builder->priv;
+
+  if (type == ACOUSTIC_MARK && priv->wfmark_layer != NULL)
+    hyscan_gtk_map_wfmark_mark_view (HYSCAN_GTK_MAP_WFMARK (priv->wfmark_layer), id, FALSE);
+  else if (type == GEO_MARK && priv->geomark_layer != NULL)
+    hyscan_gtk_map_geomark_mark_view (HYSCAN_GTK_MAP_GEOMARK (priv->geomark_layer), id, FALSE);
+
 }
 
 /**

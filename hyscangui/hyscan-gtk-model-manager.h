@@ -50,6 +50,9 @@
 /* Макросы для проверки строки. */
 #define IS_EMPTY(str)      IS_EQUAL ((str), "")        /* Пустая строка. */
 #define IS_NOT_EMPTY(str)  IS_NOT_EQUAL ((str), "")    /* Не пустая строка. */
+/* Макрос возвращает название сигнала по идентификатору. */
+#define GET_SIGNAL_TITLE(signal_id)\
+hyscan_gtk_model_manager_get_signal_title(priv->model_manager, (signal_id))
 
 G_BEGIN_DECLS
 
@@ -83,6 +86,7 @@ typedef enum
   SIGNAL_VIEW_SCROLLED_HORIZONTAL,    /* Изменение положения горизонтальной прокрутки представления. */
   SIGNAL_VIEW_SCROLLED_VERTICAL,      /* Изменение положения вертикальной прокрутки представления. */
   SIGNAL_UNSELECT_ALL,                /* Снятие выделения. */
+  SIGNAL_SHOW_OBJECT,                 /* Показать объект на карте. */
   SIGNAL_MODEL_MANAGER_LAST           /* Количество сигналов. */
 }ModelManagerSignal;
 
@@ -270,9 +274,14 @@ void                   hyscan_gtk_model_manager_toggled_items_set_labels    (HyS
                                                                              guint64                    inconsistents);
 
 HYSCAN_API
-void                  hyscan_gtk_model_manager_toggled_items_get_bit_masks  (HyScanGtkModelManager     *self,
+void                   hyscan_gtk_model_manager_toggled_items_get_bit_masks (HyScanGtkModelManager     *self,
                                                                              guint64                   *labels,
                                                                              guint64                   *inconsistents);
+
+HYSCAN_API
+void                   hyscan_gtk_model_manager_show_object                 (HyScanGtkModelManager     *self,
+                                                                             gchar                     *id,
+                                                                             guint                      type);
 
 G_END_DECLS
 
