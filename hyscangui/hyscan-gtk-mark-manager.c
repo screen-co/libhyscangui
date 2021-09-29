@@ -583,14 +583,24 @@ hyscan_gtk_mark_manager_scrolled_horizontal (GtkAdjustment *adjustment,
 {
   HyScanGtkMarkManager *self;
   HyScanGtkMarkManagerPrivate *priv;
+  gdouble lower, upper, page_size, value;
 
   g_return_if_fail (HYSCAN_IS_GTK_MARK_MANAGER (user_data));
 
   self = HYSCAN_GTK_MARK_MANAGER (user_data);
   priv = self->priv;
 
-  hyscan_gtk_model_manager_set_horizontal_adjustment (priv->model_manager,
-                                                      gtk_adjustment_get_value (adjustment));
+  value = gtk_adjustment_get_value (adjustment);
+
+  g_object_get(adjustment,
+               "lower", &lower,
+               "upper", &upper,
+               "page-size", &page_size,
+               NULL);
+
+  value = (value - lower) / (upper - lower - page_size);
+
+  hyscan_gtk_model_manager_set_horizontal_adjustment (priv->model_manager, value);
 }
 
 /* Обработчик сигнала вертикальной прокрутки представления.
@@ -601,14 +611,24 @@ hyscan_gtk_mark_manager_scrolled_vertical (GtkAdjustment *adjustment,
 {
   HyScanGtkMarkManager *self;
   HyScanGtkMarkManagerPrivate *priv;
+  gdouble lower, upper, page_size, value;
 
   g_return_if_fail (HYSCAN_IS_GTK_MARK_MANAGER (user_data));
 
   self = HYSCAN_GTK_MARK_MANAGER (user_data);
   priv = self->priv;
 
-  hyscan_gtk_model_manager_set_vertical_adjustment (priv->model_manager,
-                                                    gtk_adjustment_get_value (adjustment));
+  value = gtk_adjustment_get_value (adjustment);
+
+  g_object_get(adjustment,
+               "lower", &lower,
+               "upper", &upper,
+               "page-size", &page_size,
+               NULL);
+
+  value = (value - lower) / (upper - lower - page_size);
+
+  hyscan_gtk_model_manager_set_vertical_adjustment (priv->model_manager, value);
 }
 
 /* Обработчик нажатия кнопки "Удалить выбранное". */
@@ -884,7 +904,18 @@ hyscan_gtk_mark_manager_view_scrolled_horizontal (HyScanGtkMarkManager *self)
 {
   HyScanGtkMarkManagerPrivate *priv = self->priv;
   GtkAdjustment *adjustment = gtk_scrolled_window_get_hadjustment (GTK_SCROLLED_WINDOW (priv->view));
-  gdouble value = hyscan_gtk_model_manager_get_horizontal_adjustment (priv->model_manager);
+  gdouble value = hyscan_gtk_model_manager_get_horizontal_adjustment (priv->model_manager),
+          lower,
+          upper,
+          page_size;
+
+  g_object_get(adjustment,
+               "lower", &lower,
+               "upper", &upper,
+               "page-size", &page_size,
+               NULL);
+
+  value = (value * (upper - lower - page_size)) + lower;
 
   gtk_adjustment_set_value (adjustment, value);
 }
@@ -896,7 +927,18 @@ hyscan_gtk_mark_manager_view_scrolled_vertical (HyScanGtkMarkManager *self)
 {
   HyScanGtkMarkManagerPrivate *priv = self->priv;;
   GtkAdjustment *adjustment = gtk_scrolled_window_get_vadjustment (GTK_SCROLLED_WINDOW (priv->view));
-  gdouble value = hyscan_gtk_model_manager_get_vertical_adjustment (priv->model_manager);
+  gdouble value = hyscan_gtk_model_manager_get_vertical_adjustment (priv->model_manager),
+          lower,
+          upper,
+          page_size;
+
+  g_object_get(adjustment,
+               "lower", &lower,
+               "upper", &upper,
+               "page-size", &page_size,
+               NULL);
+
+  value = (value * (upper - lower - page_size)) + lower;
 
   gtk_adjustment_set_value (adjustment, value);
 }
