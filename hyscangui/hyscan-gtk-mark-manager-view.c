@@ -374,59 +374,40 @@ static void
 hyscan_gtk_mark_manager_view_update (HyScanGtkMarkManagerView *self)
 {
   HyScanGtkMarkManagerViewPrivate *priv = self->priv;
+  void (*set_model) (HyScanGtkMarkManagerView *self);
 
   if (GTK_IS_LIST_STORE (priv->store))
-    {
-      if (priv->tree_view == NULL)
-        {
-          GtkTreeSelection  *selection;
-
-          priv->tree_view = GTK_TREE_VIEW (gtk_tree_view_new_with_model (GTK_TREE_MODEL (priv->store)));
-
-          hyscan_gtk_mark_manager_view_set_list_model (self);
-
-          selection = gtk_tree_view_get_selection (priv->tree_view);
-
-          gtk_tree_selection_set_select_function (selection,
-                                                  hyscan_gtk_mark_manager_view_select_func,
-                                                  self,
-                                                  NULL);
-          priv->signal_selected = g_signal_connect (selection, "changed",
-                                                    G_CALLBACK (hyscan_gtk_mark_manager_view_emit_selected), self);
-        }
-      else
-        {
-          gtk_tree_view_set_model (priv->tree_view, GTK_TREE_MODEL (priv->store));
-        }
-      gtk_tree_selection_set_mode (gtk_tree_view_get_selection (priv->tree_view),
-                                   GTK_SELECTION_SINGLE);
-    }
+    set_model = hyscan_gtk_mark_manager_view_set_list_model;
   else if (GTK_IS_TREE_STORE (priv->store))
+    set_model = hyscan_gtk_mark_manager_view_set_tree_model;
+  else
+    return;
+
+  if (priv->tree_view == NULL)
     {
-      if (priv->tree_view == NULL)
-        {
-          GtkTreeSelection  *selection;
+      GtkTreeSelection  *selection;
 
-          priv->tree_view = GTK_TREE_VIEW (gtk_tree_view_new_with_model (GTK_TREE_MODEL (priv->store)));
+      priv->tree_view = GTK_TREE_VIEW (gtk_tree_view_new_with_model (GTK_TREE_MODEL (priv->store)));
 
-          hyscan_gtk_mark_manager_view_set_tree_model (self);
+      set_model (self);
 
-          selection = gtk_tree_view_get_selection (priv->tree_view);
+      selection = gtk_tree_view_get_selection (priv->tree_view);
 
-          gtk_tree_selection_set_select_function (selection,
-                                                  hyscan_gtk_mark_manager_view_select_func,
-                                                  self,
-                                                  NULL);
-          priv->signal_selected = g_signal_connect (G_OBJECT (selection), "changed",
-                                                    G_CALLBACK (hyscan_gtk_mark_manager_view_emit_selected), self);
-        }
-      else
-        {
-          gtk_tree_view_set_model (priv->tree_view, GTK_TREE_MODEL (priv->store));
-        }
-      gtk_tree_selection_set_mode (gtk_tree_view_get_selection (priv->tree_view),
-                                   GTK_SELECTION_MULTIPLE);
+      gtk_tree_selection_set_select_function (selection,
+                                              hyscan_gtk_mark_manager_view_select_func,
+                                              self,
+                                              NULL);
+      priv->signal_selected = g_signal_connect (selection, "changed",
+                                                G_CALLBACK (hyscan_gtk_mark_manager_view_emit_selected), self);
     }
+  else
+    {
+      gtk_tree_view_set_model (priv->tree_view, GTK_TREE_MODEL (priv->store));
+    }
+  if (GTK_IS_LIST_STORE (priv->store))
+    gtk_tree_selection_set_mode (gtk_tree_view_get_selection (priv->tree_view), GTK_SELECTION_SINGLE);
+  else /* Здесь без "else if", т.к. в начале уже была проверка с "return"-ом. */
+    gtk_tree_selection_set_mode (gtk_tree_view_get_selection (priv->tree_view), GTK_SELECTION_MULTIPLE);
 }
 
 /* Обработчик выделения строки в списке. */
@@ -467,9 +448,10 @@ hyscan_gtk_mark_manager_view_emit_selected (GtkTreeSelection         *selection,
                                   COLUMN_ID, &id,
                                   -1);
 
-              if (id != NULL && IS_NOT_EMPTY (id))
+              if (id != NULL)
                 {
-                  g_signal_emit (self, hyscan_gtk_mark_manager_view_signals[SIGNAL_SELECTED], 0, id);
+                  if (IS_NOT_EMPTY (id))
+                    g_signal_emit (self, hyscan_gtk_mark_manager_view_signals[SIGNAL_SELECTED], 0, id);
                   g_free (id);
                 }
             }

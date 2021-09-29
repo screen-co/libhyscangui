@@ -393,7 +393,7 @@ hyscan_gtk_mark_manager_constructed (GObject *object)
                     G_CALLBACK (hyscan_gtk_mark_manager_toggled_items_save_as_html), self);
 
   priv->combo = gtk_combo_box_text_new ();
-  for (ModelManagerGrouping index = UNGROUPED; index < N_VIEW_TYPES; index++)
+  for (ModelManagerGrouping index = UNGROUPED; index < VIEW_TYPES; index++)
     gtk_combo_box_text_append (GTK_COMBO_BOX_TEXT (priv->combo), NULL, _(view_type_text[index]));
   gtk_combo_box_set_active (GTK_COMBO_BOX (priv->combo), grouping);
 
