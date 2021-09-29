@@ -48,8 +48,8 @@
 #define IS_EQUAL(a, b)     (0 == g_strcmp0 ((a), (b))) /* Одинаковые строки. */
 #define IS_NOT_EQUAL(a, b) (0 != g_strcmp0 ((a), (b))) /* Разные строки. */
 /* Макросы для проверки строки. */
-#define IS_EMPTY(str)      IS_EQUAL ((str), "")        /* Пустая строка. */
-#define IS_NOT_EMPTY(str)  IS_NOT_EQUAL ((str), "")    /* Не пустая строка. */
+#define IS_EMPTY(str)      ((str) == NULL || IS_EQUAL ((str), ""))     /* Пустая строка. */
+#define IS_NOT_EMPTY(str)  ((str) != NULL && IS_NOT_EQUAL ((str), "")) /* Не пустая строка. */
 /* Макрос возвращает название сигнала по идентификатору. */
 #define GET_SIGNAL_TITLE(signal_id)\
 hyscan_gtk_model_manager_get_signal_title(priv->model_manager, (signal_id))

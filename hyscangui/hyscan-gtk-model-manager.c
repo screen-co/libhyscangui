@@ -84,7 +84,10 @@
 #include <hyscan-gui-marshallers.h>
 #include <glib/gi18n-lib.h>
 #include <math.h>
+#include <limits.h>
 
+/* Максимальная длина строки описания объекта отображаемой в подсказке. */
+#define DESCRIPTION_MAX_LENGTH 32
 /* Макрос для освобождения ресурсов модели. */
 #define RELEASE_MODEL(model, object)\
 if ((model) != NULL)\
@@ -134,16 +137,17 @@ gtk_tree_store_set (store,               (current),\
 
 /* Макрос добавляет атрибут объекта в модель данных. */
 #define ADD_ATTRIBUTE_IN_STORE(str)\
-{\
-  GtkTreeIter item_iter;\
-  gtk_tree_store_append (store, &item_iter, &child_iter);\
-  gtk_tree_store_set (store,          &item_iter,\
-                      COLUMN_NAME,     (str),\
-                      COLUMN_ICON,     icon,\
-                      COLUMN_ACTIVE,   toggled,\
-                      COLUMN_VISIBLE,  FALSE,\
-                      -1);\
-}
+if (IS_NOT_EMPTY((str)))\
+  {\
+    GtkTreeIter item_iter;\
+    gtk_tree_store_append (store, &item_iter, &child_iter);\
+    gtk_tree_store_set (store,          &item_iter,\
+                        COLUMN_NAME,     (str),\
+                        COLUMN_ICON,     icon,\
+                        COLUMN_ACTIVE,   toggled,\
+                        COLUMN_VISIBLE,  FALSE,\
+                        -1);\
+  }
 
 enum
 {
@@ -891,12 +895,39 @@ hyscan_gtk_model_manager_set_view_model_by_labels (HyScanGtkModelManager *self)
       store   = GTK_TREE_STORE (priv->view_model);
       toggled = (ext != NULL) ? ext->active : FALSE;
 
-      tooltip = g_strdup_printf (_("Acoustic marks: %u\n"
-                                   "Geo marks: %u\n"
-                                   "Tracks: %u"),
-                                 hyscan_gtk_model_manager_has_object_with_label (ACOUSTIC_MARK, label),
-                                 hyscan_gtk_model_manager_has_object_with_label (GEO_MARK,      label),
-                                 hyscan_gtk_model_manager_has_object_with_label (TRACK,         label));
+      if (IS_NOT_EMPTY(label->description))
+        {
+          gchar *tmp = g_strdup (label->description);
+
+          if (DESCRIPTION_MAX_LENGTH < g_utf8_strlen (tmp, -1))
+            {
+              gchar *str = g_utf8_substring (tmp, 0, DESCRIPTION_MAX_LENGTH);
+              g_free (tmp);
+              tmp = g_strconcat (str, "...", (gchar*)NULL);
+              g_free (str);
+            }
+
+          tooltip = g_strdup_printf (_("Note: %s\n"
+                                       "Acoustic marks: %u\n"
+                                       "Geo marks: %u\n"
+                                       "Tracks: %u"),
+                                     tmp,
+                                     hyscan_gtk_model_manager_has_object_with_label (ACOUSTIC_MARK, label),
+                                     hyscan_gtk_model_manager_has_object_with_label (GEO_MARK,      label),
+                                     hyscan_gtk_model_manager_has_object_with_label (TRACK,         label));
+          g_free (tmp);
+        }
+      else
+        {
+          g_print ("Hasn't description.\n");
+          tooltip = g_strdup_printf (_("Acoustic marks: %u\n"
+                                       "Geo marks: %u\n"
+                                       "Tracks: %u"),
+                                     hyscan_gtk_model_manager_has_object_with_label (ACOUSTIC_MARK, label),
+                                     hyscan_gtk_model_manager_has_object_with_label (GEO_MARK,      label),
+                                     hyscan_gtk_model_manager_has_object_with_label (TRACK,         label));
+        }
+
       icon = hyscan_gtk_mark_manager_icon_new (NULL,
                             hyscan_gtk_model_manager_get_icon_from_base64 ( (const gchar*)label->icon_data),
                             tooltip);
@@ -1004,9 +1035,41 @@ hyscan_gtk_model_manager_refresh_geo_marks_ungrouped (HyScanGtkModelManager *sel
       pixbuf = (tmp == NULL) ? gdk_pixbuf_new_from_resource (type_icon[GEO_MARK], NULL) :
                hyscan_gtk_model_manager_get_icon_from_base64 ( (const gchar*)tmp);
 
-      tooltip = g_strdup_printf (_("%s\nCreated: %s\nModified: %s\n%s (WGS 84)"),
-                                 _(type_name[GEO_MARK]), creation_time,
-                                 modification_time, position);
+      if (IS_NOT_EMPTY(object->description))
+        {
+          tmp = g_strdup (object->description);
+
+          if (DESCRIPTION_MAX_LENGTH < g_utf8_strlen (tmp, -1))
+            {
+              gchar *str = g_utf8_substring (tmp, 0, DESCRIPTION_MAX_LENGTH);
+              g_free (tmp);
+              tmp = g_strconcat (str, "...", (gchar*)NULL);
+              g_free (str);
+            }
+
+          tooltip = g_strdup_printf (_("%s\n"
+                                       "Note: %s\n"
+                                       "Created: %s\n"
+                                       "Modified: %s\n"
+                                       "%s (WGS 84)"),
+                                     _(type_name[GEO_MARK]),
+                                     tmp,
+                                     creation_time,
+                                     modification_time,
+                                     position);
+          g_free (tmp);
+        }
+      else
+        {
+           tooltip = g_strdup_printf (_("%s\n"
+                                        "Created: %s\n"
+                                        "Modified: %s\n"
+                                        "%s (WGS 84)"),
+                                      _(type_name[GEO_MARK]),
+                                      creation_time,
+                                      modification_time,
+                                      position);
+        }
 
       counter = hyscan_gtk_model_manager_count_labels (object->labels);
 
@@ -1149,23 +1212,60 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_ungrouped (HyScanGtkModelManager
       /* Если нет иконки группы, используем иконку из ресурсов. */
       pixbuf = (tmp == NULL) ? gdk_pixbuf_new_from_resource (type_icon[ACOUSTIC_MARK], NULL) :
                hyscan_gtk_model_manager_get_icon_from_base64 ( (const gchar*)tmp);
-      tooltip = g_strdup_printf (_("%s\n"
-                                   "Created: %s\n"
-                                   "Modified: %s\n%s (WGS 84)\n"
-                                   "Track: %s\n"
-                                   "Board: %s\n"
-                                   "Depth: %s\n"
-                                   "Width: %s\n"
-                                   "Slant range: %s"),
-                                  _(type_name[ACOUSTIC_MARK]),
-                                  creation_time,
-                                  modification_time,
-                                  position,
-                                  location->track_name,
-                                  board,
-                                  depth,
-                                  width,
-                                  slant_range);
+
+      if (IS_NOT_EMPTY(object->description))
+        {
+          tmp = g_strdup (object->description);
+
+          if (DESCRIPTION_MAX_LENGTH < g_utf8_strlen (tmp, -1))
+            {
+              gchar *str = g_utf8_substring (tmp, 0, DESCRIPTION_MAX_LENGTH);
+              g_free (tmp);
+              tmp = g_strconcat (str, "...", (gchar*)NULL);
+              g_free (str);
+            }
+
+          tooltip = g_strdup_printf (_("%s\n"
+                                       "Note: %s\n"
+                                       "Created: %s\n"
+                                       "Modified: %s\n%s (WGS 84)\n"
+                                       "Track: %s\n"
+                                       "Board: %s\n"
+                                       "Depth: %s\n"
+                                       "Width: %s\n"
+                                       "Slant range: %s"),
+                                      _(type_name[ACOUSTIC_MARK]),
+                                      tmp,
+                                      creation_time,
+                                      modification_time,
+                                      position,
+                                      location->track_name,
+                                      board,
+                                      depth,
+                                      width,
+                                      slant_range);
+          g_free (tmp);
+        }
+      else
+        {
+           tooltip = g_strdup_printf (_("%s\n"
+                                        "Created: %s\n"
+                                        "Modified: %s\n%s (WGS 84)\n"
+                                        "Track: %s\n"
+                                        "Board: %s\n"
+                                        "Depth: %s\n"
+                                        "Width: %s\n"
+                                        "Slant range: %s"),
+                                      _(type_name[ACOUSTIC_MARK]),
+                                      creation_time,
+                                      modification_time,
+                                      position,
+                                      location->track_name,
+                                      board,
+                                      depth,
+                                      width,
+                                      slant_range);
+        }
 
       counter = hyscan_gtk_model_manager_count_labels (object->labels);
 
@@ -1241,7 +1341,7 @@ hyscan_gtk_model_manager_refresh_tracks_ungrouped (HyScanGtkModelManager *self,
       GdkPixbuf   *pixbuf;
       GHashTableIter iter;
       Extension *ext;
-      gchar     *key, *tmp, *label_name, *ctime, *mtime, *tooltip;
+      gchar     *key, *tmp, *label_name, *creation_time, *modification_time, *tooltip;
 
       if (object == NULL)
         continue;
@@ -1251,23 +1351,23 @@ hyscan_gtk_model_manager_refresh_tracks_ungrouped (HyScanGtkModelManager *self,
       if (object->ctime != NULL)
         {
           GDateTime *local = g_date_time_to_local (object->ctime);
-          ctime = g_date_time_format (local, date_time_stamp);
+          creation_time = g_date_time_format (local, date_time_stamp);
           g_date_time_unref (local);
         }
       else
         {
-          ctime = g_strdup ("");
+          creation_time = g_strdup ("");
         }
 
       if (object->mtime != NULL)
         {
           GDateTime *local = g_date_time_to_local (object->mtime);
-          mtime = g_date_time_format (local, date_time_stamp);
+          modification_time = g_date_time_format (local, date_time_stamp);
           g_date_time_unref (local);
         }
       else
         {
-          mtime = g_strdup ("");
+          modification_time = g_strdup ("");
         }
 
       tmp = label_name = NULL;
@@ -1286,8 +1386,37 @@ hyscan_gtk_model_manager_refresh_tracks_ungrouped (HyScanGtkModelManager *self,
       pixbuf = (tmp == NULL) ? gdk_pixbuf_new_from_resource (type_icon[TRACK], NULL) :
                hyscan_gtk_model_manager_get_icon_from_base64 ( (const gchar*)tmp);
 
-      tooltip = g_strdup_printf (_("%s\nCreated: %s\nModified: %s"),
-                                 _(type_name[TRACK]), ctime, mtime);
+      if (IS_NOT_EMPTY(object->description))
+        {
+          tmp = g_strdup (object->description);
+
+          if (DESCRIPTION_MAX_LENGTH < g_utf8_strlen (tmp, -1))
+            {
+              gchar *str = g_utf8_substring (tmp, 0, DESCRIPTION_MAX_LENGTH);
+              g_free (tmp);
+              tmp = g_strconcat (str, "...", (gchar*)NULL);
+              g_free (str);
+            }
+
+          tooltip = g_strdup_printf (_("%s\n"
+                                       "Note: %s\n"
+                                       "Created: %s\n"
+                                       "Modified: %s"),
+                                     _(type_name[TRACK]),
+                                     tmp,
+                                     creation_time,
+                                     modification_time);
+          g_free (tmp);
+        }
+      else
+        {
+           tooltip = g_strdup_printf (_("%s\n"
+                                        "Created: %s\n"
+                                        "Modified: %s"),
+                                      _(type_name[TRACK]),
+                                      creation_time,
+                                      modification_time);
+        }
 
       counter = hyscan_gtk_model_manager_count_labels (object->labels);
 
@@ -1310,12 +1439,12 @@ hyscan_gtk_model_manager_refresh_tracks_ungrouped (HyScanGtkModelManager *self,
                           COLUMN_ACTIVE,       (ext != NULL) ? ext->active : FALSE,
                           COLUMN_VISIBLE,      TRUE,
                           COLUMN_LABEL,        object->labels,
-                          COLUMN_CTIME,        ctime,
-                          COLUMN_MTIME,        mtime,
+                          COLUMN_CTIME,        creation_time,
+                          COLUMN_MTIME,        modification_time,
                           -1);
       hyscan_gtk_mark_manager_icon_free (icon);
-      g_free (ctime);
-      g_free (mtime);
+      g_free (creation_time);
+      g_free (modification_time);
     }
   g_hash_table_destroy (tracks);
 }
@@ -1366,7 +1495,7 @@ hyscan_gtk_model_manager_refresh_labels_by_types (HyScanGtkModelManager *self)
       GtkTreeIter  child_iter;
       gboolean     toggled;
       GDateTime   *time;
-      gchar       *ctime, *mtime;
+      gchar       *creation_time, *modification_time;
 
       if (object == NULL)
         continue;
@@ -1380,23 +1509,45 @@ hyscan_gtk_model_manager_refresh_labels_by_types (HyScanGtkModelManager *self)
         }
 
       time = g_date_time_new_from_unix_local (object->ctime);
-      ctime  = g_date_time_format (time, date_time_stamp);
+      creation_time = g_date_time_format (time, date_time_stamp);
       g_date_time_unref (time);
 
       time = g_date_time_new_from_unix_local (object->mtime);
-      mtime  = g_date_time_format (time, date_time_stamp);
+      modification_time = g_date_time_format (time, date_time_stamp);
       g_date_time_unref (time);
 
-      tooltip = g_strdup_printf (_("%s\n"
-                                   "%s\n"
-                                   "%s\n"
-                                   "Created: %s\n"
-                                   "Modified: %s"),
-                                 object->name,
-                                 object->description,
-                                 object->operator_name,
-                                 ctime,
-                                 mtime);
+      if (IS_NOT_EMPTY(object->description))
+        {
+          gchar *tmp = g_strdup (object->description);
+
+          if (DESCRIPTION_MAX_LENGTH < g_utf8_strlen (tmp, -1))
+            {
+              gchar *str = g_utf8_substring (tmp, 0, DESCRIPTION_MAX_LENGTH);
+              g_free (tmp);
+              tmp = g_strconcat (str, "...", (gchar*)NULL);
+              g_free (str);
+            }
+
+          tooltip = g_strdup_printf (_("%s\n"
+                                       "Note: %s\n"
+                                       "Created: %s\n"
+                                       "Modified: %s"),
+                                     object->name,
+                                     tmp,
+                                     creation_time,
+                                     modification_time);
+          g_free (tmp);
+        }
+      else
+        {
+          tooltip = g_strdup_printf (_("%s\n"
+                                       "Created: %s\n"
+                                       "Modified: %s"),
+                                     object->name,
+                                     creation_time,
+                                     modification_time);
+        }
+
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             hyscan_gtk_model_manager_get_icon_from_base64 ( (const gchar*)object->icon_data),
                             tooltip);
@@ -1418,14 +1569,14 @@ hyscan_gtk_model_manager_refresh_labels_by_types (HyScanGtkModelManager *self)
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[CREATION_TIME], NULL),
                             _("Creation time"));
-      ADD_ATTRIBUTE_IN_STORE (ctime);
-      g_free (ctime);
+      ADD_ATTRIBUTE_IN_STORE (creation_time);
+      g_free (creation_time);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[MODIFICATION_TIME], NULL),
                             _("Modification time"));
-      ADD_ATTRIBUTE_IN_STORE (mtime);
-      g_free (mtime);
+      ADD_ATTRIBUTE_IN_STORE (modification_time);
+      g_free (modification_time);
     }
   hyscan_gtk_mark_manager_icon_free (icon);
 
@@ -1542,14 +1693,42 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_types (HyScanGtkModelManager *self
 
       position = g_strdup_printf ("%.6f° %.6f° (WGS 84)", object->center.lat, object->center.lon);
 
-      tooltip = g_strdup_printf (_("%s\n"
-                                   "Created: %s\n"
-                                   "Modified: %s\n"
-                                   "%s"),
-                                 _(type_name[GEO_MARK]),
-                                 creation_time,
-                                 modification_time,
-                                 position);
+      if (IS_NOT_EMPTY(object->description))
+        {
+          tmp = g_strdup (object->description);
+
+          if (DESCRIPTION_MAX_LENGTH < g_utf8_strlen (tmp, -1))
+            {
+              gchar *str = g_utf8_substring (tmp, 0, DESCRIPTION_MAX_LENGTH);
+              g_free (tmp);
+              tmp = g_strconcat (str, "...", (gchar*)NULL);
+              g_free (str);
+            }
+
+          tooltip = g_strdup_printf (_("%s\n"
+                                       "Note: %s\n"
+                                       "Created: %s\n"
+                                       "Modified: %s\n"
+                                       "%s"),
+                                     _(type_name[GEO_MARK]),
+                                     tmp,
+                                     creation_time,
+                                     modification_time,
+                                     position);
+          g_free (tmp);
+        }
+      else
+        {
+          tooltip = g_strdup_printf (_("%s\n"
+                                       "Created: %s\n"
+                                       "Modified: %s\n"
+                                       "%s"),
+                                     _(type_name[GEO_MARK]),
+                                     creation_time,
+                                     modification_time,
+                                     position);
+        }
+
       counter = hyscan_gtk_model_manager_count_labels (object->labels);
 
       if (counter == 1)
@@ -1699,14 +1878,42 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_labels (HyScanGtkModelManager *sel
 
       position = g_strdup_printf ("%.6f° %.6f° (WGS 84)", object->center.lat, object->center.lon);
 
-      tooltip = g_strdup_printf (_("%s\n"
-                                   "Created: %s\n"
-                                   "Modified: %s\n"
-                                   "%s"),
-                                 _(type_name[GEO_MARK]),
-                                 creation_time,
-                                 modification_time,
-                                 position);
+      if (IS_NOT_EMPTY(object->description))
+        {
+          gchar *tmp = g_strdup (object->description);
+
+          if (DESCRIPTION_MAX_LENGTH < g_utf8_strlen (tmp, -1))
+            {
+              gchar *str = g_utf8_substring (tmp, 0, DESCRIPTION_MAX_LENGTH);
+              g_free (tmp);
+              tmp = g_strconcat (str, "...", (gchar*)NULL);
+              g_free (str);
+            }
+
+          tooltip = g_strdup_printf (_("%s\n"
+                                       "Note: %s\n"
+                                       "Created: %s\n"
+                                       "Modified: %s\n"
+                                       "%s"),
+                                     _(type_name[GEO_MARK]),
+                                     tmp,
+                                     creation_time,
+                                     modification_time,
+                                     position);
+          g_free (tmp);
+        }
+      else
+        {
+          tooltip = g_strdup_printf (_("%s\n"
+                                       "Created: %s\n"
+                                       "Modified: %s\n"
+                                       "%s"),
+                                     _(type_name[GEO_MARK]),
+                                     creation_time,
+                                     modification_time,
+                                     position);
+        }
+
       counter = hyscan_gtk_model_manager_count_labels (object->labels);
 
       if (counter > 1)
@@ -1950,20 +2157,53 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (HyScanGtkModelManager 
 
       if (location->direction == HYSCAN_MARK_LOCATION_BOTTOM)
         {
-          tooltip = g_strdup_printf (_("%s\n"
-                                       "Created: %s\n"
-                                       "Modified: %s\n"
-                                       "%s\n"
-                                       "Track: %s\n"
-                                       "Board: %s\n"
-                                       "Depth: %s\n"),
-                                     _(type_name[ACOUSTIC_MARK]),
-                                     creation_time,
-                                     modification_time,
-                                     position,
-                                     location->track_name,
-                                     key,
-                                     depth);
+          if (IS_NOT_EMPTY(object->description))
+            {
+              tmp = g_strdup (object->description);
+
+              if (DESCRIPTION_MAX_LENGTH < g_utf8_strlen (tmp, -1))
+                {
+                  gchar *str = g_utf8_substring (tmp, 0, DESCRIPTION_MAX_LENGTH);
+                  g_free (tmp);
+                  tmp = g_strconcat (str, "...", (gchar*)NULL);
+                  g_free (str);
+                }
+
+              tooltip = g_strdup_printf (_("%s\n"
+                                           "Note: %s\n"
+                                           "Created: %s\n"
+                                           "Modified: %s\n"
+                                           "%s\n"
+                                           "Track: %s\n"
+                                           "Board: %s\n"
+                                           "Depth: %s\n"),
+                                         _(type_name[ACOUSTIC_MARK]),
+                                         tmp,
+                                         creation_time,
+                                         modification_time,
+                                         position,
+                                         location->track_name,
+                                         key,
+                                         depth);
+              g_free (tmp);
+            }
+          else
+            {
+              tooltip = g_strdup_printf (_("%s\n"
+                                           "Created: %s\n"
+                                           "Modified: %s\n"
+                                           "%s\n"
+                                           "Track: %s\n"
+                                           "Board: %s\n"
+                                           "Depth: %s\n"),
+                                         _(type_name[ACOUSTIC_MARK]),
+                                         creation_time,
+                                         modification_time,
+                                         position,
+                                         location->track_name,
+                                         key,
+                                         depth);
+            }
         }
       else
         {
@@ -1990,24 +2230,61 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (HyScanGtkModelManager 
 
           slant_range = g_strdup_printf (_(distance_stamp), location->across);
 
-          tooltip = g_strdup_printf (_("%s\n"
-                                       "Created: %s\n"
-                                       "Modified: %s\n"
-                                       "%s\n"
-                                       "Track: %s\n"
-                                       "Board: %s\n"
-                                       "Depth: %s\n"
-                                       "Width: %s\n"
-                                       "Slant range: %s"),
-                                     _(type_name[ACOUSTIC_MARK]),
-                                     creation_time,
-                                     modification_time,
-                                     position,
-                                     location->track_name,
-                                     key,
-                                     depth,
-                                     width,
-                                     slant_range);
+          if (IS_NOT_EMPTY(object->description))
+            {
+              tmp = g_strdup (object->description);
+
+              if (DESCRIPTION_MAX_LENGTH < g_utf8_strlen (tmp, -1))
+                {
+                  gchar *str = g_utf8_substring (tmp, 0, DESCRIPTION_MAX_LENGTH);
+                  g_free (tmp);
+                  tmp = g_strconcat (str, "...", (gchar*)NULL);
+                  g_free (str);
+                }
+
+              tooltip = g_strdup_printf (_("%s\n"
+                                           "Note: %s\n"
+                                           "Created: %s\n"
+                                           "Modified: %s\n"
+                                           "%s\n"
+                                           "Track: %s\n"
+                                           "Board: %s\n"
+                                           "Depth: %s\n"
+                                           "Width: %s\n"
+                                           "Slant range: %s"),
+                                         _(type_name[ACOUSTIC_MARK]),
+                                         tmp,
+                                         creation_time,
+                                         modification_time,
+                                         position,
+                                         location->track_name,
+                                         key,
+                                         depth,
+                                         width,
+                                         slant_range);
+              g_free (tmp);
+            }
+          else
+            {
+              tooltip = g_strdup_printf (_("%s\n"
+                                           "Created: %s\n"
+                                           "Modified: %s\n"
+                                           "%s\n"
+                                           "Track: %s\n"
+                                           "Board: %s\n"
+                                           "Depth: %s\n"
+                                           "Width: %s\n"
+                                           "Slant range: %s"),
+                                         _(type_name[ACOUSTIC_MARK]),
+                                         creation_time,
+                                         modification_time,
+                                         position,
+                                         location->track_name,
+                                         key,
+                                         depth,
+                                         width,
+                                         slant_range);
+            }
         }
 
       counter = hyscan_gtk_model_manager_count_labels (location->mark->labels);
@@ -2243,20 +2520,53 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_labels (HyScanGtkModelManager
 
       if (location->direction == HYSCAN_MARK_LOCATION_BOTTOM)
         {
-          tooltip = g_strdup_printf (_("%s\n"
-                                       "Created: %s\n"
-                                       "Modified: %s\n"
-                                       "%s\n"
-                                       "Track: %s\n"
-                                       "Board: %s\n"
-                                       "Depth: %s\n"),
-                                     _(type_name[ACOUSTIC_MARK]),
-                                     creation_time,
-                                     modification_time,
-                                     position,
-                                     location->track_name,
-                                     key,
-                                     depth);
+          if (IS_NOT_EMPTY(object->description))
+            {
+              gchar *tmp = g_strdup (object->description);
+
+              if (DESCRIPTION_MAX_LENGTH < g_utf8_strlen (tmp, -1))
+                {
+                  gchar *str = g_utf8_substring (tmp, 0, DESCRIPTION_MAX_LENGTH);
+                  g_free (tmp);
+                  tmp = g_strconcat (str, "...", (gchar*)NULL);
+                  g_free (str);
+                }
+
+              tooltip = g_strdup_printf (_("%s\n"
+                                           "Note: %s\n"
+                                           "Created: %s\n"
+                                           "Modified: %s\n"
+                                           "%s\n"
+                                           "Track: %s\n"
+                                           "Board: %s\n"
+                                           "Depth: %s\n"),
+                                         _(type_name[ACOUSTIC_MARK]),
+                                         tmp,
+                                         creation_time,
+                                         modification_time,
+                                         position,
+                                         location->track_name,
+                                         key,
+                                         depth);
+              g_free (tmp);
+            }
+          else
+            {
+              tooltip = g_strdup_printf (_("%s\n"
+                                           "Created: %s\n"
+                                           "Modified: %s\n"
+                                           "%s\n"
+                                           "Track: %s\n"
+                                           "Board: %s\n"
+                                           "Depth: %s\n"),
+                                         _(type_name[ACOUSTIC_MARK]),
+                                         creation_time,
+                                         modification_time,
+                                         position,
+                                         location->track_name,
+                                         key,
+                                         depth);
+            }
         }
       else
         {
@@ -2283,24 +2593,61 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_labels (HyScanGtkModelManager
 
           slant_range = g_strdup_printf (_(distance_stamp), location->across);
 
-          tooltip = g_strdup_printf (_("%s\n"
-                                       "Created: %s\n"
-                                       "Modified: %s\n"
-                                       "%s\n"
-                                       "Track: %s\n"
-                                       "Board: %s\n"
-                                       "Depth: %s\n"
-                                       "Width: %s\n"
-                                       "Slant range: %s"),
-                                     _(type_name[ACOUSTIC_MARK]),
-                                     creation_time,
-                                     modification_time,
-                                     position,
-                                     location->track_name,
-                                     key,
-                                     depth,
-                                     width,
-                                     slant_range);
+          if (IS_NOT_EMPTY(object->description))
+            {
+              gchar *tmp = g_strdup (object->description);
+
+              if (DESCRIPTION_MAX_LENGTH < g_utf8_strlen (tmp, -1))
+                {
+                  gchar *str = g_utf8_substring (tmp, 0, DESCRIPTION_MAX_LENGTH);
+                  g_free (tmp);
+                  tmp = g_strconcat (str, "...", (gchar*)NULL);
+                  g_free (str);
+                }
+
+              tooltip = g_strdup_printf (_("%s\n"
+                                           "Note: %s\n"
+                                           "Created: %s\n"
+                                           "Modified: %s\n"
+                                           "%s\n"
+                                           "Track: %s\n"
+                                           "Board: %s\n"
+                                           "Depth: %s\n"
+                                           "Width: %s\n"
+                                           "Slant range: %s"),
+                                         _(type_name[ACOUSTIC_MARK]),
+                                         tmp,
+                                         creation_time,
+                                         modification_time,
+                                         position,
+                                         location->track_name,
+                                         key,
+                                         depth,
+                                         width,
+                                         slant_range);
+              g_free (tmp);
+            }
+          else
+            {
+              tooltip = g_strdup_printf (_("%s\n"
+                                           "Created: %s\n"
+                                           "Modified: %s\n"
+                                           "%s\n"
+                                           "Track: %s\n"
+                                           "Board: %s\n"
+                                           "Depth: %s\n"
+                                           "Width: %s\n"
+                                           "Slant range: %s"),
+                                         _(type_name[ACOUSTIC_MARK]),
+                                         creation_time,
+                                         modification_time,
+                                         position,
+                                         location->track_name,
+                                         key,
+                                         depth,
+                                         width,
+                                         slant_range);
+            }
         }
 
       counter = hyscan_gtk_model_manager_count_labels (location->mark->labels);
@@ -2547,12 +2894,37 @@ hyscan_gtk_model_manager_refresh_tracks_by_types (HyScanGtkModelManager *self)
           modification_time = g_strdup ("");
         }
 
-      tooltip = g_strdup_printf (_("%s\n"
-                                   "Created: %s\n"
-                                   "Modified: %s"),
-                                 _(type_name[TRACK]),
-                                 creation_time,
-                                 modification_time);
+      if (IS_NOT_EMPTY(object->description))
+        {
+          tmp = g_strdup (object->description);
+
+          if (DESCRIPTION_MAX_LENGTH < g_utf8_strlen (tmp, -1))
+            {
+              gchar *str = g_utf8_substring (tmp, 0, DESCRIPTION_MAX_LENGTH);
+              g_free (tmp);
+              tmp = g_strconcat (str, "...", (gchar*)NULL);
+              g_free (str);
+            }
+
+          tooltip = g_strdup_printf (_("%s\n"
+                                       "Note: %s\n"
+                                       "Created: %s\n"
+                                       "Modified: %s"),
+                                     _(type_name[TRACK]),
+                                     tmp,
+                                     creation_time,
+                                     modification_time);
+          g_free (tmp);
+        }
+      else
+        {
+          tooltip = g_strdup_printf (_("%s\n"
+                                       "Created: %s\n"
+                                       "Modified: %s"),
+                                     _(type_name[TRACK]),
+                                     creation_time,
+                                     modification_time);
+        }
 
       counter = hyscan_gtk_model_manager_count_labels (object->labels);
 
@@ -2711,12 +3083,37 @@ hyscan_gtk_model_manager_refresh_tracks_by_labels (HyScanGtkModelManager *self,
           modification_time = g_strdup ("");
         }
 
-      tooltip = g_strdup_printf (_("%s\n"
-                                   "Created: %s\n"
-                                   "Modified: %s"),
-                                 _(type_name[TRACK]),
-                                 creation_time,
-                                 modification_time);
+      if (IS_NOT_EMPTY(object->description))
+        {
+          gchar *tmp = g_strdup (object->description);
+
+          if (DESCRIPTION_MAX_LENGTH < g_utf8_strlen (tmp, -1))
+            {
+              gchar *str = g_utf8_substring (tmp, 0, DESCRIPTION_MAX_LENGTH);
+              g_free (tmp);
+              tmp = g_strconcat (str, "...", (gchar*)NULL);
+              g_free (str);
+            }
+
+          tooltip = g_strdup_printf (_("%s\n"
+                                       "Note: %s\n"
+                                       "Created: %s\n"
+                                       "Modified: %s"),
+                                     _(type_name[TRACK]),
+                                     tmp,
+                                     creation_time,
+                                     modification_time);
+          g_free (tmp);
+        }
+      else
+        {
+           tooltip = g_strdup_printf (_("%s\n"
+                                        "Created: %s\n"
+                                        "Modified: %s"),
+                                      _(type_name[TRACK]),
+                                      creation_time,
+                                      modification_time);
+        }
 
       counter = hyscan_gtk_model_manager_count_labels (object->labels);
 

@@ -433,10 +433,9 @@ hyscan_gtk_mark_manager_view_emit_selected (GtkTreeSelection         *selection,
 
   if (gtk_tree_selection_get_mode (selection) == GTK_SELECTION_MULTIPLE)
     {
-      GList *list = gtk_tree_selection_get_selected_rows (selection, &model),
-            *ptr = g_list_first (list);
+      GList *list = gtk_tree_selection_get_selected_rows (selection, &model);
 
-      while (ptr != NULL)
+      for (GList *ptr = g_list_first (list); ptr != NULL; ptr = g_list_next (ptr))
         {
           GtkTreeIter iter;
 
@@ -455,7 +454,6 @@ hyscan_gtk_mark_manager_view_emit_selected (GtkTreeSelection         *selection,
                   g_free (id);
                 }
             }
-          ptr = g_list_next (ptr);
         }
       g_list_free_full (list, (GDestroyNotify) gtk_tree_path_free);
     }
@@ -1008,13 +1006,8 @@ hyscan_gtk_mark_manager_view_grab_focus_after (GtkWidget *widget,
     {
       if (gtk_tree_selection_get_mode (selection) == GTK_SELECTION_MULTIPLE)
         {
-          GList *ptr = g_list_first (priv->selected);
-
-          while (ptr != NULL)
-            {
-              gtk_tree_selection_select_path (selection, (GtkTreePath*)ptr->data);
-              ptr = g_list_next (ptr);
-            }
+          for (GList *ptr = g_list_first (priv->selected); ptr != NULL; ptr = g_list_next (ptr))
+            gtk_tree_selection_select_path (selection, (GtkTreePath*)ptr->data);
         }
       else
         {

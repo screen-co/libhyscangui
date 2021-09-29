@@ -172,8 +172,7 @@ hyscan_gtk_mark_manager_create_label_dialog_constructed (GObject *object)
   GtkIconView  *view    = GTK_ICON_VIEW (priv->icon_view);
   GtkTreePath  *path    = gtk_tree_path_new_first ();
   GtkTreeIter   iter;
-  GList        *images  = NULL,
-               *ptr     = NULL;
+  GList        *images  = NULL;
 
   G_OBJECT_CLASS (hyscan_gtk_mark_manager_create_label_dialog_parent_class)->constructed (object);
 
@@ -213,11 +212,9 @@ hyscan_gtk_mark_manager_create_label_dialog_constructed (GObject *object)
   if (images == NULL)
     return;
 
-  ptr = g_list_first (images);
-
   priv->icon_model = GTK_TREE_MODEL (gtk_list_store_new (N_COLUMNS, GDK_TYPE_PIXBUF));
 
-  while (ptr != NULL)
+  for (GList *ptr = g_list_first (images); ptr != NULL; ptr = g_list_next (ptr))
     {
       GError      *error     = NULL;
       const gchar *icon_name = (const gchar*)ptr->data;
@@ -236,7 +233,6 @@ hyscan_gtk_mark_manager_create_label_dialog_constructed (GObject *object)
           g_warning (_("Couldn't load icon \"%s\".\n Error: %s."), icon_name, error->message);
           g_error_free (error);
         }
-      ptr = g_list_next (ptr);
     }
 
   g_list_free (images);
