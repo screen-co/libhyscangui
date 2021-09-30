@@ -77,9 +77,13 @@ typedef enum
 struct _HyScanGtkMarkManagerCreateLabelDialogPrivate
 {
   GtkWidget         *entry[N_ENTRY], /* Поля для ввода данных. */
-                    *icon_view;      /* Виджет для отображения иконок. */
+                    *icon_view,      /* Виджет для отображения иконок. */
+                    *icon,           /* Выбранная иконка. */
+                    *msg;            /* Сообщение о выборе иконки. */
   GtkTreeModel      *icon_model;     /* Модель с иконками. */
   HyScanObjectModel *label_model;    /* Модель с данныим о группах. */
+  GdkPixbuf         *pixbuf;         /* Иконка. */
+  gulong             signal_id;      /* Идентификатор сигнала выбора иконки в GtkIconView. */
 };
 
 /* Текст для полей ввода по умолчанию. */
@@ -111,6 +115,13 @@ static guint64    hyscan_gtk_mark_manager_create_label_dialog_generate_label   (
 
 static gboolean   hyscan_gtk_mark_manager_create_label_dialog_validate_label   (GHashTable   *table,
                                                                                 guint64       label);
+
+static gboolean   hyscan_gtk_mark_manager_create_label_dialog_choose_icon      (GtkWidget    *widget,
+                                                                                GdkEvent     *event,
+                                                                                gpointer      user_data);
+
+static void       hyscan_gtk_mark_manager_create_label_dialog_icon_choosed     (GtkIconView  *iconview,
+                                                                                gpointer      user_data);
 
 G_DEFINE_TYPE_WITH_PRIVATE (HyScanGtkMarkManagerCreateLabelDialog, hyscan_gtk_mark_manager_create_label_dialog, GTK_TYPE_DIALOG)
 
@@ -161,13 +172,15 @@ hyscan_gtk_mark_manager_create_label_dialog_constructed (GObject *object)
   HyScanGtkMarkManagerCreateLabelDialog *self = HYSCAN_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG (object);
   HyScanGtkMarkManagerCreateLabelDialogPrivate *priv = self->priv;
   GtkIconTheme *icon_theme;
-  GtkDialog    *dialog  = GTK_DIALOG (object);
-  GtkWindow    *window  = GTK_WINDOW (dialog);
-  GtkWidget    *left    = gtk_box_new (GTK_ORIENTATION_VERTICAL,   0),
-               *right   = gtk_box_new (GTK_ORIENTATION_VERTICAL,   0),
-               *box     = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0),
-               *content = gtk_dialog_get_content_area (dialog),
-               *scroll  = gtk_scrolled_window_new (NULL, NULL),
+  GtkDialog    *dialog   = GTK_DIALOG (object);
+  GtkWindow    *window   = GTK_WINDOW (dialog);
+  GtkWidget    *left     = gtk_box_new (GTK_ORIENTATION_VERTICAL,   0),
+               *right    = gtk_box_new (GTK_ORIENTATION_VERTICAL,   0),
+               *box      = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0),
+               *content  = gtk_dialog_get_content_area (dialog),
+               *scroll   = gtk_scrolled_window_new (NULL, NULL),
+               *icon_box = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0),
+               *button   = gtk_button_new_with_label (_("Load icon")),
                *label[N_ENTRY];
   GtkIconView  *view    = GTK_ICON_VIEW (priv->icon_view);
   GtkTreePath  *path    = gtk_tree_path_new_first ();
@@ -201,6 +214,15 @@ hyscan_gtk_mark_manager_create_label_dialog_constructed (GObject *object)
                         self);
     }
 
+  gtk_box_pack_start (GTK_BOX (left), gtk_label_new (_("Icon")), TRUE, TRUE, 0);
+  /* При установке первой выделенной иконки она отобразиться с помощью обработчика -->. */
+  priv->icon = gtk_image_new ();
+  gtk_box_pack_start (GTK_BOX (icon_box), priv->icon, FALSE, TRUE, 10);
+  priv->msg = gtk_label_new (NULL);
+  gtk_box_pack_start (GTK_BOX (icon_box), priv->msg, TRUE, TRUE, 10);
+  gtk_box_pack_start (GTK_BOX (icon_box), button, FALSE, TRUE, 10);
+  gtk_box_pack_start (GTK_BOX (right), icon_box, TRUE, TRUE, 0);
+
   gtk_box_pack_start (GTK_BOX (box), left,  FALSE, TRUE, 10);
   gtk_box_pack_start (GTK_BOX (box), right, TRUE,  TRUE, 0);
 
@@ -218,21 +240,22 @@ hyscan_gtk_mark_manager_create_label_dialog_constructed (GObject *object)
     {
       GError      *error     = NULL;
       const gchar *icon_name = (const gchar*)ptr->data;
-      GdkPixbuf   *pixbuf    = gtk_icon_theme_load_icon (icon_theme, icon_name, ICON_SIZE, 0, &error);
+      priv->pixbuf = gtk_icon_theme_load_icon (icon_theme, icon_name, ICON_SIZE, 0, &error);
 
-      if (pixbuf != NULL)
+      if (priv->pixbuf != NULL)
         {
           GtkListStore *store = GTK_LIST_STORE (priv->icon_model);
 
           gtk_list_store_append (store, &iter);
-          gtk_list_store_set (store, &iter, COLUMN_ICON, pixbuf, -1);
-          g_object_unref (pixbuf);
+          gtk_list_store_set (store, &iter, COLUMN_ICON, priv->pixbuf, -1);
+          g_object_unref (priv->pixbuf);
         }
       else
         {
           g_warning (_("Couldn't load icon \"%s\".\n Error: %s."), icon_name, error->message);
           g_error_free (error);
         }
+      priv->pixbuf = NULL;
     }
 
   g_list_free (images);
@@ -244,12 +267,22 @@ hyscan_gtk_mark_manager_create_label_dialog_constructed (GObject *object)
   gtk_icon_view_set_text_column (view, -1);
   gtk_icon_view_set_columns (view, -1);
   gtk_icon_view_set_item_width (view, ICON_SIZE);
-  gtk_icon_view_set_selection_mode (view, GTK_SELECTION_BROWSE);
+  gtk_icon_view_set_selection_mode (view, GTK_SELECTION_SINGLE);
+  /* --> Подключаем обработчик. -->  */
+  priv->signal_id = g_signal_connect (view,
+                    "selection-changed",
+                    G_CALLBACK (hyscan_gtk_mark_manager_create_label_dialog_icon_choosed),
+                    self);
+  /* --> Выделяем первую иконку. Она же отобразится в GtkImage в обработчике. */
   gtk_icon_view_select_path (view, path);
   gtk_tree_path_free (path);
   gtk_container_add (GTK_CONTAINER (scroll), priv->icon_view);
-  gtk_box_pack_start (GTK_BOX (content), gtk_label_new (_("Choose icon")), FALSE, TRUE, 10);
   gtk_box_pack_start (GTK_BOX (content), GTK_WIDGET (scroll), TRUE, TRUE, 0);
+
+  g_signal_connect (button,
+                    "button-press-event",
+                    G_CALLBACK (hyscan_gtk_mark_manager_create_label_dialog_choose_icon),
+                    self);
 
   g_signal_connect (dialog,
                     "response",
@@ -265,6 +298,9 @@ hyscan_gtk_mark_manager_create_label_dialog_finalize (GObject *object)
   HyScanGtkMarkManagerCreateLabelDialog *self = HYSCAN_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG (object);
   HyScanGtkMarkManagerCreateLabelDialogPrivate *priv = self->priv;
 
+  /* priv->pixbuf освобождается в
+   * hyscan_gtk_mark_manager_create_label_dialog_response.
+   * * */
   g_object_unref (priv->label_model);
   g_object_unref (priv->icon_model);
 
@@ -285,12 +321,14 @@ hyscan_gtk_mark_manager_create_label_dialog_response (GtkWidget *dialog,
   self = HYSCAN_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG (user_data);
   priv = self->priv;
 
+  /* Нужно отключить сигнал, чтобы обработчик не обновлял виджеты. */
+  if (priv->signal_id != 0)
+    g_signal_handler_disconnect (GTK_ICON_VIEW (priv->icon_view), priv->signal_id);
+
   if (response == GTK_RESPONSE_OK)
     {
       HyScanLabel *label  = hyscan_label_new ();
-      GdkPixbuf   *pixbuf = NULL;
       GHashTable  *table  = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model), HYSCAN_TYPE_LABEL);
-      GList       *images;
       GDateTime   *dt     = g_date_time_new_now_local ();
       gint64       time   = g_date_time_to_unix (dt);
       guint64      id     = hyscan_gtk_mark_manager_create_label_dialog_generate_label (table);
@@ -302,27 +340,11 @@ hyscan_gtk_mark_manager_create_label_dialog_response (GtkWidget *dialog,
                              gtk_entry_get_text (GTK_ENTRY (priv->entry[TITLE])),
                              gtk_entry_get_text (GTK_ENTRY (priv->entry[DESCRIPTION])),
                              gtk_entry_get_text (GTK_ENTRY (priv->entry[OPERATOR])));
-      images = gtk_icon_view_get_selected_items (GTK_ICON_VIEW (priv->icon_view));
-
-      if (g_list_length (images) == 0)
-        {
-          pixbuf = gdk_pixbuf_new_from_resource ("/org/hyscan/icons/emblem-default.png", NULL);
-        }
-      else
-        {
-          GList *ptr = g_list_first (images);
-          GtkTreeIter iter;
-          if (gtk_tree_model_get_iter (priv->icon_model, &iter, (GtkTreePath*)ptr->data))
-            gtk_tree_model_get (priv->icon_model, &iter, COLUMN_ICON, &pixbuf, -1);
-        }
-
-      g_list_free_full (images, (GDestroyNotify) gtk_tree_path_free);
-
-      if (pixbuf != NULL)
+      if (priv->pixbuf != NULL)
         {
           GOutputStream *stream = g_memory_output_stream_new_resizable ();
 
-          if (gdk_pixbuf_save_to_stream (pixbuf, stream, "png", NULL, NULL, NULL))
+          if (gdk_pixbuf_save_to_stream (priv->pixbuf, stream, "png", NULL, NULL, NULL))
             {
               gpointer data = g_memory_output_stream_get_data (G_MEMORY_OUTPUT_STREAM (stream));
 
@@ -331,10 +353,10 @@ hyscan_gtk_mark_manager_create_label_dialog_response (GtkWidget *dialog,
 
               hyscan_label_set_icon_data (label, (const gchar*)str);
 
-              g_object_unref (pixbuf);
               g_free (str);
             }
 
+          g_object_unref (priv->pixbuf);
           g_object_unref (stream);
 
           hyscan_label_set_label (label, id);
@@ -402,6 +424,116 @@ hyscan_gtk_mark_manager_create_label_dialog_validate_label (GHashTable *table,
     }
 
   return TRUE;
+}
+
+/* Обработчик нажатия кнопки для запуска диалога выбора пользовательской иконки. */
+gboolean
+hyscan_gtk_mark_manager_create_label_dialog_choose_icon (GtkWidget *widget,
+                                                         GdkEvent  *event,
+                                                         gpointer   user_data)
+{
+  HyScanGtkMarkManagerCreateLabelDialog *self;
+  HyScanGtkMarkManagerCreateLabelDialogPrivate *priv;
+  GtkWidget *dialog;
+  GtkFileFilter *filter;
+
+  g_return_val_if_fail (HYSCAN_IS_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG (user_data), TRUE);
+
+  self = HYSCAN_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG (user_data);
+  priv = self->priv;
+
+  dialog = gtk_file_chooser_dialog_new (_("Load icon"),
+                                        GTK_WINDOW (gtk_widget_get_toplevel (GTK_WIDGET (self))),
+                                        GTK_FILE_CHOOSER_ACTION_OPEN,
+                                        _("Cancel"),
+                                        GTK_RESPONSE_CANCEL,
+                                        _("Load"),
+                                        GTK_RESPONSE_ACCEPT,
+                                        NULL);
+
+  filter = gtk_file_filter_new ();
+  gtk_file_filter_add_pixbuf_formats (filter);
+  gtk_file_chooser_set_filter (GTK_FILE_CHOOSER (dialog), filter);
+
+  if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT)
+    {
+      GError *error = NULL;
+      gchar *filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+
+      priv->pixbuf = gdk_pixbuf_new_from_file_at_size (filename, ICON_SIZE, ICON_SIZE, &error);
+
+      if (priv->pixbuf != NULL)
+        {
+          GtkIconView *view = GTK_ICON_VIEW (priv->icon_view);
+
+          gtk_image_set_from_pixbuf (GTK_IMAGE (priv->icon), priv->pixbuf);
+          gtk_label_set_text (GTK_LABEL (priv->msg), NULL);
+
+          if (priv->signal_id != 0)
+            g_signal_handler_block (view, priv->signal_id);
+
+          gtk_icon_view_unselect_all (view);
+
+          if (priv->signal_id != 0)
+            g_signal_handler_unblock (view, priv->signal_id);
+
+          gtk_dialog_set_response_sensitive (GTK_DIALOG (self), GTK_RESPONSE_OK, TRUE);
+        }
+     else
+        {
+          g_warning (_("Couldn't load icon \"%s\".\n Error: %s."), filename, error->message);
+          g_error_free (error);
+        }
+
+      g_free (filename);
+    }
+
+  gtk_widget_destroy (dialog);
+
+  return TRUE;
+}
+
+/* Обработчик выбора иконки в GtkImageView. */
+static void
+hyscan_gtk_mark_manager_create_label_dialog_icon_choosed (GtkIconView *iconview,
+                                                          gpointer     user_data)
+{
+  HyScanGtkMarkManagerCreateLabelDialog *self;
+  HyScanGtkMarkManagerCreateLabelDialogPrivate *priv;
+  GList *images;
+  gboolean has_icon_flag;
+
+  g_return_if_fail (HYSCAN_IS_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG (user_data));
+
+  self = HYSCAN_GTK_MARK_MANAGER_CREATE_LABEL_DIALOG (user_data);
+  priv = self->priv;
+
+  images = gtk_icon_view_get_selected_items (GTK_ICON_VIEW (priv->icon_view));
+
+  has_icon_flag = (g_list_length (images) != 0);
+
+  if (has_icon_flag)
+    {
+      GList *ptr = g_list_first (images);
+      GtkTreeIter iter;
+
+      if (gtk_tree_model_get_iter (priv->icon_model, &iter, (GtkTreePath*)ptr->data))
+        {
+          gtk_tree_model_get (priv->icon_model, &iter, COLUMN_ICON, &priv->pixbuf, -1);
+          gtk_label_set_text (GTK_LABEL (priv->msg), NULL);
+        }
+    }
+  else
+    {
+      priv->pixbuf = NULL;
+      gtk_label_set_text (GTK_LABEL (priv->msg), _("Choose icon"));
+    }
+
+  g_list_free_full (images, (GDestroyNotify) gtk_tree_path_free);
+
+  gtk_dialog_set_response_sensitive (GTK_DIALOG (self), GTK_RESPONSE_OK, has_icon_flag);
+
+  gtk_image_set_from_pixbuf (GTK_IMAGE (priv->icon), priv->pixbuf);
 }
 
 /**

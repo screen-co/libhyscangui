@@ -4952,7 +4952,7 @@ hyscan_gtk_model_manager_delete_toggled_items (HyScanGtkModelManager *self,
                 HyScanLabel *label = g_hash_table_lookup (labels, list[i]);
 
                 /* Глобальные группы удалять нельзя! */
-                if (label->label > MAX_CUSTOM_LABELS)
+                if ( (label->label >> MAX_CUSTOM_LABELS) != 0)
                   break;
 
                 hyscan_object_store_remove (HYSCAN_OBJECT_STORE (priv->label_model),
