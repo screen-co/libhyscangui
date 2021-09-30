@@ -52,8 +52,6 @@
 #include <hyscan-gtk-mark-export.h>
 #include <glib/gi18n-lib.h>
 
-#define MAX_LABELS 32 /* Максимальное количество групп. */
-
 /* Макрос соединяет сигнал с функцией-обработчиком. */
 #define CONNECTION(signal_id, function)\
 g_signal_connect_swapped (priv->model_manager,\
@@ -329,7 +327,9 @@ hyscan_gtk_mark_manager_constructed (GObject *object)
   gtk_widget_set_tooltip_text (GTK_WIDGET (priv->new_label_item), _(tooltips_text[CREATE_NEW_GROUP]));
   g_signal_connect (G_OBJECT (priv->new_label_item), "clicked",
                     G_CALLBACK (hyscan_gtk_mark_manager_create_new_label), self);
-  /* Если создано более MAX_LABELS групп, делаем кнопку "Новая группа" неактивной. */
+  /* Если создано более MAX_CUSTOM_LABELS пользовательских групп,
+   * делаем кнопку "Новая группа" не активной.
+   * * */
   hyscan_gtk_mark_manager_labels_changed (self);
 
   action_item = gtk_menu_tool_button_new (NULL, _(tooltips_text[DELETE_SELECTED]));
@@ -652,7 +652,9 @@ hyscan_gtk_mark_manager_delete_toggled (GtkToolButton        *button,
 
       vbox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 10);
 
-      label = gtk_label_new (_("Toggled objects will delete irrevocably.\n"
+      label = gtk_label_new (_("Toggled objects will delete irrevocably,\n"
+                               "excepting global groups.\n"
+                               "You can't delete global groups.\n"
                                "Acoustic marks associated with tracks\n"
                                "will be deleted or converted to geo marks\n"
                                "Continue?"));
@@ -666,7 +668,9 @@ hyscan_gtk_mark_manager_delete_toggled (GtkToolButton        *button,
     }
   else
     {
-      label = gtk_label_new (_("Toggled objects will delete irrevocably.\n"
+      label = gtk_label_new (_("Toggled objects will delete irrevocably,\n"
+                               "excepting global groups.\n"
+                               "You can't delete global groups.\n"
                                "Continue?"));
       gtk_box_pack_start (GTK_BOX (hbox), label, TRUE, TRUE, 10);
     }
@@ -859,11 +863,13 @@ hyscan_gtk_mark_manager_labels_changed (HyScanGtkMarkManager *self)
   HyScanObjectModel *label_model;
   GHashTable *table;
   guint size;
-  /* Если групп более MAX_LABELS, делаем кнопку "Новая группа" неактивной. */
+  /* Если пользовательских групп более MAX_CUSTOM_LABELS,
+   * делаем кнопку "Новая группа" не активной.
+   * * */
   label_model = hyscan_gtk_model_manager_get_label_model (priv->model_manager);
   table = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (label_model), HYSCAN_TYPE_LABEL);
   size = g_hash_table_size (table);
-  gtk_widget_set_sensitive (GTK_WIDGET (priv->new_label_item), size < MAX_LABELS);
+  gtk_widget_set_sensitive (GTK_WIDGET (priv->new_label_item), size < MAX_CUSTOM_LABELS);
   g_hash_table_destroy (table);
   g_object_unref (label_model);
 }

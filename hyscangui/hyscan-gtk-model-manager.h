@@ -44,6 +44,8 @@
 #include <hyscan-planner-model.h>
 #include <hyscan-gtk-mark-manager-icon.h>
 
+/* Максимальное количество пользовательских групп. */
+#define MAX_CUSTOM_LABELS 32
 /* Макросы для cравнения двух строк. */
 #define IS_EQUAL(a, b)     (0 == g_strcmp0 ((a), (b))) /* Одинаковые строки. */
 #define IS_NOT_EQUAL(a, b) (0 != g_strcmp0 ((a), (b))) /* Разные строки. */

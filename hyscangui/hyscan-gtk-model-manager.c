@@ -137,17 +137,16 @@ gtk_tree_store_set (store,               (current),\
 
 /* Макрос добавляет атрибут объекта в модель данных. */
 #define ADD_ATTRIBUTE_IN_STORE(str)\
-if (IS_NOT_EMPTY((str)))\
-  {\
-    GtkTreeIter item_iter;\
-    gtk_tree_store_append (store, &item_iter, &child_iter);\
-    gtk_tree_store_set (store,          &item_iter,\
-                        COLUMN_NAME,     (str),\
-                        COLUMN_ICON,     icon,\
-                        COLUMN_ACTIVE,   toggled,\
-                        COLUMN_VISIBLE,  FALSE,\
-                        -1);\
-  }
+{\
+  GtkTreeIter item_iter;\
+  gtk_tree_store_append (store, &item_iter, &child_iter);\
+  gtk_tree_store_set (store,          &item_iter,\
+                      COLUMN_NAME,     (str),\
+                      COLUMN_ICON,     icon,\
+                      COLUMN_ACTIVE,   toggled,\
+                      COLUMN_VISIBLE,  FALSE,\
+                      -1);\
+}
 
 enum
 {
@@ -157,6 +156,7 @@ enum
   PROP_EXPORT_FOLDER,       /* Директория для экспорта. */
   N_PROPERTIES
 };
+
 /* Атрибуты объекта. */
 enum
 {
@@ -182,6 +182,20 @@ typedef enum
   CHILD,                    /* Объект. */
   ITEM                      /* Атрибут объекта. */
 } ExtensionType;
+
+/* Глобальные группы. */
+typedef enum
+{
+  GLOBAL_LABEL_OBJECT,      /* Объект. */
+  GLOBAL_LABEL_DANGER,      /* Опасность. */
+  GLOBAL_LABEL_UNKNOWN,     /* Неизвестный. */
+  GLOBAL_LABEL_GROUP,       /* Группа. */
+  GLOBAL_LABEL_UNINSPECTED, /* Необследованный. */
+  GLOBAL_LABEL_INTERESTING, /* Интересный. */
+  GLOBAL_LABEL_SHALLOW,     /* Мелководье. */
+  GLOBAL_LABEL_DEPTH,       /* Глубина. */
+  GLOBAL_LABELS             /* Общее количество глобальных групп. */
+}GlobalLabel;
 
 /* Структура содержащая расширеную информацию об объектах. */
 typedef struct
@@ -285,6 +299,40 @@ static const gchar *type_id[TYPES] = {"ID_NODE_LABEL",                   /* Гр
                                       "ID_NODE_GEO_MARK",                /* Гео-метки.*/
                                       "ID_NODE_ACOUSTIC_MARK",           /* Акустические метки. */
                                       "ID_NODE_TRACK"};                  /* Галсы. */
+/* Названия глобальных групп. */
+static const gchar *global_label_name[GLOBAL_LABELS] = {
+    N_("Object"),      /* Объект. */
+    N_("Danger"),      /* Опасность. */
+    N_("Undefined"),   /* Неизвестный. */
+    N_("Group"),       /* Группа. */
+    N_("Uninspected"), /* Необследованный. */
+    N_("Interesting"), /* Интересный. */
+    N_("Shallow"),     /* Мелководье. */
+    N_("Depth")        /* Глубина. */
+};
+
+/* Описания глобальных групп. */
+static const gchar *global_label_desc[GLOBAL_LABELS] = {
+    N_("Different objects."),                                                          /* Объект. */
+    N_("Dangerous objects or targets."),                                               /* Опасность. */
+    N_("Unidentified objects or targets."),                                            /* Неизвестный. */
+    N_("Objects or targets located close to each other (as a group), group objects."), /* Группа. */
+    N_("Objects or targets identified, but not inspected."),                           /* Необследованный. */
+    N_("Objects or targets interesting for inspection or exploration."),               /* Интересный. */
+    N_("Objects or targets located at shallow or low depth."),                         /* Мелководье. */
+    N_("Objects or targets located at deep water.")                                    /* Глубина. */
+};
+/* Описания глобальных групп. */
+static const gchar *global_label_icon[GLOBAL_LABELS] = {
+    "/org/hyscan/icons/object.png",               /* Объект. */
+    "/org/hyscan/icons/dialog-warning.png",       /* Опасность. */
+    "/org/hyscan/icons/dialog-question.png",      /* Неизвестный. */
+    "/org/hyscan/icons/multy-object.png",         /* Группа. */
+    "/org/hyscan/icons/emblem-new.png",           /* Необследованный. */
+    "/org/hyscan/icons/dialog-information.png",   /* Интересный. */
+    "/org/hyscan/icons/shallow.png",              /* Мелководье. */
+    "/org/hyscan/icons/depth.png"                 /* Глубина. */
+};
 /* Массив указателей на модели групп, гео-меток, акустических меток и галсов для быстрого доступа к моделям. */
 static gpointer model[TYPES] = {NULL, NULL, NULL, NULL};
 /* Cкорость движения при которой генерируются тайлы в Echosounder-е, но метка
@@ -426,6 +474,12 @@ static void          hyscan_gtk_model_manager_toggled_tracks_set_labels         
                                                                                  guint64                  inconsistents,
                                                                                  gint64                   current_time,
                                                                                  GList                   *changed);
+
+static gboolean      hyscan_gtk_model_manager_has_label_with_bit_mask           (HyScanObjectModel       *label_model,
+                                                                                 guint64                  bit_mask);
+
+static gboolean      hyscan_gtk_model_manager_add_global_label                  (HyScanObjectModel       *label_model,
+                                                                                 GlobalLabel              global_label);
 
 static guint         hyscan_model_manager_signals[SIGNAL_MODEL_MANAGER_LAST] = { 0 };
 
@@ -688,8 +742,8 @@ hyscan_gtk_model_manager_finalize (GObject *object)
   HyScanGtkModelManager *self = HYSCAN_GTK_MODEL_MANAGER (object);
   HyScanGtkModelManagerPrivate *priv = self->priv;
 
-  RELEASE_MODEL (priv->track_model,         object);
   RELEASE_MODEL (priv->label_model,         object);
+  RELEASE_MODEL (priv->track_model,         object);
   RELEASE_MODEL (priv->planner_model,       object);
   RELEASE_MODEL (priv->geo_mark_model,      object);
   RELEASE_MODEL (priv->acoustic_loc_model,  object);
@@ -767,6 +821,29 @@ static void
 hyscan_gtk_model_manager_label_model_changed (HyScanObjectModel     *model,
                                               HyScanGtkModelManager *self)
 {
+  static gboolean labels_loaded = FALSE;
+
+  if (!labels_loaded)
+    {
+      HyScanGtkModelManagerPrivate *priv = self->priv;
+      /*GHashTable *labels = hyscan_object_model_get (priv->label_model);*/
+      GHashTable *labels = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model),
+                                                        HYSCAN_TYPE_LABEL);
+
+      if (labels != NULL)
+        {
+          /* Добавляем глобальные группы в базу данных. */
+          for (GlobalLabel global_label = GLOBAL_LABEL_OBJECT;
+                           global_label < GLOBAL_LABELS;
+                           global_label++)
+            hyscan_gtk_model_manager_add_global_label (priv->label_model, global_label);
+
+          g_hash_table_destroy (labels);
+
+          labels_loaded = TRUE;
+        }
+    }
+
   EMIT_SIGNAL (SIGNAL_LABELS_CHANGED);
 }
 
@@ -786,7 +863,7 @@ hyscan_gtk_model_manager_update_view_model (HyScanGtkModelManager *self)
     {
       create_view_model = (priv->grouping == UNGROUPED) ? (gpointer)gtk_list_store_newv : (gpointer)gtk_tree_store_newv;
 
-      priv->view_model = GTK_TREE_MODEL (create_view_model (MAX_COLUMNS, priv->store_format));
+      priv->view_model = create_view_model (MAX_COLUMNS, priv->store_format);
     }
 
   if (hyscan_gtk_model_manager_init_extensions (self))
@@ -884,8 +961,9 @@ hyscan_gtk_model_manager_set_view_model_by_labels (HyScanGtkModelManager *self)
       GtkTreeStore *store;
       Extension    *ext;
       HyScanGtkMarkManagerIcon *icon;
+      GDateTime    *time;
       gint          total, counter;
-      gchar        *tooltip;
+      gchar        *tooltip, *creation_time, *modification_time;
       gboolean      toggled, flag;
 
       if (label == NULL)
@@ -894,6 +972,13 @@ hyscan_gtk_model_manager_set_view_model_by_labels (HyScanGtkModelManager *self)
       ext     = g_hash_table_lookup (priv->extensions[LABEL], id);
       store   = GTK_TREE_STORE (priv->view_model);
       toggled = (ext != NULL) ? ext->active : FALSE;
+
+      time = g_date_time_new_from_unix_local (label->ctime);
+      creation_time = g_date_time_format (time, date_time_stamp),
+      g_date_time_unref (time);
+      time = g_date_time_new_from_unix_local (label->mtime);
+      modification_time = g_date_time_format (time, date_time_stamp);
+      g_date_time_unref (time);
 
       if (IS_NOT_EMPTY(label->description))
         {
@@ -910,11 +995,15 @@ hyscan_gtk_model_manager_set_view_model_by_labels (HyScanGtkModelManager *self)
           tooltip = g_strdup_printf (_("Note: %s\n"
                                        "Acoustic marks: %u\n"
                                        "Geo marks: %u\n"
-                                       "Tracks: %u"),
+                                       "Tracks: %u\n"
+                                       "Created: %s\n"
+                                       "Modified: %s"),
                                      tmp,
                                      hyscan_gtk_model_manager_has_object_with_label (ACOUSTIC_MARK, label),
                                      hyscan_gtk_model_manager_has_object_with_label (GEO_MARK,      label),
-                                     hyscan_gtk_model_manager_has_object_with_label (TRACK,         label));
+                                     hyscan_gtk_model_manager_has_object_with_label (TRACK,         label),
+                                     creation_time,
+                                     modification_time);
           g_free (tmp);
         }
       else
@@ -922,11 +1011,18 @@ hyscan_gtk_model_manager_set_view_model_by_labels (HyScanGtkModelManager *self)
           g_print ("Hasn't description.\n");
           tooltip = g_strdup_printf (_("Acoustic marks: %u\n"
                                        "Geo marks: %u\n"
-                                       "Tracks: %u"),
+                                       "Tracks: %u\n"
+                                       "Created: %s\n"
+                                       "Modified: %s"),
                                      hyscan_gtk_model_manager_has_object_with_label (ACOUSTIC_MARK, label),
                                      hyscan_gtk_model_manager_has_object_with_label (GEO_MARK,      label),
-                                     hyscan_gtk_model_manager_has_object_with_label (TRACK,         label));
+                                     hyscan_gtk_model_manager_has_object_with_label (TRACK,         label),
+                                     creation_time,
+                                     modification_time);
         }
+
+      g_free (creation_time);
+      g_free (modification_time);
 
       icon = hyscan_gtk_mark_manager_icon_new (NULL,
                             hyscan_gtk_model_manager_get_icon_from_base64 ( (const gchar*)label->icon_data),
@@ -1082,7 +1178,7 @@ hyscan_gtk_model_manager_refresh_geo_marks_ungrouped (HyScanGtkModelManager *sel
       g_free (tooltip);
 
       gtk_list_store_append (store, store_iter);
-      gtk_list_store_set (store,              store_iter,
+      gtk_list_store_set (store,               store_iter,
                           COLUMN_ID,           id,
                           COLUMN_NAME,         object->name,
                           COLUMN_DESCRIPTION,  object->description,
@@ -1559,23 +1655,33 @@ hyscan_gtk_model_manager_refresh_labels_by_types (HyScanGtkModelManager *self)
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[DESCRIPTION], NULL),
                             _("Description"));
-      ADD_ATTRIBUTE_IN_STORE (object->description);
+
+      if (IS_NOT_EMPTY(object->description))
+        ADD_ATTRIBUTE_IN_STORE (object->description);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[OPERATOR], NULL),
                             _("Operator"));
-      ADD_ATTRIBUTE_IN_STORE (object->operator_name);
+
+      if (IS_NOT_EMPTY(object->operator_name))
+        ADD_ATTRIBUTE_IN_STORE (object->operator_name);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[CREATION_TIME], NULL),
                             _("Creation time"));
-      ADD_ATTRIBUTE_IN_STORE (creation_time);
+
+      if (IS_NOT_EMPTY(creation_time))
+        ADD_ATTRIBUTE_IN_STORE (creation_time);
+
       g_free (creation_time);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[MODIFICATION_TIME], NULL),
                             _("Modification time"));
-      ADD_ATTRIBUTE_IN_STORE (modification_time);
+
+      if (IS_NOT_EMPTY(modification_time))
+        ADD_ATTRIBUTE_IN_STORE (modification_time);
+
       g_free (modification_time);
     }
   hyscan_gtk_mark_manager_icon_free (icon);
@@ -1601,6 +1707,7 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_types (HyScanGtkModelManager *self
   if (priv->extensions[GEO_MARK] == NULL)
     return;
 
+  /*geo_marks = hyscan_object_model_get (priv->geo_mark_model);*/
   geo_marks = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->geo_mark_model),
                                            HYSCAN_TYPE_MARK_GEO);
 
@@ -1746,29 +1853,42 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_types (HyScanGtkModelManager *self
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                                                gdk_pixbuf_new_from_resource (attr_icon[DESCRIPTION], NULL),
                                                _("Description"));
-                                               ADD_ATTRIBUTE_IN_STORE (object->description);
+
+      if (IS_NOT_EMPTY (object->description))
+        ADD_ATTRIBUTE_IN_STORE (object->description);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                                                gdk_pixbuf_new_from_resource (attr_icon[OPERATOR], NULL),
                                                _("Operator"));
-      ADD_ATTRIBUTE_IN_STORE (object->operator_name);
+
+      if (IS_NOT_EMPTY (object->operator_name))
+        ADD_ATTRIBUTE_IN_STORE (object->operator_name);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                                                gdk_pixbuf_new_from_resource (attr_icon[CREATION_TIME], NULL),
                                                _("Creation time"));
-      ADD_ATTRIBUTE_IN_STORE (creation_time);
+
+      if (IS_NOT_EMPTY (creation_time))
+        ADD_ATTRIBUTE_IN_STORE (creation_time);
+
       g_free (creation_time);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                                                gdk_pixbuf_new_from_resource (attr_icon[MODIFICATION_TIME], NULL),
                                                _("Modification time"));
-      ADD_ATTRIBUTE_IN_STORE (modification_time);
+
+      if (IS_NOT_EMPTY (modification_time))
+        ADD_ATTRIBUTE_IN_STORE (modification_time);
+
       g_free (modification_time);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                                                gdk_pixbuf_new_from_resource (attr_icon[LOCATION], NULL),
                                                _("Location"));
-      ADD_ATTRIBUTE_IN_STORE (position);
+
+      if (IS_NOT_EMPTY (position))
+        ADD_ATTRIBUTE_IN_STORE (position);
+
       g_free (position);
 
       hyscan_gtk_mark_manager_icon_free (icon);
@@ -1844,7 +1964,7 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_labels (HyScanGtkModelManager *sel
       return;
     }
 
-  store   = GTK_TREE_STORE (priv->view_model);
+  store = GTK_TREE_STORE (priv->view_model);
 
   g_hash_table_iter_init (&table_iter, geo_marks);
   while (g_hash_table_iter_next (&table_iter, (gpointer*)&id, (gpointer*)&object))
@@ -1931,29 +2051,42 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_labels (HyScanGtkModelManager *sel
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[DESCRIPTION], NULL),
                             _("Description"));
-      ADD_ATTRIBUTE_IN_STORE (object->description);
+
+      if (IS_NOT_EMPTY (object->description))
+        ADD_ATTRIBUTE_IN_STORE (object->description);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[OPERATOR], NULL),
                             _("Operator"));
-      ADD_ATTRIBUTE_IN_STORE (object->operator_name);
+
+      if (IS_NOT_EMPTY (object->operator_name))
+        ADD_ATTRIBUTE_IN_STORE (object->operator_name);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[CREATION_TIME], NULL),
                             _("Creation time"));
-      ADD_ATTRIBUTE_IN_STORE (creation_time);
+
+      if (IS_NOT_EMPTY (creation_time))
+        ADD_ATTRIBUTE_IN_STORE (creation_time);
+
       g_free (creation_time);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[MODIFICATION_TIME], NULL),
                             _("Modification time"));
-      ADD_ATTRIBUTE_IN_STORE (modification_time);
+
+      if (IS_NOT_EMPTY (modification_time))
+        ADD_ATTRIBUTE_IN_STORE (modification_time);
+
       g_free (modification_time);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[LOCATION], NULL),
                             _("Location"));
-      ADD_ATTRIBUTE_IN_STORE (position);
+
+      if (IS_NOT_EMPTY (position))
+        ADD_ATTRIBUTE_IN_STORE (position);
+
       g_free (position);
 
       hyscan_gtk_mark_manager_icon_free (icon);
@@ -2303,50 +2436,67 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (HyScanGtkModelManager 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[DESCRIPTION], NULL),
                             _("Description"));
-      ADD_ATTRIBUTE_IN_STORE (object->description);
+
+      if (IS_NOT_EMPTY (object->description))
+        ADD_ATTRIBUTE_IN_STORE (object->description);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[OPERATOR], NULL),
                             _("Operator"));
-      ADD_ATTRIBUTE_IN_STORE (object->operator_name);
+
+      if (IS_NOT_EMPTY (object->operator_name))
+        ADD_ATTRIBUTE_IN_STORE (object->operator_name);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[CREATION_TIME], NULL),
                             _("Creation time"));
 
-      ADD_ATTRIBUTE_IN_STORE (creation_time);
+      if (IS_NOT_EMPTY (creation_time))
+        ADD_ATTRIBUTE_IN_STORE (creation_time);
+
       g_free (creation_time);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[MODIFICATION_TIME], NULL),
                             _("Modification time"));
 
-      ADD_ATTRIBUTE_IN_STORE (modification_time);
+      if (IS_NOT_EMPTY (modification_time))
+        ADD_ATTRIBUTE_IN_STORE (modification_time);
+
       g_free (modification_time);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[LOCATION], NULL),
                             _("Location"));
-      ADD_ATTRIBUTE_IN_STORE (position);
+
+      if (IS_NOT_EMPTY (position))
+        ADD_ATTRIBUTE_IN_STORE (position);
       g_free (position);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (type_icon[TRACK], NULL),
                              _("Track name"));
-      ADD_ATTRIBUTE_IN_STORE (location->track_name);
+
+      if (IS_NOT_EMPTY (location->track_name))
+        ADD_ATTRIBUTE_IN_STORE (location->track_name);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (board, NULL),
                              _("Board"));
       g_free (board);
 
-      ADD_ATTRIBUTE_IN_STORE (key);
+      if (IS_NOT_EMPTY (key))
+        ADD_ATTRIBUTE_IN_STORE (key);
+
       g_free (key);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[DEPTH], NULL),
                              _("Depth"));
-      ADD_ATTRIBUTE_IN_STORE (depth);
+
+      if (IS_NOT_EMPTY (depth))
+        ADD_ATTRIBUTE_IN_STORE (depth);
+
       g_free (depth);
 
       if (location->direction != HYSCAN_MARK_LOCATION_BOTTOM)
@@ -2354,13 +2504,19 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (HyScanGtkModelManager 
           icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[WIDTH], NULL),
                             _("Width"));
-          ADD_ATTRIBUTE_IN_STORE (width);
+
+          if (IS_NOT_EMPTY (width))
+            ADD_ATTRIBUTE_IN_STORE (width);
+
           g_free (width);
 
           icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[SLANT_RANGE], NULL),
                             _("Slant range"));
-          ADD_ATTRIBUTE_IN_STORE (slant_range);
+
+          if (IS_NOT_EMPTY (slant_range))
+            ADD_ATTRIBUTE_IN_STORE (slant_range);
+
           g_free (slant_range);
         }
 
@@ -2670,43 +2826,59 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_labels (HyScanGtkModelManager
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[DESCRIPTION], NULL),
                             _("Description"));
-      ADD_ATTRIBUTE_IN_STORE (object->description);
+
+      if (IS_NOT_EMPTY (object->description))
+        ADD_ATTRIBUTE_IN_STORE (object->description);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[OPERATOR], NULL),
                             _("Operator"));
-      ADD_ATTRIBUTE_IN_STORE (object->operator_name);
+
+      if (IS_NOT_EMPTY (object->operator_name))
+        ADD_ATTRIBUTE_IN_STORE (object->operator_name);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[CREATION_TIME], NULL),
                             _("Creation time"));
 
-      ADD_ATTRIBUTE_IN_STORE (creation_time);
+      if (IS_NOT_EMPTY (creation_time))
+        ADD_ATTRIBUTE_IN_STORE (creation_time);
+
       g_free (creation_time);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[MODIFICATION_TIME], NULL),
                             _("Modification time"));
-      ADD_ATTRIBUTE_IN_STORE (modification_time);
+
+      if (IS_NOT_EMPTY (modification_time))
+        ADD_ATTRIBUTE_IN_STORE (modification_time);
+
       g_free (modification_time);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[LOCATION], NULL),
                             _("Location"));
-      ADD_ATTRIBUTE_IN_STORE (position);
+
+      if (IS_NOT_EMPTY (position))
+        ADD_ATTRIBUTE_IN_STORE (position);
+
       g_free (position);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (type_icon[TRACK], NULL),
                             _("Track name"));
-      ADD_ATTRIBUTE_IN_STORE (location->track_name);
+
+      if (IS_NOT_EMPTY (location->track_name))
+        ADD_ATTRIBUTE_IN_STORE (location->track_name);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (board, NULL),
                             _("Board"));
       g_free (board);
 
-      ADD_ATTRIBUTE_IN_STORE (key);
+      if (IS_NOT_EMPTY (key))
+        ADD_ATTRIBUTE_IN_STORE (key);
+
       g_free (key);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
@@ -2720,13 +2892,19 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_labels (HyScanGtkModelManager
           icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[WIDTH], NULL),
                             _("Width"));
-          ADD_ATTRIBUTE_IN_STORE (width);
+
+          if (IS_NOT_EMPTY (width))
+            ADD_ATTRIBUTE_IN_STORE (width);
+
           g_free (width);
 
           icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[SLANT_RANGE], NULL),
                             _("Slant range"));
-          ADD_ATTRIBUTE_IN_STORE (slant_range);
+
+          if (IS_NOT_EMPTY (slant_range))
+            ADD_ATTRIBUTE_IN_STORE (slant_range);
+
           g_free (slant_range);
         }
 
@@ -2943,24 +3121,33 @@ hyscan_gtk_model_manager_refresh_tracks_by_types (HyScanGtkModelManager *self)
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[DESCRIPTION], NULL),
                             _("Description"));
-      ADD_ATTRIBUTE_IN_STORE (object->description);
+
+      if (IS_NOT_EMPTY (object->description))
+        ADD_ATTRIBUTE_IN_STORE (object->description);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[OPERATOR], NULL),
                             _("Operator"));
-      ADD_ATTRIBUTE_IN_STORE (object->operator_name);
+
+      if (IS_NOT_EMPTY (object->operator_name))
+        ADD_ATTRIBUTE_IN_STORE (object->operator_name);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[CREATION_TIME], NULL),
                             _("Creation time"));
-      ADD_ATTRIBUTE_IN_STORE (creation_time);
+
+      if (IS_NOT_EMPTY (creation_time))
+        ADD_ATTRIBUTE_IN_STORE (creation_time);
+
       g_free (creation_time);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[MODIFICATION_TIME], NULL),
                             _("Modification time"));
 
-      ADD_ATTRIBUTE_IN_STORE (modification_time);
+      if (IS_NOT_EMPTY (modification_time))
+        ADD_ATTRIBUTE_IN_STORE (modification_time);
+
       g_free (modification_time);
 
       hyscan_gtk_mark_manager_icon_free (icon);
@@ -3131,23 +3318,33 @@ hyscan_gtk_model_manager_refresh_tracks_by_labels (HyScanGtkModelManager *self,
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[DESCRIPTION], NULL),
                             _("Description"));
-      ADD_ATTRIBUTE_IN_STORE (object->description);
+
+      if (IS_NOT_EMPTY (object->description))
+        ADD_ATTRIBUTE_IN_STORE (object->description);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[OPERATOR], NULL),
                             _("Operator"));
-      ADD_ATTRIBUTE_IN_STORE (object->operator_name);
+
+      if (IS_NOT_EMPTY (object->operator_name))
+        ADD_ATTRIBUTE_IN_STORE (object->operator_name);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[CREATION_TIME], NULL),
                             _("Creation time"));
-      ADD_ATTRIBUTE_IN_STORE (creation_time);
+
+      if (IS_NOT_EMPTY (creation_time))
+        ADD_ATTRIBUTE_IN_STORE (creation_time);
+
       g_free (creation_time);
 
       icon = hyscan_gtk_mark_manager_icon_new (icon,
                             gdk_pixbuf_new_from_resource (attr_icon[MODIFICATION_TIME], NULL),
                             _("Modification time"));
-      ADD_ATTRIBUTE_IN_STORE (modification_time);
+
+      if (IS_NOT_EMPTY (modification_time))
+        ADD_ATTRIBUTE_IN_STORE (modification_time);
+
       g_free (modification_time);
 
       hyscan_gtk_mark_manager_icon_free (icon);
@@ -3955,6 +4152,96 @@ hyscan_gtk_model_manager_toggled_tracks_set_labels (HyScanGtkModelManager *self,
   g_date_time_unref (now_local);
 }
 
+/* Проверяет наличие группы с заданной битовой маской.
+ * Возвращает TRUE - если такая группа есть, FALSE - если нет. */
+static gboolean
+hyscan_gtk_model_manager_has_label_with_bit_mask (HyScanObjectModel *label_model,
+                                                  guint64            bit_mask)
+{
+  HyScanLabel *label;
+  /*GHashTable *labels = hyscan_object_model_get (label_model);*/
+  GHashTable *labels = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (label_model),
+                                                    HYSCAN_TYPE_LABEL);
+  GHashTableIter iter;
+  gchar *key;
+  gboolean result = FALSE;
+
+  if (labels == NULL)
+    return FALSE;
+
+  g_hash_table_iter_init (&iter, labels);
+  while (g_hash_table_iter_next (&iter, (gpointer*)&key, (gpointer*)&label))
+    {
+      if (label == NULL)
+        continue;
+
+      if (label->label != bit_mask)
+        continue;
+
+      result = TRUE;
+      break;
+    }
+  g_hash_table_destroy (labels);
+
+  return result;
+}
+
+/* Добавляет новую глобальную метку в базу данных. */
+static gboolean
+hyscan_gtk_model_manager_add_global_label (HyScanObjectModel *label_model,
+                                           GlobalLabel        global_label)
+{
+  HyScanLabel *label  = hyscan_label_new ();
+  GdkPixbuf   *pixbuf = pixbuf = gdk_pixbuf_new_from_resource (global_label_icon[global_label], NULL);
+  guint64    bit_mask = 0x1;
+
+#ifdef HYSCAN_MARK_MANAGER_BUILD_TIME
+  gint64       time   = HYSCAN_MARK_MANAGER_BUILD_TIME;
+#else
+  GDateTime   *dt     = g_date_time_new_now_local ();
+  gint64       time   = g_date_time_to_unix (dt);
+  g_date_time_unref (dt);
+#endif
+
+  bit_mask = (bit_mask << (MAX_CUSTOM_LABELS + global_label));
+
+  if (hyscan_gtk_model_manager_has_label_with_bit_mask (label_model, bit_mask))
+    return FALSE;
+
+  if (pixbuf != NULL)
+    {
+      GOutputStream *stream = g_memory_output_stream_new_resizable ();
+
+      if (gdk_pixbuf_save_to_stream (pixbuf, stream, "png", NULL, NULL, NULL))
+        {
+          gpointer data = g_memory_output_stream_get_data (G_MEMORY_OUTPUT_STREAM (stream));
+          gsize  length = g_memory_output_stream_get_size (G_MEMORY_OUTPUT_STREAM (stream));
+          gchar    *str = g_base64_encode ( (const guchar*)data, length);
+
+          hyscan_label_set_icon_data (label, (const gchar*)str);
+
+          g_object_unref (pixbuf);
+          g_free (str);
+        }
+
+      g_object_unref (stream);
+    }
+
+  hyscan_label_set_text  (label,
+                          _(global_label_name[global_label]),
+                          _(global_label_desc[global_label]),
+                          "HyScan");
+  hyscan_label_set_label (label, bit_mask);
+  hyscan_label_set_ctime (label, time);
+  hyscan_label_set_mtime (label, time);
+  /* Добавляем группу в базу данных. */
+  /*hyscan_object_model_add (label_model, (const HyScanObject*) label);*/
+  hyscan_object_store_add (HYSCAN_OBJECT_STORE (label_model), (const HyScanObject*)label, NULL);
+  hyscan_label_free (label);
+
+  return TRUE;
+}
+
 /**
  * hyscan_gtk_model_manager_new:
  * @project_name: название проекта
@@ -4244,7 +4531,7 @@ hyscan_gtk_model_manager_set_grouping (HyScanGtkModelManager *self,
   /* Устанавливаем флаг для обновления модели представления данных. */
   priv->update_model_flag = TRUE;
 
-  g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_GROUPING_CHANGED ], 0);
+  g_signal_emit (self, hyscan_model_manager_signals[SIGNAL_GROUPING_CHANGED], 0);
 }
 
 /**
@@ -4658,9 +4945,20 @@ hyscan_gtk_model_manager_delete_toggled_items (HyScanGtkModelManager *self,
           switch (type)
            {
             case LABEL:
-              hyscan_object_store_remove (HYSCAN_OBJECT_STORE (priv->label_model),
-                                          HYSCAN_TYPE_LABEL,
-                                          list[i]);
+              {
+                /*GHashTable *labels = hyscan_object_model_get (priv->label_model);*/
+                GHashTable *labels = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model),
+                                                                  HYSCAN_TYPE_LABEL);
+                HyScanLabel *label = g_hash_table_lookup (labels, list[i]);
+
+                /* Глобальные группы удалять нельзя! */
+                if (label->label > MAX_CUSTOM_LABELS)
+                  break;
+
+                hyscan_object_store_remove (HYSCAN_OBJECT_STORE (priv->label_model),
+                                            HYSCAN_TYPE_LABEL,
+                                            list[i]);
+              }
             break;
 
             case GEO_MARK:
