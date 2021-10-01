@@ -52,7 +52,7 @@
 
 enum
 {
-  PROP_MODEL = 1,      /* Модель с данныим о группах. */
+  PROP_TABLE = 1,      /* Хэш-таблица с группами. */
   PROP_LABELS,         /* Битовая маска общих групп. */
   PROP_INCONSISTENTS,  /* Битовая маска групп с неопределённым статусом. */
   N_PROPERTIES
@@ -102,7 +102,7 @@ struct _HyScanGtkMarkManagerSetLabelsDialogPrivate
 {
   GtkWidget         *tree_view;     /* Виджет для отображения иконок. */
   GtkTreeModel      *model;         /* Модель с группами. */
-  HyScanObjectModel *label_model;   /* Модель с данныим о группах. */
+  GHashTable        *table;         /* Хэш-таблица с группами. */
   gint64             labels,        /* Битовая маска общих групп. */
                      inconsistents; /* Битовая маска групп с неопределённым статусом. */
 };
@@ -137,10 +137,9 @@ hyscan_gtk_mark_manager_set_labels_dialog_class_init (HyScanGtkMarkManagerSetLab
   object_class->constructed  = hyscan_gtk_mark_manager_set_labels_dialog_constructed;
   object_class->finalize     = hyscan_gtk_mark_manager_set_labels_dialog_finalize;
 
-  g_object_class_install_property (object_class, PROP_MODEL,
-    g_param_spec_object ("model", "Model", "Model with data about labels",
-                         HYSCAN_TYPE_OBJECT_MODEL,
-                         G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+  g_object_class_install_property (object_class, PROP_TABLE,
+      g_param_spec_pointer ("table", "Table", "Hash table with labels",
+                            G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   g_object_class_install_property (object_class, PROP_LABELS,
       g_param_spec_int64 ("labels", "Labels", "Bit mask with united labels of objects",
                           G_MININT64, G_MAXINT64, 0,
@@ -182,8 +181,8 @@ hyscan_gtk_mark_manager_set_labels_dialog_set_property (GObject      *object,
 
   switch (prop_id)
     {
-    case PROP_MODEL:
-      priv->label_model = g_value_dup_object (value);
+    case PROP_TABLE:
+      priv->table = g_hash_table_ref (g_value_get_pointer(value));
       break;
 
     case PROP_LABELS:
@@ -208,7 +207,6 @@ hyscan_gtk_mark_manager_set_labels_dialog_constructed (GObject *object)
   GtkDialog  *dialog  = GTK_DIALOG (object);
   GtkWindow  *window  = GTK_WINDOW (dialog);
   GtkWidget  *content = gtk_dialog_get_content_area (dialog);
-  GHashTable *table   = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model), HYSCAN_TYPE_LABEL);
 
   G_OBJECT_CLASS (hyscan_gtk_mark_manager_set_labels_dialog_parent_class)->constructed (object);
 
@@ -221,7 +219,7 @@ hyscan_gtk_mark_manager_set_labels_dialog_constructed (GObject *object)
   gtk_dialog_add_button (dialog, _("OK"),     GTK_RESPONSE_OK);
   gtk_dialog_add_button (dialog, _("Cancel"), GTK_RESPONSE_CANCEL);
 
-  if (table != NULL)
+  if (priv->table != NULL)
     {
       GtkListStore   *store = gtk_list_store_new (N_COLUMNS,
                                                   G_TYPE_BOOLEAN,  /* Статус чек-бокса. */
@@ -239,7 +237,7 @@ hyscan_gtk_mark_manager_set_labels_dialog_constructed (GObject *object)
       HyScanLabel    *object;
       gchar          *id;
 
-      g_hash_table_iter_init (&table_iter, table);
+      g_hash_table_iter_init (&table_iter, priv->table);
       while (g_hash_table_iter_next (&table_iter, (gpointer*)&id, (gpointer*)&object))
         {
           GdkPixbuf *icon = NULL;
@@ -287,7 +285,6 @@ hyscan_gtk_mark_manager_set_labels_dialog_constructed (GObject *object)
         }
 
       priv->model = GTK_TREE_MODEL (store);
-      g_hash_table_destroy (table);
 
       priv->tree_view = gtk_tree_view_new_with_model (priv->model);
 
@@ -370,7 +367,7 @@ hyscan_gtk_mark_manager_set_labels_dialog_finalize (GObject *object)
   HyScanGtkMarkManagerSetLabelsDialog *self = HYSCAN_GTK_MARK_MANAGER_SET_LABELS_DIALOG (object);
   HyScanGtkMarkManagerSetLabelsDialogPrivate *priv = self->priv;
 
-  g_object_unref (priv->label_model);
+  g_hash_table_unref (priv->table);
   g_object_unref (priv->model);
 
   G_OBJECT_CLASS (hyscan_gtk_mark_manager_set_labels_dialog_parent_class)->finalize (object);
@@ -484,7 +481,7 @@ hyscan_gtk_mark_manager_set_labels_on_toggle (GtkCellRendererToggle *cell_render
 /**
  * hyscan_gtk_mark_manager_set_labels_dialog_new:
  * @parent: родительское окно
- * @model: модель с данныим о группах
+ * @table: указатель на хэш-таблицу с группами
  * @labels: битовая маска общих групп
  * @inconsistent: битовая маска групп с неопределённым статусом
  *
@@ -492,13 +489,13 @@ hyscan_gtk_mark_manager_set_labels_on_toggle (GtkCellRendererToggle *cell_render
  */
 GtkWidget*
 hyscan_gtk_mark_manager_set_labels_dialog_new (GtkWindow         *parent,
-                                               HyScanObjectModel *model,
+                                               GHashTable        *table,
                                                gint64             labels,
                                                gint64             inconsistents)
 {
   return GTK_WIDGET (g_object_new (HYSCAN_TYPE_GTK_MARK_MANAGER_SET_LABELS_DIALOG,
                                    "transient-for", parent,
-                                   "model",         model,
+                                   "table",         table,
                                    "labels",        labels,
                                    "inconsistents", inconsistents,
                                    NULL));

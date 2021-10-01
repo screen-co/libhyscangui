@@ -285,6 +285,9 @@ void                   hyscan_gtk_model_manager_show_object                 (HyS
                                                                              gchar                     *id,
                                                                              guint                      type);
 
+HYSCAN_API
+GHashTable*            hyscan_gtk_model_manager_get_all_labels              (HyScanGtkModelManager     *self);
+
 G_END_DECLS
 
 #endif /* __HYSCAN_GTK_MODEL_MANAGER_H__ */

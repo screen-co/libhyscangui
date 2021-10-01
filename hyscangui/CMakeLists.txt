@@ -42,25 +42,6 @@ add_custom_command (OUTPUT "${CMAKE_BINARY_DIR}/marshallers/hyscan-gui-marshalle
 
 include_directories( ${CMAKE_CURRENT_BINARY_DIR} )
 
-# Для получения Unix-времени с TIMESTAMP-ом нужна версия 3.6.3 и выше.
-if (${CMAKE_VERSION} VERSION_LESS "3.6.3")
-  # Получаем время сборки с помощью Unix-команды "date +%s".
-  execute_process (COMMAND "date" "+%s" OUTPUT_VARIABLE BUILD_TIME)
-  # Убираем переход на следующую строку.
-  string (REGEX REPLACE "\n$" "" BUILD_TIME "${BUILD_TIME}")
-else()
-  string (TIMESTAMP BUILD_TIME "%s")
-endif()
-
-if (NOT BUILD_TIME)
-  # Ошибка! Нужно задать время сборки.
-  message (FATAL_ERROR "You should set BUILD_TIME value in CMakeLists.txt.")
-  #set(BUILD_TIME ...)
-endif ()
-
-# Передаём в проект как директиву препроцессору.
-add_definitions (-DHYSCAN_MARK_MANAGER_BUILD_TIME=${BUILD_TIME})
-
 add_library (${HYSCAN_GUI_LIBRARY} SHARED
              hyscan-gtk-area.c
              hyscan-gtk-waterfall-state.c

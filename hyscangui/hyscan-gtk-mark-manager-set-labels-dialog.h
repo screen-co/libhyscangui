@@ -66,7 +66,7 @@ struct _HyScanGtkMarkManagerSetLabelsDialogClass
 GType      hyscan_gtk_mark_manager_set_labels_dialog_get_type          (void);
 
 GtkWidget* hyscan_gtk_mark_manager_set_labels_dialog_new               (GtkWindow         *parent,
-                                                                        HyScanObjectModel *model,
+                                                                        GHashTable        *table,
                                                                         gint64             labels,
                                                                         gint64             inconsistents);
 

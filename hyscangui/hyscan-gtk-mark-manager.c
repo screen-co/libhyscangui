@@ -744,8 +744,8 @@ hyscan_gtk_mark_manager_set_labels_dialog_create (GtkMenuItem          *item,
                                                   HyScanGtkMarkManager *self)
 {
   HyScanGtkMarkManagerPrivate *priv = self->priv;
-  HyScanObjectModel *label_model;
   GtkWindow *parent;
+  GHashTable *table;
   guint64 labels,        /* Битовая маска общих групп. */
           inconsistents; /* Битовая маска групп с неопределённым статусом. */
 
@@ -754,13 +754,13 @@ hyscan_gtk_mark_manager_set_labels_dialog_create (GtkMenuItem          *item,
       gtk_window_present (GTK_WINDOW (priv->set_labels_dialog));
       return;
     }
-  label_model = hyscan_gtk_model_manager_get_label_model (priv->model_manager);
+  table  = hyscan_gtk_model_manager_get_all_labels (priv->model_manager);
   parent = GTK_WINDOW (gtk_widget_get_toplevel (GTK_WIDGET (self)));
 
   hyscan_gtk_model_manager_toggled_items_get_bit_masks (priv->model_manager, &labels, &inconsistents);
 
   priv->set_labels_dialog = hyscan_gtk_mark_manager_set_labels_dialog_new (parent,
-                                                                           label_model,
+                                                                           table,
                                                                            labels,
                                                                            inconsistents);
   g_signal_connect (priv->set_labels_dialog, "destroy",
@@ -768,7 +768,7 @@ hyscan_gtk_mark_manager_set_labels_dialog_create (GtkMenuItem          *item,
   g_signal_connect_swapped (priv->set_labels_dialog, "set-labels",
                             G_CALLBACK (hyscan_gtk_mark_manager_toggled_items_set_labels), self);
 
-  g_object_unref (label_model);
+  g_hash_table_destroy (table);
 }
 
 /* Функция-обработчик сигнала закрытия диалога установки групп объектам. */
