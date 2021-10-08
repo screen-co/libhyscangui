@@ -465,6 +465,7 @@ hyscan_gtk_mark_manager_finalize (GObject *object)
 
   G_OBJECT_CLASS (hyscan_gtk_mark_manager_parent_class)->finalize (object);
 }
+
 /* Обработчик нажатия кнопки "Новая группа". */
 static void
 hyscan_gtk_mark_manager_create_new_label (GtkToolItem          *item,
@@ -490,7 +491,7 @@ hyscan_gtk_mark_manager_create_new_label (GtkToolItem          *item,
   g_object_unref (label_model);
 }
 
-/* Функция-обработчик сигнала закрытия диалога создания новой группы.*/
+/* Обработчик сигнала закрытия диалога создания новой группы.*/
 static void
 hyscan_gtk_mark_manager_release_new_label_dialog (GtkWidget *dialog,
                                                   gpointer   user_data)
@@ -738,7 +739,7 @@ hyscan_gtk_mark_manager_untoggle_all (GtkMenuItem          *item,
   hyscan_gtk_mark_manager_view_toggle_all (HYSCAN_GTK_MARK_MANAGER_VIEW (priv->view), FALSE);
 }
 
-/* Обработчик выбора пункта меню "Перенести в группу". */
+/* Обработчик выбора пункта меню "Установить группы". */
 static void
 hyscan_gtk_mark_manager_set_labels_dialog_create (GtkMenuItem          *item,
                                                   HyScanGtkMarkManager *self)

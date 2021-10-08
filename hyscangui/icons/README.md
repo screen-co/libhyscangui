@@ -8,3 +8,6 @@ find scalable/actions -name '*.svg' -exec gtk-encode-symbolic-svg -o 16x16/actio
 ```
 
 [1]:https://www.flaticon.com/authors/google-material-design/monochrome
+
+Updated 06.10.2021, Andrey Zakharov <zaharov@screen-co.ru>]
+Добавлены иконки для Журнала Меток - папка "mark-manager".

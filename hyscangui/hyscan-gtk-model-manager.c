@@ -81,6 +81,7 @@
  */
 
 #include <hyscan-gtk-model-manager.h>
+#include <hyscan-mark-manager-extension.h>
 #include <hyscan-gui-marshallers.h>
 #include <glib/gi18n-lib.h>
 #include <math.h>
@@ -175,14 +176,6 @@ enum
   N_ATTR                    /* Количество атрибутов. */
 };
 
-/* Типы записей в модели. */
-typedef enum
-{
-  PARENT,                   /* Узел. */
-  CHILD,                    /* Объект. */
-  ITEM                      /* Атрибут объекта. */
-} ExtensionType;
-
 /* Глобальные группы.
  * GLOBAL_LABEL_FIRST и GLOBAL_LABEL_LAST для перебора по группам.
  * * */
@@ -201,14 +194,6 @@ typedef enum
   GLOBAL_LABEL_LAST = GLOBAL_LABELS           /* Последняя глобальная группа + 1. */
 }GlobalLabel;
 
-/* Структура содержащая расширеную информацию об объектах. */
-typedef struct
-{
-  ExtensionType  type;      /* Тип записи. */
-  gboolean       active,    /* Состояние чек-бокса. */
-                 expanded;  /* Развёрнут ли объект (для древовидного представления). */
-}Extension;
-
 struct _HyScanGtkModelManagerPrivate
 {
   HyScanObjectModel    *acoustic_mark_model,  /* Модель данных акустических меток. */
@@ -222,7 +207,7 @@ struct _HyScanGtkModelManagerPrivate
   HyScanCache          *cache;                /* Кэш.*/
   HyScanDB             *db;                   /* База данных. */
   ModelManagerGrouping  grouping;             /* Тип группировки. */
-  Extension            *node[TYPES];          /* Информация для описания узлов для древовидного
+  HyScanMarkManagerExtension *node[TYPES];    /* Информация для описания узлов для древовидного
                                                * представления с группировкой по типам. */
   GHashTable           *extensions[TYPES];    /* Массив таблиц с дополнительной информацией для всех типов объектов. */
   GType                 store_format[MAX_COLUMNS];
@@ -246,21 +231,23 @@ struct _HyScanGtkModelManagerPrivate
 /* Названия сигналов.
  * Должны идти в порядке соответвующем ModelManagerSignal.
  * */
-static const gchar *signals[] = {"wf-marks-changed",     /* Изменение данных в модели акустических меток. */
-                                 "geo-marks-changed",    /* Изменение данных в модели гео-меток. */
-                                 "wf-marks-loc-changed", /* Изменение данных в модели акустических меток с координатами. */
-                                 "labels-changed",       /* Изменение данных в модели групп. */
-                                 "tracks-changed",       /* Изменение данных в модели галсов. */
-                                 "grouping-changed",     /* Изменение типа группировки. */
-                                 "view-model-updated",   /* Обновление модели представления данных. */
-                                 "item-selected",        /* Выделена строка. */
-                                 "item-toggled",         /* Изменено состояние чек-бокса. */
-                                 "item-expanded",        /* Разворачивание узла древовидного представления. */
-                                 "item-collapsed",       /* Сворачивание узла древовидного представления. */
-                                 "scrolled-horizontal",  /* Изменение положения горизонтальной прокрутки представления. */
-                                 "scrolled-vertical",    /* Изменение положения вертикальной прокрутки представления. */
-                                 "unselect",             /* Снятие выделения. */
-                                 "show-object"};         /* Показать объект на карте. */
+static const gchar *signals[] = {
+    "wf-marks-changed",     /* Изменение данных в модели акустических меток. */
+    "geo-marks-changed",    /* Изменение данных в модели гео-меток. */
+    "wf-marks-loc-changed", /* Изменение данных в модели акустических меток с координатами. */
+    "labels-changed",       /* Изменение данных в модели групп. */
+    "tracks-changed",       /* Изменение данных в модели галсов. */
+    "grouping-changed",     /* Изменение типа группировки. */
+    "view-model-updated",   /* Обновление модели представления данных. */
+    "item-selected",        /* Выделена строка. */
+    "item-toggled",         /* Изменено состояние чек-бокса. */
+    "item-expanded",        /* Разворачивание узла древовидного представления. */
+    "item-collapsed",       /* Сворачивание узла древовидного представления. */
+    "scrolled-horizontal",  /* Изменение положения горизонтальной прокрутки представления. */
+    "scrolled-vertical",    /* Изменение положения вертикальной прокрутки представления. */
+    "unselect",             /* Снятие выделения. */
+    "show-object"           /* Показать объект на карте. */
+};
 /* Форматированная строка для вывода времени и даты. */
 static const gchar *date_time_stamp = "%d.%m.%Y %H:%M:%S";
 /* Форматированная строка для вывода расстояния. */
@@ -271,25 +258,25 @@ static const gchar *author = N_("Default");
 static const gchar *unknown = N_("Unknown");
 /* Стандартные картинки для типов объектов. */
 static const gchar *type_icon[TYPES] =  {
-    "/org/hyscan/icons/emblem-documents.png",            /* Группы. */
-    "/org/hyscan/icons/mark-location.png",               /* Гео-метки. */
-    "/org/hyscan/icons/emblem-photos.png",               /* Акустические метки. */
-    "/org/hyscan/icons/preferences-system-sharing.png"   /* Галсы. *//* Графические изображения для атрибутов обьектов. */
+    "/org/hyscan/icons/mark-manager/emblem-documents.png",            /* Группы. */
+    "/org/hyscan/icons/mark-manager/mark-location.png",               /* Гео-метки. */
+    "/org/hyscan/icons/mark-manager/emblem-photos.png",               /* Акустические метки. */
+    "/org/hyscan/icons/mark-manager/preferences-system-sharing.png"   /* Галсы. */
 };
 /* Графические изображения для атрибутов обьектов. */
 static const gchar *attr_icon[N_ATTR] = {
-    "/org/hyscan/icons/accessories-text-editor.png",                     /* Описание. */
-    "/org/hyscan/icons/avatar-default.png",                              /* Оператор. */
-    "/org/hyscan/icons/appointment-new.png",                             /* Время создания. */
-    "/org/hyscan/icons/document-open-recent.png",                        /* Время изменения. */
-    "/org/hyscan/icons/preferences-desktop-locale.png",                  /* Координаты */
-    "/org/hyscan/icons/network-wireless-no-route-symbolic.symbolic.png", /* Борт по умолчанию. */
-    "/org/hyscan/icons/go-previous.png",                                 /* Левый борт. */
-    "/org/hyscan/icons/go-next.png",                                     /* Правый борт. */
-    "/org/hyscan/icons/go-down.png",                                     /* Под собой. */
-    "/org/hyscan/icons/object-flip-vertical.png",                        /* Глубина. */
-    "/org/hyscan/icons/object-flip-horizontal.png",                      /* Ширина. */
-    "/org/hyscan/icons/content-loading-symbolic.symbolic.png"            /* Наклонная дальность. */
+    "/org/hyscan/icons/mark-manager/accessories-text-editor.png",                     /* Описание. */
+    "/org/hyscan/icons/mark-manager/avatar-default.png",                              /* Оператор. */
+    "/org/hyscan/icons/mark-manager/appointment-new.png",                             /* Время создания. */
+    "/org/hyscan/icons/mark-manager/document-open-recent.png",                        /* Время изменения. */
+    "/org/hyscan/icons/mark-manager/preferences-desktop-locale.png",                  /* Координаты */
+    "/org/hyscan/icons/mark-manager/network-wireless-no-route-symbolic.symbolic.png", /* Борт по умолчанию. */
+    "/org/hyscan/icons/mark-manager/go-previous.png",                                 /* Левый борт. */
+    "/org/hyscan/icons/mark-manager/go-next.png",                                     /* Правый борт. */
+    "/org/hyscan/icons/mark-manager/go-down.png",                                     /* Под собой. */
+    "/org/hyscan/icons/mark-manager/object-flip-vertical.png",                        /* Глубина. */
+    "/org/hyscan/icons/mark-manager/object-flip-horizontal.png",                      /* Ширина. */
+    "/org/hyscan/icons/mark-manager/content-loading-symbolic.symbolic.png"            /* Наклонная дальность. */
 };
 /* Названия типов. */
 static const gchar *type_name[] =    {N_("Labels"),                      /* Группы. */
@@ -331,16 +318,16 @@ static const gchar *global_label_desc[GLOBAL_LABELS] = {
     N_("Objects or targets located at shallow or low depth."),                         /* Мелководье. */
     N_("Objects or targets located at deep water.")                                    /* Глубина. */
 };
-/* Описания глобальных групп. */
+/* Иконки глобальных групп. */
 static const gchar *global_label_icon[GLOBAL_LABELS] = {
-    "/org/hyscan/icons/object.png",               /* Объект. */
-    "/org/hyscan/icons/dialog-warning.png",       /* Опасность. */
-    "/org/hyscan/icons/dialog-question.png",      /* Неизвестный. */
-    "/org/hyscan/icons/multy-object.png",         /* Группа. */
-    "/org/hyscan/icons/emblem-new.png",           /* Необследованный. */
-    "/org/hyscan/icons/dialog-information.png",   /* Интересный. */
-    "/org/hyscan/icons/shallow.png",              /* Мелководье. */
-    "/org/hyscan/icons/depth.png"                 /* Глубина. */
+    "/org/hyscan/icons/mark-manager/object.png",               /* Объект. */
+    "/org/hyscan/icons/mark-manager/dialog-warning.png",       /* Опасность. */
+    "/org/hyscan/icons/mark-manager/dialog-question.png",      /* Неизвестный. */
+    "/org/hyscan/icons/mark-manager/multy-object.png",         /* Группа. */
+    "/org/hyscan/icons/mark-manager/emblem-new.png",           /* Необследованный. */
+    "/org/hyscan/icons/mark-manager/dialog-information.png",   /* Интересный. */
+    "/org/hyscan/icons/mark-manager/shallow.png",              /* Мелководье. */
+    "/org/hyscan/icons/mark-manager/depth.png"                 /* Глубина. */
 };
 /* Массив указателей на модели групп, гео-меток, акустических меток и галсов для быстрого доступа к моделям. */
 static gpointer model[TYPES] = {NULL, NULL, NULL, NULL};
@@ -424,14 +411,6 @@ static void          hyscan_gtk_model_manager_clear_view_model                  
                                                                                  gboolean               *flag);
 
 static gboolean      hyscan_gtk_model_manager_init_extensions                   (HyScanGtkModelManager  *self);
-
-static Extension*    hyscan_gtk_model_manager_extension_new                     (ExtensionType           type,
-                                                                                 gboolean                active,
-                                                                                 gboolean                selected);
-
-static Extension*    hyscan_gtk_model_manager_extension_copy                    (Extension              *ext);
-
-static void          hyscan_gtk_model_manager_extension_free                    (gpointer                data);
 
 static GHashTable*   hyscan_gtk_model_manager_get_extensions                    (HyScanGtkModelManager  *self,
                                                                                  ModelManagerObjectType  type);
@@ -560,7 +539,7 @@ hyscan_gtk_model_manager_class_init (HyScanGtkModelManagerClass *klass)
     g_param_spec_string ("export_folder", "Export folder", "Directory for export", "",
                          G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
   /* Сигналы. */
-  for (guint index = 0; index < SIGNAL_MODEL_MANAGER_LAST; index++)
+  for (ModelManagerSignal index = 0; index < SIGNAL_MODEL_MANAGER_LAST; index++)
     {
       /* Сигнал изменения состояния чек-бокса. */
       if (index == SIGNAL_ITEM_TOGGLED)
@@ -906,9 +885,6 @@ hyscan_gtk_model_manager_set_view_model_ungrouped (HyScanGtkModelManager *self)
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
   GtkTreeIter  store_iter;
-  /*GHashTable  *labels = hyscan_object_model_get (priv->label_model);*/
-  /*GHashTable *labels = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model),
-                                                    HYSCAN_TYPE_LABEL);*/
   GHashTable  *labels = hyscan_gtk_model_manager_get_all_labels (self);
 
   /* Очищаем модель. */
@@ -967,9 +943,6 @@ hyscan_gtk_model_manager_set_view_model_by_labels (HyScanGtkModelManager *self)
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
   GHashTableIter  table_iter;
-  /*GHashTable     *labels = hyscan_object_model_get (priv->label_model);*/
-  /*GHashTable     *labels = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model),
-                                                        HYSCAN_TYPE_LABEL);*/
   GHashTable     *labels = hyscan_gtk_model_manager_get_all_labels (self);
   HyScanLabel    *label;
   gchar          *id;
@@ -988,7 +961,7 @@ hyscan_gtk_model_manager_set_view_model_by_labels (HyScanGtkModelManager *self)
     {
       GtkTreeIter   iter, child_iter;
       GtkTreeStore *store;
-      Extension    *ext;
+      HyScanMarkManagerExtension *ext;
       HyScanGtkMarkManagerIcon *icon;
       GDateTime    *time;
       gint          total, counter;
@@ -1111,7 +1084,6 @@ hyscan_gtk_model_manager_refresh_geo_marks_ungrouped (HyScanGtkModelManager *sel
   if (priv->extensions[GEO_MARK] == NULL)
     return;
 
-  /*geo_marks = hyscan_object_model_get (priv->geo_mark_model);*/
   geo_marks = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->geo_mark_model),
                                            HYSCAN_TYPE_MARK_GEO);
 
@@ -1128,7 +1100,7 @@ hyscan_gtk_model_manager_refresh_geo_marks_ungrouped (HyScanGtkModelManager *sel
       GDateTime *ctime, *mtime;
       GHashTableIter iter;
       HyScanLabel *label;
-      Extension *ext;
+      HyScanMarkManagerExtension *ext;
       gchar     *position, *creation_time, *modification_time, *tooltip, *tmp, *label_name, *key;
 
       if (object == NULL)
@@ -1263,7 +1235,7 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_ungrouped (HyScanGtkModelManager
       GHashTableIter iter;
       GDateTime *ctime, *mtime;
       HyScanLabel *label;
-      Extension *ext;
+      HyScanMarkManagerExtension *ext;
       gchar *position, *board, *depth, *width, *slant_range, *creation_time, *modification_time, *tooltip, *tmp, *label_name, *key;
 
       if (object == NULL)
@@ -1465,8 +1437,8 @@ hyscan_gtk_model_manager_refresh_tracks_ungrouped (HyScanGtkModelManager *self,
       HyScanLabel *label;
       GdkPixbuf   *pixbuf;
       GHashTableIter iter;
-      Extension *ext;
-      gchar     *key, *tmp, *label_name, *creation_time, *modification_time, *tooltip;
+      HyScanMarkManagerExtension *ext;
+      gchar *key, *tmp, *label_name, *creation_time, *modification_time, *tooltip;
 
       if (object == NULL)
         continue;
@@ -1591,9 +1563,6 @@ hyscan_gtk_model_manager_refresh_labels_by_types (HyScanGtkModelManager *self)
   if (priv->extensions[LABEL] == NULL)
     return;
 
-  /*labels = hyscan_object_model_get (priv->label_model);*/
-  /*labels = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model),
-                                        HYSCAN_TYPE_LABEL);*/
   labels = hyscan_gtk_model_manager_get_all_labels (self);
 
   if (labels == NULL)
@@ -1629,7 +1598,7 @@ hyscan_gtk_model_manager_refresh_labels_by_types (HyScanGtkModelManager *self)
 
       if (!active)
         {
-          Extension *ext = g_hash_table_lookup (priv->extensions[LABEL], id);
+          HyScanMarkManagerExtension *ext = g_hash_table_lookup (priv->extensions[LABEL], id);
           toggled = (ext != NULL) ? ext->active : FALSE;
         }
 
@@ -1736,16 +1705,12 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_types (HyScanGtkModelManager *self
   if (priv->extensions[GEO_MARK] == NULL)
     return;
 
-  /*geo_marks = hyscan_object_model_get (priv->geo_mark_model);*/
   geo_marks = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->geo_mark_model),
                                            HYSCAN_TYPE_MARK_GEO);
 
   if (geo_marks == NULL)
     return;
 
-  /*labels = hyscan_object_model_get (priv->label_model);*/
-  /*labels = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model),
-                                        HYSCAN_TYPE_LABEL);*/
   labels = hyscan_gtk_model_manager_get_all_labels (self);
 
   if (labels == NULL)
@@ -1801,7 +1766,7 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_types (HyScanGtkModelManager *self
 
       if (!active)
         {
-          Extension *ext = g_hash_table_lookup (priv->extensions[GEO_MARK], id);
+          HyScanMarkManagerExtension *ext = g_hash_table_lookup (priv->extensions[GEO_MARK], id);
           toggled = (ext != NULL) ? ext->active : FALSE;
         }
 
@@ -1985,8 +1950,6 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_labels (HyScanGtkModelManager *sel
   if (geo_marks == NULL)
     return;
 
-  /*labels = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model),
-                                        HYSCAN_TYPE_LABEL);*/
   labels = hyscan_gtk_model_manager_get_all_labels (self);
 
   if (labels == NULL)
@@ -2005,7 +1968,7 @@ hyscan_gtk_model_manager_refresh_geo_marks_by_labels (HyScanGtkModelManager *sel
       GHashTableIter  iterator;
       GDateTime      *time;
       HyScanLabel    *obj;
-      Extension      *ext;
+      HyScanMarkManagerExtension *ext;
       guint8          counter;
       gchar          *key, *position, *tooltip, *creation_time, *modification_time;
       gboolean        toggled;
@@ -2211,7 +2174,7 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (HyScanGtkModelManager 
   tooltip = g_strdup_printf (_("%s\n"
                                "Quantity: %u\n"
                                "Groups: %hu"),
-                             _(type_name[GEO_MARK]),
+                             _(type_name[ACOUSTIC_MARK]),
                              g_hash_table_size (acoustic_marks),
                              counter);
 
@@ -2253,7 +2216,7 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_types (HyScanGtkModelManager 
 
       if (!active)
         {
-          Extension *ext = g_hash_table_lookup (priv->extensions[ACOUSTIC_MARK], id);
+          HyScanMarkManagerExtension *ext = g_hash_table_lookup (priv->extensions[ACOUSTIC_MARK], id);
           toggled = (ext != NULL) ? ext->active : FALSE;
         }
 
@@ -2618,9 +2581,6 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_labels (HyScanGtkModelManager
   if (acoustic_marks == NULL)
     return;
 
-  /*labels = hyscan_object_model_get (priv->label_model);*/
-  /*labels = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model),
-                                        HYSCAN_TYPE_LABEL);*/
   labels = hyscan_gtk_model_manager_get_all_labels (self);
 
   if (labels == NULL)
@@ -2634,12 +2594,12 @@ hyscan_gtk_model_manager_refresh_acoustic_marks_by_labels (HyScanGtkModelManager
   g_hash_table_iter_init (&table_iter, acoustic_marks);
   while (g_hash_table_iter_next (&table_iter, (gpointer*)&id, (gpointer*)&location))
     {
+      HyScanMarkManagerExtension *ext;
       HyScanGtkMarkManagerIcon *icon;
       HyScanMarkWaterfall *object;
       GtkTreeIter     child_iter;
       GDateTime      *time;
       GHashTableIter  iterator;
-      Extension      *ext;
       HyScanLabel    *obj;
       guint8    counter;
       gchar    *key,
@@ -2992,11 +2952,11 @@ hyscan_gtk_model_manager_refresh_tracks_by_types (HyScanGtkModelManager *self)
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
   HyScanGtkMarkManagerIcon *icon;
+  HyScanTrackInfo *object;
   GtkTreeStore    *store;
   GtkTreeIter      parent_iter;
   GHashTableIter   table_iter;
   GHashTable      *tracks, *labels;
-  HyScanTrackInfo *object;
   guint8    counter;
   gchar    *id, *tooltip;
   gboolean  active;
@@ -3009,9 +2969,6 @@ hyscan_gtk_model_manager_refresh_tracks_by_types (HyScanGtkModelManager *self)
   if (tracks == NULL)
     return;
 
-  /*labels = hyscan_object_model_get (priv->label_model);*/
-  /*labels = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model),
-                                        HYSCAN_TYPE_LABEL);*/
   labels = hyscan_gtk_model_manager_get_all_labels (self);
 
   if (labels == NULL)
@@ -3066,7 +3023,7 @@ hyscan_gtk_model_manager_refresh_tracks_by_types (HyScanGtkModelManager *self)
 
       if (!active)
         {
-          Extension *ext = g_hash_table_lookup (priv->extensions[TRACK], id);
+          HyScanMarkManagerExtension *ext = g_hash_table_lookup (priv->extensions[TRACK], id);
           toggled = (ext != NULL) ? ext->active : FALSE;
         }
 
@@ -3249,9 +3206,6 @@ hyscan_gtk_model_manager_refresh_tracks_by_labels (HyScanGtkModelManager *self,
   if (tracks == NULL)
     return;
 
-  /*labels = hyscan_object_model_get (priv->label_model);*/
-  /*labels = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model),
-                                        HYSCAN_TYPE_LABEL);*/
   labels = hyscan_gtk_model_manager_get_all_labels (self);
 
   if (labels == NULL)
@@ -3268,7 +3222,7 @@ hyscan_gtk_model_manager_refresh_tracks_by_labels (HyScanGtkModelManager *self,
       HyScanGtkMarkManagerIcon *icon;
       GtkTreeIter  child_iter;
       GHashTableIter  iterator;
-      Extension   *ext;
+      HyScanMarkManagerExtension *ext;
       HyScanLabel *obj;
       guint8       counter;
       gchar       *key, *tooltip, *creation_time, *modification_time;
@@ -3461,7 +3415,7 @@ hyscan_gtk_model_manager_init_extensions (HyScanGtkModelManager *self)
 
       if (priv->extensions[type] == NULL)
           priv->extensions[type] = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
-                                          (GDestroyNotify)hyscan_gtk_model_manager_extension_free);
+                                          (GDestroyNotify)hyscan_mark_manager_extension_free);
 
       tmp = priv->extensions[type];
       priv->extensions[type] = hyscan_gtk_model_manager_get_extensions (self, type);
@@ -3470,14 +3424,14 @@ hyscan_gtk_model_manager_init_extensions (HyScanGtkModelManager *self)
         {
           if (priv->node[type] == NULL)
             {
-              priv->node[type] = hyscan_gtk_model_manager_extension_new (PARENT, FALSE, FALSE);
+              priv->node[type] = hyscan_mark_manager_extension_new (PARENT, FALSE, FALSE);
             }
           else
             {
-              Extension *ext = g_hash_table_lookup (tmp, type_id[type]);
+              HyScanMarkManagerExtension *ext = g_hash_table_lookup (tmp, type_id[type]);
 
               if (ext != NULL)
-                priv->node[type] = hyscan_gtk_model_manager_extension_copy (ext);
+                priv->node[type] = hyscan_mark_manager_extension_copy (ext);
             }
 
           g_hash_table_insert (priv->extensions[type], g_strdup (type_id[type]), priv->node[type]);
@@ -3511,16 +3465,16 @@ hyscan_gtk_model_manager_get_extensions (HyScanGtkModelManager  *self,
     return NULL;
 
   extensions = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
-                                      (GDestroyNotify)hyscan_gtk_model_manager_extension_free);
+                                      (GDestroyNotify)hyscan_mark_manager_extension_free);
 
   g_hash_table_iter_init (&iter, table);
   while (g_hash_table_iter_next (&iter, (gpointer*)&id, &object))
     {
-      Extension *ext = g_hash_table_lookup (priv->extensions[type], id);
+      HyScanMarkManagerExtension *ext = g_hash_table_lookup (priv->extensions[type], id);
 
       ext = (ext == NULL) ?
-            hyscan_gtk_model_manager_extension_new (CHILD, FALSE, FALSE) :
-            hyscan_gtk_model_manager_extension_copy (ext);
+            hyscan_mark_manager_extension_new (CHILD, FALSE, FALSE) :
+            hyscan_mark_manager_extension_copy (ext);
       g_hash_table_insert (extensions, g_strdup (id), ext);
     }
 
@@ -3530,15 +3484,15 @@ hyscan_gtk_model_manager_get_extensions (HyScanGtkModelManager  *self,
   return table;
 }
 
-/* Возвращает TRUE, если ВСЕ ОБЪЕКТЫ Extention в хэш-таблице имеют поля active = TRUE.
- * В противном случае, возвращает FALSE.
+/* Возвращает %TRUE, если ВСЕ ОБЪЕКТЫ Extention в хэш-таблице имеют поля active = %TRUE.
+ * В противном случае, возвращает %FALSE.
  * */
 static gboolean
 hyscan_gtk_model_manager_is_all_toggled (GHashTable  *table,
                                          const gchar *node_id)
 {
   GHashTableIter iter;
-  Extension *ext;
+  HyScanMarkManagerExtension *ext;
   guint      total = g_hash_table_size (table), counter = 1;
   gchar     *id;
 
@@ -3615,7 +3569,6 @@ hyscan_gtk_model_manager_delete_track_by_id (HyScanGtkModelManager  *self,
           geo_mark->height = geo_mark->width = 2.0 * radius;
           geo_mark->center = location->mark_geo;
 
-          /*hyscan_object_model_add (priv->geo_mark_model, (const HyScanObject*)geo_mark);*/
           hyscan_object_store_add (HYSCAN_OBJECT_STORE (priv->geo_mark_model),
                                    (const HyScanObject*)geo_mark,
                                    NULL);
@@ -3623,7 +3576,6 @@ hyscan_gtk_model_manager_delete_track_by_id (HyScanGtkModelManager  *self,
           hyscan_mark_geo_free (geo_mark);
         }
       /* Удаляем акустическую метку вместе с галсом с которым она связана. */
-      /*hyscan_object_model_remove (priv->acoustic_mark_model, key);*/
       hyscan_object_store_remove (HYSCAN_OBJECT_STORE (priv->acoustic_mark_model),
                                   HYSCAN_TYPE_MARK_WATERFALL,
                                   key);
@@ -3632,45 +3584,6 @@ hyscan_gtk_model_manager_delete_track_by_id (HyScanGtkModelManager  *self,
 
 terminate:
   hyscan_db_close (priv->db, project_id);
-}
-
-/* Создаёт новый Extention. Для удаления необходимо
- * использовать hyscan_gtk_model_manager_extension_free ().*/
-static Extension*
-hyscan_gtk_model_manager_extension_new (ExtensionType type,
-                                        gboolean      active,
-                                        gboolean      expanded)
-{
-  Extension *ext = g_new (Extension, 1);
-  ext->type      = type;
-  ext->active    = active;
-  ext->expanded  = expanded;
-  return ext;
-}
-
-/* Создаёт копию Extention-а. Для удаления необходимо использовать hyscan_gtk_model_manager_extension_free ().*/
-static Extension*
-hyscan_gtk_model_manager_extension_copy (Extension *ext)
-{
-  Extension *copy = g_new (Extension, 1);
-  copy->type      = ext->type;
-  copy->active    = ext->active;
-  copy->expanded  = ext->expanded;
-  return copy;
-}
-
-/* Освобождает ресурсы Extention-а */
-static void
-hyscan_gtk_model_manager_extension_free (gpointer data)
-{
-  if (data != NULL)
-    {
-      Extension *ext = (Extension*)data;
-      ext->type      = PARENT;
-      ext->active    =
-      ext->expanded  = FALSE;
-      g_free (ext);
-    }
 }
 
 /* Функция циклической проверки и обновления модели представления данных. */
@@ -3801,7 +3714,6 @@ hyscan_gtk_model_manager_get_labels (gpointer model)
 
   g_return_val_if_fail (HYSCAN_IS_OBJECT_MODEL (model), NULL);
 
-  /*labels = hyscan_object_model_get ((HyScanObjectModel*)model);*/
   labels = hyscan_object_store_get_all ( (HyScanObjectStore*)model, HYSCAN_TYPE_LABEL);
 
   if (labels == NULL)
@@ -3818,7 +3730,6 @@ static GHashTable*
 hyscan_gtk_model_manager_get_geo_marks (gpointer model)
 {
   g_return_val_if_fail (HYSCAN_IS_OBJECT_MODEL (model), NULL);
-  /*return hyscan_object_model_get ( (HyScanObjectModel*)model);*/
   return hyscan_object_store_get_all ( (HyScanObjectStore*)model, HYSCAN_TYPE_MARK_GEO);
 }
 
@@ -3848,9 +3759,6 @@ hyscan_gtk_model_manager_toggled_labels_set_labels (HyScanGtkModelManager *self,
                                                     gint64                 current_time)
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
-  /*GHashTable     *table = hyscan_object_model_get (priv->label_model);*/
-  /*GHashTable     *table = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model),
-                                                       HYSCAN_TYPE_LABEL);*/
   GHashTable     *table = hyscan_gtk_model_manager_get_all_labels (self);
   GHashTableIter  iter;
   HyScanLabel    *label;
@@ -3896,7 +3804,6 @@ hyscan_gtk_model_manager_toggled_geo_marks_set_labels (HyScanGtkModelManager *se
 
   for (gint i = 0; list[i] != NULL; i++)
     {
-      /*HyScanMarkGeo  *object = (HyScanMarkGeo*)hyscan_object_model_get_by_id (priv->geo_mark_model, list[i]);*/
       HyScanMarkGeo  *object = (HyScanMarkGeo*)hyscan_object_store_get (HYSCAN_OBJECT_STORE (priv->geo_mark_model),
                                                                         HYSCAN_TYPE_MARK_GEO,
                                                                         list[i]);
@@ -3909,9 +3816,6 @@ hyscan_gtk_model_manager_toggled_geo_marks_set_labels (HyScanGtkModelManager *se
       if (object == NULL)
         continue;
 
-      /*table = hyscan_object_model_get (priv->label_model);*/
-      /*table = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model),
-                                           HYSCAN_TYPE_LABEL);*/
       table = hyscan_gtk_model_manager_get_all_labels (self);
       tmp   = object->labels;
 
@@ -3941,9 +3845,6 @@ hyscan_gtk_model_manager_toggled_geo_marks_set_labels (HyScanGtkModelManager *se
 
           BLOCK_SIGNAL (priv->signal_geo_marks_changed, priv->geo_mark_model);
           /* Сохраняем в базе данных. */
-          /*hyscan_object_model_modify (priv->geo_mark_model,
-                                      list[i],
-                                      (const HyScanObject*)object);*/
           hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->geo_mark_model),
                                       list[i],
                                       (const HyScanObject*)object);
@@ -3967,11 +3868,9 @@ hyscan_gtk_model_manager_toggled_acoustic_marks_set_labels (HyScanGtkModelManage
 
   if (list == NULL)
     return;
+
   for (gint i = 0; list[i] != NULL; i++)
     {
-      /*HyScanMarkWaterfall *object = (HyScanMarkWaterfall*)hyscan_object_model_get_by_id (
-                                                                 priv->acoustic_mark_model,
-                                                                 list[i]);*/
       HyScanMarkWaterfall *object = (HyScanMarkWaterfall*)hyscan_object_store_get (
                                                                  HYSCAN_OBJECT_STORE (priv->acoustic_mark_model),
                                                                  HYSCAN_TYPE_MARK_WATERFALL,
@@ -3985,9 +3884,6 @@ hyscan_gtk_model_manager_toggled_acoustic_marks_set_labels (HyScanGtkModelManage
       if (object == NULL)
         continue;
 
-      /*table = hyscan_object_model_get (priv->label_model);*/
-      /*table = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model),
-                                           HYSCAN_TYPE_LABEL);*/
       table = hyscan_gtk_model_manager_get_all_labels (self);
       tmp   = object->labels;
 
@@ -4016,9 +3912,6 @@ hyscan_gtk_model_manager_toggled_acoustic_marks_set_labels (HyScanGtkModelManage
           BLOCK_SIGNAL (priv->signal_acoustic_marks_changed, priv->acoustic_mark_model);
 
           /* Сохраняем в базе данных. */
-          /*hyscan_object_model_modify (priv->acoustic_mark_model,
-                                      list[i],
-                                      (const HyScanObject*)object);*/
           hyscan_object_store_modify (HYSCAN_OBJECT_STORE (priv->acoustic_mark_model),
                                       list[i],
                                       (const HyScanObject*)object);
@@ -4069,9 +3962,6 @@ hyscan_gtk_model_manager_toggled_tracks_set_labels (HyScanGtkModelManager *self,
       if (object == NULL)
         continue;
 
-      /*table = hyscan_object_model_get (priv->label_model);*/
-      /*table = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (priv->label_model),
-                                           HYSCAN_TYPE_LABEL);*/
       table = hyscan_gtk_model_manager_get_all_labels (self);
       tmp   = object->labels;
 
@@ -4518,7 +4408,7 @@ hyscan_gtk_model_manager_unselect_all (HyScanGtkModelManager *self)
 
   for (ModelManagerObjectType type = LABEL; type < TYPES; type++)
     {
-      Extension *ext;
+      HyScanMarkManagerExtension *ext;
 
       if (priv->extensions[type] == NULL)
         continue;
@@ -4615,7 +4505,7 @@ hyscan_gtk_model_manager_toggle_item (HyScanGtkModelManager *self,
 
   for (ModelManagerObjectType type = LABEL; type < TYPES; type++)
     {
-      Extension *ext;
+      HyScanMarkManagerExtension *ext;
 
       if (priv->extensions[type] == NULL)
         continue;
@@ -4653,7 +4543,7 @@ hyscan_gtk_model_manager_get_toggled_items (HyScanGtkModelManager  *self,
                                             ModelManagerObjectType  type)
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
-  Extension *ext;
+  HyScanMarkManagerExtension *ext;
   GHashTableIter iter;
   guint   i    = 0;
   gchar **list = NULL,
@@ -4679,15 +4569,15 @@ hyscan_gtk_model_manager_get_toggled_items (HyScanGtkModelManager  *self,
  * @self: указатель на Менеджер Моделей
  * @type: тип запрашиваемых объектов
  *
- * Returns: TRUE  - есть объекты с активированным чек-боксом,
- *          FALSE - нет объектов с активированным чек-боксом.
+ * Returns: %TRUE  - есть объекты с активированным чек-боксом,
+ *          %FALSE - нет объектов с активированным чек-боксом.
  */
 gboolean
 hyscan_gtk_model_manager_has_toggled_items (HyScanGtkModelManager  *self,
                                             ModelManagerObjectType  type)
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
-  Extension *ext;
+  HyScanMarkManagerExtension *ext;
   GHashTableIter iter;
   gchar *id;
 
@@ -4707,7 +4597,7 @@ hyscan_gtk_model_manager_has_toggled_items (HyScanGtkModelManager  *self,
  * hyscan_gtk_model_manager_expand_item:
  * @self: указатель на Менеджер Моделей
  * @id: идентификатор объекта в базе данных
- * @expanded: состояние узла TRUE - развёрнут, FALSE - свёрнут.
+ * @expanded: состояние узла %TRUE - развёрнут, %FALSE - свёрнут.
  *
  * Сохраняет состояние узла.
  */
@@ -4721,7 +4611,7 @@ hyscan_gtk_model_manager_expand_item (HyScanGtkModelManager *self,
 
   for (ModelManagerObjectType type = LABEL; type < TYPES; type++)
     {
-      Extension *ext;
+      HyScanMarkManagerExtension *ext;
 
       if (priv->extensions[type] == NULL)
         continue;
@@ -4750,8 +4640,8 @@ hyscan_gtk_model_manager_expand_item (HyScanGtkModelManager *self,
  * hyscan_gtk_model_manager_get_expanded_items:
  * @self: указатель на Менеджер Моделей
  * @type: тип запрашиваемых объектов
- * @expanded: TRUE  - развёрнутые,
- *            FALSE - свёрнутые
+ * @expanded: %TRUE  - развёрнутые,
+ *            %FALSE - свёрнутые
  *
  * Returns: возвращает список идентификаторов объектов
  * которые нужно развёрнуть или свернуть. Тип объекта
@@ -4764,7 +4654,7 @@ hyscan_gtk_model_manager_get_expanded_items (HyScanGtkModelManager  *self,
                                              gboolean                expanded)
 {
   HyScanGtkModelManagerPrivate *priv = self->priv;
-  Extension      *ext;
+  HyScanMarkManagerExtension *ext;
   GHashTableIter  iter;
   guint           i = 0;
   gchar         **list = NULL, *id = NULL;;
@@ -4799,8 +4689,8 @@ hyscan_gtk_model_manager_get_current_id (HyScanGtkModelManager *self)
 /**
  * hyscan_gtk_model_manager_delete_toggled_items:
  * @self: указатель на Менеджер Моделей
- * @convert: TRUE  - конвертировать акустические метки в гео-метки,
- *           FALSE - удалить акустические метки вместе с галсом
+ * @convert: %TRUE  - конвертировать акустические метки в гео-метки,
+ *           %FALSE - удалить акустические метки вместе с галсом
  *
  * Удаляет выбранные объекты из базы данных.
  */
@@ -4844,11 +4734,11 @@ hyscan_gtk_model_manager_delete_toggled_items (HyScanGtkModelManager *self,
                                           HYSCAN_TYPE_MARK_WATERFALL,
                                           list[i]);
               break;
-
-            case TRACK:
+/* Пока без удаления галсов. */
+/*            case TRACK:
               hyscan_gtk_model_manager_delete_track_by_id (self, list[i], convert);
               break;
-
+*/
             default:
               break;
            }
@@ -4872,8 +4762,8 @@ hyscan_gtk_model_manager_delete_toggled_items (HyScanGtkModelManager *self,
  *
  * Проверка, есть ли выбранные объекты.
  *
- * Returns: TRUE  - есть выбранные объекты,
- *          FALSE - нет выбранных объектов.
+ * Returns: %TRUE  - есть выбранные объекты,
+ *          %FALSE - нет выбранных объектов.
  */
 gboolean
 hyscan_gtk_model_manager_has_toggled (HyScanGtkModelManager *self)
@@ -4882,9 +4772,9 @@ hyscan_gtk_model_manager_has_toggled (HyScanGtkModelManager *self)
 
   for (ModelManagerObjectType type = LABEL; type < TYPES; type++)
     {
-      GHashTableIter  iter;
-      Extension      *ext;
-      gchar          *id;
+      HyScanMarkManagerExtension *ext;
+      GHashTableIter iter;
+      gchar *id;
 
       g_hash_table_iter_init (&iter, priv->extensions[type]);
       while (g_hash_table_iter_next (&iter, (gpointer*)&id, (gpointer*)&ext))
@@ -4972,10 +4862,8 @@ hyscan_gtk_model_manager_toggled_items_get_bit_masks (HyScanGtkModelManager *sel
              case ACOUSTIC_MARK:
                {
                  /* Получаем объект из базы данных по идентификатору. */
-                 /*HyScanMarkWaterfall *object = (HyScanMarkWaterfall*)hyscan_object_model_get_by_id (priv->acoustic_mark_model, list[i]);*/
                  HyScanMarkWaterfall *object = (HyScanMarkWaterfall*)hyscan_object_store_get (
-                                                                            HYSCAN_OBJECT_STORE (priv->acoustic_mark_model),
-                                                                            HYSCAN_TYPE_MARK_WATERFALL,
+                                                                            HYSCAN_OBJECT_STORE (priv->acoustic_mark_model),                                                                            HYSCAN_TYPE_MARK_WATERFALL,
                                                                             list[i]);
 
                  if (object == NULL)

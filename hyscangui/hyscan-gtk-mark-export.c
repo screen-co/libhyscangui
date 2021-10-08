@@ -276,14 +276,14 @@ hyscan_gtk_mark_export_to_str (HyScanMarkLocModel *ml_model,
   GDateTime *local;
   gchar *str, *marks, *date;
 
-  wf_marks = hyscan_mark_loc_model_get (ml_model);
+  wf_marks  = hyscan_mark_loc_model_get (ml_model);
   geo_marks = hyscan_object_store_get_all (HYSCAN_OBJECT_STORE (mark_geo_model), HYSCAN_TYPE_MARK_GEO);
 
   if (wf_marks == NULL || geo_marks == NULL)
     return NULL;
 
   local = g_date_time_new_now_local ();
-  date = g_date_time_format (local, "%A %B %e %T %Y");
+  date  = g_date_time_format (local, "%A %B %e %T %Y");
 
   g_date_time_unref (local);
 
@@ -1225,7 +1225,7 @@ hyscan_gtk_mark_export_copy_to_clipboard (HyScanMarkLocModel *ml_model,
     return;
 
   local = g_date_time_new_now_local ();
-  date = g_date_time_format (local, "%A %B %e %T %Y");
+  date  = g_date_time_format (local, "%A %B %e %T %Y");
 
   g_date_time_unref (local);
 
@@ -1252,7 +1252,7 @@ hyscan_gtk_mark_export_copy_to_clipboard (HyScanMarkLocModel *ml_model,
  * hyscan_gtk_mark_export_save_as_html:
  * @model_manager: указатель на указатель на Менеджер Моделей
  * @toplevel: главное окно
- * @toggled: TRUE - только выбранные объекты, FALSE - все
+ * @toggled: %TRUE - только выбранные объекты, %FALSE - все
  *
  * Сохраняет метки в формате HTML.
  */

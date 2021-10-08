@@ -235,8 +235,8 @@ hyscan_gtk_mark_manager_icon_get_icon (HyScanGtkMarkManagerIcon *self)
  * @icon: картинка, используемая в качестве иконки
  * @tooltip: текст всплывающей подсказки
  *
- * Returns: TRUE  - данные успешно добавлены,
- *          FALSE - данные не добавлены.
+ * Returns: %TRUE  - данные успешно добавлены,
+ *          %FALSE - данные не добавлены.
  */
 gboolean
 hyscan_gtk_mark_manager_icon_add (HyScanGtkMarkManagerIcon *self,
@@ -254,8 +254,6 @@ hyscan_gtk_mark_manager_icon_add (HyScanGtkMarkManagerIcon *self,
 
   self->data = (HyScanGtkMarkManagerIconData*)g_realloc (self->data,
                                                          (self->length + 2) * sizeof (HyScanGtkMarkManagerIcon));
-
-  /*self->data[self->length].icon    = gdk_pixbuf_copy (icon);*/
   self->data[self->length].icon    = icon;
   self->data[self->length].tooltip = g_strdup (tooltip);
 

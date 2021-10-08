@@ -15,6 +15,31 @@
     <file compressed="true">icons/32x32/actions/hidden.symbolic.png</file>
     <file compressed="true">icons/scalable/actions/eye.svg</file>
     <file compressed="true">icons/scalable/actions/hidden.svg</file>
+<!-- Для Журнала Меток. -->
+    <file compressed="true">icons/mark-manager/depth.png</file>
+    <file compressed="true">icons/mark-manager/dialog-information.png</file>
+    <file compressed="true">icons/mark-manager/dialog-question.png</file>
+    <file compressed="true">icons/mark-manager/dialog-warning.png</file>
+    <file compressed="true">icons/mark-manager/emblem-new.png</file>
+    <file compressed="true">icons/mark-manager/multy-object.png</file>
+    <file compressed="true">icons/mark-manager/object.png</file>
+    <file compressed="true">icons/mark-manager/shallow.png</file>
+    <file compressed="true">icons/mark-manager/accessories-text-editor.png</file>
+    <file compressed="true">icons/mark-manager/appointment-new.png</file>
+    <file compressed="true">icons/mark-manager/avatar-default.png</file>
+    <file compressed="true">icons/mark-manager/content-loading-symbolic.symbolic.png</file>
+    <file compressed="true">icons/mark-manager/document-open-recent.png</file>
+    <file compressed="true">icons/mark-manager/emblem-default.png</file>
+    <file compressed="true">icons/mark-manager/emblem-photos.png</file>
+    <file compressed="true">icons/mark-manager/go-down.png</file>
+    <file compressed="true">icons/mark-manager/go-next.png</file>
+    <file compressed="true">icons/mark-manager/go-previous.png</file>
+    <file compressed="true">icons/mark-manager/mark-location.png</file>
+    <file compressed="true">icons/mark-manager/network-wireless-no-route-symbolic.symbolic.png</file>
+    <file compressed="true">icons/mark-manager/object-flip-vertical.png</file>
+    <file compressed="true">icons/mark-manager/object-flip-horizontal.png</file>
+    <file compressed="true">icons/mark-manager/preferences-desktop-locale.png</file>
+    <file compressed="true">icons/mark-manager/preferences-system-sharing.png</file>
   </gresource>
   <gresource prefix="/org/hyscan/gl">
     <file compressed="true">hyscan-gtk-gliko-area-shader.c</file>

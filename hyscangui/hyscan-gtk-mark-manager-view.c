@@ -236,7 +236,7 @@ hyscan_gtk_mark_manager_view_class_init (HyScanGtkMarkManagerViewClass *klass)
    * HyScanGtkMarkManagerView::toggled:
    * @self: указатель на #HyScanGtkMarkManagerView
    * @id: идентификатор объекта в базе данных
-   * @active: статус чек-бокса (TRUE - отмечен, FALSE - не отмечен)
+   * @active: статус чек-бокса (%TRUE - отмечен, %FALSE - не отмечен)
    *
    * Сигнал посылается при изменении состояния чек-бокса.
    */
@@ -249,7 +249,7 @@ hyscan_gtk_mark_manager_view_class_init (HyScanGtkMarkManagerViewClass *klass)
   /** HyScanGtkMarkManagerView::expanded:
    * @self: указатель на #HyScanGtkMarkManagerView
    * @id: идентификатор объекта в базе данных
-   * @expanded: состояние узла (TRUE - развёрнут, FALSE - свёрнут)
+   * @expanded: состояние узла (%TRUE - развёрнут, %FALSE - свёрнут)
    *
    * Сигнал посылается при разворачивании узла древовидного представления.
    */
@@ -1067,8 +1067,8 @@ hyscan_gtk_mark_manager_view_on_show (GtkWidget *widget,
 }
 
 /* Обработчик перемещения мыши.
- * Возвращает : TRUE  для предотвращения вызова других обработчиков события.
- *              FALSE для распространения события дальше.
+ * Возвращает : %TRUE  для предотвращения вызова других обработчиков события.
+ *              %FALSE для распространения события дальше.
  * */
 static gboolean
 hyscan_gtk_mark_manager_view_on_mouse_move (GtkWidget      *widget,
@@ -1207,8 +1207,8 @@ hyscan_gtk_mark_manager_view_toggle_all (HyScanGtkMarkManagerView *self,
  * hyscan_gtk_mark_manager_view_expand_path:
  * @self: указатель на структуру #HyScanGtkMarkManagerView
  * @path: указатель на путь к объекту в модели.
- * @expand: TRUE  - развёрнуть узел,
- *          FALSE - свёрнуть узел
+ * @expand: %TRUE  - развёрнуть узел,
+ *          %FALSE - свёрнуть узел
  *
  * Разворачивает или сворачивает узел по заданному пути.
  */
@@ -1479,8 +1479,8 @@ hyscan_gtk_mark_manager_view_select_item (HyScanGtkMarkManagerView *self,
  * @id: идентификатор
  *
  * Функция для рекурсивного обхода модели и поиска записи по заданному идентификтору.
- * Returns: TRUE - если объект найден, то копирует итератор в iter;
- *          FALSE - объект не найден.
+ * Returns: %TRUE - если объект найден, то копирует итератор в iter;
+ *          %FALSE - объект не найден.
  */
 gboolean
 hyscan_gtk_mark_manager_view_find_item_by_id (GtkTreeModel *model,
@@ -1618,7 +1618,7 @@ hyscan_gtk_mark_manager_view_toggle_item (HyScanGtkMarkManagerView *self,
 /**
  * hyscan_gtk_mark_manager_view_block_signal_selected:
  * @self: указатель на структуру #HyScanGtkMarkManagerView
- * @block: TRUE - блокировать, FALSE - разблокировать
+ * @block: %TRUE - блокировать, %FALSE - разблокировать
  *
  * Функция блокирует или разблокирует сигнал выбора строки.
  */

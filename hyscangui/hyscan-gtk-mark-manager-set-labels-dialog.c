@@ -210,7 +210,7 @@ hyscan_gtk_mark_manager_set_labels_dialog_constructed (GObject *object)
 
   G_OBJECT_CLASS (hyscan_gtk_mark_manager_set_labels_dialog_parent_class)->constructed (object);
 
-  gtk_window_set_title (window, _("Set label"));
+  gtk_window_set_title (window, _("Set labels"));
   gtk_window_set_modal (window, FALSE);
   gtk_window_set_destroy_with_parent (window, TRUE);
 

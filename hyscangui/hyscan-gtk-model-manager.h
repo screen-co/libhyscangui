@@ -105,7 +105,7 @@ typedef enum
 typedef enum
 {
   LABEL,              /* Группа. */
-  GEO_MARK,           /* гео-метка. */
+  GEO_MARK,           /* Гео-метка. */
   ACOUSTIC_MARK,      /* Акустическая метка. */
   TRACK,              /* Галс. */
   TYPES               /* Количество объектов. */
