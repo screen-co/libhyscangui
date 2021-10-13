@@ -55,8 +55,8 @@
 /* Макрос соединяет сигнал с функцией-обработчиком. */
 #define CONNECTION(signal_id, function)\
 g_signal_connect_swapped (priv->model_manager,\
-GET_SIGNAL_TITLE((signal_id)),\
-G_CALLBACK ((function)), self);
+GET_SIGNAL_TITLE( (signal_id)),\
+G_CALLBACK ( (function)), self);
 
 enum
 {
@@ -593,11 +593,11 @@ hyscan_gtk_mark_manager_scrolled_horizontal (GtkAdjustment *adjustment,
 
   value = gtk_adjustment_get_value (adjustment);
 
-  g_object_get(adjustment,
-               "lower", &lower,
-               "upper", &upper,
-               "page-size", &page_size,
-               NULL);
+  g_object_get (adjustment,
+                "lower", &lower,
+                "upper", &upper,
+                "page-size", &page_size,
+                NULL);
 
   value = (value - lower) / (upper - lower - page_size);
 
@@ -621,11 +621,11 @@ hyscan_gtk_mark_manager_scrolled_vertical (GtkAdjustment *adjustment,
 
   value = gtk_adjustment_get_value (adjustment);
 
-  g_object_get(adjustment,
-               "lower", &lower,
-               "upper", &upper,
-               "page-size", &page_size,
-               NULL);
+  g_object_get (adjustment,
+                "lower", &lower,
+                "upper", &upper,
+                "page-size", &page_size,
+                NULL);
 
   value = (value - lower) / (upper - lower - page_size);
 
@@ -916,11 +916,11 @@ hyscan_gtk_mark_manager_view_scrolled_horizontal (HyScanGtkMarkManager *self)
           upper,
           page_size;
 
-  g_object_get(adjustment,
-               "lower", &lower,
-               "upper", &upper,
-               "page-size", &page_size,
-               NULL);
+  g_object_get (adjustment,
+                "lower", &lower,
+                "upper", &upper,
+                "page-size", &page_size,
+                NULL);
 
   value = (value * (upper - lower - page_size)) + lower;
 
@@ -939,11 +939,11 @@ hyscan_gtk_mark_manager_view_scrolled_vertical (HyScanGtkMarkManager *self)
           upper,
           page_size;
 
-  g_object_get(adjustment,
-               "lower", &lower,
-               "upper", &upper,
-               "page-size", &page_size,
-               NULL);
+  g_object_get (adjustment,
+                "lower", &lower,
+                "upper", &upper,
+                "page-size", &page_size,
+                NULL);
 
   value = (value * (upper - lower - page_size)) + lower;
 

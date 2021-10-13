@@ -182,7 +182,7 @@ hyscan_gtk_mark_manager_set_labels_dialog_set_property (GObject      *object,
   switch (prop_id)
     {
     case PROP_TABLE:
-      priv->table = g_hash_table_ref (g_value_get_pointer(value));
+      priv->table = g_hash_table_ref (g_value_get_pointer (value));
       break;
 
     case PROP_LABELS:

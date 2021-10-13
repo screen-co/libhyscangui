@@ -39,7 +39,7 @@
 
 G_BEGIN_DECLS
 
-#define HYSCAN_TYPE_GTK_MARK_MANAGER_ICON hyscan_gtk_mark_manager_icon_get_type()
+#define HYSCAN_TYPE_GTK_MARK_MANAGER_ICON hyscan_gtk_mark_manager_icon_get_type ()
 #define HAS_MANY_ICONS(icon) ( ( (icon)->length > 1) ? TRUE : FALSE)
 
 /* Данные для иконки. */
