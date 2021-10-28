@@ -65,46 +65,46 @@ struct _HyScanGtkMarkManagerViewClass
 
 GType               hyscan_gtk_mark_manager_view_get_type              (void);
 
-GtkWidget*          hyscan_gtk_mark_manager_view_new                   (GtkTreeModel              *store);
+GtkWidget*          hyscan_gtk_mark_manager_view_new                   (GtkTreeModel                 *store);
 
-void                hyscan_gtk_mark_manager_view_set_store             (HyScanGtkMarkManagerView  *self,
-                                                                        GtkTreeModel              *store);
+void                hyscan_gtk_mark_manager_view_set_store             (HyScanGtkMarkManagerView     *self,
+                                                                        GtkTreeModel                 *store);
 
-void                hyscan_gtk_mark_manager_view_expand_all            (HyScanGtkMarkManagerView  *self);
+void                hyscan_gtk_mark_manager_view_expand_all            (HyScanGtkMarkManagerView     *self);
 
-void                hyscan_gtk_mark_manager_view_collapse_all          (HyScanGtkMarkManagerView  *self);
+void                hyscan_gtk_mark_manager_view_collapse_all          (HyScanGtkMarkManagerView     *self);
 
-void                hyscan_gtk_mark_manager_view_unselect_all          (HyScanGtkMarkManagerView  *self);
+void                hyscan_gtk_mark_manager_view_unselect_all          (HyScanGtkMarkManagerView     *self);
 
-void                hyscan_gtk_mark_manager_view_toggle_all            (HyScanGtkMarkManagerView  *self,
-                                                                        gboolean                   active);
+void                hyscan_gtk_mark_manager_view_toggle_all            (HyScanGtkMarkManagerView     *self,
+                                                                        gboolean                      active);
 
-void                hyscan_gtk_mark_manager_view_expand_path           (HyScanGtkMarkManagerView  *self,
-                                                                        GtkTreePath               *path,
-                                                                        gboolean                   expanded);
+void                hyscan_gtk_mark_manager_view_expand_path           (HyScanGtkMarkManagerView     *self,
+                                                                        GtkTreePath                  *path,
+                                                                        gboolean                      expanded);
 
-gchar**             hyscan_gtk_mark_manager_view_get_toggled           (HyScanGtkMarkManagerView  *self,
-                                                                        ModelManagerObjectType     type);
+gchar**             hyscan_gtk_mark_manager_view_get_toggled           (HyScanGtkMarkManagerView     *self,
+                                                                        HyScanModelManagerObjectType  type);
 
-void                hyscan_gtk_mark_manager_view_select_item           (HyScanGtkMarkManagerView  *self,
-                                                                        gchar                     *id);
+void                hyscan_gtk_mark_manager_view_select_item           (HyScanGtkMarkManagerView     *self,
+                                                                        gchar                        *id);
 
-gboolean            hyscan_gtk_mark_manager_view_find_item_by_id       (GtkTreeModel              *model,
-                                                                        GtkTreeIter               *iter,
-                                                                        const gchar               *id);
+gboolean            hyscan_gtk_mark_manager_view_find_item_by_id       (GtkTreeModel                 *model,
+                                                                        GtkTreeIter                  *iter,
+                                                                        const gchar                  *id);
 
-GtkTreeIter*        hyscan_gtk_mark_manager_view_find_items_by_id      (GtkTreeModel              *model,
-                                                                        GtkTreeIter               *iter,
-                                                                        GtkTreeIter               *array,
-                                                                        guint                     *index,
-                                                                        const gchar               *id);
+GtkTreeIter*        hyscan_gtk_mark_manager_view_find_items_by_id      (GtkTreeModel                 *model,
+                                                                        GtkTreeIter                  *iter,
+                                                                        GtkTreeIter                  *array,
+                                                                        guint                        *index,
+                                                                        const gchar                  *id);
 
-void                hyscan_gtk_mark_manager_view_toggle_item           (HyScanGtkMarkManagerView  *self,
-                                                                        gchar                     *id,
-                                                                        gboolean                   active);
+void                hyscan_gtk_mark_manager_view_toggle_item           (HyScanGtkMarkManagerView     *self,
+                                                                        gchar                        *id,
+                                                                        gboolean                      active);
 
-void                hyscan_gtk_mark_manager_view_block_signal_selected (HyScanGtkMarkManagerView  *self,
-                                                                        gboolean                   block);
+void                hyscan_gtk_mark_manager_view_block_signal_selected (HyScanGtkMarkManagerView     *self,
+                                                                        gboolean                      block);
 
 G_END_DECLS
 

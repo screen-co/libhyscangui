@@ -74,65 +74,65 @@ typedef struct _HyScanGtkModelManagerClass   HyScanGtkModelManagerClass;
  * */
 typedef enum
 {
-  SIGNAL_ACOUSTIC_MARKS_CHANGED,      /* Изменение данных в модели "водопадных" меток. */
-  SIGNAL_GEO_MARKS_CHANGED,           /* Изменение данных в модели гео-меток. */
-  SIGNAL_ACOUSTIC_MARKS_LOC_CHANGED,  /* Изменение данных в модели "водопадных" меток с координатами. */
-  SIGNAL_LABELS_CHANGED,              /* Изменение данных в модели групп. */
-  SIGNAL_TRACKS_CHANGED,              /* Изменение данных в модели галсов. */
-  SIGNAL_GROUPING_CHANGED,            /* Изменение типа группировки. */
-  SIGNAL_VIEW_MODEL_UPDATED,          /* Обновление модели представления данных. */
-  SIGNAL_ITEM_SELECTED,               /* Выделена строка. */
-  SIGNAL_ITEM_TOGGLED,                /* Изменено состояние чек-бокса. */
-  SIGNAL_ITEM_EXPANDED,               /* Разворачивание узла древовидного представления. */
-  SIGNAL_ITEM_COLLAPSED,              /* Сворачивание узла древовидного представления. */
-  SIGNAL_VIEW_SCROLLED_HORIZONTAL,    /* Изменение положения горизонтальной прокрутки представления. */
-  SIGNAL_VIEW_SCROLLED_VERTICAL,      /* Изменение положения вертикальной прокрутки представления. */
-  SIGNAL_UNSELECT_ALL,                /* Снятие выделения. */
-  SIGNAL_SHOW_OBJECT,                 /* Показать объект на карте. */
-  SIGNAL_MODEL_MANAGER_LAST           /* Количество сигналов. */
-}ModelManagerSignal;
+  HYSCAN_MODEL_MANAGER_SIGNAL_ACOUSTIC_MARKS_CHANGED,      /* Изменение данных в модели "водопадных" меток. */
+  HYSCAN_MODEL_MANAGER_SIGNAL_GEO_MARKS_CHANGED,           /* Изменение данных в модели гео-меток. */
+  HYSCAN_MODEL_MANAGER_SIGNAL_ACOUSTIC_MARKS_LOC_CHANGED,  /* Изменение данных в модели "водопадных" меток с координатами. */
+  HYSCAN_MODEL_MANAGER_SIGNAL_LABELS_CHANGED,              /* Изменение данных в модели групп. */
+  HYSCAN_MODEL_MANAGER_SIGNAL_TRACKS_CHANGED,              /* Изменение данных в модели галсов. */
+  HYSCAN_MODEL_MANAGER_SIGNAL_GROUPING_CHANGED,            /* Изменение типа группировки. */
+  HYSCAN_MODEL_MANAGER_SIGNAL_VIEW_MODEL_UPDATED,          /* Обновление модели представления данных. */
+  HYSCAN_MODEL_MANAGER_SIGNAL_ITEM_SELECTED,               /* Выделена строка. */
+  HYSCAN_MODEL_MANAGER_SIGNAL_ITEM_TOGGLED,                /* Изменено состояние чек-бокса. */
+  HYSCAN_MODEL_MANAGER_SIGNAL_ITEM_EXPANDED,               /* Разворачивание узла древовидного представления. */
+  HYSCAN_MODEL_MANAGER_SIGNAL_ITEM_COLLAPSED,              /* Сворачивание узла древовидного представления. */
+  HYSCAN_MODEL_MANAGER_SIGNAL_VIEW_SCROLLED_HORIZONTAL,    /* Изменение положения горизонтальной прокрутки представления. */
+  HYSCAN_MODEL_MANAGER_SIGNAL_VIEW_SCROLLED_VERTICAL,      /* Изменение положения вертикальной прокрутки представления. */
+  HYSCAN_MODEL_MANAGER_SIGNAL_UNSELECT_ALL,                /* Снятие выделения. */
+  HYSCAN_MODEL_MANAGER_SIGNAL_SHOW_OBJECT,                 /* Показать объект на карте. */
+  HYSCAN_MODEL_MANAGER_SIGNAL_MODEL_MANAGER_LAST           /* Количество сигналов. */
+}HyScanModelManagerSignal;
 
 /* Тип представления. */
 typedef enum
 {
-  UNGROUPED,          /* Табличное. */
-  BY_TYPES,           /* Древовидный с группировкой по типам. */
-  BY_LABELS,          /* Древовидный с группировкой по группам. */
-  VIEW_TYPES          /* Количество типов представления. */
-}ModelManagerGrouping;
+  HYSCAN_MODEL_MANAGER_GROUPING_UNGROUPED,      /* Табличное. */
+  HYSCAN_MODEL_MANAGER_GROUPING_BY_TYPES,       /* Древовидный с группировкой по типам. */
+  HYSCAN_MODEL_MANAGER_GROUPING_BY_LABELS,      /* Древовидный с группировкой по группам. */
+  HYSCAN_MODEL_MANAGER_GROUPING_TYPES           /* Количество типов представления. */
+}HyScanModelManagerGroupingType;
 
 /* Типы объектов. */
 typedef enum
 {
-  LABEL,              /* Группа. */
-  GEO_MARK,           /* Гео-метка. */
-  ACOUSTIC_MARK,      /* Акустическая метка. */
-  TRACK,              /* Галс. */
-  TYPES               /* Количество объектов. */
-}ModelManagerObjectType;
+  HYSCAN_MODEL_MANAGER_OBJECT_LABEL,            /* Группа. */
+  HYSCAN_MODEL_MANAGER_OBJECT_GEO_MARK,         /* Гео-метка. */
+  HYSCAN_MODEL_MANAGER_OBJECT_ACOUSTIC_MARK,    /* Акустическая метка. */
+  HYSCAN_MODEL_MANAGER_OBJECT_TRACK,            /* Галс. */
+  HYSCAN_MODEL_MANAGER_OBJECT_TYPES             /* Количество объектов. */
+}HyScanModelManagerObjectType;
 
 /* Столбцы для табличного представления. */
 enum
 {
-  COLUMN_ID,          /* Идентификатор объекта в базе данных. */
-  COLUMN_NAME,        /* Название объекта. */
-  COLUMN_DESCRIPTION, /* Описание объекта. */
-  COLUMN_OPERATOR,    /* Оператор, создавший объект. */
-  COLUMN_TYPE,        /* Тип объекта: группа, гео-метка, "водопадная" метка или галс. */
-  COLUMN_ICON,        /* Иконка. */
-  COLUMN_ACTIVE,      /* Статус чек-бокса. */
-  COLUMN_VISIBLE,     /* Видимость чек-бокса. У атрибутов чек-бокс скрыт.*/
-  COLUMN_LABEL,       /* Метки групп к которым принадлежит объект. */
-  COLUMN_CTIME,       /* Время создания объекта. */
-  COLUMN_MTIME,       /* Врем модификации объекта. */
+  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ID,          /* Идентификатор объекта в базе данных. */
+  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_NAME,        /* Название объекта. */
+  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_DESCRIPTION, /* Описание объекта. */
+  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_OPERATOR,    /* Оператор, создавший объект. */
+  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_TYPE,        /* Тип объекта: группа, гео-метка, "водопадная" метка или галс. */
+  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ICON,        /* Иконка. */
+  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ACTIVE,      /* Статус чек-бокса. */
+  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_VISIBLE,     /* Видимость чек-бокса. У атрибутов чек-бокс скрыт.*/
+  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_LABEL,       /* Метки групп к которым принадлежит объект. */
+  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_CTIME,       /* Время создания объекта. */
+  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_MTIME,       /* Врем модификации объекта. */
   /* Атрибуты для гео-меток и акустических меток. */
-  COLUMN_LOCATION,    /* Координаты.     |E| */
-  COLUMN_TRACK_NAME,  /* Название галса. |C| */
-  COLUMN_BOARD,       /* Борт.           |H| */
-  COLUMN_DEPTH,       /* Глубина.        |O| */
-  COLUMN_WIDTH,       /* Ширина. */
-  COLUMN_SLANT_RANGE, /* Наклонная дальность. */
-  MAX_COLUMNS         /* Общее количество колонок для представления данных. */
+  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_LOCATION,    /* Координаты.     |E| */
+  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_TRACK_NAME,  /* Название галса. |C| */
+  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_BOARD,       /* Борт.           |H| */
+  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_DEPTH,       /* Глубина.        |O| */
+  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_WIDTH,       /* Ширина. */
+  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_SLANT_RANGE, /* Наклонная дальность. */
+  HYSCAN_MODEL_MANAGER_VIEW_MAX_COLUMNS         /* Общее количество колонок для представления данных. */
 };
 
 struct _HyScanGtkModelManager
@@ -151,142 +151,142 @@ HYSCAN_API
 GType                  hyscan_gtk_model_manager_get_type                    (void);
 
 HYSCAN_API
-HyScanGtkModelManager* hyscan_gtk_model_manager_new                         (const gchar               *project_name,
-                                                                             HyScanDB                  *db,
-                                                                             HyScanCache               *cache,
-                                                                             gchar                     *export_folder);
+HyScanGtkModelManager* hyscan_gtk_model_manager_new                         (const gchar                    *project_name,
+                                                                             HyScanDB                       *db,
+                                                                             HyScanCache                    *cache,
+                                                                             gchar                          *export_folder);
 
 HYSCAN_API
-HyScanUnits *          hyscan_gtk_model_manager_get_units                   (HyScanGtkModelManager     *self);
+HyScanUnits *          hyscan_gtk_model_manager_get_units                   (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-HyScanDBInfo*          hyscan_gtk_model_manager_get_track_model             (HyScanGtkModelManager     *self);
+HyScanDBInfo*          hyscan_gtk_model_manager_get_track_model             (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-HyScanObjectModel*     hyscan_gtk_model_manager_get_acoustic_mark_model     (HyScanGtkModelManager     *self);
+HyScanObjectModel*     hyscan_gtk_model_manager_get_acoustic_mark_model     (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-HyScanObjectModel*     hyscan_gtk_model_manager_get_geo_mark_model          (HyScanGtkModelManager     *self);
+HyScanObjectModel*     hyscan_gtk_model_manager_get_geo_mark_model          (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-HyScanPlannerModel*    hyscan_gtk_model_manager_get_planner_model           (HyScanGtkModelManager     *self);
+HyScanPlannerModel*    hyscan_gtk_model_manager_get_planner_model           (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-HyScanObjectModel*     hyscan_gtk_model_manager_get_label_model             (HyScanGtkModelManager     *self);
+HyScanObjectModel*     hyscan_gtk_model_manager_get_label_model             (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-HyScanMarkLocModel*    hyscan_gtk_model_manager_get_acoustic_mark_loc_model (HyScanGtkModelManager     *self);
+HyScanMarkLocModel*    hyscan_gtk_model_manager_get_acoustic_mark_loc_model (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-GtkTreeModel*          hyscan_gtk_model_manager_get_view_model              (HyScanGtkModelManager     *self);
+GtkTreeModel*          hyscan_gtk_model_manager_get_view_model              (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-const gchar*           hyscan_gtk_model_manager_get_signal_title            (HyScanGtkModelManager     *self,
-                                                                             ModelManagerSignal         signal_title);
+const gchar*           hyscan_gtk_model_manager_get_signal_title            (HyScanGtkModelManager          *self,
+                                                                             HyScanModelManagerSignal        signal_title);
 
 HYSCAN_API
-void                   hyscan_gtk_model_manager_set_project_name            (HyScanGtkModelManager     *self,
-                                                                             const gchar               *project_name);
+void                   hyscan_gtk_model_manager_set_project_name            (HyScanGtkModelManager          *self,
+                                                                             const gchar                    *project_name);
 
 HYSCAN_API
-const gchar*           hyscan_gtk_model_manager_get_project_name            (HyScanGtkModelManager     *self);
+const gchar*           hyscan_gtk_model_manager_get_project_name            (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-const gchar*           hyscan_gtk_model_manager_get_export_folder           (HyScanGtkModelManager     *self);
+const gchar*           hyscan_gtk_model_manager_get_export_folder           (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-HyScanDB*              hyscan_gtk_model_manager_get_db                      (HyScanGtkModelManager     *self);
+HyScanDB*              hyscan_gtk_model_manager_get_db                      (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-HyScanCache*           hyscan_gtk_model_manager_get_cache                   (HyScanGtkModelManager     *self);
+HyScanCache*           hyscan_gtk_model_manager_get_cache                   (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-gchar**                hyscan_gtk_model_manager_get_all_tracks_id           (HyScanGtkModelManager     *self);
+gchar**                hyscan_gtk_model_manager_get_all_tracks_id           (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-void                   hyscan_gtk_model_manager_set_grouping                (HyScanGtkModelManager     *self,
-                                                                             ModelManagerGrouping       grouping);
+void                   hyscan_gtk_model_manager_set_grouping                (HyScanGtkModelManager          *self,
+                                                                             HyScanModelManagerGroupingType  grouping);
 
 HYSCAN_API
-ModelManagerGrouping   hyscan_gtk_model_manager_get_grouping                (HyScanGtkModelManager     *self);
+HyScanModelManagerGroupingType   hyscan_gtk_model_manager_get_grouping      (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-void                   hyscan_gtk_model_manager_set_selected_item           (HyScanGtkModelManager     *self,
-                                                                             gchar                     *id);
+void                   hyscan_gtk_model_manager_set_selected_item           (HyScanGtkModelManager          *self,
+                                                                             gchar                          *id);
 
 HYSCAN_API
-gchar*                 hyscan_gtk_model_manager_get_selected_item           (HyScanGtkModelManager     *self);
+gchar*                 hyscan_gtk_model_manager_get_selected_item           (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-gchar*                 hyscan_gtk_model_manager_get_selected_track          (HyScanGtkModelManager     *self);
+gchar*                 hyscan_gtk_model_manager_get_selected_track          (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-void                   hyscan_gtk_model_manager_unselect_all                (HyScanGtkModelManager     *self);
+void                   hyscan_gtk_model_manager_unselect_all                (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-void                   hyscan_gtk_model_manager_set_horizontal_adjustment   (HyScanGtkModelManager     *self,
-                                                                             gdouble                    value);
+void                   hyscan_gtk_model_manager_set_horizontal_adjustment   (HyScanGtkModelManager          *self,
+                                                                             gdouble                         value);
 
 HYSCAN_API
-void                   hyscan_gtk_model_manager_set_vertical_adjustment     (HyScanGtkModelManager     *self,
-                                                                             gdouble                    value);
+void                   hyscan_gtk_model_manager_set_vertical_adjustment     (HyScanGtkModelManager          *self,
+                                                                             gdouble                         value);
 
 HYSCAN_API
-gdouble                hyscan_gtk_model_manager_get_horizontal_adjustment   (HyScanGtkModelManager     *self);
+gdouble                hyscan_gtk_model_manager_get_horizontal_adjustment   (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-gdouble                hyscan_gtk_model_manager_get_vertical_adjustment     (HyScanGtkModelManager     *self);
+gdouble                hyscan_gtk_model_manager_get_vertical_adjustment     (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-void                   hyscan_gtk_model_manager_toggle_item                 (HyScanGtkModelManager     *self,
-                                                                             gchar                     *id,
-                                                                             gboolean                   active);
+void                   hyscan_gtk_model_manager_toggle_item                 (HyScanGtkModelManager          *self,
+                                                                             gchar                          *id,
+                                                                             gboolean                        active);
 
 HYSCAN_API
-gchar**                hyscan_gtk_model_manager_get_toggled_items           (HyScanGtkModelManager     *self,
-                                                                             ModelManagerObjectType     type);
+gchar**                hyscan_gtk_model_manager_get_toggled_items           (HyScanGtkModelManager          *self,
+                                                                             HyScanModelManagerObjectType    type);
 
 HYSCAN_API
-gboolean               hyscan_gtk_model_manager_has_toggled_items           (HyScanGtkModelManager     *self,
-                                                                             ModelManagerObjectType     type);
+gboolean               hyscan_gtk_model_manager_has_toggled_items           (HyScanGtkModelManager          *self,
+                                                                             HyScanModelManagerObjectType    type);
 
 HYSCAN_API
-void                   hyscan_gtk_model_manager_expand_item                 (HyScanGtkModelManager     *self,
-                                                                             gchar                     *id,
-                                                                             gboolean                   expanded);
+void                   hyscan_gtk_model_manager_expand_item                 (HyScanGtkModelManager          *self,
+                                                                             gchar                          *id,
+                                                                             gboolean                        expanded);
 
 HYSCAN_API
-gchar**                hyscan_gtk_model_manager_get_expanded_items          (HyScanGtkModelManager     *self,
-                                                                             ModelManagerObjectType     type,
-                                                                             gboolean                   expanded);
+gchar**                hyscan_gtk_model_manager_get_expanded_items          (HyScanGtkModelManager          *self,
+                                                                             HyScanModelManagerObjectType    type,
+                                                                             gboolean                        expanded);
 
 HYSCAN_API
-gchar*                 hyscan_gtk_model_manager_get_current_id              (HyScanGtkModelManager     *self);
+gchar*                 hyscan_gtk_model_manager_get_current_id              (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-void                   hyscan_gtk_model_manager_delete_toggled_items        (HyScanGtkModelManager     *self,
-                                                                             gboolean                   flag);
+void                   hyscan_gtk_model_manager_delete_toggled_items        (HyScanGtkModelManager          *self,
+                                                                             gboolean                        flag);
 
 HYSCAN_API
-gboolean               hyscan_gtk_model_manager_has_toggled                 (HyScanGtkModelManager     *self);
+gboolean               hyscan_gtk_model_manager_has_toggled                 (HyScanGtkModelManager          *self);
 
 HYSCAN_API
-void                   hyscan_gtk_model_manager_toggled_items_set_labels    (HyScanGtkModelManager     *self,
-                                                                             guint64                    labels,
-                                                                             guint64                    inconsistents);
+void                   hyscan_gtk_model_manager_toggled_items_set_labels    (HyScanGtkModelManager          *self,
+                                                                             guint64                         labels,
+                                                                             guint64                         inconsistents);
 
 HYSCAN_API
-void                   hyscan_gtk_model_manager_toggled_items_get_bit_masks (HyScanGtkModelManager     *self,
-                                                                             guint64                   *labels,
-                                                                             guint64                   *inconsistents);
+void                   hyscan_gtk_model_manager_toggled_items_get_bit_masks (HyScanGtkModelManager          *self,
+                                                                             guint64                        *labels,
+                                                                             guint64                        *inconsistents);
 
 HYSCAN_API
-void                   hyscan_gtk_model_manager_show_object                 (HyScanGtkModelManager     *self,
-                                                                             gchar                     *id,
-                                                                             guint                      type);
+void                   hyscan_gtk_model_manager_show_object                 (HyScanGtkModelManager          *self,
+                                                                             gchar                          *id,
+                                                                             guint                           type);
 
 HYSCAN_API
-GHashTable*            hyscan_gtk_model_manager_get_all_labels              (HyScanGtkModelManager     *self);
+GHashTable*            hyscan_gtk_model_manager_get_all_labels              (HyScanGtkModelManager          *self);
 
 G_END_DECLS
 

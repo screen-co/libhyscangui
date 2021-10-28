@@ -145,7 +145,8 @@ main (int    argc,
 
   g_signal_connect (G_OBJECT (widget), "destroy", G_CALLBACK (gtk_main_quit), NULL);
   g_signal_connect (model_manager,
-                    hyscan_gtk_model_manager_get_signal_title (model_manager, SIGNAL_SHOW_OBJECT),
+                    hyscan_gtk_model_manager_get_signal_title (model_manager,
+                                                               HYSCAN_MODEL_MANAGER_SIGNAL_SHOW_OBJECT),
                     G_CALLBACK (on_double_click),
                     NULL);
 

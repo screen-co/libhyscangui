@@ -293,20 +293,20 @@ hyscan_gtk_mark_manager_constructed (GObject *object)
   GtkTreeModel *model               = hyscan_gtk_model_manager_get_view_model (priv->model_manager);
   /* Размещаем панель инструментов сверху. */
   HyScanGtkMarkManagerToolbarPosition toolbar_position = TOOLBAR_TOP;
-  ModelManagerGrouping grouping;  /* Для хранения текущего значения. */
+  HyScanModelManagerGroupingType grouping;  /* Для хранения текущего значения. */
 
   G_OBJECT_CLASS (hyscan_gtk_mark_manager_parent_class)->constructed (object);
 
-  CONNECTION (SIGNAL_GROUPING_CHANGED,         hyscan_gtk_mark_manager_grouping_changed);
-  CONNECTION (SIGNAL_VIEW_MODEL_UPDATED,       hyscan_gtk_mark_manager_view_model_updated);
-  CONNECTION (SIGNAL_ITEM_SELECTED,            hyscan_gtk_mark_manager_select_item);
-  CONNECTION (SIGNAL_ITEM_TOGGLED,             hyscan_gtk_mark_manager_toggle_item);
-  CONNECTION (SIGNAL_ITEM_EXPANDED,            hyscan_gtk_mark_manager_expand_item);
-  CONNECTION (SIGNAL_ITEM_COLLAPSED,           hyscan_gtk_mark_manager_collapse_item);
-  CONNECTION (SIGNAL_VIEW_SCROLLED_HORIZONTAL, hyscan_gtk_mark_manager_view_scrolled_horizontal);
-  CONNECTION (SIGNAL_VIEW_SCROLLED_VERTICAL,   hyscan_gtk_mark_manager_view_scrolled_vertical);
-  CONNECTION (SIGNAL_UNSELECT_ALL,             hyscan_gtk_mark_manager_unselect_all);
-  CONNECTION (SIGNAL_LABELS_CHANGED,           hyscan_gtk_mark_manager_labels_changed);
+  CONNECTION (HYSCAN_MODEL_MANAGER_SIGNAL_GROUPING_CHANGED,         hyscan_gtk_mark_manager_grouping_changed);
+  CONNECTION (HYSCAN_MODEL_MANAGER_SIGNAL_VIEW_MODEL_UPDATED,       hyscan_gtk_mark_manager_view_model_updated);
+  CONNECTION (HYSCAN_MODEL_MANAGER_SIGNAL_ITEM_SELECTED,            hyscan_gtk_mark_manager_select_item);
+  CONNECTION (HYSCAN_MODEL_MANAGER_SIGNAL_ITEM_TOGGLED,             hyscan_gtk_mark_manager_toggle_item);
+  CONNECTION (HYSCAN_MODEL_MANAGER_SIGNAL_ITEM_EXPANDED,            hyscan_gtk_mark_manager_expand_item);
+  CONNECTION (HYSCAN_MODEL_MANAGER_SIGNAL_ITEM_COLLAPSED,           hyscan_gtk_mark_manager_collapse_item);
+  CONNECTION (HYSCAN_MODEL_MANAGER_SIGNAL_VIEW_SCROLLED_HORIZONTAL, hyscan_gtk_mark_manager_view_scrolled_horizontal);
+  CONNECTION (HYSCAN_MODEL_MANAGER_SIGNAL_VIEW_SCROLLED_VERTICAL,   hyscan_gtk_mark_manager_view_scrolled_vertical);
+  CONNECTION (HYSCAN_MODEL_MANAGER_SIGNAL_UNSELECT_ALL,             hyscan_gtk_mark_manager_unselect_all);
+  CONNECTION (HYSCAN_MODEL_MANAGER_SIGNAL_LABELS_CHANGED,           hyscan_gtk_mark_manager_labels_changed);
 
   priv->view = hyscan_gtk_mark_manager_view_new (model);
   g_object_unref (model);
@@ -352,7 +352,7 @@ hyscan_gtk_mark_manager_constructed (GObject *object)
 
   grouping = hyscan_gtk_model_manager_get_grouping (priv->model_manager);
 
-  if (grouping == UNGROUPED)
+  if (grouping == HYSCAN_MODEL_MANAGER_GROUPING_UNGROUPED)
     {
       gtk_widget_set_sensitive (priv->expand_all_item,   FALSE);
       gtk_widget_set_sensitive (priv->collapse_all_item, FALSE);
@@ -393,7 +393,9 @@ hyscan_gtk_mark_manager_constructed (GObject *object)
                     G_CALLBACK (hyscan_gtk_mark_manager_toggled_items_save_as_html), self);
 
   priv->combo = gtk_combo_box_text_new ();
-  for (ModelManagerGrouping index = UNGROUPED; index < VIEW_TYPES; index++)
+  for (HyScanModelManagerGroupingType index = HYSCAN_MODEL_MANAGER_GROUPING_UNGROUPED;
+       index < HYSCAN_MODEL_MANAGER_GROUPING_TYPES;
+       index++)
     gtk_combo_box_text_append (GTK_COMBO_BOX_TEXT (priv->combo), NULL, _(view_type_text[index]));
   gtk_combo_box_set_active (GTK_COMBO_BOX (priv->combo), grouping);
 
@@ -513,7 +515,7 @@ hyscan_gtk_mark_manager_set_grouping (GtkComboBox          *combo,
                                       HyScanGtkMarkManager *self)
 {
   HyScanGtkMarkManagerPrivate *priv = self->priv;
-  ModelManagerGrouping     grouping = gtk_combo_box_get_active (combo);
+  HyScanModelManagerGroupingType grouping = gtk_combo_box_get_active (combo);
 
   hyscan_gtk_mark_manager_view_block_signal_selected (HYSCAN_GTK_MARK_MANAGER_VIEW (priv->view), TRUE);
   hyscan_gtk_model_manager_set_grouping (priv->model_manager, grouping);
@@ -525,7 +527,7 @@ static void
 hyscan_gtk_mark_manager_grouping_changed (HyScanGtkMarkManager *self)
 {
   HyScanGtkMarkManagerPrivate *priv = self->priv;
-  ModelManagerGrouping grouping = hyscan_gtk_model_manager_get_grouping (priv->model_manager);
+  HyScanModelManagerGroupingType grouping = hyscan_gtk_model_manager_get_grouping (priv->model_manager);
   gboolean has_toggled = hyscan_gtk_model_manager_has_toggled (priv->model_manager);
 
   if (priv->signal != 0)
@@ -535,7 +537,7 @@ hyscan_gtk_mark_manager_grouping_changed (HyScanGtkMarkManager *self)
       g_signal_handler_unblock (G_OBJECT (priv->combo), priv->signal);
     }
 
-  if (grouping == UNGROUPED)
+  if (grouping == HYSCAN_MODEL_MANAGER_GROUPING_UNGROUPED)
     {
       gtk_widget_set_sensitive (priv->expand_all_item,   FALSE);
       gtk_widget_set_sensitive (priv->collapse_all_item, FALSE);
@@ -647,7 +649,7 @@ hyscan_gtk_mark_manager_delete_toggled (GtkToolButton        *button,
   image  = gtk_image_new_from_icon_name ("dialog-question", GTK_ICON_SIZE_DIALOG);
   gtk_box_pack_start (GTK_BOX (hbox), image, FALSE, FALSE, 10);
 
-  if (hyscan_gtk_model_manager_has_toggled_items (priv->model_manager, TRACK))
+  if (hyscan_gtk_model_manager_has_toggled_items (priv->model_manager, HYSCAN_MODEL_MANAGER_OBJECT_TRACK))
     {
       GtkWidget *vbox;
 
@@ -1042,7 +1044,9 @@ hyscan_gtk_mark_manager_expand_items (HyScanGtkMarkManager *self,
   HyScanGtkMarkManagerPrivate *priv = self->priv;
   GtkTreeModel *model = hyscan_gtk_model_manager_get_view_model (priv->model_manager);
 
-  for (ModelManagerObjectType type = LABEL; type < TYPES; type++)
+  for (HyScanModelManagerObjectType type = HYSCAN_MODEL_MANAGER_OBJECT_LABEL;
+       type < HYSCAN_MODEL_MANAGER_OBJECT_TYPES;
+       type++)
     {
       gchar **list = hyscan_gtk_model_manager_get_expanded_items (priv->model_manager, type, expanded);
 

@@ -443,8 +443,8 @@ hyscan_gtk_mark_manager_view_emit_selected (GtkTreeSelection         *selection,
             {
               gchar *id = NULL;
 
-              gtk_tree_model_get (model,     &iter,
-                                  COLUMN_ID, &id,
+              gtk_tree_model_get (model,                               &iter,
+                                  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ID, &id,
                                   -1);
 
               if (id != NULL)
@@ -464,8 +464,8 @@ hyscan_gtk_mark_manager_view_emit_selected (GtkTreeSelection         *selection,
       if (!gtk_tree_selection_get_selected (selection, &model, &iter))
         return;
 
-      gtk_tree_model_get (model,     &iter,
-                          COLUMN_ID, &id,
+      gtk_tree_model_get (model,                               &iter,
+                          HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ID, &id,
                           -1);
       if (id == NULL)
         return;
@@ -499,8 +499,8 @@ hyscan_gtk_mark_manager_view_on_toggle (GtkCellRendererToggle *cell_renderer,
   if (!gtk_tree_model_get_iter_from_string (model, &iter, path))
     return;
 
-  gtk_tree_model_get (model,         &iter,
-                      COLUMN_ACTIVE, &active,
+  gtk_tree_model_get (model,                                   &iter,
+                      HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ACTIVE, &active,
                       -1);
 
   hyscan_gtk_mark_manager_view_toggle (self, &iter, !active);
@@ -522,8 +522,8 @@ hyscan_gtk_mark_manager_view_toggle (HyScanGtkMarkManagerView *self,
   GtkTreeIter child_iter;
   gchar *id;
 
-  gtk_tree_model_get (model,      iter,
-                      COLUMN_ID, &id,
+  gtk_tree_model_get (model,                                iter,
+                      HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ID, &id,
                       -1);
 
   if (id != NULL)
@@ -565,8 +565,8 @@ hyscan_gtk_mark_manager_view_toggle_parent (HyScanGtkMarkManagerView *self,
 
   do
     {
-      gtk_tree_model_get (model,         &child_iter,
-                          COLUMN_ACTIVE, &flag,
+      gtk_tree_model_get (model,                                   &child_iter,
+                          HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ACTIVE, &flag,
                           -1);
       if (flag)
         counter++;
@@ -577,10 +577,10 @@ hyscan_gtk_mark_manager_view_toggle_parent (HyScanGtkMarkManagerView *self,
    * FALSE - есть неотмеченные дочерние узлы. */
   flag = (counter == total) ? TRUE : FALSE;
 
-  gtk_tree_model_get (model,     &parent_iter,
-                      COLUMN_ID, &id,
+  gtk_tree_model_get (model,                               &parent_iter,
+                      HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ID, &id,
                       -1);
-  gtk_tree_store_set (GTK_TREE_STORE (model), &parent_iter, COLUMN_ACTIVE, flag, -1);
+  gtk_tree_store_set (GTK_TREE_STORE (model), &parent_iter, HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ACTIVE, flag, -1);
 
   if (id != NULL)
     {
@@ -635,7 +635,7 @@ hyscan_gtk_mark_manager_view_show_tooltip (GtkWidget  *widget,
       gchar *ptr, *str;
 
       gtk_tree_view_set_tooltip_cell (view, tooltip, path, column, NULL);
-      gtk_tree_model_get (model, &iter, COLUMN_ICON, &icon, -1);
+      gtk_tree_model_get (model, &iter, HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ICON, &icon, -1);
 
       tooltips = hyscan_gtk_mark_manager_icon_get_tooltips (icon);
 
@@ -699,8 +699,8 @@ hyscan_gtk_mark_manager_view_item_expanded (GtkTreeView *tree_view,
 
   g_return_if_fail (HYSCAN_IS_GTK_MARK_MANAGER_VIEW (self));
 
-  gtk_tree_model_get (model,      iter,
-                      COLUMN_ID, &id,
+  gtk_tree_model_get (model,                                iter,
+                      HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ID, &id,
                       -1);
 
   if (id == NULL)
@@ -723,8 +723,8 @@ hyscan_gtk_mark_manager_view_item_collapsed (GtkTreeView *tree_view,
 
   g_return_if_fail (HYSCAN_IS_GTK_MARK_MANAGER_VIEW (self));
 
-  gtk_tree_model_get (model,      iter,
-                      COLUMN_ID, &id,
+  gtk_tree_model_get (model,                                iter,
+                      HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ID, &id,
                       -1);
 
   if (id == NULL)
@@ -775,54 +775,54 @@ hyscan_gtk_mark_manager_view_set_list_model (HyScanGtkMarkManagerView *self)
   gtk_tree_view_append_column (priv->tree_view, column);
 
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
-                                               COLUMN_DESCRIPTION,
+                                               HYSCAN_MODEL_MANAGER_VIEW_COLUMN_DESCRIPTION,
                                                _("Description"), renderer,
-                                               "text", COLUMN_DESCRIPTION,
+                                               "text", HYSCAN_MODEL_MANAGER_VIEW_COLUMN_DESCRIPTION,
                                                NULL);
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
-                                               COLUMN_OPERATOR,
+                                               HYSCAN_MODEL_MANAGER_VIEW_COLUMN_OPERATOR,
                                                _("Operator name"), renderer,
-                                               "text", COLUMN_OPERATOR,
+                                               "text", HYSCAN_MODEL_MANAGER_VIEW_COLUMN_OPERATOR,
                                                NULL);
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
-                                               COLUMN_CTIME,
+                                               HYSCAN_MODEL_MANAGER_VIEW_COLUMN_CTIME,
                                                _("Created"), renderer,
-                                               "text", COLUMN_CTIME,
+                                               "text", HYSCAN_MODEL_MANAGER_VIEW_COLUMN_CTIME,
                                                NULL);
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
-                                               COLUMN_MTIME,
+                                               HYSCAN_MODEL_MANAGER_VIEW_COLUMN_MTIME,
                                                _("Modified"), renderer,
-                                               "text", COLUMN_MTIME,
+                                               "text", HYSCAN_MODEL_MANAGER_VIEW_COLUMN_MTIME,
                                                NULL);
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
-                                               COLUMN_LOCATION,
+                                               HYSCAN_MODEL_MANAGER_VIEW_COLUMN_LOCATION,
                                                _("Location (WGS 84)"), renderer,
-                                               "text", COLUMN_LOCATION,
+                                               "text", HYSCAN_MODEL_MANAGER_VIEW_COLUMN_LOCATION,
                                                NULL);
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
-                                               COLUMN_TRACK_NAME,
+                                               HYSCAN_MODEL_MANAGER_VIEW_COLUMN_TRACK_NAME,
                                                _("Track name"), renderer,
-                                               "text", COLUMN_TRACK_NAME,
+                                               "text", HYSCAN_MODEL_MANAGER_VIEW_COLUMN_TRACK_NAME,
                                                NULL);
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
-                                               COLUMN_BOARD,
+                                               HYSCAN_MODEL_MANAGER_VIEW_COLUMN_BOARD,
                                                _("Board"), renderer,
-                                               "text", COLUMN_BOARD,
+                                               "text", HYSCAN_MODEL_MANAGER_VIEW_COLUMN_BOARD,
                                                NULL);
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
-                                               COLUMN_DEPTH,
+                                               HYSCAN_MODEL_MANAGER_VIEW_COLUMN_DEPTH,
                                                _("Depth"), renderer,
-                                               "text", COLUMN_DEPTH,
+                                               "text", HYSCAN_MODEL_MANAGER_VIEW_COLUMN_DEPTH,
                                                NULL);
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
-                                               COLUMN_WIDTH,
+                                               HYSCAN_MODEL_MANAGER_VIEW_COLUMN_WIDTH,
                                                _("Width"), renderer,
-                                               "text", COLUMN_WIDTH,
+                                               "text", HYSCAN_MODEL_MANAGER_VIEW_COLUMN_WIDTH,
                                                NULL);
   gtk_tree_view_insert_column_with_attributes (priv->tree_view,
-                                               COLUMN_SLANT_RANGE,
+                                               HYSCAN_MODEL_MANAGER_VIEW_COLUMN_SLANT_RANGE,
                                                _("Slant range"), renderer,
-                                               "text", COLUMN_SLANT_RANGE,
+                                               "text", HYSCAN_MODEL_MANAGER_VIEW_COLUMN_SLANT_RANGE,
                                                NULL);
 
   gtk_tree_view_set_headers_visible (priv->tree_view, TRUE);
@@ -872,7 +872,7 @@ hyscan_gtk_mark_manager_view_set_tree_model (HyScanGtkMarkManagerView *self)
                                            NULL);
   gtk_tree_view_append_column (priv->tree_view, column);
 
-  gtk_tree_view_column_add_attribute (column, priv->toggle_renderer, "visible", COLUMN_VISIBLE);
+  gtk_tree_view_column_add_attribute (column, priv->toggle_renderer, "visible", HYSCAN_MODEL_MANAGER_VIEW_COLUMN_VISIBLE);
   gtk_tree_view_set_headers_visible (priv->tree_view, FALSE);
   gtk_tree_view_set_enable_tree_lines (priv->tree_view, TRUE);
 }
@@ -899,7 +899,7 @@ hyscan_gtk_mark_manager_view_set_func_icon (GtkTreeViewColumn *tree_column,
   HyScanGtkMarkManagerIcon *icon;
   GdkPixbuf *pixbuf = NULL;
 
-  gtk_tree_model_get (model, iter, COLUMN_ICON,  &icon, -1);
+  gtk_tree_model_get (model, iter, HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ICON,  &icon, -1);
   pixbuf = hyscan_gtk_mark_manager_icon_get_icon (icon);
   hyscan_gtk_mark_manager_icon_free (icon);
 
@@ -918,7 +918,7 @@ hyscan_gtk_mark_manager_view_set_func_toggle (GtkTreeViewColumn *tree_column,
 {
   gboolean active;
 
-  gtk_tree_model_get (model, iter, COLUMN_ACTIVE, &active, -1);
+  gtk_tree_model_get (model, iter, HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ACTIVE, &active, -1);
   gtk_cell_renderer_toggle_set_active (GTK_CELL_RENDERER_TOGGLE (cell), active);
 }
 /* Отображение названия. */
@@ -931,7 +931,7 @@ hyscan_gtk_mark_manager_view_set_func_text (GtkTreeViewColumn *tree_column,
 {
   gchar *str = NULL;
 
-  gtk_tree_model_get (model, iter, COLUMN_NAME, &str, -1);
+  gtk_tree_model_get (model, iter, HYSCAN_MODEL_MANAGER_VIEW_COLUMN_NAME, &str, -1);
   g_object_set (GTK_CELL_RENDERER (cell), "text", str, NULL);
 
   g_free (str);
@@ -1107,7 +1107,7 @@ hyscan_gtk_mark_manager_view_on_double_click (GtkTreeView       *tree_view,
 {
   HyScanGtkMarkManagerView *self;
   HyScanGtkMarkManagerViewPrivate *priv;
-  ModelManagerObjectType type;
+  HyScanModelManagerObjectType type;
   GtkTreeIter iter;
   gchar *id;
 
@@ -1119,9 +1119,9 @@ hyscan_gtk_mark_manager_view_on_double_click (GtkTreeView       *tree_view,
   if (!gtk_tree_model_get_iter (priv->store, &iter, path))
     return;
 
-  gtk_tree_model_get (priv->store, &iter,
-                      COLUMN_ID,   &id,
-                      COLUMN_TYPE, &type,
+  gtk_tree_model_get (priv->store,                           &iter,
+                      HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ID,   &id,
+                      HYSCAN_MODEL_MANAGER_VIEW_COLUMN_TYPE, &type,
                       -1);
   if (id == NULL)
     return;
@@ -1259,15 +1259,15 @@ hyscan_gtk_mark_manager_view_expand_path (HyScanGtkMarkManagerView *self,
  * необходимо использовать #g_strfreev ().
  */
 gchar**
-hyscan_gtk_mark_manager_view_get_toggled (HyScanGtkMarkManagerView *self,
-                                          ModelManagerObjectType    type)
+hyscan_gtk_mark_manager_view_get_toggled (HyScanGtkMarkManagerView     *self,
+                                          HyScanModelManagerObjectType  type)
 {
   HyScanGtkMarkManagerViewPrivate *priv = self->priv;
   GtkTreeIter iter;
   GtkTreePath *path;
   gchar **list = NULL;
 
-  g_return_val_if_fail (type != TYPES, NULL);
+  g_return_val_if_fail (type != HYSCAN_MODEL_MANAGER_OBJECT_TYPES, NULL);
 
   if (GTK_IS_LIST_STORE (priv->store))
     {
@@ -1279,12 +1279,12 @@ hyscan_gtk_mark_manager_view_get_toggled (HyScanGtkMarkManagerView *self,
             {
               gchar    *id;
               gboolean  active;
-              ModelManagerObjectType current_type;
+              HyScanModelManagerObjectType current_type;
 
-              gtk_tree_model_get (priv->store,   &iter,
-                                  COLUMN_ID,     &id,
-                                  COLUMN_ACTIVE, &active,
-                                  COLUMN_TYPE,   &current_type,
+              gtk_tree_model_get (priv->store,                             &iter,
+                                  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ID,     &id,
+                                  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ACTIVE, &active,
+                                  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_TYPE,   &current_type,
                                   -1);
               if (current_type == type && active)
                 {
@@ -1325,9 +1325,9 @@ hyscan_gtk_mark_manager_view_get_toggled (HyScanGtkMarkManagerView *self,
               gchar    *id;
               gboolean  active;
 
-              gtk_tree_model_get (priv->store,   &iter,
-                                  COLUMN_ID,     &id,
-                                  COLUMN_ACTIVE, &active,
+              gtk_tree_model_get (priv->store,                             &iter,
+                                  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ID,     &id,
+                                  HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ACTIVE, &active,
                                   -1);
               if (active)
                 {
@@ -1490,8 +1490,8 @@ hyscan_gtk_mark_manager_view_find_item_by_id (GtkTreeModel *model,
   GtkTreeIter child_iter;
   gchar *str;
 
-  gtk_tree_model_get (model,     iter,
-                      COLUMN_ID, &str,
+  gtk_tree_model_get (model,                                iter,
+                      HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ID, &str,
                       -1);
   if (str == NULL)
     return FALSE;
@@ -1540,8 +1540,8 @@ hyscan_gtk_mark_manager_view_find_items_by_id  (GtkTreeModel *model,
   GtkTreeIter child_iter;
   gchar *str;
 
-  gtk_tree_model_get (model,     iter,
-                      COLUMN_ID, &str,
+  gtk_tree_model_get (model,                                iter,
+                      HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ID, &str,
                       -1);
 
   if (str == NULL)
@@ -1603,9 +1603,9 @@ hyscan_gtk_mark_manager_view_toggle_item (HyScanGtkMarkManagerView *self,
         g_signal_handler_block (priv->toggle_renderer, priv->signal_toggled);
 
       if (GTK_IS_TREE_STORE (model))
-        gtk_tree_store_set (GTK_TREE_STORE (model), &array[index], COLUMN_ACTIVE, active, -1);
+        gtk_tree_store_set (GTK_TREE_STORE (model), &array[index], HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ACTIVE, active, -1);
       else if (GTK_IS_LIST_STORE (model))
-        gtk_list_store_set (GTK_LIST_STORE (model), &array[index], COLUMN_ACTIVE, active, -1);
+        gtk_list_store_set (GTK_LIST_STORE (model), &array[index], HYSCAN_MODEL_MANAGER_VIEW_COLUMN_ACTIVE, active, -1);
 
       hyscan_gtk_mark_manager_view_toggle_parent (self, &array[index]);
 

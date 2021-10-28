@@ -361,7 +361,7 @@ hyscan_gtk_map_builder_object_constructed (GObject *object)
                             builder);
 
   g_signal_connect_swapped (priv->model_manager,
-                            GET_SIGNAL_TITLE (SIGNAL_SHOW_OBJECT),
+                            GET_SIGNAL_TITLE (HYSCAN_MODEL_MANAGER_SIGNAL_SHOW_OBJECT),
                             G_CALLBACK (hyscan_gtk_map_builder_show_object),
                             builder);
 }
@@ -1002,9 +1002,9 @@ hyscan_gtk_map_builder_show_object (HyScanGtkMapBuilder *builder,
 {
   HyScanGtkMapBuilderPrivate *priv = builder->priv;
 
-  if (type == ACOUSTIC_MARK && priv->wfmark_layer != NULL)
+  if (type == HYSCAN_MODEL_MANAGER_OBJECT_ACOUSTIC_MARK && priv->wfmark_layer != NULL)
     hyscan_gtk_map_wfmark_mark_view (HYSCAN_GTK_MAP_WFMARK (priv->wfmark_layer), id, FALSE);
-  else if (type == GEO_MARK && priv->geomark_layer != NULL)
+  else if (type == HYSCAN_MODEL_MANAGER_OBJECT_GEO_MARK && priv->geomark_layer != NULL)
     hyscan_gtk_map_geomark_mark_view (HYSCAN_GTK_MAP_GEOMARK (priv->geomark_layer), id, FALSE);
 
 }
